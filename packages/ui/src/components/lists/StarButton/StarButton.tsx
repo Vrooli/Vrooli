@@ -25,6 +25,7 @@ export const StarButton = ({
     // to wait for the mutation to complete
     const [internalIsStar, setInternalIsStar] = useState<boolean | null>(isStar ?? null);
     useEffect(() => setInternalIsStar(isStar ?? false), [isStar]);
+    console.log('Star button', isStar, internalIsStar);
 
     const internalStars = useMemo(() => {
         const starNum = stars ?? 0;
@@ -46,7 +47,7 @@ export const StarButton = ({
             input: { isStar, starFor, forId: objectId },
             onSuccess: (response) => { onChange(response.data.star) },
         })
-    }, [session.id, internalIsStar, objectId, starFor]);
+    }, [session.id, internalIsStar, mutation, starFor, objectId, onChange]);
 
     const Icon = internalIsStar ? IsStarredIcon : IsNotStarredIcon;
     const tooltip = internalIsStar ? 'Remove from favorites' : 'Add to favorites';

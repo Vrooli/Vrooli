@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { FindByIdInput, NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor, RunStatus, RunStepStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: routine
@@ -323,6 +323,37 @@ export interface routine_routine_resourceLists {
   resources: routine_routine_resourceLists_resources[];
 }
 
+export interface routine_routine_runs_steps_node {
+  __typename: "Node";
+  id: string;
+}
+
+export interface routine_routine_runs_steps {
+  __typename: "RunStep";
+  id: string;
+  order: number;
+  pickups: number;
+  timeStarted: any | null;
+  timeElapsed: number | null;
+  timeCompleted: any | null;
+  title: string;
+  status: RunStepStatus;
+  node: routine_routine_runs_steps_node | null;
+}
+
+export interface routine_routine_runs {
+  __typename: "Run";
+  id: string;
+  completedComplexity: number;
+  pickups: number;
+  timeStarted: any | null;
+  timeElapsed: number | null;
+  timeCompleted: any | null;
+  title: string;
+  status: RunStatus;
+  steps: routine_routine_runs_steps[];
+}
+
 export interface routine_routine_tags_translations {
   __typename: "TagTranslation";
   id: string;
@@ -364,6 +395,7 @@ export interface routine_routine {
   owner: routine_routine_owner | null;
   parent: routine_routine_parent | null;
   resourceLists: routine_routine_resourceLists[];
+  runs: routine_routine_runs[];
   score: number;
   simplicity: number;
   stars: number;

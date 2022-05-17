@@ -1,5 +1,5 @@
 import { APP_LINKS } from '@local/shared';
-import { Box, Button, Link, Stack, Typography } from '@mui/material';
+import { Box, Button, Link, Stack, Typography, useTheme } from '@mui/material';
 import {
     Help as FAQIcon,
     Article as WhitePaperIcon,
@@ -9,10 +9,8 @@ import {
 } from '@mui/icons-material';
 import { useLocation } from 'wouter';
 import { clickSize } from 'styles';
-
-/**
- * 
- */
+import { Pubs } from 'utils';
+import { useEffect } from 'react';
 
 const buttonProps = {
     height: "48px",
@@ -31,23 +29,27 @@ const buttonProps = {
 }
 
 export const WelcomePage = () => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
+
+    // Show confetti on page load
+    useEffect(() => {
+        PubSub.publish(Pubs.Celebration);
+    }, []);
 
     return (
         <Box
             sx={{
-                marginTop: '10vh',
                 minHeight: '100vh',
                 width: '100vw',
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
                 textAlign: 'center',
-                background: `linear-gradient(-46deg, #ffba65, #b3629e, #1a5fb5, #41bbb5) 50%/cover no-repeat fixed`,
-                backgroundSize: '400% 400%',
                 animation: 'gradient 15s ease infinite',
                 overflowX: 'hidden',
+                paddingTop: { xs: '64px', md: '80px' },
             }}
         >
             <Box sx={{
@@ -56,9 +58,8 @@ export const WelcomePage = () => {
                 borderRadius: 2,
                 overflow: 'overlay',
                 marginTop: '-5vh',
-                backgroundColor: '#3232324f',
-                backdropFilter: 'blur(10px)',
-                color: 'white',
+                background: palette.mode === 'light' ? palette.primary.dark : palette.background.paper,
+                color: palette.mode === 'light' ? palette.primary.contrastText : palette.background.textPrimary,
             }}>
                 <Typography component="h1" variant="h2" mb={1}>Welcome to Vrooli!</Typography>
                 <Typography component="h2" variant="h4" mb={3}>Not sure where to start?</Typography>
@@ -79,7 +80,7 @@ export const WelcomePage = () => {
                         sx={{ ...buttonProps, marginBottom: 0 }}
                     >Read the White Paper</Button>
                     <Button
-                        onClick={() => setLocation(`${APP_LINKS.Settings}?page=profile`)}
+                        onClick={() => setLocation(`${APP_LINKS.Settings}?page="profile"`)}
                         startIcon={<ProfileIcon />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
                     >Set Up Profile</Button>
@@ -100,7 +101,7 @@ export const WelcomePage = () => {
                             brightness: '120%',
                         }
                     }}>
-                        <Typography sx={{ marginRight: 2, color: (t) => t.palette.secondary.light }}>I know what I'm doing</Typography>
+                        <Typography sx={{ marginRight: 2, color: palette.secondary.light }}>I know what I'm doing</Typography>
                     </Link>
                 </Box>
             </Box>

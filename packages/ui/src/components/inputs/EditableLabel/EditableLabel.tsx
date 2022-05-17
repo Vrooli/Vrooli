@@ -3,7 +3,7 @@
  * Stores new text until committed.
  */
 import { Box, IconButton, Stack, TextField } from '@mui/material';
-import { ChangeEvent, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
     Cancel as CancelIcon,
     Done as DoneIcon,
@@ -37,7 +37,7 @@ export const EditableLabel = ({
     const save = useCallback(() => {
         handleUpdate(changedText);
         setActive(false);
-    }, [changedText]);
+    }, [changedText, handleUpdate]);
     const cancel = useCallback(() => {
         setChangedText(text);
         setActive(false);

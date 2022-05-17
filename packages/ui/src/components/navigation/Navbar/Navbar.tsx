@@ -1,93 +1,81 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import Logo from 'assets/img/Logo.png';
 import { BUSINESS_NAME, APP_LINKS } from '@local/shared';
-import { AppBar, Toolbar, Typography, Theme } from '@mui/material';
-import { makeStyles } from '@mui/styles';
-import { Hamburger } from '../Hamburger/Hamburger';
+import { AppBar, Toolbar, Typography, Box, useTheme } from '@mui/material';
 import { NavList } from '../NavList/NavList';
 import { useLocation } from 'wouter';
 import { NavbarProps } from '../types';
 import { HideOnScroll } from '..';
 
-const SHOW_HAMBURGER_AT = 900;
-
-const useStyles = makeStyles((theme: Theme) => ({
-    root: {
-        background: theme.palette.primary.dark,
-        height: '10vh',
-    },
-    toRight: {
-        marginLeft: 'auto',
-    },
-    navLogoContainer: {
-        padding: 0,
-        display: 'flex',
-        alignItems: 'center',
-    },
-    navLogoDiv: {
-        display: 'flex',
-        padding: 0,
-        cursor: 'pointer',
-        margin: '5px',
-        borderRadius: '500px',
-    },
-    navLogo: {
-        verticalAlign: 'middle',
-        fill: 'black',
-        marginLeft: 'max(-5px, -5vw)',
-        minWidth: '50px',
-        minHeight: '50px',
-        width: '6vh',
-        height: '6vh',
-    },
-    navName: {
-        position: 'relative',
-        cursor: 'pointer',
-        fontSize: '3.5em',
-        fontFamily: `Lato`,
-        color: theme.palette.primary.contrastText,
-    },
-    [theme.breakpoints.down(350)]: {
-        navName: {
-            display: 'none',
-        }
-    },
-}));
-
 export const Navbar = ({
     session,
     sessionChecked,
 }: NavbarProps) => {
-    const classes = useStyles();
+    const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
-    const [show_hamburger, setShowHamburger] = useState(false);
-
-    let child_props = { session, sessionChecked };
-
-    useEffect(() => {
-        updateWindowDimensions();
-        window.addEventListener("resize", updateWindowDimensions);
-
-        return () => window.removeEventListener("resize", updateWindowDimensions);
-    }, []);
-
-    const updateWindowDimensions = () => setShowHamburger(window.innerWidth <= SHOW_HAMBURGER_AT);
 
     const toHome = useCallback(() => setLocation(APP_LINKS.Home), [setLocation]);
 
     return (
         <HideOnScroll>
-            <AppBar className={classes.root}>
+            <AppBar sx={{
+                background: palette.primary.dark,
+                height: { xs: '64px', md: '80px' },
+            }}>
                 <Toolbar>
-                    <div className={classes.navLogoContainer} onClick={toHome}>
-                        <div className={classes.navLogoDiv}>
-                            <img src={Logo} alt={`${BUSINESS_NAME} Logo`} className={classes.navLogo} />
-                        </div>
-                        <Typography className={classes.navName} variant="h6" noWrap>{BUSINESS_NAME}</Typography>
-                    </div>
-                    <div className={classes.toRight}>
-                        {show_hamburger ? <Hamburger {...child_props} /> : <NavList {...child_props} />}
-                    </div>
+                    <Box
+                        onClick={toHome}
+                        sx={{
+                            padding: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                        }}
+                    >
+                        <Box sx={{
+                            display: 'flex',
+                            padding: 0,
+                            cursor: 'pointer',
+                            margin: '5px',
+                            borderRadius: '500px',
+                        }}>
+                            <Box
+                                component="img"
+                                src={Logo}
+                                alt={`${BUSINESS_NAME} Logo`}
+                                sx={{
+                                    verticalAlign: 'middle',
+                                    fill: 'black',
+                                    marginLeft: 'max(-5px, -5vw)',
+                                    width: '48px',
+                                    height: '48px',
+                                    [breakpoints.up('md')]: {
+                                        width: '6vh',
+                                        height: '6vh',
+                                    },
+                                }}
+                            />
+                        </Box>
+                        <Typography
+                            variant="h6"
+                            noWrap
+                            sx={{
+                                position: 'relative',
+                                cursor: 'pointer',
+                                fontSize: '3.5em',
+                                fontFamily: `Lato`,
+                                color: palette.primary.contrastText,
+                                [breakpoints.down(400)]: {
+                                    fontSize: '3em',
+                                },
+                            }}
+                        >{BUSINESS_NAME}</Typography>
+                    </Box>
+                    <Box sx={{
+                        marginLeft: 'auto',
+                        maxHeight: '100%',
+                    }}>
+                        <NavList session={session} sessionChecked={sessionChecked} />
+                    </Box>
                 </Toolbar>
             </AppBar>
         </HideOnScroll>

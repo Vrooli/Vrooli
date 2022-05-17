@@ -2,9 +2,9 @@
  * Displays a list of wallets for the user to manage
  */
 import { WalletListProps } from '../types';
-import { MouseEvent, useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Wallet } from 'types';
-import { Box, Button, Dialog, ListItem, ListItemText, Typography } from '@mui/material';
+import { Box, Button, Dialog, ListItem, ListItemText, Typography, useTheme } from '@mui/material';
 import {
     Add as AddIcon,
 } from '@mui/icons-material';
@@ -12,7 +12,7 @@ import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { Pubs, updateArray } from 'utils';
 import { walletDeleteOneMutation, walletUpdateMutation } from 'graphql/mutation';
-import { hasWalletExtension, validateWallet, WalletProvider, walletProviderInfo } from 'utils/walletIntegration';
+import { hasWalletExtension, validateWallet, WalletProvider, walletProviderInfo } from 'utils/authentication/walletIntegration';
 import { WalletListItem } from '../WalletListItem/WalletListItem';
 
 export const WalletList = ({
@@ -20,6 +20,7 @@ export const WalletList = ({
     numVerifiedEmails,
     list,
 }: WalletListProps) => {
+    const { palette } = useTheme();
 
     const [updateMutation, { loading: loadingUpdate }] = useMutation<any>(walletUpdateMutation);
     const onUpdate = useCallback((index: number, updatedWallet: Wallet) => {
@@ -33,7 +34,7 @@ export const WalletList = ({
                 handleUpdate(updateArray(list, index, updatedWallet));
             },
         })
-    }, [handleUpdate, list]);
+    }, [handleUpdate, list, updateMutation]);
 
     const [deleteMutation, { loading: loadingDelete }] = useMutation<any>(walletDeleteOneMutation);
     const onDelete = useCallback((wallet: Wallet) => {
@@ -61,7 +62,7 @@ export const WalletList = ({
                 { text: 'Cancel', onClick: () => { } },
             ]
         });
-    }, [handleUpdate, list, numVerifiedEmails]);
+    }, [deleteMutation, handleUpdate, list, numVerifiedEmails]);
 
     // Opens link to install wallet extension
     const downloadExtension = useCallback((provider: WalletProvider) => {
@@ -82,7 +83,7 @@ export const WalletList = ({
         setWalletDialogFor('verify');
         setSelectedIndex(index);
         setproviderOpen(true);
-    }, []);
+    }, [list]);
     const openProviderDownloadDialog = useCallback(() => {
         setWalletDialogFor('download');
         setproviderOpen(true);
@@ -145,7 +146,7 @@ export const WalletList = ({
                 verified: true,
             }));
         }
-    }, [selectedIndex]);
+    }, [handleUpdate, list, openProviderDownloadDialog, selectedIndex]);
 
     const handleProviderClose = useCallback(() => {
         setproviderOpen(false);
@@ -159,7 +160,7 @@ export const WalletList = ({
             downloadExtension(selected);
         }
         handleProviderClose();
-    }, [addWallet, downloadExtension, handleProviderClose, list, verifyWallet, walletDialogFor])
+    }, [addWallet, downloadExtension, handleProviderClose, verifyWallet, walletDialogFor])
 
     return (
         <>
@@ -176,7 +177,7 @@ export const WalletList = ({
                         padding: 1,
                         paddingLeft: 2,
                         paddingRight: 2,
-                        background: (t) => t.palette.primary.dark,
+                        background: palette.primary.dark,
                         color: 'white',
                     }}
                 >

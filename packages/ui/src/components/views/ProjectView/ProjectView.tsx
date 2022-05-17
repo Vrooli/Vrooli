@@ -1,6 +1,6 @@
-import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
+import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS, MemberRole, ResourceListUsedFor, StarFor } from "@local/shared";
+import { APP_LINKS, ResourceListUsedFor, StarFor } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
 import { project, projectVariables } from "graphql/generated/project";
 import { routinesQuery, standardsQuery, projectQuery } from "graphql/query";
@@ -9,7 +9,6 @@ import {
     CardGiftcard as DonateIcon,
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
-    Person as PersonIcon,
     Share as ShareIcon,
     Today as CalendarIcon,
 } from "@mui/icons-material";
@@ -19,8 +18,9 @@ import { ProjectViewProps } from "../types";
 import { Project, ResourceList } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
+import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
 import { validate as uuidValidate } from 'uuid';
+import { owns } from "utils/authentication";
 
 enum TabOptions {
     Resources = "Resources",
@@ -32,6 +32,7 @@ export const ProjectView = ({
     partialData,
     session,
 }: ProjectViewProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Project}/:id`);
@@ -46,7 +47,7 @@ export const ProjectView = ({
     useEffect(() => {
         setProject(data?.project);
     }, [data]);
-    const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(project?.role ?? ''), [project]);
+    const canEdit = useMemo<boolean>(() => owns(project?.role), [project]);
 
     const [language, setLanguage] = useState<string>('');
     const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
@@ -55,7 +56,7 @@ export const ProjectView = ({
         const userLanguages = getUserLanguages(session);
         setAvailableLanguages(availableLanguages);
         setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
-    }, [project]);
+    }, [project, session]);
 
     const { name, description, handle, resourceList } = useMemo(() => {
         const resourceList: ResourceList | undefined = Array.isArray(project?.resourceLists) ? project?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
@@ -107,15 +108,15 @@ export const ProjectView = ({
 
     const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
-    const shareLink = () => {
+    const shareLink = useCallback(() => {
         navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.Project}/${id}`);
         PubSub.publish(Pubs.Snack, { message: 'Copied🎉' })
-    }
+    }, [id]);
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal page
         setLocation(Boolean(params?.id) ? `${APP_LINKS.Project}/edit/${id}` : `${APP_LINKS.SearchProjects}/edit/${id}`);
-    }, [setLocation, id]);
+    }, [setLocation, params?.id, id]);
 
     // Determine options available to object, in order
     const moreOptions: BaseObjectAction[] = useMemo(() => {
@@ -157,7 +158,7 @@ export const ProjectView = ({
                     defaultSortOption: routineDefaultSortOption,
                     searchQuery: routinesQuery,
                     where: { projectId: id },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Run, newValue.id),
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 };
             case TabOptions.Standards:
                 return {
@@ -183,7 +184,7 @@ export const ProjectView = ({
                     searchItemFactory: (a: any, b: any) => null
                 }
         }
-    }, [currTabType, id, session]);
+    }, [currTabType, id, setLocation]);
 
     // Handle url search
     const [searchString, setSearchString] = useState<string>('');
@@ -204,29 +205,9 @@ export const ProjectView = ({
             ml='auto'
             mr='auto'
             mt={3}
-            bgcolor={(t) => t.palette.background.paper}
+            bgcolor={palette.background.paper}
             sx={{ ...containerShadow }}
         >
-            <Box
-                width={'min(100px, 25vw)'}
-                height={'min(100px, 25vw)'}
-                borderRadius='100%'
-                border={(t) => `4px solid ${t.palette.primary.dark}`}
-                bgcolor='#939eb9'
-                position='absolute'
-                display='flex'
-                justifyContent='center'
-                alignItems='center'
-                left='50%'
-                top="-55px"
-                sx={{ transform: 'translateX(-50%)' }}
-            >
-                <PersonIcon sx={{
-                    fill: '#cfd0d1',
-                    width: '80%',
-                    height: '80%',
-                }} />
-            </Box>
             <Tooltip title="See all options">
                 <IconButton
                     aria-label="More"
@@ -257,7 +238,10 @@ export const ProjectView = ({
                                     size="small"
                                     onClick={onEdit}
                                 >
-                                    <EditIcon color="primary" />
+                                    <EditIcon sx={{
+                                        fill: palette.mode === 'light' ? 
+                                            palette.primary.main : palette.secondary.light,
+                                    }} />
                                 </IconButton>
                             </Tooltip>
                         </Stack>
@@ -272,7 +256,7 @@ export const ProjectView = ({
                             variant="h6"
                             textAlign="center"
                             sx={{
-                                color: (t) => t.palette.secondary.dark,
+                                color: palette.secondary.dark,
                                 cursor: 'pointer',
                             }}
                         >${handle}</Typography>
@@ -287,7 +271,7 @@ export const ProjectView = ({
                     ) : (
                         project?.created_at && (<Box sx={{ display: 'flex' }} >
                             <CalendarIcon />
-                            {`Created ${new Date(project.created_at).toLocaleDateString(navigator.language, { year: 'numeric', month: 'long' })}`}
+                            {`Created ${displayDate(project.created_at, false)}`}
                         </Box>)
                     )
                 }
@@ -299,7 +283,7 @@ export const ProjectView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Typography variant="body1" sx={{ color: description ? 'black' : 'gray' }}>{description ?? 'No description set'}</Typography>
+                        <Typography variant="body1" sx={{ color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary }}>{description ?? 'No description set'}</Typography>
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -327,7 +311,7 @@ export const ProjectView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [handle, name, project, partialData, canEdit, openMoreMenu, session]);
+    ), [palette.background.paper, palette.primary.dark, palette.primary.main, palette.mode, palette.secondary.light, palette.secondary.dark, openMoreMenu, loading, canEdit, name, onEdit, handle, project?.created_at, project?.id, project?.isStarred, project?.stars, description, shareLink, session]);
 
     /**
     * Opens add new page
@@ -341,7 +325,7 @@ export const ProjectView = ({
                 setLocation(`${APP_LINKS.Standard}/add`);
                 break;
         }
-    }, [currTabType]);
+    }, [currTabType, setLocation]);
 
     return (
         <>

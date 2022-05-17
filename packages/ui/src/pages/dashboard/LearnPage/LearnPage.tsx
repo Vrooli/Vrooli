@@ -1,16 +1,14 @@
-import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
+import { useLazyQuery, useQuery } from '@apollo/client';
+import { APP_LINKS } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
-import { HelpButton, ProjectListItem, ResourceListHorizontal, RoutineListItem, TitleContainer } from 'components';
-import { ProjectSortBy, ResourceListUsedFor, ResourceUsedFor, RoutineSortBy } from 'graphql/generated/globalTypes';
+import { HelpButton, ResourceListHorizontal, TitleContainer } from 'components';
+import { ResourceListUsedFor } from 'graphql/generated/globalTypes';
 import { learnPage } from 'graphql/generated/learnPage';
 import { profile } from 'graphql/generated/profile';
-import { projects, projectsVariables } from 'graphql/generated/projects';
-import { routines, routinesVariables } from 'graphql/generated/routines';
-import { profileUpdateMutation } from 'graphql/mutation';
-import { learnPageQuery, profileQuery, projectsQuery, routinesQuery } from 'graphql/query';
-import { useCallback, useEffect, useMemo } from 'react';
+import { learnPageQuery, profileQuery } from 'graphql/query';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Project, ResourceList, Routine } from 'types';
-import { listToListItems, openObject } from 'utils';
+import { listToListItems, openObject, stringifySearchParams } from 'utils';
 import { useLocation } from 'wouter';
 import { LearnPageProps } from '../types';
 
@@ -39,42 +37,82 @@ export const LearnPage = ({
     const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
-
-    const resourceList: ResourceList = useMemo(() => {
-        return (profileData?.profile?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Learn) ?? []) as ResourceList;
+    const [resourceList, setResourceList] = useState<ResourceList | null>(null);
+    useEffect(() => {
+        if (!profileData?.profile?.resourceLists) return;
+        const list = profileData.profile.resourceLists.find(list => list.usedFor === ResourceListUsedFor.Learn) ?? null;
+        setResourceList(list);
     }, [profileData]);
-    const [updateResources] = useMutation<profile>(profileUpdateMutation);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
-        getProfile();
-    }, [updateResources]);
+        setResourceList(updatedList);
+    }, []);
 
     const { data: learnPageData, loading: learnPageLoading } = useQuery<learnPage>(learnPageQuery);
 
     /**
      * Opens page for list item
      */
-     const toItemPage = useCallback((event: any, item: Project | Routine) => {
+     const toItemPage = useCallback((item: Project | Routine, event: any) => {
         event?.stopPropagation();
         // Navigate to item page
         openObject(item, setLocation);
     }, [setLocation]);
 
-    const courses = useMemo(() => listToListItems(
-        learnPageData?.learnPage?.courses ?? [],
-        session,
-        'course-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [learnPageData, session])
+    /**
+     * Navigates to "New Project" page, with "Learn" tag as default
+     */
+    const toCreateCourse = useCallback((event: any) => {
+        event?.stopPropagation();
+        setLocation(`${APP_LINKS.Project}/add${stringifySearchParams({ tags: ['Learn'] })}`);
+    }, [setLocation]);
 
-    const tutorials = useMemo(() => listToListItems(
-        learnPageData?.learnPage?.tutorials ?? [],
+    /**
+     * Navigates to "New Routine" page, with "Learn" tag as default
+     */
+    const toCreateTutorial = useCallback((event: any) => {
+        event?.stopPropagation();
+        setLocation(`${APP_LINKS.Routine}/add${stringifySearchParams({ tags: ['Learn'] })}`);
+    }, [setLocation]);
+
+    /**
+     * Navigates to "Project Search" page, with "Learn" tag as default
+     */
+    const toSeeAllCourses = useCallback((event: any) => {
+        event?.stopPropagation();
+        setLocation(`${APP_LINKS.SearchProjects}${stringifySearchParams({ tags: ['Learn'] })}`);
+    }, [setLocation]);
+
+    /**
+     * Navigates to "Routine Search" page, with "Learn" tag as default
+     */
+    const toSeeAllTutorials = useCallback((event: any) => {
+        event?.stopPropagation();
+        setLocation(`${APP_LINKS.SearchRoutines}${stringifySearchParams({ tags: ['Learn'] })}`);
+    }, [setLocation]);
+
+    const courses = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Project'),
+        items: learnPageData?.learnPage?.courses,
+        keyPrefix: 'course-list-item',
+        loading: learnPageLoading,
+        onClick: toItemPage,
         session,
-        'tutorial-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [learnPageData, session])
+    }), [learnPageData?.learnPage?.courses, learnPageLoading, session, toItemPage])
+
+    const tutorials = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Routine'),
+        items: learnPageData?.learnPage?.tutorials,
+        keyPrefix: 'tutorial-list-item',
+        loading: learnPageLoading,
+        onClick: toItemPage,
+        session,
+    }), [learnPageData?.learnPage?.tutorials, learnPageLoading, session, toItemPage])
 
     return (
-        <Box id="page">
+        <Box id='page' sx={{
+            padding: '0.5em',
+            paddingTop: { xs: '64px', md: '80px' },
+        }}>
             {/* Title and help button */}
             <Stack
                 direction="row"
@@ -99,9 +137,8 @@ export const LearnPage = ({
                 <TitleContainer
                     title={"Courses"}
                     helpText={courseText}
-                    loading={learnPageLoading}
-                    onClick={() => { }}
-                    options={[['Create', () => { }], ['See all', () => { }]]}
+                    onClick={toSeeAllCourses}
+                    options={[['Create', toCreateCourse], ['See all', toSeeAllCourses]]}
                 >
                     {courses}
                 </TitleContainer>
@@ -109,9 +146,8 @@ export const LearnPage = ({
                 <TitleContainer
                     title={"Tutorials"}
                     helpText={tutorialText}
-                    loading={learnPageLoading}
-                    onClick={() => { }}
-                    options={[['Create', () => { }], ['See all', () => { }]]}
+                    onClick={toSeeAllTutorials}
+                    options={[['Create', toCreateTutorial], ['See all', toSeeAllTutorials]]}
                 >
                     {tutorials}
                 </TitleContainer>

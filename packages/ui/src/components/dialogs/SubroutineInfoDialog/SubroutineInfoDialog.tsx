@@ -2,7 +2,7 @@
  * Drawer to display a routine list item's info on the build page. 
  * Swipes up from bottom of screen
  */
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     AccountTree as GraphIcon,
     Close as CloseIcon,
@@ -16,16 +16,16 @@ import {
     Stack,
     SwipeableDrawer,
     Typography,
+    useTheme,
 } from '@mui/material';
 import { useLocation } from 'wouter';
-import { User } from 'types';
 import { SubroutineInfoDialogProps } from '../types';
-import { getOwnedByString, getTranslation, Pubs, toOwnedBy } from 'utils';
-import { APP_LINKS } from '@local/shared';
+import { getOwnedByString, getTranslation, toOwnedBy } from 'utils';
 import Markdown from 'markdown-to-jsx';
 import { routineUpdateForm as validationSchema } from '@local/shared';
-import { MarkdownInput } from 'components/inputs';
+import { InputOutputContainer, MarkdownInput } from 'components';
 import { useFormik } from 'formik';
+import { RoutineInputList, RoutineOutputList } from 'types';
 
 export const SubroutineInfoDialog = ({
     handleUpdate,
@@ -33,13 +33,32 @@ export const SubroutineInfoDialog = ({
     isEditing,
     open,
     language,
+    session,
     subroutine,
     onClose,
 }: SubroutineInfoDialogProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const ownedBy = useMemo<string | null>(() => getOwnedByString(subroutine, [language]), [subroutine, language]);
     const toOwner = useCallback(() => { toOwnedBy(subroutine, setLocation) }, [subroutine, setLocation]);
+
+    // Handle inputs
+    const [inputsList, setInputsList] = useState<RoutineInputList>([]);
+    const handleInputsUpdate = useCallback((updatedList: RoutineInputList) => {
+        setInputsList(updatedList);
+    }, [setInputsList]);
+
+    // Handle outputs
+    const [outputsList, setOutputsList] = useState<RoutineOutputList>([]);
+    const handleOutputsUpdate = useCallback((updatedList: RoutineOutputList) => {
+        setOutputsList(updatedList);
+    }, [setOutputsList]);
+
+    useEffect(() => {
+        setInputsList(subroutine?.inputs ?? []);
+        setOutputsList(subroutine?.outputs ?? []);
+    }, [subroutine]);
 
     // Handle update
     const formik = useFormik({
@@ -84,8 +103,7 @@ export const SubroutineInfoDialog = ({
             onClose={onClose}
             sx={{
                 '& .MuiDrawer-paper': {
-                    background: (t) => t.palette.background.default,
-                    borderLeft: `1px solid ${(t) => t.palette.text.primary}`,
+                    background: palette.background.default,
                     maxHeight: 'min(300px, 100vh)',
                 }
             }}
@@ -95,15 +113,15 @@ export const SubroutineInfoDialog = ({
                 display: 'flex',
                 flexDirection: 'row',
                 alignItems: 'center',
-                background: (t) => t.palette.primary.dark,
-                color: (t) => t.palette.primary.contrastText,
+                background: palette.primary.dark,
+                color: palette.primary.contrastText,
                 padding: 1,
             }}>
                 {/* Close button */}
                 <IconButton onClick={onClose} sx={{
-                    color: (t) => t.palette.primary.contrastText,
+                    color: palette.primary.contrastText,
                     borderRadius: 0,
-                    borderBottom: `1px solid ${(t) => t.palette.primary.dark}`,
+                    borderBottom: `1px solid ${palette.primary.dark}`,
                     justifyContent: 'end',
                 }}>
                     <CloseIcon fontSize="large" />
@@ -114,10 +132,10 @@ export const SubroutineInfoDialog = ({
                 <Stack direction="row" sx={{ marginLeft: 'auto' }}>
                     {ownedBy ? (
                         <Link onClick={toOwner}>
-                            <Typography variant="body1" sx={{ color: (t) => t.palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy} - </Typography>
+                            <Typography variant="body1" sx={{ color: palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy}</Typography>
                         </Link>
                     ) : null}
-                    <Typography variant="body1">{subroutine?.version}</Typography>
+                    <Typography variant="body1"> - {subroutine?.version}</Typography>
                 </Stack>
             </Box>
             {/* Main content */}
@@ -131,7 +149,7 @@ export const SubroutineInfoDialog = ({
                     <Grid item xs={12} sm={6}>
                         <Box sx={{
                             padding: 1,
-                            border: `1px solid ${(t) => t.palette.primary.dark}`,
+                            border: `1px solid ${palette.primary.dark}`,
                             borderRadius: 1,
                         }}>
                             <Typography variant="h6">Description</Typography>
@@ -156,7 +174,7 @@ export const SubroutineInfoDialog = ({
                     <Grid item xs={12} sm={6}>
                         <Box sx={{
                             padding: 1,
-                            border: `1px solid ${(t) => t.palette.background.paper}`,
+                            border: `1px solid ${palette.background.paper}`,
                             borderRadius: 1,
                         }}>
                             <Typography variant="h6">Instructions</Typography>
@@ -177,6 +195,28 @@ export const SubroutineInfoDialog = ({
                             }
                         </Box>
                     </Grid>
+                    {/* Inputs */}
+                    <Grid item xs={12} sm={6}>
+                        <InputOutputContainer
+                            isEditing={isEditing}
+                            handleUpdate={handleInputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
+                            isInput={true}
+                            language={language}
+                            list={inputsList}
+                            session={session}
+                        />
+                    </Grid>
+                    {/* Outputs */}
+                    <Grid item xs={12} sm={6}>
+                        <InputOutputContainer
+                            isEditing={isEditing}
+                            handleUpdate={handleOutputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
+                            isInput={false}
+                            language={language}
+                            list={outputsList}
+                            session={session}
+                        />
+                    </Grid>
                 </Grid>
             </Box>
             {/* Bottom nav container */}
@@ -189,7 +229,7 @@ export const SubroutineInfoDialog = ({
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: 1,
-                    background: (t) => t.palette.primary.dark,
+                    background: palette.primary.dark,
                 }}>
                     <Button
                         color="secondary"

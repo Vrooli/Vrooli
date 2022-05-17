@@ -55,14 +55,14 @@ const darkTheme = createTheme({
     palette: {
         mode: 'dark',
         primary: {
-            light: '#39676d',
-            main: '#073c42',
-            dark: '#00171b',
+            light: '#53535f',
+            main: '#32323a',
+            dark: '#232328',
         },
         secondary: {
-            light: '#b5ffec',
-            main: '#83d1ba',
-            dark: '#52a08a',
+            light: '#5b99da',
+            main: '#4372a3',
+            dark: '#344eb5',
         },
         background: {
             default: '#000000',

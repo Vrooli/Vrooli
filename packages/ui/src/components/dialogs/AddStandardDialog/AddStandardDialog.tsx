@@ -5,7 +5,8 @@ import {
     DialogContent,
     IconButton,
     Stack,
-    Typography
+    Typography,
+    useTheme
 } from '@mui/material';
 import { BaseObjectDialog, HelpButton } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -32,6 +33,7 @@ export const AddStandardDialog = ({
     isOpen,
     session,
 }: AddStandardDialogProps) => {
+    const { palette } = useTheme();
 
     // Create new standard dialog
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -46,7 +48,7 @@ export const AddStandardDialog = ({
     }, [setIsCreateOpen]);
 
     // If standard selected from search, query for full data
-    const [getStandard, { data: standardData, loading }] = useLazyQuery<standard, standardVariables>(standardQuery);
+    const [getStandard, { data: standardData }] = useLazyQuery<standard, standardVariables>(standardQuery);
     const handeStandardSelect = useCallback((standard: Standard) => {
         // Query for full standard data, if not already known (would be known if the same standard was selected last time)
         if (standardData?.standard?.id === standard.id) {
@@ -61,7 +63,7 @@ export const AddStandardDialog = ({
             handleAdd(standardData.standard);
             handleClose();
         }
-    }, [handleCreateClose, standardData]);
+    }, [handleAdd, handleClose, handleCreateClose, standardData]);
 
     /**
      * Title bar with help button and close icon
@@ -69,8 +71,8 @@ export const AddStandardDialog = ({
     const titleBar = useMemo(() => (
         <Box sx={{
             alignItems: 'center',
-            background: (t) => t.palette.primary.dark,
-            color: (t) => t.palette.primary.contrastText,
+            background: palette.primary.dark,
+            color: palette.primary.contrastText,
             display: 'flex',
             justifyContent: 'space-between',
             padding: 2,
@@ -84,11 +86,11 @@ export const AddStandardDialog = ({
                     edge="start"
                     onClick={(e) => { handleClose() }}
                 >
-                    <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
+                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
                 </IconButton>
             </Box>
         </Box>
-    ), [])
+    ), [handleClose, palette.primary.contrastText, palette.primary.dark])
 
     const [searchString, setSearchString] = useState<string>('');
     const [sortBy, setSortBy] = useState<string | undefined>(undefined);
@@ -120,18 +122,6 @@ export const AddStandardDialog = ({
             {titleBar}
             <DialogContent>
                 <Stack direction="column" spacing={4}>
-                    <Button
-                        fullWidth
-                        onClick={handleCreateOpen}
-                        startIcon={<CreateIcon />}
-                    >Create</Button>
-                    <Box sx={{
-                        alignItems: 'center',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                    }}>
-                        <Typography variant="h6" sx={{ marginLeft: 'auto', marginRight: 'auto' }}>Or</Typography>
-                    </Box>
                     <SearchList
                         itemKeyPrefix='standard-list-item'
                         defaultSortOption={standardDefaultSortOption}
@@ -149,6 +139,11 @@ export const AddStandardDialog = ({
                         take={20}
                         timeFrame={timeFrame}
                     />
+                    <Button
+                        fullWidth
+                        onClick={handleCreateOpen}
+                        startIcon={<CreateIcon />}
+                    >Create New</Button>
                 </Stack>
             </DialogContent>
         </Dialog>

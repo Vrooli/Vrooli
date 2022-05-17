@@ -6,7 +6,8 @@ import {
     IconButton,
     Stack,
     TextField,
-    Typography
+    Typography,
+    useTheme
 } from '@mui/material';
 import { DeleteRoutineDialogProps } from '../types';
 import { Close as CloseIcon } from '@mui/icons-material';
@@ -18,6 +19,8 @@ export const DeleteRoutineDialog = ({
     isOpen,
     routineName,
 }: DeleteRoutineDialogProps) => {
+    const { palette } = useTheme();
+
     // Stores user-inputted name of routine to be deleted
     const [routineNameInput, setRoutineNameInput] = useState<string>(routineName);
 
@@ -29,8 +32,8 @@ export const DeleteRoutineDialog = ({
             aria-describedby="delete-routine-dialog-description"
         >
             <Box sx={{
-                background: (t) => t.palette.primary.dark,
-                color: (t) => t.palette.primary.contrastText,
+                background: palette.primary.dark,
+                color: palette.primary.contrastText,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -41,13 +44,13 @@ export const DeleteRoutineDialog = ({
                     flexDirection: 'row-reverse',
                     marginLeft: 'auto',
                 }}>
-                    <CloseIcon fontSize="large" sx={{ fill: (t) => t.palette.primary.contrastText }} />
+                    <CloseIcon fontSize="large" sx={{ fill: palette.primary.contrastText }} />
                 </IconButton>
             </Box>
             <DialogContent>
                 <Stack direction="column" spacing="2">
                     <Typography variant="h6">Are you absolutely certain you want to delete this routine?</Typography>
-                    <Typography variant="body1" sx={{ color: (t) => t.palette.background.textSecondary, paddingBottom: 3 }}>This action cannot be undone. Subroutines will not be deleted.</Typography>
+                    <Typography variant="body1" sx={{ color: palette.background.textSecondary, paddingBottom: 3 }}>This action cannot be undone. Subroutines will not be deleted.</Typography>
                     <Typography variant="h6" sx={{ paddingBottom: 1 }}>Please type <b>{routineName}</b> to confirm.</Typography>
                     <TextField
                         label="Routine Name"

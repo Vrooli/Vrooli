@@ -9,6 +9,7 @@ export * from './projectFields';
 export * from './reportFields';
 export * from './resourceFields';
 export * from './routineFields';
+export * from './runFields';
 export * from './sessionFields';
 export * from './standardFields';
 export * from './tagFields';

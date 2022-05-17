@@ -150,6 +150,31 @@ export enum RoutineSortBy {
   VotesDesc = "VotesDesc",
 }
 
+export enum RunSortBy {
+  DateCompletedAsc = "DateCompletedAsc",
+  DateCompletedDesc = "DateCompletedDesc",
+  DateCreatedAsc = "DateCreatedAsc",
+  DateCreatedDesc = "DateCreatedDesc",
+  DateStartedAsc = "DateStartedAsc",
+  DateStartedDesc = "DateStartedDesc",
+  DateUpdatedAsc = "DateUpdatedAsc",
+  DateUpdatedDesc = "DateUpdatedDesc",
+}
+
+export enum RunStatus {
+  Cancelled = "Cancelled",
+  Completed = "Completed",
+  Failed = "Failed",
+  InProgress = "InProgress",
+  Scheduled = "Scheduled",
+}
+
+export enum RunStepStatus {
+  Completed = "Completed",
+  InProgress = "InProgress",
+  Skipped = "Skipped",
+}
+
 export enum StandardSortBy {
   CommentsAsc = "CommentsAsc",
   CommentsDesc = "CommentsDesc",
@@ -551,6 +576,7 @@ export interface OrganizationSearchInput {
   isOpenToNewMembers?: boolean | null;
   languages?: string[] | null;
   minStars?: number | null;
+  minViews?: number | null;
   projectId?: string | null;
   reportId?: string | null;
   resourceLists?: string[] | null;
@@ -627,9 +653,9 @@ export interface ProfileUpdateInput {
   handle?: string | null;
   name?: string | null;
   theme?: string | null;
-  hiddenTagsConnect?: string[] | null;
-  hiddenTagsDisconnect?: string[] | null;
-  hiddenTagsCreate?: TagCreateInput[] | null;
+  hiddenTagsDelete?: string[] | null;
+  hiddenTagsCreate?: TagHiddenCreateInput[] | null;
+  hiddenTagsUpdate?: TagHiddenUpdateInput[] | null;
   resourceListsDelete?: string[] | null;
   resourceListsCreate?: ResourceCreateInput[] | null;
   resourceListsUpdate?: ResourceUpdateInput[] | null;
@@ -665,6 +691,7 @@ export interface ProjectSearchInput {
   languages?: string[] | null;
   minScore?: number | null;
   minStars?: number | null;
+  minViews?: number | null;
   organizationId?: string | null;
   parentId?: string | null;
   reportId?: string | null;
@@ -819,14 +846,6 @@ export interface ResourceUpdateInput {
   usedFor?: ResourceUsedFor | null;
 }
 
-export interface RoutineCancelInput {
-  id: string;
-}
-
-export interface RoutineCompleteInput {
-  id: string;
-}
-
 export interface RoutineCountInput {
   createdTimeFrame?: TimeFrame | null;
   updatedTimeFrame?: TimeFrame | null;
@@ -857,13 +876,17 @@ export interface RoutineSearchInput {
   excludeIds?: string[] | null;
   ids?: string[] | null;
   isComplete?: boolean | null;
+  isInternal?: boolean | null;
   languages?: string[] | null;
   minComplexity?: number | null;
   maxComplexity?: number | null;
   minSimplicity?: number | null;
   maxSimplicity?: number | null;
+  maxTimesCompleted?: number | null;
   minScore?: number | null;
   minStars?: number | null;
+  minTimesCompleted?: number | null;
+  minViews?: number | null;
   organizationId?: string | null;
   projectId?: string | null;
   parentId?: string | null;
@@ -876,10 +899,6 @@ export interface RoutineSearchInput {
   take?: number | null;
   updatedTimeFrame?: TimeFrame | null;
   userId?: string | null;
-}
-
-export interface RoutineStartInput {
-  id: string;
 }
 
 export interface RoutineTranslationCreateInput {
@@ -929,6 +948,67 @@ export interface RoutineUpdateInput {
   translationsUpdate?: RoutineTranslationUpdateInput[] | null;
 }
 
+export interface RunCancelInput {
+  id: string;
+}
+
+export interface RunCompleteInput {
+  id?: string | null;
+  exists?: boolean | null;
+  pickups?: number | null;
+  timeElapsed?: number | null;
+}
+
+export interface RunCountInput {
+  createdTimeFrame?: TimeFrame | null;
+  updatedTimeFrame?: TimeFrame | null;
+}
+
+export interface RunCreateInput {
+  routineId: string;
+  title: string;
+  version: string;
+}
+
+export interface RunSearchInput {
+  after?: string | null;
+  createdTimeFrame?: TimeFrame | null;
+  startedTimeFrame?: TimeFrame | null;
+  completedTimeFrame?: TimeFrame | null;
+  excludeIds?: string[] | null;
+  ids?: string[] | null;
+  status?: RunStatus | null;
+  routineId?: string | null;
+  searchString?: string | null;
+  sortBy?: RunSortBy | null;
+  take?: number | null;
+  updatedTimeFrame?: TimeFrame | null;
+}
+
+export interface RunStepCreateInput {
+  nodeId: string;
+  order: number;
+  step: number[];
+  title: string;
+}
+
+export interface RunStepUpdateInput {
+  id: string;
+  pickups?: number | null;
+  status?: RunStepStatus | null;
+  timeElapsed?: number | null;
+}
+
+export interface RunUpdateInput {
+  id: string;
+  completedComplexity?: number | null;
+  pickups?: number | null;
+  timeElapsed?: number | null;
+  stepsDelete?: string[] | null;
+  stepsCreate?: RunStepCreateInput[] | null;
+  stepsUpdate?: RunStepUpdateInput[] | null;
+}
+
 export interface SendVerificationEmailInput {
   emailAddress: string;
 }
@@ -959,6 +1039,7 @@ export interface StandardSearchInput {
   languages?: string[] | null;
   minScore?: number | null;
   minStars?: number | null;
+  minViews?: number | null;
   organizationId?: string | null;
   projectId?: string | null;
   reportId?: string | null;
@@ -1008,6 +1089,17 @@ export interface TagCreateInput {
   anonymous?: boolean | null;
   tag: string;
   translationsCreate?: TagTranslationCreateInput[] | null;
+}
+
+export interface TagHiddenCreateInput {
+  isBlur?: boolean | null;
+  tagCreate?: TagCreateInput | null;
+  tagConnect?: string | null;
+}
+
+export interface TagHiddenUpdateInput {
+  id?: string | null;
+  isBlur?: boolean | null;
 }
 
 export interface TagSearchInput {
@@ -1061,6 +1153,7 @@ export interface UserDeleteInput {
 export interface UserSearchInput {
   languages?: string[] | null;
   minStars?: number | null;
+  minViews?: number | null;
   organizationId?: string | null;
   projectId?: string | null;
   routineId?: string | null;

@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { projectUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { projectUpdateMutation } from "graphql/mutation";
-import { formatForUpdate } from "utils";
+import { formatForUpdate, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -19,7 +19,7 @@ import { DialogActionItem } from "components/containers/types";
 import { TagSelectorTag } from "components/inputs/types";
 import { LanguageInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { ListOrganization, Project, ResourceList } from "types";
+import { ListOrganization, NewObject, Project, ResourceList } from "types";
 import { v4 as uuidv4 } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 
@@ -36,7 +36,7 @@ export const ProjectUpdate = ({
     const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery);
     useEffect(() => {
         if (id) getData({ variables: { input: { id } } });
-    }, [id])
+    }, [getData, id])
     const project = useMemo(() => data?.project, [data]);
 
     // Handle user/organization switch
@@ -62,11 +62,7 @@ export const ProjectUpdate = ({
     }, [setTags]);
 
     // Handle translations
-    type Translation = {
-        language: string;
-        description: string;
-        name: string;
-    };
+    type Translation = NewObject<Project['translations'][0]>;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -74,20 +70,12 @@ export const ProjectUpdate = ({
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
         // Find translation
         const index = translations.findIndex(t => language === t.language);
-        // If language exists, update
-        if (index >= 0) {
-            const newTranslations = [...translations];
-            newTranslations[index] = { ...translation };
-            return newTranslations;
-        }
-        // Otherwise, add new
-        else {
-            return [...translations, translation];
-        }
+        // Add to array, or update if found
+        return index >= 0 ? updateArray(translations, index, translation) : [...translations, translation];
     }, [translations]);
     const updateTranslation = useCallback((language: string, translation: Translation) => {
         setTranslations(getTranslationsUpdate(language, translation));
-    }, [translations, setTranslations]);
+    }, [getTranslationsUpdate]);
 
     useEffect(() => {
         if (project?.owner?.__typename === 'Organization') setOrganizationFor(project.owner as ListOrganization);
@@ -149,11 +137,11 @@ export const ProjectUpdate = ({
             setLanguages(translations.map(t => t.language));
             formik.setValues({
                 ...formik.values,
-                description: translations[0].description,
+                description: translations[0].description ?? '',
                 name: translations[0].name,
             })
         }
-    }, [languages, setLanguage, setLanguages, translations])
+    }, [formik, languages, setLanguage, setLanguages, translations])
     const handleLanguageChange = useCallback((oldLanguage: string, newLanguage: string) => {
         // Update translation
         updateTranslation(oldLanguage, {
@@ -170,7 +158,7 @@ export const ProjectUpdate = ({
             newLanguages[index] = newLanguage;
             setLanguages(newLanguages);
         }
-    }, [formik.values, languages, translations, setLanguage, setLanguages, updateTranslation]);
+    }, [formik.values, languages, setLanguage, setLanguages, updateTranslation]);
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
         formik.setValues({
@@ -178,7 +166,7 @@ export const ProjectUpdate = ({
             description: existingTranslation?.description ?? '',
             name: existingTranslation?.name ?? '',
         });
-    }, [formik.setValues, translations]);
+    }, [formik, translations]);
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
@@ -190,7 +178,7 @@ export const ProjectUpdate = ({
         updateFormikTranslation(newLanguage);
         // Change language
         setLanguage(newLanguage);
-    }, [formik.values, formik.setValues, language, translations, setLanguage, updateTranslation]);
+    }, [updateTranslation, language, formik.values.description, formik.values.name, updateFormikTranslation]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguages([...languages, newLanguage]);
         handleLanguageSelect(newLanguage);
@@ -202,12 +190,12 @@ export const ProjectUpdate = ({
         updateFormikTranslation(newLanguages[0]);
         setLanguage(newLanguages[0]);
         setLanguages(newLanguages);
-    }, [deleteTranslation, handleLanguageSelect, languages, setLanguages]);
+    }, [deleteTranslation, languages, updateFormikTranslation]);
 
     const actions: DialogActionItem[] = useMemo(() => [
         ['Save', SaveIcon, Boolean(formik.isSubmitting || !formik.isValid), true, () => { }],
         ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
-    ], [formik, onCancel, session]);
+    ], [formik, onCancel]);
     const [formBottom, setFormBottom] = useState<number>(0);
     const handleResize = useCallback(({ height }: any) => {
         setFormBottom(height);
@@ -277,7 +265,7 @@ export const ProjectUpdate = ({
                 />
             </Grid>
         </Grid>
-    ), [formik, actions, handleResize, formBottom, session, tags, addTag, removeTag, clearTags]);
+    ), [session, organizationFor, onSwitchChange, language, handleAddLanguage, handleLanguageChange, handleLanguageDelete, handleLanguageSelect, languages, formik.values.name, formik.values.description, formik.handleBlur, formik.handleChange, formik.touched.name, formik.touched.description, formik.errors.name, formik.errors.description, resourceList, handleResourcesUpdate, tags, addTag, removeTag, clearTags]);
 
 
     return (

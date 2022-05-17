@@ -1,6 +1,8 @@
-import { ListOrganization, ListProject, ListRoutine, ListStandard, ListUser, Session } from "types";
-import { OrganizationListItem, ProjectListItem, RoutineListItem, StandardListItem, UserListItem } from 'components';
+import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListStar, ListUser, ListView, Session } from "types";
+import { OrganizationListItem, ProjectListItem, RoutineListItem, RunListItem, StandardListItem, UserListItem } from 'components';
 import { getTranslation, getUserLanguages } from "./translationTools";
+import { ObjectListItemProps } from "components/lists/types";
+import { Theme } from "@mui/material";
 
 export interface AutocompleteListItem {
     __typename: string;
@@ -103,71 +105,138 @@ export function listToAutocomplete(
 }
 
 /**
+ * Maps __typename to the corresponding ListItem component.
+ */
+export const listItemMap: { [x: string] : (props: ObjectListItemProps<any>) => JSX.Element } = {
+    'Organization': (props) => <OrganizationListItem {...props} />,
+    'Project': (props) => <ProjectListItem {...props} />,
+    'Routine': (props) => <RoutineListItem {...props} />,
+    'Run': (props) => <RunListItem {...props} />,
+    'Standard': (props) => <StandardListItem {...props} />,
+    'User': (props) => <UserListItem {...props} />,
+};
+
+type ListItem = ListOrganization | ListProject | ListRoutine | ListRun | ListStandard | ListStar | ListUser | ListView;
+
+export interface ListToListItemProps {
+    /**
+     * List of dummy items types to display while loading
+     */
+    dummyItems?: string[];
+    /**
+     * The list of item data
+     */
+    items?: readonly ListItem[],
+    /**
+     * Each list item's key will be `${keyPrefix}-${id}`
+     */
+    keyPrefix: string,
+    /**
+     * Whether the list is loading
+     */
+    loading: boolean,
+    /**
+     * Function to call when a list item is clicked
+     */
+    onClick?: (item: ListItem, event: React.MouseEvent<HTMLElement>) => void,
+    /**
+     * Current session
+     */
+    session: Session,
+    /**
+     * Tooltip text to display when hovering over a list item
+     */
+    tooltip?: string,
+}
+
+/**
  * Converts a list of objects to a list of ListItems
- * @param objects The list of objects.
- * @param session Current session
- * @param keyPrefix Each list item's key will be `${keyPrefix}-${id}`.
- * @param onClick Function to call when a list item is clicked.
  * @returns A list of ListItems
  */
-export function listToListItems(
-    objects: readonly (ListOrganization | ListProject | ListRoutine | ListStandard | ListUser)[],
-    session: Session,
-    keyPrefix: string,
-    onClick: (item: ListOrganization | ListProject | ListRoutine | ListStandard | ListUser, event: React.MouseEvent<HTMLElement>) => void,
-): JSX.Element[] {
+export function listToListItems({
+    dummyItems,
+    keyPrefix,
+    items,
+    loading,
+    onClick,
+    session,
+    tooltip,
+}: ListToListItemProps): JSX.Element[] {
     let listItems: JSX.Element[] = [];
-    for (let i = 0; i < objects.length; i++) {
-        const curr = objects[i];
-        switch (curr.__typename) {
-            case 'Organization':
-                listItems.push(<OrganizationListItem
-                    key={`${keyPrefix}-${curr.id}`}
+    // If loading, display dummy items
+    if (loading) {
+        if (!dummyItems) return listItems;
+        for (let i = 0; i < dummyItems.length; i++) {
+            if (dummyItems[i] in listItemMap) {
+                const CurrItem = listItemMap[dummyItems[i]];
+                listItems.push(<CurrItem 
+                    key={`${keyPrefix}-${i}`} 
+                    data={null}
                     index={i}
+                    loading={true}
                     session={session}
-                    data={curr as ListOrganization}
-                    onClick={(e) => onClick(curr, e)}
+                    tooltip={tooltip}
                 />);
-                break;
-            case 'Project':
-                listItems.push(<ProjectListItem
-                    key={`${keyPrefix}-${curr.id}`}
-                    index={i}
-                    session={session}
-                    data={curr as ListProject}
-                    onClick={(e) => onClick(curr, e)}
-                />);
-                break;
-            case 'Routine':
-                listItems.push(<RoutineListItem
-                    key={`${keyPrefix}-${curr.id}`}
-                    index={i}
-                    session={session}
-                    data={curr as ListRoutine}
-                    onClick={(e) => onClick(curr, e)}
-                />);
-                break;
-            case 'Standard':
-                listItems.push(<StandardListItem
-                    key={`${keyPrefix}-${curr.id}`}
-                    index={i}
-                    session={session}
-                    data={curr as ListStandard}
-                    onClick={(e) => onClick(curr, e)}
-                />);
-                break;
-            case 'User':
-                listItems.push(<UserListItem
-                    key={`${keyPrefix}-${curr.id}`}
-                    index={i}
-                    session={session}
-                    data={curr as ListUser}
-                    onClick={(e) => onClick(curr, e)}
-                />);
-                break;
-            default:
-                break;
+            }
+        }
+    }
+    if (!items) return listItems;
+    for (let i = 0; i < items.length; i++) {
+        let curr = items[i];
+        // If "View" or "Star" item, display the object it points to
+        if (curr.__typename === 'View' || curr.__typename === 'Star') {
+            curr = (curr as ListStar | ListView).to;
+        }
+        // Create common props
+        const commonProps = {
+            key: `${keyPrefix}-${curr.id}`,
+            data: curr,
+            index: i,
+            loading: loading,
+            session,
+            onClick: onClick ? (e) => onClick(curr, e) : undefined,
+            tooltip: tooltip,
+        }
+        if (curr.__typename in listItemMap) {
+            const CurrItem = listItemMap[curr.__typename];
+            listItems.push(<CurrItem {...commonProps} />);
         }
     }
     return listItems;
+}
+
+/**
+ * Determines background color for a list item. Alternates between 
+ * two colors.
+ * @param index Index of list item
+ * @param palette MUI theme palette
+ * @returns String of background color
+ */
+export const listItemColor = (index: number, palette: Theme['palette']): string => {
+    const lightColors = [palette.background.default, palette.background.paper];
+    const darkColors = [palette.background.default, palette.background.paper];
+    return (palette.mode === 'light') ? lightColors[index % lightColors.length] : darkColors[index % darkColors.length];
+}
+
+/**
+ * Color options for placeholder icon
+ * [background color, silhouette color]
+ */
+const placeholderColors: [string, string][] = [
+    ["#197e2c", "#b5ffc4"],
+    ["#b578b6", "#fecfea"],
+    ["#4044d6", "#e1c7f3"],
+    ["#d64053", "#fbb8c5"],
+    ["#d69440", "#e5d295"],
+    ["#40a4d6", "#79e0ef"],
+    ["#6248e4", "#aac3c9"],
+    ["#8ec22c", "#cfe7b4"],
+]
+
+/**
+ * Finds a random color for a placeholder icon
+ * @returns [background color code, silhouette color code]
+ */
+export const placeholderColor = (): [string, string] => {
+    return placeholderColors[Math.floor(Math.random() * placeholderColors.length)];
 }

@@ -1,14 +1,11 @@
-import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
+import { useLazyQuery, useQuery } from '@apollo/client';
 import { ResourceListUsedFor } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, ResourceListHorizontal, TitleContainer } from 'components';
 import { developPage } from 'graphql/generated/developPage';
-import { LogType } from 'graphql/generated/globalTypes';
-import { logs, logsVariables } from 'graphql/generated/logs';
 import { profile } from 'graphql/generated/profile';
-import { profileUpdateMutation } from 'graphql/mutation';
-import { developPageQuery, logsQuery, profileQuery } from 'graphql/query';
-import { useCallback, useEffect, useMemo } from 'react';
+import { developPageQuery, profileQuery } from 'graphql/query';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Organization, Project, ResourceList, Routine, Standard, User } from 'types';
 import { listToListItems, openObject } from 'utils';
 import { useLocation } from 'wouter';
@@ -35,65 +32,65 @@ const inProgressText =
 const recentText =
     `Recently updated projects and routines`
 
-/**
- * Default develop resources TODO
- */
-const defaultResourceList: ResourceList = {
-    usedFor: ResourceListUsedFor.Develop,
-    resources: [
-    ]
-} as any;
-
 export const DevelopPage = ({
     session
 }: DevelopPageProps) => {
     const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
-
-    const resourceList = useMemo(() => {
-        if (!profileData?.profile?.resourceLists) return defaultResourceList;
-        return profileData.profile.resourceLists.find(list => list.usedFor === ResourceListUsedFor.Research) ?? null;
+    const [resourceList, setResourceList] = useState<ResourceList | null>(null);
+    useEffect(() => {
+        if (!profileData?.profile?.resourceLists) return;
+        const list = profileData.profile.resourceLists.find(list => list.usedFor === ResourceListUsedFor.Learn) ?? null;
+        setResourceList(list);
     }, [profileData]);
-    const [updateResources] = useMutation<profile>(profileUpdateMutation);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
-        getProfile();
-    }, [updateResources]);
+        setResourceList(updatedList);
+    }, []);
 
     const { data: developPageData, loading: developPageLoading } = useQuery<developPage>(developPageQuery);
 
     /**
      * Opens page for list item
      */
-    const toItemPage = useCallback((event: any, item: Organization | Project | Routine | Standard | User) => {
+    const toItemPage = useCallback((item: Organization | Project | Routine | Standard | User, event: any) => {
         event?.stopPropagation();
         // Navigate to item page
         openObject(item, setLocation);
     }, [setLocation]);
 
-    const inProgress = useMemo(() => listToListItems(
-        developPageData?.developPage?.inProgress ?? [],
+    const inProgress = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Routine'),
+        items: developPageData?.developPage?.inProgress,
+        keyPrefix: 'in-progress-list-item',
+        loading: developPageLoading,
+        onClick: toItemPage,
         session,
-        'in-progress-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [developPageData, session])
+    }), [developPageData?.developPage?.inProgress, developPageLoading, session, toItemPage])
 
-    const recent = useMemo(() => listToListItems(
-        developPageData?.developPage?.recent ?? [],
+    const recent = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Routine'),
+        items: developPageData?.developPage?.recent,
+        keyPrefix: 'recent-list-item',
+        loading: developPageLoading,
+        onClick: toItemPage,
         session,
-        'recently-updated-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [developPageData, session])
+    }), [developPageData?.developPage?.recent, developPageLoading, session, toItemPage])
 
-    const completed = useMemo(() => listToListItems(
-        developPageData?.developPage?.completed ?? [],
+    const completed = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Routine'),
+        items: developPageData?.developPage?.completed,
+        keyPrefix: 'completed-list-item',
+        loading: developPageLoading,
+        onClick: toItemPage,
         session,
-        'completed-list-item',
-        () => { }
-    ), [developPageData, session])
+    }), [developPageData?.developPage?.completed, developPageLoading, session, toItemPage])
 
     return (
-        <Box id="page">
+        <Box id='page' sx={{
+            padding: '0.5em',
+            paddingTop: { xs: '64px', md: '80px' },
+        }}>
             {/* Title and help button */}
             <Stack
                 direction="row"
@@ -118,7 +115,6 @@ export const DevelopPage = ({
                 <TitleContainer
                     title={"In Progress"}
                     helpText={inProgressText}
-                    loading={developPageLoading}
                     onClick={() => { }}
                     options={[['Create', () => { }], ['See all', () => { }]]}
                 >
@@ -127,7 +123,6 @@ export const DevelopPage = ({
                 <TitleContainer
                     title={"Recent"}
                     helpText={recentText}
-                    loading={developPageLoading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
@@ -136,7 +131,6 @@ export const DevelopPage = ({
                 <TitleContainer
                     title={"Completed"}
                     helpText={completedText}
-                    loading={developPageLoading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >

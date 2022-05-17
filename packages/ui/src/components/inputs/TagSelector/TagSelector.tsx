@@ -54,7 +54,7 @@ export const TagSelector = ({
         onTagAdd({ tag: tagLabel });
         // Clear input
         clearText();
-    }, [inputValue, onTagAdd, onTagRemove, tags]);
+    }, [clearText, inputValue, onTagAdd, tags]);
 
     const onInputSelect = useCallback((tag: TagSelectorTag) => {
         setInputValue('');
@@ -75,7 +75,7 @@ export const TagSelector = ({
             }
         }
     });
-    useEffect(() => { refetchAutocomplete() }, [inputValue]);
+    useEffect(() => { refetchAutocomplete() }, [inputValue, refetchAutocomplete]);
     const autocompleteOptions: TagSelectorTag[] = useMemo(() => {
         if (!autocompleteData) return [];
         return autocompleteData.tags.edges.map(({ node }) => node);

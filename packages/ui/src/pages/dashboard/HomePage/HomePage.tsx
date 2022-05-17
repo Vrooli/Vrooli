@@ -1,4 +1,4 @@
-import { Box, Button, Grid, Stack, Tab, Tabs, Typography } from '@mui/material';
+import { Box, Button, Grid, Stack, Tab, Tabs, Typography, useTheme } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { centeredDiv } from 'styles';
 import { homePage, homePageVariables } from 'graphql/generated/homePage';
@@ -14,7 +14,7 @@ import {
     Add as CreateIcon,
     Search as SearchIcon,
 } from '@mui/icons-material';
-import { AutocompleteListItem, listToAutocomplete, listToListItems, ObjectType, openObject, openSearchPage } from 'utils';
+import { AutocompleteListItem, listToAutocomplete, listToListItems, ObjectType, openObject, openSearchPage, useReactSearch } from 'utils';
 import _ from 'lodash';
 import { Organization, Project, Routine, Standard, User } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
@@ -76,7 +76,7 @@ const advancedSearchPopupOptions: ListMenuItemData<string>[] = [
 const createNewPopupOptions: ListMenuItemData<string>[] = [
     { label: 'Organization', value: `${APP_LINKS.Organization}/add` },
     { label: 'Project', value: `${APP_LINKS.Project}/add` },
-    { label: 'Routine (Single Step)', value: `${APP_LINKS.Run}/add` },
+    { label: 'Routine (Single Step)', value: `${APP_LINKS.Routine}/add` },
     { label: 'Routine (Multi Step)', value: `${APP_LINKS.Build}/add` },
     { label: 'Standard', value: `${APP_LINKS.Standard}/add` },
 ]
@@ -111,7 +111,7 @@ const shortcuts: ShortcutItem[] = [
     },
     {
         label: 'Create new single-step routine',
-        link: `${APP_LINKS.Run}/add`,
+        link: `${APP_LINKS.Routine}/add`,
     },
     {
         label: 'Create new multi-step routine',
@@ -203,11 +203,13 @@ const shortcutsItems: AutocompleteListItem[] = shortcuts.map(({ label, link }) =
 export const HomePage = ({
     session
 }: HomePageProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const [searchString, setSearchString] = useState<string>(() => {
-        const { search } = parseSearchParams(window.location.search);
-        return search ?? '';
-    });
+    const [searchString, setSearchString] = useState<string>('');
+    const searchParams = useReactSearch();
+    useEffect(() => {
+        if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
+    }, [searchParams]);
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
     const { data, refetch, loading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
     useEffect(() => { refetch() }, [refetch, searchString]);
@@ -251,7 +253,7 @@ export const HomePage = ({
     const onInputSelect = useCallback((newValue: AutocompleteListItem) => {
         if (!newValue) return;
         // Replace current state with search string, so that search is not lost
-        if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
+        if (searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
         // If selected item is a shortcut, navigate to it
         if (newValue.__typename === 'Shortcut') {
             setLocation(newValue.id);
@@ -260,7 +262,7 @@ export const HomePage = ({
         else {
             openObject(newValue, setLocation);
         }
-    }, [autocompleteOptions]);
+    }, [searchString, setLocation]);
 
     // Feed title is Popular when no search
     const getFeedTitle = useCallback((objectName: string) => {
@@ -274,7 +276,7 @@ export const HomePage = ({
     const toSearchPage = useCallback((event: any, objectType: ObjectType) => {
         event?.stopPropagation();
         // Replace current state with search string, so that search is not lost
-        if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
+        if (searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
         // Navigate to search page
         openSearchPage(objectType, setLocation);
     }, [searchString, setLocation]);
@@ -282,7 +284,7 @@ export const HomePage = ({
     /**
      * Opens page for list item
      */
-    const toItemPage = useCallback((event: any, item: Organization | Project | Routine | Standard | User) => {
+    const toItemPage = useCallback((item: Organization | Project | Routine | Standard | User, event: any) => {
         event?.stopPropagation();
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
@@ -315,35 +317,42 @@ export const HomePage = ({
         let listFeeds: JSX.Element[] = [];
         for (const objectType of feedOrder) {
             let currentList: any[] = [];
+            let dummyType: string = '';
             switch (objectType) {
                 case ObjectType.Organization:
                     currentList = data?.homePage?.organizations ?? [];
+                    dummyType = 'Organization';
                     break;
                 case ObjectType.Project:
                     currentList = data?.homePage?.projects ?? [];
+                    dummyType = 'Project';
                     break;
                 case ObjectType.Routine:
                     currentList = data?.homePage?.routines ?? [];
+                    dummyType = 'Routine';
                     break;
                 case ObjectType.Standard:
                     currentList = data?.homePage?.standards ?? [];
+                    dummyType = 'Standard';
                     break;
                 case ObjectType.User:
                     currentList = data?.homePage?.users ?? [];
+                    dummyType = 'User';
                     break;
             }
-            const listFeedItems: JSX.Element[] = listToListItems(
-                currentList,
+            const listFeedItems: JSX.Element[] = listToListItems({
+                dummyItems: new Array(5).fill(dummyType),
+                items: currentList,
+                keyPrefix: `feed-list-item-${objectType}`,
+                loading,
+                onClick: toItemPage,
                 session,
-                'feed-list-item',
-                (item: any, e: any) => toItemPage(e, item),
-            );
+            });
             if (loading || listFeedItems.length > 0) {
                 listFeeds.push((
                     <TitleContainer
                         key={`feed-list-${objectType}`}
                         title={getFeedTitle(`${objectType}s`)}
-                        loading={loading}
                         onClick={(e) => toSearchPage(e, objectType)}
                         options={[['See more results', (e) => { toSearchPage(e, objectType) }]]}
                     >
@@ -376,7 +385,10 @@ export const HomePage = ({
     }, [setLocation]);
 
     return (
-        <Box id="page">
+        <Box id='page' sx={{
+            padding: '0.5em',
+            paddingTop: { xs: '64px', md: '80px' },
+        }}>
             {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}
             {showForYou && <Tabs
                 value={tabIndex}
@@ -423,7 +435,7 @@ export const HomePage = ({
                 onClose={closeCreateNew}
             />
             {/* Prompt stack */}
-            <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: '5vh', sm: '30vh' } }}>
+            <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: '5vh', sm: '20vh' } }}>
                 <Typography component="h1" variant="h2" textAlign="center">What would you like to do?</Typography>
                 {/* ========= #region Custom SearchBar ========= */}
                 <AutocompleteSearchBar
@@ -451,9 +463,9 @@ export const HomePage = ({
                             key={`example-${index}`}
                             component="p"
                             variant="h6"
-                            onClick={() => { setLocation(`${APP_LINKS.Run}/${example[1]}`) }}
+                            onClick={() => { setLocation(`${APP_LINKS.Routine}/${example[1]}`) }}
                             sx={{
-                                color: (t) => t.palette.text.secondary,
+                                color: palette.text.secondary,
                                 fontStyle: 'italic',
                                 cursor: 'pointer',
                             }}

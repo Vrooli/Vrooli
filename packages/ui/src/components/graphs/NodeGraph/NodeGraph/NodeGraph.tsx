@@ -4,7 +4,7 @@
  * will add it to the routine. Links are generated automatically if possible.
  * Otherwise, a popup is displayed to allow the user to manually specify which node the link should connect to.
  */
-import { Box, Stack } from '@mui/material';
+import { Box, Stack, useTheme } from '@mui/material';
 import { NodeColumn, NodeEdge } from 'components';
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pubs } from 'utils';
@@ -41,6 +41,8 @@ export const NodeGraph = ({
     nodesById,
     scale = 1,
 }: NodeGraphProps) => {
+    const { palette } = useTheme();
+
     // Stores edges
     const [edges, setEdges] = useState<JSX.Element[]>([])
     // Dragging a node
@@ -74,7 +76,7 @@ export const NodeGraph = ({
     /**
      * When a node is being dragged near the edge of the grid, the grid scrolls
      */
-    const nodeScroll = () => {
+    const nodeScroll = useCallback(() => {
         const gridElement = document.getElementById('graph-root');
         if (!gridElement) return;
         if (dragRefs.current.currPosition === null) return;
@@ -114,7 +116,7 @@ export const NodeGraph = ({
         if (verticalMove === false) scrollUp();
         else if (verticalMove === true) scrollDown();
         dragRefs.current.timeout = setTimeout(nodeScroll, 50);
-    }
+    }, [])
 
     const clearScroll = () => {
         if (dragRefs.current.timeout) clearTimeout(dragRefs.current.timeout);
@@ -124,7 +126,7 @@ export const NodeGraph = ({
     /**
      * Rescales the graph when pinching
      */
-    const pinch = () => {
+    const pinch = useCallback(() => {
         if (pinchRefs.current.currPosition === null) return;
         // Determine the distance between the last time this function was called and now
         const { x, y } = pinchRefs.current.currPosition;
@@ -139,12 +141,12 @@ export const NodeGraph = ({
         pinchRefs.current.lastPosition = pinchRefs.current.currPosition;
         // Set a timeout to call this function again
         if (pinchRefs.current.timeout) setTimeout(pinch, 100);
-    }
+    }, [])
 
-    const clearPinch = () => {
+    const clearPinch = useCallback(() => {
         if (pinchRefs.current.timeout) clearTimeout(pinchRefs.current.timeout);
         pinchRefs.current = { currPosition: null, lastPosition: null, isShiftKeyPressed: false, timeout: null }
-    }
+    }, [])
 
     /**
      * Checks if a point is inside a rectangle
@@ -226,7 +228,7 @@ export const NodeGraph = ({
         if (nodesInColumn.length === 1 && nodesInColumn[0].id === nodeId) return;
         // Complete drop
         handleNodeDrop(nodeId, columnIndex, rowIndex);
-    }, [nodesById, scale]);
+    }, [columns, handleNodeDrop, nodesById]);
 
     // Set listeners for:
     // - click-and-drag background
@@ -351,7 +353,7 @@ export const NodeGraph = ({
             PubSub.unsubscribe(dragStartSub);
             PubSub.unsubscribe(dragDropSub);
         }
-    }, [handleDragStop, setIsShiftKeyPressed]);
+    }, [clearPinch, handleDragStop, nodeScroll, pinch, setIsShiftKeyPressed]);
 
     /**
      * Edges (links) displayed between nodes
@@ -378,11 +380,11 @@ export const NodeGraph = ({
                 handleEdit={() => { }}
             />
         }).filter(edge => edge) as JSX.Element[];
-    }, [dragId, isEditing, links, nodesById, scale]);
+    }, [dragId, handleLinkDelete, handleNodeInsert, isEditing, links, nodesById, scale]);
 
     useEffect(() => {
         setEdges(calculateEdges());
-    }, [dragId, isEditing, links, nodesById, scale]);
+    }, [calculateEdges, dragId, isEditing, links, nodesById, scale]);
 
     /**
      * Node column objects
@@ -402,13 +404,13 @@ export const NodeGraph = ({
             nodes={col}
             scale={scale}
         />)
-    }, [columns, dragId, isEditing, labelVisible, scale]);
+    }, [columns, dragId, handleAction, handleNodeDrop, handleNodeUpdate, isEditing, labelVisible, language, scale]);
 
     return (
         <Box id="graph-root" position="relative" sx={{
             cursor: isShiftKeyPressed ? 'nesw-resize' : 'move',
             minWidth: '100%',
-            height: { xs: '72vh', md: '80vh' },
+            height: { xs: '90vh', md: '80vh' },
             overflowX: 'auto',
             overflowY: 'auto',
             margin: 0,
@@ -431,8 +433,7 @@ export const NodeGraph = ({
                 width: 'fit-content',
                 minHeight: '-webkit-fill-available',
                 // Create grid background pattern
-                backgroundColor: `#a8b6c3`,
-                '--line-color': `rgba(0 0 0 / .05)`,
+                '--line-color': palette.mode === 'light' ? `rgba(0 0 0 / .05)` : `rgba(255 255 255 / .05)`,
                 '--line-thickness': `1px`,
                 '--minor-length': `${80 * scale}px`,
                 '--major-length': `${400 * scale}px`,

@@ -14,11 +14,12 @@ import {
     Stack,
     SxProps,
     Typography,
+    useTheme,
 } from '@mui/material';
-import { Forms, Pubs } from 'utils';
+import { Forms, Pubs, useReactSearch } from 'utils';
 import { APP_LINKS, CODE } from '@local/shared';
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { hasWalletExtension, validateWallet, WalletProvider, walletProviderInfo } from 'utils/walletIntegration';
+import { hasWalletExtension, validateWallet, WalletProvider, walletProviderInfo } from 'utils/authentication/walletIntegration';
 import { ROLES } from '@local/shared';
 import { HelpButton } from 'components';
 import {
@@ -30,7 +31,6 @@ import {
 import { emailLogInMutation, guestLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { parseSearchParams } from 'utils/navigation/urlTools';
 import { emailLogIn } from 'graphql/generated/emailLogIn';
 import { StartPageProps } from 'pages/types';
 
@@ -50,9 +50,13 @@ const buttonProps: SxProps = {
 export const StartPage = ({
     session,
 }: StartPageProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const redirect = useMemo(() => parseSearchParams(window.location.search).redirect?.replaceAll('%2F', '/'), [window.location.search]);
-    const verificationCode = useMemo(() => parseSearchParams(window.location.search).code, [window.location.search]);
+    const search = useReactSearch();
+    const { redirect, verificationCode } = useMemo(() => ({
+        redirect: typeof search.redirect === 'string' ? search.redirect : undefined,
+        verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
+    }), [search]);
 
     const [emailLogIn] = useMutation<emailLogIn>(emailLogInMutation);
     const [guestLogIn] = useMutation<any>(guestLogInMutation);
@@ -108,7 +112,7 @@ export const StartPage = ({
                 setPopupForm(Forms.LogIn);
             }
         }
-    }, [emailLogIn, verificationCode, redirect, session.id])
+    }, [emailLogIn, verificationCode, redirect, session.id, setLocation])
 
     // Wallet provider select popup
     const [providerOpen, setProviderPopupOpen] = useState(false);
@@ -167,7 +171,7 @@ export const StartPage = ({
             // Redirect to main dashboard
             setLocation(walletCompleteResult?.firstLogIn ? APP_LINKS.Welcome : (redirect ?? APP_LINKS.Home));
         }
-    }, [downloadExtension, openWalletDownloadDialog, setLocation, redirect, toEmailLogIn])
+    }, [openWalletDownloadDialog, setLocation, redirect, toEmailLogIn])
 
     const requestGuestToken = useCallback(() => {
         mutationWrapper({
@@ -211,7 +215,7 @@ export const StartPage = ({
                         padding: 1,
                         paddingLeft: 2,
                         paddingRight: 2,
-                        background: (t) => t.palette.primary.dark,
+                        background: palette.primary.dark,
                         color: 'white',
                     }}
                 >
@@ -260,7 +264,7 @@ export const StartPage = ({
                         width: '100',
                         borderRadius: '4px 4px 0 0',
                         padding: 1,
-                        background: (t) => t.palette.primary.dark,
+                        background: palette.primary.dark,
                         color: 'white',
                     }}
                 >

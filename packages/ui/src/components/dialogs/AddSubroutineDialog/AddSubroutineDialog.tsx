@@ -5,7 +5,8 @@ import {
     DialogContent,
     IconButton,
     Stack,
-    Typography
+    Typography,
+    useTheme
 } from '@mui/material';
 import { BaseObjectDialog, HelpButton } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -34,6 +35,7 @@ export const AddSubroutineDialog = ({
     routineId,
     session,
 }: AddSubroutineDialogProps) => {
+    const { palette } = useTheme();
 
     // Create new routine dialog
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -48,7 +50,7 @@ export const AddSubroutineDialog = ({
     }, [setIsCreateOpen]);
 
     // If routine selected from search, query for full data
-    const [getRoutine, { data: routineData, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
+    const [getRoutine, { data: routineData }] = useLazyQuery<routine, routineVariables>(routineQuery);
     const handleRoutineSelect = useCallback((routine: Routine) => {
         getRoutine({ variables: { input: { id: routine.id } } });
     }, [getRoutine]);
@@ -57,15 +59,15 @@ export const AddSubroutineDialog = ({
             handleAdd(nodeId, routineData.routine);
             handleClose();
         }
-    }, [handleCreateClose, routineData]);
+    }, [handleAdd, handleClose, handleCreateClose, nodeId, routineData]);
 
     /**
      * Title bar with help button and close icon
      */
     const titleBar = useMemo(() => (
         <Box sx={{
-            background: (t) => t.palette.primary.dark,
-            color: (t) => t.palette.primary.contrastText,
+            background: palette.primary.dark,
+            color: palette.primary.contrastText,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -80,11 +82,11 @@ export const AddSubroutineDialog = ({
                     edge="start"
                     onClick={(e) => { handleClose() }}
                 >
-                    <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
+                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
                 </IconButton>
             </Box>
         </Box>
-    ), [])
+    ), [handleClose, palette.primary.contrastText, palette.primary.dark])
 
     const [searchString, setSearchString] = useState<string>('');
     const [sortBy, setSortBy] = useState<string | undefined>(undefined);
@@ -95,7 +97,10 @@ export const AddSubroutineDialog = ({
             open={isOpen}
             onClose={handleClose}
             sx={{
-                '& .MuiDialogContent-root': { overflow: 'visible', background: '#cdd6df' },
+                '& .MuiDialogContent-root': { 
+                    overflow: 'visible', 
+                    background: palette.mode === 'light' ? '#cdd6df' : '#182028',
+                },
                 '& .MuiDialog-paper': { overflow: 'visible' }
             }}
         >
@@ -116,18 +121,6 @@ export const AddSubroutineDialog = ({
             {titleBar}
             <DialogContent>
                 <Stack direction="column" spacing={4}>
-                    <Button
-                        fullWidth
-                        onClick={handleCreateOpen}
-                        startIcon={<CreateIcon />}
-                    >Create</Button>
-                    <Box sx={{
-                        alignItems: 'center',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                    }}>
-                        <Typography variant="h6" sx={{ marginLeft: 'auto', marginRight: 'auto' }}>Or</Typography>
-                    </Box>
                     <SearchList
                         itemKeyPrefix='routine-list-item'
                         defaultSortOption={routineDefaultSortOption}
@@ -146,6 +139,11 @@ export const AddSubroutineDialog = ({
                         timeFrame={timeFrame}
                         where={uuidValidate(routineId) ? { excludeIds: [routineId] } : undefined}
                     />
+                    <Button
+                        fullWidth
+                        onClick={handleCreateOpen}
+                        startIcon={<CreateIcon />}
+                    >Create New</Button>
                 </Stack>
             </DialogContent>
         </Dialog>

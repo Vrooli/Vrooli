@@ -8,9 +8,10 @@ import {
     DialogContent,
     Grid,
     IconButton,
-    Typography
+    Typography,
+    useTheme
 } from '@mui/material';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AdvancedSearchDialogProps } from '../types';
 import {
     Cancel as CancelIcon,
@@ -18,8 +19,7 @@ import {
     Search as SearchIcon,
 } from '@mui/icons-material';
 import { useFormik } from 'formik';
-import { FieldData, FormSchema, InputType } from 'forms/types';
-import { BaseForm } from 'forms';
+import { FieldData, FormSchema } from 'forms/types';
 import { organizationSearchSchema, projectSearchSchema, routineSearchSchema, standardSearchSchema, userSearchSchema } from './schemas';
 import { useReactPath } from 'utils';
 import { APP_LINKS } from '@local/shared';
@@ -120,6 +120,7 @@ export const AdvancedSearchDialog = ({
     isOpen,
     session,
 }: AdvancedSearchDialogProps) => {
+    const theme = useTheme();
     // Search schema to use
     const [schema, setSchema] = useState<FormSchema | null>(null);
 
@@ -133,7 +134,6 @@ export const AdvancedSearchDialog = ({
 
     // Get field inputs from schema, and add default values
     const fieldInputs = useMemo<FieldData[]>(() => schema?.fields ? generateDefaultProps(schema.fields) : [], [schema?.fields]);
-    console.log('fieldInputs', fieldInputs);
 
     // Parse default values from fieldInputs, to use in formik
     const initialValues = useMemo(() => {
@@ -143,11 +143,9 @@ export const AdvancedSearchDialog = ({
         });
         return values;
     }, [fieldInputs])
-    console.log('initialValues', initialValues);
 
     // Generate yup validation schema
     const validationSchema = useMemo(() => schema ? generateYupSchema(schema) : undefined, [schema]);
-    console.log('validationSchema', validationSchema);
 
     /**
      * Controls updates and validation of form
@@ -161,22 +159,23 @@ export const AdvancedSearchDialog = ({
             // Shape values to match search query
             const searchValues = shapeFormik[path](values);
             handleSearch(searchValues);
+            handleClose();
         },
     });
     console.log('formik values', formik.values)
     console.log('formik error', formik.errors);
     const grid = useMemo(() => {
         if (!schema) return null;
-        return generateGrid(schema.formLayout, schema.containers, schema.fields, formik, () => { })
-    }, [schema, formik])
+        return generateGrid(schema.formLayout, schema.containers, schema.fields, formik, theme, () => { })
+    }, [schema, formik, theme])
 
     /**
      * Title bar with help button and close icon
      */
     const titleBar = useMemo(() => (
         <Box sx={{
-            background: (t) => t.palette.primary.dark,
-            color: (t) => t.palette.primary.contrastText,
+            background: theme.palette.primary.dark,
+            color: theme.palette.primary.contrastText,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -190,19 +189,24 @@ export const AdvancedSearchDialog = ({
                     edge="start"
                     onClick={(e) => { handleClose() }}
                 >
-                    <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
+                    <CloseIcon sx={{ fill: theme.palette.primary.contrastText }} />
                 </IconButton>
             </Box>
         </Box>
-    ), [])
+    ), [handleClose, theme])
 
     return (
         <Dialog
             open={isOpen}
             onClose={handleClose}
             sx={{
-                '& .MuiDialogContent-root': { overflow: 'visible', background: '#cdd6df' },
-                '& .MuiDialog-paper': { overflow: 'visible' }
+                '& .MuiDialogContent-root': { 
+                    overflow: 'visible', 
+                    background: theme.palette.mode === 'light' ? '#cdd6df' : '#182028', 
+                },
+                '& .MuiDialog-paper': { 
+                    overflow: 'visible',
+                }
             }}
         >
             {titleBar}
@@ -212,7 +216,7 @@ export const AdvancedSearchDialog = ({
                 </DialogContent>
                 {/* Search/Cancel buttons */}
                 <Grid container spacing={1} sx={{
-                    background: (t) => t.palette.primary.dark,
+                    background: theme.palette.primary.dark,
                     maxWidth: 'min(700px, 100%)',
                     margin: 0,
                 }}>

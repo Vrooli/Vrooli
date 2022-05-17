@@ -1,8 +1,8 @@
-import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeLink, NodeRoutineList, NodeRoutineListItem, Node, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemUpdateInput, NodeRoutineListItemCreateInput } from "../../schema/types";
+import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeRoutineListItem, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemCreateInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialSelect, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
-import { CODE, inputCreate, inputTranslationCreate, inputTranslationUpdate, inputUpdate, MemberRole, outputTranslationCreate, outputTranslationUpdate, routineCreate, routineTranslationCreate, routineTranslationUpdate, routineUpdate } from "@local/shared";
+import { CODE, inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, inputUpdate, MemberRole, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routinesUpdate, routineTranslationCreate, routineTranslationUpdate } from "@local/shared";
 import { hasProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -14,6 +14,15 @@ import _ from "lodash";
 import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
 import { genErrorCode } from "../../logger";
+import { ViewModel } from "./view";
+import { runFormatter } from "./run";
+
+type NodeWeightData = {
+    simplicity: number,
+    complexity: number,
+    optionalInputs: number,
+    allInputs: number,
+}
 
 //==============================================================
 /* #region Custom Components */
@@ -45,7 +54,16 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         'tags': GraphQLModelType.Tag,
     },
     removeCalculatedFields: (partial) => {
-        let { isUpvoted, isStarred, role, ...rest } = partial;
+        let {
+            inProgressCompletedSteps,
+            inProgressCompletedComplexity,
+            inProgressVersion,
+            isUpvoted,
+            isStarred,
+            role,
+            runs,
+            ...rest
+        } = partial;
         return rest;
     },
     constructUnions: (data) => {
@@ -81,16 +99,23 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel(prisma).getIsStarreds(userId, ids, 'routine')
+                ? await StarModel(prisma).getIsStarreds(userId, ids, GraphQLModelType.Routine)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isUpvoted
         if (partial.isUpvoted) {
             const isUpvotedArray = userId
-                ? await VoteModel(prisma).getIsUpvoteds(userId, ids, 'routine')
+                ? await VoteModel(prisma).getIsUpvoteds(userId, ids, GraphQLModelType.Routine)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isUpvoted: isUpvotedArray[i] }));
+        }
+        // Query for isViewed
+        if (partial.isViewed) {
+            const isViewedArray = userId
+                ? await ViewModel(prisma).getIsVieweds(userId, ids, GraphQLModelType.Routine)
+                : Array(ids.length).fill(false);
+            objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
         // Query for role
         if (partial.role) {
@@ -110,6 +135,39 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
                 }
                 return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
             }) as any;
+        }
+        // Query for run data. This must be done here because we are not querying all runs - just ones made by the user
+        if (_.isObject(partial.runs)) {
+            if (userId) {
+                // Find requested fields of runs. Also add routineId, so we 
+                // can associate runs with their routine
+                const runPartial = {
+                    ...toPartialSelect(partial.runs, runFormatter().relationshipMap),
+                    routineId: true
+                }
+                if (runPartial === undefined) {
+                    throw new CustomError(CODE.InternalError, 'Error converting query', { code: genErrorCode('0178') });
+                }
+                // Query runs made by user
+                let runs: any[] = await prisma.run.findMany({
+                    where: {
+                        AND: [
+                            { routineId: { in: ids } },
+                            { userId },
+                        ]
+                    },
+                    ...selectHelper(runPartial)
+                });
+                // Format runs to GraphQL
+                runs = runs.map(r => modelToGraphQL(r, runPartial));
+                // Add supplemental fields
+                runs = await addSupplementalFields(prisma, userId, runs, runPartial);
+                // Apply data fields to objects
+                objects = objects.map((x) => ({ ...x, runs: runs.filter(r => r.routineId === x.id) }));
+            } else {
+                // Set all runs to empty array
+                objects = objects.map(x => ({ ...x, runs: [] }));
+            }
         }
         // Convert Prisma objects to GraphQL objects
         return objects as RecursivePartial<Routine>[];
@@ -147,36 +205,42 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
         })
     },
     customQueries(input: RoutineSearchInput): { [x: string]: any } {
-        const excludeIdsQuery = input.excludeIds ? { NOT: { id: { in: input.excludeIds } } } : {};
-        const isCompleteQuery = input.isComplete ? { isComplete: true } : {};
-        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
-        const minComplexity = input.minComplexity ? { complexity: { gte: input.minComplexity } } : {};
-        const maxComplexity = input.maxComplexity ? { complexity: { lte: input.maxComplexity } } : {};
-        const minSimplicity = input.minSimplicity ? { simplicity: { gte: input.minSimplicity } } : {};
-        const maxSimplicity = input.maxSimplicity ? { simplicity: { lte: input.maxSimplicity } } : {};
-        const minScoreQuery = input.minScore ? { score: { gte: input.minScore } } : {};
-        const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
-        const resourceListsQuery = input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {};
-        const resourceTypesQuery = input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}; const userIdQuery = input.userId ? { userId: input.userId } : undefined;
-        const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
-        const projectIdQuery = input.projectId ? { projectId: input.projectId } : {};
-        const parentIdQuery = input.parentId ? { parentId: input.parentId } : {};
-        const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
-        const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
-        return { isInternal: false, ...excludeIdsQuery, ...isCompleteQuery, ...languagesQuery, ...minComplexity, ...maxComplexity, ...minSimplicity, ...maxSimplicity, ...minScoreQuery, ...minStarsQuery, ...resourceListsQuery, ...resourceTypesQuery, ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...projectIdQuery, ...reportIdQuery, ...tagsQuery };
+        return {
+            ...(input.excludeIds ? { NOT: { id: { in: input.excludeIds } } } : {}),
+            ...(input.isComplete ? { isComplete: input.isComplete } : { isComplete: true }),
+            ...(input.isInternal ? { isInternal: input.isInternal } : { isInternal: false }),
+            ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            ...(input.minComplexity ? { complexity: { gte: input.minComplexity } } : {}),
+            ...(input.maxComplexity ? { complexity: { lte: input.maxComplexity } } : {}),
+            ...(input.minSimplicity ? { simplicity: { gte: input.minSimplicity } } : {}),
+            ...(input.maxSimplicity ? { simplicity: { lte: input.maxSimplicity } } : {}),
+            ...(input.maxTimesCompleted ? { timesCompleted: { lte: input.maxTimesCompleted } } : {}),
+            ...(input.minScore ? { score: { gte: input.minScore } } : {}),
+            ...(input.minStars ? { stars: { gte: input.minStars } } : {}),
+            ...(input.minTimesCompleted ? { timesCompleted: { gte: input.minTimesCompleted } } : {}),
+            ...(input.minViews ? { views: { gte: input.minViews } } : {}),
+            ...(input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            ...(input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
+            ...(input.userId ? { userId: input.userId } : {}),
+            ...(input.organizationId ? { organizationId: input.organizationId } : {}),
+            ...(input.projectId ? { projectId: input.projectId } : {}),
+            ...(input.parentId ? { parentId: input.parentId } : {}),
+            ...(input.reportId ? { reports: { some: { id: input.reportId } } } : {}),
+            ...(input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
+        }
     },
 })
 
 /**
  * Calculates the shortest AND longest weighted path on a directed cyclic graph. (loops are actually not the cyclic part, but redirects)
- * A routine with no nodes has a complexity of 1.
+ * A routine with no nodes has a complexity equal to the number of its inputs.
  * Each decision the user makes (i.e. multiple edges coming out of a node) has a weight of 1.
  * Each node has a weight that is the summation of its contained subroutines.
  * @param nodes A map of node IDs to their weight (simplicity/complexity)
  * @param edges The edges of the graph, with each object containing a fromId and toId
  * @returns [shortestPath, longestPath] The shortest and longest weighted distance
  */
-export const calculateShortestLongestWeightedPath = (nodes: { [id: string]: { simplicity: number, complexity: number } }, edges: { fromId: string, toId: string }[]): [number, number] => {
+export const calculateShortestLongestWeightedPath = (nodes: { [id: string]: NodeWeightData }, edges: { fromId: string, toId: string }[]): [number, number] => {
     // If no nodes or edges, return 1
     if (Object.keys(nodes).length === 0 || edges.length === 0) return [1, 1];
     // Create a dictionary of edges, where the key is a node ID and the value is an array of edges that END at that node
@@ -206,11 +270,15 @@ export const calculateShortestLongestWeightedPath = (nodes: { [id: string]: { si
             // Find the weight of the edge from the node's complexity. Add one if there are multiple edges,
             // since the user has to make a decision
             let weight = nodes[edge.fromId];
-            if (fromEdges.length > 1) weight = { complexity: weight.complexity + 1, simplicity: weight.simplicity + 1 };
+            if (fromEdges.length > 1) weight = { ...weight, complexity: weight.complexity + 1, simplicity: weight.simplicity + 1 };
             // Add edge to visited edges
             const newVisitedEdges = visitedEdges.concat([edge]);
-            // Recurse on the next node
-            const [shortest, longest] = getShortLong(edge.fromId, newVisitedEdges, currShortest + weight.simplicity, currLongest + weight.complexity);
+            // Recurse on the next node 
+            const [shortest, longest] = getShortLong(
+                edge.fromId, 
+                newVisitedEdges, 
+                currShortest + weight.simplicity + weight.optionalInputs, 
+                currLongest + weight.complexity + weight.allInputs);
             // If shortest is not -1, add to edgeShorts
             if (shortest !== -1) edgeShorts.push(shortest);
             // If longest is not -1, add to edgeLongs
@@ -237,12 +305,14 @@ export const calculateShortestLongestWeightedPath = (nodes: { [id: string]: { si
  */
 export const routineMutater = (prisma: PrismaType) => ({
     /**
-     * Calculates the maximum and minimum complexity of a routine based on the number of steps.
+     * Calculates the maximum and minimum complexity of a routine based on the number of steps. 
+     * Simplicity is a the minimum number of inputs and decisions required to complete the routine, while 
+     * complexity is the maximum.
      * @param data The routine data, either a create or update
      * @returns [simplicity, complexity] Numbers representing the shorted and longest weighted paths
      */
     async calculateComplexity(data: RoutineCreateInput | RoutineUpdateInput): Promise<[number, number]> {
-        console.log('calculate complexity start', JSON.stringify(data))
+        console.log('calculate complexity start', JSON.stringify(data), '\n\n')
         // If the routine is being updated, Find the complexity of existing subroutines
         let existingRoutine;
         if ((data as RoutineUpdateInput).id) {
@@ -259,15 +329,15 @@ export const routineMutater = (prisma: PrismaType) => ({
                                         select: {
                                             routine: { select: { id: true, complexity: true, simplicity: true } }
                                         }
-                                    }
+                                    },
                                 }
-                            }
+                            },
                         }
-                    }
+                    },
                 }
             })
         }
-        console.log('Existing routine', JSON.stringify(existingRoutine))
+        console.log('Existing routine', JSON.stringify(existingRoutine), '\n\n')
         // Calculate the list of links after mutations are applied
         let nodeLinks: any[] = existingRoutine?.nodeLinks || [];
         if (data.nodeLinksCreate) nodeLinks = nodeLinks.concat(data.nodeLinksCreate);
@@ -293,7 +363,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             nodes = nodes.filter(node => !(data as RoutineUpdateInput).nodesDelete?.find(deletedNode => deletedNode === node.id));
         }
         // Initialize node dictionary to map node IDs to their subroutine IDs
-        const nodeDictionary: { [id: string]: string[] } = {};
+        const subroutineIdsByNode: { [id: string]: string[] } = {};
         // Find the ID of every subroutine
         const subroutineIds: string[] = nodes.map((node: any | NodeCreateInput | NodeUpdateInput) => {
             console.log('in subroutineIds loop node', JSON.stringify(node));
@@ -314,37 +384,49 @@ export const routineMutater = (prisma: PrismaType) => ({
                     ids = ids.filter(id => !listUpdate.routinesDelete?.find(deletedId => deletedId === id));
                 }
             }
-            nodeDictionary[node.id] = ids;
+            subroutineIdsByNode[node.id] = ids;
             return ids
         }).flat();
         console.log('LINKS HEREEEEE', JSON.stringify(nodeLinks));
-        console.log('NODES HEREEEEE', JSON.stringify(nodeDictionary));
-        // Query every subroutine's complexity/simplicity in one go
-        const complicities = await prisma.routine.findMany({
+        console.log('NODES HEREEEEE', JSON.stringify(subroutineIdsByNode));
+        // Query every subroutine's complexity, simplicity, and number of inputs
+        const subroutineWeightData = await prisma.routine.findMany({
             where: { id: { in: subroutineIds } },
             select: {
                 id: true,
                 complexity: true,
-                simplicity: true
+                simplicity: true,
+                inputs: {
+                    select: {
+                        isRequired: true
+                    }
+                }
             }
         })
         // Convert compexity/simplicity to a map for easy lookup
-        let routineComplicityDict: { [routineId: string]: { complexity: number, simplicity: number } } = {};
-        for (const sub of complicities) {
-            routineComplicityDict[sub.id] = { complexity: sub.complexity, simplicity: sub.simplicity };
+        let subroutineWeightDataDict: { [routineId: string]: NodeWeightData } = {};
+        for (const sub of subroutineWeightData) {
+            subroutineWeightDataDict[sub.id] = { 
+                complexity: sub.complexity, 
+                simplicity: sub.simplicity,
+                optionalInputs: sub.inputs.filter(input => !input.isRequired).length,
+                allInputs: sub.inputs.length,
+            };
         }
         // Calculate the complexity/simplicity of each node. If node has no subroutines, its complexity is 0 (e.g. start node, end node)
-        let nodeComplicityDict: { [nodeId: string]: { complexity: number, simplicity: number } } = {};
+        let nodeWeightDataDict: { [nodeId: string]: NodeWeightData } = {};
         for (const node of nodes) {
-            nodeComplicityDict[node.id] = {
-                complexity: nodeDictionary[node.id]?.reduce((acc, cur) => acc + routineComplicityDict[cur].complexity, 0) || 0,
-                simplicity: nodeDictionary[node.id]?.reduce((acc, cur) => acc + routineComplicityDict[cur].simplicity, 0) || 0,
+            nodeWeightDataDict[node.id] = {
+                complexity: subroutineIdsByNode[node.id]?.reduce((acc, cur) => acc + subroutineWeightDataDict[cur].complexity, 0) || 0,
+                simplicity: subroutineIdsByNode[node.id]?.reduce((acc, cur) => acc + subroutineWeightDataDict[cur].simplicity, 0) || 0,
+                optionalInputs: subroutineIdsByNode[node.id]?.reduce((acc, cur) => acc + subroutineWeightDataDict[cur].optionalInputs, 0) || 0,
+                allInputs: subroutineIdsByNode[node.id]?.reduce((acc, cur) => acc + subroutineWeightDataDict[cur].allInputs, 0) || 0,
             }
         }
-        console.log('NODE COMPLICITY DICT', JSON.stringify(nodeComplicityDict));
+        console.log('NODE WEIGHT DATA DICT', JSON.stringify(nodeWeightDataDict));
         // Using the node links, determine the most complex path through the routine
-        const [shortest, longest] = calculateShortestLongestWeightedPath(nodeComplicityDict, nodeLinks);
-        // return with +1 
+        const [shortest, longest] = calculateShortestLongestWeightedPath(nodeWeightDataDict, nodeLinks);
+        // return with +1, so that nesting routines has a small factor in determining weight
         return [shortest + 1, longest + 1];
     },
     /**
@@ -404,12 +486,11 @@ export const routineMutater = (prisma: PrismaType) => ({
         //TODO
         // Validate create
         if (Array.isArray(createMany)) {
+            inputsCreate.validateSync(createMany, { abortEarly: false });
             let result = [];
             for (let data of createMany) {
-                // Check for valid arguments
-                inputCreate.validateSync(data, { abortEarly: false });
                 // Check for censored words
-                if (hasProfanity(data.name, data.description)) 
+                if (hasProfanity(data.name, data.description))
                     throw new CustomError(CODE.BannedWord, 'Name or description includes bad word', { code: genErrorCode('0091') });
                 // Convert nested relationships
                 result.push({
@@ -422,12 +503,11 @@ export const routineMutater = (prisma: PrismaType) => ({
         }
         // Validate update
         if (Array.isArray(updateMany)) {
+            inputsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
             let result = [];
             for (let update of updateMany) {
-                // Check for valid arguments
-                inputUpdate.validateSync(update.data, { abortEarly: false });
                 // Check for censored words
-                if (hasProfanity(update.data.name, update.data.description)) 
+                if (hasProfanity(update.data.name, update.data.description))
                     throw new CustomError(CODE.BannedWord, 'Name or description contains banned word', { code: genErrorCode('0092') });
                 // Convert nested relationships
                 result.push({
@@ -468,12 +548,10 @@ export const routineMutater = (prisma: PrismaType) => ({
         //TODO
         // Validate create
         if (Array.isArray(createMany)) {
+            outputsCreate.validateSync(createMany, { abortEarly: false });
+            TranslationModel().profanityCheck(createMany);
             let result = [];
             for (let data of createMany) {
-                // Check for valid arguments
-                inputCreate.validateSync(data, { abortEarly: false });
-                // Check for censored words
-                TranslationModel().profanityCheck(data);
                 // Convert nested relationships
                 result.push({
                     name: data.name,
@@ -485,12 +563,10 @@ export const routineMutater = (prisma: PrismaType) => ({
         }
         // Validate update
         if (Array.isArray(updateMany)) {
+            outputsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            TranslationModel().profanityCheck(updateMany.map(u => u.data));
             let result = [];
             for (let update of updateMany) {
-                // Check for valid arguments
-                inputUpdate.validateSync(update.data, { abortEarly: false });
-                // Check for censored words
-                TranslationModel().profanityCheck(update.data);
                 // Convert nested relationships
                 result.push({
                     where: update.where,
@@ -550,18 +626,23 @@ export const routineMutater = (prisma: PrismaType) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<RoutineCreateInput, RoutineUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) 
+        if (!createMany && !updateMany && !deleteMany) return;
+        if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0093') });
+        // Collect organizationIds from each object, and check if the user is an admin/owner of every organization
+        const organizationIds: (string | null | undefined)[] = [];
         if (createMany) {
-            createMany.forEach(input => routineCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => TranslationModel().profanityCheck(input));
+            routinesCreate.validateSync(createMany, { abortEarly: false });
+            TranslationModel().profanityCheck(createMany);
+            // Add createdByOrganizationIds to organizationIds array, if they are set
+            organizationIds.push(...createMany.map(input => input.createdByOrganizationId).filter(id => id));
             createMany.forEach(input => this.validateNodePositions(input));
             // Check if user will pass max routines limit
             const existingCount = await prisma.routine.count({
                 where: {
                     OR: [
-                        { user: { id: userId ?? '' } },
-                        { organization: { members: { some: { userId: userId ?? '', role: MemberRole.Owner as any } } } },
+                        { user: { id: userId } },
+                        { organization: { members: { some: { userId: userId, role: MemberRole.Owner as any } } } },
                     ]
                 }
             })
@@ -570,29 +651,31 @@ export const routineMutater = (prisma: PrismaType) => ({
             }
         }
         if (updateMany) {
-            updateMany.forEach(input => routineUpdate.validateSync(input.data, { abortEarly: false }));
-            updateMany.forEach(input => TranslationModel().profanityCheck(input.data));
+            routinesUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            TranslationModel().profanityCheck(updateMany.map(u => u.data));
+            // Add new organizationIds to organizationIds array, if they are set
+            organizationIds.push(...updateMany.map(input => input.data.organizationId).filter(id => id))
+            // Add existing organizationIds to organizationIds array, if userId does not match the object's userId
+            const objects = await prisma.routine.findMany({
+                where: { id: { in: updateMany.map(input => input.where.id) } },
+                select: { id: true, userId: true, organizationId: true },
+            });
+            organizationIds.push(...objects.filter(object => object.userId !== userId).map(object => object.organizationId));
             updateMany.forEach(input => this.validateNodePositions(input.data));
         }
         if (deleteMany) {
-            // Check if user is authorized to delete
+            // Add organizationIds to organizationIds array, if userId does not match the object's userId
             const objects = await prisma.routine.findMany({
                 where: { id: { in: deleteMany } },
                 select: { id: true, userId: true, organizationId: true },
             });
-            // Filter out objects that match the user's Id, since we know those are authorized
-            const objectsToCheck = objects.filter(object => object.userId !== userId);
-            if (objectsToCheck.length > 0) {
-                for (const check of objectsToCheck) {
-                    // Check if user is authorized to delete
-                    if (!check.organizationId) 
-                        throw new CustomError(CODE.Unauthorized, 'Not authorized to delete', { code: genErrorCode('0095') });
-                    const [authorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', check.organizationId);
-                    if (!authorized) 
-                        throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0096') });
-                }
-            }
+            organizationIds.push(...objects.filter(object => object.userId !== userId).map(object => object.organizationId));
         }
+        // Find admin/owner member data for every organization
+        const memberData = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', organizationIds);
+        // If any member data is undefined, the user is not authorized to delete one or more objects
+        if (memberData.some(member => !member))
+            throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0095') })
     },
     /**
      * Performs adds, updates, and deletes of organizations. First validates that every action is allowed.
@@ -608,10 +691,6 @@ export const routineMutater = (prisma: PrismaType) => ({
                 let data = await this.toDBShape(userId, input);
                 // Associate with either organization or user
                 if (input.createdByOrganizationId) {
-                    // Make sure the user is an admin of the organization
-                    const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', input.createdByOrganizationId);
-                    if (!isAuthorized) 
-                        throw new CustomError(CODE.Unauthorized, 'Not authorized to create routine', { code: genErrorCode('0097') });
                     data = {
                         ...data,
                         organization: { connect: { id: input.createdByOrganizationId } },
@@ -639,24 +718,10 @@ export const routineMutater = (prisma: PrismaType) => ({
                 let data = await this.toDBShape(userId, input.data);
                 // Find object
                 let object = await prisma.routine.findFirst({ where: input.where })
-                if (!object)    
+                if (!object)
                     throw new CustomError(CODE.NotFound, 'Routine not found', { code: genErrorCode('0098') });
-                // Make sure user is authorized to update
-                if (object.organizationId) {
-                    const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', object.organizationId);
-                    if (!isAuthorized) 
-                        throw new CustomError(CODE.Unauthorized, 'Not authorized to update routine', { code: genErrorCode('0099') });
-                } else {
-                    if (object.userId !== userId) 
-                        throw new CustomError(CODE.Unauthorized, 'Not authorized to update routine', { code: genErrorCode('0100') });
-                }
                 // Associate with either organization or user. This will remove the association with the other.
                 if (input.data.organizationId) {
-                    // Make sure the user is an admin of the organization
-                    const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', input.data.organizationId);
-                    console.log('authorized check update routine with organization', isAuthorized, input.data.organizationId);
-                    if (!isAuthorized) 
-                        throw new CustomError(CODE.Unauthorized, 'Not authorized to update routine', { code: genErrorCode('0101') });
                     data = {
                         ...data,
                         organization: { connect: { id: input.data.organizationId } },

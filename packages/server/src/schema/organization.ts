@@ -52,7 +52,9 @@ export const typeDef = gql`
         handle: String
         isOpenToNewMembers: Boolean!
         stars: Int!
+        views: Int!
         isStarred: Boolean!
+        isViewed: Boolean!
         role: MemberRole
         comments: [Comment!]!
         members: [Member!]!
@@ -97,6 +99,7 @@ export const typeDef = gql`
         isOpenToNewMembers: Boolean
         languages: [String!]
         minStars: Int
+        minViews: Int
         projectId: ID
         reportId: ID
         resourceLists: [String!]

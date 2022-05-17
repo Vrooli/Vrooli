@@ -1,5 +1,4 @@
-import { profile_profile } from "graphql/generated/profile";
-import { DecisionStep, Node, Organization, Project, Routine, Session, Standard, User } from "types";
+import { DecisionStep, Node, Organization, Profile, Project, Routine, Session, Standard, User } from "types";
 
 export interface CreateProps<T> {
     onCancel: () => void;
@@ -42,8 +41,8 @@ export interface UserViewProps extends ViewProps<User> {}
 
 
 export interface SettingsBaseProps {
-    profile: profile_profile | undefined;
-    onUpdated: (profile: profile) => void;
+    profile: Profile | undefined;
+    onUpdated: (profile: Profile) => void;
 }
 export interface SettingsAuthenticationProps extends SettingsBaseProps {
     session: Session
@@ -71,6 +70,7 @@ export interface DecisionViewProps {
     session: Session;
 }
 
-export interface RunRoutineViewProps extends ViewProps<Routine> {
+export interface RunViewProps extends ViewProps<Routine> {
     handleClose: () => void; // View is always in a dialog
+    routine: Routine;
 }

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Box, IconButton, Menu, Tooltip } from '@mui/material';
+import { Box, IconButton, Menu, Tooltip, useTheme } from '@mui/material';
 import { HelpOutline as HelpIcon } from "@mui/icons-material";
 import Markdown from 'markdown-to-jsx';
 import { HelpButtonProps } from '../types';
@@ -12,6 +12,7 @@ export const HelpButton = ({
     sxRoot,
     sx,
 }: HelpButtonProps) => {
+    const { palette } = useTheme();
     const [anchorEl, setAnchorEl] = useState(null);
     const open = Boolean(anchorEl);
 
@@ -26,9 +27,14 @@ export const HelpButton = ({
     const menu = useMemo(() => {
         return (
             <Box>
-                <Box sx={{ background: (t) => t.palette.primary.dark }}>
-                    <IconButton edge="start" color="inherit" onClick={closeMenu} aria-label="close">
-                        <CloseIcon sx={{ fill: 'white', marginLeft: '0.5em' }}/>
+                <Box sx={{ 
+                    background: palette.primary.dark,
+                    display: 'flex',
+                    flexDirection: 'row-reverse',
+                    paddingRight: '0.5rem',
+                }}>
+                    <IconButton color="inherit" onClick={closeMenu} aria-label="close">
+                        <CloseIcon sx={{ fill: 'white' }}/>
                     </IconButton>
                 </Box>
                 <Box sx={{ padding: 1 }}>
@@ -36,7 +42,7 @@ export const HelpButton = ({
                 </Box>
             </Box>
         )
-    }, [markdown])
+    }, [markdown, palette.primary.dark])
 
     return (
         <Box
@@ -70,7 +76,7 @@ export const HelpButton = ({
                         }}
                         sx={{
                             '& .MuiPopover-paper': {
-                                background: (t) => t.palette.background.paper,
+                                background: palette.background.paper,
                                 maxWidth: 'min(90vw, 400px)',
                             },
                             '& .MuiMenu-list': {

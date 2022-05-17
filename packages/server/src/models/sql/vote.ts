@@ -4,7 +4,7 @@ import { LogType, Vote, VoteInput } from "../../schema/types";
 import { PrismaType } from "../../types";
 import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
 import _ from "lodash";
-import { genErrorCode } from "../../logger";
+import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 
 //==============================================================
@@ -24,11 +24,12 @@ export const voteFormatter = (): FormatConverter<Vote> => ({
         }
     },
     constructUnions: (data) => {
-        let { comment, project, routine, standard, ...modified } = data;
+        let { comment, project, routine, standard, tag, ...modified } = data;
         if (comment) modified.to = comment;
         else if (project) modified.to = project;
         else if (routine) modified.to = routine;
         else if (standard) modified.to = standard;
+        else if (tag) modified.to = tag;
         return modified;
     },
     deconstructUnions: (partial) => {
@@ -78,14 +79,15 @@ const voter = (prisma: PrismaType) => ({
             if (input.isUpvote === null) {
                 // Delete vote
                 await prisma.vote.delete({ where: { id: vote.id } })
+                console.log('before log vote a')
                 // Log remove vote
-                await Log.collection.insertOne({
+                Log.collection.insertOne({
                     timestamp: Date.now(),
                     userId: userId,
                     action: LogType.RemoveVote,
                     object1Type: input.voteFor,
                     object1Id: input.forId,
-                })
+                }).catch(error => logger.log(LogLevel.error, 'Failed creating "Remove Vote" log', { code: genErrorCode('0204'), error }));
             }
             // Otherwise, update the vote
             else {
@@ -93,14 +95,15 @@ const voter = (prisma: PrismaType) => ({
                     where: { id: vote.id },
                     data: { isUpvote: input.isUpvote }
                 })
+                console.log('before log vote b')
                 // Log vote/unvote
-                await Log.collection.insertOne({
+                Log.collection.insertOne({
                     timestamp: Date.now(),
                     userId: userId,
                     action: input.isUpvote ? LogType.Upvote : LogType.Downvote,
                     object1Type: input.voteFor,
                     object1Id: input.forId,
-                })
+                }).catch(error => logger.log(LogLevel.error, 'Failed creating "Upvote/Downvote" log', { code: genErrorCode('0205'), error }));
             }
             // Update the score
             const oldVoteCount = vote.isUpvote ? 1 : vote.isUpvote === null ? 0 : -1;
@@ -124,14 +127,15 @@ const voter = (prisma: PrismaType) => ({
                     [`${forMapper[input.voteFor]}Id`]: input.forId
                 }
             })
+            console.log('before log vote c')
             // Log vote
-            await Log.collection.insertOne({
+            Log.collection.insertOne({
                 timestamp: Date.now(),
                 userId: userId,
                 action: input.isUpvote ? LogType.Upvote : LogType.Downvote,
                 object1Type: input.voteFor,
                 object1Id: input.forId,
-            })
+            }).catch(error => logger.log(LogLevel.error, 'Failed creating "Upvote/Downvote" log', { code: genErrorCode('0206'), error }));
             // Update the score
             const voteCount = input.isUpvote ? 1 : input.isUpvote === null ? 0 : -1;
             await prismaFor.update({
@@ -144,7 +148,7 @@ const voter = (prisma: PrismaType) => ({
     async getIsUpvoteds(
         userId: string,
         ids: string[],
-        voteFor: VoteFor
+        voteFor: keyof typeof VoteFor
     ): Promise<Array<boolean | null>> {
         // Create result array that is the same length as ids
         const result = new Array(ids.length).fill(null);

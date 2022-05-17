@@ -1,4 +1,4 @@
-import { Box, Button, Dialog, IconButton, Slider, Stack, Tooltip } from '@mui/material';
+import { Box, Button, Dialog, IconButton, Slider, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import {
     Add as AddIcon,
@@ -7,14 +7,12 @@ import {
     PlayCircle as RunIcon,
     Update as UpdateIcon
 } from '@mui/icons-material';
-import { BuildRunState } from 'utils';
+import { BuildRunState, stringifySearchParams } from 'utils';
 import { BuildBottomContainerProps } from '../types';
 import { useLocation } from 'wouter';
-import { UpTransition } from 'components/dialogs';
-import { RunRoutineView } from 'components/views';
-import { useMutation } from '@apollo/client';
-import { routineStart, routineStartVariables } from 'graphql/generated/routineStart';
-import { routineStartMutation } from 'graphql/mutation';
+import { RunPickerDialog, UpTransition } from 'components/dialogs';
+import { RunView } from 'components/views';
+import { Run } from 'types';
 
 export const BuildBottomContainer = ({
     canSubmitMutate,
@@ -32,23 +30,40 @@ export const BuildBottomContainer = ({
     scale,
     session,
     sliderColor,
-    routineId,
+    routine,
     runState,
 }: BuildBottomContainerProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const onScaleChange = useCallback((_event: any, newScale: number | number[]) => {
         handleScaleChange(newScale as number);
     }, [handleScaleChange]);
 
-    const [logRoutineStart] = useMutation<routineStart, routineStartVariables>(routineStartMutation);
     const [isRunOpen, setIsRunOpen] = useState(false)
-    const runRoutine = () => {
-        // Log start
-        logRoutineStart({ variables: { input: { id: routineId ?? '' } } })
-        setLocation(`?step=1`, { replace: true });
-        setIsRunOpen(true)
-    };
+    const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
+    const handleRunSelect = useCallback((run: Run) => {
+        setLocation(stringifySearchParams({
+            run: run.id,
+            step: run.steps.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
+        }), { replace: true });
+        setIsRunOpen(true);
+    }, [setLocation]);
+    const handleSelectRunClose = useCallback(() => setSelectRunAnchor(null), []);
+
+    const runRoutine = useCallback((e: any) => {
+        // If editing, don't use a real run
+        if (isEditing) {
+            setLocation(stringifySearchParams({
+                run: "test",
+                step: [1]
+            }), { replace: true });
+            setIsRunOpen(true);
+        }
+        else {
+            setSelectRunAnchor(e.currentTarget);
+        }
+    }, [isEditing, setLocation]);
     const stopRoutine = () => {
         setLocation(window.location.pathname, { replace: true });
         setIsRunOpen(false)
@@ -67,9 +82,9 @@ export const BuildBottomContainer = ({
             step={0.01}
             value={scale}
             valueLabelDisplay="auto"
-            sx={{ 
-                color: sliderColor, 
-                maxWidth: '500px', 
+            sx={{
+                color: sliderColor,
+                maxWidth: '500px',
                 marginRight: 2,
             }}
         />
@@ -150,13 +165,21 @@ export const BuildBottomContainer = ({
     }, [canCancelMutate, canSubmitMutate, handleAdd, handleCancelAdd, handleCancelUpdate, handleUpdate, isAdding, isEditing, loading, runRoutine, runState]);
 
     return (
-        <Box p={2} sx={{
+        <Box p={1} sx={{
             alignItems: 'center',
-            background: (t) => t.palette.primary.light,
+            background: palette.primary.light,
             display: 'flex',
             justifyContent: 'center',
-            paddingBottom: { xs: '72px', md: '16px' },
+            paddingBottom: { xs: '64px', md: '8px' },
         }}>
+            {/* Chooses which run to use */}
+            <RunPickerDialog
+                anchorEl={selectRunAnchor}
+                handleClose={handleSelectRunClose}
+                onSelect={handleRunSelect}
+                routine={routine}
+                session={session}
+            />
             <Dialog
                 fullScreen
                 id="run-routine-view-dialog"
@@ -164,10 +187,11 @@ export const BuildBottomContainer = ({
                 open={isRunOpen}
                 TransitionComponent={UpTransition}
             >
-                <RunRoutineView
+                {routine && <RunView
                     handleClose={stopRoutine}
+                    routine={routine}
                     session={session}
-                />
+                />}
             </Dialog>
             {slider}
             {buttons}

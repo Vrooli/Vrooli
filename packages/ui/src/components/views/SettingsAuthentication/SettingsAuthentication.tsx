@@ -1,7 +1,7 @@
-import { Box, Button, Container, Grid, Stack, TextField, Typography } from "@mui/material"
+import { Box, Button, Grid, Stack, TextField, Typography, useTheme } from "@mui/material"
 import { useMutation } from "@apollo/client";
 import { user } from "graphql/generated/user";
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
@@ -9,7 +9,6 @@ import { profileUpdateMutation } from "graphql/mutation";
 import { formatForUpdate, Pubs } from "utils";
 import {
     AccountBalanceWallet as WalletIcon,
-    Add as AddIcon,
     Email as EmailIcon,
     Restore as RevertIcon,
     Save as SaveIcon,
@@ -45,6 +44,7 @@ export const SettingsAuthentication = ({
     profile,
     onUpdated,
 }: SettingsAuthenticationProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const [logOut] = useMutation<any>(logOutMutation);
@@ -52,9 +52,13 @@ export const SettingsAuthentication = ({
         mutationWrapper({ mutation: logOut })
         PubSub.publish(Pubs.Session, {});
         setLocation(APP_LINKS.Home);
-    }, []);
+    }, [logOut, setLocation]);
 
     const updateWallets = useCallback((updatedList: Wallet[]) => {
+        if (!profile) {
+            PubSub.publish(Pubs.Snack, { mesage: 'Profile not loaded.', severity: 'error' });
+            return;
+        }
         onUpdated({
             ...profile,
             wallets: updatedList,
@@ -63,6 +67,10 @@ export const SettingsAuthentication = ({
     const numVerifiedEmails = profile?.emails?.filter((email) => email.verified)?.length ?? 0;
 
     const updateEmails = useCallback((updatedList: Email[]) => {
+        if (!profile) {
+            PubSub.publish(Pubs.Snack, { mesage: 'Profile not loaded.', severity: 'error' });
+            return;
+        }
         onUpdated({
             ...profile,
             emails: updatedList,
@@ -95,8 +103,8 @@ export const SettingsAuthentication = ({
         <Box style={{ overflow: 'hidden' }}>
             {/* Title */}
             <Box sx={{
-                background: (t) => t.palette.primary.dark,
-                color: (t) => t.palette.primary.contrastText,
+                background: palette.primary.dark,
+                color: palette.primary.contrastText,
                 padding: 0.5,
                 marginBottom: 2,
                 display: 'flex',

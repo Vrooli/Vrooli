@@ -1,4 +1,4 @@
-import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
+import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, StarFor } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
@@ -9,15 +9,15 @@ import {
     CardGiftcard as DonateIcon,
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
-    Person as PersonIcon,
+    Person as ProfileIcon,
     Share as ShareIcon,
     Today as CalendarIcon,
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationSortOptions, projectDefaultSortOption, ProjectSortOptions, ResourceListVertical, routineDefaultSortOption, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
-import { ResourceList, Standard, User } from "types";
+import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, Pubs } from "utils";
+import { ResourceList, User } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
 import { validate as uuidValidate } from 'uuid';
@@ -35,7 +35,9 @@ export const UserView = ({
     session,
     partialData,
 }: UserViewProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const profileColors = useMemo(() => placeholderColor(), []);
     // Get URL params
     const [isProfile] = useRoute(`${APP_LINKS.Profile}`);
     const [, params1] = useRoute(`${APP_LINKS.Profile}/:id`);
@@ -116,14 +118,14 @@ export const UserView = ({
 
     const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
-    const shareLink = () => {
+    const shareLink = useCallback(() => {
         navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.Profile}/${id}`);
         PubSub.publish(Pubs.Snack, { message: 'Copied🎉' })
-    }
+    }, [id]);
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
-        setLocation(isProfile ? `${APP_LINKS.Settings}?page=profile` : `${APP_LINKS.SearchUsers}/edit/${id}`);
+        setLocation(isProfile ? `${APP_LINKS.Settings}?page="profile"` : `${APP_LINKS.SearchUsers}/edit/${id}`);
     }, [id, isProfile, setLocation]);
 
     // Determine options available to object, in order
@@ -179,7 +181,7 @@ export const UserView = ({
                     defaultSortOption: routineDefaultSortOption,
                     searchQuery: routinesQuery,
                     where: { userId: id },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Run, newValue.id),
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 }
             case TabOptions.Standards:
                 return {
@@ -204,7 +206,7 @@ export const UserView = ({
                     onSearchSelect: (o: any) => { },
                 }
         }
-    }, [currTabType, id, session]);
+    }, [currTabType, id, setLocation]);
 
     // Handle url search
     const [searchString, setSearchString] = useState<string>('');
@@ -233,25 +235,28 @@ export const UserView = ({
             ml='auto'
             mr='auto'
             mt={3}
-            bgcolor={(t) => t.palette.background.paper}
+            bgcolor={palette.background.paper}
             sx={{ ...containerShadow }}
         >
             <Box
                 width={'min(100px, 25vw)'}
                 height={'min(100px, 25vw)'}
                 borderRadius='100%'
-                border={(t) => `4px solid ${t.palette.primary.dark}`}
-                bgcolor='#939eb9'
+                border={`4px solid ${palette.primary.dark}`}
                 position='absolute'
                 display='flex'
                 justifyContent='center'
                 alignItems='center'
                 left='50%'
                 top="-55px"
-                sx={{ transform: 'translateX(-50%)' }}
+                sx={{ 
+                    border: `1px solid black`,
+                    backgroundColor: profileColors[0],
+                    transform: 'translateX(-50%)',
+                }}
             >
-                <PersonIcon sx={{
-                    fill: '#cfd0d1',
+                <ProfileIcon sx={{
+                    fill: profileColors[1],
                     width: '80%',
                     height: '80%',
                 }} />
@@ -286,7 +291,10 @@ export const UserView = ({
                                     size="small"
                                     onClick={onEdit}
                                 >
-                                    <EditIcon color="primary" />
+                                    <EditIcon sx={{
+                                        fill: palette.mode === 'light' ? 
+                                            palette.primary.main : palette.secondary.light,
+                                    }} />
                                 </IconButton>
                             </Tooltip>
                         </Stack>
@@ -301,7 +309,7 @@ export const UserView = ({
                             variant="h6"
                             textAlign="center"
                             sx={{
-                                color: (t) => t.palette.secondary.dark,
+                                color: palette.secondary.dark,
                                 cursor: 'pointer',
                             }}
                         >${handle}</Typography>
@@ -316,7 +324,7 @@ export const UserView = ({
                     ) :
                         user?.created_at && (<Box sx={{ display: 'flex' }} >
                             <CalendarIcon />
-                            {`Joined ${new Date(user.created_at).toLocaleDateString(navigator.language, { year: 'numeric', month: 'long' })}`}
+                            {`Joined ${displayDate(user.created_at, false)}`}
                         </Box>)
                 }
                 {/* Description */}
@@ -327,7 +335,7 @@ export const UserView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Typography variant="body1" sx={{ color: bio ? 'black' : 'gray' }}>{bio ?? 'No bio set'}</Typography>
+                        <Typography variant="body1" sx={{ color: Boolean(bio) ? palette.background.textPrimary : palette.background.textSecondary }}>{bio ?? 'No bio set'}</Typography>
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -355,7 +363,7 @@ export const UserView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [bio, handle, isOwn, loading, name, onEdit, openMoreMenu, partialData, session, shareLink, user]);
+    ), [bio, handle, isOwn, loading, name, onEdit, openMoreMenu, palette, profileColors, session, shareLink, user?.created_at, user?.id, user?.isStarred, user?.stars]);
 
     /**
      * Opens add new page
@@ -375,7 +383,7 @@ export const UserView = ({
                 setLocation(`${APP_LINKS.Standard}/add`);
                 break;
         }
-    }, [currTabType]);
+    }, [currTabType, setLocation]);
 
     return (
         <>

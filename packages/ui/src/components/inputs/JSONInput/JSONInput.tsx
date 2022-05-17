@@ -1,24 +1,10 @@
 /**
  * TextField for entering (and viewing format of) JSON.
  */
-import { useCallback, useEffect, useState } from 'react';
-import { Box, Button, IconButton, Popover, Stack, Tooltip, Typography } from '@mui/material';
-import {
-    FormatListBulleted as BulletListIcon,
-    FormatListNumbered as NumberListIcon,
-    FormatBold as BoldIcon,
-    FormatItalic as ItalicIcon,
-    InsertLink as LinkIcon,
-    List as ListIcon,
-    StrikethroughS as StrikethroughIcon,
-    Title as HeaderIcon,
-    Visibility as PreviewOnIcon,
-    VisibilityOff as PreviewOffIcon,
-} from '@mui/icons-material';
+import { useEffect } from 'react';
+import { Box, Stack, Typography, useTheme } from '@mui/material';
 import { JSONInputProps } from '../types';
 import { Pubs } from 'utils';
-import Markdown from 'markdown-to-jsx';
-import { noSelect } from 'styles';
 import { HelpButton } from 'components/buttons';
 
 const TERTIARY_COLOR = '#95f3cd';
@@ -37,6 +23,7 @@ export const JSONInput = ({
     value,
     variables,
 }: JSONInputProps) => {
+    const { palette } = useTheme();
 
     /**
      * If value not set, defauls to format with variables 
@@ -84,8 +71,8 @@ export const JSONInput = ({
                 width: '100%',
                 padding: '0.5rem',
                 borderBottom: '1px solid #e0e0e0',
-                background: (t) => t.palette.primary.light,
-                color: (t) => t.palette.primary.contrastText,
+                background: palette.primary.light,
+                color: palette.primary.contrastText,
                 borderRadius: '0.5rem 0.5rem 0 0',
             }}>
                 <Typography variant="h6">{title}</Typography>

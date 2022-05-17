@@ -3,7 +3,7 @@ import { containerShadow } from 'styles';
 
 export const cardRoot: SxProps = {
     ...containerShadow,
-    background: '#2167a3',
+    background: (t: any) => t.palette.primary.light,
     color: (t: any) => t.palette.primary.contrastText,
     borderRadius: '16px',
     margin: 0,

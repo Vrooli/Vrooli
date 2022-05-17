@@ -8,6 +8,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import { GraphQLModelType, StarModel } from '../models';
 import { rateLimit } from '../rateLimit';
 import { genErrorCode } from '../logger';
+import { resolveStarTo } from './resolvers';
 
 export const typeDef = gql`
     enum StarFor {
@@ -20,7 +21,7 @@ export const typeDef = gql`
         User
     }   
 
-    union StarTo = Comment | Organization | Project | Routine | Standard | Tag
+    union StarTo = Comment | Organization | Project | Routine | Standard | Tag | User
 
     input StarInput {
         isStar: Boolean!
@@ -28,6 +29,7 @@ export const typeDef = gql`
         forId: ID!
     }
     type Star {
+        id: ID!
         from: User!
         to: StarTo!
     }
@@ -39,14 +41,8 @@ export const typeDef = gql`
 
 export const resolvers = {
     StarFor: StarFor,
-    Star: {
-        __resolveType(obj: any) {
-            if (obj.hasOwnProperty('isFile')) return GraphQLModelType.Standard;
-            if (obj.hasOwnProperty('isComplete')) return GraphQLModelType.Project;
-            if (obj.hasOwnProperty('isOpenToNewMembers')) return GraphQLModelType.Organization;
-            if (obj.hasOwnProperty('name')) return GraphQLModelType.User;
-            return GraphQLModelType.Routine;
-        },
+    StarTo: {
+        __resolveType(obj: any) { return resolveStarTo(obj) },
     },
     Mutation: {
         /**

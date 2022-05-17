@@ -1,55 +1,77 @@
-import { APP_LINKS } from "@local/shared";
-import { Box, Button, IconButton, LinearProgress, Stack, Typography } from "@mui/material"
+import { APP_LINKS, RunStepStatus } from "@local/shared";
+import { Box, Button, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material"
 import { DecisionView, HelpButton, RunStepsDialog } from "components";
 import { SubroutineView } from "components/views/SubroutineView/SubroutineView";
 import { useLocation, useRoute } from "wouter";
-import { RunRoutineViewProps } from "../types";
+import { RunViewProps } from "../types";
 import {
     ArrowBack as PreviousIcon,
     ArrowForward as NextIcon,
     Close as CloseIcon,
     DoneAll as CompleteIcon,
 } from '@mui/icons-material';
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { getTranslation, getUserLanguages, Pubs, RoutineStepType, updateArray, useHistoryState } from "utils";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getTranslation, getUserLanguages, Pubs, RoutineStepType, updateArray, useHistoryState, useReactSearch } from "utils";
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { validate as uuidValidate } from 'uuid';
-import { DecisionStep, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, SubroutineStep } from "types";
-import { parseSearchParams } from "utils/navigation/urlTools";
+import { DecisionStep, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, RoutineListStep, RoutineStep, RunStep, SubroutineStep } from "types";
+import { stringifySearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
-import { routineComplete, routineCompleteVariables } from "graphql/generated/routineComplete";
-import { routineCompleteMutation } from "graphql/mutation";
+import { runComplete } from "graphql/generated/runComplete";
+import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
+import { mutationWrapper } from "graphql/utils";
+import { runUpdate, runUpdateVariables } from "graphql/generated/runUpdate";
 
 const TERTIARY_COLOR = '#95f3cd';
 
-export const RunRoutineView = ({
+export const RunView = ({
     handleClose,
+    routine,
     session
-}: RunRoutineViewProps) => {
+}: RunViewProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    // Get URL params
-    const [stepParams, setStepParams] = useState<number[]>(() => {
-        const stepUrl = (parseSearchParams(window.location.search).step ?? '').split('.');
-        if (Array.isArray(stepUrl)) return stepUrl.map(Number)
-        return []
-    });
-    const [, params1] = useRoute(`${APP_LINKS.Build}/:routineId`);
-    const [, params2] = useRoute(`${APP_LINKS.Run}/:routineId`);
-    // Query main routine being run. This should not change for the entire orchestration, 
-    // no matter how deep we go.
-    const [getRoutine, { data: routineData, loading: routineLoading }] = useLazyQuery<routine, routineVariables>(routineQuery);
-    const [routine, setRoutine] = useState<Routine | null>(null);
-    useEffect(() => {
-        const routineId = params1?.routineId ?? params2?.routineId ?? ''
-        if (uuidValidate(routineId)) {
-            getRoutine({ variables: { input: { id: routineId } } })
+    const params = useReactSearch();
+    const { stepParams, runId, testMode } = useMemo(() => {
+        console.log('hissssss', params)
+        console.log('calculating step paramsssssss', params.step)
+        return {
+            stepParams: Array.isArray(params.step) ? params.step as number[] : [],
+            runId: typeof params.run === 'string' && uuidValidate(params.run) ? params.run : undefined,
+            testMode: params.run === 'test',
         }
-    }, [getRoutine, params1?.routineId, params2?.routineId]);
-    useEffect(() => {
-        if (routineData?.routine) setRoutine(routineData.routine);
-    }, [routineData]);
+    }, [params])
+    const [, params1] = useRoute(`${APP_LINKS.Build}/:routineId`);
+    const [, params2] = useRoute(`${APP_LINKS.Routine}/:routineId`);
+    const run = useMemo(() => {
+        if (!routine) return undefined;
+        return routine.runs.find(run => run.id === runId);
+    }, [routine, runId]);
+
+    /**
+     * Updates step params
+     * @param newParams The new step params, as an array
+     */
+    const setStepParams = useCallback((newParams: number[]) => {
+        setLocation(stringifySearchParams({
+            ...params,
+            step: newParams,
+        }), { replace: true });
+    }, [params, setLocation]);
+
+    /**
+     * The amount of routine completed so far, measured in complexity
+     */
+    const [completedComplexity, setCompletedComplexity] = useState(0);
+
+    /**
+     * Every step completed so far. 
+     * Steps are stored as an array that describes their nesting, like they appear in the URL (e.g. [1], [1,3], [1,5,2]).
+     * TODO History key should be combination of routineId and updated_at, so history is reset when routine is updated.
+     */
+    const [progress, setProgress] = useHistoryState(params1?.routineId ?? params2?.routineId ?? '', [])
 
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
@@ -128,13 +150,13 @@ export const RunRoutineView = ({
         // Main routine acts like routine list
         setStepList({
             type: RoutineStepType.RoutineList,
-            nodeId: null,
+            nodeId: '',
             isOrdered: true,
             title: getTranslation(routine, 'title', languages, true) ?? 'Untitled',
             description: getTranslation(routine, 'description', languages, true),
             steps: resultSteps,
         });
-    }, [routine]);
+    }, [languages, routine]);
 
     /**
      * Returns the requested step
@@ -157,6 +179,9 @@ export const RunRoutineView = ({
         return stepParams.length === 0 ? -1 : Number(stepParams[stepParams.length - 1]);
     }, [stepParams]);
 
+    /**
+     * The number of steps in the current-level node, or -1 if not found.
+     */
     const stepsInCurrentNode = useMemo(() => {
         if (!stepParams || !stepList) return -1;
         // For each step in ids array (except for the last id), find the nested step in the steps array.
@@ -172,11 +197,29 @@ export const RunRoutineView = ({
     }, [stepParams, stepList]);
 
     /**
-     * Every step completed so far. 
-     * Steps are stored as an array that describes their nesting, like they appear in the URL (e.g. [1], [1,3], [1,5,2]).
-     * TODO History key should be combination of routineId and updated_at, so history is reset when routine is updated.
+     * Current step run data
      */
-    const [progress, setProgress] = useHistoryState(params1?.routineId ?? params2?.routineId ?? '', [])
+    const currStepRunData = useMemo(() => {
+        const runStep = run?.steps?.find((step: RunStep) => step.stepId === step.id);
+        return runStep;
+    }, [run?.steps]);
+
+    /**
+     * Interval to track time spent on each step.
+     */
+    const intervalRef = useRef<NodeJS.Timeout | null>(null);
+    const [timeElapsed, setTimeElapsed] = useState<number>(0);
+    useEffect(() => {
+        if (!currStepRunData) return;
+        intervalRef.current = setInterval(() => { setTimeElapsed(t => t + 1); }, 1000);
+        return () => {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+        }
+    }, [currStepRunData]);
+
+    useEffect(() => {
+        console.log('timeElapsed', timeElapsed);
+    }, [timeElapsed]);
 
     /**
      * Calculates the complexity of a step
@@ -193,33 +236,23 @@ export const RunRoutineView = ({
     }, []);
 
     /**
-     * Calculates progress percentage, as complexity of all completed steps / complexity of all steps
+     * Calculates the percentage of routine completed so far, measured in complexity / total complexity * 100
      */
-    const progressPercentage = useMemo(() => {
-        if (!stepList || !(stepList as RoutineListStep).steps.length || !progress || !progress.length || !routine) return 0;
-        // Add the complexity of all steps in progress
-        let completedComplexity = 0;
-        for (const completedStep of progress) {
-            const currStep = findStep(completedStep);
-            if (currStep) completedComplexity += getStepComplexity(currStep);
-        }
-        // Find the total complexity
-        const totalComplexity = routine.complexity;
-        return completedComplexity / totalComplexity * 100;
-    }, [progress, stepList, routine, findStep, getStepComplexity]);
+    const progressPercentage = useMemo(() => completedComplexity / (routine?.complexity ?? 1) * 100, [completedComplexity, routine]);
 
     // Query current subroutine, if needed. Main routine may have the data
     const [getSubroutine, { data: subroutineData, loading: subroutineLoading }] = useLazyQuery<routine, routineVariables>(routineQuery);
     const [currentStep, setCurrentStep] = useState<RoutineStep | null>(null);
     useEffect(() => {
+        console.log('calculating step', stepParams)
         // If no steps, redirect to first step
         if (stepParams.length === 0) {
-            setLocation(`?step=1`, { replace: true });
             setStepParams([1]);
             return;
         }
         // Current step is the last step in steps list
         const currStep = findStep(stepParams);
+        console.log('found currstep', currStep)
         if (!currStep) {
             // TODO might need to fetch subroutines multiple times to get to current step, so this shouldn't be an error
             return;
@@ -227,7 +260,6 @@ export const RunRoutineView = ({
         // If current step is a list, then redirect to first step in list
         if (currStep.type === RoutineStepType.RoutineList) {
             const newStepList = [...stepParams, 1];
-            setLocation(`?step=${newStepList.join('.')}`, { replace: true });
             setStepParams(newStepList);
             return;
         }
@@ -242,7 +274,7 @@ export const RunRoutineView = ({
         } else {
             setCurrentStep(currStep);
         }
-    }, [stepParams, getSubroutine, stepList, findStep, setLocation]);
+    }, [findStep, getSubroutine, params, setStepParams, stepParams]);
     // Add subroutine data to stepList when new data is fetched
     useEffect(() => {
         const subroutine = subroutineData?.routine;
@@ -366,10 +398,10 @@ export const RunRoutineView = ({
     const toPrevious = useCallback(() => {
         if (!previousStep) return;
         // Update current step
-        setLocation(`?step=${previousStep.join('.')}`, { replace: true });
         setStepParams(previousStep);
-    }, [previousStep, progress, stepParams, setLocation]);
+    }, [previousStep, setStepParams]);
 
+    const [logRunUpdate] = useMutation<runUpdate, runUpdateVariables>(runUpdateMutation);
     /**
      * Navigate to the next subroutine
      */
@@ -380,32 +412,111 @@ export const RunRoutineView = ({
         const alreadyComplete = newProgress.find(p => p.length === stepParams.length && p.every((val, index) => val === stepParams[index]))
         if (!alreadyComplete) newProgress.push(stepParams);
         setProgress(newProgress);
+        // Calculate percentage complete
+        const currStep = findStep(stepParams);
+        const newComplexity = currStep ? (completedComplexity + getStepComplexity(currStep)) : 0;
+        // Update routine progress
+        setCompletedComplexity(newComplexity);
+        // Log if not in test mode
+        if (!testMode && run) {
+            // Find next step, to store in log
+            const nextData = findStep(nextStep);
+            if (nextData?.type === RoutineStepType.RoutineList) {
+                // Find data to update current step
+                const existingCurrStepData = run.steps.find(s => s.node?.id === (currStep as RoutineListStep)?.nodeId)
+                const stepUpdate = existingCurrStepData ? {
+                    id: existingCurrStepData.id,
+                    status: RunStepStatus.Completed,
+                    timeElapsed: (existingCurrStepData.timeElapsed ?? 0) + timeElapsed,
+                    pickups: existingCurrStepData.pickups + 1,
+                } : undefined
+                // Make sure next step hasn't been logged already (meaning you've worked on it before)
+                const existingNextStepData = run.steps.find(s => s.node?.id === nextData.nodeId);
+                if (!existingNextStepData) {
+                    logRunUpdate({
+                        variables: {
+                            input: {
+                                id: run.id,
+                                completedComplexity: newComplexity,
+                                stepsCreate: [{
+                                    order: progress.length,
+                                    title: (nextData as RoutineListStep).title,
+                                    nodeId: (nextData as RoutineListStep).nodeId,
+                                    step: nextStep,
+                                }],
+                                stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
+                            }
+                        }
+                    });
+                }
+            }
+        }
         // Update current step
-        setLocation(`?step=${nextStep.join('.')}`, { replace: true });
         setStepParams(nextStep);
-    }, [nextStep, progress, stepParams, setLocation, setProgress]);
+    }, [completedComplexity, findStep, getStepComplexity, logRunUpdate, nextStep, progress, run, setProgress, setStepParams, stepParams, testMode, timeElapsed]);
 
-    const [logRoutineComplete] = useMutation<routineComplete, routineCompleteVariables>(routineCompleteMutation);
+    const [logRunComplete] = useMutation<runComplete>(runCompleteMutation);
     /**
      * Mark routine as complete and navigate
      */
-    const toComplete = () => {
+    const toComplete = useCallback(() => {
+        // Don't actually do it if in test mode
+        if (testMode || !run) {
+            PubSub.publish(Pubs.Celebration);
+            handleClose();
+            return;
+        }
+        const currentStepRunData = run.steps.find(s => s.node?.id === (currentStep as RoutineListStep)?.nodeId);
+        const stepUpdate = currentStepRunData ? {
+            id: currentStepRunData.id,
+            timeElapsed: (currentStepRunData.timeElapsed ?? 0) + timeElapsed,
+            pickups: currentStepRunData.pickups + 1,
+        } : undefined
         // Log complete
-        logRoutineComplete({ variables: { input: { id: routine?.id ?? '' } } })
-        PubSub.publish(Pubs.Snack, { message: 'Routine completed!🎉' });
-        handleClose();
-    }
+        mutationWrapper({
+            mutation: logRunComplete,
+            input: {
+                id: run.id,
+                standalone: true,
+                completedComplexity: run.completedComplexity,
+                timeElapsed: (run.timeElapsed ?? 0) + timeElapsed,
+                pickups: run.pickups + 1,
+                stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
+            },
+            successMessage: () => 'Routine completed!🎉',
+            onSuccess: () => {
+                PubSub.publish(Pubs.Celebration);
+                handleClose()
+            },
+        })
+    }, [testMode, run, timeElapsed, logRunComplete, handleClose, currentStep]);
 
     /**
      * End routine early
      */
-    const toFinishNotComplete = () => {
-        console.log('tofinishnotcomplete');
-        //TODO
-        // Log complete
-        logRoutineComplete({ variables: { input: { id: routine?.id ?? '' } } })
+    const toFinishNotComplete = useCallback(() => {
+        // Update pickups/time elapsed if not in test mode
+        if (!testMode && run) {
+            // Find current step in run data
+            const currentStepRunData = run.steps.find(s => s.node?.id === (currentStep as RoutineListStep)?.nodeId);
+            const stepUpdate = currentStepRunData ? {
+                id: currentStepRunData.id,
+                timeElapsed: (currentStepRunData.timeElapsed ?? 0) + timeElapsed,
+                pickups: currentStepRunData.pickups + 1,
+            } : undefined
+            logRunUpdate({
+                variables: {
+                    input: {
+                        id: run.id,
+                        timeElapsed: (run.timeElapsed ?? 0) + timeElapsed,
+                        pickups: run.pickups + 1,
+                        stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
+                    }
+                }
+            });
+        }
         handleClose();
-    }
+    }, [currentStep, handleClose, logRunUpdate, run, testMode, timeElapsed]);
 
     /**
      * Find the step array of a given nodeId
@@ -414,7 +525,7 @@ export const RunRoutineView = ({
      * @param location The current location array, since this is recursive
      * @return The step array of the given step
      */
-    const findLocationArray = (nodeId: string, step: RoutineStep, location: number[] = []): number[] | null => {
+    const findLocationArray = useCallback((nodeId: string, step: RoutineStep, location: number[] = []): number[] | null => {
         if (step.type === RoutineStepType.RoutineList) {
             if ((step as RoutineListStep)?.nodeId === nodeId) return location;
             const stepList = step as RoutineListStep;
@@ -427,7 +538,7 @@ export const RunRoutineView = ({
             }
         }
         return null;
-    }
+    }, []);
 
     /**
      * Navigate to selected decision
@@ -443,14 +554,14 @@ export const RunRoutineView = ({
         const locationArray = findLocationArray(selectedNode.id, stepList);
         if (!locationArray) return;
         // Navigate to current step
-        setLocation(`?step=${locationArray.join('.')}`, { replace: true });
         setStepParams(locationArray);
-    }, [stepList]);
+    }, [findLocationArray, setStepParams, stepList, toFinishNotComplete]);
 
     /**
      * Displays either a subroutine view or decision view
      */
     const childView = useMemo(() => {
+        console.log('in child view', currentStep)
         if (!currentStep) return null;
         switch (currentStep.type) {
             case RoutineStepType.Subroutine:
@@ -467,7 +578,7 @@ export const RunRoutineView = ({
                     session={session}
                 />
         }
-    }, [currentStep, subroutineLoading]);
+    }, [currentStep, routine?.nodes, session, subroutineLoading, toDecision]);
 
     return (
         <Box sx={{ minHeight: '100vh' }}>
@@ -483,8 +594,8 @@ export const RunRoutineView = ({
                         justifyContent: 'space-between',
                         padding: '0.5rem',
                         width: '100%',
-                        backgroundColor: (t) => t.palette.primary.dark,
-                        color: (t) => t.palette.primary.contrastText,
+                        backgroundColor: palette.primary.dark,
+                        color: palette.primary.contrastText,
                     }}>
                         {/* Close Icon */}
                         <IconButton
@@ -523,23 +634,23 @@ export const RunRoutineView = ({
                         />
                     </Box>
                     {/* Progress bar */}
-                    <LinearProgress color="secondary" variant="determinate" value={progressPercentage} sx={{ height: '15px' }} />
+                    <LinearProgress color="secondary" variant="determinate" value={completedComplexity / (routine?.complexity ?? 1) * 100} sx={{ height: '15px' }} />
                 </Stack>
                 {/* Main content. For now, either looks like view of a basic routine, or options to select an edge */}
                 <Box sx={{
-                    background: 'fixed radial-gradient(circle, rgba(208,213,226,1) 7%, rgba(179,191,217,1) 66%, rgba(160,188,249,1) 94%)',
+                    background: palette.mode === 'light' ? '#c2cadd' : palette.background.default,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     margin: 'auto',
                     overflowY: 'auto',
-                    minHeight: '88vh',
+                    minHeight: '86vh',
                 }}>
                     {childView}
                 </Box>
                 {/* Action bar */}
                 <Box p={2} sx={{
-                    background: (t) => t.palette.primary.dark,
+                    background: palette.primary.dark,
                     position: 'fixed',
                     bottom: 0,
                     width: '100vw',

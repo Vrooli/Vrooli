@@ -6,11 +6,14 @@
  * To the right is a button to switch to the metadata view/edit component. You can view/edit the 
  * title, descriptions, instructions, inputs, outputs, tags, etc.
  */
-import { Box, IconButton, Menu, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, Chip, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import {
     Close as CloseIcon,
     Edit as EditIcon,
+    Mood as ValidIcon,
+    MoodBad as InvalidIcon,
+    SentimentDissatisfied as IncompleteIcon,
 } from '@mui/icons-material';
 import { getTranslation, BuildStatus } from 'utils';
 import { BuildInfoContainerProps } from '../types';
@@ -32,14 +35,19 @@ Lorem ipsum dolor sit amet consectetur adipisicing elit.
  * Status indicator and slider change color to represent routine's status
  */
 const STATUS_COLOR = {
-    [BuildStatus.Incomplete]: '#cde22c', // Yellow
-    [BuildStatus.Invalid]: '#ff6a6a', // Red
-    [BuildStatus.Valid]: '#00d51e', // Green
+    [BuildStatus.Incomplete]: '#82970e', // Yellow
+    [BuildStatus.Invalid]: '#802a2d', // Red
+    [BuildStatus.Valid]: '#01a918', // Green
 }
 const STATUS_LABEL = {
     [BuildStatus.Incomplete]: 'Incomplete',
     [BuildStatus.Invalid]: 'Invalid',
     [BuildStatus.Valid]: 'Valid',
+}
+const STATUS_ICON = {
+    [BuildStatus.Incomplete]: IncompleteIcon,
+    [BuildStatus.Invalid]: InvalidIcon,
+    [BuildStatus.Valid]: ValidIcon,
 }
 
 const TERTIARY_COLOR = '#95f3cd';
@@ -57,7 +65,7 @@ export const BuildInfoContainer = ({
     session,
     status,
 }: BuildInfoContainerProps) => {
-
+    const { palette } = useTheme();
     /**
      * List of status messages converted to markdown. 
      * If one message, no bullet points. If multiple, bullet points.
@@ -87,7 +95,7 @@ export const BuildInfoContainer = ({
     const statusMenu = useMemo(() => {
         return (
             <Box>
-                <Box sx={{ background: (t) => t.palette.primary.dark }}>
+                <Box sx={{ background: palette.primary.dark }}>
                     <IconButton edge="start" color="inherit" onClick={closeStatusMenu} aria-label="close">
                         <CloseIcon sx={{ fill: 'white', marginLeft: '0.5em' }} />
                     </IconButton>
@@ -97,7 +105,9 @@ export const BuildInfoContainer = ({
                 </Box>
             </Box>
         )
-    }, [statusMarkdown])
+    }, [palette.primary.dark, statusMarkdown])
+
+    const StatusIcon = useMemo(() => STATUS_ICON[status.code], [status]);
 
     return (
         <Stack
@@ -108,14 +118,28 @@ export const BuildInfoContainer = ({
             justifyContent="space-between"
             sx={{
                 zIndex: 2,
-                paddingTop: '10vh',
-                background: (t) => t.palette.primary.light,
-                color: (t) => t.palette.primary.contrastText,
+                background: palette.primary.light,
+                color: palette.primary.contrastText,
+                paddingTop: { xs: '64px', md: '80px' },
             }}
         >
             {/* Status indicator */}
             <Tooltip title='Press for details'>
-                <Box onClick={openStatusMenu} sx={{
+                <Chip
+                    icon={<StatusIcon sx={{ fill: 'white' }} />}
+                    label={STATUS_LABEL[status.code]}
+                    onClick={openStatusMenu}
+                    sx={{
+                        ...noSelect,
+                        background: STATUS_COLOR[status.code],
+                        color: 'white',
+                        cursor: 'pointer',
+                        marginTop: 'auto',
+                        marginBottom: 'auto',
+                        marginLeft: 2,
+                    }}
+                />
+                {/* <Box onClick={openStatusMenu} sx={{
                     ...noSelect,
                     cursor: 'pointer',
                     borderRadius: 1,
@@ -128,7 +152,7 @@ export const BuildInfoContainer = ({
                     marginTop: 'auto',
                     marginBottom: 'auto',
                     marginLeft: 2,
-                }}>{STATUS_LABEL[status.code]}</Box>
+                }}>{STATUS_LABEL[status.code]}</Box> */}
             </Tooltip>
             <Menu
                 id='status-menu'
@@ -146,7 +170,7 @@ export const BuildInfoContainer = ({
                 }}
                 sx={{
                     '& .MuiPopover-paper': {
-                        background: (t) => t.palette.background.paper,
+                        background: palette.background.paper,
                         maxWidth: 'min(100vw, 400px)',
                     },
                     '& .MuiMenu-list': {

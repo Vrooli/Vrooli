@@ -27,10 +27,15 @@ const main = async () => {
 
     // Setup databases
     await setupDatabase();
-    await mongoose.connect(process.env.MONGO_CONN ?? '', {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-    } as mongoose.ConnectOptions);
+    try {
+        mongoose.set('debug', process.env.NODE_ENV === 'development');
+        await mongoose.connect(process.env.MONGO_CONN ?? '', {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+        } as mongoose.ConnectOptions);
+    } catch (error) {
+        logger.log(LogLevel.error, '🚨 Failed to connect to MongoDB', { code: genErrorCode('0191'), error });
+    }
     console.info('✅ Connected to MongoDB');
 
     const app = express();

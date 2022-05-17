@@ -1,4 +1,4 @@
-import { CODE, resourceCreate, resourceUpdate } from "@local/shared";
+import { CODE, resourceCreate, resourcesCreate, resourcesUpdate, resourceUpdate } from "@local/shared";
 import { Resource, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Count, MemberRole } from "../../schema/types";
 import { PrismaType } from "types";
 import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
@@ -39,8 +39,9 @@ export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
     },
     customQueries(input: ResourceSearchInput): { [x: string]: any } {
         // const forQuery = (input.forId && input.forType) ? { [forMap[input.forType]]: input.forId } : {};
-        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
-        return { ...languagesQuery };
+        return {
+            ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
+        }
     },
 })
 
@@ -189,17 +190,18 @@ export const resourceMutater = (prisma: PrismaType) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ResourceCreateInput, ResourceUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) 
+        if (!createMany && !updateMany && !deleteMany) return;
+        if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0087') });
         if (createMany) {
-            createMany.forEach(input => resourceCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => TranslationModel().profanityCheck(input));
+            resourcesCreate.validateSync(createMany, { abortEarly: false });
+            TranslationModel().profanityCheck(createMany);
             await this.authorizedAdd(userId as string, createMany, prisma);
             // Check for max resources on object TODO
         }
         if (updateMany) {
-            updateMany.forEach(input => resourceUpdate.validateSync(input.data, { abortEarly: false }));
-            updateMany.forEach(input => TranslationModel().profanityCheck(input.data));
+            resourcesUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            TranslationModel().profanityCheck(updateMany.map(u => u.data));
             await this.authorizedUpdateOrDelete(userId as string, updateMany.map(u => u.where.id), prisma);
         }
     },
@@ -224,7 +226,6 @@ export const resourceMutater = (prisma: PrismaType) => ({
         if (updateMany) {
             // Loop through each update input
             for (const input of updateMany) {
-                console.log('in resource update', JSON.stringify(input))
                 // Find in database
                 let object = await prisma.resource.findFirst({
                     where: {
@@ -234,7 +235,6 @@ export const resourceMutater = (prisma: PrismaType) => ({
                         ]
                     }
                 })
-                console.log('got object, ', JSON.stringify(object))
                 if (!object) 
                     throw new CustomError(CODE.ErrorUnknown, 'Resource not found', { code: genErrorCode('0088') });
                 // Update object

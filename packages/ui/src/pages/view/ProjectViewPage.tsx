@@ -42,7 +42,10 @@ export const ProjectViewPage = ({
     }, [id, setLocation]);
 
     return (
-        <Box pt="10vh" sx={{ minHeight: '88vh' }}>
+        <Box sx={{
+            minHeight: '100vh',
+            paddingTop: { xs: '64px', md: '80px' },
+        }}>
             {/* Add dialog */}
             <BaseObjectDialog
                 hasNext={false}

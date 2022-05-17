@@ -8,7 +8,6 @@ import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { ForYouPageProps } from '../types';
 import { listToListItems, openObject } from 'utils';
-import _ from 'lodash';
 import { Organization, Project, Routine, Standard, User } from 'types';
 
 const activeRoutinesText = `Routines that you've started to execute, and have not finished.`;
@@ -53,42 +52,52 @@ export const ForYouPage = ({
     /**
      * Opens page for list item
      */
-     const toItemPage = useCallback((event: any, item: Organization | Project | Routine | Standard | User) => {
+     const toItemPage = useCallback((item: Organization | Project | Routine | Standard | User, event: any) => {
         event?.stopPropagation();
         // Navigate to item page
         openObject(item, setLocation);
     }, [setLocation]);
 
-    const activeRoutines = useMemo(() => listToListItems(
-        data?.forYouPage?.activeRoutines ?? [],
+    const activeRuns = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Run'),
+        items: data?.forYouPage?.activeRuns,
+        keyPrefix: 'active-runs-list-item',
+        loading,
         session,
-        'active-routines-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [data, session])
+    }), [data?.forYouPage?.activeRuns, loading, session])
+    console.log('ACTIVE RUNS', activeRuns);
 
-    const completedRoutines = useMemo(() => listToListItems(
-        data?.forYouPage?.completedRoutines ?? [],
+    const completedRuns = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Run'),
+        items: data?.forYouPage?.completedRuns,
+        keyPrefix: 'completed-runs-list-item',
+        loading,
         session,
-        'completed-routines-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [data, session])
+    }), [data?.forYouPage?.completedRuns, loading, session])
 
-    const recent = useMemo(() => listToListItems(
-        data?.forYouPage?.recent ?? [],
+    const recent = useMemo(() => listToListItems({
+        dummyItems: ['Organization', 'Project', 'Routine', 'Standard', 'User'],
+        items: data?.forYouPage?.recentlyViewed,
+        keyPrefix: 'recent-list-item',
+        loading,
+        onClick: toItemPage,
         session,
-        'recently-viewed-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [data, session])
-
-    const starred = useMemo(() => listToListItems(
-        data?.forYouPage?.starred ?? [],
+    }), [data?.forYouPage?.recentlyViewed, loading, session, toItemPage])
+    
+    const starred = useMemo(() => listToListItems({
+        dummyItems: ['Organization', 'Project', 'Routine', 'Standard', 'User'],
+        items: data?.forYouPage?.recentlyStarred,
+        keyPrefix: 'starred-list-item',
+        loading,
+        onClick: toItemPage,
         session,
-        'starred-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [data, session])
+    }), [data?.forYouPage?.recentlyStarred, loading, session, toItemPage])
 
     return (
-        <Box id="page">
+        <Box id='page' sx={{
+            padding: '0.5em',
+            paddingTop: { xs: '64px', md: '80px' },
+        }}>
             {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}
             <Tabs
                 value={tabIndex}
@@ -122,25 +131,22 @@ export const ForYouPage = ({
                 <TitleContainer
                     title={"Active Routines"}
                     helpText={activeRoutinesText}
-                    loading={loading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
-                    {activeRoutines}
+                    {activeRuns}
                 </TitleContainer>
                 <TitleContainer
                     title={"Completed Routines"}
                     helpText={completedRoutinesText}
-                    loading={loading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
-                    {completedRoutines}
+                    {completedRuns}
                 </TitleContainer>
                 <TitleContainer
                     title={"Recently Viewed"}
                     helpText={recentText}
-                    loading={loading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
@@ -149,7 +155,6 @@ export const ForYouPage = ({
                 <TitleContainer
                     title={"Starred"}
                     helpText={starredText}
-                    loading={loading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >

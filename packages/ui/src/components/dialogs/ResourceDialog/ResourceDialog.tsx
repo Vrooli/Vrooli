@@ -1,6 +1,6 @@
 import { useMutation } from '@apollo/client';
 import { resourceCreateForm as validationSchema } from '@local/shared';
-import { Box, Button, Dialog, FormControl, Grid, IconButton, InputLabel, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Dialog, FormControl, Grid, IconButton, InputLabel, MenuItem, Select, Stack, TextField, Typography, useTheme } from '@mui/material';
 import { HelpButton } from 'components/buttons';
 import { useFormik } from 'formik';
 import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation';
@@ -9,13 +9,13 @@ import { ResourceDialogProps } from '../types';
 import {
     Close as CloseIcon
 } from '@mui/icons-material';
-import { formatForCreate, formatForUpdate, getTranslation, getUserLanguages, Pubs } from 'utils';
+import { formatForCreate, formatForUpdate, getTranslation, getUserLanguages, Pubs, updateArray } from 'utils';
 import { resourceCreate } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { resourceUpdate } from 'graphql/generated/resourceUpdate';
 import { useCallback, useEffect, useState } from 'react';
-import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
 import { LanguageInput } from 'components/inputs';
+import { NewObject, Resource } from 'types';
 
 const helpText =
     `## What are resources?
@@ -62,15 +62,13 @@ export const ResourceDialog = ({
     session,
     listId,
 }: ResourceDialogProps) => {
+    const { palette } = useTheme();
+
     const [addMutation, { loading: addLoading }] = useMutation<resourceCreate>(resourceCreateMutation);
     const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate>(resourceUpdateMutation);
 
     // Handle translations
-    type Translation = {
-        language: string;
-        description: string;
-        title: string;
-    };
+    type Translation = NewObject<Resource['translations'][0]>;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -78,20 +76,12 @@ export const ResourceDialog = ({
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
         // Find translation
         const index = translations.findIndex(t => language === t.language);
-        // If language exists, update
-        if (index >= 0) {
-            const newTranslations = [...translations];
-            newTranslations[index] = { ...translation };
-            return newTranslations;
-        }
-        // Otherwise, add new
-        else {
-            return [...translations, translation];
-        }
+        // Add to array, or update if found
+        return index >= 0 ? updateArray(translations, index, translation) : [...translations, translation];
     }, [translations]);
     const updateTranslation = useCallback((language: string, translation: Translation) => {
         setTranslations(getTranslationsUpdate(language, translation));
-    }, [translations, setTranslations]);
+    }, [getTranslationsUpdate]);
 
     useEffect(() => {
         setTranslations(partialData?.translations?.map(t => ({
@@ -153,7 +143,6 @@ export const ResourceDialog = ({
 
     // Handle languages
     useEffect(() => {
-        console.log('booooop', languages, translations)
         if (languages.length === 0 && translations.length > 0) {
             setLanguage(translations[0].language);
             setLanguages(translations.map(t => t.language));
@@ -163,7 +152,7 @@ export const ResourceDialog = ({
                 title: translations[0].title,
             })
         }
-    }, [languages, setLanguage, setLanguages, translations])
+    }, [formik, languages, setLanguage, setLanguages, translations])
     const handleLanguageChange = useCallback((oldLanguage: string, newLanguage: string) => {
         // Update translation
         updateTranslation(oldLanguage, {
@@ -180,7 +169,7 @@ export const ResourceDialog = ({
             newLanguages[index] = newLanguage;
             setLanguages(newLanguages);
         }
-    }, [formik.values, languages, translations, setLanguage, setLanguages, updateTranslation]);
+    }, [formik.values, languages, setLanguage, setLanguages, updateTranslation]);
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
         formik.setValues({
@@ -188,7 +177,7 @@ export const ResourceDialog = ({
             description: existingTranslation?.description ?? '',
             title: existingTranslation?.title ?? '',
         });
-    }, [formik.values, translations]);
+    }, [formik, translations]);
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
@@ -200,7 +189,7 @@ export const ResourceDialog = ({
         updateFormikTranslation(newLanguage);
         // Change language
         setLanguage(newLanguage);
-    }, [formik.values, formik.setValues, language, translations, setLanguage, updateTranslation]);
+    }, [updateTranslation, language, formik.values.description, formik.values.title, updateFormikTranslation]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguages([...languages, newLanguage]);
         handleLanguageSelect(newLanguage);
@@ -212,7 +201,7 @@ export const ResourceDialog = ({
         updateFormikTranslation(newLanguages[0]);
         setLanguage(newLanguages[0]);
         setLanguages(newLanguages);
-    }, [deleteTranslation, handleLanguageSelect, languages, setLanguages]);
+    }, [deleteTranslation, languages, updateFormikTranslation]);
 
     const handleClose = () => {
         formik.resetForm();
@@ -234,8 +223,8 @@ export const ResourceDialog = ({
             <form onSubmit={formik.handleSubmit}>
                 <Box sx={{
                     padding: 1,
-                    background: (t) => t.palette.primary.dark,
-                    color: (t) => t.palette.primary.contrastText,
+                    background: palette.primary.dark,
+                    color: palette.primary.contrastText,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -251,7 +240,7 @@ export const ResourceDialog = ({
                             edge="start"
                             onClick={handleClose}
                         >
-                            <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
+                            <CloseIcon sx={{ fill: palette.primary.contrastText }} />
                         </IconButton>
                     </Box>
                 </Box>

@@ -12,6 +12,7 @@ import {
     Stack,
     Tooltip,
     Typography,
+    useTheme,
 } from '@mui/material';
 import { UnlinkedNodesDialogProps } from '../types';
 import { containerShadow } from 'styles';
@@ -28,6 +29,7 @@ export const UnlinkedNodesDialog = ({
     nodes,
     open,
 }: UnlinkedNodesDialogProps) => {
+    const { palette } = useTheme();
 
     /**
      * Generates a simple node from a node type
@@ -62,13 +64,13 @@ export const UnlinkedNodesDialog = ({
             default:
                 return null;
         }
-    }, [])
+    }, [language])
 
     return (
         <Box id="unlinked-nodes-dialog" sx={{
             borderRadius: 3,
-            background: '#c7dee2',
-            color: 'black',
+            background: palette.mode === 'light' ? '#c7dee2' : '#315672',
+            color: palette.text.primary,
             padding: 1,
             maxHeight: { xs: '62vh', sm: '65vh', md: '72vh' },
             overflowY: 'auto',

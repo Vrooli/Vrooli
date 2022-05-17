@@ -1,5 +1,4 @@
-import { APP_LINKS } from "@local/shared";
-import { Box, CircularProgress, IconButton, Link, Stack, Tooltip, Typography } from "@mui/material";
+import { Box, CircularProgress, IconButton, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import {
     MoreHoriz as EllipsisIcon,
 } from "@mui/icons-material";
@@ -7,8 +6,7 @@ import { ResourceListHorizontal } from "components";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo, useState } from "react";
 import { containerShadow } from "styles";
-import { ResourceList, Routine, User } from "types";
-import { getOwnedByString, getTranslation, getUserLanguages, Pubs, toOwnedBy } from "utils";
+import { getOwnedByString, getTranslation, getUserLanguages, toOwnedBy } from "utils";
 import { useLocation } from "wouter";
 import { SubroutineViewProps } from "../types";
 
@@ -17,16 +15,17 @@ export const SubroutineView = ({
     data,
     session,
 }: SubroutineViewProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const { description, instructions, title } = useMemo(() => {
-        const languages = navigator.languages;
+        const languages = session.languages ?? navigator.languages;
         return {
             description: getTranslation(data, 'description', languages, true),
             instructions: getTranslation(data, 'instructions', languages, true),
             title: getTranslation(data, 'title', languages, true),
         }
-    }, [data]);
+    }, [data, session.languages]);
 
     const ownedBy = useMemo<string | null>(() => getOwnedByString(data, getUserLanguages(session)), [data, session]);
     const toOwner = useCallback(() => { toOwnedBy(data, setLocation) }, [data, setLocation]);
@@ -35,7 +34,7 @@ export const SubroutineView = ({
     const [schema, setSchema] = useState<any>();
 
     const resourceList = useMemo(() => {
-        if (!data || 
+        if (!data ||
             !Array.isArray(data.resourceLists) ||
             data.resourceLists.length < 1 ||
             data.resourceLists[0].resources.length < 1) return null;
@@ -60,7 +59,7 @@ export const SubroutineView = ({
     )
     return (
         <Box sx={{
-            background: (t) => t.palette.background.paper,
+            background: palette.background.paper,
             overflowY: 'auto',
             width: 'min(96vw, 600px)',
             borderRadius: '8px',
@@ -74,8 +73,8 @@ export const SubroutineView = ({
                 justifyContent: 'center',
                 padding: 2,
                 marginBottom: 1,
-                background: (t) => t.palette.primary.main,
-                color: (t) => t.palette.primary.contrastText,
+                background: palette.primary.main,
+                color: palette.primary.contrastText,
             }}>
                 {/* Show more ellipsis next to title */}
                 <Stack direction="row" spacing={1} alignItems="center">
@@ -84,24 +83,24 @@ export const SubroutineView = ({
                         <IconButton
                             aria-label="More"
                             size="small"
-                            onClick={() => {}}
+                            onClick={() => { }}
                             sx={{
                                 display: 'block',
                                 marginLeft: 'auto',
                                 marginRight: 1,
                             }}
                         >
-                            <EllipsisIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
+                            <EllipsisIcon sx={{ fill: palette.primary.contrastText }} />
                         </IconButton>
                     </Tooltip>
                 </Stack>
                 <Stack direction="row" spacing={1}>
                     {ownedBy ? (
                         <Link onClick={toOwner}>
-                            <Typography variant="body1" sx={{ color: (t) => t.palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy} - </Typography>
+                            <Typography variant="body1" sx={{ color: palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy}</Typography>
                         </Link>
                     ) : null}
-                    <Typography variant="body1">{data?.version}</Typography>
+                    <Typography variant="body1"> - {data?.version}</Typography>
                 </Stack>
             </Stack>
             {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
@@ -111,21 +110,19 @@ export const SubroutineView = ({
                 {/* Description */}
                 <Box sx={{
                     padding: 1,
-                    border: `1px solid ${(t) => t.palette.primary.dark}`,
                     borderRadius: 1,
-                    color: Boolean(instructions) ? 'text.primary' : 'text.secondary',
+                    color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary,
                 }}>
-                    <Typography variant="h6">Description</Typography>
-                    <Typography variant="body1" sx={{ color: description ? 'black' : 'gray' }}>{description ?? 'No description set'}</Typography>
+                    <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Description</Typography>
+                    <Typography variant="body1">{description ?? 'No description set'}</Typography>
                 </Box>
                 {/* Instructions */}
                 <Box sx={{
                     padding: 1,
-                    border: `1px solid ${(t) => t.palette.background.paper}`,
                     borderRadius: 1,
-                    color: Boolean(instructions) ? 'text.primary' : 'text.secondary',
+                    color: Boolean(instructions) ? palette.background.textPrimary : palette.background.textSecondary
                 }}>
-                    <Typography variant="h6">Instructions</Typography>
+                    <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Instructions</Typography>
                     <Markdown>{instructions ?? 'No instructions'}</Markdown>
                 </Box>
             </Stack>

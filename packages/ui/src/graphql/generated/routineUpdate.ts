@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { RoutineUpdateInput, NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { RoutineUpdateInput, NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor, RunStatus, RunStepStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: routineUpdate
@@ -323,6 +323,37 @@ export interface routineUpdate_routineUpdate_resourceLists {
   resources: routineUpdate_routineUpdate_resourceLists_resources[];
 }
 
+export interface routineUpdate_routineUpdate_runs_steps_node {
+  __typename: "Node";
+  id: string;
+}
+
+export interface routineUpdate_routineUpdate_runs_steps {
+  __typename: "RunStep";
+  id: string;
+  order: number;
+  pickups: number;
+  timeStarted: any | null;
+  timeElapsed: number | null;
+  timeCompleted: any | null;
+  title: string;
+  status: RunStepStatus;
+  node: routineUpdate_routineUpdate_runs_steps_node | null;
+}
+
+export interface routineUpdate_routineUpdate_runs {
+  __typename: "Run";
+  id: string;
+  completedComplexity: number;
+  pickups: number;
+  timeStarted: any | null;
+  timeElapsed: number | null;
+  timeCompleted: any | null;
+  title: string;
+  status: RunStatus;
+  steps: routineUpdate_routineUpdate_runs_steps[];
+}
+
 export interface routineUpdate_routineUpdate_tags_translations {
   __typename: "TagTranslation";
   id: string;
@@ -364,6 +395,7 @@ export interface routineUpdate_routineUpdate {
   owner: routineUpdate_routineUpdate_owner | null;
   parent: routineUpdate_routineUpdate_parent | null;
   resourceLists: routineUpdate_routineUpdate_resourceLists[];
+  runs: routineUpdate_routineUpdate_runs[];
   score: number;
   simplicity: number;
   stars: number;

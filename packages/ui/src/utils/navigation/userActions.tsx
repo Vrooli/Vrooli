@@ -19,7 +19,6 @@ import {
 } from '@mui/material';
 import { ROLES, ValueOf } from '@local/shared';
 import { openLink } from 'utils';
-import { Path } from 'wouter';
 import { SetLocation } from 'types';
 
 export const ACTION_TAGS = {

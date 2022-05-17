@@ -4,7 +4,10 @@ import { APP_LINKS } from '@local/shared';
 
 export const NotFoundPage = () => {
     return (
-        <Box id="page">
+        <Box id='page' sx={{
+            padding: '0.5em',
+            paddingTop: { xs: '64px', md: '80px' },
+        }}>
             <Box
                 sx={{
                     position: 'absolute',

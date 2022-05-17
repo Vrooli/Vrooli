@@ -3,6 +3,7 @@ import { COOKIE, ValueOf } from '@local/shared';
 
 export const Pubs = {
     ...COOKIE,
+    Celebration: "celebration",
     Loading: "loading",
     LogOut: "logout",
     AlertDialog: "alertDialog",

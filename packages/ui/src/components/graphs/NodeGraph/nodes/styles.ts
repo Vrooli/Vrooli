@@ -15,10 +15,6 @@ export const nodeLabel: SxProps = {
     lineBreak: 'anywhere',
 } as CSSProperties;
 
-export const routineNodeListOptions: SxProps = {
-    background: '#b0bbe7',
-} as CSSProperties;
-
 export const routineNodeCheckboxLabel: SxProps = {
     marginLeft: '0'
 } as CSSProperties;

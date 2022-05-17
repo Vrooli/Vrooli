@@ -4,7 +4,7 @@
 import { EmailListProps } from '../types';
 import { useCallback } from 'react';
 import { Email } from 'types';
-import { Box, IconButton, Stack, TextField } from '@mui/material';
+import { Box, IconButton, Stack, TextField, useTheme } from '@mui/material';
 import {
     Add as AddIcon,
 } from '@mui/icons-material';
@@ -21,6 +21,7 @@ export const EmailList = ({
     numVerifiedWallets,
     list,
 }: EmailListProps) => {
+    const { palette } = useTheme();
 
     // Handle add
     const [addMutation, { loading: loadingAdd }] = useMutation<any>(emailCreateMutation);
@@ -62,7 +63,7 @@ export const EmailList = ({
                 handleUpdate(updateArray(list, index, updatedEmail));
             },
         })
-    }, [handleUpdate, list]);
+    }, [handleUpdate, list, updateMutation]);
 
     const [deleteMutation, { loading: loadingDelete }] = useMutation<any>(emailDeleteOneMutation);
     const onDelete = useCallback((email: Email) => {
@@ -90,7 +91,7 @@ export const EmailList = ({
                 { text: 'Cancel', onClick: () => { } },
             ]
         });
-    }, [handleUpdate, list, numVerifiedWallets]);
+    }, [deleteMutation, handleUpdate, list, numVerifiedWallets]);
 
     const [verifyMutation, { loading: loadingVerifyEmail }] = useMutation<any>(sendVerificationEmailMutation);
     const sendVerificationEmail = useCallback((email: Email) => {
@@ -152,7 +153,7 @@ export const EmailList = ({
                     aria-label='add-new-email-button'
                     onClick={() => { formik.handleSubmit() }}
                     sx={{
-                        background: (t) => t.palette.secondary.main,
+                        background: palette.secondary.main,
                         borderRadius: '0 5px 5px 0',
                     }}>
                     <AddIcon />

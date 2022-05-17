@@ -1,5 +1,5 @@
 // Used to display popular/search results of a particular object type
-import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip } from '@mui/material';
+import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { WalletListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
@@ -20,6 +20,7 @@ export function WalletListItem({
     index,
     data,
 }: WalletListItemProps) {
+    const { palette } = useTheme();
     const isNamed = useMemo(() => data.name && data.name.length > 0, [data.name]);
 
     const onDelete = useCallback(() => {
@@ -59,7 +60,7 @@ export function WalletListItem({
                     {/* Bio/Description */}
                     {isNamed && <ListItemText
                         primary={shortenedAddress}
-                        sx={{ ...multiLineEllipsis(1), color: (t) => t.palette.text.secondary }}
+                        sx={{ ...multiLineEllipsis(1), color: palette.text.secondary }}
                     />}
                 </Stack>
                 {/* Verified indicator */}
@@ -91,7 +92,7 @@ export function WalletListItem({
                     <IconButton
                         onClick={onDelete}
                     >
-                        <DeleteIcon sx={{ fill: (t) => t.palette.secondary.main }} />
+                        <DeleteIcon sx={{ fill: palette.secondary.main }} />
                     </IconButton>
                 </Tooltip>
             </Stack>

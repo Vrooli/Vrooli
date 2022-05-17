@@ -30,6 +30,18 @@ export const typeDef = gql`
         translationsUpdate: [TagTranslationUpdateInput!]
     }
 
+    # User's hidden topics
+    input TagHiddenCreateInput {
+        isBlur: Boolean
+        tagCreate: TagCreateInput
+        tagConnect: ID
+    }
+
+    input TagHiddenUpdateInput {
+        id: ID
+        isBlur: Boolean
+    }
+
     type Tag {
         id: ID!
         tag: String!
@@ -59,6 +71,7 @@ export const typeDef = gql`
 
     # Wraps tag with hidden/blurred option
     type TagHidden {
+        id: ID!
         isBlur: Boolean!
         tag: Tag!
     }

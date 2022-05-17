@@ -1,4 +1,4 @@
-import { CODE, commentCreate, CommentSortBy, commentTranslationCreate, commentTranslationUpdate, commentUpdate } from "@local/shared";
+import { CODE, commentCreate, commentsCreate, CommentSortBy, commentsUpdate, commentTranslationCreate, commentTranslationUpdate, commentUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentUpdateInput, Count } from "../../schema/types";
 import { PrismaType } from "types";
@@ -73,15 +73,16 @@ export const commentSearcher = (): Searcher<CommentSearchInput> => ({
         return ({ translations: { some: { language: languages ? { in: languages } : undefined, text: {...insensitive} } } });
     },
     customQueries(input: CommentSearchInput): { [x: string]: any } {
-        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
-        const minScoreQuery = input.minScore ? { score: { gte: input.minScore } } : {};
-        const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
-        const userIdQuery = input.userId ? { userId: input.userId } : undefined;
-        const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
-        const projectIdQuery = input.projectId ? { projectId: input.projectId } : undefined;
-        const routineIdQuery = input.routineId ? { routineId: input.routineId } : undefined;
-        const standardIdQuery = input.standardId ? { standardId: input.standardId } : undefined;
-        return { ...languagesQuery, ...minScoreQuery, ...minStarsQuery, ...userIdQuery, ...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...standardIdQuery };
+        return {
+            ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            ...(input.minScore ? { score: { gte: input.minScore } } : {}),
+            ...(input.minStars ? { stars: { gte: input.minStars } } : {}),
+            ...(input.userId ? { userId: input.userId } : {}),
+            ...(input.organizationId ? { organizationId: input.organizationId } : {}),
+            ...(input.projectId ? { projectId: input.projectId } : {}),
+            ...(input.routineId ? { routineId: input.routineId } : {}),
+            ...(input.standardId ? { standardId: input.standardId } : {}),
+        }
     },
 })
 
@@ -101,16 +102,17 @@ export const commentMutater = (prisma: PrismaType) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<CommentCreateInput, CommentUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) 
+        if (!createMany && !updateMany && !deleteMany) return;
+        if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0038') });
         if (createMany) {
-            createMany.forEach(input => commentCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => TranslationModel().profanityCheck(input));
+            commentsCreate.validateSync(createMany, { abortEarly: false });
+            TranslationModel().profanityCheck(createMany)
             // TODO check limits on comments to prevent spam
         }
         if (updateMany) {
-            updateMany.forEach(input => commentUpdate.validateSync(input.data, { abortEarly: false }));
-            updateMany.forEach(input => TranslationModel().profanityCheck(input.data));
+            commentsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            TranslationModel().profanityCheck(updateMany.map(u => u.data))
         }
         if (deleteMany) {
             // Check that user created each comment

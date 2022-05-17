@@ -6,6 +6,7 @@ import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import pkg from '@prisma/client';
 import { rateLimit } from '../rateLimit';
+import { resolveNodeData } from './resolvers';
 const { NodeType } = pkg;
 
 export const typeDef = gql`
@@ -280,11 +281,7 @@ export const typeDef = gql`
 export const resolvers = {
     NodeType: NodeType,
     NodeData: {
-        __resolveType(obj: any) {
-            // Only NodeEnd has wasSuccessful field
-            if (obj.hasOwnProperty('wasSuccessful')) return GraphQLModelType.NodeEnd;
-            return GraphQLModelType.NodeRoutineList;
-        },
+        __resolveType(obj: any) { return resolveNodeData(obj) }
     },
     Mutation: {
         /**

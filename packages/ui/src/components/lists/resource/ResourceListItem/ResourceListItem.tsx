@@ -1,16 +1,17 @@
 // Used to display popular/search results of a particular object type
-import { IconButton, ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
+import { IconButton, ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { ResourceListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { adaHandleRegex, MemberRole, ResourceSortBy, ResourceUsedFor, urlRegex, walletAddressRegex } from '@local/shared';
+import { adaHandleRegex, ResourceSortBy, ResourceUsedFor, urlRegex, walletAddressRegex } from '@local/shared';
 import { useLocation } from 'wouter';
-import { getTranslation, LabelledSortOption, labelledSortOptions, openLink, Pubs, ResourceType } from 'utils';
+import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, openLink, Pubs, ResourceType } from 'utils';
 import { Resource } from 'types';
 import { getResourceIcon } from '..';
 import {
     OpenInNew as OpenLinkIcon
 } from '@mui/icons-material';
+import { owns } from 'utils/authentication';
 
 /**
  * Determines if a resource is a URL, wallet payment address, or an ADA handle
@@ -30,8 +31,9 @@ export function ResourceListItem({
     data,
     onClick,
 }: ResourceListItemProps) {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(data?.role ?? ''), [data]);
+    const canEdit = useMemo<boolean>(() => owns(data?.role), [data]);
     const { description, title } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
         return {
@@ -70,7 +72,7 @@ export function ResourceListItem({
         }
         // If handle, open ADA Handle payment site
         else if (resourceType === ResourceType.Handle) openLink(setLocation, `https://handle.me/${data.link}`);
-    }, [data]);
+    }, [data.link, setLocation]);
 
     return (
         <Tooltip placement="top" title="Open in new tab">
@@ -79,8 +81,8 @@ export function ResourceListItem({
                 onClick={handleClick}
                 sx={{
                     display: 'flex',
-                    background: index % 2 === 0 ? '#c8d6e9' : '#e9e9e9',
-                    color: 'black',
+                    background: listItemColor(index, palette),
+                    color: palette.background.textPrimary,
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>
@@ -100,7 +102,7 @@ export function ResourceListItem({
                         {/* Bio/Description */}
                         <ListItemText
                             primary={description}
-                            sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
+                            sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
                         />
                     </Stack>
                     <OpenLinkIcon />

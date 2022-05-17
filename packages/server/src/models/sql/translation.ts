@@ -4,39 +4,47 @@ import { CODE } from "@local/shared";
 import { hasProfanity } from "../../utils/censor";
 import { genErrorCode } from "../../logger";
 
+export type TranslatableObject = {
+    translationsCreate?: { [x: string]: any }[] | null;
+    translationsUpdate?: { [x: string]: any }[] | null;
+}
+
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
 export const translationMutater = () => ({
     /**
-     * Determines if a translation contains any banned words.
+     * Throws an error if a object's translations contain any banned words.
      * Checks for censored words on any field that:
      * 1. Is not "id"
      * 2. Does not end with "Id"
      * 3. Has a string value
+     * @params input An array of objects with translations
      */
-    profanityCheck({
-        translationsCreate,
-        translationsUpdate,
-    }: { [x: string]: any }): void {
+    profanityCheck(input: (TranslatableObject | null | undefined)[]): void {
+        const objects: TranslatableObject[] = input.filter(Boolean) as TranslatableObject[];
+        // Collect all fields that are not an ID
         let fields: string[] = [];
-        if (translationsCreate) {
-            for (let i = 0; i < translationsCreate.length; i++) {
-                const currTranslation = translationsCreate[i];
-                for (const [key, value] of Object.entries(currTranslation)) {
-                    if (key !== 'id' && !key.endsWith('Id') && typeof value === 'string') {
-                        fields.push(value);
+        for (const obj of objects) {
+            const { translationsCreate, translationsUpdate } = obj;
+            if (translationsCreate) {
+                for (let i = 0; i < translationsCreate.length; i++) {
+                    const currTranslation = translationsCreate[i];
+                    for (const [key, value] of Object.entries(currTranslation)) {
+                        if (key !== 'id' && !key.endsWith('Id') && typeof value === 'string') {
+                            fields.push(value);
+                        }
                     }
                 }
             }
-        }
-        if (translationsUpdate) {
-            for (let i = 0; i < translationsUpdate.length; i++) {
-                const currTranslation = translationsUpdate[i];
-                for (const [key, value] of Object.entries(currTranslation)) {
-                    if (key !== 'id' && !key.endsWith('Id') && typeof value === 'string') {
-                        fields.push(value);
+            if (translationsUpdate) {
+                for (let i = 0; i < translationsUpdate.length; i++) {
+                    const currTranslation = translationsUpdate[i];
+                    for (const [key, value] of Object.entries(currTranslation)) {
+                        if (key !== 'id' && !key.endsWith('Id') && typeof value === 'string') {
+                            fields.push(value);
+                        }
                     }
                 }
             }
@@ -87,7 +95,8 @@ export const translationMutater = () => ({
         { userId, createMany, updateMany, deleteMany }: ValidateMutationsInput<CreateInput, UpdateInput>,
         validators: { create: any, update: any }
     ): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) 
+        if (!createMany && !updateMany && !deleteMany) return;
+        if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0117') });
         if (createMany) {
             createMany.forEach(input => validators.create.validateSync(input, { abortEarly: false }));
@@ -95,7 +104,7 @@ export const translationMutater = () => ({
         if (updateMany) {
             updateMany.forEach(input => validators.update.validateSync(input.data, { abortEarly: false }));
         }
-        this.profanityCheck({ translationsCreate: createMany, translationsUpdate: updateMany });
+        this.profanityCheck([...(createMany ?? []), ...(updateMany?.map(u => u.data) ?? [])])
     },
 })
 

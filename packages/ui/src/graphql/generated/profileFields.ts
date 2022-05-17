@@ -77,6 +77,7 @@ export interface profileFields_hiddenTags_tag {
 
 export interface profileFields_hiddenTags {
   __typename: "TagHidden";
+  id: string;
   isBlur: boolean;
   tag: profileFields_hiddenTags_tag;
 }

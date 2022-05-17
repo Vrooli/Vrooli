@@ -1,21 +1,30 @@
-import { APP_LINKS, EMAIL, LANDING_LINKS, LANDING_URL, SOCIALS } from '@local/shared';
+import { APP_LINKS, LANDING_LINKS, LANDING_URL, SOCIALS } from '@local/shared';
 import {
-    Box, 
-    List, 
-    ListItem, 
-    ListItemButton, 
-    ListItemIcon, 
-    ListItemText, 
-    Grid, 
+    Box,
+    List,
+    ListItem,
+    ListItemButton,
+    ListItemIcon,
+    ListItemText,
+    Grid,
     Tooltip,
+    useTheme,
 } from '@mui/material';
 import { DiscordIcon, GitHubIcon, TwitterIcon } from 'assets/img';
 import { CopyrightBreadcrumbs } from 'components';
 import { useLocation } from 'wouter';
 import { openLink } from 'utils';
 import { useMemo } from 'react';
+import { SvgProps } from 'assets/img/types';
+
+const contactLinks: [string, string, string, string, (props: SvgProps) => JSX.Element][] = [
+    ['contact-twitter', 'Find us on Twitter', SOCIALS.Twitter, 'Twitter', TwitterIcon],
+    ['contact-discord', 'Have a question or feedback? Post it on our Discord!', SOCIALS.Discord, 'Join our Discord', DiscordIcon],
+    ['contact-github', 'Check out the source code, or contribute :)', SOCIALS.GitHub, 'Source Code', GitHubIcon],
+]
 
 export const Footer = () => {
+    const { palette } = useTheme();
     const [pathname, setLocation] = useLocation();
     // Hides footer on certain pages (e.g. /build)
     const showFooter = useMemo(() => {
@@ -23,21 +32,15 @@ export const Footer = () => {
         return !disableList.some(disable => pathname.startsWith(disable));
     }, [pathname]);
 
-    const contactLinks: Array<[string, string, string, string, any]> = [
-        ['contact-twitter', 'Find us on Twitter', SOCIALS.Twitter, 'Twitter', TwitterIcon],
-        ['contact-discord', 'Have a question or feedback? Post it on our Discord!', SOCIALS.Discord, 'Join our Discord', DiscordIcon],
-        ['contact-github', 'Check out the source code, or contribute :)', SOCIALS.GitHub, 'Source Code', GitHubIcon],
-    ]
-
     return (
-        <Box 
+        <Box
             display={showFooter ? 'block' : 'none'}
-            overflow="hidden" 
-            position="relative" 
+            overflow="hidden"
+            position="relative"
             paddingBottom="7vh"
             sx={{
-                backgroundColor: (t) => t.palette.primary.dark,
-                color: (t) => t.palette.primary.contrastText,
+                backgroundColor: palette.primary.dark,
+                color: palette.primary.contrastText,
                 zIndex: 2,
             }}
         >
@@ -45,20 +48,20 @@ export const Footer = () => {
                 <Grid item xs={12} sm={6}>
                     <List component="nav">
                         <ListItem component="h3" >
-                            <ListItemText primary="Resources" sx={{textTransform: 'uppercase'}} />
+                            <ListItemText primary="Resources" sx={{ textTransform: 'uppercase' }} />
                         </ListItem>
                         <ListItemButton component="a" onClick={() => openLink(setLocation, `${LANDING_URL}${LANDING_LINKS.About}`)} >
-                            <ListItemText primary="About Us" />
+                            <ListItemText primary="About Us" sx={{ color: palette.primary.contrastText }} />
                         </ListItemButton>
                         <ListItemButton component="a" onClick={() => openLink(setLocation, APP_LINKS.Stats)} >
-                            <ListItemText primary="View Stats" />
+                            <ListItemText primary="View Stats" sx={{ color: palette.primary.contrastText }} />
                         </ListItemButton>
                     </List>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                     <List component="nav">
                         <ListItem component="h3" >
-                            <ListItemText primary="Contact" sx={{textTransform: 'uppercase'}} />
+                            <ListItemText primary="Contact" sx={{ textTransform: 'uppercase' }} />
                         </ListItem>
                         {contactLinks.map(([label, tooltip, src, text, Icon], key) => (
                             <Tooltip key={key} title={tooltip} placement="left">
@@ -73,7 +76,7 @@ export const Footer = () => {
                     </List>
                 </Grid>
             </Grid>
-            <CopyrightBreadcrumbs sx={{color: (t) => t.palette.primary.contrastText}} />
+            <CopyrightBreadcrumbs sx={{ color: palette.primary.contrastText }} />
         </Box>
     );
 }

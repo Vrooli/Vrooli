@@ -84,7 +84,7 @@ export const NodeColumn = ({
                     return null;
             }
         })
-    }, [dragId, isEditing, labelVisible, nodes, scale]);
+    }, [columnIndex, handleAction, handleNodeUpdate, isEditing, labelVisible, language, nodes, scale]);
 
     return (
         <Stack

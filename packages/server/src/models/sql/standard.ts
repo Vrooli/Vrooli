@@ -1,9 +1,9 @@
-import { CODE, MemberRole, standardCreate, standardTranslationCreate, standardTranslationUpdate, standardUpdate } from "@local/shared";
+import { CODE, MemberRole, standardsCreate, standardsUpdate, standardTranslationCreate, standardTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count } from "../../schema/types";
 import { addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
-import { hasProfanity } from "../../utils/censor";
+import { validateProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -11,6 +11,7 @@ import { VoteModel } from "./vote";
 import _ from "lodash";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
+import { ViewModel } from "./view";
 
 //==============================================================
 /* #region Custom Components */
@@ -60,16 +61,23 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel(prisma).getIsStarreds(userId, ids, 'standard')
+                ? await StarModel(prisma).getIsStarreds(userId, ids, GraphQLModelType.Standard)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isUpvoted
         if (partial.isUpvoted) {
             const isUpvotedArray = userId
-                ? await VoteModel(prisma).getIsUpvoteds(userId, ids, 'standard')
+                ? await VoteModel(prisma).getIsUpvoteds(userId, ids, GraphQLModelType.Standard)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isUpvoted: isUpvotedArray[i] }));
+        }
+        // Query for isViewed
+        if (partial.isViewed) {
+            const isViewedArray = userId
+                ? await ViewModel(prisma).getIsVieweds(userId, ids, GraphQLModelType.Standard)
+                : Array(ids.length).fill(false);
+            objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
         // Query for role
         if (partial.role) {
@@ -122,38 +130,39 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
         })
     },
     customQueries(input: StandardSearchInput): { [x: string]: any } {
-        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
-        const minScoreQuery = input.minScore ? { score: { gte: input.minScore } } : {};
-        const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
-        const userIdQuery = input.userId ? { createdByUserId: input.userId } : {};
-        const organizationIdQuery = input.organizationId ? { createdByOrganizationId: input.organizationId } : {};
-        const projectIdQuery = input.projectId ? {
-            OR: [
-                { createdByUser: { projects: { some: { id: input.projectId } } } },
-                { createdByOrganization: { projects: { some: { id: input.projectId } } } },
-            ]
-        } : {};
-        const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
-        const routineIdQuery = input.routineId ? {
-            OR: [
-                { routineInputs: { some: { routineId: input.routineId } } },
-                { routineOutputs: { some: { routineId: input.routineId } } },
-            ]
-        } : {};
-        const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
-        return { ...languagesQuery, ...minScoreQuery, ...minStarsQuery, ...userIdQuery, ...organizationIdQuery, ...projectIdQuery, ...reportIdQuery, ...routineIdQuery, ...tagsQuery };
+        return {
+            ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            ...(input.minScore ? { score: { gte: input.minScore } } : {}),
+            ...(input.minStars ? { stars: { gte: input.minStars } } : {}),
+            ...(input.minViews ? { views: { gte: input.minViews } } : {}),
+            ...(input.userId ? { createdByUserId: input.userId } : {}),
+            ...(input.organizationId ? { createdByOrganizationId: input.organizationId } : {}),
+            ...(input.projectId ? {
+                OR: [
+                    { createdByUser: { projects: { some: { id: input.projectId } } } },
+                    { createdByOrganization: { projects: { some: { id: input.projectId } } } },
+                ]
+            } : {}),
+            ...(input.reportId ? { reports: { some: { id: input.reportId } } } : {}),
+            ...(input.routineId ? {
+                OR: [
+                    { routineInputs: { some: { routineId: input.routineId } } },
+                    { routineOutputs: { some: { routineId: input.routineId } } },
+                ]
+            } : {}),
+            ...(input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
+        }
     },
 })
 
 export const standardVerifier = () => ({
-    profanityCheck(data: StandardCreateInput | StandardUpdateInput): void {
-        if (hasProfanity((data as any)?.name)) 
-            throw new CustomError(CODE.BannedWord, 'Name contains banned word', { code: genErrorCode('0102') });
+    profanityCheck(data: (StandardCreateInput | StandardUpdateInput)[]): void {
+        validateProfanity(data.map((d: any) => d.name));
         TranslationModel().profanityCheck(data);
     },
 })
 
-export const standardMutater = (prisma: PrismaType, verifier: any) => ({
+export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof standardVerifier>) => ({
     async toDBShapeAdd(userId: string | null, data: StandardCreateInput): Promise<any> {
         return {
             name: data.name,
@@ -206,17 +215,41 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<StandardCreateInput, StandardUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) 
+        if (!createMany && !updateMany && !deleteMany) return;
+        if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0103') });
+        // Collect organizationIds from each object, and check if the user is an admin/owner of every organization
+        const organizationIds: (string | null | undefined)[] = [];
         if (createMany) {
-            createMany.forEach(input => standardCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => verifier.profanityCheck(input));
+            standardsCreate.validateSync(createMany, { abortEarly: false });
+            verifier.profanityCheck(createMany);
+            // Add createdByOrganizationIds to organizationIds array, if they are set
+            organizationIds.push(...createMany.map(input => input.createdByOrganizationId).filter(id => id));
             // Check for max standards created by user TODO
         }
         if (updateMany) {
-            updateMany.forEach(input => standardUpdate.validateSync(input.data, { abortEarly: false }));
-            updateMany.forEach(input => verifier.profanityCheck(input.data));
+            standardsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            verifier.profanityCheck(updateMany.map(u => u.data));
+            // Add existing organizationIds to organizationIds array, if userId does not match the object's userId
+            const objects = await prisma.standard.findMany({
+                where: { id: { in: updateMany.map(input => input.where.id) } },
+                select: { id: true, createdByUserId: true, createdByOrganizationId: true },
+            });
+            organizationIds.push(...objects.filter(object => object.createdByUserId !== userId).map(object => object.createdByOrganizationId));
         }
+        if (deleteMany) {
+            // Add organizationIds to organizationIds array, if userId does not match the object's userId
+            const objects = await prisma.standard.findMany({
+                where: { id: { in: deleteMany } },
+                select: { id: true, createdByUserId: true, createdByOrganizationId: true },
+            });
+            organizationIds.push(...objects.filter(object => object.createdByUserId !== userId).map(object => object.createdByOrganizationId));
+        }
+        // Find admin/owner member data for every organization
+        const memberData = await OrganizationModel(prisma).isOwnerOrAdmin(userId, organizationIds);
+        // If any member data is undefined, the user is not authorized to delete one or more objects
+        if (memberData.some(member => !member))
+            throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0095') })
     },
     async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<StandardCreateInput, StandardUpdateInput>): Promise<CUDResult<Standard>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
@@ -229,10 +262,6 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
                 let data = await this.toDBShapeAdd(userId, input);
                 // Associate with either organization or user
                 if (input.createdByOrganizationId) {
-                    // Make sure the user is an admin of the organization
-                    const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', input.createdByOrganizationId);
-                    if (!isAuthorized) 
-                        throw new CustomError(CODE.Unauthorized, 'Must be an admin of the organization to create standards for it', { code: genErrorCode('0104') });
                     data = {
                         ...data,
                         createdByOrganization: { connect: { id: input.createdByOrganizationId } },
@@ -270,11 +299,6 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
                     throw new CustomError(CODE.NotFound, 'Standard not found', { code: genErrorCode('0106') });
                 if (object.createdByUserId && object.createdByUserId !== userId) 
                     throw new CustomError(CODE.Unauthorized, 'Not authorized to update standard', { code: genErrorCode('0107') });
-                if (object.createdByOrganizationId) {
-                    const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', object.createdByOrganizationId);
-                    if (!isAuthorized) 
-                        throw new CustomError(CODE.Unauthorized, 'Must be an admin of the organization to update standards for it', { code: genErrorCode('0108') });
-                }
                 // Update standard
                 const currUpdated = await prisma.standard.update({
                     where: input.where,
@@ -288,27 +312,6 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
             }
         }
         if (deleteMany) {
-            const objects = await prisma.standard.findMany({
-                where: { id: { in: deleteMany } },
-                select: {
-                    id: true,
-                    createdByUserId: true,
-                    createdByOrganizationId: true,
-                }
-            });
-            // Filter out objects that match the user's Id, since we know those are authorized
-            const objectsToCheck = objects.filter(object => object.createdByUserId !== userId);
-            if (objectsToCheck.length > 0) {
-                for (const check of objectsToCheck) {
-                    // Check if user is authorized to delete
-                    if (!check.createdByOrganizationId) 
-                        throw new CustomError(CODE.Unauthorized, 'Not authorized to delete', { code: genErrorCode('0108') });
-                    const [authorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', check.createdByOrganizationId);
-                    if (!authorized) 
-                        throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0109') });
-                }
-            }
-            // Delete
             deleted = await prisma.standard.deleteMany({
                 where: { id: { in: deleteMany } },
             });

@@ -3,7 +3,8 @@ import {
     IconButton,
     Stack,
     Tooltip,
-    Typography
+    Typography,
+    useTheme,
 } from '@mui/material';
 import { getTranslation, openLink, Pubs, ResourceType } from 'utils';
 import { useCallback, useMemo } from 'react';
@@ -53,6 +54,7 @@ export const ResourceCard = ({
     onRightClick,
     session,
 }: ResourceCardProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const { description, title } = useMemo(() => {
@@ -61,7 +63,7 @@ export const ResourceCard = ({
             description: getTranslation(data, 'description', languages, true),
             title: getTranslation(data, 'title', languages, true),
         };
-    }, [data]);
+    }, [data, session?.languages]);
 
     const Icon = useMemo(() => {
         return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link)
@@ -94,7 +96,7 @@ export const ResourceCard = ({
         }
         // If handle, open ADA Handle payment site
         else if (resourceType === ResourceType.Handle) openLink(setLocation, `https://handle.me/${data.link}`);
-    }, [data]);
+    }, [data.link, setLocation]);
     const handleRightClick = useCallback((event: any) => {
         if (onRightClick) onRightClick(event, index);
     }, [onRightClick, index]);
@@ -152,12 +154,12 @@ export const ResourceCard = ({
                     <IconButton size="small" onClick={onDelete} aria-label="close" sx={{
                         ...buttonProps,
                         right: '-15px',
-                        background: (t) => t.palette.error.main,
+                        background: palette.error.main,
                         color: 'white',
                         transition: 'brightness 0.2s ease-in-out',
                         '&:hover': {
                             filter: `brightness(105%)`,
-                            background: (t) => t.palette.error.main,
+                            background: palette.error.main,
                         },
                     } as any}>
                         <DeleteIcon />

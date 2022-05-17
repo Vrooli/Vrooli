@@ -1,12 +1,10 @@
-import { Box, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Stack, SwipeableDrawer, useTheme } from '@mui/material';
+import { Box, CircularProgress, List, ListItem, ListItemIcon, useTheme } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SettingsPageProps } from '../types';
 import {
     Lock as AuthenticationIcon,
-    ChevronLeft as CloseIcon,
     LightMode as DisplayIcon,
     Notifications as NotificationsIcon,
-    ChevronRight as OpenIcon,
     AccountCircle as ProfileIcon,
     SvgIconComponent
 } from '@mui/icons-material';
@@ -14,13 +12,13 @@ import { useLazyQuery } from '@apollo/client';
 import { APP_LINKS } from '@local/shared';
 import { useLocation } from 'wouter';
 import { SettingsProfile } from 'components/views/SettingsProfile/SettingsProfile';
-import { parseSearchParams } from 'utils/navigation/urlTools';
 import { profile, profile_profile } from 'graphql/generated/profile';
 import { profileQuery } from 'graphql/query';
 import { SettingsAuthentication } from 'components/views/SettingsAuthentication/SettingsAuthentication';
 import { SettingsDisplay } from 'components/views/SettingsDisplay/SettingsDisplay';
 import { SettingsNotifications } from 'components/views/SettingsNotifications/SettingsNotifications';
 import { containerShadow } from 'styles';
+import { useReactSearch } from 'utils';
 
 /**
  * All settings forms. Same as their route names.
@@ -42,15 +40,21 @@ const settingPages: { [x: string]: [SettingsForm, string, SvgIconComponent] } = 
 export function SettingsPage({
     session,
 }: SettingsPageProps) {
-    const [location, setLocation] = useLocation();
-    const selectedPage = useMemo<SettingsForm>(() => { return parseSearchParams(window.location.search).page as unknown as SettingsForm ?? SettingsForm.Profile }, [window.location.search]);
-    const editing = useMemo<boolean>(() => Boolean(parseSearchParams(window.location.search).editing), [window.location.search]);
+    const { palette } = useTheme();
+    const [, setLocation] = useLocation();
+    const searchParams = useReactSearch();
+    const { selectedPage } = useMemo(() => ({
+        selectedPage: searchParams.page as unknown as SettingsForm ?? SettingsForm.Profile,
+    }), [searchParams]);
+    useEffect(() => {
+        console.log('searchparams updated', searchParams);
+    }, [searchParams]);
 
     // Fetch profile data
     const [getData, { data, loading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => {
         if (session?.id) getData();
-    }, [session])
+    }, [getData, session])
     const [profile, setProfile] = useState<profile_profile | undefined>(undefined);
     useEffect(() => {
         if (data?.profile) setProfile(data.profile);
@@ -59,9 +63,6 @@ export function SettingsPage({
         if (updatedProfile) setProfile(updatedProfile);
     }, []);
 
-    const [drawerOpen, setDrawerOpen] = useState(false);
-    const toggleDrawer = useCallback(() => { setDrawerOpen(o => !o) }, [setDrawerOpen]);
-
     const listItems = useMemo(() => {
         return Object.values(settingPages).map(([link, label, Icon]: [SettingsForm, string, SvgIconComponent], index) => {
             const selected = link === selectedPage;
@@ -69,11 +70,11 @@ export function SettingsPage({
                 <ListItem
                     key={index}
                     button
-                    onClick={() => { setLocation(`${APP_LINKS.Settings}?page=${link}`, { replace: true }) }}
+                    onClick={() => { setLocation(`${APP_LINKS.Settings}?page="${link}"`, { replace: true }) }}
                     sx={{
                         transition: 'brightness 0.2s ease-in-out',
                         background: selected ? '#5bb6ce6e' : 'inherit',
-                        padding: drawerOpen ? '8px 16px' : '8px 12px'
+                        padding: '8px 12px'
                     }}
                 >
                     <ListItemIcon>
@@ -82,7 +83,7 @@ export function SettingsPage({
                 </ListItem>
             )
         });
-    }, [selectedPage, drawerOpen]);
+    }, [selectedPage, setLocation]);
 
     const mainContent: JSX.Element = useMemo(() => {
         switch (selectedPage) {
@@ -95,15 +96,21 @@ export function SettingsPage({
             case SettingsForm.Authentication:
                 return <SettingsAuthentication session={session} profile={profile} onUpdated={onUpdated} />
         }
-    }, [selectedPage, editing, profile, onUpdated]);
+    }, [selectedPage, session, profile, onUpdated]);
 
     return (
-        <Box id="page" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Box id='page' sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center',
+            padding: '0.5em',
+            paddingTop: { xs: '64px', md: '80px' },
+        }}>
             <Box sx={{
                 ...containerShadow,
                 borderRadius: 2,
                 overflow: 'overlay',
-                background: (t) => t.palette.background.default,
+                background: palette.background.default,
                 width: 'min(100%, 700px)',
                 minHeight: '300px',
                 position: 'relative',
@@ -116,8 +123,8 @@ export function SettingsPage({
                     left: 0,
                     top: 0,
                     bottom: 0,
-                    backgroundColor: '#e4efff',
-                    borderRight: (t) => `1px solid ${t.palette.text.primary}`,
+                    backgroundColor: palette.mode === 'light' ? '#e4efff' : palette.primary.light,
+                    borderRight: `1px solid ${palette.mode === 'light' ? palette.text.primary : palette.background.default}`,
 
                 }}>
                     <List>
@@ -129,7 +136,7 @@ export function SettingsPage({
                     marginLeft: '50px',
                     width: 'calc(100% - 50px)',
                 }}>
-                    {mainContent}
+                    {loading ? <CircularProgress color="secondary" /> : mainContent}
                 </Box>
             </Box>
         </Box>

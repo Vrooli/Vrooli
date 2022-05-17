@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { RoutineCreateInput, NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { RoutineCreateInput, NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor, RunStatus, RunStepStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: routineCreate
@@ -323,6 +323,37 @@ export interface routineCreate_routineCreate_resourceLists {
   resources: routineCreate_routineCreate_resourceLists_resources[];
 }
 
+export interface routineCreate_routineCreate_runs_steps_node {
+  __typename: "Node";
+  id: string;
+}
+
+export interface routineCreate_routineCreate_runs_steps {
+  __typename: "RunStep";
+  id: string;
+  order: number;
+  pickups: number;
+  timeStarted: any | null;
+  timeElapsed: number | null;
+  timeCompleted: any | null;
+  title: string;
+  status: RunStepStatus;
+  node: routineCreate_routineCreate_runs_steps_node | null;
+}
+
+export interface routineCreate_routineCreate_runs {
+  __typename: "Run";
+  id: string;
+  completedComplexity: number;
+  pickups: number;
+  timeStarted: any | null;
+  timeElapsed: number | null;
+  timeCompleted: any | null;
+  title: string;
+  status: RunStatus;
+  steps: routineCreate_routineCreate_runs_steps[];
+}
+
 export interface routineCreate_routineCreate_tags_translations {
   __typename: "TagTranslation";
   id: string;
@@ -364,6 +395,7 @@ export interface routineCreate_routineCreate {
   owner: routineCreate_routineCreate_owner | null;
   parent: routineCreate_routineCreate_parent | null;
   resourceLists: routineCreate_routineCreate_resourceLists[];
+  runs: routineCreate_routineCreate_runs[];
   score: number;
   simplicity: number;
   stars: number;

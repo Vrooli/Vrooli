@@ -16,11 +16,12 @@ import isEqual from 'lodash/isEqual';
 import { useLocation, useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { BuildStatusObject } from 'components/graphs/NodeGraph/types';
-import { MemberRole, NodeType } from 'graphql/generated/globalTypes';
+import { NodeType } from 'graphql/generated/globalTypes';
 import { BuildPageProps } from 'pages/types';
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import { BaseObjectAction } from 'components/dialogs/types';
+import { owns } from 'utils/authentication';
 
 /**
  * Status indicator and slider change color to represent routine's status
@@ -92,7 +93,7 @@ export const BuildPage = ({
     const [status, setStatus] = useState<BuildStatusObject>({ code: BuildStatus.Incomplete, messages: ['Calculating...'] });
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
-    const canEdit = useMemo<boolean>(() => [MemberRole.Admin, MemberRole.Owner].includes(routine?.role as MemberRole), [routine]);
+    const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine]);
     
     // Open/close unlinked nodes drawer
     const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);
@@ -124,8 +125,8 @@ export const BuildPage = ({
 
     // Open boolean for delete routine confirmation
     const [deleteOpen, setDeleteOpen] = useState(false);
-    const openDelete = () => setDeleteOpen(true);
-    const closeDelete = () => setDeleteOpen(false);
+    const openDelete = useCallback(() => setDeleteOpen(true), []);
+    const closeDelete = useCallback(() => setDeleteOpen(false), []);
 
     /**
      * Hacky way to display dragging nodes over over elements. Disables z-index when dragging
@@ -366,7 +367,7 @@ export const BuildPage = ({
                 setLocation(`${APP_LINKS.Build}/${data.routineCreate.id}`); 
             },
         })
-    }, [changedRoutine, mutationWrapper]);
+    }, [changedRoutine, routineCreate, setLocation]);
 
     /**
      * Mutates routine data
@@ -427,7 +428,7 @@ export const BuildPage = ({
                 { language, title },
             ]
         } as any);
-    }, [changedRoutine]);
+    }, [changedRoutine, language]);
 
     const revertChanges = useCallback(() => {
         // If updating routine, revert to original routine
@@ -437,7 +438,7 @@ export const BuildPage = ({
         }
         // If adding new routine, go back
         else window.history.back();
-    }, [routine])
+    }, [id, routine])
 
     /**
      * Deletes the entire routine. Assumes confirmation was already given.
@@ -450,7 +451,7 @@ export const BuildPage = ({
             successMessage: () => 'Routine deleted.',
             onSuccess: () => { setLocation(APP_LINKS.Home) },
         })
-    }, [routine, routineDelete])
+    }, [routine, routineDelete, setLocation])
 
     /**
      * Calculates the new set of links for an routine when a node is 
@@ -480,7 +481,7 @@ export const BuildPage = ({
         let keptLinks = changedRoutine.nodeLinks.filter(l => !deletingLinks.includes(l));
         // Return new links combined with kept links
         return [...keptLinks, ...newLinks as any[]];
-    }, [changedRoutine?.nodeLinks]);
+    }, [changedRoutine]);
 
     /**
      * Generates a new node object, but doens't add it to the routine
@@ -539,7 +540,7 @@ export const BuildPage = ({
             nodes: deleteArrayIndex(changedRoutine.nodes, nodeIndex),
             nodeLinks: linksList,
         });
-    }, [changedRoutine]);
+    }, [calculateNewLinksList, changedRoutine]);
 
     /**
      * Deletes a subroutine from a node
@@ -622,7 +623,7 @@ export const BuildPage = ({
                 nodes: updated,
             });
         }
-    }, [changedRoutine]);
+    }, [calculateNewLinksList, changedRoutine]);
 
     /**
      * Updates a node's data
@@ -675,7 +676,7 @@ export const BuildPage = ({
             nodeLinks: [...linksList, ...newLinks as any],
         };
         setChangedRoutine(newRoutine);
-    }, [changedRoutine]);
+    }, [changedRoutine, generateNewNode]);
 
     /**
      * Adds a routine list item to a routine list
@@ -730,7 +731,7 @@ export const BuildPage = ({
                 nodeLinks: [...changedRoutine.nodeLinks, newLink as any],
             });
         }
-    }, [changedRoutine]);
+    }, [changedRoutine, generateNewNode, handleNodeInsert]);
 
     /**
      * Add a new routine list BEFORE a node
@@ -759,7 +760,7 @@ export const BuildPage = ({
                 nodeLinks: [...changedRoutine.nodeLinks, newLink as any],
             });
         }
-    }, [changedRoutine]);
+    }, [changedRoutine, generateNewNode, handleNodeInsert]);
 
     /**
      * Updates the current selected subroutine
@@ -798,7 +799,7 @@ export const BuildPage = ({
             return;
         }
         setLocation(`${APP_LINKS.Build}/${selectedSubroutine.id}`);
-    }, [selectedSubroutine, changedRoutine, routine]);
+    }, [selectedSubroutine, routine, changedRoutine, setLocation]);
 
     const handleAction = useCallback((action: BuildAction, nodeId: string, subroutineId?: string) => {
         switch (action) {
@@ -941,6 +942,7 @@ export const BuildPage = ({
                 handleViewFull={handleSubroutineViewFull}
                 language={language}
                 open={Boolean(selectedSubroutine)}
+                session={session}
                 subroutine={selectedSubroutine}
                 onClose={closeRoutineInfo}
             />
@@ -1057,7 +1059,7 @@ export const BuildPage = ({
                     scale={scale}
                     session={session}
                     sliderColor={STATUS_COLOR[status.code]}
-                    routineId={routine?.id ?? ''}
+                    routine={routine}
                     runState={BuildRunState.Stopped}
                 />
             </Box>

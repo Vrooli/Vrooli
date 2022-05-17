@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Button, Popover, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, Popover, Stack, TextField, Typography, useTheme } from "@mui/material";
 import { DateRangeMenuProps } from "../types";
 import { LocalizationProvider, MobileDatePicker } from '@mui/lab';
 import AdapterDateFns from '@mui/lab/AdapterDateFns';
@@ -9,6 +9,8 @@ export const DateRangeMenu = ({
     onClose,
     onSubmit,
 }: DateRangeMenuProps) => {
+    const { palette } = useTheme();
+
     const open = Boolean(anchorEl);
 
     const [after, setAfter] = useState<Date | null>(null)
@@ -26,8 +28,8 @@ export const DateRangeMenu = ({
             disableScrollLock={true}
         >
             <Typography textAlign="center" p={1} sx={{
-                background: (t) => t.palette.primary.dark,
-                color: (t) => t.palette.primary.contrastText,
+                background: palette.primary.dark,
+                color: palette.primary.contrastText,
             }}>Select date range</Typography>
             <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <Box p={2}>

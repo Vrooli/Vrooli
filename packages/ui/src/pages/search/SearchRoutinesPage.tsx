@@ -3,7 +3,7 @@ import { routineDefaultSortOption, RoutineSortOptions, RoutineDialog, ListMenu }
 import { routinesQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useState } from "react";
 import { Routine } from "types";
-import { Pubs } from "utils";
+import { Pubs, stringifySearchParams } from "utils";
 import { BaseSearchPage } from "./BaseSearchPage";
 import { SearchRoutinesPageProps } from "./types";
 import { useLocation } from "wouter";
@@ -39,7 +39,9 @@ export const SearchRoutinesPage = ({
         }
         else {
             PubSub.publish(Pubs.Snack, { message: 'Must be logged in.', severity: 'error' });
-            setLocation(`${APP_LINKS.Start}?redirect=${encodeURIComponent(APP_LINKS.SearchRoutines)}`);
+            setLocation(`${APP_LINKS.Start}${stringifySearchParams({
+                redirect: APP_LINKS.SearchRoutines
+            })}`);
         }
     }, [session?.roles, setLocation]);
     const closeAdd = useCallback(() => setAddAnchor(null), []);

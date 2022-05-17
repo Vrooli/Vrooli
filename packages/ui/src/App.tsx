@@ -16,6 +16,7 @@ import { validateSessionMutation } from 'graphql/mutation';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import { Session } from 'types';
 import hotkeys from 'hotkeys-js';
+import Confetti from 'react-confetti';
 
 const useStyles = makeStyles(() => ({
     "@global": {
@@ -37,8 +38,6 @@ const useStyles = makeStyles(() => ({
         '#page': {
             minWidth: '100vw',
             minHeight: '100vh',
-            padding: '0.5em',
-            paddingTop: '10vh'
         },
         '@media (min-width:500px)': {
             '#page': {
@@ -73,6 +72,7 @@ export function App() {
     const [session, setSession] = useState<Session | undefined>(undefined);
     const [theme, setTheme] = useState(themes.light);
     const [loading, setLoading] = useState(false);
+    const [celebrating, setCelebrating] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [validateSession] = useMutation<any>(validateSessionMutation);
 
@@ -81,14 +81,18 @@ export function App() {
     useEffect(() => {
         // if not a hash link, scroll to top
         if (window.location.hash === '') {
+            console.log('scroll to top')
             window.scrollTo(0, 0);
         }
         // else scroll to id
         else {
             setTimeout(() => {
                 const id = window.location.hash.replace('#', '');
+                console.log('hash timeout id', id)
                 const element = document.getElementById(id);
+                console.log('hash timeout element', element)
                 if (element) {
+                    console.log('hash scrolling into view')
                     element.scrollIntoView();
                 }
             }, 0);
@@ -116,7 +120,7 @@ export function App() {
     useEffect(() => {
         // Determine theme
         if (session?.theme) setTheme(themes[session?.theme])
-        //else if (session && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme(themes.dark);
+        else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme(themes.dark);
         else setTheme(themes.light);
     }, [session])
 
@@ -146,12 +150,24 @@ export function App() {
                 setLoading(Boolean(data));
             }
         });
+        // Handle celebration (confetti). Defaults to 5 seconds long, but duration 
+        // can be passed in as a number
+        let celebrationSub = PubSub.subscribe(Pubs.Celebration, (_, data) => {
+            // Start confetti immediately
+            setCelebrating(true);
+            // Determine duration
+            let duration = 5000;
+            if (Number.isInteger(data)) duration = data;
+            // Stop confetti after duration
+            setTimeout(() => setCelebrating(false), duration);
+        });
         let sessionSub = PubSub.subscribe(Pubs.Session, (_, session) => {
             setSession(s => (session === undefined ? undefined : { ...s, ...session }));
         });
         let themeSub = PubSub.subscribe(Pubs.Theme, (_, data) => setTheme(themes[data] ?? themes.light));
         return (() => {
             PubSub.unsubscribe(loadingSub);
+            PubSub.unsubscribe(celebrationSub);
             PubSub.unsubscribe(sessionSub);
             PubSub.unsubscribe(themeSub);
         })
@@ -161,7 +177,21 @@ export function App() {
         <StyledEngineProvider injectFirst>
             <CssBaseline />
             <ThemeProvider theme={theme}>
-                <div id="App">
+                <Box id="App" sx={{
+                    // Style visited, active, and hovered links differently
+                    a: {
+                        color: theme.palette.mode === 'light' ? '#d922d4' : '#dd86db',
+                        '&:visited': {
+                            color: theme.palette.mode === 'light' ? '#a00c9c' : '#f551ef',
+                        },
+                        '&:active': {
+                            color: theme.palette.mode === 'light' ? '#a00c9c' : '#f551ef',
+                        },
+                        '&:hover': {
+                            color: theme.palette.mode === 'light' ? '#ff46fa' : '#f3d4f2',
+                        },
+                    },
+                }}>
                     <main
                         id="page-container"
                         style={{
@@ -170,10 +200,11 @@ export function App() {
                         }}
                     >
                         <Box id="content-wrap" sx={{
-                            background: 'fixed radial-gradient(circle, rgba(208,213,226,1) 7%, rgba(179,191,217,1) 66%, rgba(160,188,249,1) 94%)',
+                            background: theme.palette.mode === 'light' ? '#c2cadd' : theme.palette.background.default,
                             minHeight: '100vh',
                         }}>
                             <Navbar session={session ?? {}} sessionChecked={session !== undefined} />
+                            {/* Progress bar */}
                             {
                                 loading && <Box sx={{
                                     position: 'absolute',
@@ -185,6 +216,19 @@ export function App() {
                                     <CircularProgress size={100} />
                                 </Box>
                             }
+                            {/* Celebratory confetti. To be used sparingly */}
+                            {
+                                celebrating && <Confetti
+                                    initialVelocityY={-10}
+                                    recycle={false}
+                                    confettiSource={{
+                                        x: 0,
+                                        y: 40,
+                                        w: window.innerWidth,
+                                        h: 0
+                                    }}
+                                />
+                            }
                             <AlertDialog />
                             <Snack />
                             <AllRoutes
@@ -195,7 +239,7 @@ export function App() {
                         <BottomNav session={session ?? {}} />
                         <Footer />
                     </main>
-                </div>
+                </Box>
             </ThemeProvider>
         </StyledEngineProvider>
     );

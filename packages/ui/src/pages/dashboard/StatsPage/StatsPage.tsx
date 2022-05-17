@@ -10,7 +10,6 @@ const tabProps = (index: number) => ({
 const tabLabels = ['Daily', 'Weekly', 'Monthly', 'Yearly', 'All time'];
 
 export const StatsPage = () => {
-    
     // Handle tabs
     const [tabIndex, setTabIndex] = useState(0);
     const handleTabChange = (event, newValue) => {
@@ -18,7 +17,10 @@ export const StatsPage = () => {
     };
 
     return (
-        <Box id='page'>
+        <Box id='page' sx={{
+            padding: '0.5em',
+            paddingTop: { xs: '64px', md: '80px' },
+        }}>
             <Tabs
                 value={tabIndex}
                 onChange={handleTabChange}

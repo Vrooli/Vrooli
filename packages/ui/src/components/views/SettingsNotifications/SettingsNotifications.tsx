@@ -1,4 +1,4 @@
-import { Box, Stack, Typography } from "@mui/material"
+import { Box, Stack, Typography, useTheme } from "@mui/material"
 import { SettingsNotificationsProps } from "../types";
 import { HelpButton } from "components/buttons";
 
@@ -12,15 +12,16 @@ export const SettingsNotifications = ({
     profile,
     onUpdated,
 }: SettingsNotificationsProps) => {
+    const { palette } = useTheme();
 
     return (
         <form style={{ overflow: 'hidden' }}>
             {/* Title */}
             <Stack direction="row" justifyContent="center" alignItems="center" sx={{
-                background: (t) => t.palette.primary.dark,
-                color: (t) => t.palette.primary.contrastText,
-                padding: 0.5,
+                background: palette.primary.dark,
+                color: palette.primary.contrastText,
                 marginBottom: 2,
+                padding: 0.5,
             }}>
                 <Typography component="h1" variant="h3">Notification</Typography>
                 <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />

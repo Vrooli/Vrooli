@@ -27,13 +27,12 @@ import {
     TextField,
     Tooltip,
     Typography,
+    useTheme,
 } from '@mui/material';
 import { BaseObjectAction, BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { MarkdownInput, ResourceListHorizontal } from 'components';
 import { getOwnedByString, getTranslation, Pubs, toOwnedBy } from 'utils';
-import { APP_LINKS } from '@local/shared';
-import { ResourceList, User } from 'types';
 import { useLocation } from 'wouter';
 import { useFormik } from 'formik';
 import { routineUpdateForm as validationSchema } from '@local/shared';
@@ -47,6 +46,7 @@ export const BuildInfoDialog = ({
     session,
     sxs,
 }: BuildInfoDialogProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const ownedBy = useMemo<string | null>(() => getOwnedByString(routine, [language]), [routine, language]);
@@ -147,8 +147,8 @@ export const BuildInfoDialog = ({
                 onClose={closeMenu}
                 sx={{
                     '& .MuiDrawer-paper': {
-                        background: (t) => t.palette.background.default,
-                        borderLeft: `1px solid ${(t) => t.palette.text.primary}`,
+                        background: palette.background.default,
+                        borderLeft: `1px solid ${palette.text.primary}`,
                         maxWidth: { xs: '100%', sm: '75%', md: '50%', lg: '40%', xl: '30%' },
                     }
                 }}
@@ -158,8 +158,8 @@ export const BuildInfoDialog = ({
                     display: 'flex',
                     flexDirection: 'row',
                     alignItems: 'center',
-                    background: (t) => t.palette.primary.dark,
-                    color: (t) => t.palette.primary.contrastText,
+                    background: palette.primary.dark,
+                    color: palette.primary.contrastText,
                     padding: 1,
                 }}>
                     {/* Title, created by, and version  */}
@@ -168,16 +168,16 @@ export const BuildInfoDialog = ({
                         <Stack direction="row" spacing={1}>
                             {ownedBy ? (
                                 <Link onClick={toOwner}>
-                                    <Typography variant="body1" sx={{ color: (t) => t.palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy} - </Typography>
+                                    <Typography variant="body1" sx={{ color: palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy}</Typography>
                                 </Link>
                             ) : null}
-                            <Typography variant="body1">{routine?.version}</Typography>
+                            <Typography variant="body1"> - {routine?.version}</Typography>
                         </Stack>
                     </Stack>
                     <IconButton onClick={closeMenu} sx={{
-                        color: (t) => t.palette.primary.contrastText,
+                        color: palette.primary.contrastText,
                         borderRadius: 0,
-                        borderBottom: `1px solid ${(t) => t.palette.primary.dark}`,
+                        borderBottom: `1px solid ${palette.primary.dark}`,
                         justifyContent: 'end',
                         flexDirection: 'row-reverse',
                         marginLeft: 'auto',
@@ -193,7 +193,7 @@ export const BuildInfoDialog = ({
                     {/* Description */}
                     <Box sx={{
                         padding: 1,
-                        border: `1px solid ${(t) => t.palette.primary.dark}`,
+                        border: `1px solid ${palette.primary.dark}`,
                         borderRadius: 1,
                     }}>
                         <Typography variant="h6">Description</Typography>
@@ -219,7 +219,7 @@ export const BuildInfoDialog = ({
                     {/* Instructions */}
                     <Box sx={{
                         padding: 1,
-                        border: `1px solid ${(t) => t.palette.background.paper}`,
+                        border: `1px solid ${palette.background.paper}`,
                         borderRadius: 1,
                     }}>
                         <Typography variant="h6">Instructions</Typography>

@@ -1,8 +1,8 @@
-import { Box, IconButton, Stack, Tooltip, Typography } from "@mui/material"
+import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS, MemberRole } from "@local/shared";
+import { APP_LINKS } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
-import { standard, standardVariables, standard_standard_creator_Organization, standard_standard_creator_User } from "graphql/generated/standard";
+import { standard, standardVariables } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -19,17 +19,18 @@ import { BaseObjectAction } from "components/dialogs/types";
 import { getCreatedByString, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils";
 import { validate as uuidValidate } from 'uuid';
 import { Standard } from "types";
+import { owns } from "utils/authentication";
 
 export const StandardView = ({
     partialData,
     session,
 }: StandardViewProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Standard}/:id`);
     const [, params2] = useRoute(`${APP_LINKS.SearchStandards}/view/:id`);
     const id: string = params?.id ?? params2?.id ?? '';
-    // Fetch data
     // Fetch data
     const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery);
     const [standard, setStandard] = useState<Standard | null | undefined>(null);
@@ -39,7 +40,7 @@ export const StandardView = ({
     useEffect(() => {
         setStandard(data?.standard);
     }, [data]);
-    const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(standard?.role ?? ''), [standard]);
+    const canEdit = useMemo<boolean>(() => owns(standard?.role), [standard]);
 
     useEffect(() => {
         const name = standard?.name ?? partialData?.name ?? '';
@@ -61,7 +62,7 @@ export const StandardView = ({
             description: getTranslation(standard, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
             name: standard?.name ?? partialData?.name,
         };
-    }, [language, partialData, session, standard]);
+    }, [language, partialData, standard]);
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
@@ -86,14 +87,14 @@ export const StandardView = ({
             ml='auto'
             mr='auto'
             mt={8}
-            bgcolor={(t) => t.palette.background.paper}
+            bgcolor={palette.background.paper}
             sx={{ ...containerShadow }}
         >
             <Box
                 width={'min(100px, 25vw)'}
                 height={'min(100px, 25vw)'}
                 borderRadius='100%'
-                border={(t) => `4px solid ${t.palette.primary.dark}`}
+                border={`4px solid ${palette.primary.dark}`}
                 bgcolor='#939eb9'
                 position='absolute'
                 display='flex'
@@ -139,7 +140,7 @@ export const StandardView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [contributedBy, description, name, openMoreMenu])
+    ), [contributedBy, description, name, openMoreMenu, palette.background.paper, palette.primary.dark])
 
     // Determine options available to object, in order
     const moreOptions: BaseObjectAction[] = useMemo(() => {

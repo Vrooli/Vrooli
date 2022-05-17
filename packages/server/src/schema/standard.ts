@@ -65,9 +65,11 @@ export const typeDef = gql`
         isStarred: Boolean!
         role: MemberRole
         isUpvoted: Boolean
+        isViewed: Boolean!
         schema: String!
         score: Int!
         stars: Int!
+        views: Int!
         type: StandardType!
         comments: [Comment!]!
         creator: Contributor
@@ -101,6 +103,7 @@ export const typeDef = gql`
         languages: [String!]
         minScore: Int
         minStars: Int
+        minViews: Int
         organizationId: ID
         projectId: ID
         reportId: ID

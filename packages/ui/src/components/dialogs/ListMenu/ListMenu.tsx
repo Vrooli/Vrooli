@@ -6,7 +6,8 @@ import {
     ListItemIcon,
     ListItemText,
     Menu,
-    Typography
+    Typography,
+    useTheme
 } from '@mui/material';
 import { HelpButton } from 'components';
 import { useMemo } from 'react';
@@ -22,6 +23,8 @@ export function ListMenu<T>({
     title = 'Select Item',
     data,
 }: ListMenuProps<T>) {
+    const { palette } = useTheme();
+
     const open = Boolean(anchorEl);
 
     const items = useMemo(() => data?.map(({ label, value, Icon, iconColor, preview, helpData }, index) => {
@@ -68,7 +71,7 @@ export function ListMenu<T>({
             onClose={(e) => { onClose() }}
             sx={{
                 '& .MuiMenu-paper': {
-                    background: (t) => t.palette.background.paper
+                    background: palette.background.paper
                 },
                 '& .MuiMenu-list': {
                     paddingTop: '0',
@@ -81,7 +84,7 @@ export function ListMenu<T>({
                     display: 'flex',
                     alignItems: 'center',
                     padding: 1,
-                    background: (t) => t.palette.primary.dark
+                    background: palette.mode === 'light' ? palette.primary.dark : palette.secondary.dark,
                 }}
             >
                 <Typography
@@ -89,7 +92,7 @@ export function ListMenu<T>({
                     textAlign="center"
                     sx={{
                         width: '-webkit-fill-available',
-                        color: (t) => t.palette.primary.contrastText,
+                        color: palette.mode === 'light' ? palette.primary.contrastText : palette.secondary.contrastText,
                     }}
                 >
                     {title}
@@ -98,7 +101,7 @@ export function ListMenu<T>({
                     edge="end"
                     onClick={(e) => { onClose() }}
                 >
-                    <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
+                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
                 </IconButton>
             </Box>
             <List>

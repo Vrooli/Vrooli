@@ -149,14 +149,14 @@ export const AllRoutes = (props: CommonProps) => {
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.Run}/:id`}>
+                <Route path={`${LINKS.Routine}/:id`}>
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
                             <RoutineViewPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.Run}/edit/:id`}>
+                <Route path={`${LINKS.Routine}/edit/:id`}>
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
                             <RoutineViewPage session={props.session} />

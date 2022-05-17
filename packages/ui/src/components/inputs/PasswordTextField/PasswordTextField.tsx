@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { FormControl, FormHelperText, IconButton, InputAdornment, InputLabel, OutlinedInput } from '@mui/material';
+import { FormControl, FormHelperText, IconButton, InputAdornment, InputLabel, OutlinedInput, useTheme } from '@mui/material';
 import {
     Visibility as VisibilityIcon,
     VisibilityOff as VisibilityOffIcon,
@@ -20,6 +20,8 @@ export const PasswordTextField = ({
     value,
     ...props
 }: PasswordTextFieldProps) => {
+    const { palette } = useTheme();
+
     const [showPassword, setShowPassword] = useState<boolean>(false);
 
     const handleClickShowPassword = useCallback(() => {
@@ -52,7 +54,7 @@ export const PasswordTextField = ({
                 }
                 label={label ?? 'Password'}
             />
-            <FormHelperText id="adornment-password-error-text" sx={{ color: (t) => t.palette.error.main }}>{helperText}</FormHelperText>
+            <FormHelperText id="adornment-password-error-text" sx={{ color: palette.error.main }}>{helperText}</FormHelperText>
         </FormControl>
     )
 }

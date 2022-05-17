@@ -2,12 +2,16 @@ import {
     ContactInfo,
     PopupMenu
 } from 'components';
+import {
+    AccountCircle as ProfileIcon,
+} from '@mui/icons-material';
 import { Action, actionsToMenu, ACTION_TAGS, getUserActions, openLink } from 'utils';
-import { Button, Container, Theme } from '@mui/material';
+import { Button, Container, IconButton, Theme, useTheme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { useLocation } from 'wouter';
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NavListProps } from '../types';
+import { APP_LINKS } from '@local/shared';
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
@@ -28,7 +32,6 @@ const useStyles = makeStyles((theme: Theme) => ({
     },
     button: {
         fontSize: '1.5em',
-        marginLeft: '20px',
         borderRadius: '10px',
     },
     menuItem: {
@@ -48,38 +51,59 @@ export const NavList = ({
     sessionChecked,
 }: NavListProps) => {
     const classes = useStyles();
+    const { breakpoints } = useTheme();
     const [, setLocation] = useLocation();
+
+    const [isMobile, setIsMobile] = useState(false); // Not shown on mobile
+    const updateWindowDimensions = useCallback(() => setIsMobile(window.innerWidth <= breakpoints.values.md), [breakpoints]);
+    useEffect(() => {
+        updateWindowDimensions();
+        window.addEventListener("resize", updateWindowDimensions);
+        return () => window.removeEventListener("resize", updateWindowDimensions);
+    }, [updateWindowDimensions]);
 
     const nav_actions = useMemo<Action[]>(() => getUserActions({ roles: session.roles ?? [], exclude: [ACTION_TAGS.Home] }), [session.roles]);
     // Display button for entering main application
     const enter_action: Action | undefined = nav_actions.find((action: Action) => action.value === ACTION_TAGS.LogIn)
     // Dont show the Log In button until session has been checked
     const enter_button = useMemo(() => (enter_action && sessionChecked) ? (
-        <Button 
-            className={classes.button} 
+        <Button
+            className={classes.button}
             onClick={() => openLink(setLocation, enter_action.link)}
-            sx={{background: '#5ea956'}}
-            >
-                {enter_action.label}
+            sx={{ background: '#5ea956' }}
+        >
+            {enter_action.label}
         </Button>
     ) : null, [enter_action, classes.button, sessionChecked, setLocation])
 
     return (
         <Container className={classes.root}>
-            <PopupMenu
+            {!isMobile && <PopupMenu
                 text="Contact"
                 variant="text"
                 size="large"
                 className={classes.navItem}
             >
                 <ContactInfo className={classes.contact} />
-            </PopupMenu>
-            {actionsToMenu({
+            </PopupMenu>}
+            {/* List items displayed when on wide screen */}
+            {!isMobile && actionsToMenu({
                 actions: nav_actions.filter((a: Action) => a.value !== ACTION_TAGS.LogIn),
                 setLocation,
                 classes: { root: classes.navItem },
             })}
+            {/* Enter button displayed when not logged in */}
             {enter_button}
+            {/* Profile icon for mobile */}
+            {isMobile && !enter_button && (
+                <IconButton
+                    color="inherit"
+                    onClick={() => { setLocation(APP_LINKS.Profile) }}
+                    aria-label="profile"
+                >
+                    <ProfileIcon sx={{ fill: 'white', width: '40px', height: '40px' }} />
+                </IconButton>
+            )}
         </Container>
     );
 }

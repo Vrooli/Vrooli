@@ -1,8 +1,8 @@
-import { CODE, reportCreate, ReportFor, reportUpdate } from "@local/shared";
+import { CODE, ReportFor, reportsCreate, reportsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, Report, ReportCreateInput, ReportSearchInput, ReportSortBy, ReportUpdateInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { hasProfanity } from "../../utils/censor";
+import { validateProfanity } from "../../utils/censor";
 import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
 
@@ -55,23 +55,26 @@ export const reportSearcher = (): Searcher<ReportSearchInput> => ({
         })
     },
     customQueries(input: ReportSearchInput): { [x: string]: any } {
-        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
-        const userIdQuery = input.userId ? { userId: input.userId } : undefined;
-        const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
-        const projectIdQuery = input.projectId ? { projectId: input.projectId } : undefined;
-        const routineIdQuery = input.routineId ? { routineId: input.routineId } : undefined;
-        const standardIdQuery = input.standardId ? { standardId: input.standardId } : undefined;
-        const tagIdQuery = input.tagId ? { tagId: input.tagId } : undefined;
-        return { ...languagesQuery, ...userIdQuery, ...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...standardIdQuery, ...tagIdQuery };
+        return {
+            ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            ...(input.userId ? { userId: input.userId } : {}),
+            ...(input.organizationId ? { organizationId: input.organizationId } : {}),
+            ...(input.projectId ? { projectId: input.projectId } : {}),
+            ...(input.routineId ? { routineId: input.routineId } : {}),
+            ...(input.standardId ? { standardId: input.standardId } : {}),
+            ...(input.tagId ? { tagId: input.tagId } : {}),
+        }
     },
 })
 
 export const reportVerifier = () => ({
     // TODO not sure if report should have profanity check, since someone might 
     // just be trying to submit a report for a profane word
-    profanityCheck(data: ReportCreateInput | ReportUpdateInput): void {
-        if (hasProfanity(data.reason, data.details)) 
-            throw new CustomError(CODE.BannedWord, 'Profanity is not allowed in the report reason or details.', { code: genErrorCode('0082') });
+    profanityCheck(data: (ReportCreateInput | ReportUpdateInput)[]): void {
+        validateProfanity(data.map((d: any) => ({
+            reason: d.reason,
+            details: d.details,
+        })));
     },
 })
 
@@ -85,7 +88,7 @@ const forMapper = {
     [ReportFor.User]: 'userId',
 }
 
-export const reportMutater = (prisma: PrismaType, verifier: any) => ({
+export const reportMutater = (prisma: PrismaType, verifier: ReturnType<typeof reportVerifier>) => ({
     async toDBShapeAdd(userId: string | null, data: ReportCreateInput): Promise<any> {
         return {
             reason: data.reason,
@@ -103,11 +106,12 @@ export const reportMutater = (prisma: PrismaType, verifier: any) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ReportCreateInput, ReportUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) 
+        if (!createMany && !updateMany && !deleteMany) return;
+        if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0083') });
         if (createMany) {
-            createMany.forEach(input => reportCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => verifier.profanityCheck(input));
+            reportsCreate.validateSync(createMany, { abortEarly: false });
+            verifier.profanityCheck(createMany);
             // Check if report already exists by user on object
             for (const input of createMany) {
                 const existingReport = await prisma.report.count({
@@ -122,8 +126,8 @@ export const reportMutater = (prisma: PrismaType, verifier: any) => ({
             }
         }
         if (updateMany) {
-            updateMany.forEach(input => reportUpdate.validateSync(input.data, { abortEarly: false }));
-            updateMany.forEach(input => verifier.profanityCheck(input.data));
+            reportsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            verifier.profanityCheck(updateMany.map(u => u.data));
         }
     },
     async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<ReportCreateInput, ReportUpdateInput>): Promise<CUDResult<Report>> {

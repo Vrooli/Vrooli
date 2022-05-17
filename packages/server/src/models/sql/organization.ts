@@ -2,7 +2,7 @@ import { PrismaType, RecursivePartial } from "../../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor } from "../../schema/types";
 import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, PartialInfo } from "./base";
 import { CustomError } from "../../error";
-import { CODE, MemberRole, organizationCreate, organizationTranslationCreate, organizationTranslationUpdate, organizationUpdate } from "@local/shared";
+import { CODE, MemberRole, organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@local/shared";
 import { organization_users } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -10,6 +10,7 @@ import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
 import { WalletModel } from "./wallet";
 import { genErrorCode } from "../../logger";
+import { ViewModel } from "./view";
 
 //==============================================================
 /* #region Custom Components */
@@ -52,9 +53,16 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel(prisma).getIsStarreds(userId, ids, 'organization')
+                ? await StarModel(prisma).getIsStarreds(userId, ids, GraphQLModelType.Organization)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
+        }
+        // Query for isViewed
+        if (partial.isViewed) {
+            const isViewedArray = userId
+                ? await ViewModel(prisma).getIsVieweds(userId, ids, GraphQLModelType.Organization)
+                : Array(ids.length).fill(false);
+            objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
         // Query for role
         if (partial.role) {
@@ -90,46 +98,66 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
         })
     },
     customQueries(input: OrganizationSearchInput): { [x: string]: any } {
-        const isOpenToNewMembersQuery = input.isOpenToNewMembers ? { isOpenToNewMembers: true } : {};
-        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
-        const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
-        const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
-        const resourceListsQuery = input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {};
-        const resourceTypesQuery = input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {};
-        const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
-        const userIdQuery = input.userId ? { members: { some: { userId: input.userId, role: { in: [MemberRole.Admin, MemberRole.Owner] } } } } : {};
-        const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
-        const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
-        const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
-        return { ...isOpenToNewMembersQuery, ...languagesQuery, ...minStarsQuery, ...projectIdQuery, ...resourceListsQuery, ...resourceTypesQuery, ...routineIdQuery, ...userIdQuery, ...reportIdQuery, ...standardIdQuery, ...tagsQuery };
+        return {
+            ...(input.isOpenToNewMembers ? { isOpenToNewMembers: true } : {}),
+            ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            ...(input.minStars ? { stars: { gte: input.minStars } } : {}),
+            ...(input.minViews ? { views: { gte: input.minViews } } : {}),
+            ...(input.projectId ? { projects: { some: { projectId: input.projectId } } } : {}),
+            ...(input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            ...(input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
+            ...(input.routineId ? { routines: { some: { id: input.routineId } } } : {}),
+            ...(input.userId ? { members: { some: { userId: input.userId, role: { in: [MemberRole.Admin, MemberRole.Owner] } } } } : {}),
+            ...(input.reportId ? { reports: { some: { id: input.reportId } } } : {}),
+            ...(input.standardId ? { standards: { some: { id: input.standardId } } } : {}),
+            ...(input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
+        }
     },
 })
 
 export const organizationVerifier = (prisma: PrismaType) => ({
-    async getRoles(userId: string, ids: string[]): Promise<Array<MemberRole | undefined>> {
+    /**
+     * Finds the roles a users has for a list of organizations
+     * @param userId The user's id
+     * @param organizationIds The list of organization ids
+     * @returns An array in the same order as the ids, with either a role or undefined
+     */
+    async getRoles(userId: string, organizationIds: (string | null | undefined)[]): Promise<Array<MemberRole | undefined>> {
+        if (organizationIds.length === 0) return [];
+        // Take out nulls
+        const idsToQuery = organizationIds.filter(x => x) as string[];
         // Query member data for each ID
-        const roleArray = await prisma.organization_users.findMany({
-            where: { organization: { id: { in: ids } }, user: { id: userId } },
+        const memberData = await prisma.organization_users.findMany({
+            where: { organization: { id: { in: idsToQuery } }, user: { id: userId } },
             select: { organizationId: true, role: true }
         });
-        return ids.map(id => {
-            const role = roleArray.find(({ organizationId }) => organizationId === id);
-            return role?.role as MemberRole | undefined;
-        });
+        // Create an array of the same length as the input, with the member data or undefined
+        return organizationIds.map(id => memberData.find(({ organizationId }) => organizationId === id)).map((o) => o?.role) as Array<MemberRole | undefined>;
     },
-    async isOwnerOrAdmin(userId: string, organizationId: string): Promise<[boolean, organization_users | null]> {
-        const memberData = await prisma.organization_users.findFirst({
+    /**
+     * Determines if a user is an admin or member of a list of organizations
+     * @param userId The user's ID
+     * @param organizationIds The list of organization IDs
+     * @returns Array in the same order as the ids, with either admin/owner role data or undefined
+     */
+     async isOwnerOrAdmin(userId: string, organizationIds: (string | null | undefined)[]): Promise<Array<organization_users | undefined>> {
+        if (organizationIds.length === 0) return [];
+        // Take out nulls
+        const idsToQuery = organizationIds.filter(x => x) as string[];
+        // Query member data for each ID
+        const memberData = await prisma.organization_users.findMany({
             where: {
-                organization: { id: organizationId },
+                organization: { id: { in: idsToQuery } },
                 user: { id: userId },
                 role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
             }
         });
-        return [Boolean(memberData), memberData];
+        // Create an array of the same length as the input, with the member data or undefined
+        return organizationIds.map(id => memberData.find(({ organizationId }) => organizationId === id));
     },
 })
 
-export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
+export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typeof organizationVerifier>) => ({
     async toDBShape(userId: string | null, data: OrganizationCreateInput | OrganizationUpdateInput): Promise<any> {
         // If creating new, add yourself as member
         let members = {};
@@ -148,23 +176,24 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<OrganizationCreateInput, OrganizationUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) 
+        if (!createMany && !updateMany && !deleteMany) return;
+        if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0055') });
         if (createMany) {
-            createMany.forEach(input => organizationCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => TranslationModel().profanityCheck(input));
+            organizationsCreate.validateSync(createMany, { abortEarly: false });
+            TranslationModel().profanityCheck(createMany);
             createMany.forEach(input => TranslationModel().validateLineBreaks(input, ['bio'], CODE.LineBreaksBio));
             // Check if user will pass max organizations limit
-            const existingCount = await prisma.organization.count({ where: { members: { some: { userId: userId ?? '', role: MemberRole.Owner as any } } } });
+            const existingCount = await prisma.organization.count({ where: { members: { some: { userId: userId, role: MemberRole.Owner as any } } } });
             if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
                 throw new CustomError(CODE.MaxOrganizationsReached, 'Cannot create any more organizations with this account - maximum reached', { code: genErrorCode('0056') });
             }
         }
         if (updateMany) {
+            organizationsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            TranslationModel().profanityCheck(updateMany.map(u => u.data));
             for (const input of updateMany) {
                 await WalletModel(prisma).verifyHandle(GraphQLModelType.Organization, input.where.id, input.data.handle);
-                organizationUpdate.validateSync(input.data, { abortEarly: false });
-                TranslationModel().profanityCheck(input.data);
                 TranslationModel().validateLineBreaks(input.data, ['bio'], CODE.LineBreaksBio);
             }
             // Check that user is owner OR admin of each organization

@@ -1,5 +1,5 @@
 import { useQuery } from "@apollo/client";
-import { Box, Button, CircularProgress, List, Tooltip, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, List, Tooltip, Typography, useTheme } from "@mui/material";
 import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clickSize, containerShadow } from "styles";
@@ -10,8 +10,7 @@ import {
     Sort as SortListIcon,
 } from '@mui/icons-material';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
-import { AutocompleteListItem, getUserLanguages, listToAutocomplete, listToListItems, parseSearchParams, Pubs, stringifySearchParams } from "utils";
-import { ListOrganization, ListProject, ListRoutine, ListStandard } from "types";
+import { AutocompleteListItem, getUserLanguages, listToAutocomplete, listToListItems, parseSearchParams, stringifySearchParams, useReactSearch } from "utils";
 import { useLocation } from "wouter";
 
 const searchButtonStyle = {
@@ -48,10 +47,10 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     where,
     session,
 }: SearchListProps<SortBy>) {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const [sortAnchorEl, setSortAnchorEl] = useState(null);
     const [timeAnchorEl, setTimeAnchorEl] = useState(null);
-    const [sortByLabel, setSortByLabel] = useState<string>(defaultSortOption.label ?? sortOptions.length > 0 ? sortOptions[0].label : 'Sort');
     const [timeFrameLabel, setTimeFrameLabel] = useState<string>('Time');
     const after = useRef<string | undefined>(undefined);
     const createdTimeFrame = useMemo(() => {
@@ -98,8 +97,16 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         return queryData.edges.map((edge, index) => edge.node);
     }, []);
 
+    const searchParams = useReactSearch();
+    useEffect(() => {
+        if (typeof searchParams.advanced === 'boolean') setAdvancedSearchDialogOpen(searchParams.advanced);
+        // Any search params that aren't advanced, search, sort, or time are set to the advanced search params
+        const { advanced, search, sort, time, ...advancedData } = searchParams;
+        setAdvancedSearchParams(advancedData);
+    }, [searchParams]);
+
     // Handle advanced search dialog
-    const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(parseSearchParams(window.location.search).advanced === "true");
+    const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(false);
     const handleAdvancedSearchDialogOpen = useCallback(() => { setAdvancedSearchDialogOpen(true) }, []);
     const handleAdvancedSearchDialogClose = useCallback(() => {
         console.log('CLOSE. removingg search params');
@@ -107,13 +114,20 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     }, []);
     const handleAdvancedSearchDialogSubmit = useCallback((values: any) => {
         console.log('SUMIT. setting advanced search params', values);
-        setAdvancedSearchParams(values);
-    }, []);
+        // Remove undefined and 0 values
+        const valuesWithoutBlanks = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== undefined && v !== 0));
+        // Add advanced search params to url search params
+        setLocation(stringifySearchParams({ 
+            ...searchParams,
+            ...valuesWithoutBlanks 
+        }));
+        setAdvancedSearchParams(valuesWithoutBlanks);
+    }, [searchParams, setLocation]);
 
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
         // Close advanced search dialog
-        handleAdvancedSearchDialogClose();
+        // handleAdvancedSearchDialogClose();
         const parsedData = parseData(pageData);
         if (!parsedData) {
             setAllData([]);
@@ -132,12 +146,14 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         });
     }, [allData, session]);
 
-    const listItems = useMemo(() => listToListItems(
-        allData,
-        session,
-        itemKeyPrefix,
-        (item) => onObjectSelect(item),
-    ), [allData, session, itemKeyPrefix, onObjectSelect])
+    const listItems = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Routine'), //TODO
+        items: allData,
+        keyPrefix: itemKeyPrefix,
+        loading,
+        onClick: (item) => onObjectSelect(item),
+        session: session,
+    }), [allData, itemKeyPrefix, loading, session, onObjectSelect])
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
@@ -156,15 +172,14 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     useEffect(() => {
         window.addEventListener("scroll", handleScroll);
         return () => window.removeEventListener("scroll", handleScroll);
-    }, []);
+    }, [handleScroll]);
 
-    const handleSearch = useCallback((newString: string) => { setSearchString(newString) }, []);
+    const handleSearch = useCallback((newString: string) => { setSearchString(newString) }, [setSearchString]);
 
     const handleSortOpen = (event) => setSortAnchorEl(event.currentTarget);
     const handleSortClose = (label?: string, selected?: string) => {
         setSortAnchorEl(null);
         if (selected) setSortBy(selected);
-        if (label) setSortByLabel(label);
     };
 
     const handleTimeOpen = (event) => setTimeAnchorEl(event.currentTarget);
@@ -174,6 +189,16 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         else setTimeFrame(`${after?.getTime()},${before?.getTime()}`);
         if (label) setTimeFrameLabel(label);
     };
+
+    /**
+     * Find sort by label when sortBy changes
+     */
+    const sortByLabel = useMemo(() => { 
+        // Find sort option with value equal to sortBy
+        const sortOption = sortOptions?.find(option => option.value === sortBy);
+        if (!sortOption) return '';
+        return sortOption.label;
+    }, [sortBy, sortOptions]);
 
     /**
      * When an autocomplete item is selected, navigate to object
@@ -196,7 +221,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 marginRight: 'auto',
                 ...(hasItems ? {
                     ...containerShadow,
-                    background: (t) => t.palette.background.paper,
+                    background: palette.background.paper,
                     borderRadius: '8px',
                     overflow: 'overlay',
                 } : {}),
@@ -220,15 +245,16 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 }
             </Box>
         )
-    }, [listItems, loading]);
+    }, [listItems, loading, noResultsText, palette.background.paper]);
 
     // Update query params
     useEffect(() => {
         let params = parseSearchParams(window.location.search);
-        if (advancedSearchDialogOpen) params.advanced = "true";
+        if (advancedSearchDialogOpen) params.advanced = true;
         else delete params.advanced;
+        console.log('set heyaaaa', params)
         setLocation(stringifySearchParams(params), { replace: true });
-    }, [advancedSearchDialogOpen]);
+    }, [advancedSearchDialogOpen, setLocation]);
 
     return (
         <>
@@ -272,7 +298,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         onClick={handleSortOpen}
                         sx={{ ...searchButtonStyle }}
                     >
-                        <SortListIcon sx={{ fill: (t) => t.palette.secondary.main }} />
+                        <SortListIcon sx={{ fill: palette.secondary.main }} />
                         {sortByLabel}
                     </Box>
                 </Tooltip>
@@ -281,7 +307,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         onClick={handleTimeOpen}
                         sx={{ ...searchButtonStyle }}
                     >
-                        <TimeIcon sx={{ fill: (t) => t.palette.secondary.main }} />
+                        <TimeIcon sx={{ fill: palette.secondary.main }} />
                         {timeFrameLabel}
                     </Box>
                 </Tooltip>
@@ -290,7 +316,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         onClick={handleAdvancedSearchDialogOpen}
                         sx={{ ...searchButtonStyle }}
                     >
-                        <AdvancedIcon sx={{ fill: (t) => t.palette.secondary.main }} />
+                        <AdvancedIcon sx={{ fill: palette.secondary.main }} />
                         Advanced
                     </Box>
                 </Tooltip>

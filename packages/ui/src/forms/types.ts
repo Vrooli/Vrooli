@@ -535,7 +535,14 @@ export interface GridContainerBase {
  * This is used with the schema fields to determine which inputs to render.
  */
 export interface GridContainer extends GridContainerBase {
-    totalItems: number; // Total number of fields in this container
+    /**
+     * Total number of fields in this container
+     */
+    totalItems: number;
+    /**
+     * Determines if the border should be displayed
+     */
+    showBorder?: boolean;
 }
 
 //==============================================================
@@ -558,7 +565,7 @@ export interface FormSchema {
     /**
      * Contains information about the overall layout of the form
      */
-    formLayout?: GridContainerBase;
+    formLayout?: Omit<GridContainerBase, 'rowSpacing' | 'columnSpacing'>;
     /**
      * Contains information about subsections of the form. Subsections 
      * can only be one level deep. If this is empty, then formLayout is 

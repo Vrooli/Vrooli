@@ -9,6 +9,7 @@ import {
     Tooltip,
     Typography,
     useScrollTrigger,
+    useTheme,
 } from '@mui/material';
 import {
     ChevronLeft as PreviousIcon,
@@ -17,7 +18,7 @@ import {
 } from '@mui/icons-material';
 import { UpTransition } from 'components';
 import { useCallback, useState } from 'react';
-import { BaseObjectDialogProps as BaseObjectDialogProps, ObjectDialogAction } from '../types';
+import { BaseObjectDialogProps, ObjectDialogAction } from '../types';
 
 /**
  * Dialog for displaying any "Add" form
@@ -31,6 +32,8 @@ export const BaseObjectDialog = ({
     open = true,
     title,
 }: BaseObjectDialogProps) => {
+    const { palette } = useTheme();
+
     const [scrollTarget, setScrollTarget] = useState<HTMLElement | undefined>(undefined);
     const scrollTrigger = useScrollTrigger({ target: scrollTarget });
 
@@ -85,7 +88,7 @@ export const BaseObjectDialog = ({
             </Slide>
             <Box
                 sx={{
-                    background: (t) => t.palette.background.default,
+                    background: palette.background.default,
                     flex: 'auto',
                     padding: 0,
                     paddingTop: { xs: '56px', sm: '64px' },

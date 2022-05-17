@@ -5,7 +5,8 @@ import {
     FormControlLabel,
     IconButton,
     Tooltip,
-    Typography
+    Typography,
+    useTheme
 } from '@mui/material';
 import { ChangeEvent, CSSProperties, MouseEvent, useCallback, useMemo, useRef, useState } from 'react';
 import { RoutineListNodeProps } from '../types';
@@ -20,11 +21,10 @@ import { NodeContextMenu, NodeWidth } from '../..';
 import {
     routineNodeCheckboxOption,
     routineNodeCheckboxLabel,
-    routineNodeListOptions,
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { NodeDataRoutineList, NodeDataRoutineListItem } from 'types';
-import { getTranslation, BuildAction, Pubs, updateTranslationField, getUserLanguages } from 'utils';
+import { getTranslation, BuildAction, Pubs, updateTranslationField } from 'utils';
 import { EditableLabel } from 'components/inputs';
 
 export const RoutineListNode = ({
@@ -39,6 +39,8 @@ export const RoutineListNode = ({
     node,
     scale = 1,
 }: RoutineListNodeProps) => {
+    const { palette } = useTheme();
+
     // Stores position of click/touch start, to cancel click event if drag occurs
     const clickStartPosition = useRef<{ x: number, y: number }>({ x: 0, y: 0 });
     // Stores if touch event was a drag
@@ -53,7 +55,7 @@ export const RoutineListNode = ({
             ...node,
             translations: updateTranslationField(node, 'title', newLabel, language) as any[],
         });
-    }, [handleUpdate, node]);
+    }, [handleUpdate, language, node]);
 
     const onOrderedChange = useCallback((e: ChangeEvent<HTMLInputElement>, checked: boolean) => {
         handleUpdate({
@@ -75,7 +77,7 @@ export const RoutineListNode = ({
     // Opens dialog to add a new subroutine, so no suroutineId is passed
     const handleSubroutineAdd = useCallback(() => {
         handleAction(BuildAction.AddSubroutine, node.id);
-    }, [node.id]);
+    }, [handleAction, node.id]);
     const handleSubroutineEdit = useCallback((subroutineId: string) => {
         handleAction(BuildAction.EditSubroutine, node.id, subroutineId);
     }, [handleAction, node.id]);
@@ -101,7 +103,7 @@ export const RoutineListNode = ({
         return {
             label: getTranslation(node, 'title', [language], true),
         }
-    }, [node]);
+    }, [language, node]);
 
     const handleTouchMove = useCallback((e: any) => {
         if (!canExpand) return;
@@ -141,7 +143,7 @@ export const RoutineListNode = ({
                 { text: 'Cancel' }
             ]
         });
-    }, [])
+    }, [handleNodeDelete, handleNodeUnlink])
 
     const labelObject = useMemo(() => {
         if (!labelVisible) return null;
@@ -176,7 +178,9 @@ export const RoutineListNode = ({
     }, [collapseOpen, label, labelVisible, isEditing, node.id, handleLabelUpdate, isLinked]);
 
     const optionsCollapse = useMemo(() => (
-        <Collapse in={collapseOpen} sx={{ ...routineNodeListOptions }}>
+        <Collapse in={collapseOpen} sx={{ 
+            background: palette.mode === 'light' ? '#b0bbe7' : '#384164',
+         }}>
             <Tooltip placement={'top'} title='Must complete routines in order'>
                 <FormControlLabel
                     disabled={!isEditing}
@@ -214,7 +218,7 @@ export const RoutineListNode = ({
                 />
             </Tooltip>
         </Collapse>
-    ), [collapseOpen, node?.data, isEditing, label]);
+    ), [collapseOpen, palette.mode, isEditing, label, node?.data, onOrderedChange, onOptionalChange]);
 
     const routines = useMemo(() => (node?.data as NodeDataRoutineList)?.routines?.map(routine => (
         <RoutineSubnode
@@ -230,7 +234,7 @@ export const RoutineListNode = ({
             language={language}
             scale={scale}
         />
-    )), [collapseOpen, node?.data, isEditing, labelVisible, scale]);
+    )), [node?.data, handleSubroutineOpen, handleSubroutineEdit, handleSubroutineDelete, handleSubroutineUpdate, isEditing, collapseOpen, labelVisible, language, scale]);
 
     const addButton = useMemo(() => isEditing ? (
         <IconButton
@@ -256,7 +260,7 @@ export const RoutineListNode = ({
         >
             <AddIcon />
         </IconButton>
-    ) : null, [addSize, isEditing]);
+    ) : null, [addSize, handleSubroutineAdd, isEditing]);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
@@ -280,8 +284,8 @@ export const RoutineListNode = ({
                 display: 'block',
                 borderRadius: '12px',
                 overflow: 'hidden',
-                backgroundColor: (t) => t.palette.background.paper,
-                color: (t) => t.palette.background.textPrimary,
+                backgroundColor: palette.background.paper,
+                color: palette.background.textPrimary,
                 boxShadow: '0px 0px 12px gray',
             }}
         >
@@ -304,8 +308,8 @@ export const RoutineListNode = ({
                         display: 'flex',
                         height: '48px', // Lighthouse SEO requirement
                         alignItems: 'center',
-                        backgroundColor: (t) => t.palette.primary.dark,
-                        color: (t) => t.palette.primary.contrastText,
+                        backgroundColor: palette.mode === 'light' ? palette.primary.dark : palette.secondary.dark,
+                        color: palette.mode === 'light' ? palette.primary.contrastText : palette.secondary.contrastText,
                         padding: '0.1em',
                         textAlign: 'center',
                         cursor: isEditing ? 'grab' : 'pointer',

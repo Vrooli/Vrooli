@@ -1,4 +1,4 @@
-import { ListItem, ListItemButton, ListItemText, Stack, Typography } from "@mui/material";
+import { ListItem, ListItemButton, ListItemText, Stack, Typography, useTheme } from "@mui/material";
 import {
     OpenInNew as OpenLinkIcon,
 } from "@mui/icons-material";
@@ -19,6 +19,8 @@ export const DecisionView = ({
     nodes,
     session,
 }: DecisionViewProps) => {
+    const { palette } = useTheme();
+
     /**
      * Pair each link with its "to" node
      */
@@ -51,7 +53,7 @@ export const DecisionView = ({
                     onClick={() => { toDecision(index); }}
                     sx={{
                         display: 'flex',
-                        background: (t) => t.palette.secondary.light,
+                        background: palette.secondary.light,
                         color: 'black',
                         ...containerShadow,
                         borderRadius: '12px',
@@ -67,7 +69,7 @@ export const DecisionView = ({
                             {/* Bio/Description */}
                             {description && <ListItemText
                                 primary={description}
-                                sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
+                                sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
                             />}
                         </Stack>
                         <OpenLinkIcon />

@@ -1,15 +1,15 @@
-import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
+import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS, MemberRole, StarFor } from "@local/shared";
+import { APP_LINKS, StarFor } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
 import { organization, organizationVariables } from "graphql/generated/organization";
 import { usersQuery, projectsQuery, routinesQuery, standardsQuery, organizationQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
+    Apartment as ProfileIcon,
     CardGiftcard as DonateIcon,
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
-    Person as PersonIcon,
     Share as ShareIcon,
     Today as CalendarIcon,
 } from "@mui/icons-material";
@@ -19,10 +19,11 @@ import { OrganizationViewProps } from "../types";
 import { Organization, ResourceList } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
+import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, Pubs } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
+import { owns } from "utils/authentication";
 
 enum TabOptions {
     Resources = "Resources",
@@ -36,7 +37,9 @@ export const OrganizationView = ({
     partialData,
     session,
 }: OrganizationViewProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const profileColors = useMemo(() => placeholderColor(), []);
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Organization}/:id`);
     const [, params2] = useRoute(`${APP_LINKS.SearchOrganizations}/view/:id`);
@@ -50,7 +53,7 @@ export const OrganizationView = ({
     useEffect(() => {
         setOrganization(data?.organization);
     }, [data]);
-    const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(organization?.role ?? ''), [organization]);
+    const canEdit = useMemo<boolean>(() => owns(organization?.role), [organization]);
 
     const [language, setLanguage] = useState<string>('');
     const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
@@ -59,7 +62,7 @@ export const OrganizationView = ({
         const userLanguages = getUserLanguages(session);
         setAvailableLanguages(availableLanguages);
         setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
-    }, [organization]);
+    }, [organization, session]);
 
     const { bio, handle, name, resourceList } = useMemo(() => {
         const resourceList: ResourceList | undefined = Array.isArray(organization?.resourceLists) ? organization?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
@@ -69,7 +72,7 @@ export const OrganizationView = ({
             name: getTranslation(organization, 'name', [language]) ?? getTranslation(partialData, 'name', [language]),
             resourceList,
         };
-    }, [language, organization, partialData, session]);
+    }, [language, organization, partialData]);
 
     useEffect(() => {
         if (handle) document.title = `${name} ($${handle}) | Vrooli`;
@@ -113,15 +116,15 @@ export const OrganizationView = ({
 
     const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
-    const shareLink = () => {
+    const shareLink = useCallback(() => {
         navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.Organization}/${id}`);
         PubSub.publish(Pubs.Snack, { message: 'Copied🎉' })
-    }
+    }, [id]);
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
         setLocation(Boolean(params?.id) ? `${APP_LINKS.Organization}/edit/${id}` : `${APP_LINKS.SearchOrganizations}/edit/${id}`);
-    }, [setLocation, id]);
+    }, [setLocation, params?.id, id]);
 
     // Create search data
     const { itemKeyPrefix, placeholder, sortOptions, defaultSortOption, searchQuery, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
@@ -158,7 +161,7 @@ export const OrganizationView = ({
                     defaultSortOption: routineDefaultSortOption,
                     searchQuery: routinesQuery,
                     where: { organizationId: id },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Run, newValue.id),
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 };
             case TabOptions.Standards:
                 return {
@@ -183,7 +186,7 @@ export const OrganizationView = ({
                     onSearchSelect: (o: any) => { },
                 }
         }
-    }, [currTabType, session, id]);
+    }, [currTabType, setLocation, id]);
 
     // Handle url search
     const [searchString, setSearchString] = useState<string>('');
@@ -229,25 +232,27 @@ export const OrganizationView = ({
             ml='auto'
             mr='auto'
             mt={3}
-            bgcolor={(t) => t.palette.background.paper}
+            bgcolor={palette.background.paper}
             sx={{ ...containerShadow }}
         >
             <Box
                 width={'min(100px, 25vw)'}
                 height={'min(100px, 25vw)'}
                 borderRadius='100%'
-                border={(t) => `4px solid ${t.palette.primary.dark}`}
-                bgcolor='#939eb9'
                 position='absolute'
                 display='flex'
                 justifyContent='center'
                 alignItems='center'
                 left='50%'
                 top="-55px"
-                sx={{ transform: 'translateX(-50%)' }}
+                sx={{ 
+                    border: `1px solid black`,
+                    backgroundColor: profileColors[0],
+                    transform: 'translateX(-50%)',
+                }}
             >
-                <PersonIcon sx={{
-                    fill: '#cfd0d1',
+                <ProfileIcon sx={{
+                    fill: profileColors[1],
                     width: '80%',
                     height: '80%',
                 }} />
@@ -282,7 +287,10 @@ export const OrganizationView = ({
                                     size="small"
                                     onClick={onEdit}
                                 >
-                                    <EditIcon color="primary" />
+                                    <EditIcon sx={{
+                                        fill: palette.mode === 'light' ? 
+                                            palette.primary.main : palette.secondary.light,
+                                    }} />
                                 </IconButton>
                             </Tooltip>
                         </Stack>
@@ -297,7 +305,7 @@ export const OrganizationView = ({
                             variant="h6"
                             textAlign="center"
                             sx={{
-                                color: (t) => t.palette.secondary.dark,
+                                color: palette.secondary.dark,
                                 cursor: 'pointer',
                             }}
                         >${handle}</Typography>
@@ -312,7 +320,7 @@ export const OrganizationView = ({
                     ) : (
                         organization?.created_at && (<Box sx={{ display: 'flex' }} >
                             <CalendarIcon />
-                            {`Joined ${new Date(organization.created_at).toLocaleDateString(navigator.language, { year: 'numeric', month: 'long' })}`}
+                            {`Joined ${displayDate(organization.created_at, false)}`}
                         </Box>)
                     )
                 }
@@ -324,7 +332,7 @@ export const OrganizationView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Typography variant="body1" sx={{ color: bio ? 'black' : 'gray' }}>{bio ?? 'No bio set'}</Typography>
+                        <Typography variant="body1" sx={{ color: Boolean(bio) ? palette.background.textPrimary : palette.background.textSecondary }}>{bio ?? 'No bio set'}</Typography>
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -352,7 +360,7 @@ export const OrganizationView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [bio, session, name, organization, partialData, canEdit, onEdit]);
+    ), [palette, profileColors, openMoreMenu, loading, canEdit, name, onEdit, handle, organization?.created_at, organization?.id, organization?.isStarred, organization?.stars, bio, shareLink, session]);
 
     /**
      * Opens add new page
@@ -372,7 +380,7 @@ export const OrganizationView = ({
                 setLocation(`${APP_LINKS.Standard}/add`);
                 break;
         }
-    }, [currTabType]);
+    }, [currTabType, setLocation]);
 
     return (
         <>

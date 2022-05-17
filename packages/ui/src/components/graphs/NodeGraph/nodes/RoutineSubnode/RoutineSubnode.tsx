@@ -5,13 +5,13 @@ import {
     FormControlLabel,
     Stack,
     Tooltip,
-    Typography
+    Typography,
+    useTheme
 } from '@mui/material';
 import { ChangeEvent, CSSProperties, useCallback, useMemo } from 'react';
 import { RoutineSubnodeProps } from '../types';
 import {
     Close as DeleteIcon,
-    Edit as EditIcon,
 } from '@mui/icons-material';
 import {
     routineNodeCheckboxOption,
@@ -19,8 +19,8 @@ import {
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { getTranslation, updateTranslationField } from 'utils';
-import { MemberRole } from 'graphql/generated/globalTypes';
 import { EditableLabel } from 'components/inputs';
+import { owns } from 'utils/authentication';
 
 export const RoutineSubnode = ({
     data,
@@ -34,10 +34,12 @@ export const RoutineSubnode = ({
     handleUpdate,
     language,
 }: RoutineSubnodeProps) => {
+    const { palette } = useTheme();
+
     const nodeSize = useMemo(() => `${220 * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${220 * scale / 5}px, 2em)`, [scale]);
     // Determines if the subroutine is one you can edit
-    const canEdit = useMemo(() => data.routine.role && [MemberRole.Owner, MemberRole.Admin].includes(data.routine.role), [data.routine.role]);
+    const canEdit = useMemo<boolean>(() => owns(data.routine?.role), [data.routine]);
 
     const { title } = useMemo(() => {
         const languages = navigator.languages;
@@ -55,7 +57,7 @@ export const RoutineSubnode = ({
             ...data,
             translations: updateTranslationField(data, 'title', newLabel, language) as any[],
         });
-    }, [handleUpdate, data]);
+    }, [handleUpdate, data, language]);
 
     const onOptionalChange = useCallback((e: ChangeEvent<HTMLInputElement>, checked: boolean) => {
         handleUpdate(data.id, {
@@ -106,8 +108,8 @@ export const RoutineSubnode = ({
                 marginBottom: '8px',
                 borderRadius: '12px',
                 overflow: 'overlay',
-                backgroundColor: (t) => t.palette.background.paper,
-                color: (t) => t.palette.background.textPrimary,
+                backgroundColor: palette.background.paper,
+                color: palette.background.textPrimary,
             }}
         >
             <Container
@@ -115,8 +117,10 @@ export const RoutineSubnode = ({
                 sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    backgroundColor: canEdit ? (t) => t.palette.primary.main : '#667899',
-                    color: (t) => t.palette.primary.contrastText,
+                    backgroundColor: canEdit ? 
+                        (palette.mode === 'light' ? palette.primary.dark : palette.secondary.dark) : 
+                        '#667899',
+                    color: palette.mode === 'light' ? palette.primary.contrastText : palette.secondary.contrastText,
                     padding: '0.1em',
                     textAlign: 'center',
                     cursor: 'pointer',

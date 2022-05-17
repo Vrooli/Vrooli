@@ -1,4 +1,4 @@
-import { Box, Container, Grid, Stack, Typography } from "@mui/material"
+import { Box, Stack, Typography, useTheme } from "@mui/material"
 import { useMutation } from "@apollo/client";
 import { user } from "graphql/generated/user";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -16,9 +16,9 @@ import {
 import { DialogActionItem } from "components/containers/types";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { SettingsDisplayProps } from "../types";
-import { useLocation } from "wouter";
 import { HelpButton, TagSelector } from "components";
 import { TagSelectorTag } from "components/inputs/types";
+import { ThemeSwitch } from "components/inputs";
 
 const helpText =
     `Display preferences customize the look and feel of Vrooli. More customizations will be available in the near future.`
@@ -42,7 +42,7 @@ export const SettingsDisplay = ({
     profile,
     onUpdated,
 }: SettingsDisplayProps) => {
-    const [, setLocation] = useLocation();
+    const { palette } = useTheme();
 
     // Handle starred tags
     const [starredTags, setStarredTags] = useState<TagSelectorTag[]>([]);
@@ -68,6 +68,12 @@ export const SettingsDisplay = ({
         setHiddenTags([]);
     }, [setHiddenTags]);
 
+    // Handle theme
+    const [theme, setTheme] = useState<string>('light');
+    useEffect(() => {
+        setTheme(palette.mode);
+    }, [palette.mode]);
+
     useEffect(() => {
         if (profile?.starredTags) {
             setStarredTags(profile.starredTags);
@@ -81,7 +87,7 @@ export const SettingsDisplay = ({
     const [mutation] = useMutation<user>(profileUpdateMutation);
     const formik = useFormik({
         initialValues: {
-            theme: profile?.theme ?? 'light',
+            theme,
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
@@ -91,20 +97,32 @@ export const SettingsDisplay = ({
             const filteredHiddenTags = hiddenTags.filter(t => !starredTags.some(st => st.tag === t.tag));
             if (filteredHiddenTags.length !== hiddenTags.length) {
                 PubSub.publish(Pubs.Snack, { message: 'Detected topics in both favorites and hidden. These have been removed from hidden.', severity: 'warning' });
+                return;
             }
-            const starredTagsUpdate = starredTags.length > 0 ? {
+            console.log('starred tags', starredTags);
+            console.log('profile starredtags', profile?.starredTags);
+            console.log('test a', profile?.starredTags?.filter(t => !starredTags.some(st => st.tag === t.tag)).map(t => (t.id)))
+            // Starred tags are handled like normal tags (at least on the frontend), since they contain no extra data
+            const starredTagsUpdate = {
                 starredTagsCreate: starredTags.filter(t => !t.id && !profile?.starredTags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
                 starredTagsConnect: starredTags.filter(t => t.id && !profile?.starredTags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
                 starredTagsDisconnect: profile?.starredTags?.filter(t => !starredTags.some(st => st.tag === t.tag)).map(t => (t.id)),
-            } : {};
-            const hiddenTagsUpdate = filteredHiddenTags.length > 0 ? {
-                hiddenTagsCreate: filteredHiddenTags.filter(t => !t.id && !profile?.hiddenTags?.some(tag => tag.tag.tag === t.tag)).map(t => ({ tag: t.tag })),
-                hiddenTagsConnect: filteredHiddenTags.filter(t => t.id && !profile?.hiddenTags?.some(tag => tag.tag.tag === t.tag)).map(t => (t.id)),
-                hiddenTagsDisconnect: profile?.hiddenTags?.filter(t => !filteredHiddenTags.some(ht => ht.tag === t.tag.tag)).map((t: any) => (t.id)),
-            } : {};
-            //TODO temp
-            PubSub.publish(Pubs.Snack, { message: 'Available next update. Please be patient with us😬', severity: 'error' });
-            return;
+            };
+            console.log('starred tags update', starredTagsUpdate);
+            // Hidden tags are wrapped in an object that specifies blur/no blur, so we have to structure them differently
+            // Get tags within hidden tags data the same way as starred tags
+            const hTagsCreate = filteredHiddenTags.filter(t => !t.id && !profile?.hiddenTags?.some(tag => tag.tag.tag === t.tag)).map(t => ({ tag: t.tag }));
+            const hTagsConnect = filteredHiddenTags.filter(t => t.id && !profile?.hiddenTags?.some(tag => tag.tag.tag === t.tag)).map(t => (t.id));
+            const hTagsDelete = profile?.hiddenTags?.filter(t => !filteredHiddenTags.some(ht => ht.tag === t.tag.tag)).map(t => t.id);
+            console.log('htagsdelete', hTagsDelete);
+            console.log('profile hiddentags', profile?.hiddenTags);
+            console.log('filteredhiddentags', filteredHiddenTags);
+            // tagsCreate and tagsUpdate are joined into hiddenTagsCreate, and tagsDelete becomes hiddenTagsDelete
+            const hiddenTagsUpdate = {
+                hiddenTagsCreate: [...hTagsCreate.map(t => ({ tagCreate: t, isBlur: false })), ...hTagsConnect.map(t => ({ tagConnect: t, isBlur: false }))],
+                // hiddenTagsUpdate: TODO don't support blurring yet, so no reason to update
+                hiddenTagsDelete: hTagsDelete,
+            };
             mutationWrapper({
                 mutation,
                 input: formatForUpdate(profile, {
@@ -131,20 +149,26 @@ export const SettingsDisplay = ({
             setStarredTags([]);
             setHiddenTags([]);
         }],
-    ], [formik, setLocation]);
+    ], [formik]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
             {/* Title */}
             <Stack direction="row" justifyContent="center" alignItems="center" sx={{
-                background: (t) => t.palette.primary.dark,
-                color: (t) => t.palette.primary.contrastText,
+                background: palette.primary.dark,
+                color: palette.primary.contrastText,
                 padding: 0.5,
                 marginBottom: 2,
             }}>
                 <Typography component="h1" variant="h3">Display Preferences</Typography>
                 <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
             </Stack>
+            <Box sx={{ margin: 2, marginBottom: 5 }}>
+                <ThemeSwitch
+                    theme={formik.values.theme as 'light' | 'dark'}
+                    onChange={(t) => formik.setFieldValue('theme', t)}
+                />
+            </Box>
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
                 <InterestsIcon sx={{ marginRight: 1 }} />
                 <Typography component="h2" variant="h5" textAlign="center">Favorite Topics</Typography>

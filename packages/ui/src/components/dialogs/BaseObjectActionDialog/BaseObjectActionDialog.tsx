@@ -3,7 +3,7 @@ import { star } from 'graphql/generated/star';
 import { vote } from 'graphql/generated/vote';
 import { starMutation, voteMutation } from "graphql/mutation";
 import { useCallback, useMemo, useState } from "react";
-import { StarFor, VoteFor } from "@local/shared";
+import { ReportFor, StarFor, VoteFor } from "@local/shared";
 import { ListMenu, ReportDialog } from "..";
 import { BaseObjectActionDialogProps, BaseObjectAction, ListMenuItemData } from "../types";
 import {
@@ -83,14 +83,14 @@ export const BaseObjectActionDialog = ({
             mutation: star,
             input: { isStar, starFor, forId: objectId },
         })
-    }, [objectId]);
+    }, [objectId, star]);
 
     const handleVote = useCallback((isUpvote: boolean | null, voteFor: VoteFor) => {
         mutationWrapper({
             mutation: vote,
             input: { isUpvote, voteFor, forId: objectId },
         })
-    }, [objectId]);
+    }, [objectId, vote]);
 
     const onSelect = useCallback((action: BaseObjectAction) => {
         switch (action) {
@@ -129,7 +129,7 @@ export const BaseObjectActionDialog = ({
                 break;
         }
         onClose();
-    }, [onClose]);
+    }, [handleStar, handleVote, objectType, onClose, openDonate, openReport, openShare]);
 
     const data: ListMenuItemData<BaseObjectAction>[] = useMemo(() => {
         // Convert options to ListMenuItemData
@@ -144,7 +144,7 @@ export const BaseObjectActionDialog = ({
                     preview,
                 }
             })
-    }, []);
+    }, [availableOptions]);
 
     return (
         <>
@@ -153,7 +153,7 @@ export const BaseObjectActionDialog = ({
                 forId={objectId}
                 onClose={closeReport}
                 open={reportOpen}
-                reportFor={objectType}
+                reportFor={objectType as ReportFor}
                 session={session}
             />
             {/* Actual action dialog */}

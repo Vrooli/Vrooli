@@ -26,3 +26,6 @@ export const reportUpdate = yup.object().shape({
     language: language.notRequired().default(undefined),
     reason: reason.notRequired().default(undefined),
 })
+
+export const reportsCreate = yup.array().of(reportCreate.required())
+export const reportsUpdate = yup.array().of(reportUpdate.required())

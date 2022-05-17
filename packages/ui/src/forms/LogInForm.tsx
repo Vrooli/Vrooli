@@ -11,7 +11,7 @@ import {
     TextField,
     Typography
 } from '@mui/material';
-import { Forms, Pubs } from 'utils';
+import { Forms, Pubs, useReactSearch } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import PubSub from 'pubsub-js';
 import { mutationWrapper } from 'graphql/utils/wrappers';
@@ -19,16 +19,18 @@ import { emailLogIn } from 'graphql/generated/emailLogIn';
 import { LogInFormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
-import { useMemo } from 'react';
-import { parseSearchParams } from 'utils/navigation/urlTools';
 import { PasswordTextField } from 'components';
+import { useMemo } from 'react';
 
 export const LogInForm = ({
     onFormChange = () => { }
 }: LogInFormProps) => {
     const [, setLocation] = useLocation();
-    const redirect = useMemo(() => parseSearchParams(window.location.search).redirect?.replaceAll('%2F', '/'), [window.location.search]);
-    const verificationCode = useMemo(() => parseSearchParams(window.location.search).code, [window.location.search]);
+    const search = useReactSearch();
+    const { redirect, verificationCode } = useMemo(() => ({
+        redirect: typeof search.redirect === 'string' ? search.redirect : undefined,
+        verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
+    }), [search]);
 
     const [emailLogIn, { loading }] = useMutation<emailLogIn>(emailLogInMutation);
 

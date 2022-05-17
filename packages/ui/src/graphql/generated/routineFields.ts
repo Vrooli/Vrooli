@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor, RunStatus, RunStepStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: routineFields
@@ -323,6 +323,37 @@ export interface routineFields_resourceLists {
   resources: routineFields_resourceLists_resources[];
 }
 
+export interface routineFields_runs_steps_node {
+  __typename: "Node";
+  id: string;
+}
+
+export interface routineFields_runs_steps {
+  __typename: "RunStep";
+  id: string;
+  order: number;
+  pickups: number;
+  timeStarted: any | null;
+  timeElapsed: number | null;
+  timeCompleted: any | null;
+  title: string;
+  status: RunStepStatus;
+  node: routineFields_runs_steps_node | null;
+}
+
+export interface routineFields_runs {
+  __typename: "Run";
+  id: string;
+  completedComplexity: number;
+  pickups: number;
+  timeStarted: any | null;
+  timeElapsed: number | null;
+  timeCompleted: any | null;
+  title: string;
+  status: RunStatus;
+  steps: routineFields_runs_steps[];
+}
+
 export interface routineFields_tags_translations {
   __typename: "TagTranslation";
   id: string;
@@ -364,6 +395,7 @@ export interface routineFields {
   owner: routineFields_owner | null;
   parent: routineFields_parent | null;
   resourceLists: routineFields_resourceLists[];
+  runs: routineFields_runs[];
   score: number;
   simplicity: number;
   stars: number;

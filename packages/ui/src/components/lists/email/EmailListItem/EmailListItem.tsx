@@ -1,5 +1,5 @@
 // Used to display popular/search results of a particular object type
-import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip } from '@mui/material';
+import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { EmailListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback } from 'react';
@@ -20,6 +20,7 @@ export function EmailListItem({
     index,
     data,
 }: EmailListItemProps) {
+    const { palette } = useTheme();
 
     const onDelete = useCallback(() => {
         handleDelete(data);
@@ -74,7 +75,7 @@ export function EmailListItem({
                     <IconButton
                         onClick={onDelete}
                     >
-                        <DeleteIcon sx={{ fill: (t) => t.palette.secondary.main }} />
+                        <DeleteIcon sx={{ fill: palette.secondary.main }} />
                     </IconButton>
                 </Tooltip>
             </Stack>

@@ -4,7 +4,7 @@ import PubSub from 'pubsub-js';
 import { ApolloCache, DefaultContext, FetchResult, MutationFunctionOptions, OperationVariables } from '@apollo/client';
 import { errorToSnack } from './errorToSnack';
 
-interface Props {
+interface MutationWrapperProps {
     // useMutation function
     mutation: (options?: MutationFunctionOptions<any, OperationVariables, DefaultContext, ApolloCache<any>> | undefined) => Promise<any>;
     // data to pass into useMutation function
@@ -46,7 +46,7 @@ export const mutationWrapper = ({
     showDefaultErrorSnack = true,
     onError,
     spinnerDelay = 1000,
-}: Props) => {
+}: MutationWrapperProps) => {
     if (spinnerDelay) PubSub.publish(Pubs.Loading, spinnerDelay);
     mutation(input ? { variables: { input } } : undefined).then((response) => {
         if (successCondition(response)) {

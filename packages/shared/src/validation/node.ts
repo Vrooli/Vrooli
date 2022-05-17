@@ -113,6 +113,8 @@ export const loopUpdate = yup.object().shape({
     whilesUpdate: whilesUpdate.notRequired().default(undefined),
     whilesDelete: idArray.notRequired().default(undefined),
 })
+export const loopsCreate = yup.array().of(loopCreate.required())
+export const loopsUpdate = yup.array().of(loopUpdate.required())
 
 export const nodeRoutineListItemTranslationCreate = yup.object().shape({
     language: language.required(),

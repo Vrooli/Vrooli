@@ -3,7 +3,7 @@ import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
 import { ReportFor } from '@local/shared';
-import { Node, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Session, Standard, User } from 'types';
+import { Node, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 
 export interface AlertDialogProps extends DialogProps { };
 
@@ -109,7 +109,7 @@ export interface ReportDialogProps extends DialogProps {
     forId: string;
     onClose: () => any;
     open: boolean;
-    reportFor: ReportFor;
+    reportFor: keyof typeof ReportFor;
     session: Session;
     title?: string;
 }
@@ -229,6 +229,7 @@ export interface SubroutineInfoDialogProps {
     isEditing: boolean;
     language: string;
     open: boolean;
+    session: Session;
     subroutine: Routine | null;
     onClose: () => any;
 }
@@ -308,5 +309,13 @@ export interface AdvancedSearchDialogProps {
     handleClose: () => any;
     handleSearch: (searchQuery: { [x: string]: any }) => any;
     isOpen: boolean;
+    session: Session;
+}
+
+export interface RunPickerDialogProps {
+    anchorEl: HTMLElement | null;
+    handleClose: () => any;
+    onSelect: (run: Run) => any;
+    routine?: Routine | null;
     session: Session;
 }

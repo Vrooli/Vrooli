@@ -11,7 +11,8 @@ import {
     IconButton,
     Stack,
     TextField,
-    Typography
+    Typography,
+    useTheme
 } from '@mui/material';
 import { HelpButton } from 'components';
 import { useCallback, useMemo, useState } from 'react';
@@ -35,6 +36,8 @@ export const LinkDialog = ({
     link,
     routine,
 }: LinkDialogProps) => {
+    const { palette } = useTheme();
+
     // Selected "From" and "To" nodes
     const [fromNode, setFromNode] = useState<Node | null>(null);
     const handleFromSelect = useCallback((node: Node) => {
@@ -63,8 +66,8 @@ export const LinkDialog = ({
      */
     const titleBar = useMemo(() => (
         <Box sx={{
-            background: (t) => t.palette.primary.dark,
-            color: (t) => t.palette.primary.contrastText,
+            background: palette.primary.dark,
+            color: palette.primary.contrastText,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -78,11 +81,11 @@ export const LinkDialog = ({
                     edge="start"
                     onClick={(e) => { handleClose() }}
                 >
-                    <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
+                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
                 </IconButton>
             </Box>
         </Box>
-    ), [handleClose, isAdd]);
+    ), [handleClose, isAdd, palette.primary.contrastText, palette.primary.dark]);
 
     /**
      * Calculate the "From" and "To" options
@@ -166,7 +169,7 @@ export const LinkDialog = ({
                 renderInput={(params) => <TextField {...params} label="To" />}
             />
         </Stack>
-    ), [fromOptions, toOptions, language, handleFromSelect, handleToSelect]);
+    ), [fromOptions, toOptions, getNodeTitle, handleFromSelect, handleToSelect]);
 
     /**
      * Container for creating link conditions.

@@ -22,7 +22,6 @@ export const UserDialog = ({
     const [state, id] = useMemo(() => Boolean(params?.params) ? (params?.params as string).split("/") : [undefined, undefined], [params]);
 
     const [update] = useMutation<user>(profileUpdateMutation);
-    const [del] = useMutation<user>(userDeleteOneMutation);
 
     const onAction = useCallback((action: ObjectDialogAction) => {
         switch (action) {
@@ -33,7 +32,7 @@ export const UserDialog = ({
                 window.history.back();
                 break;
             case ObjectDialogAction.Edit:
-                setLocation(`${APP_LINKS.Settings}?page=profile`);
+                setLocation(`${APP_LINKS.Settings}?page="profile"`);
                 break;
             case ObjectDialogAction.Next:
                 break;
@@ -53,7 +52,7 @@ export const UserDialog = ({
                 })
                 break;
         }
-    }, [del, setLocation, state, update]);
+    }, [setLocation, update]);
 
     const title = useMemo(() => {
         switch (state) {

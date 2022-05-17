@@ -77,6 +77,7 @@ export interface profileUpdate_profileUpdate_hiddenTags_tag {
 
 export interface profileUpdate_profileUpdate_hiddenTags {
   __typename: "TagHidden";
+  id: string;
   isBlur: boolean;
   tag: profileUpdate_profileUpdate_hiddenTags_tag;
 }

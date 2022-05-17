@@ -55,7 +55,9 @@ export const typeDef = gql`
         handle: String
         name: String!
         stars: Int!
+        views: Int!
         isStarred: Boolean!
+        isViewed: Boolean!
         comments: [Comment!]!
         resourceLists: [ResourceList!]!
         projects: [Project!]!
@@ -86,9 +88,9 @@ export const typeDef = gql`
         handle: String
         name: String
         theme: String
-        hiddenTagsConnect: [ID!]
-        hiddenTagsDisconnect: [ID!]
-        hiddenTagsCreate: [TagCreateInput!]
+        hiddenTagsDelete: [ID!]
+        hiddenTagsCreate: [TagHiddenCreateInput!]
+        hiddenTagsUpdate: [TagHiddenUpdateInput!]
         resourceListsDelete: [ID!]
         resourceListsCreate: [ResourceCreateInput!]
         resourceListsUpdate: [ResourceUpdateInput!]
@@ -115,6 +117,7 @@ export const typeDef = gql`
     input UserSearchInput {
         languages: [String!]
         minStars: Int
+        minViews: Int
         organizationId: ID
         projectId: ID
         routineId: ID

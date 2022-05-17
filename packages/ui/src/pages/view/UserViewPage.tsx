@@ -5,9 +5,11 @@ import { UserViewPageProps } from "./types";
 export const UserViewPage = ({
     session
 }: UserViewPageProps) => {
-
     return (
-        <Box pt="10vh" sx={{minHeight: '88vh'}}>
+        <Box sx={{
+            minHeight: '100vh',
+            paddingTop: { xs: '64px', md: '80px' },
+        }}>
             <UserView session={session} />
         </Box>
     )
