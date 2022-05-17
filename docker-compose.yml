@@ -94,7 +94,11 @@ services:
             - ./data/postgres:/var/lib/postgresql/data
             - ./packages/db/entrypoint:/docker-entrypoint-initdb.d
     redis:
-        image: redis:7-alpine
+        build:
+            context: .
+            dockerfile: ./packages/redis/Dockerfile
+            args:
+                PROJECT_DIR: "${PROJECT_DIR}"
         container_name: redis
         restart: always
         networks:
@@ -104,7 +108,7 @@ services:
           - ./packages/redis/redis.conf:/usr/local/etc/redis/redis.conf     
         ports:
             - 6379:6379
-        command: /bin/sh -c "chmod +x /srv/app/data/redis* && redis-server /usr/local/etc/redis/redis.conf"
+        command: /bin/sh -c "redis-server /usr/local/etc/redis/redis.conf"
     # adminer:
     #     image: adminer
     #     restart: always
