@@ -70,6 +70,9 @@ export const SettingsDisplay = ({
 
     // Handle theme
     const [theme, setTheme] = useState<string>('light');
+    useEffect(() => {
+        setTheme(palette.mode);
+    }, [palette.mode]);
 
     useEffect(() => {
         if (profile?.starredTags) {
@@ -77,9 +80,6 @@ export const SettingsDisplay = ({
         }
         if (profile?.hiddenTags) {
             setHiddenTags(profile.hiddenTags.map(t => t.tag as any));
-        }
-        if (profile?.theme) {
-            setTheme(profile.theme);
         }
     }, [profile]);
 

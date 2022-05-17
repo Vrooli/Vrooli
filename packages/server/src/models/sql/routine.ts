@@ -17,6 +17,13 @@ import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
 import { runFormatter } from "./run";
 
+type NodeWeightData = {
+    simplicity: number,
+    complexity: number,
+    optionalInputs: number,
+    allInputs: number,
+}
+
 //==============================================================
 /* #region Custom Components */
 //==============================================================
@@ -87,16 +94,13 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         objects: RecursivePartial<any>[],
         partial: PartialInfo,
     ): Promise<RecursivePartial<Routine>[]> {
-        console.log('in routine addsupp aaaa', JSON.stringify(partial));
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
         if (partial.isStarred) {
-            console.log('in routine addsupp getting isStarred', userId, ids);
             const isStarredArray = userId
                 ? await StarModel(prisma).getIsStarreds(userId, ids, GraphQLModelType.Routine)
                 : Array(ids.length).fill(false);
-            console.log('got isstarredarray', JSON.stringify(isStarredArray));
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isUpvoted
@@ -134,7 +138,6 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         }
         // Query for run data. This must be done here because we are not querying all runs - just ones made by the user
         if (_.isObject(partial.runs)) {
-            console.log('querying for run data', userId, '\n\n')
             if (userId) {
                 // Find requested fields of runs. Also add routineId, so we 
                 // can associate runs with their routine
@@ -145,7 +148,6 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
                 if (runPartial === undefined) {
                     throw new CustomError(CODE.InternalError, 'Error converting query', { code: genErrorCode('0178') });
                 }
-                console.log('run partial', JSON.stringify(runPartial), '\n\n');
                 // Query runs made by user
                 let runs: any[] = await prisma.run.findMany({
                     where: {
@@ -156,13 +158,10 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
                     },
                     ...selectHelper(runPartial)
                 });
-                console.log('queried runs', JSON.stringify(runs), '\n\n');
                 // Format runs to GraphQL
                 runs = runs.map(r => modelToGraphQL(r, runPartial));
-                console.log('formatted runs', JSON.stringify(runs), '\n\n');
                 // Add supplemental fields
                 runs = await addSupplementalFields(prisma, userId, runs, runPartial);
-                console.log('addsuppl runs', JSON.stringify(runs), '\n\n');
                 // Apply data fields to objects
                 objects = objects.map((x) => ({ ...x, runs: runs.filter(r => r.routineId === x.id) }));
             } else {
@@ -234,14 +233,14 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
 
 /**
  * Calculates the shortest AND longest weighted path on a directed cyclic graph. (loops are actually not the cyclic part, but redirects)
- * A routine with no nodes has a complexity of 1.
+ * A routine with no nodes has a complexity equal to the number of its inputs.
  * Each decision the user makes (i.e. multiple edges coming out of a node) has a weight of 1.
  * Each node has a weight that is the summation of its contained subroutines.
  * @param nodes A map of node IDs to their weight (simplicity/complexity)
  * @param edges The edges of the graph, with each object containing a fromId and toId
  * @returns [shortestPath, longestPath] The shortest and longest weighted distance
  */
-export const calculateShortestLongestWeightedPath = (nodes: { [id: string]: { simplicity: number, complexity: number } }, edges: { fromId: string, toId: string }[]): [number, number] => {
+export const calculateShortestLongestWeightedPath = (nodes: { [id: string]: NodeWeightData }, edges: { fromId: string, toId: string }[]): [number, number] => {
     // If no nodes or edges, return 1
     if (Object.keys(nodes).length === 0 || edges.length === 0) return [1, 1];
     // Create a dictionary of edges, where the key is a node ID and the value is an array of edges that END at that node
@@ -271,11 +270,15 @@ export const calculateShortestLongestWeightedPath = (nodes: { [id: string]: { si
             // Find the weight of the edge from the node's complexity. Add one if there are multiple edges,
             // since the user has to make a decision
             let weight = nodes[edge.fromId];
-            if (fromEdges.length > 1) weight = { complexity: weight.complexity + 1, simplicity: weight.simplicity + 1 };
+            if (fromEdges.length > 1) weight = { ...weight, complexity: weight.complexity + 1, simplicity: weight.simplicity + 1 };
             // Add edge to visited edges
             const newVisitedEdges = visitedEdges.concat([edge]);
-            // Recurse on the next node
-            const [shortest, longest] = getShortLong(edge.fromId, newVisitedEdges, currShortest + weight.simplicity, currLongest + weight.complexity);
+            // Recurse on the next node 
+            const [shortest, longest] = getShortLong(
+                edge.fromId, 
+                newVisitedEdges, 
+                currShortest + weight.simplicity + weight.optionalInputs, 
+                currLongest + weight.complexity + weight.allInputs);
             // If shortest is not -1, add to edgeShorts
             if (shortest !== -1) edgeShorts.push(shortest);
             // If longest is not -1, add to edgeLongs
@@ -302,12 +305,14 @@ export const calculateShortestLongestWeightedPath = (nodes: { [id: string]: { si
  */
 export const routineMutater = (prisma: PrismaType) => ({
     /**
-     * Calculates the maximum and minimum complexity of a routine based on the number of steps.
+     * Calculates the maximum and minimum complexity of a routine based on the number of steps. 
+     * Simplicity is a the minimum number of inputs and decisions required to complete the routine, while 
+     * complexity is the maximum.
      * @param data The routine data, either a create or update
      * @returns [simplicity, complexity] Numbers representing the shorted and longest weighted paths
      */
     async calculateComplexity(data: RoutineCreateInput | RoutineUpdateInput): Promise<[number, number]> {
-        console.log('calculate complexity start', JSON.stringify(data))
+        console.log('calculate complexity start', JSON.stringify(data), '\n\n')
         // If the routine is being updated, Find the complexity of existing subroutines
         let existingRoutine;
         if ((data as RoutineUpdateInput).id) {
@@ -324,15 +329,15 @@ export const routineMutater = (prisma: PrismaType) => ({
                                         select: {
                                             routine: { select: { id: true, complexity: true, simplicity: true } }
                                         }
-                                    }
+                                    },
                                 }
-                            }
+                            },
                         }
-                    }
+                    },
                 }
             })
         }
-        console.log('Existing routine', JSON.stringify(existingRoutine))
+        console.log('Existing routine', JSON.stringify(existingRoutine), '\n\n')
         // Calculate the list of links after mutations are applied
         let nodeLinks: any[] = existingRoutine?.nodeLinks || [];
         if (data.nodeLinksCreate) nodeLinks = nodeLinks.concat(data.nodeLinksCreate);
@@ -358,7 +363,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             nodes = nodes.filter(node => !(data as RoutineUpdateInput).nodesDelete?.find(deletedNode => deletedNode === node.id));
         }
         // Initialize node dictionary to map node IDs to their subroutine IDs
-        const nodeDictionary: { [id: string]: string[] } = {};
+        const subroutineIdsByNode: { [id: string]: string[] } = {};
         // Find the ID of every subroutine
         const subroutineIds: string[] = nodes.map((node: any | NodeCreateInput | NodeUpdateInput) => {
             console.log('in subroutineIds loop node', JSON.stringify(node));
@@ -379,37 +384,49 @@ export const routineMutater = (prisma: PrismaType) => ({
                     ids = ids.filter(id => !listUpdate.routinesDelete?.find(deletedId => deletedId === id));
                 }
             }
-            nodeDictionary[node.id] = ids;
+            subroutineIdsByNode[node.id] = ids;
             return ids
         }).flat();
         console.log('LINKS HEREEEEE', JSON.stringify(nodeLinks));
-        console.log('NODES HEREEEEE', JSON.stringify(nodeDictionary));
-        // Query every subroutine's complexity/simplicity in one go
-        const complicities = await prisma.routine.findMany({
+        console.log('NODES HEREEEEE', JSON.stringify(subroutineIdsByNode));
+        // Query every subroutine's complexity, simplicity, and number of inputs
+        const subroutineWeightData = await prisma.routine.findMany({
             where: { id: { in: subroutineIds } },
             select: {
                 id: true,
                 complexity: true,
-                simplicity: true
+                simplicity: true,
+                inputs: {
+                    select: {
+                        isRequired: true
+                    }
+                }
             }
         })
         // Convert compexity/simplicity to a map for easy lookup
-        let routineComplicityDict: { [routineId: string]: { complexity: number, simplicity: number } } = {};
-        for (const sub of complicities) {
-            routineComplicityDict[sub.id] = { complexity: sub.complexity, simplicity: sub.simplicity };
+        let subroutineWeightDataDict: { [routineId: string]: NodeWeightData } = {};
+        for (const sub of subroutineWeightData) {
+            subroutineWeightDataDict[sub.id] = { 
+                complexity: sub.complexity, 
+                simplicity: sub.simplicity,
+                optionalInputs: sub.inputs.filter(input => !input.isRequired).length,
+                allInputs: sub.inputs.length,
+            };
         }
         // Calculate the complexity/simplicity of each node. If node has no subroutines, its complexity is 0 (e.g. start node, end node)
-        let nodeComplicityDict: { [nodeId: string]: { complexity: number, simplicity: number } } = {};
+        let nodeWeightDataDict: { [nodeId: string]: NodeWeightData } = {};
         for (const node of nodes) {
-            nodeComplicityDict[node.id] = {
-                complexity: nodeDictionary[node.id]?.reduce((acc, cur) => acc + routineComplicityDict[cur].complexity, 0) || 0,
-                simplicity: nodeDictionary[node.id]?.reduce((acc, cur) => acc + routineComplicityDict[cur].simplicity, 0) || 0,
+            nodeWeightDataDict[node.id] = {
+                complexity: subroutineIdsByNode[node.id]?.reduce((acc, cur) => acc + subroutineWeightDataDict[cur].complexity, 0) || 0,
+                simplicity: subroutineIdsByNode[node.id]?.reduce((acc, cur) => acc + subroutineWeightDataDict[cur].simplicity, 0) || 0,
+                optionalInputs: subroutineIdsByNode[node.id]?.reduce((acc, cur) => acc + subroutineWeightDataDict[cur].optionalInputs, 0) || 0,
+                allInputs: subroutineIdsByNode[node.id]?.reduce((acc, cur) => acc + subroutineWeightDataDict[cur].allInputs, 0) || 0,
             }
         }
-        console.log('NODE COMPLICITY DICT', JSON.stringify(nodeComplicityDict));
+        console.log('NODE WEIGHT DATA DICT', JSON.stringify(nodeWeightDataDict));
         // Using the node links, determine the most complex path through the routine
-        const [shortest, longest] = calculateShortestLongestWeightedPath(nodeComplicityDict, nodeLinks);
-        // return with +1 
+        const [shortest, longest] = calculateShortestLongestWeightedPath(nodeWeightDataDict, nodeLinks);
+        // return with +1, so that nesting routines has a small factor in determining weight
         return [shortest + 1, longest + 1];
     },
     /**

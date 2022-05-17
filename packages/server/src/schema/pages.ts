@@ -565,7 +565,7 @@ export const resolvers = {
                 { userId: context.req.userId },
                 false
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(runSelect, runModel.relationshipMap) as PartialInfo)) as any[]
-            console.log('foryoupage a', JSON.stringify(activeRuns))
+            console.log('foryoupage a', JSON.stringify(activeRuns), '\n\n')
             // Query for complete runs
             const completedRuns = (await readManyHelper(
                 context.req.userId,
@@ -575,7 +575,7 @@ export const resolvers = {
                 { userId: context.req.userId },
                 false
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(runSelect, runModel.relationshipMap) as PartialInfo)) as any[]
-            console.log('foryoupage b', JSON.stringify(completedRuns))
+            console.log('foryoupage b', JSON.stringify(completedRuns), '\n\n')
             // Query recently viewed objects (of any type)
             const recentlyViewed = (await readManyHelper(
                 context.req.userId,
@@ -585,6 +585,7 @@ export const resolvers = {
                 { byId: context.req.userId },
                 false
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(viewSelect, viewModel.relationshipMap) as PartialInfo)) as any[];
+            console.log('foryoupage c', JSON.stringify(recentlyViewed), '\n\n')
             // Query recently starred objects (of any type). Make sure to ignore tags
             const recentlyStarred = (await readManyHelper(
                 context.req.userId,
@@ -594,6 +595,7 @@ export const resolvers = {
                 { byId: context.req.userId, tagId: null },
                 false
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(starSelect, starModel.relationshipMap) as PartialInfo)) as any[];
+            console.log('foryoupage d', JSON.stringify(recentlyStarred), '\n\n')
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [activeRuns, completedRuns, recentlyViewed, recentlyStarred],

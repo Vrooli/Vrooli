@@ -1216,7 +1216,6 @@ export async function readOneHelper<GraphQLModel>(
     let formatted = modelToGraphQL(object, partial) as RecursivePartial<GraphQLModel>;
     // If logged in and object has view count, handle it
     if (userId && objectType in ViewFor) {
-        console.log('adding to view count');
         ViewModel(model.prisma).view(userId, { forId: input.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language
     }
     return (await addSupplementalFields(model.prisma, userId, [formatted], partial))[0] as RecursivePartial<GraphQLModel>;
@@ -1383,7 +1382,6 @@ export async function createHelper<GraphQLModel>(
                 object1Type: objectType,
                 object1Id: c.id,
             }));
-            console.log('before log createhelper', JSON.stringify(logs), '\n\n')
             // No need to await this, since it is not needed for the response
             Log.collection.insertMany(logs).catch(error => logger.log(LogLevel.error, 'Failed creating "Create" log', { code: genErrorCode('0194'), error }));
         }
@@ -1429,7 +1427,6 @@ export async function updateHelper<GraphQLModel>(
                 object1Type: objectType,
                 object1Id: c.id,
             }));
-            console.log('before log updatehelper', JSON.stringify(logs), '\n\n')
             // No need to await this, since it is not needed for the response
             Log.collection.insertMany(logs).catch(error => logger.log(LogLevel.error, 'Failed creating "Update" log', { code: genErrorCode('0195'), error }));
         }
@@ -1460,7 +1457,6 @@ export async function deleteOneHelper(
         // If organization, project, routine, or standard, log for stats
         const objectType = model.relationshipMap.__typename;
         if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {
-            console.log('before log deleteone')
             // No need to await this, since it is not needed for the response
             Log.collection.insertOne({
                 timestamp: Date.now(),
@@ -1505,7 +1501,6 @@ export async function deleteManyHelper(
             object1Type: objectType,
             object1Id: id,
         }));
-        console.log('before log deleteManyHelper', JSON.stringify(logs), '\n\n')
         // No need to await this, since it is not needed for the response
         Log.collection.insertMany(logs).catch(error => logger.log(LogLevel.error, 'Failed creating "Delete" logs', { code: genErrorCode('0197'), error }));
     }

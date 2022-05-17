@@ -226,7 +226,6 @@ export const resourceMutater = (prisma: PrismaType) => ({
         if (updateMany) {
             // Loop through each update input
             for (const input of updateMany) {
-                console.log('in resource update', JSON.stringify(input))
                 // Find in database
                 let object = await prisma.resource.findFirst({
                     where: {
@@ -236,7 +235,6 @@ export const resourceMutater = (prisma: PrismaType) => ({
                         ]
                     }
                 })
-                console.log('got object, ', JSON.stringify(object))
                 if (!object) 
                     throw new CustomError(CODE.ErrorUnknown, 'Resource not found', { code: genErrorCode('0088') });
                 // Update object
