@@ -11,6 +11,7 @@ import { setupDatabase } from './utils/setupDatabase';
 import { initStatsCronJobs } from './statsLog';
 import mongoose from 'mongoose';
 import { genErrorCode, logger, LogLevel } from './logger';
+import { initializeRedis } from './redisConn';
 
 const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
     `http://localhost:5329/api` :
@@ -26,17 +27,26 @@ const main = async () => {
     }
 
     // Setup databases
+    // Prisma
     await setupDatabase();
+    // MongoDB
     try {
         mongoose.set('debug', process.env.NODE_ENV === 'development');
         await mongoose.connect(process.env.MONGO_CONN ?? '', {
             useNewUrlParser: true,
             useUnifiedTopology: true,
         } as mongoose.ConnectOptions);
+        console.info('✅ Connected to MongoDB');
     } catch (error) {
         logger.log(LogLevel.error, '🚨 Failed to connect to MongoDB', { code: genErrorCode('0191'), error });
     }
-    console.info('✅ Connected to MongoDB');
+    // Redis 
+    try {
+        await initializeRedis();
+        console.info('✅ Connected to Redis');
+    } catch (error) {
+        logger.log(LogLevel.error, '🚨 Failed to connect to Redis', { code: genErrorCode('0207'), error });
+    }
 
     const app = express();
 
@@ -101,7 +111,7 @@ const main = async () => {
     });
     // Start Express server
     app.listen(5329);
-    
+
     // Start cron jobs for calculating site statistics
     initStatsCronJobs();
 
