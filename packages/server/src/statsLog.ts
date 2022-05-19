@@ -26,13 +26,22 @@ import { StatAllTime, StatDay, StatMonth, StatWeek, StatYear } from './models';
 import { genErrorCode, logger, LogLevel } from './logger';
 const { PrismaClient } = pkg;
 
-// Daily triggered every 15 minutes
+// Cron syntax created using this website: https://crontab.guru/
+/**
+ * Daily cron, triggered every 15 minutes to give us 96 data points
+ */
 const dailyCron = '*/15 * * * *';
-// Weekly triggered every hour
+/**
+ * Weekly triggered every hour, to give us 168 data points
+ */
 const weeklyCron = '0 * * * *';
-// Monthly triggered 4 times per day
+/**
+ * Monthly triggered 4 times per day, to give us ~120 data points
+ */
 const monthlyCron = '0 0 4 * *';
-// Yearly (and all-time) triggered once per day
+/**
+ * Yearly (and all-time) triggered once per day
+ */
 const yearlyCron = '0 0 * * *';
 
 /**
@@ -261,6 +270,7 @@ async function calculateStats(timeInterval: StatTimeInterval): Promise<{ [key in
             // [StatType.RoutinesCompletedTimeAverage]: await calculateRoutinesCompletedTimeAverage(timeInterval, prisma),
             [StatType.Standards]: await calculateStandards(timeInterval, prisma),
         }
+        prisma.$disconnect();
     } catch (error) {
         logger.log(LogLevel.error, 'Caught error calculating stats', { code: genErrorCode('0000'), error });
     } finally {
@@ -316,6 +326,7 @@ async function logStats(timeInterval: StatTimeInterval) {
  * See https://crontab.guru/ for more information on cron jobs.
  */
 export const initStatsCronJobs = () => {
+    logger.log(LogLevel.info, 'Initializing stats cron jobs.', { code: genErrorCode('0209') });
     // Daily
     cron.schedule(dailyCron, () => {
         console.log('daily start')
