@@ -94,21 +94,16 @@ services:
             - ./data/postgres:/var/lib/postgresql/data
             - ./packages/db/entrypoint:/docker-entrypoint-initdb.d
     redis:
-        build:
-            context: .
-            dockerfile: ./packages/redis/Dockerfile
-            args:
-                PROJECT_DIR: "${PROJECT_DIR}"
+        image: redis:7-alpine
         container_name: redis
         restart: always
         networks:
           - app   
         volumes:
-          - ./data/redis:/srv/app/data/redis:z
-          - ./packages/redis/redis.conf:/usr/local/etc/redis/redis.conf     
+          - ./data/redis:/srv/app/data/redis:z    
         ports:
             - 6379:6379
-        command: /bin/sh -c "redis-server /usr/local/etc/redis/redis.conf"
+        command: /bin/sh -c "mkdir -p /srv/app/data/redis/appendonlydir && redis-server --bind redis --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes --dbfilename dump.rdb --dir /srv/app/data/redis/"
     # adminer:
     #     image: adminer
     #     restart: always
