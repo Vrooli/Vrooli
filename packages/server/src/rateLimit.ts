@@ -1,6 +1,6 @@
 import { Context } from "./context";
 import { GraphQLResolveInfo } from "graphql";
-import { initializeRedis } from "./redisConn";
+import { redisClient } from "./redisConn";
 import { CustomError } from "./error";
 import { CODE } from "@local/shared";
 import { genErrorCode, logger, LogLevel } from "./logger";
@@ -34,16 +34,15 @@ export async function rateLimit({
     // Unique key for this request. Combination of GraphQL endpoint and userId/ip.
     const key = `rate-limit:${info.path.key}:${byAccount ? context.req.userId : context.req.ip}`;
     try {
-        const client = await initializeRedis();
         // Increment and get the current count.
-        const count = await client.incr(key);
+        const count = await redisClient.incr(key);
         // If limit reached, throw error.
         if (count > max) {
             throw new CustomError(CODE.RateLimitExceeded, `Rate limit exceeded. Please try again in ${window} seconds.`, { code: genErrorCode('0017') });
         }
         // If key is new, set expiration.
         if (count === 1) {
-            await client.expire(key, window);
+            await redisClient.expire(key, window);
         }
     }
     // If Redis fails, let the user through. It's not their fault. 

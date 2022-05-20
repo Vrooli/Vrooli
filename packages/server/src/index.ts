@@ -11,7 +11,7 @@ import { setupDatabase } from './utils/setupDatabase';
 import { initStatsCronJobs } from './statsLog';
 import mongoose from 'mongoose';
 import { genErrorCode, logger, LogLevel } from './logger';
-import { initializeRedis } from './redisConn';
+import { redisClient, REDIS_URL } from './redisConn';
 
 const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
     `http://localhost:5329/api` :
@@ -36,17 +36,13 @@ const main = async () => {
             useNewUrlParser: true,
             useUnifiedTopology: true,
         } as mongoose.ConnectOptions);
-        console.info('✅ Connected to MongoDB');
+        logger.log(LogLevel.info, '✅ Connected to MongoDB.', { code: genErrorCode('0210') });
     } catch (error) {
         logger.log(LogLevel.error, '🚨 Failed to connect to MongoDB', { code: genErrorCode('0191'), error });
     }
-    // Redis 
-    try {
-        await initializeRedis();
-        console.info('✅ Connected to Redis');
-    } catch (error) {
-        logger.log(LogLevel.error, '🚨 Failed to connect to Redis', { code: genErrorCode('0207'), error });
-    }
+    // Redis
+    logger.log(LogLevel.info, 'Creating Redis client.', { code: genErrorCode('0184'), url: REDIS_URL });
+    await redisClient.connect();
 
     const app = express();
 
@@ -115,7 +111,7 @@ const main = async () => {
     // Start cron jobs for calculating site statistics
     initStatsCronJobs();
 
-    console.info(`🚀 Server running at ${SERVER_URL}`)
+    logger.log(LogLevel.info, `🚀 Server running at ${SERVER_URL}`, { code: genErrorCode('0212') });
 }
 
 main();
