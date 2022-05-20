@@ -251,6 +251,7 @@ export const ProjectUpdate = ({
                     list={resourceList}
                     canEdit={true}
                     handleUpdate={handleResourcesUpdate}
+                    loading={loading}
                     session={session}
                     mutate={false}
                 />
@@ -265,7 +266,7 @@ export const ProjectUpdate = ({
                 />
             </Grid>
         </Grid>
-    ), [session, organizationFor, onSwitchChange, language, handleAddLanguage, handleLanguageChange, handleLanguageDelete, handleLanguageSelect, languages, formik.values.name, formik.values.description, formik.handleBlur, formik.handleChange, formik.touched.name, formik.touched.description, formik.errors.name, formik.errors.description, resourceList, handleResourcesUpdate, tags, addTag, removeTag, clearTags]);
+    ), [session, organizationFor, onSwitchChange, language, handleAddLanguage, handleLanguageChange, handleLanguageDelete, handleLanguageSelect, languages, formik.values.name, formik.values.description, formik.handleBlur, formik.handleChange, formik.touched.name, formik.touched.description, formik.errors.name, formik.errors.description, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
 
 
     return (

@@ -331,6 +331,7 @@ export const RoutineCreate = ({
                         list={resourceList}
                         canEdit={true}
                         handleUpdate={handleResourcesUpdate}
+                        loading={false}
                         session={session}
                         mutate={false}
                     />

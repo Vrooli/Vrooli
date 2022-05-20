@@ -1,6 +1,6 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS, ResourceListUsedFor, StarFor } from "@local/shared";
+import { adaHandleRegex, APP_LINKS, ResourceListUsedFor, StarFor } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
 import { project, projectVariables } from "graphql/generated/project";
 import { routinesQuery, standardsQuery, projectQuery } from "graphql/query";
@@ -43,6 +43,7 @@ export const ProjectView = ({
     const [project, setProject] = useState<Project | null | undefined>(null);
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { input: { id } } })
+        else if (adaHandleRegex.test(id)) getData({ variables: { input: { handle: id } } })
     }, [getData, id]);
     useEffect(() => {
         setProject(data?.project);
@@ -85,9 +86,10 @@ export const ProjectView = ({
                     resourceLists: [updatedList]
                 })
             }}
+            loading={loading}
             mutate={true}
         />
-    ) : null, [canEdit, project, resourceList, session]);
+    ) : null, [canEdit, loading, project, resourceList, session]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -311,7 +313,7 @@ export const ProjectView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [palette.background.paper, palette.primary.dark, palette.primary.main, palette.mode, palette.secondary.light, palette.secondary.dark, openMoreMenu, loading, canEdit, name, onEdit, handle, project?.created_at, project?.id, project?.isStarred, project?.stars, description, shareLink, session]);
+    ), [palette, openMoreMenu, loading, canEdit, name, onEdit, handle, project?.created_at, project?.id, project?.isStarred, project?.stars, description, shareLink, session]);
 
     /**
     * Opens add new page

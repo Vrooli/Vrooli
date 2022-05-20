@@ -1,11 +1,11 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { Box, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, CircularProgress, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { ResourceCard, ResourceListItemContextMenu } from 'components';
 import { ResourceListHorizontalProps } from '../types';
-import { containerShadow } from 'styles';
-import { MouseEvent, useCallback, useMemo, useState } from 'react';
-import { Resource } from 'types';
+import { containerShadow, noSelect } from 'styles';
+import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
+import { NewObject, Resource } from 'types';
 import {
     Add as AddIcon,
 } from '@mui/icons-material';
@@ -22,11 +22,12 @@ export const ResourceListHorizontal = ({
     handleUpdate,
     mutate = true,
     list,
+    loading,
     session,
 }: ResourceListHorizontalProps) => {
     const { palette } = useTheme();
 
-    const onAdd = useCallback((newResource: Resource) => {
+    const onAdd = useCallback((newResource: NewObject<Resource>) => {
         if (!list) return;
         if (handleUpdate) {
             handleUpdate({
@@ -46,7 +47,7 @@ export const ResourceListHorizontal = ({
         }
     }, [handleUpdate, list]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<any>(resourceDeleteManyMutation);
+    const [deleteMutation] = useMutation<any>(resourceDeleteManyMutation);
     const onDelete = useCallback((index: number) => {
         if (!list) return;
         const resource = list.resources[index];
@@ -91,15 +92,15 @@ export const ResourceListHorizontal = ({
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const openDialog = useCallback(() => { setIsDialogOpen(true) }, []);
     const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1) }, []);
-    const openUpdateDialog = useCallback((index: number) => { 
+    const openUpdateDialog = useCallback((index: number) => {
         console.log('open update dialog', index)
         setEditingIndex(index);
-        setIsDialogOpen(true) 
+        setIsDialogOpen(true)
     }, []);
 
     const dialog = useMemo(() => (
         list ? <ResourceDialog
-            partialData={editingIndex >= 0 ? list.resources[editingIndex as number] as any : undefined}
+            partialData={editingIndex >= 0 ? list.resources[editingIndex as number] : undefined}
             index={editingIndex}
             listId={list.id}
             open={isDialogOpen}
@@ -137,7 +138,7 @@ export const ResourceListHorizontal = ({
                 }}
             >
                 <Stack direction="row" spacing={2} p={2} sx={{
-                    overflowX: 'auto',
+                    overflowX: 'scroll',
                     "&::-webkit-scrollbar": {
                         width: 5,
                     },
@@ -163,6 +164,27 @@ export const ResourceListHorizontal = ({
                             aria-owns={Boolean(selectedIndex) ? contextId : undefined}
                         />
                     ))}
+                    {
+                        (loading) && new Array(5).fill(0).map((_, i) => (
+                            <Box
+                                sx={{
+                                    ...cardRoot,
+                                    ...noSelect,
+                                    padding: 1,
+                                    width: '120px',
+                                    minWidth: '120px',
+                                    position: 'relative',
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                } as CSSProperties}
+                            >
+                                <CircularProgress sx={{
+                                    color: palette.mode === 'light' ? palette.secondary.light : 'white',
+                                }} />
+                            </Box>
+                        ))
+                    }
                     {/* Add resource button */}
                     {canEdit ? <Tooltip placement="top" title="Add resource">
                         <Box

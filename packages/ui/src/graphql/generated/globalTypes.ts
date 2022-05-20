@@ -312,6 +312,11 @@ export interface FindByIdInput {
   id: string;
 }
 
+export interface FindByIdOrHandleInput {
+  id?: string | null;
+  handle?: string | null;
+}
+
 export interface FindHandlesInput {
   organizationId?: string | null;
 }
@@ -957,6 +962,7 @@ export interface RunCompleteInput {
   exists?: boolean | null;
   pickups?: number | null;
   timeElapsed?: number | null;
+  finalStepUpdate?: RunStepUpdateInput | null;
 }
 
 export interface RunCountInput {
@@ -968,6 +974,7 @@ export interface RunCreateInput {
   routineId: string;
   title: string;
   version: string;
+  step?: RunStepCreateInput[] | null;
 }
 
 export interface RunSearchInput {

@@ -11,7 +11,7 @@ import {
     AddLink as AddLinkIcon,
     Compress as CleanUpIcon,
 } from '@mui/icons-material';
-import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine } from 'types';
+import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine } from 'types';
 import isEqual from 'lodash/isEqual';
 import { useLocation, useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
@@ -289,7 +289,7 @@ export const BuildPage = ({
 
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
     const openLinkDialog = useCallback(() => setIsLinkDialogOpen(true), []);
-    const handleLinkDialogClose = useCallback((link?: NodeLink) => {
+    const handleLinkDialogClose = useCallback((link?: NewObject<NodeLink>) => {
         if (!changedRoutine) return;
         setIsLinkDialogOpen(false);
         // If no link data, return
@@ -298,9 +298,9 @@ export const BuildPage = ({
         const newLinks = [...changedRoutine.nodeLinks];
         const existingLinkIndex = newLinks.findIndex(l => l.fromId === link.fromId && l.toId === link.toId);
         if (existingLinkIndex >= 0) {
-            newLinks[existingLinkIndex] = { ...link };
+            newLinks[existingLinkIndex] = { ...link } as NodeLink;
         } else {
-            newLinks.push(link);
+            newLinks.push(link as NodeLink);
         }
         setChangedRoutine({
             ...changedRoutine,

@@ -43,9 +43,10 @@ export const SubroutineView = ({
             list={(data as any).resourceLists[0]}
             canEdit={false}
             handleUpdate={() => { }} // Intentionally blank
+            loading={loading}
             session={session}
         />
-    }, [data, session]);
+    }, [data, loading, session]);
 
     if (loading) return (
         <Box sx={{

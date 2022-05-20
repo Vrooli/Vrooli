@@ -3,7 +3,7 @@ import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
 import { ReportFor } from '@local/shared';
-import { Node, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
+import { NewObject, Node, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 
 export interface AlertDialogProps extends DialogProps { };
 
@@ -125,7 +125,7 @@ export interface ResourceDialogProps extends DialogProps {
      */
     mutate: boolean;
     onClose: () => any;
-    onCreated: (resource: Resource) => any;
+    onCreated: (resource: NewObject<Resource>) => any;
     open: boolean;
     onUpdated: (index: number, resource: Resource) => any;
     partialData?: Partial<Resource>;
@@ -204,7 +204,7 @@ export interface BaseObjectActionDialogProps {
 }
 
 export interface LinkDialogProps {
-    handleClose: (newLink?: NodeLink) => void;
+    handleClose: (newLink?: NewObject<NodeLink>) => void;
     handleDelete: (link: NodeLink) => void;
     isAdd: boolean;
     isOpen: boolean;
@@ -218,6 +218,7 @@ export interface BuildInfoDialogProps {
     handleUpdate: (routine: Routine) => any;
     isEditing: boolean;
     language: string;
+    loading: boolean;
     routine: Routine | null;
     session: Session;
     sxs?: { icon: any };

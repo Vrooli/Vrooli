@@ -112,6 +112,7 @@ export const ResourceDialog = ({
             })
             const data = {
                 id: partialData?.id ?? undefined,
+                index: Math.max(index, 0),
                 listId,
                 link: values.link,
                 usedFor: values.usedFor,
@@ -134,7 +135,7 @@ export const ResourceDialog = ({
                     onError: () => { formik.setSubmitting(false) },
                 })
             } else {
-                onCreated(input as any);
+                onCreated(input as NewObject<Resource>);
                 formik.resetForm();
                 onClose();
             }

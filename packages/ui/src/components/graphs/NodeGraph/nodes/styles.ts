@@ -1,5 +1,5 @@
 import { SxProps } from '@mui/material';
-import { CSSProperties } from "@mui/styles";
+import { CSSProperties } from '@mui/styles';
 import { multiLineEllipsis, textShadow } from 'styles';
 
 export const nodeLabel: SxProps = {
@@ -17,8 +17,8 @@ export const nodeLabel: SxProps = {
 
 export const routineNodeCheckboxLabel: SxProps = {
     marginLeft: '0'
-} as CSSProperties;
+};
 
 export const routineNodeCheckboxOption: SxProps = {
     padding: '4px',
-} as CSSProperties;
+};

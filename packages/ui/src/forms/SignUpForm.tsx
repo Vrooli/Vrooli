@@ -23,6 +23,7 @@ import { FormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 import { PasswordTextField } from 'components';
+import { CSSProperties } from '@mui/styles';
 
 export const SignUpForm = ({
     onFormChange = () => { },
@@ -164,7 +165,7 @@ export const SignUpForm = ({
                                 sx={{
                                     ...clickSize,
                                     ...formNavLink,
-                                }}
+                                } as CSSProperties}
                             >
                                 Already have an account? Log in
                             </Typography>
@@ -176,8 +177,8 @@ export const SignUpForm = ({
                                 sx={{
                                     ...clickSize,
                                     ...formNavLink,
-                                    flexDirection: 'row-reverse' as const,
-                                }}
+                                    flexDirection: 'row-reverse',
+                                } as CSSProperties}
                             >
                                 Forgot Password?
                             </Typography>

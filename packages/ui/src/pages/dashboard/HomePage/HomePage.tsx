@@ -210,7 +210,7 @@ export const HomePage = ({
         if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
     }, [searchParams]);
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
-    const { data, refetch, error, loading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
+    const { data, refetch, loading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
     useEffect(() => { refetch() }, [refetch, searchString]);
     const showForYou = useMemo(() => Array.isArray(session?.roles) && session.roles.length > 0, [session]);
 
@@ -351,6 +351,7 @@ export const HomePage = ({
                 listFeeds.push((
                     <ListTitleContainer
                         key={`feed-list-${objectType}`}
+                        isEmpty={listFeedItems.length === 0}
                         title={getFeedTitle(`${objectType}s`)}
                         onClick={(e) => toSearchPage(e, objectType)}
                         options={[['See more results', (e) => { toSearchPage(e, objectType) }]]}
@@ -410,7 +411,7 @@ export const HomePage = ({
                         key={index}
                         id={`home-tab-${index}`}
                         {...{ 
-                            'aria-labelledBy': `home-pages`,
+                            'aria-labelledby': `home-pages`,
                             'aria-label': `home page ${option[0]}`,
                         }}
                         label={option[0]}

@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { FindByIdOrHandleInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: organization
@@ -87,5 +87,5 @@ export interface organization {
 }
 
 export interface organizationVariables {
-  input: FindByIdInput;
+  input: FindByIdOrHandleInput;
 }

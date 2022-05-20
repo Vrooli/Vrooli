@@ -204,6 +204,11 @@ export type FindByIdInput = {
   id: Scalars['ID'];
 };
 
+export type FindByIdOrHandleInput = {
+  handle?: InputMaybe<Scalars['String']>;
+  id?: InputMaybe<Scalars['ID']>;
+};
+
 export type FindHandlesInput = {
   organizationId?: InputMaybe<Scalars['ID']>;
 };
@@ -1468,7 +1473,7 @@ export type QueryLogsArgs = {
 
 
 export type QueryOrganizationArgs = {
-  input: FindByIdInput;
+  input: FindByIdOrHandleInput;
 };
 
 
@@ -1483,7 +1488,7 @@ export type QueryOrganizationsCountArgs = {
 
 
 export type QueryProjectArgs = {
-  input: FindByIdInput;
+  input: FindByIdOrHandleInput;
 };
 
 
@@ -1613,7 +1618,7 @@ export type QueryTagsCountArgs = {
 
 
 export type QueryUserArgs = {
-  input: FindByIdInput;
+  input: FindByIdOrHandleInput;
 };
 
 
@@ -2158,6 +2163,7 @@ export type RunCancelInput = {
 
 export type RunCompleteInput = {
   exists?: InputMaybe<Scalars['Boolean']>;
+  finalStepUpdate?: InputMaybe<RunStepUpdateInput>;
   id?: InputMaybe<Scalars['ID']>;
   pickups?: InputMaybe<Scalars['Int']>;
   timeElapsed?: InputMaybe<Scalars['Int']>;
@@ -2170,6 +2176,7 @@ export type RunCountInput = {
 
 export type RunCreateInput = {
   routineId: Scalars['ID'];
+  step?: InputMaybe<Array<RunStepCreateInput>>;
   title: Scalars['String'];
   version: Scalars['String'];
 };

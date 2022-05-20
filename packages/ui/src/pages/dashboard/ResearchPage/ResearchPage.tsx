@@ -194,12 +194,14 @@ export const ResearchPage = ({
                     list={resourceList}
                     canEdit={Boolean(session?.id)}
                     handleUpdate={handleResourcesUpdate}
+                    loading={resourcesLoading}
                     mutate={true}
                     session={session}
                 />
                 <ListTitleContainer
                     title={"Processes"}
                     helpText={processesText}
+                    isEmpty={processes.length === 0}
                     onClick={toSeeAllProcesses}
                     options={[['Create', toCreateProcess], ['See all', toSeeAllProcesses]]}
                 >
@@ -208,6 +210,7 @@ export const ResearchPage = ({
                 <ListTitleContainer
                     title={"Newly Completed"}
                     helpText={newlyCompletedText}
+                    isEmpty={newlyCompleted.length === 0}
                     onClick={toSeeAllNewlyCompleted}
                     options={[['Create', toCreateProject], ['See all', toSeeAllNewlyCompleted]]}
                 >
@@ -216,6 +219,7 @@ export const ResearchPage = ({
                 <ListTitleContainer
                     title={"Vote"}
                     helpText={voteText}
+                    isEmpty={needVotes.length === 0}
                     onClick={() => { }}
                     options={[['Create', toCreateProject], ['See all', () => { }]]}
                 >
@@ -224,6 +228,7 @@ export const ResearchPage = ({
                 <ListTitleContainer
                     title={"Donate or Invest"}
                     helpText={donateOrInvestText}
+                    isEmpty={needInvestments.length === 0}
                     onClick={() => { }}
                     options={[['Create', toCreateProject], ['See all', () => { }]]}
                 >
@@ -232,6 +237,7 @@ export const ResearchPage = ({
                 <ListTitleContainer
                     title={"Join a Team"}
                     helpText={joinATeamText}
+                    isEmpty={needMembers.length === 0}
                     onClick={toSeeAllJoinATeam}
                     options={[['Create', toCreateOrganization], ['Update profile', toUpdateProfile], ['See all', toSeeAllJoinATeam]]}
                 >

@@ -241,6 +241,7 @@ export const OrganizationUpdate = ({
                     list={resourceList}
                     canEdit={true}
                     handleUpdate={handleResourcesUpdate}
+                    loading={loading}
                     session={session}
                     mutate={false}
                 />
@@ -255,7 +256,7 @@ export const OrganizationUpdate = ({
                 />
             </Grid>
         </Grid>
-    ), [language, handleAddLanguage, handleLanguageChange, handleLanguageDelete, handleLanguageSelect, languages, session, formik.values.name, formik.values.bio, formik.handleBlur, formik.handleChange, formik.touched.name, formik.touched.bio, formik.errors.name, formik.errors.bio, resourceList, handleResourcesUpdate, tags, addTag, removeTag, clearTags]);
+    ), [language, handleAddLanguage, handleLanguageChange, handleLanguageDelete, handleLanguageSelect, languages, session, formik.values.name, formik.values.bio, formik.handleBlur, formik.handleChange, formik.touched.name, formik.touched.bio, formik.errors.name, formik.errors.bio, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{

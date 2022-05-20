@@ -12,6 +12,7 @@ import {
     OpenInNew as OpenLinkIcon
 } from '@mui/icons-material';
 import { owns } from 'utils/authentication';
+import { TextLoading } from 'components';
 
 /**
  * Determines if a resource is a URL, wallet payment address, or an ADA handle
@@ -26,10 +27,11 @@ import { owns } from 'utils/authentication';
 }
 
 export function ResourceListItem({
-    session,
-    index,
     data,
+    index,
+    loading,
     onClick,
+    session,
 }: ResourceListItemProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -95,15 +97,15 @@ export function ResourceListItem({
                     </IconButton>
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
                         {/* Name/Title */}
-                        <ListItemText
+                        {loading ? <TextLoading /> : <ListItemText
                             primary={title}
                             sx={{ ...multiLineEllipsis(1) }}
-                        />
+                        />}
                         {/* Bio/Description */}
-                        <ListItemText
+                        {loading ? <TextLoading /> : <ListItemText
                             primary={description}
                             sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
-                        />
+                        />}
                     </Stack>
                     <OpenLinkIcon />
                 </ListItemButton>

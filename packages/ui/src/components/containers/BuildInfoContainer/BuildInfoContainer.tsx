@@ -7,7 +7,7 @@
  * title, descriptions, instructions, inputs, outputs, tags, etc.
  */
 import { Box, Chip, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
     Close as CloseIcon,
     Edit as EditIcon,
@@ -249,6 +249,7 @@ export const BuildInfoContainer = ({
                         handleUpdate={handleRoutineUpdate}
                         isEditing={isEditing}
                         language={language}
+                        loading={loading}
                         routine={routine}
                         session={session}
                         sxs={{ icon: { fill: TERTIARY_COLOR, marginRight: 1 } }}

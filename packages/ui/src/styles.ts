@@ -1,5 +1,4 @@
 import { SxProps } from "@mui/material"
-import { CSSProperties } from "@mui/styles";
 
 //==============================================================
 /* #region Centering */
@@ -8,7 +7,7 @@ export const centeredDiv: SxProps = {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center'
-} as CSSProperties;
+};
 //==============================================================
 /* #endregion Centering */
 //==============================================================
@@ -18,7 +17,7 @@ export const centeredDiv: SxProps = {
 //==============================================================
 export const containerShadow: SxProps = {
     boxShadow: '0px 0px 12px gray',
-} as CSSProperties;
+};
 
 export const textShadow: SxProps = {
     textShadow:
@@ -26,7 +25,7 @@ export const textShadow: SxProps = {
         0.5px -0.5px 0 black,
         -0.5px 0.5px 0 black,
         0.5px 0.5px 0 black`
-} as CSSProperties;
+};
 //==============================================================
 /* #endregion Shadows*/
 //==============================================================
@@ -39,7 +38,7 @@ export const textShadow: SxProps = {
  */
 export const clickSize: SxProps = {
     minHeight: '48px',
-} as CSSProperties;
+};
 
 export const multiLineEllipsis = (lines: number): SxProps => ({
     display: '-webkit-box',
@@ -47,7 +46,7 @@ export const multiLineEllipsis = (lines: number): SxProps => ({
     WebkitBoxOrient: 'vertical',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-}) as CSSProperties;
+});
 //==============================================================
 /* #endregion Sizing */
 //==============================================================
@@ -65,7 +64,7 @@ export const noSelect: SxProps = {
     msUserSelect: 'none', /* Internet Explorer/Edge */
     userSelect: 'none', /* Non-prefixed version, currently
     supported by Chrome, Edge, Opera and Firefox */
-} as CSSProperties;
+};
 /**
  * 
  */

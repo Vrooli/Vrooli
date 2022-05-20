@@ -14,6 +14,11 @@ export interface TitleContainerProps {
     tooltip?: string;
 }
 
+export interface ListTitleContainerProps extends TitleContainerProps {
+    emptyText?: string;
+    isEmpty: boolean;
+}
+
 // label, Icon, disabled, isSubmit, onClick
 export type DialogActionItem = [string, any, boolean, boolean, () => void,]
 

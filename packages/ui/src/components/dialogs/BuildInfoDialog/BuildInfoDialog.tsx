@@ -42,6 +42,7 @@ export const BuildInfoDialog = ({
     handleUpdate,
     isEditing,
     language,
+    loading,
     routine,
     session,
     sxs,
@@ -127,12 +128,13 @@ export const BuildInfoDialog = ({
             routine.resourceLists[0].resources.length < 1) return null;
         return <ResourceListHorizontal
             title={'Resources'}
-            list={(routine as any).resourceLists[0]}
+            list={routine.resourceLists[0]}
             canEdit={false}
             handleUpdate={() => { }} // Intentionally blank
+            loading={loading}
             session={session}
         />
-    }, [routine, session]);
+    }, [loading, routine, session]);
 
     return (
         <>

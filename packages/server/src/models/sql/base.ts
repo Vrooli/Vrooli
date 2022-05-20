@@ -1,5 +1,5 @@
 // Components for providing basic functionality to model objects
-import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, PageInfo, Success, TimeFrame } from '../../schema/types';
+import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, PageInfo, Success, TimeFrame } from '../../schema/types';
 import { PrismaType, RecursivePartial } from '../../types';
 import { GraphQLResolveInfo } from 'graphql';
 import pkg from 'lodash';
@@ -1192,12 +1192,12 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
  */
 export async function readOneHelper<GraphQLModel>(
     userId: string | null,
-    input: FindByIdInput,
+    input: FindByIdOrHandleInput,
     info: InfoType,
     model: ModelBusinessLayer<GraphQLModel, any>,
 ): Promise<RecursivePartial<GraphQLModel>> {
     // Validate input
-    if (!input.id)
+    if (!input.id && !input.handle)
         throw new CustomError(CODE.InvalidArgs, 'id is required', { code: genErrorCode('0019') });
     // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
     let partial = toPartialSelect(info, model.relationshipMap);
@@ -1209,14 +1209,17 @@ export async function readOneHelper<GraphQLModel>(
         throw new CustomError(CODE.InternalError, `${objectType} missing in PrismaMap`, { code: genErrorCode('0021') });
     }
     // Get the Prisma object
-    let object = await (PrismaMap[objectType as keyof typeof PrismaMap] as any)(model.prisma).findUnique({ where: { id: input.id }, ...selectHelper(partial) });
+    const prismaObject = (PrismaMap[objectType as keyof typeof PrismaMap] as any)(model.prisma);
+    let object = input.id ? 
+        await prismaObject.findUnique({ where: { id: input.id }, ...selectHelper(partial) }) :
+        await prismaObject.findFirst({ where: { handle: input.handle }, ...selectHelper(partial) });
     if (!object)
         throw new CustomError(CODE.NotFound, `${objectType} not found`, { code: genErrorCode('0022') });
     // Return formatted for GraphQL
     let formatted = modelToGraphQL(object, partial) as RecursivePartial<GraphQLModel>;
     // If logged in and object has view count, handle it
     if (userId && objectType in ViewFor) {
-        ViewModel(model.prisma).view(userId, { forId: input.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language
+        ViewModel(model.prisma).view(userId, { forId: object.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language
     }
     return (await addSupplementalFields(model.prisma, userId, [formatted], partial))[0] as RecursivePartial<GraphQLModel>;
 }

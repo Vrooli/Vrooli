@@ -1,6 +1,6 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS, StarFor } from "@local/shared";
+import { adaHandleRegex, APP_LINKS, StarFor } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
 import { organization, organizationVariables } from "graphql/generated/organization";
 import { usersQuery, projectsQuery, routinesQuery, standardsQuery, organizationQuery } from "graphql/query";
@@ -49,6 +49,7 @@ export const OrganizationView = ({
     const [organization, setOrganization] = useState<Organization | null | undefined>(null);
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { input: { id } } })
+        else if (adaHandleRegex.test(id)) getData({ variables: { input: { handle: id } } })
     }, [getData, id]);
     useEffect(() => {
         setOrganization(data?.organization);
@@ -91,9 +92,10 @@ export const OrganizationView = ({
                     resourceLists: [updatedList]
                 })
             }}
+            loading={loading}
             mutate={true}
         />
-    ) : null, [canEdit, organization, resourceList, session]);
+    ) : null, [canEdit, loading, organization, resourceList, session]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);

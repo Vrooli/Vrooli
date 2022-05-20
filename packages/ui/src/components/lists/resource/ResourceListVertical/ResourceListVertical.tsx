@@ -3,7 +3,7 @@
 import { ResourceDialog, ResourceListItem } from 'components';
 import { ResourceListVerticalProps } from '../types';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
-import { Resource } from 'types';
+import { NewObject, Resource } from 'types';
 import { containerShadow } from 'styles';
 import { Box, Button } from '@mui/material';
 import {
@@ -20,10 +20,11 @@ export const ResourceListVertical = ({
     handleUpdate,
     mutate,
     list,
+    loading,
     session,
 }: ResourceListVerticalProps) => {
 
-    const onAdd = useCallback((newResource: Resource) => {
+    const onAdd = useCallback((newResource: NewObject<Resource>) => {
         if (!list) return;
         if (handleUpdate) {
             handleUpdate({
@@ -43,7 +44,7 @@ export const ResourceListVertical = ({
         }
     }, [handleUpdate, list]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<any>(resourceDeleteManyMutation);
+    const [deleteMutation] = useMutation<any>(resourceDeleteManyMutation);
     const onDelete = useCallback((resource: Resource) => {
         if (!list) return;
         if (mutate) {
@@ -128,6 +129,7 @@ export const ResourceListVertical = ({
                         key={`resource-card-${index}`}
                         data={c}
                         index={index}
+                        loading={loading}
                         session={session}
                     />
                 ))}

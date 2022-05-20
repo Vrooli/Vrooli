@@ -130,6 +130,7 @@ export const LearnPage = ({
                     list={resourceList}
                     canEdit={Boolean(session?.id)}
                     handleUpdate={handleResourcesUpdate}
+                    loading={resourcesLoading}
                     mutate={true}
                     session={session}
                 />}
@@ -137,6 +138,7 @@ export const LearnPage = ({
                 <ListTitleContainer
                     title={"Courses"}
                     helpText={courseText}
+                    isEmpty={courses.length === 0}
                     onClick={toSeeAllCourses}
                     options={[['Create', toCreateCourse], ['See all', toSeeAllCourses]]}
                 >
@@ -146,6 +148,7 @@ export const LearnPage = ({
                 <ListTitleContainer
                     title={"Tutorials"}
                     helpText={tutorialText}
+                    isEmpty={tutorials.length === 0}
                     onClick={toSeeAllTutorials}
                     options={[['Create', toCreateTutorial], ['See all', toSeeAllTutorials]]}
                 >

@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { FindByIdOrHandleInput, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: user
@@ -70,5 +70,5 @@ export interface user {
 }
 
 export interface userVariables {
-  input: FindByIdInput;
+  input: FindByIdOrHandleInput;
 }

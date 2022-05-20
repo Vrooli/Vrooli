@@ -18,6 +18,7 @@ import { emailRequestPasswordChange } from 'graphql/generated/emailRequestPasswo
 import { FormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
+import { CSSProperties } from '@mui/styles';
 
 export const ForgotPasswordForm = ({
     onFormChange = () => { }
@@ -81,7 +82,7 @@ export const ForgotPasswordForm = ({
                                 sx={{
                                     ...clickSize,
                                     ...formNavLink,
-                                }}
+                                } as CSSProperties}
                             >
                                 Remember? Back to Log In
                             </Typography>
@@ -93,8 +94,8 @@ export const ForgotPasswordForm = ({
                                 sx={{
                                     ...clickSize,
                                     ...formNavLink,
-                                    flexDirection: 'row-reverse' as any,
-                                }}
+                                    flexDirection: 'row-reverse',
+                                } as CSSProperties}
                             >
                                 Don't have an account? Sign up
                             </Typography>

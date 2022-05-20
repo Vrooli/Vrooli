@@ -226,9 +226,10 @@ export const RoutineView = ({
             list={(routine as any).resourceLists[0]}
             canEdit={false}
             handleUpdate={() => { }} // Intentionally blank
+            loading={loading}
             session={session}
         />
-    }, [routine, session]);
+    }, [loading, routine, session]);
 
     /**
      * Display body or loading indicator

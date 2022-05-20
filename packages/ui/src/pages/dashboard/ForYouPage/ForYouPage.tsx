@@ -120,7 +120,7 @@ export const ForYouPage = ({
                         key={index}
                         id={`for-you-tab-${index}`}
                         {...{ 
-                            'aria-labelledBy': `home-pages`,
+                            'aria-labelledby': `home-pages`,
                             'aria-label': `home page ${option[0]}`,
                         }}
                         label={option[0]}
@@ -134,6 +134,7 @@ export const ForYouPage = ({
                 <ListTitleContainer
                     title={"Active Routines"}
                     helpText={activeRoutinesText}
+                    isEmpty={activeRuns.length === 0}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
@@ -142,6 +143,7 @@ export const ForYouPage = ({
                 <ListTitleContainer
                     title={"Completed Routines"}
                     helpText={completedRoutinesText}
+                    isEmpty={completedRuns.length === 0}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
@@ -150,6 +152,7 @@ export const ForYouPage = ({
                 <ListTitleContainer
                     title={"Recently Viewed"}
                     helpText={recentText}
+                    isEmpty={recent.length === 0}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
@@ -158,6 +161,7 @@ export const ForYouPage = ({
                 <ListTitleContainer
                     title={"Starred"}
                     helpText={starredText}
+                    isEmpty={starred.length === 0}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >

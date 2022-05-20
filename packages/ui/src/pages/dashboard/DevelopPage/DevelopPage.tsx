@@ -109,12 +109,14 @@ export const DevelopPage = ({
                     list={resourceList}
                     canEdit={Boolean(session?.id)}
                     handleUpdate={handleResourcesUpdate}
+                    loading={resourcesLoading}
                     mutate={true}
                     session={session}
                 />
                 <ListTitleContainer
                     title={"In Progress"}
                     helpText={inProgressText}
+                    isEmpty={inProgress.length === 0}
                     onClick={() => { }}
                     options={[['Create', () => { }], ['See all', () => { }]]}
                 >
@@ -123,6 +125,7 @@ export const DevelopPage = ({
                 <ListTitleContainer
                     title={"Recent"}
                     helpText={recentText}
+                    isEmpty={recent.length === 0}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
@@ -131,6 +134,7 @@ export const DevelopPage = ({
                 <ListTitleContainer
                     title={"Completed"}
                     helpText={completedText}
+                    isEmpty={completed.length === 0}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >

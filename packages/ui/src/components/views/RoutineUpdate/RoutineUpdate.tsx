@@ -353,6 +353,7 @@ export const RoutineUpdate = ({
                     list={resourceList}
                     canEdit={true}
                     handleUpdate={handleResourcesUpdate}
+                    loading={loading}
                     session={session}
                     mutate={false}
                 />
@@ -367,7 +368,7 @@ export const RoutineUpdate = ({
                 />
             </Grid>
         </Grid>
-    ), [session, organizationFor, onSwitchChange, language, handleAddLanguage, handleLanguageChange, handleLanguageDelete, handleLanguageSelect, languages, formik, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, tags, addTag, removeTag, clearTags]);
+    ), [session, organizationFor, onSwitchChange, language, handleAddLanguage, handleLanguageChange, handleLanguageDelete, handleLanguageSelect, languages, formik, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{

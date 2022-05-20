@@ -21,6 +21,7 @@ import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 import { PasswordTextField } from 'components';
 import { useMemo } from 'react';
+import { CSSProperties } from '@mui/styles';
 
 export const LogInForm = ({
     onFormChange = () => { }
@@ -116,7 +117,7 @@ export const LogInForm = ({
                                 sx={{
                                     ...clickSize,
                                     ...formNavLink,
-                                }}
+                                } as CSSProperties}
                             >
                                 Forgot Password?
                             </Typography>
@@ -128,8 +129,8 @@ export const LogInForm = ({
                                 sx={{
                                     ...clickSize,
                                     ...formNavLink,
-                                    flexDirection: 'row-reverse' as any,
-                                }}
+                                    flexDirection: 'row-reverse',
+                                } as CSSProperties}
                             >
                                 Don't have an account? Sign up
                             </Typography>

@@ -27,14 +27,14 @@ export const HelpButton = ({
     const menu = useMemo(() => {
         return (
             <Box>
-                <Box sx={{ 
+                <Box sx={{
                     background: palette.primary.dark,
                     display: 'flex',
                     flexDirection: 'row-reverse',
                     paddingRight: '0.5rem',
                 }}>
                     <IconButton color="inherit" onClick={closeMenu} aria-label="close">
-                        <CloseIcon sx={{ fill: 'white' }}/>
+                        <CloseIcon sx={{ fill: 'white' }} />
                     </IconButton>
                 </Box>
                 <Box sx={{ padding: 1 }}>
@@ -81,7 +81,20 @@ export const HelpButton = ({
                             },
                             '& .MuiMenu-list': {
                                 padding: 0,
-                            }
+                            },
+                            // Style visited, active, and hovered links differently
+                            a: {
+                                color: palette.mode === 'light' ? '#001cd3' : '#dd86db',
+                                '&:visited': {
+                                    color: palette.mode === 'light' ? '#001cd3' : '#f551ef',
+                                },
+                                '&:active': {
+                                    color: palette.mode === 'light' ? '#001cd3' : '#f551ef',
+                                },
+                                '&:hover': {
+                                    color: palette.mode === 'light' ? '#5a6ff6' : '#f3d4f2',
+                                },
+                            },
                         }}
                     >
                         {menu}

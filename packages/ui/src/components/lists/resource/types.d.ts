@@ -5,6 +5,7 @@ export interface ResourceListHorizontalProps {
     canEdit?: boolean;
     handleUpdate?: (updatedList: ResourceList) => void;
     list: ResourceList | null;
+    loading: boolean;
     session: Session;
     mutate?: boolean;
 }
@@ -14,15 +15,17 @@ export interface ResourceListVerticalProps {
     canEdit?: boolean;
     handleUpdate?: (updatedList: ResourceList) => void;
     list: ResourceList | null | undefined;
+    loading: boolean;
     session: session
     mutate: boolean;
 }
 
 export interface ResourceListItemProps {
-    session: Session;
-    index: number;
     data: Resource;
+    index: number;
+    loading: boolean;
     onClick?: (e: any, data: any) => void;
+    session: Session;
 }
 
 export interface ResourceListItemContextMenuProps {
