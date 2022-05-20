@@ -251,8 +251,10 @@ export const HomePage = ({
      */
     const onInputSelect = useCallback((newValue: AutocompleteListItem) => {
         if (!newValue) return;
-        // Replace current state with search string, so that search is not lost
-        if (searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
+        // Replace current state with search string, so that search is not lost. 
+        // Only do this if the selected item is not a shortcut
+        if (newValue.__typename !== 'Shortcut' && searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
+        else setLocation(APP_LINKS.Home, { replace: true });
         // If selected item is a shortcut, navigate to it
         if (newValue.__typename === 'Shortcut') {
             setLocation(newValue.id);

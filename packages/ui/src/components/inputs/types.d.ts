@@ -121,6 +121,15 @@ export interface LanguageInputProps {
     session: Session;
 }
 
+export interface LinkButtonProps {
+    onClick: (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => any;
+    text: string;
+    sxs?: {
+        button?: { [x: string]: any };
+        text?: { [x: string]: any };
+    }
+}
+
 export interface MarkdownInputProps extends TextFieldProps {
     id: string;
     disabled?: boolean;

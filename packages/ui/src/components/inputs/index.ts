@@ -3,6 +3,7 @@ export * from './Dropzone/Dropzone';
 export * from './EditableLabel/EditableLabel';
 export * from './JSONInput/JSONInput';
 export * from './LanguageInput/LanguageInput';
+export * from './LinkButton/LinkButton';
 export * from './MarkdownInput/MarkdownInput';
 export * from './PasswordTextField/PasswordTextField';
 export * from './QuantityBox/QuantityBox';

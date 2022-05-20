@@ -1,8 +1,8 @@
-import { Box, CircularProgress, IconButton, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, CircularProgress, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import {
     MoreHoriz as EllipsisIcon,
 } from "@mui/icons-material";
-import { ResourceListHorizontal } from "components";
+import { LinkButton, ResourceListHorizontal } from "components";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo, useState } from "react";
 import { containerShadow } from "styles";
@@ -97,9 +97,10 @@ export const SubroutineView = ({
                 </Stack>
                 <Stack direction="row" spacing={1}>
                     {ownedBy ? (
-                        <Link onClick={toOwner}>
-                            <Typography variant="body1" sx={{ color: palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy}</Typography>
-                        </Link>
+                        <LinkButton
+                            onClick={toOwner}
+                            text={ownedBy}
+                        />
                     ) : null}
                     <Typography variant="body1"> - {data?.version}</Typography>
                 </Stack>

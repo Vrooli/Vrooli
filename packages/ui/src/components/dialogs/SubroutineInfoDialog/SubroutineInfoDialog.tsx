@@ -12,7 +12,6 @@ import {
     Button,
     Grid,
     IconButton,
-    Link,
     Stack,
     SwipeableDrawer,
     Typography,
@@ -23,7 +22,7 @@ import { SubroutineInfoDialogProps } from '../types';
 import { getOwnedByString, getTranslation, toOwnedBy } from 'utils';
 import Markdown from 'markdown-to-jsx';
 import { routineUpdateForm as validationSchema } from '@local/shared';
-import { InputOutputContainer, MarkdownInput } from 'components';
+import { InputOutputContainer, LinkButton, MarkdownInput } from 'components';
 import { useFormik } from 'formik';
 import { RoutineInputList, RoutineOutputList } from 'types';
 
@@ -94,7 +93,6 @@ export const SubroutineInfoDialog = ({
     }, [handleViewFull]);
 
     return (
-        // @ts-ignore TODO
         <SwipeableDrawer
             anchor="bottom"
             variant='persistent'
@@ -131,9 +129,10 @@ export const SubroutineInfoDialog = ({
                 {/* Owned by and version */}
                 <Stack direction="row" sx={{ marginLeft: 'auto' }}>
                     {ownedBy ? (
-                        <Link onClick={toOwner}>
-                            <Typography variant="body1" sx={{ color: palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy}</Typography>
-                        </Link>
+                        <LinkButton
+                            onClick={toOwner}
+                            text={ownedBy}
+                        />
                     ) : null}
                     <Typography variant="body1"> - {subroutine?.version}</Typography>
                 </Stack>

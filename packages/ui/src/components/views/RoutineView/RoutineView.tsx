@@ -1,4 +1,4 @@
-import { Box, Button, CircularProgress, Dialog, Grid, IconButton, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material"
+import { Box, Button, CircularProgress, Dialog, Grid, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS } from "@local/shared";
 import { useMutation, useLazyQuery } from "@apollo/client";
@@ -12,7 +12,7 @@ import {
     MoreHoriz as EllipsisIcon,
     PlayCircle as StartIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, DeleteRoutineDialog, ResourceListHorizontal, RunPickerDialog, RunView, StarButton, UpTransition } from "components";
+import { BaseObjectActionDialog, DeleteRoutineDialog, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
 import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, Pubs, stringifySearchParams, toOwnedBy, useReactSearch } from "utils";
 import { Routine, Run } from "types";
@@ -359,26 +359,17 @@ export const RoutineView = ({
                 }}>
                     {/* Show star button and ellipsis next to title */}
                     <Stack direction="row" spacing={1} alignItems="center">
-                        <StarButton
-                            session={session}
-                            objectId={routine?.id ?? ''}
-                            showStars={false}
-                            starFor={StarFor.Routine}
-                            isStar={changedRoutine?.isStarred ?? false}
-                            stars={changedRoutine?.stars ?? 0}
-                            onChange={(isStar: boolean) => { changedRoutine && setChangedRoutine({ ...changedRoutine, isStarred: isStar }) }}
-                            tooltipPlacement="bottom"
-                        />
-                        <Typography variant="h5" sx={{ textAlign: 'center' }}>{title}</Typography>
-                        {canEdit && <Tooltip title="Edit routine">
-                            <IconButton
-                                aria-label="Edit routine"
-                                size="small"
-                                onClick={onEdit}
-                            >
-                                <EditIcon sx={{ fill: TERTIARY_COLOR }} />
-                            </IconButton>
-                        </Tooltip>}
+                        {loading ?
+                            <LinearProgress color="inherit" sx={{
+                                borderRadius: 1,
+                                width: '50vw',
+                                height: 8,
+                                marginTop: '12px !important',
+                                marginBottom: '12px !important',
+                                maxWidth: '300px',
+                            }} /> :
+                            <Typography variant="h5" sx={{ textAlign: 'center' }}>{title}</Typography>}
+
                         <Tooltip title="More options">
                             <IconButton
                                 aria-label="More"
@@ -394,13 +385,44 @@ export const RoutineView = ({
                             </IconButton>
                         </Tooltip>
                     </Stack>
-                    <Stack direction="row" spacing={1}>
+                    <Stack direction="row" spacing={1} sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    }}>
+                        <StarButton
+                            session={session}
+                            objectId={routine?.id ?? ''}
+                            showStars={false}
+                            starFor={StarFor.Routine}
+                            isStar={changedRoutine?.isStarred ?? false}
+                            stars={changedRoutine?.stars ?? 0}
+                            onChange={(isStar: boolean) => { changedRoutine && setChangedRoutine({ ...changedRoutine, isStarred: isStar }) }}
+                            tooltipPlacement="bottom"
+                        />
                         {ownedBy && (
-                            <Link onClick={toOwner}>
-                                <Typography variant="body1" sx={{ color: palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy}</Typography>
-                            </Link>
+                            <LinkButton
+                                onClick={toOwner}
+                                text={ownedBy}
+                            />
                         )}
                         <Typography variant="body1"> - {routine?.version}</Typography>
+                        <SelectLanguageDialog
+                            availableLanguages={availableLanguages}
+                            canDropdownOpen={availableLanguages.length > 1}
+                            handleSelect={setLanguage}
+                            language={language}
+                            session={session}
+                        />
+                        {canEdit && <Tooltip title="Edit routine">
+                            <IconButton
+                                aria-label="Edit routine"
+                                size="small"
+                                onClick={onEdit}
+                            >
+                                <EditIcon sx={{ fill: TERTIARY_COLOR }} />
+                            </IconButton>
+                        </Tooltip>}
                     </Stack>
                 </Stack>
                 {/* Body container */}

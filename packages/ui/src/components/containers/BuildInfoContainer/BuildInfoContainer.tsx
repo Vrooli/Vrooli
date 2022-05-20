@@ -9,7 +9,9 @@
 import { Box, Chip, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import {
+    AddLink as AddLinkIcon,
     Close as CloseIcon,
+    Compress as CleanUpIcon,
     Edit as EditIcon,
     Mood as ValidIcon,
     MoodBad as InvalidIcon,
@@ -17,7 +19,7 @@ import {
 } from '@mui/icons-material';
 import { getTranslation, BuildStatus } from 'utils';
 import { BuildInfoContainerProps } from '../types';
-import { HelpButton, BuildInfoDialog, SelectLanguageDialog } from 'components';
+import { HelpButton, BuildInfoDialog, SelectLanguageDialog, UnlinkedNodesDialog } from 'components';
 import Markdown from 'markdown-to-jsx';
 import { noSelect } from 'styles';
 import { EditableLabel } from 'components/inputs';
@@ -54,7 +56,9 @@ const TERTIARY_COLOR = '#95f3cd';
 
 export const BuildInfoContainer = ({
     canEdit,
+    handleAddLink,
     handleLanguageUpdate,
+    handleNodeDelete,
     handleRoutineAction,
     handleRoutineUpdate,
     handleStartEdit,
@@ -62,6 +66,7 @@ export const BuildInfoContainer = ({
     isEditing,
     language,
     loading,
+    nodesOffGraph,
     routine,
     session,
     status,
@@ -129,6 +134,18 @@ export const BuildInfoContainer = ({
         />
     ), [handleTitleUpdate, isEditing, language, loading, routine]);
 
+    // Open/close unlinked nodes drawer
+    const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);
+    const toggleUnlinkedNodes = useCallback(() => setIsUnlinkedNodesOpen(curr => !curr), []);
+
+    /**
+     * Cleans up graph by removing empty columns and row gaps within columns.
+     * Also adds end nodes to the end of each unfinished path
+     */
+    const cleanUpGraph = useCallback(() => {
+        //TODO
+    }, []);
+
     return (
         <>
             {/* Display title first on small screens */}
@@ -141,8 +158,8 @@ export const BuildInfoContainer = ({
                     background: palette.mode === 'light' ? '#19487a' : '#383844',
                     color: palette.primary.contrastText,
                     height: '64px',
-                    display: { xs: 'flex', md: 'none' },
-                    marginTop: { xs: '64px', md: '0' },
+                    display: { xs: 'flex', lg: 'none' },
+                    marginTop: { xs: '64px', md: '80px', lg: '0' },
                 }}>
                 {title}
             </Stack>
@@ -157,7 +174,7 @@ export const BuildInfoContainer = ({
                     height: '48px',
                     background: palette.primary.light,
                     color: palette.primary.contrastText,
-                    marginTop: { xs: '0', md: '80px' },
+                    marginTop: { xs: '0', lg: '80px' },
                 }}
             >
                 {/* Status indicator */}
@@ -217,10 +234,59 @@ export const BuildInfoContainer = ({
                     id="routine-title-and-language"
                     direction="row"
                     justifyContent="center"
-                    sx={{ display: { xs: 'none', md: 'flex' } }}>
+                    sx={{ display: { xs: 'none', lg: 'flex' } }}>
                     {title}
                 </Stack>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    {/* Clean up graph */}
+                    {isEditing && <Tooltip title='Clean up graph'>
+                        <IconButton
+                            id="clean-graph-button"
+                            edge="end"
+                            onClick={cleanUpGraph}
+                            aria-label='Clean up graph'
+                            sx={{
+                                background: '#ab9074',
+                                marginLeft: 'auto',
+                                marginRight: 1,
+                                transition: 'brightness 0.2s ease-in-out',
+                                '&:hover': {
+                                    filter: `brightness(105%)`,
+                                    background: '#ab9074',
+                                },
+                            }}
+                        >
+                            <CleanUpIcon id="clean-up-button-icon" sx={{ fill: 'white' }} />
+                        </IconButton>
+                    </Tooltip>}
+                    {/* Add new links to the routine */}
+                    {isEditing && <Tooltip title='Add new link'>
+                        <IconButton
+                            id="add-link-button"
+                            edge="end"
+                            onClick={handleAddLink}
+                            aria-label='Add link'
+                            sx={{
+                                background: '#9e3984',
+                                marginRight: 1,
+                                transition: 'brightness 0.2s ease-in-out',
+                                '&:hover': {
+                                    filter: `brightness(105%)`,
+                                    background: '#9e3984',
+                                },
+                            }}
+                        >
+                            <AddLinkIcon id="add-link-button-icon" sx={{ fill: 'white' }} />
+                        </IconButton>
+                    </Tooltip>}
+                    {/* Displays unlinked nodes */}
+                    {isEditing && <UnlinkedNodesDialog
+                        handleNodeDelete={handleNodeDelete}
+                        handleToggleOpen={toggleUnlinkedNodes}
+                        language={language}
+                        nodes={nodesOffGraph}
+                        open={isUnlinkedNodesOpen}
+                    />}
                     {/* Language select */}
                     <SelectLanguageDialog
                         handleSelect={handleLanguageUpdate}

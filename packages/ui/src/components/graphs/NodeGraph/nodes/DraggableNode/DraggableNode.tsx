@@ -19,7 +19,6 @@ export const DraggableNode = ({
     children,
     ...props
 }: DraggableNodeProps) => {
-
     // True if this node is being dragged
     const [isDragging, setIsDragging] = useState<boolean>(false);
     // Position refs
@@ -101,12 +100,11 @@ export const DraggableNode = ({
     }, [nodeId]);
 
     return (
-        // @ts-ignore TODO
         <Draggable
             handle=".handle"
             defaultPosition={{ x: 0, y: 0 }}
             disabled={!canDrag}
-            position={isDragging ? undefined : { x: 0, y: 0 }}
+            position={{ x: 0, y: 0 }}
             scale={1}
             onMouseDown={handleMouseDown}
             onStart={handleDragStart}

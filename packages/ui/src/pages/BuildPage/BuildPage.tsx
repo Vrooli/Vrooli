@@ -1,5 +1,5 @@
-import { Box, IconButton, Tooltip } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, BuildInfoContainer, SubroutineInfoDialog, UnlinkedNodesDialog, AddSubroutineDialog, AddAfterLinkDialog, AddBeforeLinkDialog, DeleteRoutineDialog } from 'components';
+import { Box } from '@mui/material';
+import { LinkDialog, NodeGraph, BuildBottomContainer, BuildInfoContainer, SubroutineInfoDialog, AddSubroutineDialog, AddAfterLinkDialog, AddBeforeLinkDialog, DeleteRoutineDialog } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
 import { useMutation, useLazyQuery } from '@apollo/client';
@@ -7,10 +7,6 @@ import { routineCreateMutation, routineDeleteOneMutation, routineUpdateMutation 
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { routine, routineVariables } from 'graphql/generated/routine';
 import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, BuildStatus, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages } from 'utils';
-import {
-    AddLink as AddLinkIcon,
-    Compress as CleanUpIcon,
-} from '@mui/icons-material';
 import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine } from 'types';
 import isEqual from 'lodash/isEqual';
 import { useLocation, useRoute } from 'wouter';
@@ -95,10 +91,6 @@ export const BuildPage = ({
     const [scale, setScale] = useState<number>(1);
     const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine]);
     
-    // Open/close unlinked nodes drawer
-    const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);
-    const toggleUnlinkedNodes = useCallback(() => setIsUnlinkedNodesOpen(curr => !curr), []);
-
     useEffect(() => {
         setChangedRoutine(routine);
     }, [routine]);
@@ -145,14 +137,6 @@ export const BuildPage = ({
             PubSub.unsubscribe(dragStartSub);
             PubSub.unsubscribe(dragDropSub);
         }
-    }, []);
-
-    /**
-     * Cleans up graph by removing empty columns and row gaps within columns.
-     * Also adds end nodes to the end of each unfinished path
-     */
-    const cleanUpGraph = useCallback(() => {
-        //TODO
     }, []);
 
     /**
@@ -949,7 +933,9 @@ export const BuildPage = ({
             {/* Displays main routine's information and some buttons */}
             <BuildInfoContainer
                 canEdit={canEdit}
+                handleAddLink={openLinkDialog}
                 handleLanguageUpdate={handleLanguageUpdate}
+                handleNodeDelete={handleNodeDelete}
                 handleRoutineAction={handleRoutineAction}
                 handleRoutineUpdate={updateRoutine}
                 handleStartEdit={startEditing}
@@ -957,70 +943,11 @@ export const BuildPage = ({
                 isEditing={isEditing}
                 language={language}
                 loading={loadingRead}
+                nodesOffGraph={nodesOffGraph}
                 routine={changedRoutine}
                 session={session}
                 status={status}
             />
-            {/* Components shown when editing */}
-            {isEditing ? <Box sx={{
-                display: 'flex',
-                alignItems: isUnlinkedNodesOpen ? 'baseline' : 'center',
-                // alignSelf: 'flex-end',
-                marginTop: 1,
-                marginLeft: 1,
-                marginRight: 1,
-                zIndex: isDragging ? 'unset' : 2,
-            }}>
-                {/* Clean up graph */}
-                <Tooltip title='Clean up graph'>
-                    <IconButton
-                        id="clean-graph-button"
-                        edge="end"
-                        onClick={cleanUpGraph}
-                        aria-label='Clean up graph'
-                        sx={{
-                            background: '#ab9074',
-                            marginLeft: 'auto',
-                            marginRight: 1,
-                            transition: 'brightness 0.2s ease-in-out',
-                            '&:hover': {
-                                filter: `brightness(105%)`,
-                                background: '#ab9074',
-                            },
-                        }}
-                    >
-                        <CleanUpIcon id="clean-up-button-icon" sx={{ fill: 'white' }} />
-                    </IconButton>
-                </Tooltip>
-                {/* Add new links to the routine */}
-                <Tooltip title='Add new link'>
-                    <IconButton
-                        id="add-link-button"
-                        edge="end"
-                        onClick={openLinkDialog}
-                        aria-label='Add link'
-                        sx={{
-                            background: '#9e3984',
-                            marginRight: 1,
-                            transition: 'brightness 0.2s ease-in-out',
-                            '&:hover': {
-                                filter: `brightness(105%)`,
-                                background: '#9e3984',
-                            },
-                        }}
-                    >
-                        <AddLinkIcon id="add-link-button-icon" sx={{ fill: 'white' }} />
-                    </IconButton>
-                </Tooltip>
-                {/* Displays unlinked nodes */}
-                <UnlinkedNodesDialog
-                    handleNodeDelete={handleNodeDelete}
-                    handleToggleOpen={toggleUnlinkedNodes}
-                    language={language}
-                    nodes={nodesOffGraph}
-                    open={isUnlinkedNodesOpen}
-                />
-            </Box> : null}
             <Box sx={{
                 bottom: '0',
                 display: 'flex',

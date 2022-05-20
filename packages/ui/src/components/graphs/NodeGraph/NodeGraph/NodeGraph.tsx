@@ -416,7 +416,7 @@ export const NodeGraph = ({
             // 100vh - (64 + 64 + 48 + 48 + 56) = calc(100vh - 280px).
             // On larger screens, these are: navbar (80px), other top build icons (48px), and build bottom (48px).
             // This makes the size 100vh - (80 + 48 + 48) = calc(100vh - 176px).
-            height: { xs: 'calc(100vh - 280px)', md: 'calc(100vh - 176px)' },
+            height: { xs: 'calc(100vh - 280px)', md: 'calc(100vh - 240px)', lg: 'calc(100vh - 176px)' },
             overflowX: 'auto',
             overflowY: 'auto',
             margin: 0,

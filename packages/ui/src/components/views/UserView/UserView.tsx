@@ -250,7 +250,7 @@ export const UserView = ({
                 alignItems='center'
                 left='50%'
                 top="-55px"
-                sx={{ 
+                sx={{
                     border: `1px solid black`,
                     backgroundColor: profileColors[0],
                     transform: 'translateX(-50%)',
@@ -293,7 +293,7 @@ export const UserView = ({
                                     onClick={onEdit}
                                 >
                                     <EditIcon sx={{
-                                        fill: palette.mode === 'light' ? 
+                                        fill: palette.mode === 'light' ?
                                             palette.primary.main : palette.secondary.light,
                                     }} />
                                 </IconButton>
@@ -455,6 +455,7 @@ export const UserView = ({
                     {
                         currTabType === TabOptions.Resources ? resources : (
                             <SearchList
+                                canSearch={uuidValidate(id)}
                                 defaultSortOption={defaultSortOption}
                                 handleAdd={toAddNew}
                                 itemKeyPrefix={itemKeyPrefix}

@@ -1,5 +1,5 @@
-import { BuildRunState, BuildStatus } from "utils";
-import { Routine, Session } from "types";
+import { BuildRunState } from "utils";
+import { Node, Routine, Session } from "types";
 import { BuildStatusObject } from "components/graphs/NodeGraph/types";
 
 export interface TitleContainerProps {
@@ -53,7 +53,9 @@ export interface BuildBottomContainerProps {
 
 export interface BuildInfoContainerProps {
     canEdit: boolean;
+    handleAddLink: () => void;
     handleLanguageUpdate: (language: string) => void;
+    handleNodeDelete: (nodeId: string) => void;
     handleRoutineAction: (action: BaseObjectAction) => void;
     handleRoutineUpdate: (changedRoutine: Routine) => void;
     handleStartEdit: () => void;
@@ -61,6 +63,7 @@ export interface BuildInfoContainerProps {
     isEditing: boolean;
     language: string;
     loading: boolean;
+    nodesOffGraph: Node[];
     routine: Routine | null;
     session: Session;
     status: BuildStatusObject;

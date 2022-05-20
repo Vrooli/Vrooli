@@ -241,7 +241,7 @@ export const ProjectView = ({
                                     onClick={onEdit}
                                 >
                                     <EditIcon sx={{
-                                        fill: palette.mode === 'light' ? 
+                                        fill: palette.mode === 'light' ?
                                             palette.primary.main : palette.secondary.light,
                                     }} />
                                 </IconButton>
@@ -398,6 +398,7 @@ export const ProjectView = ({
                     {
                         currTabType === TabOptions.Resources ? resources : (
                             <SearchList
+                                canSearch={uuidValidate(id)}
                                 defaultSortOption={defaultSortOption}
                                 handleAdd={toAddNew}
                                 itemKeyPrefix={itemKeyPrefix}

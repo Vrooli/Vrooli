@@ -1,4 +1,4 @@
-import { useQuery } from "@apollo/client";
+import { useLazyQuery } from "@apollo/client";
 import { Box, Button, CircularProgress, List, Tooltip, Typography, useTheme } from "@mui/material";
 import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -28,6 +28,7 @@ const searchButtonStyle = {
 };
 
 export function SearchList<DataType, SortBy, Query, QueryVariables extends SearchQueryVariablesInput<SortBy>>({
+    canSearch = true,
     defaultSortOption,
     handleAdd,
     itemKeyPrefix,
@@ -65,15 +66,15 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     }, [timeFrame]);
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object>({});
-    const { data: pageData, refetch: fetchPage, loading } = useQuery<Query, QueryVariables>(query, { variables: ({ input: { after: after.current, take, sortBy, searchString, createdTimeFrame, ...where, ...advancedSearchParams } } as any) });
+    const [getPageData, { data: pageData, loading }] = useLazyQuery<Query, QueryVariables>(query, { variables: ({ input: { after: after.current, take, sortBy, searchString, createdTimeFrame, ...where, ...advancedSearchParams } } as any) });
     const [allData, setAllData] = useState<DataType[]>([]);
 
     // On search filters/sort change, reset the page
     useEffect(() => {
         console.log('FETCHIN NEW PAGE DAWG');
         after.current = undefined;
-        fetchPage();
-    }, [advancedSearchParams, searchString, sortBy, createdTimeFrame, fetchPage, where]);
+        if (canSearch) getPageData();
+    }, [advancedSearchParams, canSearch, searchString, sortBy, createdTimeFrame, where, getPageData]);
 
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
@@ -84,10 +85,10 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
             const { endCursor } = queryData.pageInfo;
             if (endCursor) {
                 after.current = endCursor;
-                fetchPage();
+                getPageData();
             }
         }
-    }, [pageData, fetchPage]);
+    }, [getPageData, pageData]);
 
     // Helper method for converting fetched data to an array of object data
     const parseData = useCallback((data: any) => {
