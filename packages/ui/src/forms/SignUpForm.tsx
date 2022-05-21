@@ -16,7 +16,7 @@ import {
 import { Forms, Pubs } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import PubSub from 'pubsub-js';
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { useLocation } from 'wouter';
 import { emailSignUp } from 'graphql/generated/emailSignUp';
 import { FormProps } from './types';
@@ -24,6 +24,7 @@ import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 import { PasswordTextField } from 'components';
 import { CSSProperties } from '@mui/styles';
+import { errorToMessage, hasErrorCode } from 'graphql/utils';
 
 export const SignUpForm = ({
     onFormChange = () => { },
@@ -57,9 +58,9 @@ export const SignUpForm = ({
                     });
                 },
                 onError: (response) => {
-                    if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.EmailInUse.code)) {
+                    if (hasErrorCode(response, CODE.EmailInUse)) {
                         PubSub.publish(Pubs.AlertDialog, {
-                            message: `${response.message}. Press OK if you would like to be redirected to the forgot password form.`,
+                            message: `${errorToMessage(response)}. Press OK if you would like to be redirected to the forgot password form.`,
                             buttons: [{ text: 'OK', onClick: () => onFormChange(Forms.ForgotPassword) }]
                         });
                     }

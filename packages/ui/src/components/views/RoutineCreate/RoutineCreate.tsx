@@ -1,7 +1,7 @@
 import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { routine } from "graphql/generated/routine";
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { ROLES, routineCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { routineCreateMutation } from "graphql/mutation";

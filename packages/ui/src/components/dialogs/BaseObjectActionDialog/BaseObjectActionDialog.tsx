@@ -23,7 +23,7 @@ import {
     QueryStats as StatsIcon,
     SvgIconComponent,
 } from "@mui/icons-material";
-import { mutationWrapper } from "graphql/utils/wrappers";
+import { mutationWrapper } from "graphql/utils/mutationWrapper";
 
 /**
  * [label, Icon, iconColor, preview]

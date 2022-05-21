@@ -8,7 +8,7 @@ import {
     Paper,
 } from '@mui/material';
 import { APP_LINKS } from '@local/shared';
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { useLocation } from 'wouter';
 import { emailResetPassword } from 'graphql/generated/emailResetPassword';
 import { ResetPasswordFormProps } from './types';

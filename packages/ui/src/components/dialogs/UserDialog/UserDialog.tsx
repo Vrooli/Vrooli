@@ -5,8 +5,8 @@ import { UserDialogProps, ObjectDialogAction } from 'components/dialogs/types';
 import { useLocation, useRoute } from 'wouter';
 import { useMutation } from '@apollo/client';
 import { user } from 'graphql/generated/user';
-import { profileUpdateMutation, userDeleteOneMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { profileUpdateMutation } from 'graphql/mutation';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { APP_LINKS } from '@local/shared';
 import { Pubs } from 'utils';
 

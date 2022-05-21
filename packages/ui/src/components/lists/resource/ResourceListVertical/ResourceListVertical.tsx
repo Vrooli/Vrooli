@@ -11,7 +11,7 @@ import {
 } from '@mui/icons-material';
 import { useMutation } from '@apollo/client';
 import { resourceDeleteManyMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { updateArray } from 'utils';
 
 export const ResourceListVertical = ({

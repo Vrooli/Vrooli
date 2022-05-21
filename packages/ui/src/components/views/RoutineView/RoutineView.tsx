@@ -18,7 +18,7 @@ import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslati
 import { Routine, Run } from "types";
 import Markdown from "markdown-to-jsx";
 import { runCompleteMutation, routineDeleteOneMutation } from "graphql/mutation";
-import { mutationWrapper } from "graphql/utils/wrappers";
+import { mutationWrapper } from "graphql/utils/mutationWrapper";
 import { NodeType, StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";

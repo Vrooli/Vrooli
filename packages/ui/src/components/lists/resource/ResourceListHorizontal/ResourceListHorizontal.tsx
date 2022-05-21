@@ -14,7 +14,7 @@ import { ResourceDialog } from 'components/dialogs';
 import { updateArray } from 'utils';
 import { resourceDeleteManyMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 
 export const ResourceListHorizontal = ({
     title = '📌 Resources',

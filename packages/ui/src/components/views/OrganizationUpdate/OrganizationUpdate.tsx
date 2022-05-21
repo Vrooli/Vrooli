@@ -6,7 +6,7 @@ import { organization, organizationVariables } from "graphql/generated/organizat
 import { organizationQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { OrganizationUpdateProps } from "../types";
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { organizationUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { organizationUpdateMutation } from "graphql/mutation";

@@ -4,7 +4,7 @@ import { Box, Button, Dialog, FormControl, Grid, IconButton, InputLabel, MenuIte
 import { HelpButton } from 'components/buttons';
 import { useFormik } from 'formik';
 import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { ResourceDialogProps } from '../types';
 import {
     Close as CloseIcon

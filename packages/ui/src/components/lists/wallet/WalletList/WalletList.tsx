@@ -9,7 +9,7 @@ import {
     Add as AddIcon,
 } from '@mui/icons-material';
 import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { Pubs, updateArray } from 'utils';
 import { walletDeleteOneMutation, walletUpdateMutation } from 'graphql/mutation';
 import { hasWalletExtension, validateWallet, WalletProvider, walletProviderInfo } from 'utils/authentication/walletIntegration';

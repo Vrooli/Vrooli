@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import { APP_LINKS } from '@local/shared';
 import { Forms } from 'utils';
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { useLocation } from 'wouter';
 import { emailRequestPasswordChange } from 'graphql/generated/emailRequestPasswordChange';
 import { FormProps } from './types';

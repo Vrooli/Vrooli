@@ -138,7 +138,7 @@ export const resolvers = {
             else {
                 const email = await context.prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
                 if (!email) 
-                    throw new CustomError(CODE.BadCredentials, 'Email not found', { code: genErrorCode('0133') });
+                    throw new CustomError(CODE.EmailNotFound, 'Email not found', { code: genErrorCode('0133') });
                 // Find user
                 user = await context.prisma.user.findUnique({ where: { id: email.userId ?? '' } });
                 if (!user) 

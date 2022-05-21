@@ -14,7 +14,7 @@ import {
 import { Forms, Pubs, useReactSearch } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import PubSub from 'pubsub-js';
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { emailLogIn } from 'graphql/generated/emailLogIn';
 import { LogInFormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
@@ -22,6 +22,7 @@ import { clickSize } from 'styles';
 import { PasswordTextField } from 'components';
 import { useMemo } from 'react';
 import { CSSProperties } from '@mui/styles';
+import { errorToMessage, hasErrorCode } from 'graphql/utils';
 
 export const LogInForm = ({
     onFormChange = () => { }
@@ -33,7 +34,10 @@ export const LogInForm = ({
         verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
     }), [search]);
 
-    const [emailLogIn, { loading }] = useMutation<emailLogIn>(emailLogInMutation);
+    const [emailLogIn, { loading }] = useMutation<emailLogIn>(emailLogInMutation);  
+
+    const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
+    const toSignUp = () => onFormChange(Forms.SignUp);
 
     const formik = useFormik({
         initialValues: {
@@ -50,8 +54,10 @@ export const LogInForm = ({
                     if (verificationCode) PubSub.publish(Pubs.Snack, { message: 'Email verified!' });
                     PubSub.publish(Pubs.Session, response.data.emailLogIn); setLocation(redirect ?? APP_LINKS.Home) 
                 },
+                showDefaultErrorSnack: false,
                 onError: (response) => {
-                    if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.MustResetPassword.code)) {
+                    // Custom dialog for changing password
+                    if (hasErrorCode(response, CODE.MustResetPassword)) {
                         PubSub.publish(Pubs.AlertDialog, {
                             message: 'Before signing in, please follow the link sent to your email to change your password.',
                             buttons: [
@@ -59,14 +65,23 @@ export const LogInForm = ({
                             ]
                         });
                     }
+                    // Custom snack for invalid email, that has sign up link
+                    else if (hasErrorCode(response, CODE.EmailNotFound)) {
+                        PubSub.publish(Pubs.Snack, { 
+                            message: CODE.EmailNotFound.message, 
+                            severity: 'error', 
+                            buttonText: 'Sign Up',
+                            buttonClicked: () => { toSignUp() }
+                        });
+                    } else {
+                        console.log('IN ELSE', response);
+                        PubSub.publish(Pubs.Snack, { message: errorToMessage(response), severity: 'error', data: response });
+                    }
                     formik.setSubmitting(false);
                 }
             })
         },
     });
-
-    const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
-    const toSignUp = () => onFormChange(Forms.SignUp);
 
     return (
         <Paper sx={{ ...formPaper }}>

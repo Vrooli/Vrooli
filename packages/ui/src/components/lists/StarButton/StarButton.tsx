@@ -6,7 +6,7 @@ import {
     StarBorder as IsNotStarredIcon,
 } from '@mui/icons-material';
 import { multiLineEllipsis } from 'styles';
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { useMutation } from '@apollo/client';
 import { star } from 'graphql/generated/star';
 import { starMutation } from 'graphql/mutation';

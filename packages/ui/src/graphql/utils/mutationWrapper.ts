@@ -1,8 +1,9 @@
 import isFunction from 'lodash/isFunction';
 import { Pubs } from "utils";
 import PubSub from 'pubsub-js';
-import { ApolloCache, DefaultContext, FetchResult, MutationFunctionOptions, OperationVariables } from '@apollo/client';
-import { errorToSnack } from './errorToSnack';
+import { ApolloCache, DefaultContext, MutationFunctionOptions, OperationVariables } from '@apollo/client';
+import { errorToMessage } from './errorParser';
+import { ApolloError, ApolloResponse } from 'types';
 
 interface MutationWrapperProps {
     // useMutation function
@@ -16,7 +17,7 @@ interface MutationWrapperProps {
     // Debug data to print on success
     successData?: any;
     // Callback triggered on success
-    onSuccess?: (response: FetchResult<any, Record<string, any>, Record<string, any>>) => any;
+    onSuccess?: (response: ApolloResponse) => any;
     // Message displayed on error
     errorMessage?: (response?: any) => string;
     // Debug data to print on error
@@ -24,7 +25,7 @@ interface MutationWrapperProps {
     // If true, display default error snack. Will not display if error message or data is set
     showDefaultErrorSnack?: boolean;
     // Callback triggered on error
-    onError?: (response?: any) => any;
+    onError?: (response: ApolloError) => any;
     // Milliseconds before showing a spinner. If undefined or null, spinner disabled
     spinnerDelay?: number | null;
 }
@@ -48,7 +49,8 @@ export const mutationWrapper = ({
     spinnerDelay = 1000,
 }: MutationWrapperProps) => {
     if (spinnerDelay) PubSub.publish(Pubs.Loading, spinnerDelay);
-    mutation(input ? { variables: { input } } : undefined).then((response) => {
+    mutation(input ? { variables: { input } } : undefined).then((response: ApolloResponse) => {
+        console.log("MUTATION WRAPPER RESPONSE", JSON.stringify(response));
         if (successCondition(response)) {
             if (successMessage || successData) PubSub.publish(Pubs.Snack, { message: successMessage && successMessage(response), ...successData });
             if (spinnerDelay) PubSub.publish(Pubs.Loading, false);
@@ -61,15 +63,15 @@ export const mutationWrapper = ({
                 PubSub.publish(Pubs.Snack, { message: 'Unknown error occurred.', severity: 'error', data: response });
             }
             if (spinnerDelay) PubSub.publish(Pubs.Loading, false);
-            if (isFunction(onError)) onError(response);
+            if (isFunction(onError)) onError({ message: 'Unknown error occurred.' });
         }
-    }).catch((response) => {
+    }).catch((response: ApolloError) => {
         if (spinnerDelay) PubSub.publish(Pubs.Loading, false);
         if (errorMessage || errorData) {
             PubSub.publish(Pubs.Snack, { message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
         }
         else if (showDefaultErrorSnack) {
-            PubSub.publish(Pubs.Snack, { message: errorToSnack(response), severity: 'error', data: response });
+            PubSub.publish(Pubs.Snack, { message: errorToMessage(response), severity: 'error', data: response });
         }
         if (isFunction(onError)) onError(response);
     })
