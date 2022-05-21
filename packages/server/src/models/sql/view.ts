@@ -7,7 +7,6 @@ import _ from "lodash";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { OrganizationModel } from "./organization";
-import { redisClient } from "../../redisConn";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
@@ -259,26 +258,6 @@ const viewer = (prisma: PrismaType) => ({
         // If user is owner, don't do anything else
         if (isOwn) return true;
         // Check the last time the user viewed this object
-        const redisKey = `view:${userId}_${input.forId}_${input.viewFor}`
-        const lastViewed = await redisClient.get(redisKey);
-        // If object viewed more than 1 hour ago, update view count
-        if (!lastViewed || new Date(lastViewed).getTime() < new Date().getTime() - 3600000) {
-            await prismaFor.update({
-                where: { id: input.forId },
-                data: { views: viewFor.views + 1 }
-            })
-            console.log('before log view')
-            // Log view
-            Log.collection.insertOne({
-                timestamp: Date.now(),
-                userId: userId,
-                action: LogType.View,
-                object1Type: input.viewFor,
-                object1Id: input.forId,
-            }).catch(error => logger.log(LogLevel.error, 'Failed creating "View" log', { code: genErrorCode('0203'), error }));
-        }
-        // Update last viewed time
-        await redisClient.set(redisKey, new Date().toISOString());
         return true;
     },
     /**
