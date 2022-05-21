@@ -25,6 +25,7 @@ services:
             - ./packages/ui:${PROJECT_DIR}/packages/ui:z
             - ./packages/shared:${PROJECT_DIR}/packages/shared:z
         depends_on: 
+                - redis
                 - db
         command: /bin/sh -c "chmod +x ./scripts/* && ./scripts/ui.sh"
     server:
@@ -40,6 +41,7 @@ services:
             JWT_SECRET: "${JWT_SECRET}"
             PROJECT_DIR: "${PROJECT_DIR}"
             REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
+            REDIS_CONN: "redis:6379"
             DB_CONN: "db:5432"
             DB_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}"
             CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
@@ -72,6 +74,7 @@ services:
             - ./data/stats:${PROJECT_DIR}/data/stats:z
             - ./packages/server/src/db/migrations:${PROJECT_DIR}/packages/server/src/db/migrations
         depends_on: 
+            - redis
             - db
         command: /bin/sh -c "chmod +x ./scripts/* && ./scripts/server.sh"
     db:
@@ -90,6 +93,17 @@ services:
         volumes:
             - ./data/postgres:/var/lib/postgresql/data
             - ./packages/db/entrypoint:/docker-entrypoint-initdb.d
+    redis:
+        image: redis:7-alpine
+        container_name: redis
+        restart: always
+        networks:
+          - app   
+        volumes:
+          - ./data/redis:/srv/app/data/redis:z    
+        ports:
+            - 6379:6379
+        command: /bin/sh -c "mkdir -p /srv/app/data/redis/appendonlydir && rm -f /srv/app/data/redis/dump.rdb && redis-server --bind redis --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes --dbfilename dump.rdb --dir /srv/app/data/redis/"
     # adminer:
     #     image: adminer
     #     restart: always

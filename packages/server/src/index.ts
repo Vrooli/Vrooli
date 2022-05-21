@@ -11,6 +11,7 @@ import { setupDatabase } from './utils/setupDatabase';
 import { initStatsCronJobs } from './statsLog';
 import mongoose from 'mongoose';
 import { genErrorCode, logger, LogLevel } from './logger';
+import { redisClient, REDIS_URL } from './redisConn';
 
 const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
     `http://localhost:5329/api` :
@@ -39,6 +40,9 @@ const main = async () => {
     } catch (error) {
         logger.log(LogLevel.error, '🚨 Failed to connect to MongoDB', { code: genErrorCode('0191'), error });
     }
+    // Redis
+    logger.log(LogLevel.info, 'Creating Redis client.', { code: genErrorCode('0184'), url: REDIS_URL });
+    await redisClient.connect();
 
     const app = express();
 
