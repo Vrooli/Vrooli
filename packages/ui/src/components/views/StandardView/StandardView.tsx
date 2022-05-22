@@ -112,13 +112,13 @@ export const StandardView = ({
             </Box>
             <Stack direction="row" padding={1}>
                 <Tooltip title="Favorite organization">
-                    <IconButton aria-label="Favorite" size="small">
-                        <StarOutlineIcon onClick={() => { }} />
+                    <IconButton aria-label="Favorite" size="small" onClick={() => { }}>
+                        <StarOutlineIcon />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title="See all options">
-                    <IconButton aria-label="More" size="small" edge="end">
-                        <EllipsisIcon onClick={openMoreMenu} />
+                    <IconButton aria-label="More" size="small" edge="end" onClick={openMoreMenu}>
+                        <EllipsisIcon />
                     </IconButton>
                 </Tooltip>
             </Stack>
@@ -128,13 +128,13 @@ export const StandardView = ({
                 <Typography variant="body1" sx={{ color: description ? 'black' : 'gray' }}>{description ?? 'No description set'}</Typography>
                 <Stack direction="row" spacing={4} alignItems="center">
                     <Tooltip title="Donate">
-                        <IconButton aria-label="Donate" size="small">
-                            <DonateIcon onClick={() => { }} />
+                        <IconButton aria-label="Donate" size="small" onClick={() => { }}>
+                            <DonateIcon />
                         </IconButton>
                     </Tooltip>
                     <Tooltip title="Share">
-                        <IconButton aria-label="Share" size="small">
-                            <ShareIcon onClick={() => { }} />
+                        <IconButton aria-label="Share" size="small" onClick={() => { }}>
+                            <ShareIcon />
                         </IconButton>
                     </Tooltip>
                 </Stack>

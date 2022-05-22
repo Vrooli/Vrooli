@@ -7,7 +7,8 @@
  * - Langauges - LanguageInput
  * - Tags - TagSelector
  */
-import { FormSchema, InputType } from "forms/types";
+import { InputType } from "@local/shared";
+import { FormSchema } from "forms/types";
 
 export const projectSearchSchema: FormSchema = {
     formLayout: {

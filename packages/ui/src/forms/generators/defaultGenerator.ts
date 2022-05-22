@@ -4,37 +4,42 @@ import { InputType } from '@local/shared';
 
 /**
  * Maps a data input type to a function that calculates its default values.
- * Values already set have precedence
+ * Values already set have precedence. 
+ * Assumes that any key in props might be missing.
  * @returns The passed-in props object with default values added
  */
 const defaultMap: { [key in InputType]: (props: any) => any } = {
-    [InputType.Checkbox]: (props: CheckboxProps): CheckboxProps => ({
-        defaultValue: new Array(props.options.length).fill(false),
+    [InputType.Checkbox]: (props: Partial<CheckboxProps>): CheckboxProps => ({
         color: 'secondary',
+        defaultValue: new Array(props.options?.length?? 0).fill(false),
+        options: [],
         row: true,
         ...props
     }),
-    [InputType.Dropzone]: (props: DropzoneProps): DropzoneProps => ({
+    [InputType.Dropzone]: (props: Partial<DropzoneProps>): DropzoneProps => ({
         defaultValue: [],
         ...props
     }),
-    [InputType.JSON]: (props: JSONProps): JSONProps => ({
+    [InputType.JSON]: (props: Partial<Omit<JSONProps, 'id'>>): Omit<JSONProps, 'id'> => ({
         defaultValue: '',
         ...props
     }),
-    [InputType.LanguageInput]: (props: LanguageInputProps): LanguageInputProps => ({
+    [InputType.LanguageInput]: (props: Partial<LanguageInputProps>): LanguageInputProps => ({
         defaultValue: [],
         ...props
     }),
-    [InputType.Markdown]: (props: MarkdownProps): MarkdownProps => ({
+    [InputType.Markdown]: (props: Partial<Omit<MarkdownProps, 'id'>>): Omit<MarkdownProps, 'id'> => ({
         defaultValue: '',
         ...props
     }),
-    [InputType.Radio]: (props: RadioProps) => ({
+    [InputType.Radio]: (props: Partial<RadioProps>) => ({
         defaultValue: (Array.isArray(props.options) && props.options.length > 0) ? props.options[0].value : '',
         ...props
     }),
-    [InputType.Selector]: (props: SelectorProps): SelectorProps => ({ ...props }),
+    [InputType.Selector]: (props: Partial<SelectorProps>): SelectorProps => ({ 
+        options: [],
+        ...props 
+    }),
     [InputType.Slider]: (props: SliderProps) => {
         let { defaultValue, min, max, step, ...otherProps } = props;
         const isNumeric = (n: any) => !isNaN(parseFloat(n)) && isFinite(n);
@@ -55,21 +60,21 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
             ...otherProps
         }
     },
-    [InputType.Switch]: (props: SwitchProps): SwitchProps => ({
+    [InputType.Switch]: (props: Partial<SwitchProps>): SwitchProps => ({
         defaultValue: false,
         color: 'secondary',
         size: 'medium',
         ...props
     }),
-    [InputType.TagSelector]: (props: TagSelectorProps): TagSelectorProps => ({
+    [InputType.TagSelector]: (props: Partial<TagSelectorProps>): TagSelectorProps => ({
         defaultValue: [],
         ...props
     }),
-    [InputType.TextField]: (props: TextFieldProps): TextFieldProps => ({
+    [InputType.TextField]: (props: Partial<TextFieldProps>): TextFieldProps => ({
         defaultValue: '',
         ...props
     }),
-    [InputType.QuantityBox]: (props: Omit<QuantityBoxProps, 'id' | 'value' | 'handleChange'>): Omit<QuantityBoxProps, 'id' | 'value' | 'handleChange'> => ({
+    [InputType.QuantityBox]: (props: Partial<Omit<QuantityBoxProps, 'id' | 'value' | 'handleChange'>>): Omit<QuantityBoxProps, 'id' | 'value' | 'handleChange'> => ({
         ...props
     }),
 }
@@ -94,12 +99,16 @@ export const generateDefaultProps = (fields: FieldData[]): FieldData[] => {
  * @param type The input type
  * @returns A FieldData object with default values
  */
-export const createDefaultFieldData = (type: InputType): FieldData => ({
-    type,
-    props: defaultMap[type]({}),
-    fieldName: '',
-    label: '',
-    yup: {
-        checks: [],
-    },
-});
+export const createDefaultFieldData = (type: InputType): FieldData | null => {
+    console.log('createdefaultfieldata', type);
+    if (!type || !defaultMap[type]) return null;
+    return ({
+        type,
+        props: defaultMap[type]({}),
+        fieldName: '',
+        label: '',
+        yup: {
+            checks: [],
+        },
+    })
+}

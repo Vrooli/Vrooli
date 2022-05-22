@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Box, Chip, FormControl, InputLabel, MenuItem, Select, Theme, useTheme } from '@mui/material';
 import isArray from 'lodash/isArray';
 import { SelectorProps } from '../types';
@@ -32,6 +32,16 @@ export const Selector = ({
         };
     }, [options, getOptionLabel]);
 
+    /**
+     * Determines if label should be shrunk
+     */
+    const shrinkLabel = useMemo(() => {
+        if (!selected) return false;
+        if (typeof selected === 'string') return selected.length > 0;
+        if (getOptionLabel && selected) return getOptionLabel(selected).length > 0;
+        return false; 
+    }, [selected, getOptionLabel]);
+
     return (
         <FormControl
             variant="outlined"
@@ -39,7 +49,7 @@ export const Selector = ({
         >
             <InputLabel
                 id={inputAriaLabel}
-                shrink={selected?.length > 0}
+                shrink={shrinkLabel}
                 sx={{ color: palette.background.textPrimary }}
             >
                 {label}

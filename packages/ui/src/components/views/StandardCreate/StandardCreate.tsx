@@ -22,10 +22,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { FieldData } from "forms/types";
 import { createDefaultFieldData } from "forms/generators";
 
+type InputTypeOption = { label: string, value: InputType }
 /**
  * Supported input types
  */
-export const InputTypeOptions: { label: string, value: InputType }[] = [
+export const InputTypeOptions: InputTypeOption[] = [
     {
         label: 'Text',
         value: InputType.TextField,
@@ -68,11 +69,13 @@ export const StandardCreate = ({
     const params = useReactSearch(null);
 
     // Handle input type selector
-    const [inputType, setInputType] = useState<InputType>(InputType.JSON);
-    const handleInputTypeSelect = useCallback((e) => setInputType(e.target.value), []);
+    const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
+    const handleInputTypeSelect = useCallback((event: any) => {
+        setInputType(event.target.value)
+    }, []);
 
     // Handle standard schema
-    const [schema, setSchema] = useState<FieldData>(createDefaultFieldData(inputType));
+    const [schema, setSchema] = useState<FieldData | null>(createDefaultFieldData(inputType.value));
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
@@ -278,6 +281,7 @@ export const StandardCreate = ({
                         options={InputTypeOptions}
                         selected={inputType}
                         handleChange={handleInputTypeSelect}
+                        getOptionLabel={(option: InputTypeOption) => option.label}
                         inputAriaLabel='input-type-selector'
                         label="Size"
                     />
