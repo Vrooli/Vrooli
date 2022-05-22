@@ -3,22 +3,10 @@ import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelp
 import { IWrap, RecursivePartial } from '../types';
 import { DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, Success, StandardSearchResult, StandardSortBy } from './types';
 import { Context } from '../context';
-import pkg from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
-const { StandardType } = pkg;
 
 export const typeDef = gql`
-    enum StandardType {
-        String
-        Number
-        Boolean
-        Object
-        Array
-        File
-        Url
-    }
-
     enum StandardSortBy {
         CommentsAsc
         CommentsDesc
@@ -36,8 +24,9 @@ export const typeDef = gql`
         default: String
         isFile: Boolean
         name: String!
-        schema: String
-        type: StandardType
+        type: String!
+        props: String!
+        yup: String
         version: String
         createdByUserId: ID
         createdByOrganizationId: ID
@@ -66,11 +55,12 @@ export const typeDef = gql`
         role: MemberRole
         isUpvoted: Boolean
         isViewed: Boolean!
-        schema: String!
+        type: String!
+        props: String!
+        yup: String
         score: Int!
         stars: Int!
         views: Int!
-        type: StandardType!
         comments: [Comment!]!
         creator: Contributor
         reports: [Report!]!
@@ -148,7 +138,6 @@ export const typeDef = gql`
 `
 
 export const resolvers = {
-    StandardType: StandardType,
     StandardSortBy: StandardSortBy,
     Query: {
         standard: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard> | null> => {

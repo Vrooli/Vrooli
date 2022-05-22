@@ -1,5 +1,6 @@
-import { CheckboxProps, DropzoneProps, InputType, JSONProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TextFieldProps, QuantityBoxProps, TagSelectorProps, LanguageInputProps } from '../types';
+import { CheckboxProps, DropzoneProps, JSONProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TextFieldProps, QuantityBoxProps, TagSelectorProps, LanguageInputProps } from '../types';
 import { FieldData } from 'forms/types';
+import { InputType } from '@local/shared';
 
 /**
  * Maps a data input type to a function that calculates its default values.
@@ -13,21 +14,21 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
         row: true,
         ...props
     }),
-    [InputType.Dropzone]: (props: DropzoneProps): DropzoneProps => ({ 
+    [InputType.Dropzone]: (props: DropzoneProps): DropzoneProps => ({
         defaultValue: [],
-        ...props 
+        ...props
     }),
-    [InputType.JSON]: (props: JSONProps): JSONProps => ({ 
+    [InputType.JSON]: (props: JSONProps): JSONProps => ({
         defaultValue: '',
-        ...props 
+        ...props
     }),
-    [InputType.LanguageInput]: (props: LanguageInputProps): LanguageInputProps => ({ 
+    [InputType.LanguageInput]: (props: LanguageInputProps): LanguageInputProps => ({
         defaultValue: [],
-        ...props 
+        ...props
     }),
-    [InputType.Markdown]: (props: MarkdownProps): MarkdownProps => ({ 
+    [InputType.Markdown]: (props: MarkdownProps): MarkdownProps => ({
         defaultValue: '',
-        ...props 
+        ...props
     }),
     [InputType.Radio]: (props: RadioProps) => ({
         defaultValue: (Array.isArray(props.options) && props.options.length > 0) ? props.options[0].value : '',
@@ -60,9 +61,9 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
         size: 'medium',
         ...props
     }),
-    [InputType.TagSelector]: (props: TagSelectorProps): TagSelectorProps => ({ 
+    [InputType.TagSelector]: (props: TagSelectorProps): TagSelectorProps => ({
         defaultValue: [],
-        ...props 
+        ...props
     }),
     [InputType.TextField]: (props: TextFieldProps): TextFieldProps => ({
         defaultValue: '',
@@ -74,7 +75,7 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
 }
 
 /**
- * Populates a form's field data with unset default values
+ * Populates a FieldData array with unset default values
  * @param fields The form's field data
  */
 export const generateDefaultProps = (fields: FieldData[]): FieldData[] => {
@@ -87,3 +88,18 @@ export const generateDefaultProps = (fields: FieldData[]): FieldData[] => {
         }
     });
 }
+
+/**
+ * Creates default FieldData for a given input type
+ * @param type The input type
+ * @returns A FieldData object with default values
+ */
+export const createDefaultFieldData = (type: InputType): FieldData => ({
+    type,
+    props: defaultMap[type]({}),
+    fieldName: '',
+    label: '',
+    yup: {
+        checks: [],
+    },
+});

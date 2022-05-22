@@ -43,7 +43,9 @@ export interface run_run_routine_inputs_standard {
   default: string | null;
   isFile: boolean;
   name: string;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   tags: run_run_routine_inputs_standard_tags[];
   translations: run_run_routine_inputs_standard_translations[];
 }
@@ -237,7 +239,9 @@ export interface run_run_routine_outputs_standard {
   default: string | null;
   isFile: boolean;
   name: string;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   tags: run_run_routine_outputs_standard_tags[];
   translations: run_run_routine_outputs_standard_translations[];
 }

@@ -400,7 +400,7 @@ export const OrganizationView = ({
                 session={session}
             />
             <Box sx={{
-                background: "#b2b3b3",
+                background: palette.mode === 'light' ? "#b2b3b3" : "#303030",
                 display: 'flex',
                 paddingTop: 5,
                 paddingBottom: 5,

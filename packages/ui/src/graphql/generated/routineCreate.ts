@@ -43,7 +43,9 @@ export interface routineCreate_routineCreate_inputs_standard {
   default: string | null;
   isFile: boolean;
   name: string;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   tags: routineCreate_routineCreate_inputs_standard_tags[];
   translations: routineCreate_routineCreate_inputs_standard_translations[];
 }
@@ -237,7 +239,9 @@ export interface routineCreate_routineCreate_outputs_standard {
   default: string | null;
   isFile: boolean;
   name: string;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   tags: routineCreate_routineCreate_outputs_standard_tags[];
   translations: routineCreate_routineCreate_outputs_standard_translations[];
 }

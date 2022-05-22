@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { StandardCreateInput, MemberRole, StandardType } from "./globalTypes";
+import { StandardCreateInput, MemberRole } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: standardCreate
@@ -58,8 +58,9 @@ export interface standardCreate_standardCreate {
   id: string;
   name: string;
   role: MemberRole | null;
-  type: StandardType;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   default: string | null;
   isFile: boolean;
   created_at: any;

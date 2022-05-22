@@ -2,7 +2,7 @@ import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { standard } from "graphql/generated/standard";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { ROLES, standardCreateForm as validationSchema } from '@local/shared';
+import { InputType, ROLES, standardCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardCreateMutation } from "graphql/mutation";
 import { formatForCreate, getUserLanguages, updateArray, useReactSearch } from "utils";
@@ -14,11 +14,51 @@ import {
     Restore as CancelIcon,
 } from '@mui/icons-material';
 import { TagSelectorTag } from "components/inputs/types";
-import { LanguageInput, ResourceListHorizontal, TagSelector } from "components";
+import { JsonInput, LanguageInput, ResourceListHorizontal, Selector, TagSelector } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { NewObject, ResourceList, Standard } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuidv4 } from 'uuid';
+import { FieldData } from "forms/types";
+import { createDefaultFieldData } from "forms/generators";
+
+/**
+ * Supported input types
+ */
+export const InputTypeOptions: { label: string, value: InputType }[] = [
+    {
+        label: 'Text',
+        value: InputType.TextField,
+    },
+    {
+        label: 'JSON',
+        value: InputType.JSON,
+    },
+    {
+        label: 'Integer',
+        value: InputType.QuantityBox
+    },
+    {
+        label: 'Radio (Select One)',
+        value: InputType.Radio,
+    },
+    {
+        label: 'Checkbox (Select any)',
+        value: InputType.Checkbox,
+    },
+    {
+        label: 'Switch (On/Off)',
+        value: InputType.Switch,
+    },
+    {
+        label: 'File Upload',
+        value: InputType.Dropzone,
+    },
+    {
+        label: 'Markdown',
+        value: InputType.Markdown
+    },
+]
 
 export const StandardCreate = ({
     onCreated,
@@ -26,6 +66,13 @@ export const StandardCreate = ({
     session,
 }: StandardCreateProps) => {
     const params = useReactSearch(null);
+
+    // Handle input type selector
+    const [inputType, setInputType] = useState<InputType>(InputType.JSON);
+    const handleInputTypeSelect = useCallback((e) => setInputType(e.target.value), []);
+
+    // Handle standard schema
+    const [schema, setSchema] = useState<FieldData>(createDefaultFieldData(inputType));
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
@@ -224,6 +271,31 @@ export const StandardCreate = ({
                         helperText={formik.touched.description && formik.errors.description}
                     />
                 </Grid>
+                {/* Select the standard type */}
+                <Grid item xs={12}>
+                    <Selector
+                        fullWidth
+                        options={InputTypeOptions}
+                        selected={inputType}
+                        handleChange={handleInputTypeSelect}
+                        inputAriaLabel='input-type-selector'
+                        label="Size"
+                    />
+                </Grid>
+                {/* Define the standard */}
+                {/* <Grid item xs={12}>
+                    <JsonInput
+                        id="schema"
+                        format={props.format}
+                        variables={props.variables}
+                        placeholder={props.placeholder ?? data.label}
+                        value={formik.values[data.fieldName]}
+                        minRows={props.minRows}
+                        onChange={(newText: string) => formik.setFieldValue(data.fieldName, newText)}
+                        error={formik.touched[data.fieldName] && Boolean(formik.errors[data.fieldName])}
+                        helperText={formik.touched[data.fieldName] && formik.errors[data.fieldName]}
+                    />
+                </Grid> */}
                 <Grid item xs={12}>
                     <ResourceListHorizontal
                         title={'Resources'}

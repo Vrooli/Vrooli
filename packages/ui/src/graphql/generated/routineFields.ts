@@ -43,7 +43,9 @@ export interface routineFields_inputs_standard {
   default: string | null;
   isFile: boolean;
   name: string;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   tags: routineFields_inputs_standard_tags[];
   translations: routineFields_inputs_standard_translations[];
 }
@@ -237,7 +239,9 @@ export interface routineFields_outputs_standard {
   default: string | null;
   isFile: boolean;
   name: string;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   tags: routineFields_outputs_standard_tags[];
   translations: routineFields_outputs_standard_translations[];
 }

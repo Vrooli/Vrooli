@@ -1,11 +1,11 @@
 import { description, idArray, id, name, version, language } from './base';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
-import { StandardType } from '../consts';
+import { InputType } from '../consts';
 
 const standardDefault = yup.string().max(1024)
 const schema = yup.string().max(8192).required();
-const type = yup.string().oneOf(Object.values(StandardType))
+const type = yup.string().oneOf(Object.values(InputType))
 
 export const standardTranslationCreate = yup.object().shape({
     language: language.required(),

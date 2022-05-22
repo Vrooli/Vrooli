@@ -2,7 +2,7 @@
  * Adds initial data to the database. (i.e. data that should be included in production). 
  * This is written so that it can be called multiple times without duplicating data.
  */
-import { ROLES, StandardType } from '@local/shared';
+import { InputType, ROLES } from '@local/shared';
 import { ProfileModel } from '../../models';
 import { PrismaType } from '../../types';
 import pkg from '@prisma/client';
@@ -274,8 +274,8 @@ export async function init(prisma: PrismaType) {
                         { tag: { connect: { id: tagCip.id } } },
                     ]
                 },
-                type: StandardType.Object,
-                schema: `
+                type: InputType.JSON,
+                props: `
                     { TODO
                         "721": {
                             "<policy_id>": {

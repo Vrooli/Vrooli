@@ -180,7 +180,7 @@ export const StandardView = ({
                 display: 'flex',
                 paddingTop: 5,
                 paddingBottom: 5,
-                background: "#b2b3b3",
+                background: palette.mode === 'light' ? "#b2b3b3" : "#303030",
                 position: "relative",
             }}>
                 {/* Language display/select */}

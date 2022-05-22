@@ -41,7 +41,9 @@ export interface routineOutputFields_standard {
   default: string | null;
   isFile: boolean;
   name: string;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   tags: routineOutputFields_standard_tags[];
   translations: routineOutputFields_standard_translations[];
 }

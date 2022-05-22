@@ -38,7 +38,75 @@ export interface EditableLabelProps {
     text: string;
 }
 
-export interface JSONInputProps {
+export interface JsonFormatInputProps {
+    id: string;
+    description?: string;
+    disabled?: boolean;
+    error?: boolean;
+    /**
+     * JSON string representing the format that the 
+     * input should follow. 
+     * Any key/value that's a plain string (e.g. "name", "age") 
+     * must appear in the input value exactly as shown. 
+     * Any key/value that's wrapped in <> (e.g. <name>, <age>) 
+     * refers to a variable.
+     * Any key that starts with a ? is optional.
+     * Any key that's wrapped in [] (e.g. [x]) 
+     * means that additional keys can be added to the object. The value of these 
+     * keys is also wrapped in [] (e.g. [string], [any], [number | string])
+     * to specify the types of values allowed.
+     * ex: {
+     * "<721>": {
+     *   "<policy_id>": {
+     *     "<asset_name>": {
+     *       "name": "<asset_name>",
+     *       "image": "<ipfs_link>",
+     *       "?mediaType": "<mime_type>",
+     *       "?description": "<description>",
+     *       "?files": [
+     *         {
+     *          "name": "<asset_name>",
+     *           "mediaType": "<mime_type>",
+     *           "src": "<ipfs_link>"
+     *         }
+     *       ],
+     *       "[x]": "[any]"
+     *     }
+     *   },
+     *   "version": "1.0"
+     *  }
+     * }
+     */
+    format?: string;
+    helperText?: string | null | undefined;
+    minRows?: number;
+    onChange: (newText: string) => any;
+    placeholder?: string;
+    title?: string;
+    /**
+     * JSON string representing the value of the input
+     */
+    value: string;
+    /**
+     * Dictionary which describes variables (e.g. <name>, <age>) in
+     * the format JSON. 
+     * Each variable can have a label, helper text, a type, and accepted values.
+     * ex: {
+     *  "policy_id": {
+     *      "label": "Policy ID",
+     *      "helperText": "Human-readable name of the policy.",
+     *  },
+     *  "721": {
+     *      "label": "721",
+     *      "helperText": "The transaction_metadatum_label that describes the type of data. 
+     *      721 is the number for NFTs.",
+     *   }
+     * }
+     */
+    variables?: { [x: string]: JSONVariable };
+}
+
+export interface JsonInputProps {
     id: string;
     description?: string;
     disabled?: boolean;

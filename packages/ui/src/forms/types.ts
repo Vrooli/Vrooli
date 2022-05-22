@@ -1,6 +1,7 @@
 import { CommonProps } from "types";
 import { Forms } from "utils";
-import { DropzoneProps as DP, JSONInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, QuantityBoxProps as QP, SelectorProps as SP, TagSelectorProps as TP, TagSelectorTag } from 'components/inputs/types';
+import { DropzoneProps as DP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, QuantityBoxProps as QP, SelectorProps as SP, TagSelectorProps as TP, TagSelectorTag } from 'components/inputs/types';
+import { InputType } from "@local/shared";
 
 //==============================================================
 /* #region Specific Form Props */
@@ -30,24 +31,6 @@ export interface ResetPasswordFormProps extends FormProps {
 //==============================================================
 
 /**
- * The different types of input components supported
- */
-export enum InputType {
-    Checkbox = 'Checkbox',
-    Dropzone = 'Dropzone',
-    JSON = 'JSON',
-    LanguageInput = 'LanguageInput',
-    Markdown = 'Markdown',
-    Radio = 'Radio',
-    Selector = 'Selector',
-    Slider = 'Slider',
-    Switch = 'Switch',
-    TagSelector = 'TagSelector',
-    TextField = 'TextField',
-    QuantityBox = 'QuantityBox',
-}
-
-/**
  * Props for rendering a Checkbox input component
  */
 export interface CheckboxProps {
@@ -69,14 +52,14 @@ export interface CheckboxProps {
 /**
  * Props for rendering a Checkbox input component
  */
-export interface DropzoneProps extends Omit<DP, 'onUpload'> { 
-     defaultValue?: [];
+export interface DropzoneProps extends Omit<DP, 'onUpload'> {
+    defaultValue?: [];
 } // onUpload handled by form
 
 /**
  * Props for rendering a JSON input component
  */
-export interface JSONProps extends Omit<JP, 'onChange' | 'value'> { 
+export interface JSONProps extends Omit<JP, 'onChange' | 'value'> {
     defaultValue?: string;
 }
 
@@ -238,11 +221,11 @@ interface FieldDataLanguageInput extends FieldDataBase {
     /**
      * The type of the field
      */
-     type: InputType.LanguageInput;
-     /**
-      * Extra props for the input component, depending on the type
-      */
-     props: LanguageInputProps;
+    type: InputType.LanguageInput;
+    /**
+     * Extra props for the input component, depending on the type
+     */
+    props: LanguageInputProps;
 }
 
 /**
@@ -318,7 +301,7 @@ interface FieldDataSwitch extends FieldDataBase {
 /**
  * Field data type and props for TagSelector input components
  */
- interface FieldDataTagSelector extends FieldDataBase {
+interface FieldDataTagSelector extends FieldDataBase {
     /**
      * The type of the field
      */

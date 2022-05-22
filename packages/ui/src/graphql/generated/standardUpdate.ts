@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { StandardUpdateInput, MemberRole, StandardType } from "./globalTypes";
+import { StandardUpdateInput, MemberRole } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: standardUpdate
@@ -58,8 +58,9 @@ export interface standardUpdate_standardUpdate {
   id: string;
   name: string;
   role: MemberRole | null;
-  type: StandardType;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   default: string | null;
   isFile: boolean;
   created_at: any;

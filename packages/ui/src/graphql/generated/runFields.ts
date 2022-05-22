@@ -43,7 +43,9 @@ export interface runFields_routine_inputs_standard {
   default: string | null;
   isFile: boolean;
   name: string;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   tags: runFields_routine_inputs_standard_tags[];
   translations: runFields_routine_inputs_standard_translations[];
 }
@@ -237,7 +239,9 @@ export interface runFields_routine_outputs_standard {
   default: string | null;
   isFile: boolean;
   name: string;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   tags: runFields_routine_outputs_standard_tags[];
   translations: runFields_routine_outputs_standard_translations[];
 }
