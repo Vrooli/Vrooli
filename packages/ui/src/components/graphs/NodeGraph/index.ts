@@ -2,10 +2,10 @@ import { NodeType } from 'graphql/generated/globalTypes';
 
 export * from './AddAfterLinkDialog/AddAfterLinkDialog';
 export * from './AddBeforeLinkDialog/AddBeforeLinkDialog';
+export * from './edges';
 export * from './NodeContextMenu/NodeContextMenu';
 export * from './NodeColumn/NodeColumn';
 export * from './NodeGraph/NodeGraph';
-export * from './NodeEdge/NodeEdge';
 export * from './nodes';
 
 export const NodeWidth = {
