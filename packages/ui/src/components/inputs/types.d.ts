@@ -1,7 +1,7 @@
 import { BoxProps, InputProps, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
 import { JSONVariable } from 'forms/types';
 import { ChangeEvent } from 'react';
-import { ListOrganization, ListStandard, Session, Tag } from 'types';
+import { ListStandard, Organization, Session, Standard, Tag } from 'types';
 
 export interface AutocompleteSearchBarProps<T> extends SearchBarProps {
     debounce?: number;
@@ -266,8 +266,8 @@ export interface SelectorProps extends SelectProps {
 
 export interface StandardSelectSwitchProps extends UseSwitchProps {
     session: Session;
-    selected: ListStandard | null;
-    onChange: (value: ListStandard | null) => any;
+    selected: Standard | null;
+    onChange: (value: Standard | null) => any;
     disabled?: boolean;
 }
 
@@ -292,7 +292,7 @@ export interface ThemeSwitchProps {
 
 export interface UserOrganizationSwitchProps extends UseSwitchProps {
     session: Session;
-    selected: ListOrganization | null;
-    onChange: (value: ListOrganization | null) => any;
+    selected: Organization | null;
+    onChange: (value: Organization | null) => any;
     disabled?: boolean;
 }

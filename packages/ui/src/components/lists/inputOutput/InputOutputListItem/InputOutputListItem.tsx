@@ -1,7 +1,7 @@
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { InputOutputListItemProps } from '../types';
 import { inputCreate, outputCreate } from '@local/shared';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { containerShadow } from 'styles';
 import {
     Delete as DeleteIcon,
@@ -24,18 +24,26 @@ export const InputOutputListItem = ({
     handleClose,
     handleDelete,
     handleUpdate,
-    handleOpenStandardSelect,
-    handleRemoveStandard,
     language,
     session,
 }: InputOutputListItemProps) => {
     const { palette } = useTheme();
+    console.log('iolistitem')
 
     // Handle standard select switch
     const [standard, setStandard] = useState<ListStandard | null>(null);
     const onSwitchChange = useCallback((s: ListStandard | null) => { setStandard(s) }, []);
     // Handle custom standard schema
     const [schema, setSchema] = useState<FieldData | null>(null);
+    useEffect(() => {
+        // Check if standard has changed
+        if (item?.standard?.id === standard?.id) return;
+        console.log('updating standardddd....', item?.standard, standard)
+        handleUpdate(index, {
+            ...item,
+            standard: standard || null,
+        })
+    }, [handleUpdate, index, item, standard]);
 
     type Translation = NewObject<(RoutineInput | RoutineOutput)['translations'][0]>;
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {

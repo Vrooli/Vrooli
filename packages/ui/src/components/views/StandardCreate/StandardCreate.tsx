@@ -14,15 +14,13 @@ import {
     Restore as CancelIcon,
 } from '@mui/icons-material';
 import { TagSelectorTag } from "components/inputs/types";
-import { JsonStandardInput, LanguageInput, ResourceListHorizontal, Selector, TagSelector, TextFieldStandardInput } from "components";
+import { LanguageInput, ResourceListHorizontal, Selector, TagSelector } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { NewObject, ResourceList, Standard } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuidv4 } from 'uuid';
 import { FieldData } from "forms/types";
-import { createDefaultFieldData } from "forms/generators";
-import { CheckboxStandardInputProps, DropzoneStandardInputProps, JsonStandardInputProps, MarkdownStandardInputProps, QuantityBoxStandardInputProps, RadioStandardInputProps, SwitchStandardInputProps, TextFieldStandardInputProps } from "components/inputs/standards/types";
-import { BaseStandardInput, CheckboxStandardInput, DropzoneStandardInput, MarkdownStandardInput, QuantityBoxStandardInput, RadioStandardInput, SwitchStandardInput } from "components/inputs";
+import { BaseStandardInput } from "components/inputs";
 
 type InputTypeOption = { label: string, value: InputType }
 /**

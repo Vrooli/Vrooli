@@ -14,7 +14,7 @@ import {
     TextField,
     Typography
 } from '@mui/material'
-import { Dropzone, JsonFormatInput, LanguageInput, MarkdownInput, QuantityBox, Selector, TagSelector } from 'components'
+import { Dropzone, JsonInput, LanguageInput, MarkdownInput, QuantityBox, Selector, TagSelector } from 'components'
 import { DropzoneProps, QuantityBoxProps, SelectorProps, TagSelectorTag } from 'components/inputs/types'
 import { CheckboxProps, FieldData, JSONProps, MarkdownProps, RadioProps, SliderProps, SwitchProps, TextFieldProps } from 'forms/types'
 import { updateArray } from 'utils'
@@ -143,7 +143,7 @@ export const toJSON = ({
 }: InputGeneratorProps): React.ReactElement => {
     const props = data.props as JSONProps;
     return (
-        <JsonFormatInput
+        <JsonInput
             id={data.fieldName}
             format={props.format}
             variables={props.variables}

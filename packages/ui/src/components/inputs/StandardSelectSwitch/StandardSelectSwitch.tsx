@@ -1,20 +1,13 @@
-import { Box, Button, IconButton, List, ListItem, ListItemText, Menu, Stack, TextField, Typography, useTheme } from '@mui/material';
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { Box, IconButton, Stack, Typography, useTheme } from '@mui/material';
+import { useCallback, useMemo, useState } from 'react';
 import { StandardSelectSwitchProps } from '../types';
-import { organizationsQuery } from 'graphql/query';
-import { organizations, organizationsVariables } from 'graphql/generated/organizations';
-import { APP_LINKS, OrganizationSortBy } from '@local/shared';
-import { useLazyQuery } from '@apollo/client';
-import { ListOrganization } from 'types';
 import { noSelect } from 'styles';
-import { Close as CloseIcon } from '@mui/icons-material';
+import { getTranslation, getUserLanguages } from 'utils';
+import { StandardSelectOrCreateDialog } from 'components/dialogs';
 import {
     Edit as CustomIcon,
     Link as StandardIcon,
 } from '@mui/icons-material';
-import { getTranslation, getUserLanguages } from 'utils';
-import { useLocation } from 'wouter';
-import { owns } from 'utils/authentication';
 
 const grey = {
     400: '#BFC7CF',
@@ -29,159 +22,40 @@ export function StandardSelectSwitch({
     ...props
 }: StandardSelectSwitchProps) {
     const { palette } = useTheme();
-    const [, setLocation] = useLocation();
     const languages = useMemo(() => getUserLanguages(session), [session])
+    console.log('SE SE SELECTED', selected);
 
-    // Query for organizations the user is a member of, including ones where 
-    // the user doesn't have permissions to perform this action
-    const [getOrganizationsData, { data: organizationsData, loading }] = useLazyQuery<organizations, organizationsVariables>(organizationsQuery, {
-        variables: {
-            input: {
-                sortBy: OrganizationSortBy.DateUpdatedAsc,
-                userId: session?.id,
-            }
-        }
-    });
-    const organizations = useMemo(() => organizationsData?.organizations?.edges?.map(e => e.node) ?? [] as ListOrganization[], [organizationsData]);
-    useEffect(() => {
-        if (session?.id) {
-            getOrganizationsData()
-        }
-    }, [getOrganizationsData, session])
+    // Create dialog
+    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState<boolean>(false);
+    const openCreateDialog = useCallback(() => { setIsCreateDialogOpen(true) }, [setIsCreateDialogOpen]);
+    const closeCreateDialog = useCallback(() => { setIsCreateDialogOpen(false); }, [setIsCreateDialogOpen]);
 
-    const [menuAnchorEl, setMenuAnchorEl] = useState<any>(null);
-    const handleClick = useCallback((ev: MouseEvent<any>) => {
+    const handleClick = useCallback((ev: React.MouseEvent<any>) => {
         if (disabled) return;
+        // If using custom data, remove standard data
         if (Boolean(selected)) {
             onChange(null);
-        } else {
-            setMenuAnchorEl(ev.currentTarget);
+        } 
+        // Otherwise, open dialog to select standard
+        else {
+            openCreateDialog();
             ev.preventDefault();
         }
-    }, [disabled, selected, onChange]);
-    const closeMenu = useCallback(() => {
-        setMenuAnchorEl(null);
-        setSearch('');
-    }, []);
-
-    const [search, setSearch] = useState<string>('');
-    const handleSearchChange = useCallback((ev: any) => {
-        setSearch(ev.target.value);
-    }, []);
-
-    const organizationListItems: JSX.Element[] = useMemo(() => {
-        const filtered = organizations?.filter((o: ListOrganization) => getTranslation(o, 'name', languages, true)?.toLowerCase()?.includes(search.toLowerCase()) ?? '');
-        return filtered?.map((o: ListOrganization, index) => {
-            const canSelect: boolean = owns(o.role);
-            return (
-                <ListItem
-                    key={index}
-                    button
-                    onClick={() => { onChange(o); closeMenu(); }}
-                    sx={{
-                        background: canSelect ? 'white' : '#F5F5F5',
-                        cursor: canSelect ? 'pointer' : 'default',
-                    }}
-                >
-                    <ListItemText primary={getTranslation(o, 'name', languages, true)} sx={{ marginRight: 2 }} />
-                    {!canSelect && <Typography color="error">Not an admin</Typography>}
-                </ListItem>
-            )
-        });
-    }, [organizations, languages, search, onChange, closeMenu]);
+    }, [disabled, onChange, openCreateDialog, selected]);
 
     const Icon = useMemo(() => Boolean(selected) ? StandardIcon : CustomIcon, [selected]);
 
     return (
         <>
-            {/* Popup menu to select organization */}
-            <Menu
-                id={'select-organization-menu'}
-                disableScrollLock={true}
-                autoFocus={true}
-                open={Boolean(menuAnchorEl)}
-                anchorEl={menuAnchorEl}
-                anchorOrigin={{
-                    vertical: 'bottom',
-                    horizontal: 'center',
-                }}
-                transformOrigin={{
-                    vertical: 'top',
-                    horizontal: 'center',
-                }}
-                onClose={(e) => { closeMenu() }}
-                sx={{
-                    '& .MuiMenu-paper': {
-                        background: palette.background.paper
-                    },
-                    '& .MuiMenu-list': {
-                        paddingTop: '0',
-                    }
-                }}
-            >
-                <Box
-                    sx={{
-                        ...noSelect,
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: 1,
-                        background: palette.primary.dark
-                    }}
-                >
-                    <Typography
-                        variant="h6"
-                        textAlign="center"
-                        sx={{
-                            width: '-webkit-fill-available',
-                            color: palette.primary.contrastText,
-                        }}
-                    >
-                        Select Standard
-                    </Typography>
-                    <IconButton
-                        edge="end"
-                        onClick={(e) => { closeMenu() }}
-                    >
-                        <CloseIcon sx={{ fill: palette.primary.contrastText }} />
-                    </IconButton>
-                </Box>
-                <TextField
-                    fullWidth
-                    id="filter-organizations"
-                    label="Filter"
-                    value={search}
-                    onChange={handleSearchChange}
-                    sx={{ marginLeft: 2, paddingRight: 4, marginTop: 2 }}
-                />
-                {organizationListItems.length > 0 ? (
-                    <List>
-                        {organizationListItems}
-                    </List>
-                ) : (
-                    <Box sx={{
-                        display: 'block',
-                        textAlign: 'center',
-                        paddingTop: 2,
-                        paddingBottom: 2
-                    }}>
-                        <Typography variant="body1" color="gray">Not matching organizations</Typography>
-                    </Box>
-                )
-                }
-                <Button
-                    color="secondary"
-                    onClick={() => setLocation(`${APP_LINKS.Organization}/add`, { replace: true })}
-                    sx={{
-                        display: 'flex',
-                        marginLeft: 'auto',
-                        marginRight: 'auto',
-                    }}
-                >
-                    Create New
-                </Button>
-            </Menu>
+            {/* Popup for adding/connecting a new standard */}
+            <StandardSelectOrCreateDialog
+                isOpen={isCreateDialogOpen}
+                handleAdd={onChange}
+                handleClose={closeCreateDialog}
+                session={session}
+            />
             {/* Main component */}
-            <Stack direction="row" spacing={1} justifyContent="center">
+            <Stack direction="row" spacing={1}>
                 <Typography variant="h6" sx={{ ...noSelect }}>Standard:</Typography>
                 <Box component="span" sx={{
                     display: 'inline-block',
@@ -222,7 +96,7 @@ export function StandardSelectSwitch({
                         type="checkbox"
                         checked={Boolean(selected)}
                         disabled={disabled}
-                        aria-label="user-organization-toggle"
+                        aria-label="custom-standard-toggle"
                         onClick={handleClick}
                         style={{
                             position: 'absolute',

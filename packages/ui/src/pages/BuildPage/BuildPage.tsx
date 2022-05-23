@@ -1,5 +1,5 @@
 import { Box } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, BuildInfoContainer, SubroutineInfoDialog, AddSubroutineDialog, AddAfterLinkDialog, AddBeforeLinkDialog, DeleteRoutineDialog } from 'components';
+import { LinkDialog, NodeGraph, BuildBottomContainer, BuildInfoContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, DeleteRoutineDialog } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
 import { useMutation, useLazyQuery } from '@apollo/client';
@@ -877,11 +877,10 @@ export const BuildPage = ({
                 handleDelete={deleteRoutine}
             />
             {/* Popup for adding new subroutines */}
-            {addSubroutineNode && <AddSubroutineDialog
+            {addSubroutineNode && <SubroutineSelectOrCreateDialog
                 handleAdd={handleRoutineListItemAdd}
                 handleClose={closeAddSubroutineDialog}
                 isOpen={Boolean(addSubroutineNode)}
-                language={language}
                 nodeId={addSubroutineNode}
                 routineId={routine?.id ?? ''}
                 session={session}
