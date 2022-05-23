@@ -32,9 +32,10 @@ export const InputOutputListItem = ({
 
     // Handle standard select switch
     const [standard, setStandard] = useState<ListStandard | null>(null);
-    const onSwitchChange = useCallback((s: ListStandard | null) => { setStandard(s) }, []);
+    const onSwitchChange = useCallback((s: ListStandard | null) => { console.log('on switch change'); setStandard(s) }, []);
     // Handle custom standard schema
     const [schema, setSchema] = useState<FieldData | null>(null);
+    const handleSchemaUpdate = useCallback((schema: FieldData) => { setSchema(schema); }, []);
     useEffect(() => {
         // Check if standard has changed
         if (item?.standard?.id === standard?.id) return;
@@ -62,6 +63,7 @@ export const InputOutputListItem = ({
         enableReinitialize: true,
         validationSchema: isInput ? inputCreate : outputCreate,
         onSubmit: (values) => {
+            console.log('formik handlesubmit😭')
             // Update translations
             const allTranslations = getTranslationsUpdate(language, {
                 language,
@@ -77,6 +79,7 @@ export const InputOutputListItem = ({
     });
 
     const toggleOpen = useCallback(() => {
+        console.log('toggle open')
         if (isOpen) {
             formik.handleSubmit();
             handleClose(index);
@@ -118,6 +121,24 @@ export const InputOutputListItem = ({
                     },
                 }}
             >
+                {/* Show delete icon if editing */}
+                {isEditing && (
+                    <Tooltip placement="top" title={`Delete ${isInput ? 'input' : 'output'}. This will not delete the standard`}>
+                        <IconButton color="inherit" onClick={() => handleDelete(index)} aria-label="delete" sx={{
+                            height: 'fit-content',
+                            marginTop: 'auto',
+                            marginBottom: 'auto',
+                        }}>
+                            <DeleteIcon sx={{
+                                fill: 'white',
+                                '&:hover': {
+                                    fill: '#ff6a6a'
+                                },
+                                transition: 'fill 0.5s ease-in-out',
+                            }} />
+                        </IconButton>
+                    </Tooltip>
+                )}
                 {/* Show name and description if closed */}
                 {!isOpen && (
                     <Box sx={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
@@ -142,24 +163,6 @@ export const InputOutputListItem = ({
                             {formik.values.description}
                         </Typography>
                     </Box>
-                )}
-                {/* Show delete icon if editing */}
-                {isEditing && (
-                    <Tooltip placement="top" title={`Delete ${isInput ? 'input' : 'output'}. This will not delete the standard`}>
-                        <IconButton color="inherit" onClick={() => handleDelete(index)} aria-label="delete" sx={{
-                            height: 'fit-content',
-                            marginTop: 'auto',
-                            marginBottom: 'auto',
-                        }}>
-                            <DeleteIcon sx={{
-                                fill: 'white',
-                                '&:hover': {
-                                    fill: '#ff6a6a'
-                                },
-                                transition: 'fill 0.5s ease-in-out',
-                            }} />
-                        </IconButton>
-                    </Tooltip>
                 )}
                 {isOpen ?
                     <ExpandLessIcon sx={{ marginLeft: 'auto' }} /> :
@@ -209,7 +212,7 @@ export const InputOutputListItem = ({
                         {!standard && <BaseStandardInput
                             isEditing={isEditing}
                             schema={schema}
-                            onChange={setSchema}
+                            onChange={handleSchemaUpdate}
                         />}
                     </Grid>
                     {isInput && <Grid item xs={12}>

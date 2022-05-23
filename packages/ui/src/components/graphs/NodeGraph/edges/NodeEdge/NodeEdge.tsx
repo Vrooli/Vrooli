@@ -43,7 +43,7 @@ export const NodeEdge = ({
     }, [dragId, link.fromId, link.toId]);
 
     /**
-     * Place along bezier to display "Add Node" button
+     * Place button along bezier to display "Add Node" button
      */
     const popoverT = useMemo(() => {
         // If from and to are both routine lists (or both NOT routine lists), then use bezier midpoint.

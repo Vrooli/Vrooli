@@ -147,7 +147,7 @@ export const BaseEdge = ({
                 width={dims.width}
                 height={dims.height}
                 style={{
-                    zIndex: -1, // Display behind nodes
+                    zIndex: 0, // Display behind nodes
                     position: "absolute",
                     pointerEvents: "none",
                     top: dims.top,
@@ -230,7 +230,7 @@ export const BaseEdge = ({
     return (
         <>
             {edge}
-            {popoverButton}
+            {Boolean(popoverComponent) && popoverButton}
         </>
     )
 }

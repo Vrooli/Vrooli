@@ -2,7 +2,6 @@ import { Box, IconButton, Stack, Typography, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import { StandardSelectSwitchProps } from '../types';
 import { noSelect } from 'styles';
-import { getTranslation, getUserLanguages } from 'utils';
 import { StandardSelectOrCreateDialog } from 'components/dialogs';
 import {
     Edit as CustomIcon,
@@ -22,8 +21,6 @@ export function StandardSelectSwitch({
     ...props
 }: StandardSelectSwitchProps) {
     const { palette } = useTheme();
-    const languages = useMemo(() => getUserLanguages(session), [session])
-    console.log('SE SE SELECTED', selected);
 
     // Create dialog
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState<boolean>(false);
@@ -110,7 +107,7 @@ export function StandardSelectSwitch({
                             cursor: 'pointer',
                         }} />
                 </Box >
-                <Typography variant="h6" sx={{ ...noSelect }}>{Boolean(selected) ? getTranslation(selected, 'name', languages, true) : 'Custom'}</Typography>
+                <Typography variant="h6" sx={{ ...noSelect }}>{selected ? selected.name : 'Custom'}</Typography>
             </Stack>
         </>
     )

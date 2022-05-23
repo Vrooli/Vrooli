@@ -31,7 +31,7 @@ export interface BaseEdgeProps {
     /**
      * Component to display when popover is open
      */
-    popoverComponent: JSX.Element;
+    popoverComponent?: JSX.Element;
     /**
      * Time in bezier curve display popover button, from 0 to 1. 
      * Defaults to midpoint of edge (0.5).

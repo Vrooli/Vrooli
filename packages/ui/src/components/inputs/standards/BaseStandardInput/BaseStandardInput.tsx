@@ -24,13 +24,9 @@ export const BaseStandardInput = ({
         const storedData = localStorage.getItem(key);
         const newSchema = storedData ? JSON.parse(storedData) : createDefaultFieldData(schema?.type ?? InputType.JSON);
         // Update state
+        localStorage.setItem(key, JSON.stringify(newSchema));
         onChange(newSchema)
     }, [key, onChange, schema?.type]);
-
-    // Store schema in local storage, to save changes when input type changes
-    useEffect(() => {
-        localStorage.setItem(key, JSON.stringify(schema));
-    }, [key, schema]);
 
     // Generate input component for type-specific fields
     const SchemaInput = useMemo(() => {
