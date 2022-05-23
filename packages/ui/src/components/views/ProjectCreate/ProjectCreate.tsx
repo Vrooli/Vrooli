@@ -30,7 +30,7 @@ export const ProjectCreate = ({
 
     // Handle user/organization switch
     const [organizationFor, setOrganizationFor] = useState<ListOrganization | null>(null);
-    const onSwitchChange = useCallback((organization: ListOrganization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
+    const onSwitchChange = useCallback((organization: ListOrganization | null) => { setOrganizationFor(organization) }, []);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);

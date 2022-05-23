@@ -14,13 +14,15 @@ import {
     Restore as CancelIcon,
 } from '@mui/icons-material';
 import { TagSelectorTag } from "components/inputs/types";
-import { JsonInput, LanguageInput, ResourceListHorizontal, Selector, TagSelector } from "components";
+import { JsonStandardInput, LanguageInput, ResourceListHorizontal, Selector, TagSelector, TextFieldStandardInput } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { NewObject, ResourceList, Standard } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuidv4 } from 'uuid';
 import { FieldData } from "forms/types";
 import { createDefaultFieldData } from "forms/generators";
+import { CheckboxStandardInputProps, DropzoneStandardInputProps, JsonStandardInputProps, MarkdownStandardInputProps, QuantityBoxStandardInputProps, RadioStandardInputProps, SwitchStandardInputProps, TextFieldStandardInputProps } from "components/inputs/standards/types";
+import { BaseStandardInput, CheckboxStandardInput, DropzoneStandardInput, MarkdownStandardInput, QuantityBoxStandardInput, RadioStandardInput, SwitchStandardInput } from "components/inputs";
 
 type InputTypeOption = { label: string, value: InputType }
 /**
@@ -75,7 +77,7 @@ export const StandardCreate = ({
     }, []);
 
     // Handle standard schema
-    const [schema, setSchema] = useState<FieldData | null>(createDefaultFieldData(inputType.value));
+    const [schema, setSchema] = useState<FieldData | null>(null);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
@@ -151,7 +153,11 @@ export const StandardCreate = ({
                     type: values.type,
                     version: values.version,
                 }) as any,
-                onSuccess: (response) => { onCreated(response.data.standardCreate) },
+                onSuccess: (response) => {
+                    // Remove schema from local state
+                    localStorage.removeItem('standard-create-schema');
+                    onCreated(response.data.standardCreate)
+                },
                 onError: () => { formik.setSubmitting(false) },
             })
         },
@@ -218,7 +224,11 @@ export const StandardCreate = ({
         const correctRole = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
         return [
             ['Create', CreateIcon, Boolean(!correctRole || formik.isSubmitting), true, () => { }],
-            ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
+            ['Cancel', CancelIcon, formik.isSubmitting, false, () => {
+                // Remove schema from local state
+                localStorage.removeItem('standard-create-schema');
+                onCancel();
+            }],
         ] as DialogActionItem[]
     }, [formik, onCancel, session]);
     const [formBottom, setFormBottom] = useState<number>(0);
@@ -287,19 +297,17 @@ export const StandardCreate = ({
                     />
                 </Grid>
                 {/* Define the standard */}
-                {/* <Grid item xs={12}>
-                    <JsonInput
-                        id="schema"
-                        format={props.format}
-                        variables={props.variables}
-                        placeholder={props.placeholder ?? data.label}
-                        value={formik.values[data.fieldName]}
-                        minRows={props.minRows}
-                        onChange={(newText: string) => formik.setFieldValue(data.fieldName, newText)}
-                        error={formik.touched[data.fieldName] && Boolean(formik.errors[data.fieldName])}
-                        helperText={formik.touched[data.fieldName] && formik.errors[data.fieldName]}
+                <Grid item xs={12}>
+                    <BaseStandardInput
+                        isEditing={true}
+                        schema={schema}
+                        onChange={setSchema}
                     />
-                </Grid> */}
+                </Grid>
+                {/* Standard preview */}
+                <Grid item xs={12}>
+                    {/* TODO */}
+                </Grid>
                 <Grid item xs={12}>
                     <ResourceListHorizontal
                         title={'Resources'}

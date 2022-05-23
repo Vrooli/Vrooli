@@ -1,7 +1,7 @@
 import { BoxProps, InputProps, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
 import { JSONVariable } from 'forms/types';
 import { ChangeEvent } from 'react';
-import { ListOrganization, Session, Tag } from 'types';
+import { ListOrganization, ListStandard, Session, Tag } from 'types';
 
 export interface AutocompleteSearchBarProps<T> extends SearchBarProps {
     debounce?: number;
@@ -262,6 +262,13 @@ export interface SelectorProps extends SelectProps {
     color?: string;
     className?: string;
     style?: any;
+}
+
+export interface StandardSelectSwitchProps extends UseSwitchProps {
+    session: Session;
+    selected: ListStandard | null;
+    onChange: (value: ListStandard | null) => any;
+    disabled?: boolean;
 }
 
 // Tag object which may not exist in the database

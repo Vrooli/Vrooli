@@ -1,7 +1,6 @@
 export * from './AutocompleteSearchBar/AutocompleteSearchBar';
 export * from './Dropzone/Dropzone';
 export * from './EditableLabel/EditableLabel';
-export * from './JsonFormatInput/JsonFormatInput';
 export * from './JsonInput/JsonInput';
 export * from './LanguageInput/LanguageInput';
 export * from './LinkButton/LinkButton';
@@ -10,6 +9,8 @@ export * from './PasswordTextField/PasswordTextField';
 export * from './QuantityBox/QuantityBox';
 export * from './SearchBar/SearchBar';
 export * from './Selector/Selector';
+export * from './standards';
+export * from './StandardSelectSwitch/StandardSelectSwitch';
 export * from './TagSelector/TagSelector';
 export * from './ThemeSwitch/ThemeSwitch';
 export * from './UserOrganizationSwitch/UserOrganizationSwitch';
