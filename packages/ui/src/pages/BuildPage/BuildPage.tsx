@@ -481,9 +481,11 @@ export const BuildPage = ({
                 isOptional: false,
                 routines: [],
             } as any,
+            // Generate unique placeholder title
+            translations: [{ language, title: `Node ${(changedRoutine?.nodes?.length ?? 0) - 1}` }] as Node['translations'],
         }
         return newNode;
-    }, []);
+    }, [language, changedRoutine?.nodes]);
 
     /**
      * Creates a link between two nodes which already exist in the linked routine. 
@@ -628,7 +630,7 @@ export const BuildPage = ({
     const handleNodeInsert = useCallback((link: NodeLink) => {
         if (!changedRoutine) return;
         // Find link index
-        const linkIndex = changedRoutine.nodeLinks.findIndex(l => l.id === link.id);
+        const linkIndex = changedRoutine.nodeLinks.findIndex(l => l.fromId === link.fromId && l.toId === link.toId);
         // Delete link
         const linksList = deleteArrayIndex(changedRoutine.nodeLinks, linkIndex);
         // Find "to" node. New node will be placed in its row and column
