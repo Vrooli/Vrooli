@@ -637,8 +637,8 @@ model routine_tags {
 
 model run {
     id                  String     @id @default(uuid()) @db.Uuid
-    created_at         DateTime                   @default(now()) @db.Timestamptz(6)
-    updated_at         DateTime                   @default(now()) @db.Timestamptz(6)
+    created_at          DateTime   @default(now()) @db.Timestamptz(6)
+    updated_at          DateTime   @default(now()) @db.Timestamptz(6)
     completedComplexity Int        @default(0) // Complexity of routine which was already completed. Used to measure progress more accurately than just the number of nodes completed.
     pickups             Int        @default(1) // Measures context switches. 1 means that the routine was executed completely without leaving
     timeStarted         DateTime?  @db.Timestamptz(6)
@@ -665,11 +665,11 @@ model run_step {
     timeStarted   DateTime?     @db.Timestamptz(6)
     timeElapsed   Int? // Time spent working on the step, in seconds
     timeCompleted DateTime?     @db.Timestamptz(6)
-    step         Int[]        
+    step          Int[]
     status        RunStepStatus @default(InProgress)
-    run           run          @relation(fields: [runId], references: [id], onDelete: Cascade)
+    run           run           @relation(fields: [runId], references: [id], onDelete: Cascade)
     title         String        @db.VarChar(128) // Title of viewed item, as it appears to the user. Makes searching for items that changed names easier
-    node          node         @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+    node          node          @relation(fields: [nodeId], references: [id], onDelete: SetNull)
 }
 
 // TODO scheduling runs
@@ -695,10 +695,11 @@ model standard {
     default                 String?                @db.VarChar(1024) // Default value
     isFile                  Boolean                @default(false) // Indicates if the data is a file. If this is the case, then the schema is interpreted as file metadata
     name                    String                 @db.VarChar(128)
-    schema                  String                 @db.VarChar(8192) // JSON object describing the shape of the data
     score                   Int                    @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
     stars                   Int                    @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
-    type                    StandardType
+    type                    String // Type of standard. We don't bother with an enum here, since the supported types may change often
+    props                  String                 @db.VarChar(8192) // JSON object describing the shape of the data
+    yup                    String?                    @db.VarChar(8192) // Yup validation checks. (ex: If standard is a URL, then yup would contain a regex to validate it)
     version                 String                 @default("1.0.0") @db.VarChar(16) // Arbitrary version number
     views                   Int                    @default(0) // Count of all views. Makes queries easier than counting the relationship every time
     createdByUserId         String?                @db.Uuid // User who created the standard, if exists (could have been created anonymously or by an organization)
@@ -1051,16 +1052,6 @@ enum ResourceListUsedFor {
     Learn // learn dashboard
     Research // research dashboard
     Develop // develop dashboard
-}
-
-enum StandardType {
-    String
-    Number
-    Boolean
-    Object
-    Array
-    File
-    Url
 }
 
 enum RunStatus {

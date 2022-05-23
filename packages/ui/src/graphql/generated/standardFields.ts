@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole, StandardType } from "./globalTypes";
+import { MemberRole } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: standardFields
@@ -58,8 +58,9 @@ export interface standardFields {
   id: string;
   name: string;
   role: MemberRole | null;
-  type: StandardType;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   default: string | null;
   isFile: boolean;
   created_at: any;

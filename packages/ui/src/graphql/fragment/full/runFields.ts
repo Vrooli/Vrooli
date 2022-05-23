@@ -24,7 +24,9 @@ export const runFields = gql`
             default
             isFile
             name
-            schema
+            type
+            props
+            yup
             tags {
                 ...runTagFields
             }
@@ -48,7 +50,9 @@ export const runFields = gql`
             default
             isFile
             name
-            schema
+            type
+            props
+            yup
             tags {
                 ...runTagFields
             }

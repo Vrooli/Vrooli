@@ -41,7 +41,9 @@ export interface runInputFields_standard {
   default: string | null;
   isFile: boolean;
   name: string;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   tags: runInputFields_standard_tags[];
   translations: runInputFields_standard_translations[];
 }

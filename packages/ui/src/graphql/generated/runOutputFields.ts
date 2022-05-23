@@ -41,7 +41,9 @@ export interface runOutputFields_standard {
   default: string | null;
   isFile: boolean;
   name: string;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   tags: runOutputFields_standard_tags[];
   translations: runOutputFields_standard_translations[];
 }

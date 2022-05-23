@@ -19,8 +19,6 @@ export interface InputOutputListItemProps {
     handleClose: (index: number) => void;
     handleDelete: (index: number) => void;
     handleUpdate: (index: number, updatedItem: RoutineInput | RoutineOutput) => void;
-    handleOpenStandardSelect: (index: number) => void;
-    handleRemoveStandard: (index: number) => void;
     language: string;
     session: Session;
 }

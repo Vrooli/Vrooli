@@ -168,8 +168,9 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
             name: data.name,
             default: data.default,
             isFile: data.isFile,
-            schema: data.schema,
             type: data.type,
+            props: data.props,
+            yup: data.yup,
             tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Standard),
             translations: TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false),
         }

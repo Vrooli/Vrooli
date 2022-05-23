@@ -6,14 +6,24 @@
 // For more information, see: https://github.com/prisma/prisma/discussions/9215
 //==============================================================
 
-export enum StandardType {
-    String = "String",
-    Number = "Number",
-    Boolean = "Boolean",
-    Object = "Object",
-    Array = "Array",
-    File = "File",
-    Url = "Url",
+/**
+ * The different types of input components supported for forms and standards. 
+ * If more specific types are needed (e.g. URLs, email addresses, etc.), these 
+ * are set using Yup validation checks.
+ */
+ export enum InputType {
+    Checkbox = 'Checkbox',
+    Dropzone = 'Dropzone',
+    JSON = 'JSON',
+    LanguageInput = 'LanguageInput',
+    Markdown = 'Markdown',
+    Radio = 'Radio',
+    Selector = 'Selector',
+    Slider = 'Slider',
+    Switch = 'Switch',
+    TagSelector = 'TagSelector',
+    TextField = 'TextField',
+    QuantityBox = 'QuantityBox',
 }
 
 //==============================================================

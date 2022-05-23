@@ -15,7 +15,9 @@ export const standardFields = gql`
         name
         role
         type
-        schema
+        type
+        props
+        yup
         default
         isFile
         created_at

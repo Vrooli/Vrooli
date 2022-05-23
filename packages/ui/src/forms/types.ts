@@ -1,6 +1,7 @@
 import { CommonProps } from "types";
 import { Forms } from "utils";
-import { DropzoneProps as DP, JSONInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, QuantityBoxProps as QP, SelectorProps as SP, TagSelectorProps as TP, TagSelectorTag } from 'components/inputs/types';
+import { DropzoneProps as DP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, QuantityBoxProps as QP, SelectorProps as SP, TagSelectorProps as TP, TagSelectorTag } from 'components/inputs/types';
+import { InputType } from "@local/shared";
 
 //==============================================================
 /* #region Specific Form Props */
@@ -30,24 +31,6 @@ export interface ResetPasswordFormProps extends FormProps {
 //==============================================================
 
 /**
- * The different types of input components supported
- */
-export enum InputType {
-    Checkbox = 'Checkbox',
-    Dropzone = 'Dropzone',
-    JSON = 'JSON',
-    LanguageInput = 'LanguageInput',
-    Markdown = 'Markdown',
-    Radio = 'Radio',
-    Selector = 'Selector',
-    Slider = 'Slider',
-    Switch = 'Switch',
-    TagSelector = 'TagSelector',
-    TextField = 'TextField',
-    QuantityBox = 'QuantityBox',
-}
-
-/**
  * Props for rendering a Checkbox input component
  */
 export interface CheckboxProps {
@@ -69,14 +52,14 @@ export interface CheckboxProps {
 /**
  * Props for rendering a Checkbox input component
  */
-export interface DropzoneProps extends Omit<DP, 'onUpload'> { 
-     defaultValue?: [];
+export interface DropzoneProps extends Omit<DP, 'onUpload'> {
+    defaultValue?: [];
 } // onUpload handled by form
 
 /**
  * Props for rendering a JSON input component
  */
-export interface JSONProps extends Omit<JP, 'onChange' | 'value'> { 
+export interface JSONProps extends Omit<JP, 'onChange' | 'value'> {
     defaultValue?: string;
 }
 
@@ -192,7 +175,7 @@ interface FieldDataBase {
 /**
  * Field data type and props for Checkbox input components
  */
-interface FieldDataCheckbox extends FieldDataBase {
+export interface FieldDataCheckbox extends FieldDataBase {
     /**
      * The type of the field
      */
@@ -206,7 +189,7 @@ interface FieldDataCheckbox extends FieldDataBase {
 /**
  * Field data type and props for Dropzone input components
  */
-interface FieldDataDropzone extends FieldDataBase {
+export interface FieldDataDropzone extends FieldDataBase {
     /**
      * The type of the field
      */
@@ -220,7 +203,7 @@ interface FieldDataDropzone extends FieldDataBase {
 /**
  * Field data type and props for JSON input components
  */
-interface FieldDataJSON extends FieldDataBase {
+export interface FieldDataJSON extends FieldDataBase {
     /**
      * The type of the field
      */
@@ -234,21 +217,21 @@ interface FieldDataJSON extends FieldDataBase {
 /**
  * Field data type and props for LanguageInput input components
  */
-interface FieldDataLanguageInput extends FieldDataBase {
+export interface FieldDataLanguageInput extends FieldDataBase {
     /**
      * The type of the field
      */
-     type: InputType.LanguageInput;
-     /**
-      * Extra props for the input component, depending on the type
-      */
-     props: LanguageInputProps;
+    type: InputType.LanguageInput;
+    /**
+     * Extra props for the input component, depending on the type
+     */
+    props: LanguageInputProps;
 }
 
 /**
  * Field data type and props for Markdown input components
  */
-interface FieldDataMarkdown extends FieldDataBase {
+export interface FieldDataMarkdown extends FieldDataBase {
     /**
      * The type of the field
      */
@@ -262,7 +245,7 @@ interface FieldDataMarkdown extends FieldDataBase {
 /**
  * Field data type and props for Radio button input components
  */
-interface FieldDataRadio extends FieldDataBase {
+export interface FieldDataRadio extends FieldDataBase {
     /**
      * The type of the field
      */
@@ -276,7 +259,7 @@ interface FieldDataRadio extends FieldDataBase {
 /**
  * Field data type and props for Selector input components
  */
-interface FieldDataSelector extends FieldDataBase {
+export interface FieldDataSelector extends FieldDataBase {
     /**
      * The type of the field
      */
@@ -290,7 +273,7 @@ interface FieldDataSelector extends FieldDataBase {
 /**
  * Field data type and props for Slider input components
  */
-interface FieldDataSlider extends FieldDataBase {
+export interface FieldDataSlider extends FieldDataBase {
     /**
      * The type of the field
      */
@@ -304,7 +287,7 @@ interface FieldDataSlider extends FieldDataBase {
 /**
  * Field data type and props for Switch input components
  */
-interface FieldDataSwitch extends FieldDataBase {
+export interface FieldDataSwitch extends FieldDataBase {
     /**
      * The type of the field
      */
@@ -318,7 +301,7 @@ interface FieldDataSwitch extends FieldDataBase {
 /**
  * Field data type and props for TagSelector input components
  */
- interface FieldDataTagSelector extends FieldDataBase {
+export interface FieldDataTagSelector extends FieldDataBase {
     /**
      * The type of the field
      */
@@ -332,7 +315,7 @@ interface FieldDataSwitch extends FieldDataBase {
 /**
  * Field data type and props for TextField input components
  */
-interface FieldDataTextField extends FieldDataBase {
+export interface FieldDataTextField extends FieldDataBase {
     /**
      * The type of the field
      */
@@ -346,7 +329,7 @@ interface FieldDataTextField extends FieldDataBase {
 /**
  * Field data type and props for QuantityBox input components
  */
-interface FieldDataQuantityBox extends FieldDataBase {
+export interface FieldDataQuantityBox extends FieldDataBase {
     /**
      * The type of the field
      */

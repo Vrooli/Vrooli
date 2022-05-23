@@ -7,8 +7,7 @@ import {
 } from '@mui/icons-material';
 import { updateArray } from 'utils';
 import { InputOutputListItem } from '../InputOutputListItem/InputOutputListItem';
-import { RoutineInput, RoutineInputList, RoutineOutput, Standard } from 'types';
-import { AddStandardDialog } from 'components/dialogs';
+import { RoutineInput, RoutineInputList, RoutineOutput } from 'types';
 
 const inputHelpText =
 `Inputs specify the information required to complete a routine. 
@@ -91,6 +90,7 @@ export const InputOutputContainer = ({
     list,
     session,
 }: InputOutputContainerProps) => {
+    console.log('iocontainer')
     // Store open/close state of each list item
     const [isOpenArray, setIsOpenArray] = useState<boolean[]>([]);
     useEffect(() => {
@@ -235,37 +235,8 @@ export const InputOutputContainer = ({
         )
     }, [lineDims])
 
-    // Add standard dialog
-    const [addStandardIndex, setAddStandardIndex] = useState<number | null>(null);
-    const handleOpenStandardSelect = useCallback((index: number) => { setAddStandardIndex(index); }, []);
-    const closeAddStandardDialog = useCallback(() => { setAddStandardIndex(null); }, []);
-    const handleAddStandard = useCallback((standard: Standard) => {
-        if (addStandardIndex === null) return;
-        // Add standard to item at index
-        handleUpdate(updateArray(list, addStandardIndex, {
-            ...list[addStandardIndex],
-            standard
-        }));
-        closeAddStandardDialog();
-    }, [addStandardIndex, closeAddStandardDialog, handleUpdate, list]);
-    const handleRemoveStandard = useCallback((index: number) => {
-        // Remove standard from item at index
-        handleUpdate(updateArray(list, index, {
-            ...list[index],
-            standard: undefined
-        }));
-        setAddStandardIndex(null);
-    }, [handleUpdate, list]);
-
     return (
         <Box id={`${isInput ? 'input' : 'output'}-container`} sx={{ position: 'relative' }}>
-            {/* Popup for adding/connecting a new standard */}
-            <AddStandardDialog 
-                isOpen={addStandardIndex !== null}
-                handleAdd={handleAddStandard}
-                handleClose={closeAddStandardDialog}
-                session={session}
-            />
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
                 {/* Title */}
                 <Typography component="h2" variant="h5" textAlign="left">{isInput ? 'Inputs' : 'Outputs'}</Typography>
@@ -287,8 +258,6 @@ export const InputOutputContainer = ({
                             handleClose={handleClose}
                             handleDelete={onDelete}
                             handleUpdate={onUpdate}
-                            handleOpenStandardSelect={handleOpenStandardSelect}
-                            handleRemoveStandard={handleRemoveStandard}
                             language={language}
                             session={session}
                         />

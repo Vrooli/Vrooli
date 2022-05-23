@@ -10,71 +10,77 @@ import {
 } from '@mui/material';
 import { BaseObjectDialog, HelpButton } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AddSubroutineDialogProps } from '../types';
+import { OrganizationSelectOrCreateDialogProps } from '../types';
 import {
     Add as CreateIcon,
     Close as CloseIcon
 } from '@mui/icons-material';
-import { Routine } from 'types';
-import { routineDefaultSortOption, RoutineSortOptions, SearchList } from 'components/lists';
-import { routineQuery, routinesQuery } from 'graphql/query';
+import { Organization } from 'types';
+import { organizationDefaultSortOption, OrganizationSortOptions, SearchList } from 'components/lists';
+import { organizationQuery, organizationsQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
-import { routine, routineVariables } from 'graphql/generated/routine';
-import { RoutineCreate } from 'components/views/RoutineCreate/RoutineCreate';
-import { validate as uuidValidate } from 'uuid';
+import { organization, organizationVariables } from 'graphql/generated/organization';
+import { OrganizationCreate } from 'components/views/OrganizationCreate/OrganizationCreate';
 
 const helpText =
-    `This dialog allows you to connect a new or existing subroutine. Each subroutine becomes a page when executing the routine (or if it contains its own subroutines, then those subroutines become pages).`
+    `This dialog allows you to connect a new or existing organization to an object.
+    
+    This will assign ownership of the object to that organization, instead of your own account.
+    
+    You must be an admin or owner of the organization for it to appear in the list`
 
-export const AddSubroutineDialog = ({
+export const OrganizationSelectOrCreateDialog = ({
     handleAdd,
     handleClose,
     isOpen,
-    language,
-    nodeId,
-    routineId,
     session,
-}: AddSubroutineDialogProps) => {
+}: OrganizationSelectOrCreateDialogProps) => {
     const { palette } = useTheme();
 
-    // Create new routine dialog
+    // Create new organization dialog
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const handleCreateOpen = useCallback(() => { setIsCreateOpen(true); }, [setIsCreateOpen]);
-    const handleCreated = useCallback((routine: Routine) => {
+    const handleCreated = useCallback((organization: Organization) => {
         setIsCreateOpen(false);
-        handleAdd(nodeId, routine);
+        handleAdd(organization);
         handleClose();
-    }, [handleAdd, handleClose, nodeId]);
+    }, [handleAdd, handleClose]);
     const handleCreateClose = useCallback(() => {
         setIsCreateOpen(false);
     }, [setIsCreateOpen]);
 
-    // If routine selected from search, query for full data
-    const [getRoutine, { data: routineData }] = useLazyQuery<routine, routineVariables>(routineQuery);
-    const handleRoutineSelect = useCallback((routine: Routine) => {
-        getRoutine({ variables: { input: { id: routine.id } } });
-    }, [getRoutine]);
+    // If organization selected from search, query for full data
+    const [getOrganization, { data: organizationData }] = useLazyQuery<organization, organizationVariables>(organizationQuery);
+    const handleOrganizationSelect = useCallback((organization: Organization) => {
+        // Query for full organization data, if not already known (would be known if the same organization was selected last time)
+        if (organizationData?.organization?.id === organization.id) {
+            handleAdd(organizationData?.organization);
+            handleClose();
+        } else {
+            getOrganization({ variables: { input: { id: organization.id } } });
+        }
+    }, [getOrganization, organizationData, handleAdd, handleClose]);
     useEffect(() => {
-        if (routineData?.routine) {
-            handleAdd(nodeId, routineData.routine);
+        if (organizationData?.organization) {
+            handleAdd(organizationData.organization);
             handleClose();
         }
-    }, [handleAdd, handleClose, handleCreateClose, nodeId, routineData]);
+    }, [handleAdd, handleClose, handleCreateClose, organizationData]);
 
     /**
      * Title bar with help button and close icon
      */
     const titleBar = useMemo(() => (
         <Box sx={{
+            alignItems: 'center',
             background: palette.primary.dark,
             color: palette.primary.contrastText,
             display: 'flex',
-            alignItems: 'center',
             justifyContent: 'space-between',
             padding: 2,
         }}>
             <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
-                {'Add Subroutine'}
+                {'Add Organization'}
                 <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
             </Typography>
             <Box sx={{ marginLeft: 'auto' }}>
@@ -97,24 +103,21 @@ export const AddSubroutineDialog = ({
             open={isOpen}
             onClose={handleClose}
             sx={{
-                '& .MuiDialogContent-root': { 
-                    overflow: 'visible', 
-                    background: palette.mode === 'light' ? '#cdd6df' : '#182028',
-                },
+                '& .MuiDialogContent-root': { overflow: 'visible', background: '#cdd6df' },
                 '& .MuiDialog-paper': { overflow: 'visible' }
             }}
         >
-            {/* Popup for creating a new routine */}
+            {/* Popup for creating a new organization */}
             <BaseObjectDialog
-                hasNext={false}
                 hasPrevious={false}
+                hasNext={false}
                 onAction={handleCreateClose}
                 open={isCreateOpen}
-                title={"Create Routine"}
+                title={"Create Organization"}
             >
-                <RoutineCreate
-                    onCancel={handleCreateClose}
+                <OrganizationCreate
                     onCreated={handleCreated}
+                    onCancel={handleCreateClose}
                     session={session}
                 />
             </BaseObjectDialog>
@@ -122,22 +125,22 @@ export const AddSubroutineDialog = ({
             <DialogContent>
                 <Stack direction="column" spacing={4}>
                     <SearchList
-                        itemKeyPrefix='routine-list-item'
-                        defaultSortOption={routineDefaultSortOption}
+                        itemKeyPrefix='organization-list-item'
+                        defaultSortOption={organizationDefaultSortOption}
                         noResultsText={"None found. Maybe you should create one?"}
-                        onObjectSelect={(newValue) => handleRoutineSelect(newValue)}
-                        query={routinesQuery}
-                        searchPlaceholder={'Select existing subroutine...'}
+                        onObjectSelect={(newValue) => handleOrganizationSelect(newValue)}
+                        query={organizationsQuery}
+                        searchPlaceholder={'Select existing organization...'}
                         searchString={searchString}
-                        session={session}
                         setSearchString={setSearchString}
+                        session={session}
                         setSortBy={setSortBy}
                         setTimeFrame={setTimeFrame}
-                        sortOptions={RoutineSortOptions}
                         sortBy={sortBy}
+                        sortOptions={OrganizationSortOptions}
                         take={20}
                         timeFrame={timeFrame}
-                        where={uuidValidate(routineId) ? { excludeIds: [routineId] } : undefined}
+                        where={{ userId: session?.id,}}
                     />
                     <Button
                         fullWidth

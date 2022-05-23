@@ -43,7 +43,9 @@ export interface routineUpdate_routineUpdate_inputs_standard {
   default: string | null;
   isFile: boolean;
   name: string;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   tags: routineUpdate_routineUpdate_inputs_standard_tags[];
   translations: routineUpdate_routineUpdate_inputs_standard_translations[];
 }
@@ -237,7 +239,9 @@ export interface routineUpdate_routineUpdate_outputs_standard {
   default: string | null;
   isFile: boolean;
   name: string;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   tags: routineUpdate_routineUpdate_outputs_standard_tags[];
   translations: routineUpdate_routineUpdate_outputs_standard_translations[];
 }

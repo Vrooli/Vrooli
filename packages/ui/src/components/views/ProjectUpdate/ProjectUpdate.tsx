@@ -19,7 +19,7 @@ import { DialogActionItem } from "components/containers/types";
 import { TagSelectorTag } from "components/inputs/types";
 import { LanguageInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { ListOrganization, NewObject, Project, ResourceList } from "types";
+import { NewObject, Organization, Project, ResourceList } from "types";
 import { v4 as uuidv4 } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 
@@ -40,8 +40,8 @@ export const ProjectUpdate = ({
     const project = useMemo(() => data?.project, [data]);
 
     // Handle user/organization switch
-    const [organizationFor, setOrganizationFor] = useState<ListOrganization | null>(null);
-    const onSwitchChange = useCallback((organization: ListOrganization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
+    const [organizationFor, setOrganizationFor] = useState<Organization | null>(null);
+    const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
@@ -78,7 +78,7 @@ export const ProjectUpdate = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
-        if (project?.owner?.__typename === 'Organization') setOrganizationFor(project.owner as ListOrganization);
+        if (project?.owner?.__typename === 'Organization') setOrganizationFor(project.owner as Organization);
         else setOrganizationFor(null);
         setResourceList(project?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(project?.tags ?? []);

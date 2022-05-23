@@ -264,23 +264,6 @@ export interface RunStepsDialogProps {
     sxs?: { icon: any };
 }
 
-export interface AddStandardDialogProps {
-    handleAdd: (standard: Standard) => any;
-    handleClose: () => any;
-    isOpen: boolean;
-    session: Session;
-}
-
-export interface AddSubroutineDialogProps {
-    handleAdd: (nodeId: string, subroutine: Routine) => any;
-    handleClose: () => any;
-    isOpen: boolean;
-    language: string;
-    nodeId: string;
-    routineId: string;
-    session: Session;
-}
-
 export interface SelectLanguageDialogProps {
     /**
      * Languages to restrict selection to

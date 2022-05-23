@@ -1,17 +1,18 @@
-import { Box, Button, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { InputOutputListItemProps } from '../types';
 import { inputCreate, outputCreate } from '@local/shared';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { containerShadow } from 'styles';
 import {
-    Close as CloseIcon,
     Delete as DeleteIcon,
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { getTranslation, updateArray } from 'utils';
 import { useFormik } from 'formik';
-import { NewObject, RoutineInput, RoutineOutput } from 'types';
+import { ListStandard, NewObject, RoutineInput, RoutineOutput } from 'types';
+import { BaseStandardInput, StandardSelectSwitch } from 'components';
+import { FieldData } from 'forms/types';
 
 export const InputOutputListItem = ({
     isEditing,
@@ -23,12 +24,27 @@ export const InputOutputListItem = ({
     handleClose,
     handleDelete,
     handleUpdate,
-    handleOpenStandardSelect,
-    handleRemoveStandard,
     language,
     session,
 }: InputOutputListItemProps) => {
-    
+    const { palette } = useTheme();
+    console.log('iolistitem')
+
+    // Handle standard select switch
+    const [standard, setStandard] = useState<ListStandard | null>(null);
+    const onSwitchChange = useCallback((s: ListStandard | null) => { setStandard(s) }, []);
+    // Handle custom standard schema
+    const [schema, setSchema] = useState<FieldData | null>(null);
+    useEffect(() => {
+        // Check if standard has changed
+        if (item?.standard?.id === standard?.id) return;
+        console.log('updating standardddd....', item?.standard, standard)
+        handleUpdate(index, {
+            ...item,
+            standard: standard || null,
+        })
+    }, [handleUpdate, index, item, standard]);
+
     type Translation = NewObject<(RoutineInput | RoutineOutput)['translations'][0]>;
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
         // Find translation
@@ -86,7 +102,7 @@ export const InputOutputListItem = ({
             <Container
                 onClick={toggleOpen}
                 sx={{
-                    background: isInput ? '#79addf' : '#c15c6d',
+                    background: isInput ? (palette.mode === 'light' ? '#79addf' : '#2668a7') : (palette.mode === 'light' ? '#c15c6d' : '#9e2d40'),
                     color: 'white',
                     display: 'flex',
                     alignItems: 'center',
@@ -150,7 +166,10 @@ export const InputOutputListItem = ({
                     <ExpandMoreIcon sx={{ marginLeft: 'auto' }} />
                 }
             </Container>
-            <Collapse in={isOpen}>
+            <Collapse in={isOpen} sx={{
+                background: palette.background.paper,
+                color: palette.background.textPrimary,
+            }}>
                 <Grid container spacing={2} sx={{ padding: 1 }}>
                     <Grid item xs={12}>
                         <TextField
@@ -183,32 +202,15 @@ export const InputOutputListItem = ({
                     </Grid>
                     {/* Select standard */}
                     <Grid item xs={12}>
-                        {/* If no standard selected, show "Select standard" button. Otherwise, show label and remove icon */}
-                        {item.standard ? (
-                            <Stack direction="row" spacing={1} alignItems="center">
-                                <Typography variant="body2">Standard: </Typography>
-                                <Typography variant="body2">{item.standard.name}</Typography>
-                                <Tooltip placement="top" title={`Remove ${item.standard.name}`}>
-                                    <IconButton color="inherit" onClick={() => handleRemoveStandard(index)} aria-label="delete" sx={{
-                                        height: 'fit-content',
-                                        marginTop: 'auto',
-                                        marginBottom: 'auto',
-                                    }}>
-                                        <CloseIcon sx={{
-                                            fill: '#ff6a6a',
-                                        }} />
-                                    </IconButton>
-                                </Tooltip>
-                            </Stack>
-                        ) : (
-                            <Button
-                                color="secondary"
-                                onClick={() => handleOpenStandardSelect(index)}
-                            >
-                                Select standard (optional)
-                            </Button>
-                        )
-                        }
+                        <StandardSelectSwitch session={session} selected={standard} onChange={onSwitchChange} />
+                    </Grid>
+                    {/* Custom standard inputs */}
+                    <Grid item xs={12}>
+                        {!standard && <BaseStandardInput
+                            isEditing={isEditing}
+                            schema={schema}
+                            onChange={setSchema}
+                        />}
                     </Grid>
                     {isInput && <Grid item xs={12}>
                         <Tooltip placement={'right'} title='Is this input mandatory?'>

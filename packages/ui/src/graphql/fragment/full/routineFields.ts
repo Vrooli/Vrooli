@@ -24,7 +24,9 @@ export const routineFields = gql`
             default
             isFile
             name
-            schema
+            type
+            props
+            yup
             tags {
                 ...routineTagFields
             }
@@ -48,7 +50,9 @@ export const routineFields = gql`
             default
             isFile
             name
-            schema
+            type
+            props
+            yup
             tags {
                 ...routineTagFields
             }
