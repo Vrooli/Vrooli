@@ -76,6 +76,7 @@ export const StandardCreate = ({
 
     // Handle standard schema
     const [schema, setSchema] = useState<FieldData | null>(null);
+    const handleSchemaUpdate = useCallback((schema: FieldData) => { setSchema(schema); }, []);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
@@ -299,7 +300,7 @@ export const StandardCreate = ({
                     <BaseStandardInput
                         isEditing={true}
                         schema={schema}
-                        onChange={setSchema}
+                        onChange={handleSchemaUpdate}
                     />
                 </Grid>
                 {/* Standard preview */}
