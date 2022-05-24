@@ -228,14 +228,16 @@ export const OrganizationView = ({
      */
     const overviewComponent = useMemo(() => (
         <Box
-            width={'min(500px, 100vw)'}
             position="relative"
-            borderRadius={2}
             ml='auto'
             mr='auto'
             mt={3}
             bgcolor={palette.background.paper}
-            sx={{ ...containerShadow }}
+            sx={{
+                borderRadius: { xs: '0', sm: 2 },
+                boxShadow: { xs: 'none', sm: (containerShadow as any).boxShadow },
+                width: { xs: '100%', sm: 'min(500px, 100vw)' }
+            }}
         >
             <Box
                 width={'min(100px, 25vw)'}
@@ -247,7 +249,7 @@ export const OrganizationView = ({
                 alignItems='center'
                 left='50%'
                 top="-55px"
-                sx={{ 
+                sx={{
                     border: `1px solid black`,
                     backgroundColor: profileColors[0],
                     transform: 'translateX(-50%)',
@@ -290,7 +292,7 @@ export const OrganizationView = ({
                                     onClick={onEdit}
                                 >
                                     <EditIcon sx={{
-                                        fill: palette.mode === 'light' ? 
+                                        fill: palette.mode === 'light' ?
                                             palette.primary.main : palette.secondary.light,
                                     }} />
                                 </IconButton>
@@ -403,7 +405,7 @@ export const OrganizationView = ({
                 background: palette.mode === 'light' ? "#b2b3b3" : "#303030",
                 display: 'flex',
                 paddingTop: 5,
-                paddingBottom: 5,
+                paddingBottom: { xs: 0, sm: 2, md: 5 },
                 position: "relative",
             }}>
                 {/* Language display/select */}
@@ -424,31 +426,30 @@ export const OrganizationView = ({
             </Box>
             {/* View routines, members, standards, and projects associated with this organization */}
             <Box>
-                <Tabs
-                    value={tabIndex}
-                    onChange={handleTabChange}
-                    indicatorColor="secondary"
-                    textColor="inherit"
-                    variant="scrollable"
-                    scrollButtons="auto"
-                    allowScrollButtonsMobile
-                    aria-label="site-statistics-tabs"
-                    sx={{
-                        marginBottom: 1,
-                        '& .MuiTabs-flexContainer': {
-                            justifyContent: 'space-around',
-                        },
-                    }}
-                >
-                    {availableTabs.map((tabType, index) => (
-                        <Tab
-                            key={index}
-                            id={`profile-tab-${index}`}
-                            {...{ 'aria-controls': `profile-tabpanel-${index}` }}
-                            label={<span style={{ color: tabType === TabOptions.Resources ? '#8e6b00' : 'default' }}>{tabType}</span>}
-                        />
-                    ))}
-                </Tabs>
+                <Box display="flex" justifyContent="center" width="100%">
+                    <Tabs
+                        value={tabIndex}
+                        onChange={handleTabChange}
+                        indicatorColor="secondary"
+                        textColor="inherit"
+                        variant="scrollable"
+                        scrollButtons="auto"
+                        allowScrollButtonsMobile
+                        aria-label="site-statistics-tabs"
+                        sx={{
+                            marginBottom: 1,
+                        }}
+                    >
+                        {availableTabs.map((tabType, index) => (
+                            <Tab
+                                key={index}
+                                id={`profile-tab-${index}`}
+                                {...{ 'aria-controls': `profile-tabpanel-${index}` }}
+                                label={<span style={{ color: tabType === TabOptions.Resources ? '#8e6b00' : 'default' }}>{tabType}</span>}
+                            />
+                        ))}
+                    </Tabs>
+                </Box>
                 <Box p={2}>
                     {
                         currTabType === TabOptions.Resources ? resources : (

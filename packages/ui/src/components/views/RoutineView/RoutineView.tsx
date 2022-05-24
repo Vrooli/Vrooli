@@ -117,12 +117,22 @@ export const RoutineView = ({
 
     const [isRunOpen, setIsRunOpen] = useState(false)
     const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
-    const handleRunSelect = useCallback((run: Run) => {
-        console.log('handle run selectttt', run)
-        setLocation(stringifySearchParams({
-            run: run.id,
-            step: run.steps.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
-        }), { replace: true });
+    const handleRunSelect = useCallback((run: Run | null) => {
+        console.log("HANDLE RUN SELECT", run)
+        // If run is null, it means the routine will be opened without a run
+        if (!run) {
+            setLocation(stringifySearchParams({
+                run: "test",
+                step: [1]
+            }), { replace: true });
+        }
+        // Otherwise, open routine where last left off in run
+        else {
+            setLocation(stringifySearchParams({
+                run: run.id,
+                step: run.steps.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
+            }), { replace: true });
+        }
         setIsRunOpen(true);
     }, [setLocation]);
     const handleSelectRunClose = useCallback(() => setSelectRunAnchor(null), []);
@@ -192,13 +202,18 @@ export const RoutineView = ({
      */
     const actions = useMemo(() => {
         // If routine has no nodes
-        if (!routine?.nodes?.length) return (
-            <Grid container spacing={1}>
-                <Grid item xs={12}>
-                    <Button startIcon={<MarkAsCompleteIcon />} fullWidth onClick={markAsComplete} color="secondary">Mark as Complete</Button>
+        if (!routine?.nodes?.length) {
+            console.log('SESSION HEERE', session)
+            // Only show if logged in
+            if (!session?.id) return null;
+            return (
+                <Grid container spacing={1}>
+                    <Grid item xs={12}>
+                        <Button startIcon={<MarkAsCompleteIcon />} fullWidth onClick={markAsComplete} color="secondary">Mark as Complete</Button>
+                    </Grid>
                 </Grid>
-            </Grid>
-        )
+            )
+        }
         // If routine has nodes
         return (
             <Grid container spacing={1}>
@@ -214,7 +229,7 @@ export const RoutineView = ({
                 </Grid>
             </Grid>
         )
-    }, [routine, markAsComplete, viewGraph, runRoutine]);
+    }, [routine, viewGraph, runRoutine, session?.id, markAsComplete]);
 
     const resourceList = useMemo(() => {
         if (!routine ||

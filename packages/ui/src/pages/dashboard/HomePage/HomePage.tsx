@@ -392,35 +392,36 @@ export const HomePage = ({
             paddingTop: { xs: '64px', md: '80px' },
         }}>
             {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}
-            {showForYou && <Tabs
-                value={tabIndex}
-                onChange={handleTabChange}
-                indicatorColor="secondary"
-                textColor="inherit"
-                variant="scrollable"
-                scrollButtons="auto"
-                allowScrollButtonsMobile
-                aria-label="home-pages"
-                sx={{
-                    marginBottom: 2,
-                    '& .MuiTabs-flexContainer': {
-                        justifyContent: 'center',
-                    },
-                }}
-            >
-                {tabOptions.map((option, index) => (
-                    <Tab
-                        key={index}
-                        id={`home-tab-${index}`}
-                        {...{ 
-                            'aria-labelledby': `home-pages`,
-                            'aria-label': `home page ${option[0]}`,
+            {showForYou && (
+                <Box display="flex" justifyContent="center" width="100%">
+                    <Tabs
+                        value={tabIndex}
+                        onChange={handleTabChange}
+                        indicatorColor="secondary"
+                        textColor="inherit"
+                        variant="scrollable"
+                        scrollButtons="auto"
+                        allowScrollButtonsMobile
+                        aria-label="home-pages"
+                        sx={{
+                            marginBottom: 1,
                         }}
-                        label={option[0]}
-                        color={index === 0 ? '#ce6c12' : 'default'}
-                    />
-                ))}
-            </Tabs>}
+                    >
+                        {tabOptions.map((option, index) => (
+                            <Tab
+                                key={index}
+                                id={`home-tab-${index}`}
+                                {...{
+                                    'aria-labelledby': `home-pages`,
+                                    'aria-label': `home page ${option[0]}`,
+                                }}
+                                label={option[0]}
+                                color={index === 0 ? '#ce6c12' : 'default'}
+                            />
+                        ))}
+                    </Tabs>
+                </Box>
+            )}
             {/* Advanced search dialog */}
             <ListMenu
                 id={`open-advanced-search-menu`}

@@ -21,14 +21,6 @@ export function AutocompleteSearchBar<T>({
     sx,
     ...props
 }: AutocompleteSearchBarProps<T>) {
-    const [popupOpen, setPopupOpen] = useState(false);
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-    const handleClick = useCallback((event) => {
-        setAnchorEl(event.currentTarget);
-        setPopupOpen(true);
-    }, []);
-    const handleClose = useCallback(() => setPopupOpen(false), []);
-
     const [internalValue, setInternalValue] = useState<string>(value);
     const onChangeDebounced = useMemo(() => AwesomeDebouncePromise(
         onChange,
@@ -60,7 +52,6 @@ export function AutocompleteSearchBar<T>({
                     onClick={() => {
                         setInternalValue(getOptionLabel(option, languages));
                         onChangeDebounced(getOptionLabel(option, languages));
-                        handleClose();
                         onInputChange(option);
                     }}
                 >
@@ -79,7 +70,7 @@ export function AutocompleteSearchBar<T>({
                         value={internalValue}
                         onChange={handleChange}
                         placeholder={placeholder}
-                        autoFocus
+                        autoFocus={props.autoFocus ?? false}
                         {...params.InputProps}
                         inputProps={params.inputProps}
                     />

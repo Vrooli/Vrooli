@@ -300,7 +300,7 @@ export interface AdvancedSearchDialogProps {
 export interface RunPickerDialogProps {
     anchorEl: HTMLElement | null;
     handleClose: () => any;
-    onSelect: (run: Run) => any;
+    onSelect: (run: Run | null) => any;
     routine?: Routine | null;
     session: Session;
 }

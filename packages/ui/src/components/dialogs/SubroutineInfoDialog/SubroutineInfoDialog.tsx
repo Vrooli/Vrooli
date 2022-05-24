@@ -36,6 +36,7 @@ export const SubroutineInfoDialog = ({
     subroutine,
     onClose,
 }: SubroutineInfoDialogProps) => {
+    console.log('boop isediting', isEditing)
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 

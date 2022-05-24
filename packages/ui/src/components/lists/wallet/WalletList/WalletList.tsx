@@ -113,7 +113,7 @@ export const WalletList = ({
                 PubSub.publish(Pubs.Snack, { message: 'Wallet already connected.', severity: 'warning' })
             }
             else {
-                PubSub.publish(Pubs.Snack, { message: 'Wallet verified.' });
+                PubSub.publish(Pubs.Snack, { message: 'Wallet verified.', severity: 'success' });
                 // Update list
                 handleUpdate([...list, walletCompleteResult.wallet]);
             }
@@ -139,7 +139,7 @@ export const WalletList = ({
         // Validate wallet
         const walletCompleteResult = await validateWallet(provider);
         if (walletCompleteResult) {
-            PubSub.publish(Pubs.Snack, { message: 'Wallet verified.' })
+            PubSub.publish(Pubs.Snack, { message: 'Wallet verified.', severity: 'success' })
             // Update list
             handleUpdate(updateArray(list, selectedIndex, {
                 ...list[selectedIndex],

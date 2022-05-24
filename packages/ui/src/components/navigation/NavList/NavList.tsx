@@ -50,6 +50,7 @@ export const NavList = ({
     session,
     sessionChecked,
 }: NavListProps) => {
+    console.log(' NAVLIST SESSION', session)
     const classes = useStyles();
     const { breakpoints } = useTheme();
     const [, setLocation] = useLocation();
@@ -62,19 +63,7 @@ export const NavList = ({
         return () => window.removeEventListener("resize", updateWindowDimensions);
     }, [updateWindowDimensions]);
 
-    const nav_actions = useMemo<Action[]>(() => getUserActions({ roles: session.roles ?? [], exclude: [ACTION_TAGS.Home] }), [session.roles]);
-    // Display button for entering main application
-    const enter_action: Action | undefined = nav_actions.find((action: Action) => action.value === ACTION_TAGS.LogIn)
-    // Dont show the Log In button until session has been checked
-    const enter_button = useMemo(() => (enter_action && sessionChecked) ? (
-        <Button
-            className={classes.button}
-            onClick={() => openLink(setLocation, enter_action.link)}
-            sx={{ background: '#5ea956' }}
-        >
-            {enter_action.label}
-        </Button>
-    ) : null, [enter_action, classes.button, sessionChecked, setLocation])
+    const nav_actions = useMemo<Action[]>(() => getUserActions({ roles: session.roles ?? [], exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn] }), [session.roles]);
 
     return (
         <Container className={classes.root}>
@@ -88,14 +77,22 @@ export const NavList = ({
             </PopupMenu>}
             {/* List items displayed when on wide screen */}
             {!isMobile && actionsToMenu({
-                actions: nav_actions.filter((a: Action) => a.value !== ACTION_TAGS.LogIn),
+                actions: nav_actions,
                 setLocation,
                 classes: { root: classes.navItem },
             })}
             {/* Enter button displayed when not logged in */}
-            {enter_button}
+            {session !== undefined && !session?.roles && (
+                <Button
+                    className={classes.button}
+                    onClick={() => openLink(setLocation, APP_LINKS.Start)}
+                    sx={{ background: '#5ea956' }}
+                >
+                    Log In
+                </Button>
+            )}
             {/* Profile icon for mobile */}
-            {isMobile && !enter_button && (
+            {isMobile && session?.roles && (
                 <IconButton
                     color="inherit"
                     onClick={() => { setLocation(APP_LINKS.Profile) }}
