@@ -1018,7 +1018,7 @@ export interface StandardCountInput {
 export interface StandardCreateInput {
   default?: string | null;
   isFile?: boolean | null;
-  name: string;
+  name?: string | null;
   type: string;
   props: string;
   yup?: string | null;

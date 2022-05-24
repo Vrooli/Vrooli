@@ -2322,7 +2322,7 @@ export type StandardCreateInput = {
   createdByUserId?: InputMaybe<Scalars['ID']>;
   default?: InputMaybe<Scalars['String']>;
   isFile?: InputMaybe<Scalars['Boolean']>;
-  name: Scalars['String'];
+  name?: InputMaybe<Scalars['String']>;
   props: Scalars['String'];
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;

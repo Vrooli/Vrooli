@@ -1,12 +1,16 @@
 /**
- * Resolvers for GraphQL unions
+ * Resolvers for GraphQL unions. 
+ * The basic structure is: 
+ *  1. Find one or more fields which are unique to an object type, and will probably be part of the query.
+ *  2. If the object contains one of those fields, it must be of that type.
+ *  3. Repeat for all other object types in the union
  */
 
 import { GraphQLModelType } from "../models";
 
 export const resolveCommentedOn = (obj: any): GraphQLModelType => {
-    // Only a Standard has an isFile field
-    if (obj.hasOwnProperty('isFile')) return GraphQLModelType.Standard;
+    // Only a Standard has a type field
+    if (obj.hasOwnProperty('type')) return GraphQLModelType.Standard;
     // Only a Project has a name field
     if (obj.hasOwnProperty('isComplete')) return GraphQLModelType.Project;
     return GraphQLModelType.Routine;
@@ -51,7 +55,7 @@ export const resolveContributor = (obj: any): GraphQLModelType => {
 
 export const resolveStarTo = (obj: any): GraphQLModelType => {
     console.log('RESOLVE STAR TO', JSON.stringify(obj));
-    if (obj.hasOwnProperty('isFile')) return GraphQLModelType.Standard;
+    if (obj.hasOwnProperty('yup')) return GraphQLModelType.Standard;
     if (obj.hasOwnProperty('complexity')) return GraphQLModelType.Routine;
     if (obj.hasOwnProperty('isComplete')) return GraphQLModelType.Project;
     if (obj.hasOwnProperty('isOpenToNewMembers')) return GraphQLModelType.Organization;
@@ -61,7 +65,7 @@ export const resolveStarTo = (obj: any): GraphQLModelType => {
 }
 
 export const resolveVoteTo = (obj: any): GraphQLModelType => {
-    if (obj.hasOwnProperty('isFile')) return GraphQLModelType.Standard;
+    if (obj.hasOwnProperty('type')) return GraphQLModelType.Standard;
     if (obj.hasOwnProperty('isComplete')) return GraphQLModelType.Project;
     return GraphQLModelType.Routine;
 }

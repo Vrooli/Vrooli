@@ -23,7 +23,7 @@ export const typeDef = gql`
     input StandardCreateInput {
         default: String
         isFile: Boolean
-        name: String!
+        name: String
         type: String!
         props: String!
         yup: String

@@ -576,7 +576,7 @@ model routine_input {
     routineId    String                      @db.Uuid
     standardId   String?                     @db.Uuid
     routine      routine                     @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    standard     standard?                   @relation(fields: [standardId], references: [id], onDelete: Cascade)
+    standard     standard?                   @relation(fields: [standardId], references: [id], onDelete: SetNull)
     translations routine_input_translation[]
 }
 
@@ -693,7 +693,6 @@ model standard {
     created_at              DateTime               @default(now()) @db.Timestamptz(6)
     updated_at              DateTime               @default(now()) @db.Timestamptz(6)
     default                 String?                @db.VarChar(1024) // Default value
-    isFile                  Boolean                @default(false) // Indicates if the data is a file. If this is the case, then the schema is interpreted as file metadata
     name                    String                 @db.VarChar(128)
     score                   Int                    @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
     stars                   Int                    @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
