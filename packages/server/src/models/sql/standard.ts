@@ -236,6 +236,7 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
             yup: data.yup ? sortify(data.yup) : undefined,
             tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Standard),
             translations: TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false),
+            version: data.version ?? '1.0.0',
         }
     },
     async toDBShapeUpdate(userId: string | null, data: StandardUpdateInput): Promise<any> {

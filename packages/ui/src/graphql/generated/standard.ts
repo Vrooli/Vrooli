@@ -170,7 +170,6 @@ export interface standard_standard {
   props: string;
   yup: string | null;
   default: string | null;
-  isFile: boolean;
   created_at: any;
   tags: standard_standard_tags[];
   translations: standard_standard_translations[];
@@ -179,6 +178,7 @@ export interface standard_standard {
   isStarred: boolean;
   score: number;
   isUpvoted: boolean | null;
+  version: string;
 }
 
 export interface standard {

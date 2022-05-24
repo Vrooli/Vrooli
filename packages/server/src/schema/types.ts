@@ -2291,7 +2291,6 @@ export type Standard = {
   creator?: Maybe<Contributor>;
   default?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
-  isFile: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
@@ -2308,6 +2307,7 @@ export type Standard = {
   translations: Array<StandardTranslation>;
   type: Scalars['String'];
   updated_at: Scalars['Date'];
+  version: Scalars['String'];
   views: Scalars['Int'];
   yup?: Maybe<Scalars['String']>;
 };
@@ -2321,7 +2321,6 @@ export type StandardCreateInput = {
   createdByOrganizationId?: InputMaybe<Scalars['ID']>;
   createdByUserId?: InputMaybe<Scalars['ID']>;
   default?: InputMaybe<Scalars['String']>;
-  isFile?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
   props: Scalars['String'];
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;

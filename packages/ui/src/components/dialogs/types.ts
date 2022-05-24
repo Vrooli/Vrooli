@@ -4,6 +4,7 @@ import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
 import { ReportFor } from '@local/shared';
 import { NewObject, Node, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
+import { ObjectType } from 'utils';
 
 export interface AlertDialogProps extends DialogProps { };
 
@@ -197,7 +198,7 @@ export interface BaseObjectActionDialogProps {
     handleDelete: () => any;
     handleEdit: () => any;
     objectId: string;
-    objectType: string;
+    objectType: ObjectType;
     onClose: () => any;
     session: Session;
     title: string;

@@ -22,7 +22,6 @@ export const routineFields = gql`
         standard {
             id
             default
-            isFile
             name
             type
             props
@@ -35,6 +34,7 @@ export const routineFields = gql`
                 language
                 description
             }
+            version
         }
     }
     fragment routineOutputFields on OutputItem {
@@ -48,7 +48,6 @@ export const routineFields = gql`
         standard {
             id
             default
-            isFile
             name
             type
             props
@@ -61,6 +60,7 @@ export const routineFields = gql`
                 language
                 description
             }
+            version
         }
     }
     fragment routineNodeFields on Node {

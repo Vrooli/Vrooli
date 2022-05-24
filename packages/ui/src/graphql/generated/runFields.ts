@@ -41,13 +41,13 @@ export interface runFields_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
-  isFile: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   tags: runFields_routine_inputs_standard_tags[];
   translations: runFields_routine_inputs_standard_translations[];
+  version: string;
 }
 
 export interface runFields_routine_inputs {
@@ -237,13 +237,13 @@ export interface runFields_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
-  isFile: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   tags: runFields_routine_outputs_standard_tags[];
   translations: runFields_routine_outputs_standard_translations[];
+  version: string;
 }
 
 export interface runFields_routine_outputs {

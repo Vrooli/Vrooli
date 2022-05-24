@@ -62,7 +62,6 @@ export interface standardUpdate_standardUpdate {
   props: string;
   yup: string | null;
   default: string | null;
-  isFile: boolean;
   created_at: any;
   tags: standardUpdate_standardUpdate_tags[];
   translations: standardUpdate_standardUpdate_translations[];
@@ -71,6 +70,7 @@ export interface standardUpdate_standardUpdate {
   isStarred: boolean;
   score: number;
   isUpvoted: boolean | null;
+  version: string;
 }
 
 export interface standardUpdate {
