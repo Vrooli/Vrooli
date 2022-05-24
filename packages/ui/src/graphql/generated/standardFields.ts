@@ -62,7 +62,6 @@ export interface standardFields {
   props: string;
   yup: string | null;
   default: string | null;
-  isFile: boolean;
   created_at: any;
   tags: standardFields_tags[];
   translations: standardFields_translations[];
@@ -71,4 +70,5 @@ export interface standardFields {
   isStarred: boolean;
   score: number;
   isUpvoted: boolean | null;
+  version: string;
 }

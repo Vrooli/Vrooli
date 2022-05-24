@@ -14,7 +14,7 @@ import {
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, DeleteRoutineDialog, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
-import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, Pubs, stringifySearchParams, toOwnedBy, useReactSearch } from "utils";
+import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, Pubs, stringifySearchParams, toOwnedBy, useReactSearch } from "utils";
 import { Routine, Run } from "types";
 import Markdown from "markdown-to-jsx";
 import { runCompleteMutation, routineDeleteOneMutation } from "graphql/mutation";
@@ -331,7 +331,7 @@ export const RoutineView = ({
                 handleDelete={() => { }} //TODO
                 handleEdit={onEdit}
                 objectId={id ?? ''}
-                objectType={'Routine'}
+                objectType={ObjectType.Routine}
                 anchorEl={moreMenuAnchor}
                 title='Routine Options'
                 availableOptions={moreOptions}

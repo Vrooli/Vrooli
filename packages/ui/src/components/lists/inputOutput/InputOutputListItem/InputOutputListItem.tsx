@@ -10,7 +10,7 @@ import {
 } from '@mui/icons-material';
 import { getTranslation, updateArray } from 'utils';
 import { useFormik } from 'formik';
-import { ListStandard, NewObject, RoutineInput, RoutineOutput } from 'types';
+import { ListStandard, NewObject, RoutineInput, RoutineOutput, Standard } from 'types';
 import { BaseStandardInput, StandardSelectSwitch } from 'components';
 import { FieldData } from 'forms/types';
 
@@ -45,6 +45,21 @@ export const InputOutputListItem = ({
             standard: standard || null,
         })
     }, [handleUpdate, index, item, standard]);
+    // Custom schemas mean a new standard will be created. 
+    // So we must wrap the schema in a new standard object
+    useEffect(() => {
+        if (!schema) return;
+        console.log('updating schema....', item?.standard, schema)
+        handleUpdate(index, {
+            ...item,
+            standard: {
+                default: schema.props?.defaultValue ?? null,
+                type: schema.type,
+                props: JSON.stringify(schema.props),
+                yup: JSON.stringify(schema.yup),
+            } as Standard
+        })
+    })
 
     type Translation = NewObject<(RoutineInput | RoutineOutput)['translations'][0]>;
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {

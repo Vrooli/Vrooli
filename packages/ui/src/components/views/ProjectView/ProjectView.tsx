@@ -18,7 +18,7 @@ import { ProjectViewProps } from "../types";
 import { Project, ResourceList } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
-import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
+import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, Pubs } from "utils";
 import { validate as uuidValidate } from 'uuid';
 import { owns } from "utils/authentication";
 
@@ -337,7 +337,7 @@ export const ProjectView = ({
                 handleDelete={() => { }} //TODO
                 handleEdit={onEdit}
                 objectId={id}
-                objectType={'Project'}
+                objectType={ObjectType.Project}
                 anchorEl={moreMenuAnchor}
                 title='Project Options'
                 availableOptions={moreOptions}

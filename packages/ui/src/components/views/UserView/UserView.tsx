@@ -16,7 +16,7 @@ import {
 import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationSortOptions, projectDefaultSortOption, ProjectSortOptions, ResourceListVertical, routineDefaultSortOption, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
-import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, Pubs } from "utils";
+import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, Pubs } from "utils";
 import { ResourceList, User } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
@@ -394,7 +394,7 @@ export const UserView = ({
                 handleDelete={() => { }} //TODO
                 handleEdit={onEdit}
                 objectId={id}
-                objectType={'User'}
+                objectType={ObjectType.User}
                 anchorEl={moreMenuAnchor}
                 title='User Options'
                 availableOptions={moreOptions}

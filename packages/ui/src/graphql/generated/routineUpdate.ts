@@ -41,13 +41,13 @@ export interface routineUpdate_routineUpdate_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
-  isFile: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   tags: routineUpdate_routineUpdate_inputs_standard_tags[];
   translations: routineUpdate_routineUpdate_inputs_standard_translations[];
+  version: string;
 }
 
 export interface routineUpdate_routineUpdate_inputs {
@@ -237,13 +237,13 @@ export interface routineUpdate_routineUpdate_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
-  isFile: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   tags: routineUpdate_routineUpdate_outputs_standard_tags[];
   translations: routineUpdate_routineUpdate_outputs_standard_translations[];
+  version: string;
 }
 
 export interface routineUpdate_routineUpdate_outputs {

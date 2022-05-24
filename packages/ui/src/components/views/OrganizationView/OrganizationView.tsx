@@ -19,7 +19,7 @@ import { OrganizationViewProps } from "../types";
 import { Organization, ResourceList } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
-import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, Pubs } from "utils";
+import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, Pubs } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
@@ -392,7 +392,7 @@ export const OrganizationView = ({
                 handleDelete={() => { }} //TODO
                 handleEdit={onEdit}
                 objectId={id}
-                objectType={'Organization'}
+                objectType={ObjectType.Organization}
                 anchorEl={moreMenuAnchor}
                 title='Organization Options'
                 availableOptions={moreOptions}

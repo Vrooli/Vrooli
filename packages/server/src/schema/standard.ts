@@ -22,8 +22,7 @@ export const typeDef = gql`
 
     input StandardCreateInput {
         default: String
-        isFile: Boolean
-        name: String!
+        name: String
         type: String!
         props: String!
         yup: String
@@ -50,7 +49,6 @@ export const typeDef = gql`
         updated_at: Date!
         default: String
         name: String!
-        isFile: Boolean!
         isStarred: Boolean!
         role: MemberRole
         isUpvoted: Boolean
@@ -58,6 +56,7 @@ export const typeDef = gql`
         type: String!
         props: String!
         yup: String
+        version: String!
         score: Int!
         stars: Int!
         views: Int!

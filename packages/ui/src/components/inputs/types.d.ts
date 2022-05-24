@@ -1,7 +1,7 @@
 import { BoxProps, InputProps, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
 import { JSONVariable } from 'forms/types';
 import { ChangeEvent } from 'react';
-import { ListStandard, Organization, Session, Standard, Tag } from 'types';
+import { Organization, Session, Standard, Tag } from 'types';
 
 export interface AutocompleteSearchBarProps<T> extends SearchBarProps {
     debounce?: number;

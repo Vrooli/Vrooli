@@ -19,7 +19,6 @@ export const standardFields = gql`
         props
         yup
         default
-        isFile
         created_at
         tags {
             ...standardTagFields
@@ -49,5 +48,6 @@ export const standardFields = gql`
         isStarred
         score
         isUpvoted
+        version
     }
 `
