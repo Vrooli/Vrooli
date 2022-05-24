@@ -165,9 +165,9 @@ package-lock.json
 *nohup.out
 
 # Duplicated favicons (since they are copied from dev or prod folder depending on the environment)
-packages/ui/public/android-chrome-*
-packages/ui/public/apple-touch-icon-*
-packages/ui/public/favicon-*
-packages/ui/public/logo-mask-*
-packages/ui/public/mstile-*
-packages/ui/public/safari-pinned-tab-*
+packages/ui/public/android-chrome*
+packages/ui/public/apple-touch-icon*
+packages/ui/public/favicon*
+packages/ui/public/logo-mask*
+packages/ui/public/mstile*
+packages/ui/public/safari-pinned-tab*
