@@ -204,6 +204,11 @@ export type FindByIdInput = {
   id: Scalars['ID'];
 };
 
+export type FindByIdOrHandleInput = {
+  handle?: InputMaybe<Scalars['String']>;
+  id?: InputMaybe<Scalars['ID']>;
+};
+
 export type FindHandlesInput = {
   organizationId?: InputMaybe<Scalars['ID']>;
 };
@@ -1468,7 +1473,7 @@ export type QueryLogsArgs = {
 
 
 export type QueryOrganizationArgs = {
-  input: FindByIdInput;
+  input: FindByIdOrHandleInput;
 };
 
 
@@ -1483,7 +1488,7 @@ export type QueryOrganizationsCountArgs = {
 
 
 export type QueryProjectArgs = {
-  input: FindByIdInput;
+  input: FindByIdOrHandleInput;
 };
 
 
@@ -1613,7 +1618,7 @@ export type QueryTagsCountArgs = {
 
 
 export type QueryUserArgs = {
-  input: FindByIdInput;
+  input: FindByIdOrHandleInput;
 };
 
 
@@ -2158,6 +2163,7 @@ export type RunCancelInput = {
 
 export type RunCompleteInput = {
   exists?: InputMaybe<Scalars['Boolean']>;
+  finalStepUpdate?: InputMaybe<RunStepUpdateInput>;
   id?: InputMaybe<Scalars['ID']>;
   pickups?: InputMaybe<Scalars['Int']>;
   timeElapsed?: InputMaybe<Scalars['Int']>;
@@ -2170,6 +2176,7 @@ export type RunCountInput = {
 
 export type RunCreateInput = {
   routineId: Scalars['ID'];
+  step?: InputMaybe<Array<RunStepCreateInput>>;
   title: Scalars['String'];
   version: Scalars['String'];
 };
@@ -2284,24 +2291,25 @@ export type Standard = {
   creator?: Maybe<Contributor>;
   default?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
-  isFile: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
   name: Scalars['String'];
+  props: Scalars['String'];
   reports: Array<Report>;
   role?: Maybe<MemberRole>;
   routineInputs: Array<Routine>;
   routineOutputs: Array<Routine>;
-  schema: Scalars['String'];
   score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
   tags: Array<Tag>;
   translations: Array<StandardTranslation>;
-  type: StandardType;
+  type: Scalars['String'];
   updated_at: Scalars['Date'];
+  version: Scalars['String'];
   views: Scalars['Int'];
+  yup?: Maybe<Scalars['String']>;
 };
 
 export type StandardCountInput = {
@@ -2313,14 +2321,14 @@ export type StandardCreateInput = {
   createdByOrganizationId?: InputMaybe<Scalars['ID']>;
   createdByUserId?: InputMaybe<Scalars['ID']>;
   default?: InputMaybe<Scalars['String']>;
-  isFile?: InputMaybe<Scalars['Boolean']>;
-  name: Scalars['String'];
-  schema?: InputMaybe<Scalars['String']>;
+  name?: InputMaybe<Scalars['String']>;
+  props: Scalars['String'];
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   translationsCreate?: InputMaybe<Array<StandardTranslationCreateInput>>;
-  type?: InputMaybe<StandardType>;
+  type: Scalars['String'];
   version?: InputMaybe<Scalars['String']>;
+  yup?: InputMaybe<Scalars['String']>;
 };
 
 export type StandardEdge = {
@@ -2385,16 +2393,6 @@ export type StandardTranslationUpdateInput = {
   id: Scalars['ID'];
   language?: InputMaybe<Scalars['String']>;
 };
-
-export enum StandardType {
-  Array = 'Array',
-  Boolean = 'Boolean',
-  File = 'File',
-  Number = 'Number',
-  Object = 'Object',
-  String = 'String',
-  Url = 'Url'
-}
 
 export type StandardUpdateInput = {
   id: Scalars['ID'];

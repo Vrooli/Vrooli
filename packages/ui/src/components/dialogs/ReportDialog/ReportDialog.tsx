@@ -5,7 +5,7 @@ import { HelpButton } from 'components/buttons';
 import { useFormik } from 'formik';
 import { reportCreate } from 'graphql/generated/reportCreate';
 import { reportCreateMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { ReportDialogProps } from '../types';
 import {
     Close as CloseIcon

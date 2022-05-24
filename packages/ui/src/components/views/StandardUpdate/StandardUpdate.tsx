@@ -6,7 +6,7 @@ import { standard, standardVariables } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StandardUpdateProps } from "../types";
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { standardUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";

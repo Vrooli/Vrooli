@@ -41,11 +41,13 @@ export interface runCancel_runCancel_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
-  isFile: boolean;
   name: string;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   tags: runCancel_runCancel_routine_inputs_standard_tags[];
   translations: runCancel_runCancel_routine_inputs_standard_translations[];
+  version: string;
 }
 
 export interface runCancel_runCancel_routine_inputs {
@@ -235,11 +237,13 @@ export interface runCancel_runCancel_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
-  isFile: boolean;
   name: string;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   tags: runCancel_runCancel_routine_outputs_standard_tags[];
   translations: runCancel_runCancel_routine_outputs_standard_translations[];
+  version: string;
 }
 
 export interface runCancel_runCancel_routine_outputs {

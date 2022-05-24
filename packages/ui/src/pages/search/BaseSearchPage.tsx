@@ -127,7 +127,7 @@ export function BaseSearchPage<DataType, SortBy>({
                 <Typography component="h2" variant="h4">{title}</Typography>
                 {showAddButton ? <Tooltip title="Add new" placement="top">
                     <IconButton size="large" onClick={onAddClick} sx={{ padding: 1 }}>
-                        <AddIcon color="primary" sx={{ width: '1.5em', height: '1.5em' }} />
+                        <AddIcon color="secondary" sx={{ width: '1.5em', height: '1.5em' }} />
                     </IconButton>
                 </Tooltip> : null}
             </Stack>

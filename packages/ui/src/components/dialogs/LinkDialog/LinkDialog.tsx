@@ -56,7 +56,8 @@ export const LinkDialog = ({
         handleClose({
             fromId: fromNode.id,
             toId: toNode.id,
-        } as any)
+            whens: [], //TODO
+        })
     }, [handleClose, fromNode, toNode]);
 
     const closeDialog = useCallback(() => { handleClose(undefined); }, [handleClose]);

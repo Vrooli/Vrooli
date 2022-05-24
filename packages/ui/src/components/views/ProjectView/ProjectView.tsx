@@ -1,6 +1,6 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS, ResourceListUsedFor, StarFor } from "@local/shared";
+import { adaHandleRegex, APP_LINKS, ResourceListUsedFor, StarFor } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
 import { project, projectVariables } from "graphql/generated/project";
 import { routinesQuery, standardsQuery, projectQuery } from "graphql/query";
@@ -18,7 +18,7 @@ import { ProjectViewProps } from "../types";
 import { Project, ResourceList } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
-import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
+import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, Pubs } from "utils";
 import { validate as uuidValidate } from 'uuid';
 import { owns } from "utils/authentication";
 
@@ -43,6 +43,7 @@ export const ProjectView = ({
     const [project, setProject] = useState<Project | null | undefined>(null);
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { input: { id } } })
+        else if (adaHandleRegex.test(id)) getData({ variables: { input: { handle: id } } })
     }, [getData, id]);
     useEffect(() => {
         setProject(data?.project);
@@ -85,9 +86,10 @@ export const ProjectView = ({
                     resourceLists: [updatedList]
                 })
             }}
+            loading={loading}
             mutate={true}
         />
-    ) : null, [canEdit, project, resourceList, session]);
+    ) : null, [canEdit, loading, project, resourceList, session]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -239,7 +241,7 @@ export const ProjectView = ({
                                     onClick={onEdit}
                                 >
                                     <EditIcon sx={{
-                                        fill: palette.mode === 'light' ? 
+                                        fill: palette.mode === 'light' ?
                                             palette.primary.main : palette.secondary.light,
                                     }} />
                                 </IconButton>
@@ -311,7 +313,7 @@ export const ProjectView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [palette.background.paper, palette.primary.dark, palette.primary.main, palette.mode, palette.secondary.light, palette.secondary.dark, openMoreMenu, loading, canEdit, name, onEdit, handle, project?.created_at, project?.id, project?.isStarred, project?.stars, description, shareLink, session]);
+    ), [palette, openMoreMenu, loading, canEdit, name, onEdit, handle, project?.created_at, project?.id, project?.isStarred, project?.stars, description, shareLink, session]);
 
     /**
     * Opens add new page
@@ -335,7 +337,7 @@ export const ProjectView = ({
                 handleDelete={() => { }} //TODO
                 handleEdit={onEdit}
                 objectId={id}
-                objectType={'Project'}
+                objectType={ObjectType.Project}
                 anchorEl={moreMenuAnchor}
                 title='Project Options'
                 availableOptions={moreOptions}
@@ -346,7 +348,7 @@ export const ProjectView = ({
                 display: 'flex',
                 paddingTop: 5,
                 paddingBottom: 5,
-                background: "#b2b3b3",
+                background: palette.mode === 'light' ? "#b2b3b3" : "#303030",
                 position: "relative",
             }}>
                 {/* Language display/select */}
@@ -396,6 +398,7 @@ export const ProjectView = ({
                     {
                         currTabType === TabOptions.Resources ? resources : (
                             <SearchList
+                                canSearch={uuidValidate(id)}
                                 defaultSortOption={defaultSortOption}
                                 handleAdd={toAddNew}
                                 itemKeyPrefix={itemKeyPrefix}

@@ -39,11 +39,13 @@ export interface routineOutputFields_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
-  isFile: boolean;
   name: string;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   tags: routineOutputFields_standard_tags[];
   translations: routineOutputFields_standard_translations[];
+  version: string;
 }
 
 export interface routineOutputFields {

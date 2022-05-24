@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { countHelper, ProfileModel, readManyHelper, readOneHelper, UserModel } from '../models';
-import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdInput, UserSearchInput, UserCountInput, UserSearchResult, User, ProfileEmailUpdateInput, UserSortBy } from './types';
+import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdOrHandleInput, UserSearchInput, UserCountInput, UserSearchResult, User, ProfileEmailUpdateInput, UserSortBy } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
@@ -154,7 +154,7 @@ export const typeDef = gql`
 
     extend type Query {
         profile: Profile!
-        user(input: FindByIdInput!): User
+        user(input: FindByIdOrHandleInput!): User
         users(input: UserSearchInput!): UserSearchResult!
         usersCount(input: UserCountInput!): Int!
     }
@@ -176,7 +176,7 @@ export const resolvers = {
             await rateLimit({ context, info, max: 2000, byAccount: true });
             return ProfileModel(context.prisma).findProfile(context.req.userId, info);
         },
-        user: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<User> | null> => {
+        user: async (_parent: undefined, { input }: IWrap<FindByIdOrHandleInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<User> | null> => {
             await rateLimit({ context, info, max: 1000 });
             return readOneHelper(context.req.userId, input, info, UserModel(context.prisma));
         },

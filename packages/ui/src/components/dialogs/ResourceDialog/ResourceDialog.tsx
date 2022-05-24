@@ -4,7 +4,7 @@ import { Box, Button, Dialog, FormControl, Grid, IconButton, InputLabel, MenuIte
 import { HelpButton } from 'components/buttons';
 import { useFormik } from 'formik';
 import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { ResourceDialogProps } from '../types';
 import {
     Close as CloseIcon
@@ -112,6 +112,7 @@ export const ResourceDialog = ({
             })
             const data = {
                 id: partialData?.id ?? undefined,
+                index: Math.max(index, 0),
                 listId,
                 link: values.link,
                 usedFor: values.usedFor,
@@ -134,7 +135,7 @@ export const ResourceDialog = ({
                     onError: () => { formik.setSubmitting(false) },
                 })
             } else {
-                onCreated(input as any);
+                onCreated(input as NewObject<Resource>);
                 formik.resetForm();
                 onClose();
             }
@@ -148,8 +149,8 @@ export const ResourceDialog = ({
             setLanguages(translations.map(t => t.language));
             formik.setValues({
                 ...formik.values,
-                description: translations[0].description,
-                title: translations[0].title,
+                description: translations[0].description ?? '',
+                title: translations[0].title ?? '',
             })
         }
     }, [formik, languages, setLanguage, setLanguages, translations])

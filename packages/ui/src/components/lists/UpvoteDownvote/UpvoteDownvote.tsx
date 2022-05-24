@@ -2,7 +2,7 @@ import { useMutation } from '@apollo/client';
 import { Box, Stack, Tooltip, Typography } from '@mui/material';
 import { vote } from 'graphql/generated/vote';
 import { voteMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { UpvoteDownvoteProps } from '../types';
 

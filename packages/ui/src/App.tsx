@@ -11,12 +11,13 @@ import { Pubs, themes, useReactHash } from 'utils';
 import { AllRoutes } from 'Routes';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { useMutation } from '@apollo/client';
+import { ApolloError, useMutation } from '@apollo/client';
 import { validateSessionMutation } from 'graphql/mutation';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import { Session } from 'types';
 import hotkeys from 'hotkeys-js';
 import Confetti from 'react-confetti';
+import { CODE } from '@local/shared';
 
 const useStyles = makeStyles(() => ({
     "@global": {
@@ -132,8 +133,21 @@ export function App() {
         // Check if previous log in exists
         validateSession().then(({ data }) => {
             setSession(data?.validateSession as Session);
-        }).catch((response) => {
-            if (process.env.NODE_ENV === 'development') console.error('Error: failed to verify session', response);
+        }).catch((response: ApolloError) => {
+            // Check if error is expired/invalid session
+            let isInvalidSession = false;
+            if (response.graphQLErrors && response.graphQLErrors.length > 0) {
+                const error = response.graphQLErrors[0];
+                if (error.extensions.code === CODE.SessionExpired.code) {
+                    isInvalidSession = true;
+                    // Log in development mode
+                    if (process.env.NODE_ENV === 'development') console.error('Error: failed to verify session', response);
+                }
+            }
+            // If error is something else, notify user
+            if (!isInvalidSession) {
+                PubSub.publish(Pubs.Snack, { message: 'Failed to connect to server.', severity: 'error'});
+            }
             // If not logged in as guest and failed to log in as user, set empty object
             if (!session) setSession({})
         })
@@ -180,15 +194,15 @@ export function App() {
                 <Box id="App" sx={{
                     // Style visited, active, and hovered links differently
                     a: {
-                        color: theme.palette.mode === 'light' ? '#d922d4' : '#dd86db',
+                        color: theme.palette.mode === 'light' ? '#001cd3' : '#dd86db',
                         '&:visited': {
-                            color: theme.palette.mode === 'light' ? '#a00c9c' : '#f551ef',
+                            color: theme.palette.mode === 'light' ? '#001cd3' : '#f551ef',
                         },
                         '&:active': {
-                            color: theme.palette.mode === 'light' ? '#a00c9c' : '#f551ef',
+                            color: theme.palette.mode === 'light' ? '#001cd3' : '#f551ef',
                         },
                         '&:hover': {
-                            color: theme.palette.mode === 'light' ? '#ff46fa' : '#f3d4f2',
+                            color: theme.palette.mode === 'light' ? '#5a6ff6' : '#f3d4f2',
                         },
                     },
                 }}>

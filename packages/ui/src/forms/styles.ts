@@ -1,18 +1,17 @@
 import { SxProps, Theme } from '@mui/material';
-import { CSSProperties } from '@mui/styles';
 
 export const formPaper: SxProps = {
     marginTop: 3,
     background: 'transparent',
     boxShadow: 'none',
-} as CSSProperties;
+};
 
 export const formSubmit: SxProps = {
     margin: '16px auto',
-} as CSSProperties;
+};
 
-export const formNavLink = ({ palette }: Theme): SxProps => ({
-    color: palette.secondary.dark,
+export const formNavLink: SxProps<Theme> = {
+    color: (t) => t.palette.mode === 'light' ? t.palette.secondary.dark : t.palette.background.textPrimary,
     display: 'flex',
     alignItems: 'center',
-}) as CSSProperties;
+};

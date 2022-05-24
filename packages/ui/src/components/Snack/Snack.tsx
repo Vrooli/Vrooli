@@ -41,7 +41,7 @@ const useStyles = makeStyles((theme: Theme) => ({
         color: theme.palette.error.contrastText,
     },
     button: {
-        color: theme.palette.secondary.light,
+        color: theme.palette.secondary.contrastText,
     },
 }));
 
@@ -88,7 +88,7 @@ function Snack() {
             message={Array.isArray(state.message) && state.message.length > 0 ? state.message[0] : state.message}
             action={
                 <>
-                    {state.buttonText ? <Button className={classes.button} variant="text" size="small" onClick={state.buttonClicked}>
+                    {state.buttonText ? <Button className={classes.button} variant="contained" size="small" onClick={state.buttonClicked}>
                         {state.buttonText}
                     </Button> : null}
                     <IconButton size="small" aria-label="close" color="inherit" onClick={resetState}>

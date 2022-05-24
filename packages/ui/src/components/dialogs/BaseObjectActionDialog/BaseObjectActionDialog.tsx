@@ -23,7 +23,7 @@ import {
     QueryStats as StatsIcon,
     SvgIconComponent,
 } from "@mui/icons-material";
-import { mutationWrapper } from "graphql/utils/wrappers";
+import { mutationWrapper } from "graphql/utils/mutationWrapper";
 
 /**
  * [label, Icon, iconColor, preview]
@@ -104,7 +104,7 @@ export const BaseObjectActionDialog = ({
                 openDonate();
                 break;
             case BaseObjectAction.Downvote:
-                handleVote(false, objectType as VoteFor);
+                handleVote(false, objectType as string as VoteFor);
                 break;
             case BaseObjectAction.Edit:
                 //edit({ variables: { input: { id: objectId } } });
@@ -119,13 +119,13 @@ export const BaseObjectActionDialog = ({
                 openShare();
                 break;
             case BaseObjectAction.Star:
-                handleStar(true, objectType as StarFor);
+                handleStar(true, objectType as string as StarFor);
                 break;
             case BaseObjectAction.Unstar:
-                handleStar(false, objectType as StarFor);
+                handleStar(false, objectType as string as StarFor);
                 break;
             case BaseObjectAction.Upvote:
-                handleVote(true, objectType as VoteFor);
+                handleVote(true, objectType as string as VoteFor);
                 break;
         }
         onClose();
@@ -153,7 +153,7 @@ export const BaseObjectActionDialog = ({
                 forId={objectId}
                 onClose={closeReport}
                 open={reportOpen}
-                reportFor={objectType as ReportFor}
+                reportFor={objectType as string as ReportFor}
                 session={session}
             />
             {/* Actual action dialog */}

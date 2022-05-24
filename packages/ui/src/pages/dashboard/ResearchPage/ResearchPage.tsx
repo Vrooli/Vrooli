@@ -1,7 +1,7 @@
 import { useLazyQuery, useQuery } from '@apollo/client';
 import { APP_LINKS, ResourceListUsedFor } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
-import { HelpButton, ResourceListHorizontal, TitleContainer } from 'components';
+import { HelpButton, ResourceListHorizontal, ListTitleContainer } from 'components';
 import { profile } from 'graphql/generated/profile';
 import { researchPage } from 'graphql/generated/researchPage';
 import { profileQuery, researchPageQuery } from 'graphql/query';
@@ -194,49 +194,55 @@ export const ResearchPage = ({
                     list={resourceList}
                     canEdit={Boolean(session?.id)}
                     handleUpdate={handleResourcesUpdate}
+                    loading={resourcesLoading}
                     mutate={true}
                     session={session}
                 />
-                <TitleContainer
+                <ListTitleContainer
                     title={"Processes"}
                     helpText={processesText}
+                    isEmpty={processes.length === 0}
                     onClick={toSeeAllProcesses}
                     options={[['Create', toCreateProcess], ['See all', toSeeAllProcesses]]}
                 >
                     {processes}
-                </TitleContainer>
-                <TitleContainer
+                </ListTitleContainer>
+                <ListTitleContainer
                     title={"Newly Completed"}
                     helpText={newlyCompletedText}
+                    isEmpty={newlyCompleted.length === 0}
                     onClick={toSeeAllNewlyCompleted}
                     options={[['Create', toCreateProject], ['See all', toSeeAllNewlyCompleted]]}
                 >
                     {newlyCompleted}
-                </TitleContainer>
-                <TitleContainer
+                </ListTitleContainer>
+                <ListTitleContainer
                     title={"Vote"}
                     helpText={voteText}
+                    isEmpty={needVotes.length === 0}
                     onClick={() => { }}
                     options={[['Create', toCreateProject], ['See all', () => { }]]}
                 >
                     {needVotes}
-                </TitleContainer>
-                <TitleContainer
+                </ListTitleContainer>
+                <ListTitleContainer
                     title={"Donate or Invest"}
                     helpText={donateOrInvestText}
+                    isEmpty={needInvestments.length === 0}
                     onClick={() => { }}
                     options={[['Create', toCreateProject], ['See all', () => { }]]}
                 >
                     {needInvestments}
-                </TitleContainer>
-                <TitleContainer
+                </ListTitleContainer>
+                <ListTitleContainer
                     title={"Join a Team"}
                     helpText={joinATeamText}
+                    isEmpty={needMembers.length === 0}
                     onClick={toSeeAllJoinATeam}
                     options={[['Create', toCreateOrganization], ['Update profile', toUpdateProfile], ['See all', toSeeAllJoinATeam]]}
                 >
                     {needMembers}
-                </TitleContainer>
+                </ListTitleContainer>
             </Stack>
         </Box>
     )

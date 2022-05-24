@@ -67,7 +67,7 @@ export const UserListItem = ({
                         minWidth="50px"
                         width="50px"
                         sx={{
-                            display: { xs: 'none', sm: 'flex' },
+                            display: 'flex',
                         }}
                     >
                         <PersonIcon sx={{

@@ -341,7 +341,7 @@ export const AllLanguages = {
  * @param showAny If true, will default to returning the first language if no value is found
  * @returns The value of the field in the object's translations
  */
-export const getTranslation = (obj: any, field: string, languages: readonly string[], showAny: boolean = true): any => {
+export const getTranslation = (obj: any, field: string, languages: readonly string[], showAny: boolean = true): string | undefined => {
     if (!obj || !obj.translations) return undefined;
     // Loop through translations
     for (const translation of obj.translations) {

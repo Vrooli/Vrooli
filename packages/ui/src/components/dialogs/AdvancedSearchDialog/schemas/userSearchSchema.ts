@@ -4,7 +4,8 @@
  * - Minimum stars - QuantityBox
  * - Langauges - LanguageInput
  */
-import { FormSchema, InputType } from "forms/types";
+import { InputType } from "@local/shared";
+import { FormSchema } from "forms/types";
 
 export const userSearchSchema: FormSchema = {
     formLayout: {

@@ -1,7 +1,7 @@
 import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { project } from "graphql/generated/project";
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { projectCreateForm as validationSchema, ROLES } from '@local/shared';
 import { useFormik } from 'formik';
 import { projectCreateMutation } from "graphql/mutation";
@@ -16,7 +16,7 @@ import {
 import { TagSelectorTag } from "components/inputs/types";
 import { LanguageInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { ListOrganization, NewObject, Project } from "types";
+import { NewObject, Organization, Project } from "types";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuidv4 } from 'uuid';
@@ -29,8 +29,8 @@ export const ProjectCreate = ({
     const params = useReactSearch(null);
 
     // Handle user/organization switch
-    const [organizationFor, setOrganizationFor] = useState<ListOrganization | null>(null);
-    const onSwitchChange = useCallback((organization: ListOrganization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
+    const [organizationFor, setOrganizationFor] = useState<Organization | null>(null);
+    const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, []);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
@@ -234,6 +234,7 @@ export const ProjectCreate = ({
                         list={resourceList}
                         canEdit={true}
                         handleUpdate={handleResourcesUpdate}
+                        loading={false}
                         session={session}
                         mutate={false}
                     />

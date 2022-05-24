@@ -1,4 +1,4 @@
-export * from './errorToSnack';
+export * from './errorParser';
 export * from './initialize';
 export * from './removeTypename';
-export * from './wrappers';
+export * from './mutationWrapper';

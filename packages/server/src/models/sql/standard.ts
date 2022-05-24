@@ -12,6 +12,8 @@ import _ from "lodash";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
+import { randomString } from "../../auth/walletAuth";
+import { sortify } from "../../utils/objectTools";
 
 //==============================================================
 /* #region Custom Components */
@@ -162,16 +164,79 @@ export const standardVerifier = () => ({
     },
 })
 
+export const standardQuerier = (prisma: PrismaType) => ({
+    /**
+     * Checks if a standard exists that has an identical shape to the given standard. 
+     * This is useful to preventing duplicate standards from being created.
+     * @param data StandardCreateData to check
+     * @returns ID of matching standard, or null if none found
+     */
+    async findMatchingStandard(data: StandardCreateInput): Promise<string | null> {
+        // Sort all JSON properties that are part of the comparison
+        const props = sortify(data.props);
+        const yup = data.yup ? sortify(data.yup) : null;
+        // name ,default
+        // Find all standards that match the given standard
+        const standards = await prisma.standard.findMany({
+            where: {
+                default: data.default ?? null,
+                props: props,
+                yup: yup,
+            }
+        });
+        // If any standards match (should only ever be 0 or 1, but you never know) return the first one
+        if (standards.length > 0) {
+            return standards[0].id;
+        }
+        // If no standards match, then data is unique. Return null
+        return null;
+    },
+    /**
+     * Generates a valid name for a standard.
+     * Standards must have a unique name/version pair per user/organization
+     * @param userId The user's ID
+     * @param data The standard create data
+     * @returns A valid name for the standard
+     */
+    async generateName(userId: string, data: StandardCreateInput): Promise<string> {
+        // Created by query
+        const id = data.createdByOrganizationId ?? data.createdByUserId ?? userId
+        const createdBy = { [`createdBy${data.createdByOrganizationId ? GraphQLModelType.Organization : GraphQLModelType.User}Id`]: id };
+        // Calculate optional standard name
+        const name = data.name ? data.name : `${data.type} ${randomString(5)}`;
+        // Loop until a unique name is found, or a max of 20 tries
+        let success = false;
+        let i = 0;
+        while (!success && i < 20) {
+            // Check for case-insensitive duplicate
+            const existing = await prisma.standard.findMany({
+                where: {
+                    ...createdBy,
+                    name: {
+                        contains: (i === 0 ? name : `${name}${i}`).toLowerCase(),
+                        mode: 'insensitive',
+                    },
+                    version: data.version ?? undefined,
+                }
+            });
+            if (existing.length > 0) i++;
+            else success = true;
+        }
+        return i === 0 ? name : `${name}${i}`;
+    }
+})
+
 export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof standardVerifier>) => ({
     async toDBShapeAdd(userId: string | null, data: StandardCreateInput): Promise<any> {
         return {
-            name: data.name,
+            name: await standardQuerier(prisma).generateName(userId ?? '', data),
             default: data.default,
-            isFile: data.isFile,
-            schema: data.schema,
             type: data.type,
+            props: sortify(data.props),
+            yup: data.yup ? sortify(data.yup) : undefined,
             tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Standard),
             translations: TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false),
+            version: data.version ?? '1.0.0',
         }
     },
     async toDBShapeUpdate(userId: string | null, data: StandardUpdateInput): Promise<any> {
@@ -198,6 +263,21 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
         });
         // Shape
         if (Array.isArray(formattedInput.create)) {
+            // For all creates that are exact matches to existing standards, make them connects instead
+            const newConnectIds: string[] = [];
+            for (const create of formattedInput.create) {
+                const existingId = await standardQuerier(prisma).findMatchingStandard(create as any)
+                if (existingId) {
+                    newConnectIds.push(existingId);
+                }
+            }
+            // Add newConnectIds to formattedInput.connect
+            if (newConnectIds.length > 0) {
+                formattedInput.connect = formattedInput.connect ?? [];
+                formattedInput.connect = [...formattedInput.connect, ...newConnectIds.map(id => ({ id }))];
+                // Remove newConnectIds from formattedInput.create
+                formattedInput.create = formattedInput.create.filter(create => !newConnectIds.includes(create.id));
+            }
             formattedInput.create = formattedInput.create.map(async (data) => await this.toDBShapeAdd(userId, data as any));
         }
         if (Array.isArray(formattedInput.update)) {
@@ -259,6 +339,7 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
             // Loop through each create input
             for (const input of createMany) {
                 // Call createData helper function
+                // TODO check for exact matches, and don't add
                 let data = await this.toDBShapeAdd(userId, input);
                 // Associate with either organization or user
                 if (input.createdByOrganizationId) {
@@ -337,6 +418,7 @@ export function StandardModel(prisma: PrismaType) {
     const format = standardFormatter();
     const search = standardSearcher();
     const verify = standardVerifier();
+    const query = standardQuerier(prisma);
     const mutate = standardMutater(prisma, verify);
 
     return {
@@ -346,6 +428,7 @@ export function StandardModel(prisma: PrismaType) {
         ...format,
         ...search,
         ...verify,
+        ...query,
         ...mutate,
     }
 }

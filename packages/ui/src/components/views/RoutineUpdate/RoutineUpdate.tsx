@@ -6,7 +6,7 @@ import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RoutineUpdateProps } from "../types";
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { routineUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
@@ -20,7 +20,7 @@ import { DialogActionItem } from "components/containers/types";
 import { LanguageInput, MarkdownInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { v4 as uuidv4 } from 'uuid';
-import { ListOrganization, NewObject, ResourceList, Routine, RoutineInputList, RoutineOutputList } from "types";
+import { NewObject, Organization, ResourceList, Routine, RoutineInputList, RoutineOutputList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { InputOutputContainer } from "components/lists/inputOutput";
 
@@ -41,8 +41,8 @@ export const RoutineUpdate = ({
     const routine = useMemo(() => data?.routine, [data]);
 
     // Handle user/organization switch
-    const [organizationFor, setOrganizationFor] = useState<ListOrganization | null>(null);
-    const onSwitchChange = useCallback((organization: ListOrganization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
+    const [organizationFor, setOrganizationFor] = useState<Organization | null>(null);
+    const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
 
     // Handle inputs
     const [inputsList, setInputsList] = useState<RoutineInputList>([]);
@@ -100,7 +100,7 @@ export const RoutineUpdate = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
-        if (routine?.owner?.__typename === 'Organization') setOrganizationFor(routine.owner as ListOrganization);
+        if (routine?.owner?.__typename === 'Organization') setOrganizationFor(routine.owner as Organization);
         else setOrganizationFor(null);
         setInputsList(routine?.inputs ?? []);
         setOutputsList(routine?.outputs ?? []);
@@ -353,6 +353,7 @@ export const RoutineUpdate = ({
                     list={resourceList}
                     canEdit={true}
                     handleUpdate={handleResourcesUpdate}
+                    loading={loading}
                     session={session}
                     mutate={false}
                 />
@@ -367,7 +368,7 @@ export const RoutineUpdate = ({
                 />
             </Grid>
         </Grid>
-    ), [session, organizationFor, onSwitchChange, language, handleAddLanguage, handleLanguageChange, handleLanguageDelete, handleLanguageSelect, languages, formik, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, tags, addTag, removeTag, clearTags]);
+    ), [session, organizationFor, onSwitchChange, language, handleAddLanguage, handleLanguageChange, handleLanguageDelete, handleLanguageSelect, languages, formik, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{

@@ -4,8 +4,9 @@
  */
 import { walletComplete_walletComplete as WalletCompleteResult } from 'graphql/generated/walletComplete';
 import { walletInitMutation, walletCompleteMutation } from 'graphql/mutation';
-import { errorToSnack } from 'graphql/utils/errorToSnack';
+import { errorToMessage } from 'graphql/utils/errorParser';
 import { initializeApollo } from 'graphql/utils/initialize';
+import { ApolloError } from 'types';
 import { Pubs } from 'utils';
 
 export enum WalletProvider {
@@ -55,21 +56,16 @@ const connectWallet = async (provider: WalletProvider): Promise<any> => {
 // Initiate handshake to verify wallet with backend
 // Returns hex string of payload, to be signed by wallet
 const walletInit = async (stakingAddress: string): Promise<any> => {
-    let result: any = null;
-    try {
-        PubSub.publish(Pubs.Loading, 500);
-        const client = initializeApollo();
-        const data = await client.mutate({
-            mutation: walletInitMutation,
-            variables: { input: { stakingAddress } }
-        });
-        result = data.data.walletInit;
-    } catch (exception) {
-        PubSub.publish(Pubs.Snack, { message: errorToSnack(exception), severity: 'error', data: exception });
-    } finally {
-        PubSub.publish(Pubs.Loading, false);
-        return result;
-    }
+    PubSub.publish(Pubs.Loading, 500);
+    const client = initializeApollo();
+    const data = await client.mutate({
+        mutation: walletInitMutation,
+        variables: { input: { stakingAddress } }
+    }).catch((error: ApolloError) => {
+        PubSub.publish(Pubs.Snack, { message: errorToMessage(error), severity: 'error', data: error });
+    })
+    PubSub.publish(Pubs.Loading, false);
+    return data?.data?.walletInit;
 }
 
 /**
@@ -79,21 +75,16 @@ const walletInit = async (stakingAddress: string): Promise<any> => {
  * @returns Session object if successful, null if not
  */
 const walletComplete = async (stakingAddress: string, signedPayload: string): Promise<WalletCompleteResult | null> => {
-    let result: any = null;
-    try {
-        PubSub.publish(Pubs.Loading, 500);
-        const client = initializeApollo();
-        const data = await client.mutate({
-            mutation: walletCompleteMutation,
-            variables: { input: { stakingAddress, signedPayload } }
-        });
-        result = data.data.walletComplete;
-    } catch (exception) {
-        PubSub.publish(Pubs.Snack, { message: errorToSnack(exception), severity: 'error', data: exception });
-    } finally {
-        PubSub.publish(Pubs.Loading, false);
-        return result;
-    }
+    PubSub.publish(Pubs.Loading, 500);
+    const client = initializeApollo();
+    const data = await client.mutate({
+        mutation: walletCompleteMutation,
+        variables: { input: { stakingAddress, signedPayload } }
+    }).catch((error: ApolloError) => {
+        PubSub.publish(Pubs.Snack, { message: errorToMessage(error), severity: 'error', data: error });
+    })
+    PubSub.publish(Pubs.Loading, false);
+    return data?.data?.walletComplete;
 }
 
 // Signs payload received from walletInit

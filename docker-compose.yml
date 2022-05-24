@@ -10,6 +10,7 @@ services:
         restart: always
         environment: 
             NODE_ENV: "${NODE_ENV}"
+            REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
             PROJECT_DIR: "${PROJECT_DIR}"
             VIRTUAL_HOST: "${VIRTUAL_HOST}"
             VIRTUAL_PATH: "/"
@@ -94,17 +95,14 @@ services:
             - ./data/postgres:/var/lib/postgresql/data
             - ./packages/db/entrypoint:/docker-entrypoint-initdb.d
     redis:
-        image: redis
+        image: redis:7-alpine
         container_name: redis
         restart: always
         networks:
           - app   
         volumes:
-          - ./data/redis:/srv/app/data/redis:z
-          - ./packages/redis/redis.conf:/usr/local/etc/redis/redis.conf     
-        ports:
-            - 6379:6379
-        command: /bin/sh -c "chmod +x /srv/app/data/redis* && redis-server /usr/local/etc/redis/redis.conf"
+          - ./data/redis:/srv/app/data/redis:z    
+        command: /bin/sh -c "mkdir -p /srv/app/data/redis/appendonlydir && rm -f /srv/app/data/redis/dump.rdb && redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes --dbfilename dump.rdb --dir /srv/app/data/redis/"
     # adminer:
     #     image: adminer
     #     restart: always

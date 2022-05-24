@@ -30,9 +30,10 @@ import {
 } from 'forms';
 import { emailLogInMutation, guestLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { emailLogIn } from 'graphql/generated/emailLogIn';
 import { StartPageProps } from 'pages/types';
+import { hasErrorCode } from 'graphql/utils';
 
 const helpText =
     `Logging in allows you to vote, save favorites, and contribute to the community.
@@ -89,13 +90,13 @@ export const StartPage = ({
                 mutationWrapper({
                     mutation: emailLogIn,
                     input: { verificationCode },
-                    onSuccess: (response) => { 
+                    onSuccess: (response) => {
                         PubSub.publish(Pubs.Snack, { message: 'Email verified!' });
-                        PubSub.publish(Pubs.Session, response.data.emailLogIn); 
-                        setLocation(redirect ?? APP_LINKS.Home) 
+                        PubSub.publish(Pubs.Session, response.data.emailLogIn);
+                        setLocation(redirect ?? APP_LINKS.Home)
                     },
                     onError: (response) => {
-                        if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.MustResetPassword.code)) {
+                        if (hasErrorCode(response, CODE.MustResetPassword)) {
                             PubSub.publish(Pubs.AlertDialog, {
                                 message: 'Before signing in, please follow the link sent to your email to change your password.',
                                 buttons: [

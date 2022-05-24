@@ -2,7 +2,7 @@ import { Box, Button, Grid, Stack, TextField, Typography, useTheme } from "@mui/
 import { useMutation } from "@apollo/client";
 import { user } from "graphql/generated/user";
 import { useCallback } from "react";
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";

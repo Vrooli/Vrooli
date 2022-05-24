@@ -117,7 +117,7 @@ export const RunView = ({
                 index: item.index,
                 routine: item.routine as any,
                 title: getTranslation(item.routine, 'title', languages, true) ?? 'Untitled',
-                description: getTranslation(item.routine, 'description', languages, true),
+                description: getTranslation(item.routine, 'description', languages, true) ?? 'Description not found matching selected language',
             }));
             // Sort subroutine steps
             // If list is ordered, sort by index
@@ -143,7 +143,7 @@ export const RunView = ({
                 nodeId: node.id,
                 isOrdered: (node.data as NodeDataRoutineList).isOrdered ?? false,
                 title: getTranslation(node, 'title', languages, true) ?? 'Untitled',
-                description: getTranslation(node, 'description', languages, true),
+                description: getTranslation(node, 'description', languages, true) ?? 'Description not found matching selected language',
                 steps: [...subroutineSteps, ...decisionSteps] as Array<SubroutineStep | DecisionStep>
             });
         }
@@ -153,7 +153,7 @@ export const RunView = ({
             nodeId: '',
             isOrdered: true,
             title: getTranslation(routine, 'title', languages, true) ?? 'Untitled',
-            description: getTranslation(routine, 'description', languages, true),
+            description: getTranslation(routine, 'description', languages, true) ?? 'Description not found matching selected language',
             steps: resultSteps,
         });
     }, [languages, routine]);
@@ -315,7 +315,7 @@ export const RunView = ({
             routine: subroutine,
             index: (subroutineStep as SubroutineStep).index,
             title: (subroutineStep as SubroutineStep).title ?? getTranslation(subroutine, 'title', languages, true) ?? 'Untitled',
-            description: (subroutineStep as SubroutineStep).description ?? getTranslation(subroutine, 'description', languages, true),
+            description: (subroutineStep as SubroutineStep).description ?? getTranslation(subroutine, 'description', languages, true) ?? 'Description not found matching selected language',
         };
         // If loop needed
         if (indexArray.length > 1) {

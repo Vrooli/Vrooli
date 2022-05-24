@@ -1,7 +1,7 @@
 import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { routine } from "graphql/generated/routine";
-import { mutationWrapper } from 'graphql/utils/wrappers';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { ROLES, routineCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { routineCreateMutation } from "graphql/mutation";
@@ -16,7 +16,7 @@ import {
 import { TagSelectorTag } from "components/inputs/types";
 import { LanguageInput, MarkdownInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { ListOrganization, NewObject, ResourceList, Routine, RoutineInputList, RoutineOutputList } from "types";
+import { NewObject, Organization, ResourceList, Routine, RoutineInputList, RoutineOutputList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuidv4 } from 'uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
@@ -29,8 +29,8 @@ export const RoutineCreate = ({
     const params = useReactSearch(null);
 
     // Handle user/organization switch
-    const [organizationFor, setOrganizationFor] = useState<ListOrganization | null>(null);
-    const onSwitchChange = useCallback((organization: ListOrganization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
+    const [organizationFor, setOrganizationFor] = useState<Organization | null>(null);
+    const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
 
     // Handle inputs
     const [inputsList, setInputsList] = useState<RoutineInputList>([]);
@@ -331,6 +331,7 @@ export const RoutineCreate = ({
                         list={resourceList}
                         canEdit={true}
                         handleUpdate={handleResourcesUpdate}
+                        loading={false}
                         session={session}
                         mutate={false}
                     />

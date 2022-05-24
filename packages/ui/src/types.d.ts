@@ -8,11 +8,11 @@ import { project_project } from 'graphql/generated/project';
 import { reportCreate_reportCreate } from 'graphql/generated/reportCreate';
 import { resource_resource } from 'graphql/generated/resource';
 import { routine_routine, routine_routine_inputs, routine_routine_nodeLinks, routine_routine_nodes, routine_routine_nodes_data_NodeEnd, routine_routine_nodes_data_NodeLoop, routine_routine_nodes_data_NodeRoutineList, routine_routine_nodes_data_NodeRoutineList_routines, routine_routine_outputs, routine_routine_runs } from 'graphql/generated/routine';
-import { runCreate_runCreate } from 'graphql/generated/runCreate';
 import { standard_standard } from 'graphql/generated/standard';
 import { tag_tag } from 'graphql/generated/tag';
 import { user_user } from 'graphql/generated/user';
 import { RoutineStepType } from 'utils';
+import { FetchResult } from "@apollo/client";
 
 // Top-level props that can be passed into any routed component
 export type SessionChecked = boolean;
@@ -102,6 +102,18 @@ declare global {
     interface Window { cardano: any; }
 }
 window.cardano = window.cardano || {};
+
+// Apollo GraphQL
+export type ApolloResponse = FetchResult<any, Record<string, any>, Record<string, any>>;
+export type ApolloError = {
+    message?: string;
+    graphQLErrors?: {
+        message: string;
+        extensions?: {
+            code: string;
+        };
+    }[];
+}
 
 // Miscellaneous types
 export type SetLocation = (to: Path, options?: { replace?: boolean }) => void;

@@ -10,75 +10,70 @@ import {
 } from '@mui/material';
 import { BaseObjectDialog, HelpButton } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AddStandardDialogProps } from '../types';
+import { SubroutineSelectOrCreateDialogProps } from '../types';
 import {
     Add as CreateIcon,
     Close as CloseIcon
 } from '@mui/icons-material';
-import { Standard } from 'types';
-import { standardDefaultSortOption, StandardSortOptions, SearchList } from 'components/lists';
-import { standardQuery, standardsQuery } from 'graphql/query';
+import { Routine } from 'types';
+import { routineDefaultSortOption, RoutineSortOptions, SearchList } from 'components/lists';
+import { routineQuery, routinesQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
-import { standard, standardVariables } from 'graphql/generated/standard';
-import { StandardCreate } from 'components/views/StandardCreate/StandardCreate';
+import { routine, routineVariables } from 'graphql/generated/routine';
+import { RoutineCreate } from 'components/views/RoutineCreate/RoutineCreate';
+import { validate as uuidValidate } from 'uuid';
 
 const helpText =
-    `This dialog allows you to connect a new or existing standard to a routine input/output.
-    
-    Standards allow for interoperability between routines and external services adhering to the Vrooli protocol.`
+    `This dialog allows you to connect a new or existing subroutine. Each subroutine becomes a page when executing the routine (or if it contains its own subroutines, then those subroutines become pages).`
 
-export const AddStandardDialog = ({
+export const SubroutineSelectOrCreateDialog = ({
     handleAdd,
     handleClose,
     isOpen,
+    nodeId,
+    routineId,
     session,
-}: AddStandardDialogProps) => {
+}: SubroutineSelectOrCreateDialogProps) => {
     const { palette } = useTheme();
 
-    // Create new standard dialog
+    // Create new routine dialog
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const handleCreateOpen = useCallback(() => { setIsCreateOpen(true); }, [setIsCreateOpen]);
-    const handleCreated = useCallback((standard: Standard) => {
+    const handleCreated = useCallback((routine: Routine) => {
         setIsCreateOpen(false);
-        handleAdd(standard);
+        handleAdd(nodeId, routine);
         handleClose();
-    }, [handleAdd, handleClose]);
+    }, [handleAdd, handleClose, nodeId]);
     const handleCreateClose = useCallback(() => {
         setIsCreateOpen(false);
     }, [setIsCreateOpen]);
 
-    // If standard selected from search, query for full data
-    const [getStandard, { data: standardData }] = useLazyQuery<standard, standardVariables>(standardQuery);
-    const handeStandardSelect = useCallback((standard: Standard) => {
-        // Query for full standard data, if not already known (would be known if the same standard was selected last time)
-        if (standardData?.standard?.id === standard.id) {
-            handleAdd(standardData?.standard);
-            handleClose();
-        } else {
-            getStandard({ variables: { input: { id: standard.id } } });
-        }
-    }, [getStandard, standardData, handleAdd, handleClose]);
+    // If routine selected from search, query for full data
+    const [getRoutine, { data: routineData }] = useLazyQuery<routine, routineVariables>(routineQuery);
+    const handleRoutineSelect = useCallback((routine: Routine) => {
+        getRoutine({ variables: { input: { id: routine.id } } });
+    }, [getRoutine]);
     useEffect(() => {
-        if (standardData?.standard) {
-            handleAdd(standardData.standard);
+        if (routineData?.routine) {
+            handleAdd(nodeId, routineData.routine);
             handleClose();
         }
-    }, [handleAdd, handleClose, handleCreateClose, standardData]);
+    }, [handleAdd, handleClose, handleCreateClose, nodeId, routineData]);
 
     /**
      * Title bar with help button and close icon
      */
     const titleBar = useMemo(() => (
         <Box sx={{
-            alignItems: 'center',
             background: palette.primary.dark,
             color: palette.primary.contrastText,
             display: 'flex',
+            alignItems: 'center',
             justifyContent: 'space-between',
             padding: 2,
         }}>
             <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
-                {'Add Standard'}
+                {'Add Subroutine'}
                 <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
             </Typography>
             <Box sx={{ marginLeft: 'auto' }}>
@@ -101,21 +96,24 @@ export const AddStandardDialog = ({
             open={isOpen}
             onClose={handleClose}
             sx={{
-                '& .MuiDialogContent-root': { overflow: 'visible', background: '#cdd6df' },
+                '& .MuiDialogContent-root': { 
+                    overflow: 'visible', 
+                    background: palette.mode === 'light' ? '#cdd6df' : '#182028',
+                },
                 '& .MuiDialog-paper': { overflow: 'visible' }
             }}
         >
-            {/* Popup for creating a new standard */}
+            {/* Popup for creating a new routine */}
             <BaseObjectDialog
-                hasPrevious={false}
                 hasNext={false}
+                hasPrevious={false}
                 onAction={handleCreateClose}
                 open={isCreateOpen}
-                title={"Create Standard"}
+                title={"Create Routine"}
             >
-                <StandardCreate
-                    onCreated={handleCreated}
+                <RoutineCreate
                     onCancel={handleCreateClose}
+                    onCreated={handleCreated}
                     session={session}
                 />
             </BaseObjectDialog>
@@ -123,21 +121,22 @@ export const AddStandardDialog = ({
             <DialogContent>
                 <Stack direction="column" spacing={4}>
                     <SearchList
-                        itemKeyPrefix='standard-list-item'
-                        defaultSortOption={standardDefaultSortOption}
+                        itemKeyPrefix='routine-list-item'
+                        defaultSortOption={routineDefaultSortOption}
                         noResultsText={"None found. Maybe you should create one?"}
-                        onObjectSelect={(newValue) => handeStandardSelect(newValue)}
-                        query={standardsQuery}
-                        searchPlaceholder={'Select existing standard...'}
+                        onObjectSelect={(newValue) => handleRoutineSelect(newValue)}
+                        query={routinesQuery}
+                        searchPlaceholder={'Select existing subroutine...'}
                         searchString={searchString}
-                        setSearchString={setSearchString}
                         session={session}
+                        setSearchString={setSearchString}
                         setSortBy={setSortBy}
                         setTimeFrame={setTimeFrame}
+                        sortOptions={RoutineSortOptions}
                         sortBy={sortBy}
-                        sortOptions={StandardSortOptions}
                         take={20}
                         timeFrame={timeFrame}
+                        where={uuidValidate(routineId) ? { excludeIds: [routineId] } : undefined}
                     />
                     <Button
                         fullWidth

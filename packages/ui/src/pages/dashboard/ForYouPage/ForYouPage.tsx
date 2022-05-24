@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { forYouPage, forYouPageVariables } from 'graphql/generated/forYouPage';
 import { useQuery } from '@apollo/client';
 import { forYouPageQuery } from 'graphql/query';
-import { TitleContainer } from 'components';
+import { ListTitleContainer } from 'components';
 import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { ForYouPageProps } from '../types';
@@ -107,7 +107,7 @@ export const ForYouPage = ({
                 variant="scrollable"
                 scrollButtons="auto"
                 allowScrollButtonsMobile
-                aria-label="search-type-tabs"
+                aria-label="home-pages"
                 sx={{
                     marginBottom: 2,
                     '& .MuiTabs-flexContainer': {
@@ -119,7 +119,10 @@ export const ForYouPage = ({
                     <Tab
                         key={index}
                         id={`for-you-tab-${index}`}
-                        {...{ 'aria-controls': `for-you-tabpanel-${index}` }}
+                        {...{ 
+                            'aria-labelledby': `home-pages`,
+                            'aria-label': `home page ${option[0]}`,
+                        }}
                         label={option[0]}
                         color={index === 0 ? '#ce6c12' : 'default'}
                     />
@@ -128,38 +131,42 @@ export const ForYouPage = ({
             {/* Result feeds (or popular feeds if no search string) */}
             <Stack spacing={10} direction="column">
                 {/* Search results */}
-                <TitleContainer
+                <ListTitleContainer
                     title={"Active Routines"}
                     helpText={activeRoutinesText}
+                    isEmpty={activeRuns.length === 0}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
                     {activeRuns}
-                </TitleContainer>
-                <TitleContainer
+                </ListTitleContainer>
+                <ListTitleContainer
                     title={"Completed Routines"}
                     helpText={completedRoutinesText}
+                    isEmpty={completedRuns.length === 0}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
                     {completedRuns}
-                </TitleContainer>
-                <TitleContainer
+                </ListTitleContainer>
+                <ListTitleContainer
                     title={"Recently Viewed"}
                     helpText={recentText}
+                    isEmpty={recent.length === 0}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
                     {recent}
-                </TitleContainer>
-                <TitleContainer
+                </ListTitleContainer>
+                <ListTitleContainer
                     title={"Starred"}
                     helpText={starredText}
+                    isEmpty={starred.length === 0}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
                     {starred}
-                </TitleContainer>
+                </ListTitleContainer>
             </Stack>
         </Box>
     )

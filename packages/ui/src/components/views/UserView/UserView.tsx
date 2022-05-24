@@ -1,6 +1,6 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS, StarFor } from "@local/shared";
+import { adaHandleRegex, APP_LINKS, StarFor } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
 import { user, userVariables } from "graphql/generated/user";
 import { organizationsQuery, projectsQuery, routinesQuery, standardsQuery, userQuery } from "graphql/query";
@@ -16,7 +16,7 @@ import {
 import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationSortOptions, projectDefaultSortOption, ProjectSortOptions, ResourceListVertical, routineDefaultSortOption, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
-import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, Pubs } from "utils";
+import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, Pubs } from "utils";
 import { ResourceList, User } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
@@ -50,8 +50,8 @@ export const UserView = ({
     const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery);
     const [user, setUser] = useState<User | null | undefined>(null);
     useEffect(() => {
-        //TODO handle handles
         if (uuidValidate(id)) getData({ variables: { input: { id } } })
+        else if (adaHandleRegex.test(id)) getData({ variables: { input: { handle: id } } })
     }, [getData, id]);
     useEffect(() => {
         setUser((data?.user as User) ?? partialData);
@@ -93,9 +93,10 @@ export const UserView = ({
                     resourceLists: [updatedList]
                 })
             }}
+            loading={loading}
             mutate={true}
         />
-    ) : null, [isOwn, resourceList, session, user]);
+    ) : null, [isOwn, loading, resourceList, session, user]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -249,7 +250,7 @@ export const UserView = ({
                 alignItems='center'
                 left='50%'
                 top="-55px"
-                sx={{ 
+                sx={{
                     border: `1px solid black`,
                     backgroundColor: profileColors[0],
                     transform: 'translateX(-50%)',
@@ -292,7 +293,7 @@ export const UserView = ({
                                     onClick={onEdit}
                                 >
                                     <EditIcon sx={{
-                                        fill: palette.mode === 'light' ? 
+                                        fill: palette.mode === 'light' ?
                                             palette.primary.main : palette.secondary.light,
                                     }} />
                                 </IconButton>
@@ -393,7 +394,7 @@ export const UserView = ({
                 handleDelete={() => { }} //TODO
                 handleEdit={onEdit}
                 objectId={id}
-                objectType={'User'}
+                objectType={ObjectType.User}
                 anchorEl={moreMenuAnchor}
                 title='User Options'
                 availableOptions={moreOptions}
@@ -404,7 +405,7 @@ export const UserView = ({
                 display: 'flex',
                 paddingTop: 5,
                 paddingBottom: 5,
-                background: "#b2b3b3",
+                background: palette.mode === 'light' ? "#b2b3b3" : "#303030",
                 position: "relative",
             }}>
                 {/* Language display/select */}
@@ -454,6 +455,7 @@ export const UserView = ({
                     {
                         currTabType === TabOptions.Resources ? resources : (
                             <SearchList
+                                canSearch={uuidValidate(id)}
                                 defaultSortOption={defaultSortOption}
                                 handleAdd={toAddNew}
                                 itemKeyPrefix={itemKeyPrefix}

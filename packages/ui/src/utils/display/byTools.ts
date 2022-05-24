@@ -45,13 +45,34 @@ export const toOwnedBy = (
     setLocation: SetLocation,
 ): void => {
     if (!object || !object.owner) {
-        PubSub.publish(Pubs.Snack, { message: 'Could not find owner.', severity: 'Error' });
         return;
     }
     // If object has handle, use that instead of ID
     const objLocation = object.owner.handle ?? object.owner.id;
     // Check if user or organization
     if (object.owner.__typename === 'User' || object.owner.hasOwnProperty('name')) {
+        setLocation(`${APP_LINKS.Profile}/${objLocation}`);
+    } else {
+        setLocation(`${APP_LINKS.Organization}/${objLocation}`);
+    }
+}
+
+/**
+ * Navigates to creator of object
+ * @params object Either a project or routine
+ * @params setLocation Function to set location in history
+ */
+ export const toCreatedBy = (
+    object: Standard | null | undefined,
+    setLocation: SetLocation,
+): void => {
+    if (!object || !object.creator) {
+        return;
+    }
+    // If object has handle, use that instead of ID
+    const objLocation = object.creator.handle ?? object.creator.id;
+    // Check if user or organization
+    if (object.creator.__typename === 'User' || object.creator.hasOwnProperty('name')) {
         setLocation(`${APP_LINKS.Profile}/${objLocation}`);
     } else {
         setLocation(`${APP_LINKS.Organization}/${objLocation}`);

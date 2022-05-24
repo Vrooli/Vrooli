@@ -188,16 +188,6 @@ export enum StandardSortBy {
   VotesDesc = "VotesDesc",
 }
 
-export enum StandardType {
-  Array = "Array",
-  Boolean = "Boolean",
-  File = "File",
-  Number = "Number",
-  Object = "Object",
-  String = "String",
-  Url = "Url",
-}
-
 export enum StarFor {
   Comment = "Comment",
   Organization = "Organization",
@@ -310,6 +300,11 @@ export interface FeedbackInput {
 
 export interface FindByIdInput {
   id: string;
+}
+
+export interface FindByIdOrHandleInput {
+  id?: string | null;
+  handle?: string | null;
 }
 
 export interface FindHandlesInput {
@@ -957,6 +952,7 @@ export interface RunCompleteInput {
   exists?: boolean | null;
   pickups?: number | null;
   timeElapsed?: number | null;
+  finalStepUpdate?: RunStepUpdateInput | null;
 }
 
 export interface RunCountInput {
@@ -968,6 +964,7 @@ export interface RunCreateInput {
   routineId: string;
   title: string;
   version: string;
+  step?: RunStepCreateInput[] | null;
 }
 
 export interface RunSearchInput {
@@ -1020,10 +1017,10 @@ export interface StandardCountInput {
 
 export interface StandardCreateInput {
   default?: string | null;
-  isFile?: boolean | null;
-  name: string;
-  schema?: string | null;
-  type?: StandardType | null;
+  name?: string | null;
+  type: string;
+  props: string;
+  yup?: string | null;
   version?: string | null;
   createdByUserId?: string | null;
   createdByOrganizationId?: string | null;

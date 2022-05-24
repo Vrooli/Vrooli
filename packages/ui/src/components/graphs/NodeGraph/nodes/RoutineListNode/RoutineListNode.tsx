@@ -101,7 +101,7 @@ export const RoutineListNode = ({
 
     const { label } = useMemo(() => {
         return {
-            label: getTranslation(node, 'title', [language], true),
+            label: getTranslation(node, 'title', [language], true) ?? '',
         }
     }, [language, node]);
 
@@ -178,9 +178,9 @@ export const RoutineListNode = ({
     }, [collapseOpen, label, labelVisible, isEditing, node.id, handleLabelUpdate, isLinked]);
 
     const optionsCollapse = useMemo(() => (
-        <Collapse in={collapseOpen} sx={{ 
+        <Collapse in={collapseOpen} sx={{
             background: palette.mode === 'light' ? '#b0bbe7' : '#384164',
-         }}>
+        }}>
             <Tooltip placement={'top'} title='Must complete routines in order'>
                 <FormControlLabel
                     disabled={!isEditing}
@@ -324,11 +324,27 @@ export const RoutineListNode = ({
                 >
                     {canExpand ?
                         collapseOpen ?
-                            <ExpandLessIcon id={`${isLinked ? '' : 'unlinked-'}node-routinelist-shrink-icon-${node.id}`} /> :
-                            <ExpandMoreIcon id={`${isLinked ? '' : 'unlinked-'}node-routinelist-expand-icon-${node.id}`} />
+                            <ExpandLessIcon
+                                id={`${isLinked ? '' : 'unlinked-'}node-routinelist-shrink-icon-${node.id}`}
+                                sx={{
+                                    cursor: 'pointer',
+                                }}
+                            /> :
+                            <ExpandMoreIcon
+                                id={`${isLinked ? '' : 'unlinked-'}node-routinelist-expand-icon-${node.id}`}
+                                sx={{
+                                    cursor: 'pointer',
+                                }}
+                            />
                         : null}
                     {labelObject}
-                    {isEditing ? <DeleteIcon id={`${isLinked ? '' : 'unlinked-'}node-routinelist-delete-icon-${node.id}`} onClick={confirmDelete} /> : null}
+                    {isEditing ? <DeleteIcon
+                        id={`${isLinked ? '' : 'unlinked-'}node-routinelist-delete-icon-${node.id}`}
+                        onClick={confirmDelete}
+                        sx={{
+                            cursor: 'pointer',
+                        }}
+                    /> : null}
                 </Container>
             </Tooltip>
             {optionsCollapse}

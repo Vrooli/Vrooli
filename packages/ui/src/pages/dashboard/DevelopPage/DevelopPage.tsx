@@ -1,7 +1,7 @@
 import { useLazyQuery, useQuery } from '@apollo/client';
 import { ResourceListUsedFor } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
-import { HelpButton, ResourceListHorizontal, TitleContainer } from 'components';
+import { HelpButton, ListTitleContainer, ResourceListHorizontal } from 'components';
 import { developPage } from 'graphql/generated/developPage';
 import { profile } from 'graphql/generated/profile';
 import { developPageQuery, profileQuery } from 'graphql/query';
@@ -109,33 +109,37 @@ export const DevelopPage = ({
                     list={resourceList}
                     canEdit={Boolean(session?.id)}
                     handleUpdate={handleResourcesUpdate}
+                    loading={resourcesLoading}
                     mutate={true}
                     session={session}
                 />
-                <TitleContainer
+                <ListTitleContainer
                     title={"In Progress"}
                     helpText={inProgressText}
+                    isEmpty={inProgress.length === 0}
                     onClick={() => { }}
                     options={[['Create', () => { }], ['See all', () => { }]]}
                 >
                     {inProgress}
-                </TitleContainer>
-                <TitleContainer
+                </ListTitleContainer>
+                <ListTitleContainer
                     title={"Recent"}
                     helpText={recentText}
+                    isEmpty={recent.length === 0}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
                     {recent}
-                </TitleContainer>
-                <TitleContainer
+                </ListTitleContainer>
+                <ListTitleContainer
                     title={"Completed"}
                     helpText={completedText}
+                    isEmpty={completed.length === 0}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
                     {completed}
-                </TitleContainer>
+                </ListTitleContainer>
             </Stack>
         </Box>
     )

@@ -9,7 +9,9 @@
 import { Box, Chip, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import {
+    AddLink as AddLinkIcon,
     Close as CloseIcon,
+    Compress as CleanUpIcon,
     Edit as EditIcon,
     Mood as ValidIcon,
     MoodBad as InvalidIcon,
@@ -17,7 +19,7 @@ import {
 } from '@mui/icons-material';
 import { getTranslation, BuildStatus } from 'utils';
 import { BuildInfoContainerProps } from '../types';
-import { HelpButton, BuildInfoDialog, SelectLanguageDialog } from 'components';
+import { HelpButton, BuildInfoDialog, SelectLanguageDialog, UnlinkedNodesDialog } from 'components';
 import Markdown from 'markdown-to-jsx';
 import { noSelect } from 'styles';
 import { EditableLabel } from 'components/inputs';
@@ -54,13 +56,17 @@ const TERTIARY_COLOR = '#95f3cd';
 
 export const BuildInfoContainer = ({
     canEdit,
+    handleAddLink,
     handleLanguageUpdate,
+    handleNodeDelete,
     handleRoutineAction,
     handleRoutineUpdate,
     handleStartEdit,
     handleTitleUpdate,
     isEditing,
     language,
+    loading,
+    nodesOffGraph,
     routine,
     session,
     status,
@@ -109,119 +115,213 @@ export const BuildInfoContainer = ({
 
     const StatusIcon = useMemo(() => STATUS_ICON[status.code], [status]);
 
-    return (
-        <Stack
-            id="build-routine-information-bar"
-            direction="row"
-            spacing={2}
-            width="100%"
-            justifyContent="space-between"
-            sx={{
-                zIndex: 2,
-                background: palette.primary.light,
-                color: palette.primary.contrastText,
-                paddingTop: { xs: '64px', md: '80px' },
-            }}
-        >
-            {/* Status indicator */}
-            <Tooltip title='Press for details'>
-                <Chip
-                    icon={<StatusIcon sx={{ fill: 'white' }} />}
-                    label={STATUS_LABEL[status.code]}
-                    onClick={openStatusMenu}
+    const title = useMemo(() => (
+        <EditableLabel
+            canEdit={isEditing}
+            handleUpdate={handleTitleUpdate}
+            placeholder={loading ? 'Loading...' : 'Enter title...'}
+            renderLabel={(t) => (
+                <Typography
+                    component="h2"
+                    variant="h5"
+                    textAlign="center"
                     sx={{
-                        ...noSelect,
-                        background: STATUS_COLOR[status.code],
-                        color: 'white',
-                        cursor: 'pointer',
-                        marginTop: 'auto',
-                        marginBottom: 'auto',
-                        marginLeft: 2,
+                        fontSize: { xs: '1em', sm: '1.25em', md: '1.5em' },
                     }}
-                />
-                {/* <Box onClick={openStatusMenu} sx={{
-                    ...noSelect,
-                    cursor: 'pointer',
-                    borderRadius: 1,
-                    border: `2px solid ${STATUS_COLOR[status.code]}`,
-                    color: STATUS_COLOR[status.code],
-                    height: 'fit-content',
-                    fontWeight: 'bold',
-                    fontSize: 'larger',
-                    padding: 0.5,
-                    marginTop: 'auto',
-                    marginBottom: 'auto',
-                    marginLeft: 2,
-                }}>{STATUS_LABEL[status.code]}</Box> */}
-            </Tooltip>
-            <Menu
-                id='status-menu'
-                open={statusMenuOpen}
-                disableScrollLock={true}
-                anchorEl={statusMenuAnchorEl}
-                onClose={closeStatusMenu}
-                anchorOrigin={{
-                    vertical: 'bottom',
-                    horizontal: 'center',
-                }}
-                transformOrigin={{
-                    vertical: 'top',
-                    horizontal: 'center',
-                }}
+                >{t ?? (loading ? 'Loading...' : 'Enter title')}</Typography>
+            )}
+            text={getTranslation(routine, 'title', [language], false) ?? ''}
+        />
+    ), [handleTitleUpdate, isEditing, language, loading, routine]);
+
+    // Open/close unlinked nodes drawer
+    const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);
+    const toggleUnlinkedNodes = useCallback(() => setIsUnlinkedNodesOpen(curr => !curr), []);
+
+    /**
+     * Cleans up graph by removing empty columns and row gaps within columns.
+     * Also adds end nodes to the end of each unfinished path
+     */
+    const cleanUpGraph = useCallback(() => {
+        //TODO
+    }, []);
+
+    return (
+        <>
+            {/* Display title first on small screens */}
+            <Stack
+                id="routine-title-and-language"
+                direction="row"
+                justifyContent="center"
                 sx={{
-                    '& .MuiPopover-paper': {
-                        background: palette.background.paper,
-                        maxWidth: 'min(100vw, 400px)',
-                    },
-                    '& .MuiMenu-list': {
-                        padding: 0,
-                    }
+                    zIndex: 2,
+                    background: palette.mode === 'light' ? '#19487a' : '#383844',
+                    color: palette.primary.contrastText,
+                    height: '64px',
+                    display: { xs: 'flex', lg: 'none' },
+                    marginTop: { xs: '64px', md: '80px', lg: '0' },
+                }}>
+                {title}
+            </Stack>
+            <Stack
+                id="build-routine-information-bar"
+                direction="row"
+                spacing={2}
+                width="100%"
+                justifyContent="space-between"
+                sx={{
+                    zIndex: 2,
+                    height: '48px',
+                    background: palette.primary.light,
+                    color: palette.primary.contrastText,
+                    marginTop: { xs: '0', lg: '80px' },
                 }}
             >
-                {statusMenu}
-            </Menu>
-            {/* Title */}
-            <EditableLabel
-                canEdit={isEditing}
-                handleUpdate={handleTitleUpdate}
-                renderLabel={(t) => (
-                    <Typography
-                        component="h2"
-                        variant="h5"
-                        textAlign="center"
+                {/* Status indicator */}
+                <Tooltip title='Press for details'>
+                    <Chip
+                        icon={<StatusIcon sx={{ fill: 'white' }} />}
+                        label={STATUS_LABEL[status.code]}
+                        onClick={openStatusMenu}
                         sx={{
-                            fontSize: { xs: '1em', sm: '1.25em', md: '1.5em' },
+                            ...noSelect,
+                            background: STATUS_COLOR[status.code],
+                            color: 'white',
+                            cursor: isEditing ? 'pointer' : 'default',
+                            marginTop: 'auto',
+                            marginBottom: 'auto',
+                            marginLeft: 2,
+                            // Hide label on small screens
+                            '& .MuiChip-label': {
+                                display: { xs: 'none', sm: 'block' },
+                            },
+                            // Hiding label messes up spacing with icon
+                            '& .MuiSvgIcon-root': {
+                                marginLeft: '4px',
+                                marginRight: { xs: '4px', sm: '-4px' },
+                            },
                         }}
-                    >{t}</Typography>
-                )}
-                text={getTranslation(routine, 'title', [language], false) ?? 'Loading...'}
-            />
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                {/* Language select */}
-                <SelectLanguageDialog
-                    handleSelect={handleLanguageUpdate}
-                    language={language}
-                    session={session}
-                />
-                {/* Edit button */}
-                {canEdit && !isEditing ? (
-                    <IconButton aria-label="confirm-title-change" onClick={handleStartEdit} >
-                        <EditIcon sx={{ fill: TERTIARY_COLOR }} />
-                    </IconButton>
-                ) : null}
-                {/* Help button */}
-                <HelpButton markdown={helpText} sxRoot={{ margin: "auto", marginRight: 1 }} sx={{ color: TERTIARY_COLOR }} />
-                {/* Display routine description, insturctionss, etc. */}
-                <BuildInfoDialog
-                    handleAction={handleRoutineAction}
-                    handleUpdate={handleRoutineUpdate}
-                    isEditing={isEditing}
-                    language={language}
-                    routine={routine}
-                    session={session}
-                    sxs={{ icon: { fill: TERTIARY_COLOR, marginRight: 1 } }}
-                />
-            </Box>
-        </Stack>
+                    />
+                </Tooltip>
+                <Menu
+                    id='status-menu'
+                    open={statusMenuOpen}
+                    disableScrollLock={true}
+                    anchorEl={statusMenuAnchorEl}
+                    onClose={closeStatusMenu}
+                    anchorOrigin={{
+                        vertical: 'bottom',
+                        horizontal: 'center',
+                    }}
+                    transformOrigin={{
+                        vertical: 'top',
+                        horizontal: 'center',
+                    }}
+                    sx={{
+                        '& .MuiPopover-paper': {
+                            background: palette.background.paper,
+                            maxWidth: 'min(100vw, 400px)',
+                        },
+                        '& .MuiMenu-list': {
+                            padding: 0,
+                        }
+                    }}
+                >
+                    {statusMenu}
+                </Menu>
+                {/* Display title between icons on large screen */}
+                <Stack
+                    id="routine-title-and-language"
+                    direction="row"
+                    justifyContent="center"
+                    sx={{ display: { xs: 'none', lg: 'flex' } }}>
+                    {title}
+                </Stack>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    {/* Clean up graph */}
+                    {isEditing && <Tooltip title='Clean up graph'>
+                        <IconButton
+                            id="clean-graph-button"
+                            edge="end"
+                            onClick={cleanUpGraph}
+                            aria-label='Clean up graph'
+                            sx={{
+                                background: '#ab9074',
+                                marginLeft: 'auto',
+                                marginRight: 1,
+                                transition: 'brightness 0.2s ease-in-out',
+                                '&:hover': {
+                                    filter: `brightness(105%)`,
+                                    background: '#ab9074',
+                                },
+                            }}
+                        >
+                            <CleanUpIcon id="clean-up-button-icon" sx={{ fill: 'white' }} />
+                        </IconButton>
+                    </Tooltip>}
+                    {/* Add new links to the routine */}
+                    {isEditing && <Tooltip title='Add new link'>
+                        <IconButton
+                            id="add-link-button"
+                            edge="end"
+                            onClick={handleAddLink}
+                            aria-label='Add link'
+                            sx={{
+                                background: '#9e3984',
+                                marginRight: 1,
+                                transition: 'brightness 0.2s ease-in-out',
+                                '&:hover': {
+                                    filter: `brightness(105%)`,
+                                    background: '#9e3984',
+                                },
+                            }}
+                        >
+                            <AddLinkIcon id="add-link-button-icon" sx={{ fill: 'white' }} />
+                        </IconButton>
+                    </Tooltip>}
+                    {/* Displays unlinked nodes */}
+                    {isEditing && <UnlinkedNodesDialog
+                        handleNodeDelete={handleNodeDelete}
+                        handleToggleOpen={toggleUnlinkedNodes}
+                        language={language}
+                        nodes={nodesOffGraph}
+                        open={isUnlinkedNodesOpen}
+                    />}
+                    {/* Language select */}
+                    <SelectLanguageDialog
+                        handleSelect={handleLanguageUpdate}
+                        language={language}
+                        availableLanguages={routine?.translations.map(t => t.language) ?? []}
+                        session={session}
+                        sxs={{
+                            root: {
+                                marginTop: 'auto',
+                                marginBottom: 'auto',
+                                height: 'fit-content',
+                            }
+                        }}
+                    />
+                    {/* Edit button */}
+                    {canEdit && !isEditing ? (
+                        <IconButton aria-label="confirm-title-change" onClick={handleStartEdit} >
+                            <EditIcon sx={{ fill: TERTIARY_COLOR }} />
+                        </IconButton>
+                    ) : null}
+                    {/* Help button */}
+                    <HelpButton markdown={helpText} sxRoot={{ margin: "auto", marginRight: 1 }} sx={{ color: TERTIARY_COLOR }} />
+                    {/* Display routine description, insturctionss, etc. */}
+                    <BuildInfoDialog
+                        handleAction={handleRoutineAction}
+                        handleUpdate={handleRoutineUpdate}
+                        isEditing={isEditing}
+                        language={language}
+                        loading={loading}
+                        routine={routine}
+                        session={session}
+                        sxs={{ icon: { fill: TERTIARY_COLOR, marginRight: 1 } }}
+                    />
+                </Box>
+            </Stack>
+        </>
     )
 };

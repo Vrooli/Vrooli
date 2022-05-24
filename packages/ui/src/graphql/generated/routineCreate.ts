@@ -41,11 +41,13 @@ export interface routineCreate_routineCreate_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
-  isFile: boolean;
   name: string;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   tags: routineCreate_routineCreate_inputs_standard_tags[];
   translations: routineCreate_routineCreate_inputs_standard_translations[];
+  version: string;
 }
 
 export interface routineCreate_routineCreate_inputs {
@@ -235,11 +237,13 @@ export interface routineCreate_routineCreate_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
-  isFile: boolean;
   name: string;
-  schema: string;
+  type: string;
+  props: string;
+  yup: string | null;
   tags: routineCreate_routineCreate_outputs_standard_tags[];
   translations: routineCreate_routineCreate_outputs_standard_translations[];
+  version: string;
 }
 
 export interface routineCreate_routineCreate_outputs {

@@ -1,8 +1,23 @@
+export type ApolloErrorCode = {
+    /**
+     * Error code
+     */
+    code: string;
+    /**
+     * Detailed error message
+     */
+    message: string;
+    /**
+     * Short error message
+     */
+    snack?: string;
+}
+
 /**
  * All error codes used by the API.
  * Each code is associated with a message, and an optional snack message.
  */
-export const CODE = {
+export const CODE: { [x: string]: ApolloErrorCode } = {
     BadCredentials: {
         code: 'BadCredentials',
         message: 'Email or password incorrect',

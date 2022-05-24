@@ -22,9 +22,10 @@ export const runFields = gql`
         standard {
             id
             default
-            isFile
             name
-            schema
+            type
+            props
+            yup
             tags {
                 ...runTagFields
             }
@@ -33,6 +34,7 @@ export const runFields = gql`
                 language
                 description
             }
+            version
         }
     }
     fragment runOutputFields on OutputItem {
@@ -46,9 +48,10 @@ export const runFields = gql`
         standard {
             id
             default
-            isFile
             name
-            schema
+            type
+            props
+            yup
             tags {
                 ...runTagFields
             }
@@ -57,6 +60,7 @@ export const runFields = gql`
                 language
                 description
             }
+            version
         }
     }
     fragment runNodeFields on Node {

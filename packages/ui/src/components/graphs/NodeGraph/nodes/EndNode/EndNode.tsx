@@ -1,9 +1,10 @@
 import { Box, Tooltip, Typography } from '@mui/material';
-import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
+import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { EndNodeProps } from '../types';
 import { DraggableNode, NodeContextMenu, NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
+import { CSSProperties } from '@mui/styles';
 
 export const EndNode = ({
     handleAction,
@@ -87,7 +88,7 @@ export const EndNode = ({
                             transform: 'translate(-50%, -50%)',
                             borderRadius: '100%',
                             border: '2px solid white',
-                        } as CSSProperties}
+                        } as const}
                     >
                         {labelObject}
                     </Box>

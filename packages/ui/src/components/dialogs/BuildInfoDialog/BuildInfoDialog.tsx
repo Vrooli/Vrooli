@@ -17,7 +17,6 @@ import {
     Checkbox,
     FormControlLabel,
     IconButton,
-    Link,
     List,
     ListItem,
     ListItemIcon,
@@ -31,7 +30,7 @@ import {
 } from '@mui/material';
 import { BaseObjectAction, BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import { MarkdownInput, ResourceListHorizontal } from 'components';
+import { LinkButton, MarkdownInput, ResourceListHorizontal } from 'components';
 import { getOwnedByString, getTranslation, Pubs, toOwnedBy } from 'utils';
 import { useLocation } from 'wouter';
 import { useFormik } from 'formik';
@@ -42,6 +41,7 @@ export const BuildInfoDialog = ({
     handleUpdate,
     isEditing,
     language,
+    loading,
     routine,
     session,
     sxs,
@@ -121,25 +121,25 @@ export const BuildInfoDialog = ({
     };
 
     const resourceList = useMemo(() => {
-        if (!routine || 
+        if (!routine ||
             !Array.isArray(routine.resourceLists) ||
             routine.resourceLists.length < 1 ||
             routine.resourceLists[0].resources.length < 1) return null;
         return <ResourceListHorizontal
             title={'Resources'}
-            list={(routine as any).resourceLists[0]}
+            list={routine.resourceLists[0]}
             canEdit={false}
             handleUpdate={() => { }} // Intentionally blank
+            loading={loading}
             session={session}
         />
-    }, [routine, session]);
+    }, [loading, routine, session]);
 
     return (
         <>
             <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
                 <InfoIcon sx={sxs?.icon} />
             </IconButton>
-            {/* @ts-ignore TODO */}
             <SwipeableDrawer
                 anchor="right"
                 open={open}
@@ -167,9 +167,10 @@ export const BuildInfoDialog = ({
                         <Typography variant="h5">{getTranslation(routine, 'title', [language])}</Typography>
                         <Stack direction="row" spacing={1}>
                             {ownedBy ? (
-                                <Link onClick={toOwner}>
-                                    <Typography variant="body1" sx={{ color: palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy}</Typography>
-                                </Link>
+                                <LinkButton
+                                    onClick={toOwner}
+                                    text={ownedBy}
+                                />
                             ) : null}
                             <Typography variant="body1"> - {routine?.version}</Typography>
                         </Stack>

@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, FindByIdInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, Success, ProjectCountInput, ProjectSearchResult, ProjectSortBy } from './types';
+import { DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, Success, ProjectCountInput, ProjectSearchResult, ProjectSortBy } from './types';
 import { Context } from '../context';
 import { countHelper, createHelper, deleteOneHelper, ProjectModel, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
@@ -138,7 +138,7 @@ export const typeDef = gql`
     }
 
     extend type Query {
-        project(input: FindByIdInput!): Project
+        project(input: FindByIdOrHandleInput!): Project
         projects(input: ProjectSearchInput!): ProjectSearchResult!
         projectsCount(input: ProjectCountInput!): Int!
     }
@@ -153,7 +153,7 @@ export const typeDef = gql`
 export const resolvers = {
     ProjectSortBy: ProjectSortBy,
     Query: {
-        project: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project> | null> => {
+        project: async (_parent: undefined, { input }: IWrap<FindByIdOrHandleInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project> | null> => {
             await rateLimit({ context, info, max: 1000 });
             return readOneHelper(context.req.userId, input, info, ProjectModel(context.prisma));
         },

@@ -1,6 +1,5 @@
-import react from 'react';
 import { StarFor, VoteFor } from '@local/shared';
-import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListUser, Resource, ResourceList, Session, Tag } from 'types';
+import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListUser, Session, Tag } from 'types';
 import { LabelledSortOption } from 'utils';
 
 export interface ObjectListItemProps<DataType> {
@@ -64,6 +63,7 @@ export interface SearchListGenerator {
 }
 
 export interface SearchListProps<SortBy> {
+    canSearch?: boolean;
     handleAdd?: () => void; // Not shown if not passed
     itemKeyPrefix: string;
     searchPlaceholder?: string;

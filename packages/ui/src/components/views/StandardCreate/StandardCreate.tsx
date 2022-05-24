@@ -1,8 +1,8 @@
 import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { standard } from "graphql/generated/standard";
-import { mutationWrapper } from 'graphql/utils/wrappers';
-import { ROLES, standardCreateForm as validationSchema } from '@local/shared';
+import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { InputType, ROLES, standardCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardCreateMutation } from "graphql/mutation";
 import { formatForCreate, getUserLanguages, updateArray, useReactSearch } from "utils";
@@ -14,11 +14,52 @@ import {
     Restore as CancelIcon,
 } from '@mui/icons-material';
 import { TagSelectorTag } from "components/inputs/types";
-import { LanguageInput, ResourceListHorizontal, TagSelector } from "components";
+import { LanguageInput, ResourceListHorizontal, Selector, TagSelector } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { NewObject, ResourceList, Standard } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuidv4 } from 'uuid';
+import { FieldData } from "forms/types";
+import { BaseStandardInput } from "components/inputs";
+
+type InputTypeOption = { label: string, value: InputType }
+/**
+ * Supported input types
+ */
+export const InputTypeOptions: InputTypeOption[] = [
+    {
+        label: 'Text',
+        value: InputType.TextField,
+    },
+    {
+        label: 'JSON',
+        value: InputType.JSON,
+    },
+    {
+        label: 'Integer',
+        value: InputType.QuantityBox
+    },
+    {
+        label: 'Radio (Select One)',
+        value: InputType.Radio,
+    },
+    {
+        label: 'Checkbox (Select any)',
+        value: InputType.Checkbox,
+    },
+    {
+        label: 'Switch (On/Off)',
+        value: InputType.Switch,
+    },
+    {
+        label: 'File Upload',
+        value: InputType.Dropzone,
+    },
+    {
+        label: 'Markdown',
+        value: InputType.Markdown
+    },
+]
 
 export const StandardCreate = ({
     onCreated,
@@ -26,6 +67,16 @@ export const StandardCreate = ({
     session,
 }: StandardCreateProps) => {
     const params = useReactSearch(null);
+
+    // Handle input type selector
+    const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
+    const handleInputTypeSelect = useCallback((event: any) => {
+        setInputType(event.target.value)
+    }, []);
+
+    // Handle standard schema
+    const [schema, setSchema] = useState<FieldData | null>(null);
+    const handleSchemaUpdate = useCallback((schema: FieldData) => { setSchema(schema); }, []);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
@@ -73,7 +124,6 @@ export const StandardCreate = ({
             default: '',
             description: '',
             name: '',
-            schema: '',
             type: '',
             version: '',
         },
@@ -94,14 +144,19 @@ export const StandardCreate = ({
                     default: values.default,
                     description: values.description,
                     name: values.name,
-                    schema: values.schema,
+                    props: schema?.props,
+                    yup: schema?.yup,
                     translations: allTranslations,
                     resourceListsCreate: [resourceListAdd],
                     ...tagsAdd,
                     type: values.type,
                     version: values.version,
                 }) as any,
-                onSuccess: (response) => { onCreated(response.data.standardCreate) },
+                onSuccess: (response) => {
+                    // Remove schema from local state
+                    localStorage.removeItem('standard-create-schema');
+                    onCreated(response.data.standardCreate)
+                },
                 onError: () => { formik.setSubmitting(false) },
             })
         },
@@ -168,7 +223,11 @@ export const StandardCreate = ({
         const correctRole = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
         return [
             ['Create', CreateIcon, Boolean(!correctRole || formik.isSubmitting), true, () => { }],
-            ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
+            ['Cancel', CancelIcon, formik.isSubmitting, false, () => {
+                // Remove schema from local state
+                localStorage.removeItem('standard-create-schema');
+                onCancel();
+            }],
         ] as DialogActionItem[]
     }, [formik, onCancel, session]);
     const [formBottom, setFormBottom] = useState<number>(0);
@@ -224,12 +283,37 @@ export const StandardCreate = ({
                         helperText={formik.touched.description && formik.errors.description}
                     />
                 </Grid>
+                {/* Select the standard type */}
+                <Grid item xs={12}>
+                    <Selector
+                        fullWidth
+                        options={InputTypeOptions}
+                        selected={inputType}
+                        handleChange={handleInputTypeSelect}
+                        getOptionLabel={(option: InputTypeOption) => option.label}
+                        inputAriaLabel='input-type-selector'
+                        label="Size"
+                    />
+                </Grid>
+                {/* Define the standard */}
+                <Grid item xs={12}>
+                    <BaseStandardInput
+                        isEditing={true}
+                        schema={schema}
+                        onChange={handleSchemaUpdate}
+                    />
+                </Grid>
+                {/* Standard preview */}
+                <Grid item xs={12}>
+                    {/* TODO */}
+                </Grid>
                 <Grid item xs={12}>
                     <ResourceListHorizontal
                         title={'Resources'}
                         list={resourceList}
                         canEdit={true}
                         handleUpdate={handleResourcesUpdate}
+                        loading={false}
                         session={session}
                         mutate={false}
                     />

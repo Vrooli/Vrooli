@@ -170,7 +170,8 @@ export const BuildBottomContainer = ({
             background: palette.primary.light,
             display: 'flex',
             justifyContent: 'center',
-            paddingBottom: { xs: '64px', md: '8px' },
+            height: '48px',
+            marginBottom: { xs: '56px', md: '0' },
         }}>
             {/* Chooses which run to use */}
             <RunPickerDialog

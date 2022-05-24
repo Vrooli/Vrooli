@@ -1,7 +1,5 @@
-import { BoxProps } from '@mui/material';
-import { NodeType } from 'graphql/generated/globalTypes';
 import { Node, NodeLink, Session } from 'types';
-import { BuildDialogOption, BuildStatus } from 'utils';
+import { BuildStatus } from 'utils';
 import { NodeContextMenuAction } from './NodeContextMenu/NodeContextMenu';
 
 export interface NodeContextMenuProps {
@@ -89,16 +87,4 @@ export interface NodeColumnProps {
     handleNodeDrop: (nodeId: string, columnIndex: number | null, rowIndex: number | null) => void;
     handleNodeUpdate: (updatedNode: Node) => void;
     language: string;
-}
-
-export interface NodeEdgeProps {
-    link: NodeLink;
-    handleAdd: (link: NodeLink) => void; // Adding a node always creates a routine list node. Other node types are automatically added
-    handleDelete: (link: NodeLink) => void;
-    handleEdit: (link: NodeLink) => void;
-    isEditing?: boolean;
-    isFromRoutineList: boolean; // If true, puts edit button further right
-    isToRoutineList: boolean; // If true, puts edit button further left
-    dragId: string | null; // ID of node being dragged. Used to determine if 
-    scale: number; // Line thickness changes with scale
 }

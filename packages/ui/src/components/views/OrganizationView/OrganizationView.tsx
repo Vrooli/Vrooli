@@ -1,6 +1,6 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS, StarFor } from "@local/shared";
+import { adaHandleRegex, APP_LINKS, StarFor } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
 import { organization, organizationVariables } from "graphql/generated/organization";
 import { usersQuery, projectsQuery, routinesQuery, standardsQuery, organizationQuery } from "graphql/query";
@@ -19,7 +19,7 @@ import { OrganizationViewProps } from "../types";
 import { Organization, ResourceList } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
-import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, Pubs } from "utils";
+import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, Pubs } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
@@ -49,6 +49,7 @@ export const OrganizationView = ({
     const [organization, setOrganization] = useState<Organization | null | undefined>(null);
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { input: { id } } })
+        else if (adaHandleRegex.test(id)) getData({ variables: { input: { handle: id } } })
     }, [getData, id]);
     useEffect(() => {
         setOrganization(data?.organization);
@@ -91,9 +92,10 @@ export const OrganizationView = ({
                     resourceLists: [updatedList]
                 })
             }}
+            loading={loading}
             mutate={true}
         />
-    ) : null, [canEdit, organization, resourceList, session]);
+    ) : null, [canEdit, loading, organization, resourceList, session]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -390,7 +392,7 @@ export const OrganizationView = ({
                 handleDelete={() => { }} //TODO
                 handleEdit={onEdit}
                 objectId={id}
-                objectType={'Organization'}
+                objectType={ObjectType.Organization}
                 anchorEl={moreMenuAnchor}
                 title='Organization Options'
                 availableOptions={moreOptions}
@@ -398,7 +400,7 @@ export const OrganizationView = ({
                 session={session}
             />
             <Box sx={{
-                background: "#b2b3b3",
+                background: palette.mode === 'light' ? "#b2b3b3" : "#303030",
                 display: 'flex',
                 paddingTop: 5,
                 paddingBottom: 5,
@@ -451,6 +453,7 @@ export const OrganizationView = ({
                     {
                         currTabType === TabOptions.Resources ? resources : (
                             <SearchList
+                                canSearch={uuidValidate(id)}
                                 defaultSortOption={defaultSortOption}
                                 handleAdd={toAddNew}
                                 itemKeyPrefix={itemKeyPrefix}

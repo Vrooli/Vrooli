@@ -1,11 +1,11 @@
 import { description, idArray, id, name, version, language } from './base';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
-import { StandardType } from '../consts';
+import { InputType } from '../consts';
 
-const standardDefault = yup.string().max(1024)
-const schema = yup.string().max(8192).required();
-const type = yup.string().oneOf(Object.values(StandardType))
+const standardDefault = yup.string().max(8192);
+const stringifiedJson = yup.string().max(8192);
+const type = yup.string().oneOf(Object.values(InputType))
 
 export const standardTranslationCreate = yup.object().shape({
     language: language.required(),
@@ -23,7 +23,6 @@ export const standardCreateForm = yup.object().shape({
     default: standardDefault.notRequired().default(undefined),
     description: description.notRequired().default(undefined),
     name: name.required(),
-    schema: schema.notRequired().default(undefined),
     type: type.required(),
     version: version.notRequired().default(undefined),
 })
@@ -36,10 +35,10 @@ export const standardUpdateForm = yup.object().shape({
  */
 export const standardCreate = yup.object().shape({
     default: standardDefault.notRequired().default(undefined),
-    isFile: yup.boolean().notRequired().default(undefined),
     name: name.required(),
-    schema: schema.notRequired().default(undefined),
     type: type.required(),
+    props: stringifiedJson.required(),
+    yup: stringifiedJson.notRequired().default(undefined),
     version: version.notRequired().default(undefined),
     createdByUserId: id.notRequired().default(undefined), // If associating with yourself, your own id. Cannot associate with another user
     createdByOrganizationId: id.notRequired().default(undefined), // If associating with an organization you are an admin of, the organization's id

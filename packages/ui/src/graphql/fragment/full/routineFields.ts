@@ -22,9 +22,10 @@ export const routineFields = gql`
         standard {
             id
             default
-            isFile
             name
-            schema
+            type
+            props
+            yup
             tags {
                 ...routineTagFields
             }
@@ -33,6 +34,7 @@ export const routineFields = gql`
                 language
                 description
             }
+            version
         }
     }
     fragment routineOutputFields on OutputItem {
@@ -46,9 +48,10 @@ export const routineFields = gql`
         standard {
             id
             default
-            isFile
             name
-            schema
+            type
+            props
+            yup
             tags {
                 ...routineTagFields
             }
@@ -57,6 +60,7 @@ export const routineFields = gql`
                 language
                 description
             }
+            version
         }
     }
     fragment routineNodeFields on Node {

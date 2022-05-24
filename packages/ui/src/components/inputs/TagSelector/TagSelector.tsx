@@ -4,7 +4,7 @@ import { tagsQuery } from 'graphql/query';
 import { useQuery } from '@apollo/client';
 import { StarFor, TagSortBy } from '@local/shared';
 import { TagSelectorProps, TagSelectorTag } from '../types';
-import { Autocomplete, Chip, ListItemText, MenuItem, TextField } from '@mui/material';
+import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from '@mui/material';
 import { StarButton } from 'components';
 import { Pubs } from 'utils';
 
@@ -16,6 +16,7 @@ export const TagSelector = ({
     onTagRemove,
     onTagsClear
 }: TagSelectorProps) => {
+    const { palette } = useTheme();
     const [inputValue, setInputValue] = useState<string>('');
     const clearText = useCallback(() => { setInputValue(''); }, []);
     const onChange = useCallback((change: any) => {
@@ -105,7 +106,7 @@ export const TagSelector = ({
                         {...getTagProps({ index })}
                         onDelete={() => onChipDelete(option)}
                         sx={{
-                            backgroundColor: '#a068ce',
+                            backgroundColor: palette.mode === 'light' ? '#8148b0' : '#8148b0', //'#a068ce',
                             color: 'white',
                         }}
                     />

@@ -59,6 +59,12 @@ export const typeDef = gql`
         id: ID!
     }
 
+    # Input for finding object by id OR handle
+    input FindByIdOrHandleInput {
+        id: ID
+        handle: String
+    }
+
     # Input for deleting one object
     input DeleteOneInput {
         id: ID!
