@@ -1,23 +1,42 @@
-import { Box } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, BuildInfoContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, DeleteRoutineDialog } from 'components';
+import { Box, Chip, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, DeleteRoutineDialog, EditableLabel, UnlinkedNodesDialog, SelectLanguageDialog, BuildInfoDialog, HelpButton } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { routineQuery } from 'graphql/query';
-import { useMutation, useLazyQuery } from '@apollo/client';
+import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineDeleteOneMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { routine, routineVariables } from 'graphql/generated/routine';
 import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, BuildStatus, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages } from 'utils';
 import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine } from 'types';
 import isEqual from 'lodash/isEqual';
-import { useLocation, useRoute } from 'wouter';
+import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { BuildStatusObject } from 'components/graphs/NodeGraph/types';
 import { NodeType } from 'graphql/generated/globalTypes';
-import { BuildPageProps } from 'pages/types';
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import { BaseObjectAction } from 'components/dialogs/types';
 import { owns } from 'utils/authentication';
+import { BuildViewProps } from '../types';
+import {
+    AddLink as AddLinkIcon,
+    Close as CloseIcon,
+    Compress as CleanUpIcon,
+    Edit as EditIcon,
+    Mood as ValidIcon,
+    MoodBad as InvalidIcon,
+    SentimentDissatisfied as IncompleteIcon,
+} from '@mui/icons-material';
+import Markdown from 'markdown-to-jsx';
+import { noSelect } from 'styles';
+
+//TODO
+const helpText =
+    `## What am I looking at?
+Lorem ipsum dolor sit amet consectetur adipisicing elit. 
+
+
+## How does it work?
+Lorem ipsum dolor sit amet consectetur adipisicing elit.
+`
 
 /**
  * Status indicator and slider change color to represent routine's status
@@ -27,70 +46,46 @@ const STATUS_COLOR = {
     [BuildStatus.Invalid]: '#ff6a6a', // Red
     [BuildStatus.Valid]: '#00d51e', // Green
 }
+const STATUS_LABEL = {
+    [BuildStatus.Incomplete]: 'Incomplete',
+    [BuildStatus.Invalid]: 'Invalid',
+    [BuildStatus.Valid]: 'Valid',
+}
+const STATUS_ICON = {
+    [BuildStatus.Incomplete]: IncompleteIcon,
+    [BuildStatus.Invalid]: InvalidIcon,
+    [BuildStatus.Valid]: ValidIcon,
+}
 
-export const BuildPage = ({
-    session,
-}: BuildPageProps) => {
+const TERTIARY_COLOR = '#95f3cd';
+
+export const BuildView = ({
+    handleClose,
+    loading,
+    onChange,
+    routine,
+    session
+}: BuildViewProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    // Get routine ID from URL
-    const [, params] = useRoute(`${APP_LINKS.Build}/:id`);
-    const id: string = useMemo(() => params?.id ?? '', [params]);
+    const id: string = useMemo(() => routine?.id ?? '', [routine]);
     const [isEditing, setIsEditing] = useState<boolean>(false);
 
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => { setLanguage(getUserLanguages(session)[0]) }, [session]);
     const handleLanguageUpdate = useCallback((language: string) => { setLanguage(language); }, []);
 
-    // Queries routine data
-    const [getData, { data: routineData, loading: loadingRead }] = useLazyQuery<routine, routineVariables>(routineQuery);
-    useEffect(() => {
-        // If not add, fetch data
-        if (id && id !== 'add') getData({ variables: { input: { id } } });
-        // If add, set initial data
-        else {
-            const startNode: Node = {
-                id: uuidv4(),
-                type: NodeType.Start,
-                columnIndex: 0,
-                rowIndex: 0,
-            } as Node
-            const endNode: Node = {
-                id: uuidv4(),
-                type: NodeType.End,
-                columnIndex: 1,
-                rowIndex: 0,
-            } as Node
-            const link: NodeLink = {
-                id: uuidv4(),
-                fromId: startNode.id,
-                toId: endNode.id,
-            } as NodeLink
-            setRoutine({
-                nodes: [startNode, endNode],
-                nodeLinks: [link],
-                translations: [{
-                    language,
-                    title: 'New Routine',
-                    instructions: 'Enter instructions here',
-                }]
-            } as Routine)
-            setIsEditing(true);
-        }
-    }, [id, getData, language]);
-    const [routine, setRoutine] = useState<Routine | null>(null);
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
-    useEffect(() => { if (routineData?.routine) setRoutine(routineData?.routine ?? null) }, [routineData]);
     // Routine mutators
-    const [routineCreate, { loading: loadingCreate }] = useMutation<any>(routineCreateMutation);
-    const [routineUpdate, { loading: loadingUpdate }] = useMutation<any>(routineUpdateMutation);
-    const [routineDelete, { loading: loadingDelete }] = useMutation<any>(routineDeleteOneMutation);
-    const loading = useMemo(() => loadingRead || loadingCreate || loadingUpdate || loadingDelete, [loadingRead, loadingCreate, loadingUpdate, loadingDelete]);
+    const [routineCreate] = useMutation<any>(routineCreateMutation);
+    const [routineUpdate] = useMutation<any>(routineUpdateMutation);
+    const [routineDelete] = useMutation<any>(routineDeleteOneMutation);
     // The routine's status (valid/invalid/incomplete)
     const [status, setStatus] = useState<BuildStatusObject>({ code: BuildStatus.Incomplete, messages: ['Calculating...'] });
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
     const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine]);
-    
+
     useEffect(() => {
         setChangedRoutine(routine);
     }, [routine]);
@@ -346,12 +341,12 @@ export const BuildPage = ({
             mutation: routineCreate,
             input,
             successMessage: () => 'Routine created.',
-            onSuccess: ({ data }) => { 
-                setRoutine(data.routineCreate);
-                setLocation(`${APP_LINKS.Build}/${data.routineCreate.id}`); 
+            onSuccess: ({ data }) => {
+                onChange(data.routineCreate);
+                handleClose();
             },
         })
-    }, [changedRoutine, routineCreate, setLocation]);
+    }, [changedRoutine, handleClose, onChange, routineCreate]);
 
     /**
      * Mutates routine data
@@ -401,9 +396,36 @@ export const BuildPage = ({
             mutation: routineUpdate,
             input,
             successMessage: () => 'Routine updated.',
-            onSuccess: ({ data }) => { setRoutine(data.routineUpdate); },
+            onSuccess: ({ data }) => { onChange(data.routineUpdate); },
         })
-    }, [changedRoutine, routine, routineUpdate])
+    }, [changedRoutine, onChange, routine, routineUpdate])
+
+    /**
+     * If closing with unsaved changes, prompt user to save
+     */
+    const onClose = useCallback(() => {
+        if (changedRoutine) {
+            PubSub.publish(Pubs.AlertDialog, {
+                message: 'There are unsaved changes. Would you like to save?',
+                buttons: [
+                    {
+                        text: 'Save and Close', onClick: () => {
+                            updateRoutine();
+                            handleClose();
+                        }
+                    },
+                    {
+                        text: 'Close without saving', onClick: () => {
+                            handleClose();
+                        }
+                    },
+                    {
+                        text: 'Cancel', onClick: () => { }
+                    }
+                ]
+            });
+        }
+    }, [changedRoutine, handleClose, updateRoutine]);
 
     const updateRoutineTitle = useCallback((title: string) => {
         if (!changedRoutine) return;
@@ -784,8 +806,9 @@ export const BuildPage = ({
             PubSub.publish(Pubs.Snack, { message: 'You have unsaved changes. Please save or discard them before navigating to another routine.' });
             return;
         }
-        setLocation(`${APP_LINKS.Build}/${selectedSubroutine.id}`);
-    }, [selectedSubroutine, routine, changedRoutine, setLocation]);
+        // TODO - buildview should have its own buildview, to recursively open subroutines
+        //setLocation(`${APP_LINKS.Build}/${selectedSubroutine.id}`);
+    }, [selectedSubroutine, routine, changedRoutine]);
 
     const handleAction = useCallback((action: BuildAction, nodeId: string, subroutineId?: string) => {
         switch (action) {
@@ -863,6 +886,61 @@ export const BuildPage = ({
         }
     }, [routine, updateRoutine, openDelete]);
 
+    /**
+     * List of status messages converted to markdown. 
+     * If one message, no bullet points. If multiple, bullet points.
+     */
+    const statusMarkdown = useMemo(() => {
+        if (status.messages.length === 0) return 'Routine is valid.';
+        if (status.messages.length === 1) {
+            return status.messages[0];
+        }
+        return status.messages.map((s) => {
+            return `* ${s}`;
+        }).join('\n');
+    }, [status]);
+
+    const [statusMenuAnchorEl, setStatusMenuAnchorEl] = useState(null);
+    const statusMenuOpen = Boolean(statusMenuAnchorEl);
+    const openStatusMenu = useCallback((event) => {
+        if (!statusMenuAnchorEl) setStatusMenuAnchorEl(event.currentTarget);
+    }, [statusMenuAnchorEl])
+    const closeStatusMenu = () => {
+        setStatusMenuAnchorEl(null);
+    };
+
+    /**
+     * Menu displayed when status is clicked
+     */
+    const statusMenu = useMemo(() => {
+        return (
+            <Box>
+                <Box sx={{ background: palette.primary.dark }}>
+                    <IconButton edge="start" color="inherit" onClick={closeStatusMenu} aria-label="close">
+                        <CloseIcon sx={{ fill: 'white', marginLeft: '0.5em' }} />
+                    </IconButton>
+                </Box>
+                <Box sx={{ padding: 1 }}>
+                    <Markdown>{statusMarkdown}</Markdown>
+                </Box>
+            </Box>
+        )
+    }, [palette.primary.dark, statusMarkdown])
+
+    const StatusIcon = useMemo(() => STATUS_ICON[status.code], [status]);
+
+    // Open/close unlinked nodes drawer
+    const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);
+    const toggleUnlinkedNodes = useCallback(() => setIsUnlinkedNodesOpen(curr => !curr), []);
+
+    /**
+     * Cleans up graph by removing empty columns and row gaps within columns.
+     * Also adds end nodes to the end of each unfinished path
+     */
+    const cleanUpGraph = useCallback(() => {
+        //TODO
+    }, []);
+
     return (
         <Box sx={{
             display: 'flex',
@@ -931,25 +1009,207 @@ export const BuildPage = ({
                 subroutine={selectedSubroutine}
                 onClose={closeRoutineInfo}
             />
+            {/* Display top navbars */}
+            {/* First contains close icon and title */}
+            <Stack
+                id="routine-title-and-language"
+                direction="row"
+                sx={{
+                    zIndex: 2,
+                    background: palette.mode === 'light' ? '#19487a' : '#383844',
+                    color: palette.primary.contrastText,
+                    height: '64px',
+                }}>
+                {/* Close Icon */}
+                <IconButton
+                    edge="end"
+                    aria-label="close"
+                    onClick={onClose}
+                    color="inherit"
+                    sx={{
+                        marginRight: 'auto',
+                    }}
+                >
+                    <CloseIcon sx={{
+                        width: '32px',
+                        height: '32px',
+                    }} />
+                </IconButton>
+                <EditableLabel
+                    canEdit={isEditing}
+                    handleUpdate={updateRoutineTitle}
+                    placeholder={loading ? 'Loading...' : 'Enter title...'}
+                    renderLabel={(t) => (
+                        <Typography
+                            component="h2"
+                            variant="h5"
+                            textAlign="center"
+                            sx={{
+                                fontSize: { xs: '1em', sm: '1.25em', md: '1.5em' },
+                            }}
+                        >{t ?? (loading ? 'Loading...' : 'Enter title')}</Typography>
+                    )}
+                    text={getTranslation(routine, 'title', [language], false) ?? ''}
+                    sxs={{
+                        stack: { marginRight: 'auto' }
+                    }}
+                />
+            </Stack>
+            {/* Second contains additional info and icons */}
+            <Stack
+                id="build-routine-information-bar"
+                direction="row"
+                spacing={2}
+                width="100%"
+                justifyContent="space-between"
+                sx={{
+                    zIndex: 2,
+                    height: '48px',
+                    background: palette.primary.light,
+                    color: palette.primary.contrastText,
+                    marginTop: { xs: '0', lg: '80px' },
+                }}
+            >
+                {/* Status indicator */}
+                <Tooltip title='Press for details'>
+                    <Chip
+                        icon={<StatusIcon sx={{ fill: 'white' }} />}
+                        label={STATUS_LABEL[status.code]}
+                        onClick={openStatusMenu}
+                        sx={{
+                            ...noSelect,
+                            background: STATUS_COLOR[status.code],
+                            color: 'white',
+                            cursor: isEditing ? 'pointer' : 'default',
+                            marginTop: 'auto',
+                            marginBottom: 'auto',
+                            marginLeft: 2,
+                            // Hide label on small screens
+                            '& .MuiChip-label': {
+                                display: { xs: 'none', sm: 'block' },
+                            },
+                            // Hiding label messes up spacing with icon
+                            '& .MuiSvgIcon-root': {
+                                marginLeft: '4px',
+                                marginRight: { xs: '4px', sm: '-4px' },
+                            },
+                        }}
+                    />
+                </Tooltip>
+                <Menu
+                    id='status-menu'
+                    open={statusMenuOpen}
+                    disableScrollLock={true}
+                    anchorEl={statusMenuAnchorEl}
+                    onClose={closeStatusMenu}
+                    anchorOrigin={{
+                        vertical: 'bottom',
+                        horizontal: 'center',
+                    }}
+                    transformOrigin={{
+                        vertical: 'top',
+                        horizontal: 'center',
+                    }}
+                    sx={{
+                        '& .MuiPopover-paper': {
+                            background: palette.background.paper,
+                            maxWidth: 'min(100vw, 400px)',
+                        },
+                        '& .MuiMenu-list': {
+                            padding: 0,
+                        }
+                    }}
+                >
+                    {statusMenu}
+                </Menu>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    {/* Clean up graph */}
+                    {isEditing && <Tooltip title='Clean up graph'>
+                        <IconButton
+                            id="clean-graph-button"
+                            edge="end"
+                            onClick={cleanUpGraph}
+                            aria-label='Clean up graph'
+                            sx={{
+                                background: '#ab9074',
+                                marginLeft: 'auto',
+                                marginRight: 1,
+                                transition: 'brightness 0.2s ease-in-out',
+                                '&:hover': {
+                                    filter: `brightness(105%)`,
+                                    background: '#ab9074',
+                                },
+                            }}
+                        >
+                            <CleanUpIcon id="clean-up-button-icon" sx={{ fill: 'white' }} />
+                        </IconButton>
+                    </Tooltip>}
+                    {/* Add new links to the routine */}
+                    {isEditing && <Tooltip title='Add new link'>
+                        <IconButton
+                            id="add-link-button"
+                            edge="end"
+                            onClick={openLinkDialog}
+                            aria-label='Add link'
+                            sx={{
+                                background: '#9e3984',
+                                marginRight: 1,
+                                transition: 'brightness 0.2s ease-in-out',
+                                '&:hover': {
+                                    filter: `brightness(105%)`,
+                                    background: '#9e3984',
+                                },
+                            }}
+                        >
+                            <AddLinkIcon id="add-link-button-icon" sx={{ fill: 'white' }} />
+                        </IconButton>
+                    </Tooltip>}
+                    {/* Displays unlinked nodes */}
+                    {isEditing && <UnlinkedNodesDialog
+                        handleNodeDelete={handleNodeDelete}
+                        handleToggleOpen={toggleUnlinkedNodes}
+                        language={language}
+                        nodes={nodesOffGraph}
+                        open={isUnlinkedNodesOpen}
+                    />}
+                    {/* Language select */}
+                    <SelectLanguageDialog
+                        handleSelect={handleLanguageUpdate}
+                        language={language}
+                        availableLanguages={routine?.translations.map(t => t.language) ?? []}
+                        session={session}
+                        sxs={{
+                            root: {
+                                marginTop: 'auto',
+                                marginBottom: 'auto',
+                                height: 'fit-content',
+                            }
+                        }}
+                    />
+                    {/* Edit button */}
+                    {canEdit && !isEditing ? (
+                        <IconButton aria-label="confirm-title-change" onClick={startEditing} >
+                            <EditIcon sx={{ fill: TERTIARY_COLOR }} />
+                        </IconButton>
+                    ) : null}
+                    {/* Help button */}
+                    <HelpButton markdown={helpText} sxRoot={{ margin: "auto", marginRight: 1 }} sx={{ color: TERTIARY_COLOR }} />
+                    {/* Display routine description, insturctionss, etc. */}
+                    <BuildInfoDialog
+                        handleAction={handleRoutineAction}
+                        handleUpdate={updateRoutine}
+                        isEditing={isEditing}
+                        language={language}
+                        loading={loading}
+                        routine={routine}
+                        session={session}
+                        sxs={{ icon: { fill: TERTIARY_COLOR, marginRight: 1 } }}
+                    />
+                </Box>
+            </Stack>
             {/* Displays main routine's information and some buttons */}
-            <BuildInfoContainer
-                canEdit={canEdit}
-                handleAddLink={openLinkDialog}
-                handleLanguageUpdate={handleLanguageUpdate}
-                handleNodeDelete={handleNodeDelete}
-                handleRoutineAction={handleRoutineAction}
-                handleRoutineUpdate={updateRoutine}
-                handleStartEdit={startEditing}
-                handleTitleUpdate={updateRoutineTitle}
-                isEditing={isEditing}
-                language={language}
-                loading={loadingRead}
-                nodesOffGraph={nodesOffGraph}
-                routine={changedRoutine}
-                session={session}
-                status={status}
-            />
             <Box sx={{
+                background: palette.background.default,
                 bottom: '0',
                 display: 'flex',
                 flexDirection: 'column',

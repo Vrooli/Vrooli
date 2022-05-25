@@ -28,7 +28,7 @@ services:
         depends_on: 
                 - redis
                 - db
-        command: /bin/sh -c "chmod +x ./scripts/* && ./scripts/ui.sh"
+        command: /bin/sh -c "chmod +x ./scripts/* && chmod +w ./packages/ui/build/* && ./scripts/ui.sh"
     server:
         build:
             context: .

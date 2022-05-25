@@ -43,7 +43,6 @@ export const RunView = ({
             testMode: params.run === 'test',
         }
     }, [params])
-    const [, params1] = useRoute(`${APP_LINKS.Build}/:routineId`);
     const [, params2] = useRoute(`${APP_LINKS.Routine}/:routineId`);
     const run = useMemo(() => {
         if (!routine) return undefined;
@@ -71,7 +70,7 @@ export const RunView = ({
      * Steps are stored as an array that describes their nesting, like they appear in the URL (e.g. [1], [1,3], [1,5,2]).
      * TODO History key should be combination of routineId and updated_at, so history is reset when routine is updated.
      */
-    const [progress, setProgress] = useHistoryState(params1?.routineId ?? params2?.routineId ?? '', [])
+    const [progress, setProgress] = useHistoryState(params2?.routineId ?? '', [])
 
     const languages = useMemo(() => getUserLanguages(session), [session]);
 

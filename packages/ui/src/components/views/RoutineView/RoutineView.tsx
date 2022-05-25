@@ -12,17 +12,17 @@ import {
     MoreHoriz as EllipsisIcon,
     PlayCircle as StartIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, DeleteRoutineDialog, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition } from "components";
+import { BaseObjectActionDialog, BuildView, DeleteRoutineDialog, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
-import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, Pubs, stringifySearchParams, toOwnedBy, useReactSearch } from "utils";
-import { Routine, Run } from "types";
+import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, Pubs, stringifySearchParams, toOwnedBy, useReactSearch } from "utils";
+import { Node, NodeLink, Routine, Run } from "types";
 import Markdown from "markdown-to-jsx";
 import { runCompleteMutation, routineDeleteOneMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
 import { NodeType, StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
-import { validate as uuidValidate } from 'uuid';
+import { validate as uuidValidate, v4 as uuidv4 } from 'uuid';
 import { runComplete } from "graphql/generated/runComplete";
 import { owns } from "utils/authentication";
 
@@ -40,20 +40,21 @@ export const RoutineView = ({
     const id = params?.id ?? params2?.id;
     // Fetch data
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
+    const [routine, setRoutine] = useState<Routine | null>(null);
     useEffect(() => {
-        if (id) getData({ variables: { input: { id } } });
+        if (id && uuidValidate(id)) getData({ variables: { input: { id } } });
     }, [getData, id])
-    const routine = useMemo(() => data?.routine, [data]);
-    const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null); // Routine may change if it is starred/upvoted/etc.
+    useEffect(() => {
+        if (!data) return;
+        setRoutine(data.routine);
+    }, [data, setRoutine]);
+    const updateRoutine = useCallback((routine: Routine) => { setRoutine(routine); }, [setRoutine]);
+
     const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine]);
     // Open boolean for delete routine confirmation
     const [deleteOpen, setDeleteOpen] = useState(false);
     const openDelete = () => setDeleteOpen(true);
     const closeDelete = () => setDeleteOpen(false);
-
-    useEffect(() => {
-        if (routine) { setChangedRoutine(routine) }
-    }, [routine]);
 
     const [routineDelete, { loading: loadingDelete }] = useMutation<any>(routineDeleteOneMutation);
     /**
@@ -97,10 +98,6 @@ export const RoutineView = ({
     const ownedBy = useMemo<string | null>(() => getOwnedByString(routine, [language]), [routine, language]);
     const toOwner = useCallback(() => { toOwnedBy(routine, setLocation) }, [routine, setLocation]);
 
-    const viewGraph = useCallback(() => {
-        setLocation(`${APP_LINKS.Build}/${routine?.id}`);
-    }, [routine?.id, setLocation]);
-
     const [runComplete] = useMutation<runComplete>(runCompleteMutation);
     const markAsComplete = useCallback(() => {
         if (!routine) return;
@@ -114,6 +111,52 @@ export const RoutineView = ({
             },
         })
     }, [routine, runComplete, setLocation]);
+
+    const [isBuildOpen, setIsBuildOpen] = useState(false);
+    // If buildId is in the URL, open the build
+    useEffect(() => {
+        const searchParams = parseSearchParams(window.location.search);
+        if (searchParams.build) {
+            // If build === 'add', populate routine with default start data
+            if (searchParams.build === 'add') {
+                const startNode: Node = {
+                    id: uuidv4(),
+                    type: NodeType.Start,
+                    columnIndex: 0,
+                    rowIndex: 0,
+                } as Node
+                const endNode: Node = {
+                    id: uuidv4(),
+                    type: NodeType.End,
+                    columnIndex: 1,
+                    rowIndex: 0,
+                } as Node
+                const link: NodeLink = {
+                    id: uuidv4(),
+                    fromId: startNode.id,
+                    toId: endNode.id,
+                } as NodeLink
+                setRoutine({
+                    nodes: [startNode, endNode],
+                    nodeLinks: [link],
+                    translations: [{
+                        language,
+                        title: 'New Routine',
+                        instructions: 'Enter instructions here',
+                    }]
+                } as Routine)
+            }
+            setIsBuildOpen(true);
+        }
+    }, [language]);
+    const viewGraph = useCallback(() => {
+        setLocation(stringifySearchParams({
+            build: routine?.id,
+        }), { replace: true });
+        setIsBuildOpen(true);
+    }, [routine?.id, setLocation]);
+    const stopBuild = useCallback(() => { setIsBuildOpen(false) }, []);
+
 
     const [isRunOpen, setIsRunOpen] = useState(false)
     const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
@@ -340,6 +383,22 @@ export const RoutineView = ({
                     session={session}
                 />}
             </Dialog>
+            {/* Dialog for building routine */}
+            <Dialog
+                id="run-routine-view-dialog"
+                fullScreen
+                open={isBuildOpen}
+                onClose={stopBuild}
+                TransitionComponent={UpTransition}
+            >
+                <BuildView
+                    handleClose={stopBuild}
+                    loading={loading}
+                    onChange={updateRoutine}
+                    routine={routine}
+                    session={session}
+                />
+            </Dialog>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
                 handleActionComplete={() => { }} //TODO
@@ -410,9 +469,9 @@ export const RoutineView = ({
                             objectId={routine?.id ?? ''}
                             showStars={false}
                             starFor={StarFor.Routine}
-                            isStar={changedRoutine?.isStarred ?? false}
-                            stars={changedRoutine?.stars ?? 0}
-                            onChange={(isStar: boolean) => { changedRoutine && setChangedRoutine({ ...changedRoutine, isStarred: isStar }) }}
+                            isStar={routine?.isStarred ?? false}
+                            stars={routine?.stars ?? 0}
+                            onChange={(isStar: boolean) => { routine && setRoutine({ ...routine, isStarred: isStar }) }}
                             tooltipPlacement="bottom"
                         />
                         {ownedBy && (

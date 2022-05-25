@@ -71,6 +71,13 @@ export interface DecisionViewProps {
 }
 
 export interface RunViewProps extends ViewProps<Routine> {
-    handleClose: () => void; // View is always in a dialog
+    handleClose: () => void;
     routine: Routine;
+}
+
+export interface BuildViewProps extends ViewProps<Routine> {
+    handleClose: () => void;
+    loading: boolean;
+    onChange: (routine: Routine) => void;
+    routine: Routine | null;
 }
