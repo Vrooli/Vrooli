@@ -203,7 +203,6 @@ export const RoutineView = ({
     const actions = useMemo(() => {
         // If routine has no nodes
         if (!routine?.nodes?.length) {
-            console.log('SESSION HEERE', session)
             // Only show if logged in
             if (!session?.id) return null;
             return (
@@ -269,7 +268,6 @@ export const RoutineView = ({
                     {/* Description */}
                     <Box sx={{
                         padding: 1,
-                        borderRadius: 1,
                         color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary,
                     }}>
                         <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Description</Typography>
@@ -306,10 +304,12 @@ export const RoutineView = ({
     return (
         <Box sx={{
             display: 'flex',
-            alignItems: 'center',
+            alignItems: { xs: 'flex-end', sm: 'center' },
             justifyContent: 'center',
             margin: 'auto',
-            minHeight: '88vh',
+            // xs: 100vh - navbar (64px) - bottom nav (56px)
+            // md: 100vh - navbar (80px)
+            minHeight: { xs: 'calc(100vh - 64px - 56px)', md: 'calc(100vh - 80px)' },
         }}>
             {/* Chooses which run to use */}
             <RunPickerDialog
@@ -357,10 +357,10 @@ export const RoutineView = ({
             <Box sx={{
                 background: palette.background.paper,
                 overflowY: 'auto',
-                width: 'min(96vw, 600px)',
-                borderRadius: '8px',
+                width: 'min(100%, 600px)',
+                borderRadius: { xs: '8px 8px 0 0', sm: '8px' },
                 overflow: 'overlay',
-                ...containerShadow
+                boxShadow: { xs: 'none', sm: (containerShadow as any).boxShadow },
             }}>
                 {/* Heading container */}
                 <Stack direction="column" spacing={1} sx={{

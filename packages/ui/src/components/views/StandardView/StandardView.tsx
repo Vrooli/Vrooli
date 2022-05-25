@@ -141,10 +141,12 @@ export const StandardView = ({
     return (
         <Box sx={{
             display: 'flex',
-            alignItems: 'center',
+            alignItems: { xs: 'flex-end', sm: 'center' },
             justifyContent: 'center',
             margin: 'auto',
-            minHeight: '88vh',
+            // xs: 100vh - navbar (64px) - bottom nav (56px)
+            // md: 100vh - navbar (80px)
+            minHeight: { xs: 'calc(100vh - 64px - 56px)', md: 'calc(100vh - 80px)' },
         }}>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
@@ -163,10 +165,10 @@ export const StandardView = ({
             <Box sx={{
                 background: palette.background.paper,
                 overflowY: 'auto',
-                width: 'min(96vw, 600px)',
-                borderRadius: '8px',
+                width: 'min(100%, 600px)',
+                borderRadius: { xs: '8px 8px 0 0', sm: '8px' },
                 overflow: 'overlay',
-                ...containerShadow
+                boxShadow: { xs: 'none', sm: (containerShadow as any).boxShadow },
             }}>
                 {/* Heading container */}
                 <Stack direction="column" spacing={1} sx={{
