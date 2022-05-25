@@ -60,6 +60,7 @@ export interface SettingsProfileProps extends SettingsBaseProps {
 export interface SubroutineViewProps {
     loading: boolean;
     data: Routine | null;
+    handleSaveProgress: () => void;
     session: Session;
 }
 

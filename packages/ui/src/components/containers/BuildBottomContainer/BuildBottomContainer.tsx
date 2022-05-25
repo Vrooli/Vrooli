@@ -181,7 +181,6 @@ export const BuildBottomContainer = ({
             display: 'flex',
             justifyContent: 'center',
             height: '48px',
-            marginBottom: { xs: '56px', md: '0' },
         }}>
             {/* Chooses which run to use */}
             <RunPickerDialog

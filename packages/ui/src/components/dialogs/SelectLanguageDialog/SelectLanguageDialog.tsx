@@ -100,7 +100,7 @@ export const SelectLanguageDialog = ({
                     maxHeight: 'min(100vh, 600px)',
                     overflowX: 'auto',
                     overflowY: 'hidden',
-                    background: palette.background.paper,
+                    background: palette.background.default,
                     borderRadius: '8px',
                     padding: '8px',
                     "&::-webkit-scrollbar": {

@@ -27,7 +27,7 @@
     "background_color": "#ffffff",
     "display": "standalone",
     "orientation": "any",
-    "scope": "/",
+    "scope": "https://app.vrooli.com/",
     "start_url": "/",
     "screenshots": [
         {

@@ -71,7 +71,7 @@ export function ListMenu<T>({
             onClose={(e) => { onClose() }}
             sx={{
                 '& .MuiMenu-paper': {
-                    background: palette.background.paper
+                    background: palette.background.default
                 },
                 '& .MuiMenu-list': {
                     paddingTop: '0',
@@ -84,7 +84,7 @@ export function ListMenu<T>({
                     display: 'flex',
                     alignItems: 'center',
                     padding: 1,
-                    background: palette.mode === 'light' ? palette.primary.dark : palette.secondary.dark,
+                    background: palette.primary.dark,
                 }}
             >
                 <Typography
@@ -92,7 +92,7 @@ export function ListMenu<T>({
                     textAlign="center"
                     sx={{
                         width: '-webkit-fill-available',
-                        color: palette.mode === 'light' ? palette.primary.contrastText : palette.secondary.contrastText,
+                        color: palette.primary.contrastText,
                     }}
                 >
                     {title}

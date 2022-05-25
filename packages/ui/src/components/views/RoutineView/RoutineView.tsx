@@ -420,6 +420,8 @@ export const RoutineView = ({
                 borderRadius: { xs: '8px 8px 0 0', sm: '8px' },
                 overflow: 'overlay',
                 boxShadow: { xs: 'none', sm: (containerShadow as any).boxShadow },
+                // Add bottom margin so that the bottom navbar doesn't cover the bottom of the page
+                marginBottom: { xs: '48px', md: '0' },
             }}>
                 {/* Heading container */}
                 <Stack direction="column" spacing={1} sx={{

@@ -128,6 +128,7 @@ export const typeDef = gql`
 
     input RunCompleteInput {
         id: ID # Either run ID, or routine ID
+        completedComplexity: Int # Even though the run was completed, the user may not have completed every subroutine
         exists: Boolean # If true, run ID is provided, otherwise routine ID so we can create a run
         pickups: Int
         timeElapsed: Int

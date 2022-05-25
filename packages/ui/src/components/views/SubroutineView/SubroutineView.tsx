@@ -6,13 +6,14 @@ import { LinkButton, ResourceListHorizontal } from "components";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo, useState } from "react";
 import { containerShadow } from "styles";
-import { getOwnedByString, getTranslation, getUserLanguages, toOwnedBy } from "utils";
+import { getOwnedByString, getTranslation, getUserLanguages, Pubs, toOwnedBy } from "utils";
 import { useLocation } from "wouter";
 import { SubroutineViewProps } from "../types";
 
 export const SubroutineView = ({
     loading,
     data,
+    handleSaveProgress,
     session,
 }: SubroutineViewProps) => {
     const { palette } = useTheme();
@@ -28,7 +29,21 @@ export const SubroutineView = ({
     }, [data, session.languages]);
 
     const ownedBy = useMemo<string | null>(() => getOwnedByString(data, getUserLanguages(session)), [data, session]);
-    const toOwner = useCallback(() => { toOwnedBy(data, setLocation) }, [data, setLocation]);
+    const toOwner = useCallback(() => { 
+        // Confirmation dialog for leaving routine
+        PubSub.publish(Pubs.AlertDialog, {
+            message: 'Are you sure you want to stop this routine? You can continue it later.',
+            buttons: [
+                { text: 'Yes', onClick: () => {
+                    // Save progress
+                    handleSaveProgress();
+                    // Navigate to owner
+                    toOwnedBy(data, setLocation)
+                } },
+                { text: 'Cancel' },
+            ]
+        });
+    }, [data, handleSaveProgress, setLocation]);
 
     // The schema for the form
     const [schema, setSchema] = useState<any>();
@@ -74,7 +89,7 @@ export const SubroutineView = ({
                 justifyContent: 'center',
                 padding: 2,
                 marginBottom: 1,
-                background: palette.primary.main,
+                background: palette.primary.dark,
                 color: palette.primary.contrastText,
             }}>
                 {/* Show more ellipsis next to title */}

@@ -917,7 +917,7 @@ export const BuildView = ({
             <Box>
                 <Box sx={{ background: palette.primary.dark }}>
                     <IconButton edge="start" color="inherit" onClick={closeStatusMenu} aria-label="close">
-                        <CloseIcon sx={{ fill: 'white', marginLeft: '0.5em' }} />
+                        <CloseIcon sx={{ fill: palette.primary.contrastText, marginLeft: '0.5em' }} />
                     </IconButton>
                 </Box>
                 <Box sx={{ padding: 1 }}>
@@ -925,7 +925,7 @@ export const BuildView = ({
                 </Box>
             </Box>
         )
-    }, [palette.primary.dark, statusMarkdown])
+    }, [palette.primary.contrastText, palette.primary.dark, statusMarkdown])
 
     const StatusIcon = useMemo(() => STATUS_ICON[status.code], [status]);
 
@@ -1016,7 +1016,7 @@ export const BuildView = ({
                 direction="row"
                 sx={{
                     zIndex: 2,
-                    background: palette.mode === 'light' ? '#19487a' : '#383844',
+                    background: palette.primary.dark,
                     color: palette.primary.contrastText,
                     height: '64px',
                 }}>
@@ -1112,7 +1112,7 @@ export const BuildView = ({
                     }}
                     sx={{
                         '& .MuiPopover-paper': {
-                            background: palette.background.paper,
+                            background: palette.background.default,
                             maxWidth: 'min(100vw, 400px)',
                         },
                         '& .MuiMenu-list': {

@@ -108,7 +108,7 @@ export const RunPickerDialog = ({
             onClose={handleClose}
             sx={{
                 '& .MuiMenu-paper': {
-                    background: palette.background.paper
+                    background: palette.background.default
                 },
                 '& .MuiMenu-list': {
                     paddingTop: '0',

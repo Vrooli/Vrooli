@@ -1,5 +1,5 @@
 import { APP_LINKS, RunStepStatus } from "@local/shared";
-import { Box, Button, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material"
+import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material"
 import { DecisionView, HelpButton, RunStepsDialog } from "components";
 import { SubroutineView } from "components/views/SubroutineView/SubroutineView";
 import { useLocation, useRoute } from "wouter";
@@ -491,31 +491,38 @@ export const RunView = ({
     }, [testMode, run, timeElapsed, logRunComplete, handleClose, currentStep]);
 
     /**
+     * Stores current progress, both for overall routine and the current subroutine
+     */
+    const saveProgress = useCallback(() => {
+        // Dont do this in test mode, or if there's no run data
+        if (testMode || !run) return;
+        // Find current step in run data
+        const currentStepRunData = run.steps.find(s => s.node?.id === (currentStep as RoutineListStep)?.nodeId);
+        const stepUpdate = currentStepRunData ? {
+            id: currentStepRunData.id,
+            timeElapsed: (currentStepRunData.timeElapsed ?? 0) + timeElapsed,
+            pickups: currentStepRunData.pickups + 1,
+        } : undefined
+        // Send data to server
+        logRunUpdate({
+            variables: {
+                input: {
+                    id: run.id,
+                    timeElapsed: (run.timeElapsed ?? 0) + timeElapsed,
+                    pickups: run.pickups + 1,
+                    stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
+                }
+            }
+        });
+    }, [currentStep, logRunUpdate, run, testMode, timeElapsed]);
+
+    /**
      * End routine early
      */
     const toFinishNotComplete = useCallback(() => {
-        // Update pickups/time elapsed if not in test mode
-        if (!testMode && run) {
-            // Find current step in run data
-            const currentStepRunData = run.steps.find(s => s.node?.id === (currentStep as RoutineListStep)?.nodeId);
-            const stepUpdate = currentStepRunData ? {
-                id: currentStepRunData.id,
-                timeElapsed: (currentStepRunData.timeElapsed ?? 0) + timeElapsed,
-                pickups: currentStepRunData.pickups + 1,
-            } : undefined
-            logRunUpdate({
-                variables: {
-                    input: {
-                        id: run.id,
-                        timeElapsed: (run.timeElapsed ?? 0) + timeElapsed,
-                        pickups: run.pickups + 1,
-                        stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
-                    }
-                }
-            });
-        }
+        saveProgress();
         handleClose();
-    }, [currentStep, handleClose, logRunUpdate, run, testMode, timeElapsed]);
+    }, [handleClose, saveProgress]);
 
     /**
      * Find the step array of a given nodeId
@@ -567,6 +574,7 @@ export const RunView = ({
                 return <SubroutineView
                     session={session}
                     data={(currentStep as SubroutineStep).routine}
+                    handleSaveProgress={saveProgress}
                     loading={subroutineLoading}
                 />
             default:
@@ -577,7 +585,7 @@ export const RunView = ({
                     session={session}
                 />
         }
-    }, [currentStep, routine?.nodes, session, subroutineLoading, toDecision]);
+    }, [currentStep, routine?.nodes, saveProgress, session, subroutineLoading, toDecision]);
 
     return (
         <Box sx={{ minHeight: '100vh' }}>
@@ -648,6 +656,71 @@ export const RunView = ({
                     {childView}
                 </Box>
                 {/* Action bar */}
+                <Box sx={{
+                    position: 'fixed',
+                    bottom: '0',
+                    width: '-webkit-fill-available',
+                    zIndex: 4,
+                    background: palette.primary.dark,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                }}>
+                    <Grid container spacing={2} sx={{
+                        maxWidth: '100%',
+                        margin: 0,
+                    }}>
+                        {/* There are only ever 1 or 2 options shown. 
+                        In either case, we want the buttons to be placed as 
+                        if there are always 2 */}
+                        <Grid item xs={6} sx={{
+                            padding: '8px 4px 8px 4px',
+                            display: 'flex',
+                            justifyContent: 'center',
+                        }}>
+                            {previousStep && <Button
+                                fullWidth
+                                startIcon={<PreviousIcon />}
+                                onClick={toPrevious}
+                                disabled={unsavedChanges}
+                                sx={{
+                                    width: 'min(48vw, 250px)',
+                                }}
+                            >
+                                <Box sx={{ display: { xs: 'none', sm: 'block' }}}>
+                                    Previous
+                                </Box>
+                            </Button>}
+                        </Grid>
+                        <Grid item xs={6} p={1} sx={{
+                            padding: '8px 4px 8px 4px',
+                            display: 'flex',
+                            justifyContent: 'center',
+                        }}>
+                            {nextStep && (<Button
+                                fullWidth
+                                startIcon={<NextIcon />}
+                                onClick={toNext} // NOTE: changes are saved on next click
+                                disabled={!subroutineComplete}
+                                sx={{ width: 'min(48vw, 250px)' }}
+                            >
+                                <Box sx={{ display: { xs: 'none', sm: 'block' }}}>
+                                    Next
+                                </Box>
+                            </Button>)}
+                            {!nextStep && currentStep?.type !== RoutineStepType.Decision && (<Button
+                                fullWidth
+                                startIcon={<CompleteIcon />}
+                                onClick={toComplete}
+                                sx={{ width: 'min(48vw, 250px)' }}
+                            >
+                                <Box sx={{ display: { xs: 'none', sm: 'block' }}}>
+                                    Complete
+                                </Box>
+                            </Button>)}
+                        </Grid>
+                    </Grid>
+                </Box>
                 <Box p={2} sx={{
                     background: palette.primary.dark,
                     position: 'fixed',
@@ -656,30 +729,7 @@ export const RunView = ({
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',
-                    paddingBottom: { md: '16px' },
                 }}>
-                    <Stack direction="row" spacing={1}>
-                        {previousStep && <Button
-                            fullWidth
-                            startIcon={<PreviousIcon />}
-                            onClick={toPrevious}
-                            disabled={unsavedChanges}
-                            sx={{ width: 'min(48vw, 250px)' }}
-                        >Previous</Button>}
-                        {nextStep && (<Button
-                            fullWidth
-                            startIcon={<NextIcon />}
-                            onClick={toNext} // NOTE: changes are saved on next click
-                            disabled={!subroutineComplete}
-                            sx={{ width: 'min(48vw, 250px)' }}
-                        >Next</Button>)}
-                        {!nextStep && currentStep?.type !== RoutineStepType.Decision && (<Button
-                            fullWidth
-                            startIcon={<CompleteIcon />}
-                            onClick={toComplete}
-                            sx={{ width: 'min(48vw, 250px)' }}
-                        >Complete</Button>)}
-                    </Stack>
                 </Box>
             </Box>
         </Box>
