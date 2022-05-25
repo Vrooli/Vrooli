@@ -442,7 +442,7 @@ export const HomePage = ({
             />
             {/* Prompt stack */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: '5vh', sm: '20vh' } }}>
-                <Typography component="h1" variant="h2" textAlign="center">What would you like to do?</Typography>
+                <Typography component="h1" variant="h3" textAlign="center">What would you like to do?</Typography>
                 {/* ========= #region Custom SearchBar ========= */}
                 <AutocompleteSearchBar
                     id="main-search"
