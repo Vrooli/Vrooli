@@ -225,6 +225,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
             run = await prisma.run.update({
                 where: { id: input.id },
                 data: {
+                    completedComplexity: input.completedComplexity,
                     pickups: input.pickups ?? undefined,
                     timeCompleted: new Date(),
                     timeElapsed: input.timeElapsed ?? undefined,

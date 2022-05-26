@@ -21,25 +21,25 @@ export const StatsPage = () => {
             padding: '0.5em',
             paddingTop: { xs: '64px', md: '80px' },
         }}>
-            <Tabs
-                value={tabIndex}
-                onChange={handleTabChange}
-                indicatorColor="secondary"
-                textColor="inherit"
-                variant="scrollable"
-                scrollButtons="auto"
-                allowScrollButtonsMobile
-                aria-label="site-statistics-tabs"
-                sx={{
-                    '& .MuiTabs-flexContainer': {
-                        justifyContent: 'space-between',
-                    },
-                }}
-            >
-                {tabLabels.map((label, index) => (
-                    <Tab key={index} label={label} {...tabProps(index)} />
-                ))}
-            </Tabs>
+            <Box display="flex" justifyContent="center" width="100%">
+                <Tabs
+                    value={tabIndex}
+                    onChange={handleTabChange}
+                    indicatorColor="secondary"
+                    textColor="inherit"
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    allowScrollButtonsMobile
+                    aria-label="site-statistics-tabs"
+                    sx={{
+                        marginBottom: 1,
+                    }}
+                >
+                    {tabLabels.map((label, index) => (
+                        <Tab key={index} label={label} {...tabProps(index)} />
+                    ))}
+                </Tabs>
+            </Box>
             <Typography component="h1" variant="h3" textAlign="center">Quick Overview</Typography>
             <Typography component="h1" variant="h3" textAlign="center">The Pretty Pictures</Typography>
             <StatsList data={[{}, {}, {}, {}, {}, {}]} />

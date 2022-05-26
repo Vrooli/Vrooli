@@ -97,7 +97,7 @@ export const RoutineCreate = ({
     const formik = useFormik({
         initialValues: {
             description: '',
-            instructions: '',
+            instructions: 'Fill out the form below.',
             title: '',
             version: '1.0',
         },

@@ -9,6 +9,8 @@ const useStyles = makeStyles((theme: Theme) => ({
         background: theme.palette.primary.dark,
         position: 'fixed',
         zIndex: 5,
+        // Increase bottom on standalone apps 
+        // TODO!!!
         bottom: '0',
         width: '100%',
     },

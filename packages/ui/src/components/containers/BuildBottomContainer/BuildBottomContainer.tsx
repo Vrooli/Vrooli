@@ -42,11 +42,21 @@ export const BuildBottomContainer = ({
 
     const [isRunOpen, setIsRunOpen] = useState(false)
     const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
-    const handleRunSelect = useCallback((run: Run) => {
-        setLocation(stringifySearchParams({
-            run: run.id,
-            step: run.steps.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
-        }), { replace: true });
+    const handleRunSelect = useCallback((run: Run | null) => {
+        // If run is null, it means the routine will be opened without a run
+        if (!run) {
+            setLocation(stringifySearchParams({
+                run: "test",
+                step: [1]
+            }), { replace: true });
+        }
+        // Otherwise, open routine where last left off in run
+        else {
+            setLocation(stringifySearchParams({
+                run: run.id,
+                step: run.steps.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
+            }), { replace: true });
+        }
         setIsRunOpen(true);
     }, [setLocation]);
     const handleSelectRunClose = useCallback(() => setSelectRunAnchor(null), []);
@@ -171,7 +181,6 @@ export const BuildBottomContainer = ({
             display: 'flex',
             justifyContent: 'center',
             height: '48px',
-            marginBottom: { xs: '56px', md: '0' },
         }}>
             {/* Chooses which run to use */}
             <RunPickerDialog

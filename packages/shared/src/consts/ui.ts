@@ -1,7 +1,6 @@
 import { ValueOf } from '.';
 
 export const APP_LINKS = {
-    Build: '/build', // View or update routine orchestration
     Develop: '/develop', // Develop dashboard
     Example: '/build/5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9', // Links to example routine that is designed to showcase the UI. See ID of routine set in init seed file
     FAQ: '/#faq', // FAQ section of home page

@@ -1,3 +1,4 @@
+export * from './BuildView/BuildView';
 export * from './DecisionView/DecisionView';
 export * from './UserView/UserView';
 export * from './OrganizationView/OrganizationView';

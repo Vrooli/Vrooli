@@ -39,7 +39,6 @@ const { RoutineViewPage } = lazily(() => import('./pages/view/RoutineViewPage'))
 const { UserViewPage } = lazily(() => import('./pages/view/UserViewPage'));
 const { FormPage } = lazily(() => import('./pages/wrapper/FormPage'));
 const { NotFoundPage } = lazily(() => import('./pages/NotFoundPage'));
-const { BuildPage } = lazily(() => import('./pages/BuildPage/BuildPage'));
 
 const Fallback = <Box sx={{
     position: 'absolute',
@@ -142,13 +141,6 @@ export const AllRoutes = (props: CommonProps) => {
 
                 {/* ========= #region Routine Routes ========= */}
                 {/* Pages for creating and running routines */}
-                <Route path={`${LINKS.Build}/:id`}>
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Build')} {...props}>
-                            <BuildPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
                 <Route path={`${LINKS.Routine}/:id`}>
                     <Suspense fallback={Fallback}>
                         <Page {...props}>

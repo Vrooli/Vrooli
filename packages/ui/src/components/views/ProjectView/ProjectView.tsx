@@ -201,14 +201,16 @@ export const ProjectView = ({
      */
     const overviewComponent = useMemo(() => (
         <Box
-            width={'min(500px, 100vw)'}
             position="relative"
-            borderRadius={2}
             ml='auto'
             mr='auto'
             mt={3}
             bgcolor={palette.background.paper}
-            sx={{ ...containerShadow }}
+            sx={{
+                borderRadius: { xs: '0', sm: 2 },
+                boxShadow: { xs: 'none', sm: (containerShadow as any).boxShadow },
+                width: { xs: '100%', sm: 'min(500px, 100vw)' }
+            }}
         >
             <Tooltip title="See all options">
                 <IconButton
@@ -347,7 +349,7 @@ export const ProjectView = ({
             <Box sx={{
                 display: 'flex',
                 paddingTop: 5,
-                paddingBottom: 5,
+                paddingBottom: { xs: 0, sm: 2, md: 5 },
                 background: palette.mode === 'light' ? "#b2b3b3" : "#303030",
                 position: "relative",
             }}>
@@ -369,31 +371,30 @@ export const ProjectView = ({
             </Box>
             {/* View routines and standards associated with this project */}
             <Box>
-                <Tabs
-                    value={tabIndex}
-                    onChange={handleTabChange}
-                    indicatorColor="secondary"
-                    textColor="inherit"
-                    variant="scrollable"
-                    scrollButtons="auto"
-                    allowScrollButtonsMobile
-                    aria-label="site-statistics-tabs"
-                    sx={{
-                        marginBottom: 1,
-                        '& .MuiTabs-flexContainer': {
-                            justifyContent: 'space-around',
-                        },
-                    }}
-                >
-                    {availableTabs.map((tabType, index) => (
-                        <Tab
-                            key={index}
-                            id={`profile-tab-${index}`}
-                            {...{ 'aria-controls': `profile-tabpanel-${index}` }}
-                            label={<span style={{ color: tabType === TabOptions.Resources ? '#8e6b00' : 'default' }}>{tabType}</span>}
-                        />
-                    ))}
-                </Tabs>
+                <Box display="flex" justifyContent="center" width="100%">
+                    <Tabs
+                        value={tabIndex}
+                        onChange={handleTabChange}
+                        indicatorColor="secondary"
+                        textColor="inherit"
+                        variant="scrollable"
+                        scrollButtons="auto"
+                        allowScrollButtonsMobile
+                        aria-label="site-statistics-tabs"
+                        sx={{
+                            marginBottom: 1,
+                        }}
+                    >
+                        {availableTabs.map((tabType, index) => (
+                            <Tab
+                                key={index}
+                                id={`profile-tab-${index}`}
+                                {...{ 'aria-controls': `profile-tabpanel-${index}` }}
+                                label={<span style={{ color: tabType === TabOptions.Resources ? '#8e6b00' : 'default' }}>{tabType}</span>}
+                            />
+                        ))}
+                    </Tabs>
+                </Box>
                 <Box p={2}>
                     {
                         currTabType === TabOptions.Resources ? resources : (

@@ -52,7 +52,7 @@ export const ForYouPage = ({
     /**
      * Opens page for list item
      */
-     const toItemPage = useCallback((item: Organization | Project | Routine | Standard | User, event: any) => {
+    const toItemPage = useCallback((item: Organization | Project | Routine | Standard | User, event: any) => {
         event?.stopPropagation();
         // Navigate to item page
         openObject(item, setLocation);
@@ -83,7 +83,7 @@ export const ForYouPage = ({
         onClick: toItemPage,
         session,
     }), [data?.forYouPage?.recentlyViewed, loading, session, toItemPage])
-    
+
     const starred = useMemo(() => listToListItems({
         dummyItems: ['Organization', 'Project', 'Routine', 'Standard', 'User'],
         items: data?.forYouPage?.recentlyStarred,
@@ -99,35 +99,34 @@ export const ForYouPage = ({
             paddingTop: { xs: '64px', md: '80px' },
         }}>
             {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}
-            <Tabs
-                value={tabIndex}
-                onChange={handleTabChange}
-                indicatorColor="secondary"
-                textColor="inherit"
-                variant="scrollable"
-                scrollButtons="auto"
-                allowScrollButtonsMobile
-                aria-label="home-pages"
-                sx={{
-                    marginBottom: 2,
-                    '& .MuiTabs-flexContainer': {
-                        justifyContent: 'center',
-                    },
-                }}
-            >
-                {tabOptions.map((option, index) => (
-                    <Tab
-                        key={index}
-                        id={`for-you-tab-${index}`}
-                        {...{ 
-                            'aria-labelledby': `home-pages`,
-                            'aria-label': `home page ${option[0]}`,
-                        }}
-                        label={option[0]}
-                        color={index === 0 ? '#ce6c12' : 'default'}
-                    />
-                ))}
-            </Tabs>
+            <Box display="flex" justifyContent="center" width="100%">
+                <Tabs
+                    value={tabIndex}
+                    onChange={handleTabChange}
+                    indicatorColor="secondary"
+                    textColor="inherit"
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    allowScrollButtonsMobile
+                    aria-label="home-pages"
+                    sx={{
+                        marginBottom: 1,
+                    }}
+                >
+                    {tabOptions.map((option, index) => (
+                        <Tab
+                            key={index}
+                            id={`for-you-tab-${index}`}
+                            {...{
+                                'aria-labelledby': `home-pages`,
+                                'aria-label': `home page ${option[0]}`,
+                            }}
+                            label={option[0]}
+                            color={index === 0 ? '#ce6c12' : 'default'}
+                        />
+                    ))}
+                </Tabs>
+            </Box>
             {/* Result feeds (or popular feeds if no search string) */}
             <Stack spacing={10} direction="column">
                 {/* Search results */}

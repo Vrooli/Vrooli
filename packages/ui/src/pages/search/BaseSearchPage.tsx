@@ -97,32 +97,31 @@ export function BaseSearchPage<DataType, SortBy>({
             paddingTop: { xs: '64px', md: '80px' },
         }}>
             {/* Navigate between search pages */}
-            <Tabs
-                value={tabIndex}
-                onChange={handleTabChange}
-                indicatorColor="secondary"
-                textColor="inherit"
-                variant="scrollable"
-                scrollButtons="auto"
-                allowScrollButtonsMobile
-                aria-label="search-type-tabs"
-                sx={{
-                    marginBottom: 2,
-                    '& .MuiTabs-flexContainer': {
-                        justifyContent: 'space-between',
-                    },
-                }}
-            >
-                {tabOptions.map((option, index) => (
-                    <Tab
-                        key={index}
-                        id={`search-tab-${index}`}
-                        {...{ 'aria-controls': `search-tabpanel-${index}` }}
-                        label={option[0]}
-                        color={index === 0 ? '#ce6c12' : 'default'}
-                    />
-                ))}
-            </Tabs>
+            <Box display="flex" justifyContent="center" width="100%">
+                <Tabs
+                    value={tabIndex}
+                    onChange={handleTabChange}
+                    indicatorColor="secondary"
+                    textColor="inherit"
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    allowScrollButtonsMobile
+                    aria-label="search-type-tabs"
+                    sx={{
+                        marginBottom: 1,
+                    }}
+                >
+                    {tabOptions.map((option, index) => (
+                        <Tab
+                            key={index}
+                            id={`search-tab-${index}`}
+                            {...{ 'aria-controls': `search-tabpanel-${index}` }}
+                            label={option[0]}
+                            color={index === 0 ? '#ce6c12' : 'default'}
+                        />
+                    ))}
+                </Tabs>
+            </Box>
             <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
                 <Typography component="h2" variant="h4">{title}</Typography>
                 {showAddButton ? <Tooltip title="Add new" placement="top">

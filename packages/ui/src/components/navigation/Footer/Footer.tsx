@@ -26,9 +26,9 @@ const contactLinks: [string, string, string, string, (props: SvgProps) => JSX.El
 export const Footer = () => {
     const { palette } = useTheme();
     const [pathname, setLocation] = useLocation();
-    // Hides footer on certain pages (e.g. /build)
+    // Hides footer on certain pages (e.g. /routine)
     const showFooter = useMemo(() => {
-        const disableList = [APP_LINKS.Build];
+        const disableList = [APP_LINKS.Routine];
         return !disableList.some(disable => pathname.startsWith(disable));
     }, [pathname]);
 

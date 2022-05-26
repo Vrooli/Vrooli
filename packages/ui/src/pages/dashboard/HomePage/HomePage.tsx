@@ -76,7 +76,7 @@ const createNewPopupOptions: ListMenuItemData<string>[] = [
     { label: 'Organization', value: `${APP_LINKS.Organization}/add` },
     { label: 'Project', value: `${APP_LINKS.Project}/add` },
     { label: 'Routine (Single Step)', value: `${APP_LINKS.Routine}/add` },
-    { label: 'Routine (Multi Step)', value: `${APP_LINKS.Build}/add` },
+    { label: 'Routine (Multi Step)', value: `${APP_LINKS.Routine}/build=add` },
     { label: 'Standard', value: `${APP_LINKS.Standard}/add` },
 ]
 
@@ -114,7 +114,7 @@ const shortcuts: ShortcutItem[] = [
     },
     {
         label: 'Create new multi-step routine',
-        link: `${APP_LINKS.Build}/add`,
+        link: `${APP_LINKS.Routine}/build=add`,
     },
     {
         label: 'Create new standard',
@@ -392,35 +392,36 @@ export const HomePage = ({
             paddingTop: { xs: '64px', md: '80px' },
         }}>
             {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}
-            {showForYou && <Tabs
-                value={tabIndex}
-                onChange={handleTabChange}
-                indicatorColor="secondary"
-                textColor="inherit"
-                variant="scrollable"
-                scrollButtons="auto"
-                allowScrollButtonsMobile
-                aria-label="home-pages"
-                sx={{
-                    marginBottom: 2,
-                    '& .MuiTabs-flexContainer': {
-                        justifyContent: 'center',
-                    },
-                }}
-            >
-                {tabOptions.map((option, index) => (
-                    <Tab
-                        key={index}
-                        id={`home-tab-${index}`}
-                        {...{ 
-                            'aria-labelledby': `home-pages`,
-                            'aria-label': `home page ${option[0]}`,
+            {showForYou && (
+                <Box display="flex" justifyContent="center" width="100%">
+                    <Tabs
+                        value={tabIndex}
+                        onChange={handleTabChange}
+                        indicatorColor="secondary"
+                        textColor="inherit"
+                        variant="scrollable"
+                        scrollButtons="auto"
+                        allowScrollButtonsMobile
+                        aria-label="home-pages"
+                        sx={{
+                            marginBottom: 1,
                         }}
-                        label={option[0]}
-                        color={index === 0 ? '#ce6c12' : 'default'}
-                    />
-                ))}
-            </Tabs>}
+                    >
+                        {tabOptions.map((option, index) => (
+                            <Tab
+                                key={index}
+                                id={`home-tab-${index}`}
+                                {...{
+                                    'aria-labelledby': `home-pages`,
+                                    'aria-label': `home page ${option[0]}`,
+                                }}
+                                label={option[0]}
+                                color={index === 0 ? '#ce6c12' : 'default'}
+                            />
+                        ))}
+                    </Tabs>
+                </Box>
+            )}
             {/* Advanced search dialog */}
             <ListMenu
                 id={`open-advanced-search-menu`}
@@ -441,7 +442,7 @@ export const HomePage = ({
             />
             {/* Prompt stack */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: '5vh', sm: '20vh' } }}>
-                <Typography component="h1" variant="h2" textAlign="center">What would you like to do?</Typography>
+                <Typography component="h1" variant="h3" textAlign="center">What would you like to do?</Typography>
                 {/* ========= #region Custom SearchBar ========= */}
                 <AutocompleteSearchBar
                     id="main-search"
