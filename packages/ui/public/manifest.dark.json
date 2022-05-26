@@ -3,7 +3,8 @@
     "short_name": "Vrooli",
     "categories": [
         "automation",
-        "productivity"
+        "productivity",
+        "decentralization"
     ],
     "icons": [
         {
@@ -23,17 +24,47 @@
             "purpose": "maskable"
         }
     ],
-    "theme_color": "#ffffff",
-    "background_color": "#ffffff",
+    "theme_color": "#232328",
+    "background_color": "#232328",
     "display": "standalone",
     "orientation": "any",
     "scope": "https://app.vrooli.com/",
     "start_url": "/",
     "screenshots": [
         {
-            "src": "TODO",
-            "sizes": "687×974",
-            "type": "image/png"
+            "src": "/screenshots/1-intro-page.png",
+            "sizes": "720x1280",
+            "platform": "narrow",
+            "type": "image/png",
+            "label": "About Vrooli"
+        },
+        {
+            "src": "/screenshots/2-build-screenshot.png",
+            "sizes": "720x1280",
+            "platform": "narrow",
+            "type": "image/png",
+            "label": "Building a multi-step routine"
+        },
+        {
+            "src": "/screenshots/3-create-routine-screenshot.png",
+            "sizes": "720x1280",
+            "platform": "narrow",
+            "type": "image/png",
+            "label": "Building a single-step routine"
+        },
+        {
+            "src": "/screenshots/4-run-routine-screenshot.png",
+            "sizes": "720x1280",
+            "platform": "narrow",
+            "type": "image/png",
+            "label": "Running a routine"
+        },
+        {
+            "src": "/screenshots/5-build-with-community-screenshot.png",
+            "sizes": "720x1280",
+            "platform": "narrow",
+            "type": "image/png",
+            "label": "Find routines page"
         }
     ],
     "shortcuts": [

@@ -24,10 +24,10 @@ export const DialogActionsContainer = ({
             gridItemSizes = { xs: 12 }
         }
         else if (actions.length === 2) {
-            gridItemSizes = { xs: 12, sm: 6 }
+            gridItemSizes = { xs: 6 }
         }
         else {
-            gridItemSizes = { xs: 12, sm: 6, md: 4 }
+            gridItemSizes = { xs: 4 }
         }
 
         return actions.map(([label, Icon, disabled, isSubmit, onClick]: DialogActionItem, index) => (
