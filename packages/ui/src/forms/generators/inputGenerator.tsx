@@ -20,15 +20,18 @@ import { CheckboxProps, FieldData, JSONProps, MarkdownProps, RadioProps, SliderP
 import { updateArray } from 'utils'
 import _ from 'lodash'
 import { InputType } from '@local/shared'
+import { Session } from 'types'
 
 /**
  * Function signature shared between all input components
  */
 export interface InputGeneratorProps {
     data: FieldData,
+    disabled?: boolean,
     formik: any,
-    index: number,
+    index?: number,
     onUpload: (fieldName: string, files: string[]) => void,
+    session: Session;
 }
 
 /**
@@ -37,6 +40,7 @@ export interface InputGeneratorProps {
  */
 export const toCheckbox = ({
     data,
+    disabled,
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
@@ -46,11 +50,12 @@ export const toCheckbox = ({
     return (
         <FormControl
             key={`field-${data.fieldName}-${index}`}
+            disabled={disabled}
             required={data.yup?.required}
             error={hasError}
             component="fieldset"
-            sx={{ m: 3 }}
             variant="standard"
+            sx={{ m: 3 }}
         >
             <FormLabel component="legend">{data.label}</FormLabel>
             <FormGroup row={props.row ?? false}>
@@ -76,40 +81,12 @@ export const toCheckbox = ({
     )
 }
 
-// /**
-//  * Converts JSON into a Checkbox component.
-//  * Uses formik for validation and onChange.
-//  */
-// export const toCheckbox = ({
-//     data,
-//     formik,
-//     index,
-// }: InputGeneratorProps): React.ReactElement => {
-//     const props = data.props as CheckboxProps;
-//     return (
-//         <FormControlLabel
-//             key={`field-${data.fieldName}-${index}`}
-//             control={
-//                 <Checkbox
-//                     id={data.fieldName}
-//                     name={data.fieldName}
-//                     color={props.color}
-//                     checked={formik.values[data.fieldName]}
-//                     onBlur={formik.handleBlur}
-//                     onChange={formik.handleChange}
-//                     tabIndex={index}
-//                 />
-//             }
-//             label={data.label}
-//         />
-//     );
-// }
-
 /**
  * Converts JSON into a Dropzone component.
  */
 export const toDropzone = ({
     data,
+    disabled,
     index,
     onUpload,
 }: InputGeneratorProps): React.ReactElement => {
@@ -119,6 +96,7 @@ export const toDropzone = ({
             <Typography variant="h5" textAlign="center">{data.label}</Typography>
             <Dropzone
                 acceptedFileTypes={props.acceptedFileTypes}
+                disabled={disabled}
                 dropzoneText={props.dropzoneText}
                 uploadText={props.uploadText}
                 cancelText={props.cancelText}
@@ -138,6 +116,7 @@ export const toDropzone = ({
  */
 export const toJSON = ({
     data,
+    disabled,
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
@@ -145,6 +124,7 @@ export const toJSON = ({
     return (
         <JsonInput
             id={data.fieldName}
+            disabled={disabled}
             format={props.format}
             variables={props.variables}
             placeholder={props.placeholder ?? data.label}
@@ -163,6 +143,7 @@ export const toJSON = ({
  */
 export const toLanguageInput = ({
     data,
+    disabled,
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
@@ -187,6 +168,7 @@ export const toLanguageInput = ({
     }
     return (
         <LanguageInput
+            disabled={disabled}
             handleAdd={addLanguage}
             handleChange={changeLanguage}
             handleDelete={deleteLanguage}
@@ -203,6 +185,7 @@ export const toLanguageInput = ({
  */
 export const toMarkdown = ({
     data,
+    disabled,
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
@@ -210,6 +193,7 @@ export const toMarkdown = ({
     return (
         <MarkdownInput
             id={data.fieldName}
+            disabled={disabled}
             placeholder={props.placeholder ?? data.label}
             value={formik.values[data.fieldName]}
             minRows={props.minRows}
@@ -226,12 +210,13 @@ export const toMarkdown = ({
  */
 export const toRadio = ({
     data,
+    disabled,
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
     const props = data.props as RadioProps;
     return (
-        <FormControl component="fieldset" key={`field-${data.fieldName}-${index}`}>
+        <FormControl component="fieldset" disabled={disabled} key={`field-${data.fieldName}-${index}`}>
             <FormLabel component="legend">{data.label}</FormLabel>
             <RadioGroup
                 aria-label={data.fieldName}
@@ -266,6 +251,7 @@ export const toRadio = ({
  */
 export const toSelector = ({
     data,
+    disabled,
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
@@ -273,6 +259,7 @@ export const toSelector = ({
     return (
         <Selector
             key={`field-${data.fieldName}-${index}`}
+            disabled={disabled}
             options={props.options}
             getOptionLabel={props.getOptionLabel}
             selected={formik.values[data.fieldName]}
@@ -295,6 +282,7 @@ export const toSelector = ({
  */
 export const toSlider = ({
     data,
+    disabled,
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
@@ -302,6 +290,7 @@ export const toSlider = ({
     return (
         <Slider
             aria-label={data.fieldName}
+            disabled={disabled}
             key={`field-${data.fieldName}-${index}`}
             min={props.min}
             max={props.max}
@@ -321,6 +310,7 @@ export const toSlider = ({
  */
 export const toSwitch = ({
     data,
+    disabled,
     index,
 }: InputGeneratorProps): React.ReactElement => {
     const props = data.props as SwitchProps;
@@ -328,6 +318,7 @@ export const toSwitch = ({
         <FormGroup key={`field-${data.fieldName}-${index}`}>
             <FormControlLabel control={(
                 <Switch
+                    disabled={disabled}
                     size={props.size}
                     color={props.color}
                     tabIndex={index}
@@ -343,6 +334,7 @@ export const toSwitch = ({
  */
 export const toTagSelector = ({
     data,
+    disabled,
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
@@ -358,6 +350,7 @@ export const toTagSelector = ({
     };
     return (
         <TagSelector
+            disabled={disabled}
             session={{}} //TODO
             tags={tags}
             onTagAdd={addTag}
@@ -463,9 +456,11 @@ const typeMap: { [key in InputType]: (props: InputGeneratorProps) => any } = {
  */
 export const generateInputComponent = ({
     data,
+    disabled,
     formik,
     index,
     onUpload,
+    session,
 }: InputGeneratorProps): React.ReactElement | null => {
-    return typeMap[data.type]({ data, formik, index, onUpload });
+    return typeMap[data.type]({ data, disabled, formik, index, onUpload, session });
 }

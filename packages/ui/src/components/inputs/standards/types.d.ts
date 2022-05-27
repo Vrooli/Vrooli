@@ -2,11 +2,12 @@ import { InputType } from "@local/shared";
 import { FieldDataCheckbox, FieldDataDropzone, FieldDataJSON, FieldDataMarkdown, FieldDataQuantityBox, FieldDataRadio, FieldDataSwitch, FieldDataTextField } from "forms/types";
 
 export interface BaseStandardInputProps<FieldDataType> {
-    key: string;
+    fieldName?: string;
     inputType: InputType;
     isEditing: boolean;
     onChange: (newSchema: FieldDataType) => void;
     schema: FieldDataType | null;
+    storageKey: string;
 }
 
 // While base component can take null schema, actual components cannot

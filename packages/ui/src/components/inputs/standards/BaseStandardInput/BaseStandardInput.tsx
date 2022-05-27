@@ -10,11 +10,12 @@ import { CheckboxStandardInput, DropzoneStandardInput, JsonStandardInput, Markdo
 import { BaseStandardInputProps, CheckboxStandardInputProps, DropzoneStandardInputProps, JsonStandardInputProps, MarkdownStandardInputProps, QuantityBoxStandardInputProps, RadioStandardInputProps, SwitchStandardInputProps, TextFieldStandardInputProps } from '../types';
 
 export const BaseStandardInput = ({
-    key,
+    fieldName,
     inputType,
     isEditing,
     schema,
     onChange,
+    storageKey,
 }: BaseStandardInputProps<FieldData>) => {
 
     /**
@@ -22,9 +23,9 @@ export const BaseStandardInput = ({
      */
     useEffect(() => {
         if (!schema) return;
-        const typeKey = `${key}-${schema.type}`;
+        const typeKey = `${storageKey}-${schema.type}`;
         localStorage.setItem(typeKey, JSON.stringify(schema));
-    }, [schema, key]);
+    }, [schema, storageKey]);
 
     /**
      * Change schema when input type changes
@@ -32,9 +33,9 @@ export const BaseStandardInput = ({
     useEffect(() => {
         console.log('input type change', inputType)
         let newSchema: FieldData | null = null;
-        const typeKey = `${key}-${inputType}`;
+        const typeKey = `${storageKey}-${inputType}`;
         // Find schema in  local storage
-        if (localStorage.getItem(key)) {
+        if (localStorage.getItem(storageKey)) {
             try {
                 console.log('is in local storage', localStorage.getItem(typeKey))
                 const storedData = JSON.parse(localStorage.getItem(typeKey) ?? '{}');
@@ -48,13 +49,17 @@ export const BaseStandardInput = ({
         }
         // If no schema found in local storage, create default schema
         if (!newSchema) {
-            newSchema = createDefaultFieldData(inputType);
+            newSchema = createDefaultFieldData({
+                fieldName,
+                type: inputType,
+                yup: { required: true, checks: [] },
+            });
         }
         // Update state
         console.log('setting local storage', newSchema)
         localStorage.setItem(typeKey, JSON.stringify(newSchema));
         onChange(newSchema as FieldData)
-    }, [key, onChange, inputType]);
+    }, [onChange, inputType, storageKey, fieldName]);
 
     // Generate input component for type-specific fields
     const SchemaInput = useMemo(() => {

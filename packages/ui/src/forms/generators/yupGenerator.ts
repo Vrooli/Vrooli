@@ -8,7 +8,7 @@ import { FormikConfig } from "formik";
  * Then we convert this schema into a yup object.
  * @param formSchema The schema of the entire form
  */
-export const generateYupSchema = (formSchema: FormSchema): FormikConfig<any>['validationSchema'] => {
+export const generateYupSchema = (formSchema: Pick<FormSchema, 'fields'>): FormikConfig<any>['validationSchema'] => {
     if (!formSchema) return null;
     // Create shape object to describe yup validation
     const shape: YupSchema = {
@@ -21,6 +21,7 @@ export const generateYupSchema = (formSchema: FormSchema): FormikConfig<any>['va
     const config = { errMessages: {} }
     // Loop through each field in the form schema
     formSchema.fields.forEach(field => {
+        console.log('yup loop field', field)
         const name = field.fieldName;
         if (field.yup) {
             // Add field to properties
@@ -46,6 +47,8 @@ export const generateYupSchema = (formSchema: FormSchema): FormikConfig<any>['va
             }
         }
     })
+    console.log('GENERTATING YUPPPPPPP. Shape: ', shape);
+    console.log('GENERTATING YUPPPPPPP. Config: ', config);
     // Build yup using newly-created shape and config
     return buildYup(shape, config)
 }

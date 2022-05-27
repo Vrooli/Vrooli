@@ -1,4 +1,4 @@
-import { CheckboxProps, DropzoneProps, JSONProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TextFieldProps, QuantityBoxProps, TagSelectorProps, LanguageInputProps } from '../types';
+import { CheckboxProps, DropzoneProps, JSONProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TextFieldProps, QuantityBoxProps, TagSelectorProps, LanguageInputProps, YupField } from '../types';
 import { FieldData } from 'forms/types';
 import { InputType } from '@local/shared';
 
@@ -94,21 +94,32 @@ export const generateDefaultProps = (fields: FieldData[]): FieldData[] => {
     });
 }
 
+interface CreateDefaultFieldDataProps {
+    fieldName?: string;
+    label?: string;
+    type: InputType;
+    yup?: YupField
+}
 /**
  * Creates default FieldData for a given input type
  * @param type The input type
  * @returns A FieldData object with default values
  */
-export const createDefaultFieldData = (type: InputType): FieldData | null => {
+export const createDefaultFieldData = ({
+    fieldName,
+    label,
+    type,
+    yup
+}: CreateDefaultFieldDataProps): FieldData | null => {
     console.log('createdefaultfieldata', type);
     if (!type || !defaultMap[type]) return null;
     return ({
         type,
         props: defaultMap[type]({}),
-        fieldName: '',
-        label: '',
-        yup: {
+        fieldName: fieldName ?? '',
+        label: label ?? '',
+        yup: yup ?? ({
             checks: [],
-        },
+        }),
     })
 }

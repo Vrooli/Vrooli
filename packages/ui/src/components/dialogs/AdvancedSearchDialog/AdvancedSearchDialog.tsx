@@ -166,8 +166,16 @@ export const AdvancedSearchDialog = ({
     console.log('formik error', formik.errors);
     const grid = useMemo(() => {
         if (!schema) return null;
-        return generateGrid(schema.formLayout, schema.containers, schema.fields, formik, theme, () => { })
-    }, [schema, formik, theme])
+        return generateGrid({
+            childContainers: schema.containers,
+            fields: schema.fields,
+            formik,
+            layout: schema.formLayout,
+            onUpload: () => {},
+            session,
+            theme,
+        })
+    }, [schema, formik, session, theme])
 
     /**
      * Title bar with help button and close icon

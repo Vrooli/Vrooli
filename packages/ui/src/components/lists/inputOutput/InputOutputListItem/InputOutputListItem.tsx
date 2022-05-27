@@ -289,11 +289,11 @@ export const InputOutputListItem = ({
                         !standard && (
                             <Grid item xs={12}>
                                 <BaseStandardInput
-                                    key={schemaKey}
                                     inputType={inputType.value}
                                     isEditing={isEditing}
                                     schema={schema}
                                     onChange={handleSchemaUpdate}
+                                    storageKey={schemaKey}
                                 />
                             </Grid>
                         )

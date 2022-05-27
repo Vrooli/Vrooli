@@ -9,6 +9,7 @@ import { StarButton } from 'components';
 import { Pubs } from 'utils';
 
 export const TagSelector = ({
+    disabled,
     session,
     tags,
     placeholder = 'Enter tags, followed by commas...',
