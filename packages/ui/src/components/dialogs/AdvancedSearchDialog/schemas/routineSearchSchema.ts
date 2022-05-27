@@ -2,12 +2,10 @@
  * Advanced search form schema for routines. 
  * Can search by: 
  * - Is Complete? - Radio
- * - Minimum stars - QuantityBox
- * - Minimum score - QuantityBox
- * - Minimum simplicity - QuantityBox
- * - Maximum simplicity - QuantityBox
- * - Mimimum complexity - QuantityBox
- * - Maximum complexity - QuantityBox
+ * - Min/max stars - QuantityBox
+ * - Min/max score - QuantityBox
+ * - Min/max simplicity - QuantityBox
+ * - Min/max complexity - QuantityBox
  * - Languages - LanguageInput
  * - Tags - TagSelector
  */
@@ -25,18 +23,27 @@ export const routineSearchSchema: FormSchema = {
             totalItems: 1,
         },
         {
+            title: "Stars",
             totalItems: 2,
             spacing: 2,
         },
         {
+            title: "Score",
             totalItems: 2,
             spacing: 2,
         },
         {
+            title: "Simplicity",
             totalItems: 2,
             spacing: 2,
         },
         {
+            title: "Complexity",
+            totalItems: 2,
+            spacing: 2,
+        },
+        {
+
             totalItems: 1
         },
         {
@@ -60,7 +67,16 @@ export const routineSearchSchema: FormSchema = {
         },
         {
             fieldName: "minStars",
-            label: "Minimum Stars",
+            label: "Min",
+            type: InputType.QuantityBox,
+            props: {
+                min: 0,
+                defaultValue: 0,
+            }
+        },
+        {
+            fieldName: "maxStars",
+            label: "Max",
             type: InputType.QuantityBox,
             props: {
                 min: 0,
@@ -69,7 +85,16 @@ export const routineSearchSchema: FormSchema = {
         },
         {
             fieldName: "minScore",
-            label: "Minimum Score",
+            label: "Min",
+            type: InputType.QuantityBox,
+            props: {
+                min: 0,
+                defaultValue: 0,
+            }
+        },
+        {
+            fieldName: "maxScore",
+            label: "Max",
             type: InputType.QuantityBox,
             props: {
                 min: 0,
@@ -78,7 +103,7 @@ export const routineSearchSchema: FormSchema = {
         },
         {
             fieldName: "minSimplicity",
-            label: "Minimum Simplicity",
+            label: "Min",
             type: InputType.QuantityBox,
             props: {
                 min: 0,
@@ -87,7 +112,7 @@ export const routineSearchSchema: FormSchema = {
         },
         {
             fieldName: "maxSimplicity",
-            label: "Maximum Simplicity",
+            label: "Max",
             type: InputType.QuantityBox,
             props: {
                 min: 0,
@@ -96,7 +121,7 @@ export const routineSearchSchema: FormSchema = {
         },
         {
             fieldName: "minComplexity",
-            label: "Minimum Complexity",
+            label: "Min",
             type: InputType.QuantityBox,
             props: {
                 min: 0,
@@ -105,7 +130,7 @@ export const routineSearchSchema: FormSchema = {
         },
         {
             fieldName: "maxComplexity",
-            label: "Maximum Complexity",
+            label: "Max",
             type: InputType.QuantityBox,
             props: {
                 min: 0,

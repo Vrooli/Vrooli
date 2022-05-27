@@ -46,19 +46,37 @@ export function AutocompleteSearchBar<T>({
             options={options}
             inputValue={internalValue}
             getOptionLabel={(option: any) => getOptionLabel(option, languages)}
-            renderOption={(_, option) => { return (
-                <MenuItem
-                    key={getOptionKey(option, languages)}
-                    onClick={() => {
-                        setInternalValue(getOptionLabel(option, languages));
-                        onChangeDebounced(getOptionLabel(option, languages));
-                        onInputChange(option);
-                    }}
-                >
-                    <ListItemText>{getOptionLabel(option, languages)}</ListItemText>
-                    {getOptionLabelSecondary ? <Typography color="text.secondary">{getOptionLabelSecondary(option)}</Typography> : null}
-                </MenuItem>
-            )}}  
+            renderOption={(_, option) => {
+                return (
+                    <MenuItem
+                        key={getOptionKey(option, languages)}
+                        onClick={() => {
+                            setInternalValue(getOptionLabel(option, languages));
+                            onChangeDebounced(getOptionLabel(option, languages));
+                            onInputChange(option);
+                        }}
+                    >
+                        {/* Object title */}
+                        <ListItemText sx={{
+                            '& .MuiTypography-root': {
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                            },
+                        }}>
+                            {getOptionLabel(option, languages)}
+                        </ListItemText>
+                        {/* Type of object */}
+                        {
+                            getOptionLabelSecondary ?
+                                <Typography color="text.secondary">
+                                    {getOptionLabelSecondary(option)}
+                                </Typography> :
+                                null
+                        }
+                    </MenuItem>
+                )
+            }}
             renderInput={(params) => (
                 <Paper
                     component="form"

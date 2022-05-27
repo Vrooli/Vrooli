@@ -404,28 +404,27 @@ export const BuildView = ({
      * If closing with unsaved changes, prompt user to save
      */
     const onClose = useCallback(() => {
-        if (changedRoutine) {
+        if (isEditing && JSON.stringify(routine) !== JSON.stringify(changedRoutine)) {
             PubSub.publish(Pubs.AlertDialog, {
-                message: 'There are unsaved changes. Would you like to save?',
+                message: 'There are unsaved changes. Would you like to save before exiting?',
                 buttons: [
                     {
-                        text: 'Save and Close', onClick: () => {
+                        text: 'Save', onClick: () => {
                             updateRoutine();
                             handleClose();
                         }
                     },
                     {
-                        text: 'Close without saving', onClick: () => {
+                        text: "Don't Save", onClick: () => {
                             handleClose();
                         }
                     },
-                    {
-                        text: 'Cancel', onClick: () => { }
-                    }
                 ]
             });
+        } else {
+            handleClose();
         }
-    }, [changedRoutine, handleClose, updateRoutine]);
+    }, [changedRoutine, handleClose, isEditing, routine, updateRoutine]);
 
     const updateRoutineTitle = useCallback((title: string) => {
         if (!changedRoutine) return;

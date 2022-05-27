@@ -11,7 +11,7 @@ import { generateInputComponent } from '.';
  * @returns Grid item component
  */
 export const generateGridItem = (component: React.ReactElement, sizes: GridItemSpacing | undefined, index: number): React.ReactElement => (
-    <Grid item key={`grid-${index}`} {...sizes}>
+    <Grid item key={`grid-${index}`} spacing={sizes as any}>
         {component}
     </Grid>
 );
@@ -121,14 +121,12 @@ export const generateGrid = ({
         )
     }
     return (
-        <form>
-            <Stack
-                direction={layout?.direction ?? 'row'}
-                key={`form-container`}
-                spacing={layout?.spacing}
-            >
-                {grids}
-            </Stack>
-        </form>
+        <Stack
+            direction={layout?.direction ?? 'row'}
+            key={`form-container`}
+            spacing={layout?.spacing}
+        >
+            {grids}
+        </Stack>
     )
 };
