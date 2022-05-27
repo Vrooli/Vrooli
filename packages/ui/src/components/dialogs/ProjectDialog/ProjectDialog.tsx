@@ -9,9 +9,6 @@ import { ProjectCreate } from 'components/views/ProjectCreate/ProjectCreate';
 import { Project } from 'types';
 
 export const ProjectDialog = ({
-    canEdit = false,
-    hasNext,
-    hasPrevious,
     partialData,
     session
 }: ProjectDialogProps) => {
@@ -78,8 +75,6 @@ export const ProjectDialog = ({
 
     return (
         <BaseObjectDialog
-            hasNext={hasNext}
-            hasPrevious={hasPrevious}
             onAction={onAction}
             open={Boolean(params?.params)}
             title={title}

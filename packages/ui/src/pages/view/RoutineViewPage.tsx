@@ -48,8 +48,6 @@ export const RoutineViewPage = ({
         }}>
             {/* Add dialog */}
             <BaseObjectDialog
-                hasNext={false}
-                hasPrevious={false}
                 onAction={onAction}
                 open={isAddDialogOpen}
                 title={"Add Routine"}
@@ -62,8 +60,6 @@ export const RoutineViewPage = ({
             </BaseObjectDialog>
             {/* Update dialog */}
             <BaseObjectDialog
-                hasNext={false}
-                hasPrevious={false}
                 onAction={onAction}
                 open={isEditDialogOpen}
                 title={"Update Routine"}

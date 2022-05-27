@@ -58,9 +58,6 @@ export const SearchRoutinesPage = ({
         <>
             {/* Selected dialog */}
             <RoutineDialog
-                hasPrevious={false}
-                hasNext={false}
-                canEdit={false}
                 partialData={selectedItem}
                 session={session}
             />

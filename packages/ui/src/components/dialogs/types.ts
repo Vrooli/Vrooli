@@ -10,8 +10,6 @@ export interface AlertDialogProps extends DialogProps { };
 
 export interface BaseObjectDialogProps extends DialogProps {
     children: JSX.Element | JSX.Element[];
-    hasNext?: boolean;
-    hasPrevious?: boolean;
     /**
      * Callback when option button or close button is pressed
      */
@@ -85,23 +83,13 @@ export enum ObjectDialogAction {
 }
 
 export interface OrganizationDialogProps {
-    /**
-     * Can only edit if you own the object
-     */
-    canEdit?: boolean;
     hasPrevious?: boolean;
-    hasNext?: boolean;
     partialData?: Partial<Organization>;
     session: Session;
 };
 
 export interface ProjectDialogProps {
-    /**
-     * Can only edit if you own the object
-     */
-    canEdit?: boolean;
     hasPrevious?: boolean;
-    hasNext?: boolean;
     partialData?: Partial<Project>;
     session: Session;
 };
@@ -134,12 +122,6 @@ export interface ResourceDialogProps extends DialogProps {
 }
 
 export interface RoutineDialogProps {
-    /**
-     * Can only edit if you own the object
-     */
-    canEdit?: boolean;
-    hasPrevious?: boolean;
-    hasNext?: boolean;
     partialData?: Partial<Routine>;
     session: Session;
 };
@@ -150,23 +132,11 @@ export interface ShareDialogProps extends DialogProps {
 }
 
 export interface StandardDialogProps {
-    /**
-     * Can only edit if you own the object
-     */
-    canEdit?: boolean;
-    hasPrevious?: boolean;
-    hasNext?: boolean;
     partialData?: Partial<Standard>;
     session: Session;
 };
 
 export interface UserDialogProps {
-    /**
-     * Can only edit if you own the object
-     */
-    canEdit?: boolean;
-    hasPrevious?: boolean;
-    hasNext?: boolean;
     partialData?: Partial<User>;
     session: Session;
 };

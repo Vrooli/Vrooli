@@ -55,9 +55,6 @@ export const SearchOrganizationsPage = ({
             <ShareDialog onClose={handleSurpriseDialogClose} open={surpriseDialogOpen} />
             {/* View/Add/Update dialog */}
             <OrganizationDialog
-                hasPrevious={false}
-                hasNext={false}
-                canEdit={false}
                 partialData={selectedItem}
                 session={session}
             />

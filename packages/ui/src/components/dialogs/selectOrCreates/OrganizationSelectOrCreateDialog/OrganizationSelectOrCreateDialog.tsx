@@ -109,8 +109,6 @@ export const OrganizationSelectOrCreateDialog = ({
         >
             {/* Popup for creating a new organization */}
             <BaseObjectDialog
-                hasPrevious={false}
-                hasNext={false}
                 onAction={handleCreateClose}
                 open={isCreateOpen}
                 title={"Create Organization"}

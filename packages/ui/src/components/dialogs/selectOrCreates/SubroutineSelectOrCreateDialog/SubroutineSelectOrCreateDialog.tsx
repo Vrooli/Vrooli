@@ -105,8 +105,6 @@ export const SubroutineSelectOrCreateDialog = ({
         >
             {/* Popup for creating a new routine */}
             <BaseObjectDialog
-                hasNext={false}
-                hasPrevious={false}
                 onAction={handleCreateClose}
                 open={isCreateOpen}
                 title={"Create Routine"}

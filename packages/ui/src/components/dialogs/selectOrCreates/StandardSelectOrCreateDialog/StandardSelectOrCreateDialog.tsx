@@ -107,8 +107,6 @@ export const StandardSelectOrCreateDialog = ({
         >
             {/* Popup for creating a new standard */}
             <BaseObjectDialog
-                hasPrevious={false}
-                hasNext={false}
                 onAction={handleCreateClose}
                 open={isCreateOpen}
                 title={"Create Standard"}

@@ -47,9 +47,6 @@ export const SearchStandardsPage = ({
         <>
             {/* Selected dialog */}
             <StandardDialog
-                hasPrevious={false}
-                hasNext={false}
-                canEdit={false}
                 partialData={selectedItem}
                 session={session}
             />

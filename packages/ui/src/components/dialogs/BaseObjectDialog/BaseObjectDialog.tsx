@@ -26,8 +26,6 @@ import { BaseObjectDialogProps, ObjectDialogAction } from '../types';
  */
 export const BaseObjectDialog = ({
     children,
-    hasNext,
-    hasPrevious,
     onAction,
     open = true,
     title,
@@ -56,33 +54,22 @@ export const BaseObjectDialog = ({
                     }
                 }}>
                     <Toolbar>
-                        <IconButton edge="start" color="inherit" onClick={onClose} aria-label="close">
+                        {/* Title */}
+                        <Typography variant="h5">
+                            {title}
+                        </Typography>
+                        {/* Close icon */}
+                        <IconButton
+                            edge="end"
+                            color="inherit"
+                            onClick={onClose}
+                            aria-label="close"
+                            sx={{
+                                marginLeft: 'auto',
+                            }}
+                        >
                             <CloseIcon />
                         </IconButton>
-                        <Box sx={{ width: '100%', alignItems: 'center' }}>
-                            <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
-                                {/* Navigate to previous */}
-                                {hasPrevious && (
-                                    <Tooltip title="Previous" placement="bottom">
-                                        <IconButton size="large" onClick={onPrevious} aria-label="previous">
-                                            <PreviousIcon sx={{ fill: 'white' }} />
-                                        </IconButton>
-                                    </Tooltip>
-                                )}
-                                {/* Title */}
-                                <Typography variant="h5">
-                                    {title}
-                                </Typography>
-                                {/* Navigate to next */}
-                                {hasNext && (
-                                    <Tooltip title="Next" placement="bottom">
-                                        <IconButton size="large" onClick={onNext} aria-label="next">
-                                            <NextIcon sx={{ fill: 'white' }} />
-                                        </IconButton>
-                                    </Tooltip>
-                                )}
-                            </Stack>
-                        </Box>
                     </Toolbar>
                 </AppBar>
             </Slide>

@@ -47,9 +47,6 @@ export const SearchProjectsPage = ({
         <>
             {/* Selected dialog */}
             <ProjectDialog
-                hasPrevious={false}
-                hasNext={false}
-                canEdit={false}
                 partialData={selectedItem}
                 session={session}
             />

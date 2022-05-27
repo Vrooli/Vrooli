@@ -9,9 +9,6 @@ import { APP_LINKS } from '@local/shared';
 import { Organization } from 'types';
 
 export const OrganizationDialog = ({
-    canEdit = false,
-    hasNext,
-    hasPrevious,
     partialData,
     session
 }: OrganizationDialogProps) => {
@@ -79,8 +76,6 @@ export const OrganizationDialog = ({
 
     return (
         <BaseObjectDialog
-            hasNext={hasNext}
-            hasPrevious={hasPrevious}
             onAction={onAction}
             open={Boolean(params?.params)}
             title={title}

@@ -9,9 +9,6 @@ import { APP_LINKS } from '@local/shared';
 import { Routine } from 'types';
 
 export const RoutineDialog = ({
-    canEdit = false,
-    hasNext,
-    hasPrevious,
     partialData,
     session
 }: RoutineDialogProps) => {
@@ -78,8 +75,6 @@ export const RoutineDialog = ({
 
     return (
         <BaseObjectDialog
-            hasNext={hasNext}
-            hasPrevious={hasPrevious}
             onAction={onAction}
             open={Boolean(params?.params)}
             title={title}
