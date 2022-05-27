@@ -51,10 +51,10 @@ export const InputTypeOptions: InputTypeOption[] = [
         label: 'Switch (On/Off)',
         value: InputType.Switch,
     },
-    {
-        label: 'File Upload',
-        value: InputType.Dropzone,
-    },
+    // {
+    //     label: 'File Upload',
+    //     value: InputType.Dropzone,
+    // },
     {
         label: 'Markdown',
         value: InputType.Markdown
@@ -71,12 +71,14 @@ export const StandardCreate = ({
     // Handle input type selector
     const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
     const handleInputTypeSelect = useCallback((event: any) => {
+        console.log('changing input type', event.target.value)
         setInputType(event.target.value)
     }, []);
 
     // Handle standard schema
     const [schema, setSchema] = useState<FieldData | null>(null);
     const handleSchemaUpdate = useCallback((schema: FieldData) => { setSchema(schema); }, []);
+    const [schemaKey] = useState(`standard-create-schema-${Math.random().toString(36).substring(2, 15)}`);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
@@ -144,8 +146,8 @@ export const StandardCreate = ({
                     default: values.default,
                     description: values.description,
                     name: values.name,
-                    props: schema?.props,
-                    yup: schema?.yup,
+                    props: JSON.stringify(schema?.props),
+                    yup: JSON.stringify(schema?.yup),
                     translations: allTranslations,
                     resourceListsCreate: [resourceListAdd],
                     ...tagsAdd,
@@ -292,12 +294,14 @@ export const StandardCreate = ({
                         handleChange={handleInputTypeSelect}
                         getOptionLabel={(option: InputTypeOption) => option.label}
                         inputAriaLabel='input-type-selector'
-                        label="Size"
+                        label="Type"
                     />
                 </Grid>
                 {/* Define the standard */}
                 <Grid item xs={12}>
                     <BaseStandardInput
+                        key={schemaKey}
+                        inputType={inputType.value}
                         isEditing={true}
                         schema={schema}
                         onChange={handleSchemaUpdate}

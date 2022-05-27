@@ -59,7 +59,7 @@ export interface DropzoneProps extends Omit<DP, 'onUpload'> {
 /**
  * Props for rendering a JSON input component
  */
-export interface JSONProps extends Omit<JP, 'onChange' | 'value'> {
+export interface JSONProps extends Omit<JP, 'id' | 'onChange' | 'value'> {
     defaultValue?: string;
 }
 
@@ -73,7 +73,7 @@ export interface LanguageInputProps extends Omit<LP, 'handleAdd' | 'handleChange
 /**
  * Props for rendering a Markdown input component
  */
-export interface MarkdownProps extends Omit<MP, 'onChange' | 'value'> {
+export interface MarkdownProps extends Omit<MP, 'id' | 'onChange' | 'value'> {
     defaultValue?: string;
 }
 

@@ -27,6 +27,7 @@ type HoldRefs = {
 
 export const QuantityBox = ({
     autoFocus = false,
+    disabled = false,
     error = false, // TODO use
     handleChange,
     helperText = '', //TODO use
@@ -97,6 +98,7 @@ export const QuantityBox = ({
             }}>
                 <IconButton
                     aria-label='minus'
+                    disabled={disabled}
                     onMouseDown={handleMinusDown}
                     onMouseUp={stopTouch}
                     onTouchStart={handleMinusDown}
@@ -105,6 +107,7 @@ export const QuantityBox = ({
                     sx={{
                         ...buttonProps,
                         borderRadius: '5px 0 0 5px',
+                        maxWidth: '48px',
                     }}>
                     <RemoveIcon />
                 </IconButton>
@@ -127,6 +130,7 @@ export const QuantityBox = ({
                     >{label}</InputLabel>
                     <Input
                         autoFocus={autoFocus}
+                        disabled={disabled}
                         id={`quantity-box-${id}`}
                         aria-describedby={`helper-text-${id}`}
                         type="number"
@@ -140,6 +144,7 @@ export const QuantityBox = ({
                 </FormControl>
                 <IconButton
                     aria-label='plus'
+                    disabled={disabled}
                     onMouseDown={handlePlusDown}
                     onMouseUp={stopTouch}
                     onTouchStart={handlePlusDown}
@@ -148,6 +153,7 @@ export const QuantityBox = ({
                     sx={{
                         ...buttonProps,
                         borderRadius: '0 5px 5px 0',
+                        maxWidth: '48px',
                     }}>
                     <AddIcon />
                 </IconButton>
