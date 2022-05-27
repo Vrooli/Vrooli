@@ -71,7 +71,14 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     // On search filters/sort change, reset the page
     useEffect(() => {
-        console.log('FETCHIN NEW PAGE DAWG');
+        console.log('FETCHIN NEW PAGE DAWG', {
+            advancedSearchParams,
+            canSearch,
+            searchString,
+            sortBy,
+            createdTimeFrame,
+            where,
+        });
         after.current = undefined;
         if (canSearch) getPageData();
     }, [advancedSearchParams, canSearch, searchString, sortBy, createdTimeFrame, where, getPageData]);

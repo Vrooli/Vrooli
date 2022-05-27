@@ -238,7 +238,7 @@ export const InputOutputListItem = ({
             }}>
                 <Grid container spacing={2} sx={{ padding: 1 }}>
                     <Grid item xs={12}>
-                        <TextField
+                        {isEditing ? <TextField
                             fullWidth
                             id="name"
                             name="name"
@@ -248,11 +248,11 @@ export const InputOutputListItem = ({
                             onChange={formik.handleChange}
                             error={formik.touched.name && Boolean(formik.errors.name)}
                             helperText={formik.touched.name && formik.errors.name}
-                        />
+                        /> : <Typography variant="h6">{formik.values.name}</Typography>}
                     </Grid>
                     <Grid item xs={12}>
                         <Grid item xs={12}>
-                            <TextField
+                            {isEditing ? <TextField
                                 fullWidth
                                 id="description"
                                 name="description"
@@ -263,17 +263,22 @@ export const InputOutputListItem = ({
                                 onChange={formik.handleChange}
                                 error={formik.touched.description && Boolean(formik.errors.description)}
                                 helperText={formik.touched.description && formik.errors.description}
-                            />
+                            /> : <Typography variant="body2">{formik.values.description}</Typography>}
                         </Grid>
                     </Grid>
                     {/* Select standard */}
                     <Grid item xs={12}>
-                        <StandardSelectSwitch session={session} selected={standard} onChange={onSwitchChange} />
+                        <StandardSelectSwitch
+                            disabled={!isEditing}
+                            session={session}
+                            selected={standard}
+                            onChange={onSwitchChange}
+                        />
                     </Grid>
                     {
                         !standard && (
                             <Grid item xs={12}>
-                                <Selector
+                                {isEditing ? <Selector
                                     fullWidth
                                     options={InputTypeOptions}
                                     selected={inputType}
@@ -281,7 +286,7 @@ export const InputOutputListItem = ({
                                     getOptionLabel={(option: InputTypeOption) => option.label}
                                     inputAriaLabel='input-type-selector'
                                     label="Type"
-                                />
+                                /> : <Typography variant="body2">Type: {inputType.label}</Typography>}
                             </Grid>
                         )
                     }

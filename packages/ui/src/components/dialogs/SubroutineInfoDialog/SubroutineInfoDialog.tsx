@@ -25,6 +25,7 @@ import { routineUpdateForm as validationSchema } from '@local/shared';
 import { InputOutputContainer, LinkButton, MarkdownInput } from 'components';
 import { useFormik } from 'formik';
 import { RoutineInputList, RoutineOutputList } from 'types';
+import { owns } from 'utils/authentication';
 
 export const SubroutineInfoDialog = ({
     handleUpdate,
@@ -42,6 +43,7 @@ export const SubroutineInfoDialog = ({
 
     const ownedBy = useMemo<string | null>(() => getOwnedByString(subroutine, [language]), [subroutine, language]);
     const toOwner = useCallback(() => { toOwnedBy(subroutine, setLocation) }, [subroutine, setLocation]);
+    const canEdit = useMemo<boolean>(() => isEditing && owns(subroutine?.role), [subroutine]);
 
     // Handle inputs
     const [inputsList, setInputsList] = useState<RoutineInputList>([]);
@@ -103,7 +105,6 @@ export const SubroutineInfoDialog = ({
             sx={{
                 '& .MuiDrawer-paper': {
                     background: palette.background.default,
-                    maxHeight: 'min(300px, 100vh)',
                 }
             }}
         >
@@ -116,6 +117,18 @@ export const SubroutineInfoDialog = ({
                 color: palette.primary.contrastText,
                 padding: 1,
             }}>
+                {/* Subroutine title */}
+                <Typography variant="h5">{getTranslation(subroutine, 'title', [language])}</Typography>
+                {/* Owned by and version */}
+                <Stack direction="row" sx={{ marginLeft: 'auto' }}>
+                    {ownedBy ? (
+                        <LinkButton
+                            onClick={toOwner}
+                            text={`${ownedBy} - `}
+                        />
+                    ) : null}
+                    <Typography variant="body1">{subroutine?.version}</Typography>
+                </Stack>
                 {/* Close button */}
                 <IconButton onClick={onClose} sx={{
                     color: palette.primary.contrastText,
@@ -125,18 +138,6 @@ export const SubroutineInfoDialog = ({
                 }}>
                     <CloseIcon fontSize="large" />
                 </IconButton>
-                {/* Subroutine title */}
-                <Typography variant="h5">{getTranslation(subroutine, 'title', [language])}</Typography>
-                {/* Owned by and version */}
-                <Stack direction="row" sx={{ marginLeft: 'auto' }}>
-                    {ownedBy ? (
-                        <LinkButton
-                            onClick={toOwner}
-                            text={ownedBy}
-                        />
-                    ) : null}
-                    <Typography variant="body1"> - {subroutine?.version}</Typography>
-                </Stack>
             </Box>
             {/* Main content */}
             <Box sx={{
@@ -149,12 +150,10 @@ export const SubroutineInfoDialog = ({
                     <Grid item xs={12} sm={6}>
                         <Box sx={{
                             padding: 1,
-                            border: `1px solid ${palette.primary.dark}`,
-                            borderRadius: 1,
                         }}>
                             <Typography variant="h6">Description</Typography>
                             {
-                                isEditing ? (
+                                canEdit ? (
                                     <MarkdownInput
                                         id="description"
                                         placeholder="Description"
@@ -174,12 +173,10 @@ export const SubroutineInfoDialog = ({
                     <Grid item xs={12} sm={6}>
                         <Box sx={{
                             padding: 1,
-                            border: `1px solid ${palette.background.paper}`,
-                            borderRadius: 1,
                         }}>
                             <Typography variant="h6">Instructions</Typography>
                             {
-                                isEditing ? (
+                                canEdit ? (
                                     <MarkdownInput
                                         id="instructions"
                                         placeholder="Instructions"
@@ -196,27 +193,27 @@ export const SubroutineInfoDialog = ({
                         </Box>
                     </Grid>
                     {/* Inputs */}
-                    <Grid item xs={12} sm={6}>
+                    {inputsList.length > 0 && <Grid item xs={12} sm={6}>
                         <InputOutputContainer
-                            isEditing={isEditing}
+                            isEditing={canEdit}
                             handleUpdate={handleInputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
                             isInput={true}
                             language={language}
                             list={inputsList}
                             session={session}
                         />
-                    </Grid>
+                    </Grid>}
                     {/* Outputs */}
-                    <Grid item xs={12} sm={6}>
+                    {outputsList.length > 0 && <Grid item xs={12} sm={6}>
                         <InputOutputContainer
-                            isEditing={isEditing}
+                            isEditing={canEdit}
                             handleUpdate={handleOutputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
                             isInput={false}
                             language={language}
                             list={outputsList}
                             session={session}
                         />
-                    </Grid>
+                    </Grid>}
                 </Grid>
             </Box>
             {/* Bottom nav container */}

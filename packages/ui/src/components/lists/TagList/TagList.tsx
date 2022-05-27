@@ -32,11 +32,19 @@ export const TagList = ({
         // Check if any tags were cut off
         const numTagsCutOff = tags.length - chipResult.length;
         return [chipResult, numTagsCutOff];
-    }, [tags]);
+    }, [palette.mode, tags]);
 
     return (
         <Tooltip title={tags.map(t => t.tag).join(', ')} placement="top">
-            <Stack direction="row" spacing={1} justifyContent="left" alignItems="center">
+            <Stack
+                direction="row"
+                spacing={1}
+                justifyContent="left"
+                alignItems="center"
+                sx={{
+                    overflowX: 'auto',
+                }}
+            >
                 {chips}
                 {numTagsCutOff > 0 && <Typography variant="body1">+{numTagsCutOff}</Typography>}
             </Stack>

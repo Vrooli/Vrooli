@@ -74,7 +74,15 @@ export function OrganizationListItem({
                             height: '80%',
                         }} />
                     </Box>
-                    <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
+                    <Stack
+                        direction="column"
+                        spacing={1}
+                        pl={2}
+                        sx={{
+                            width: '-webkit-fill-available',
+                            display: 'grid',
+                        }}
+                    >
                         {/* Name/Title */}
                         {loading ? <TextLoading /> : <ListItemText
                             primary={name}

@@ -915,8 +915,8 @@ export const BuildView = ({
         return (
             <Box>
                 <Box sx={{ background: palette.primary.dark }}>
-                    <IconButton edge="start" color="inherit" onClick={closeStatusMenu} aria-label="close">
-                        <CloseIcon sx={{ fill: palette.primary.contrastText, marginLeft: '0.5em' }} />
+                    <IconButton edge="end" color="inherit" onClick={closeStatusMenu} aria-label="close">
+                        <CloseIcon sx={{ fill: palette.primary.contrastText }} />
                     </IconButton>
                 </Box>
                 <Box sx={{ padding: 1 }}>
@@ -1019,21 +1019,7 @@ export const BuildView = ({
                     color: palette.primary.contrastText,
                     height: '64px',
                 }}>
-                {/* Close Icon */}
-                <IconButton
-                    edge="end"
-                    aria-label="close"
-                    onClick={onClose}
-                    color="inherit"
-                    sx={{
-                        marginRight: 'auto',
-                    }}
-                >
-                    <CloseIcon sx={{
-                        width: '32px',
-                        height: '32px',
-                    }} />
-                </IconButton>
+                {/* Title */}
                 <EditableLabel
                     canEdit={isEditing}
                     handleUpdate={updateRoutineTitle}
@@ -1050,9 +1036,24 @@ export const BuildView = ({
                     )}
                     text={getTranslation(routine, 'title', [language], false) ?? ''}
                     sxs={{
-                        stack: { marginRight: 'auto' }
+                        stack: { marginLeft: 'auto' }
                     }}
                 />
+                {/* Close Icon */}
+                <IconButton
+                    edge="start"
+                    aria-label="close"
+                    onClick={onClose}
+                    color="inherit"
+                    sx={{
+                        marginLeft: 'auto',
+                    }}
+                >
+                    <CloseIcon sx={{
+                        width: '32px',
+                        height: '32px',
+                    }} />
+                </IconButton>
             </Stack>
             {/* Second contains additional info and icons */}
             <Stack
@@ -1066,7 +1067,6 @@ export const BuildView = ({
                     height: '48px',
                     background: palette.primary.light,
                     color: palette.primary.contrastText,
-                    marginTop: { xs: '0', lg: '80px' },
                 }}
             >
                 {/* Status indicator */}

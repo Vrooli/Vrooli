@@ -63,7 +63,15 @@ export function ProjectListItem({
                         score={data?.score}
                         onChange={(isUpvoted: boolean | null) => { }}
                     />
-                    <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
+                    <Stack
+                        direction="column"
+                        spacing={1}
+                        pl={2}
+                        sx={{
+                            width: '-webkit-fill-available',
+                            display: 'grid',
+                        }}
+                    >
                         {loading ? <TextLoading /> : <ListItemText
                             primary={name}
                             sx={{ ...multiLineEllipsis(1) }}
