@@ -8,7 +8,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { BaseObjectDialog, HelpButton } from 'components';
+import { BaseObjectDialog, HelpButton, standardSearchSchema } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StandardSelectOrCreateDialogProps } from '../types';
 import {
@@ -16,11 +16,13 @@ import {
     Close as CloseIcon
 } from '@mui/icons-material';
 import { Standard } from 'types';
-import { standardDefaultSortOption, StandardSortOptions, SearchList } from 'components/lists';
+import { SearchList } from 'components/lists';
 import { standardQuery, standardsQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { standard, standardVariables } from 'graphql/generated/standard';
 import { StandardCreate } from 'components/views/StandardCreate/StandardCreate';
+import { ObjectType, parseSearchParams, stringifySearchParams } from 'utils';
+import { useLocation } from 'wouter';
 
 const helpText =
     `This dialog allows you to connect a new or existing standard to a routine input/output.
@@ -34,6 +36,31 @@ export const StandardSelectOrCreateDialog = ({
     session,
 }: StandardSelectOrCreateDialogProps) => {
     const { palette } = useTheme();
+    const [, setLocation] = useLocation();
+
+    /**
+     * Before closing, remove all URL search params for advanced search
+     */
+     const onClose = useCallback(() => {
+        // Find all search fields
+        const searchFields = [
+            ...standardSearchSchema.fields.map(f => f.fieldName),
+            'advanced',
+            'sort',
+            'time',
+        ];
+        // Find current search params
+        const params = parseSearchParams(window.location.search);
+        // Remove all search params that are advanced search fields
+        Object.keys(params).forEach(key => {
+            if (searchFields.includes(key)) {
+                delete params[key];
+            }
+        });
+        // Update URL
+        setLocation(stringifySearchParams(params), { replace: true });
+        handleClose();
+    }, [handleClose, setLocation]);
 
     // Create new standard dialog
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -41,8 +68,8 @@ export const StandardSelectOrCreateDialog = ({
     const handleCreated = useCallback((standard: Standard) => {
         setIsCreateOpen(false);
         handleAdd(standard);
-        handleClose();
-    }, [handleAdd, handleClose]);
+        onClose();
+    }, [handleAdd, onClose]);
     const handleCreateClose = useCallback(() => {
         setIsCreateOpen(false);
     }, [setIsCreateOpen]);
@@ -53,17 +80,17 @@ export const StandardSelectOrCreateDialog = ({
         // Query for full standard data, if not already known (would be known if the same standard was selected last time)
         if (standardData?.standard?.id === standard.id) {
             handleAdd(standardData?.standard);
-            handleClose();
+            onClose();
         } else {
             getStandard({ variables: { input: { id: standard.id } } });
         }
-    }, [getStandard, standardData, handleAdd, handleClose]);
+    }, [getStandard, standardData, handleAdd, onClose]);
     useEffect(() => {
         if (standardData?.standard) {
             handleAdd(standardData.standard);
-            handleClose();
+            onClose();
         }
-    }, [handleAdd, handleClose, handleCreateClose, standardData]);
+    }, [handleAdd, onClose, handleCreateClose, standardData]);
 
     /**
      * Title bar with help button and close icon
@@ -84,22 +111,18 @@ export const StandardSelectOrCreateDialog = ({
             <Box sx={{ marginLeft: 'auto' }}>
                 <IconButton
                     edge="start"
-                    onClick={(e) => { handleClose() }}
+                    onClick={(e) => { onClose() }}
                 >
                     <CloseIcon sx={{ fill: palette.primary.contrastText }} />
                 </IconButton>
             </Box>
         </Box>
-    ), [handleClose, palette.primary.contrastText, palette.primary.dark])
-
-    const [searchString, setSearchString] = useState<string>('');
-    const [sortBy, setSortBy] = useState<string | undefined>(undefined);
-    const [timeFrame, setTimeFrame] = useState<string | undefined>(undefined);
+    ), [onClose, palette.primary.contrastText, palette.primary.dark])
 
     return (
         <Dialog
             open={isOpen}
-            onClose={handleClose}
+            onClose={onClose}
             sx={{
                 '& .MuiDialogContent-root': { overflow: 'visible', background: '#cdd6df' },
                 '& .MuiDialog-paper': { overflow: 'visible' }
@@ -122,20 +145,13 @@ export const StandardSelectOrCreateDialog = ({
                 <Stack direction="column" spacing={4}>
                     <SearchList
                         itemKeyPrefix='standard-list-item'
-                        defaultSortOption={standardDefaultSortOption}
                         noResultsText={"None found. Maybe you should create one?"}
+                        objectType={ObjectType.Standard}
                         onObjectSelect={(newValue) => handeStandardSelect(newValue)}
                         query={standardsQuery}
                         searchPlaceholder={'Select existing standard...'}
-                        searchString={searchString}
-                        setSearchString={setSearchString}
                         session={session}
-                        setSortBy={setSortBy}
-                        setTimeFrame={setTimeFrame}
-                        sortBy={sortBy}
-                        sortOptions={StandardSortOptions}
                         take={20}
-                        timeFrame={timeFrame}
                     />
                     <Button
                         fullWidth

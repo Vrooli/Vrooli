@@ -13,11 +13,11 @@ export const DateRangeMenu = ({
 
     const open = Boolean(anchorEl);
 
-    const [after, setAfter] = useState<Date | null>(null)
-    const [before, setBefore] = useState<Date | null>(null)
+    const [after, setAfter] = useState<Date | undefined>(undefined)
+    const [before, setBefore] = useState<Date | undefined>(undefined)
 
-    const handleAfterChange = (date: Date | null) => setAfter(date);
-    const handleBeforeChange = (date: Date | null) => setBefore(date)
+    const handleAfterChange = (date: Date | null) => setAfter(date ?? undefined);
+    const handleBeforeChange = (date: Date | null) => setBefore(date ?? undefined)
 
     return (
         <Popover

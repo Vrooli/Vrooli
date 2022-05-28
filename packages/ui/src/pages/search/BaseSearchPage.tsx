@@ -1,13 +1,11 @@
 import { APP_LINKS } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material";
 import { SearchList } from "components";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
 import { useLocation } from "wouter";
 import { BaseSearchPageProps } from "./types";
 import { Add as AddIcon } from '@mui/icons-material';
-import { parseSearchParams, stringifySearchParams } from "utils/navigation/urlTools";
-import { useReactSearch } from "utils";
 
 const tabOptions = [
     ['Organizations', APP_LINKS.SearchOrganizations],
@@ -17,14 +15,13 @@ const tabOptions = [
     ['Users', APP_LINKS.SearchUsers],
 ];
 
-export function BaseSearchPage<DataType, SortBy>({
+export function BaseSearchPage({
     itemKeyPrefix,
     title = 'Search',
     searchPlaceholder = 'Search...',
-    sortOptions,
-    defaultSortOption,
     query,
     take = 20,
+    objectType,
     onObjectSelect,
     showAddButton = true,
     onAddClick = () => { },
@@ -32,30 +29,9 @@ export function BaseSearchPage<DataType, SortBy>({
     popupButtonTooltip = "Couldn't find what you were looking for? Try creating your own!",
     onPopupButtonClick,
     session,
-}: BaseSearchPageProps<DataType, SortBy>) {
+}: BaseSearchPageProps) {
     const [, setLocation] = useLocation();
-    // Handle url search
-    const [searchString, setSearchString] = useState<string>('');
-    const [sortBy, setSortBy] = useState<string | undefined>(defaultSortOption.value ?? sortOptions.length > 0 ? sortOptions[0].value : undefined);
-    const [timeFrame, setTimeFrame] = useState<string | undefined>(undefined);
-    const searchParams = useReactSearch(null);
-    useEffect(() => {
-        if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
-        if (typeof searchParams.sort === 'string') setSortBy(searchParams.sort);
-        if (typeof searchParams.time === 'string') setTimeFrame(searchParams.time);
-    }, [searchParams]);
-    useEffect(() => {
-        console.log('basesearch useeffect start', window.location.search)
-        const params = parseSearchParams(window.location.search);
-        if (searchString) params.search = searchString;
-        else delete params.search;
-        if (sortBy) params.sort = sortBy;
-        else delete params.sort;
-        if (timeFrame) params.time = timeFrame;
-        else delete params.time;
-        console.log('basesearch setting location', params)
-        setLocation(stringifySearchParams(params), { replace: true });
-    }, [searchString, sortBy, timeFrame, setLocation]);
+
     // Handle tabs
     const tabIndex = useMemo(() => {
         const index = tabOptions.findIndex(t => window.location.pathname.startsWith(t[1]));
@@ -133,16 +109,9 @@ export function BaseSearchPage<DataType, SortBy>({
             <SearchList
                 itemKeyPrefix={itemKeyPrefix}
                 searchPlaceholder={searchPlaceholder}
-                sortOptions={sortOptions}
-                defaultSortOption={defaultSortOption}
                 query={query}
                 take={take}
-                searchString={searchString}
-                sortBy={sortBy}
-                timeFrame={timeFrame}
-                setSearchString={setSearchString}
-                setSortBy={setSortBy}
-                setTimeFrame={setTimeFrame}
+                objectType={objectType}
                 onObjectSelect={onObjectSelect}
                 onScrolledFar={handleScrolledFar}
                 session={session}

@@ -9,7 +9,7 @@ import { DateRangeMenu } from 'components';
  * Map time selections to time length in milliseconds
  */
 const timeOptions = {
-    'All Time': null,
+    'All Time': undefined,
     'Past Year': 31536000000,
     'Past Month': 2592000000,
     'Past Week': 604800000,
@@ -34,7 +34,10 @@ export function TimeMenu({
         <MenuItem
             key={label}
             value={timeOptions[label]}
-            onClick={() => onClose(label.replace('Past ', ''), (new Date(Date.now() - timeOptions[label])))}
+            onClick={() => {
+                if (!timeOptions[label]) onClose(label)
+                else onClose(label.replace('Past ', ''), { after: new Date(Date.now() - timeOptions[label]) })
+            }}
         >
             {label}
         </MenuItem>
@@ -60,7 +63,7 @@ export function TimeMenu({
             <DateRangeMenu
                 anchorEl={customRangeAnchorEl}
                 onClose={handleTimeClose}
-                onSubmit={(after, before) => onClose('Custom', after, before)}
+                onSubmit={(after, before) => onClose('Custom', { after, before })}
             />
         </Menu>
     )

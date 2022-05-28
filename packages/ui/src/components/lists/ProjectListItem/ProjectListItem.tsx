@@ -1,12 +1,11 @@
-// Used to display popular/search results of a particular object type
 import { ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { ProjectListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, ProjectSortBy, StarFor, VoteFor } from '@local/shared';
+import { APP_LINKS, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, TagList, TextLoading, UpvoteDownvote } from 'components';
-import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor } from 'utils';
+import { getTranslation, listItemColor } from 'utils';
 import { owns } from 'utils/authentication';
 
 export function ProjectListItem({
@@ -98,6 +97,3 @@ export function ProjectListItem({
         </Tooltip>
     )
 }
-
-export const ProjectSortOptions: LabelledSortOption<ProjectSortBy>[] = labelledSortOptions(ProjectSortBy);
-export const projectDefaultSortOption = ProjectSortOptions[1];

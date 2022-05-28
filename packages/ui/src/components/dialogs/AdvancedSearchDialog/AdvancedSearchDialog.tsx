@@ -11,7 +11,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AdvancedSearchDialogProps } from '../types';
 import {
     Cancel as CancelIcon,

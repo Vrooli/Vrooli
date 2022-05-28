@@ -1,10 +1,10 @@
 import { APP_LINKS, ROLES } from "@local/shared";
-import { organizationDefaultSortOption, OrganizationSortOptions, ShareDialog } from "components";
+import { ShareDialog } from "components";
 import { OrganizationDialog } from "components/dialogs/OrganizationDialog/OrganizationDialog";
 import { organizationsQuery } from "graphql/query";
 import { useCallback, useEffect, useState } from "react";
 import { Organization } from "types";
-import { Pubs, stringifySearchParams } from "utils";
+import { ObjectType, Pubs, stringifySearchParams } from "utils";
 import { useLocation } from "wouter";
 import { BaseSearchPage } from "./BaseSearchPage";
 import { SearchOrganizationsPageProps } from "./types";
@@ -63,9 +63,8 @@ export const SearchOrganizationsPage = ({
                 itemKeyPrefix="organization-list-item"
                 title="Organizations"
                 searchPlaceholder="Search..."
-                sortOptions={OrganizationSortOptions}
-                defaultSortOption={organizationDefaultSortOption}
                 query={organizationsQuery}
+                objectType={ObjectType.Organization}
                 onObjectSelect={handleSelected}
                 onAddClick={handleAddDialogOpen}
                 popupButtonText="Invite"

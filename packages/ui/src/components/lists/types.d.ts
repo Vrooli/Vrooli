@@ -1,6 +1,6 @@
 import { StarFor, VoteFor } from '@local/shared';
 import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListUser, Session, Tag } from 'types';
-import { LabelledSortOption } from 'utils';
+import { ObjectType } from 'utils';
 
 export interface ObjectListItemProps<DataType> {
     data: DataType | null;
@@ -39,13 +39,13 @@ export interface SortMenuProps {
 
 export interface TimeMenuProps {
     anchorEl: HTMLElement | null;
-    onClose: (label?: string, after?: Date | null, before?: Date | null) => void;
+    onClose: (label?: string, timeFrame?: { after?: Date, before?: Date }) => void;
 }
 
 export interface DateRangeMenuProps {
     anchorEl: HTMLElement | null;
     onClose: () => void;
-    onSubmit: (after?: Date | null, before?: Date | null) => void;
+    onSubmit: (after?: Date | undefined, before?: Date | undefined) => void;
 }
 
 /**
@@ -53,30 +53,22 @@ export interface DateRangeMenuProps {
  */
 export interface SearchListGenerator {
     itemKeyPrefix: string;
+    objectType: ObjectType;
     placeholder: string;
     noResultsText: string;
-    sortOptions: LabelledSortOption<any>[];
-    defaultSortOption: LabelledSortOption<any>;
     searchQuery: any;
     where: any;
     onSearchSelect: (objectData: any) => void;
 }
 
-export interface SearchListProps<SortBy> {
+export interface SearchListProps {
     canSearch?: boolean;
     handleAdd?: () => void; // Not shown if not passed
     itemKeyPrefix: string;
     searchPlaceholder?: string;
-    sortOptions: SearchSortBy<SortBy>[];
-    defaultSortOption: SearchSortBy<SortBy>;
     query: DocumentNode;
     take?: number; // Number of items to fetch per page
-    searchString: string;
-    sortBy: string | undefined;
-    timeFrame: string | undefined;
-    setSearchString: (searchString: string) => void;
-    setSortBy: (sortBy: string | undefined) => void;
-    setTimeFrame: (timeFrame: string | undefined) => void;
+    objectType: ObjectType;
     onObjectSelect: (objectData: any) => void; // Passes all object data to the parent, so the known information can be displayed while more details are queried
     onScrolledFar?: () => void; // Called when scrolled far enough to prompt the user to create a new object
     where?: any; // Additional where clause to pass to the query

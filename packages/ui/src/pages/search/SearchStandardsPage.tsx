@@ -1,4 +1,4 @@
-import { StandardSortOptions, standardDefaultSortOption, StandardDialog } from "components";
+import { StandardDialog } from "components";
 import { standardsQuery } from "graphql/query";
 import { useCallback, useEffect, useState } from "react";
 import { Standard } from "types";
@@ -6,7 +6,7 @@ import { BaseSearchPage } from "./BaseSearchPage";
 import { SearchStandardsPageProps } from "./types";
 import { useLocation } from "wouter";
 import { APP_LINKS, ROLES } from "@local/shared";
-import { Pubs, stringifySearchParams } from "utils";
+import { ObjectType, Pubs, stringifySearchParams } from "utils";
 
 export const SearchStandardsPage = ({
     session
@@ -55,9 +55,8 @@ export const SearchStandardsPage = ({
                 itemKeyPrefix="standard-list-item"
                 title="Standards"
                 searchPlaceholder="Search..."
-                sortOptions={StandardSortOptions}
-                defaultSortOption={standardDefaultSortOption}
                 query={standardsQuery}
+                objectType={ObjectType.Standard}
                 onObjectSelect={handleSelected}
                 onAddClick={handleAddDialogOpen}
                 popupButtonText="Add"

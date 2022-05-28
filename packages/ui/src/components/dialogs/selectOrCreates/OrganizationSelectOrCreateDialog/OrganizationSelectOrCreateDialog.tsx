@@ -8,7 +8,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { BaseObjectDialog, HelpButton } from 'components';
+import { BaseObjectDialog, HelpButton, organizationSearchSchema } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { OrganizationSelectOrCreateDialogProps } from '../types';
 import {
@@ -16,11 +16,13 @@ import {
     Close as CloseIcon
 } from '@mui/icons-material';
 import { Organization } from 'types';
-import { organizationDefaultSortOption, OrganizationSortOptions, SearchList } from 'components/lists';
+import { SearchList } from 'components/lists';
 import { organizationQuery, organizationsQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { organization, organizationVariables } from 'graphql/generated/organization';
 import { OrganizationCreate } from 'components/views/OrganizationCreate/OrganizationCreate';
+import { ObjectType, parseSearchParams, stringifySearchParams } from 'utils';
+import { useLocation } from 'wouter';
 
 const helpText =
     `This dialog allows you to connect a new or existing organization to an object.
@@ -36,6 +38,31 @@ export const OrganizationSelectOrCreateDialog = ({
     session,
 }: OrganizationSelectOrCreateDialogProps) => {
     const { palette } = useTheme();
+    const [, setLocation] = useLocation();
+
+    /**
+     * Before closing, remove all URL search params for advanced search
+     */
+     const onClose = useCallback(() => {
+        // Find all search fields
+        const searchFields = [
+            ...organizationSearchSchema.fields.map(f => f.fieldName),
+            'advanced',
+            'sort',
+            'time',
+        ];
+        // Find current search params
+        const params = parseSearchParams(window.location.search);
+        // Remove all search params that are advanced search fields
+        Object.keys(params).forEach(key => {
+            if (searchFields.includes(key)) {
+                delete params[key];
+            }
+        });
+        // Update URL
+        setLocation(stringifySearchParams(params), { replace: true });
+        handleClose();
+    }, [handleClose, setLocation]);
 
     // Create new organization dialog
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -43,8 +70,8 @@ export const OrganizationSelectOrCreateDialog = ({
     const handleCreated = useCallback((organization: Organization) => {
         setIsCreateOpen(false);
         handleAdd(organization);
-        handleClose();
-    }, [handleAdd, handleClose]);
+        onClose();
+    }, [handleAdd, onClose]);
     const handleCreateClose = useCallback(() => {
         setIsCreateOpen(false);
     }, [setIsCreateOpen]);
@@ -55,17 +82,17 @@ export const OrganizationSelectOrCreateDialog = ({
         // Query for full organization data, if not already known (would be known if the same organization was selected last time)
         if (organizationData?.organization?.id === organization.id) {
             handleAdd(organizationData?.organization);
-            handleClose();
+            onClose();
         } else {
             getOrganization({ variables: { input: { id: organization.id } } });
         }
-    }, [getOrganization, organizationData, handleAdd, handleClose]);
+    }, [getOrganization, organizationData, handleAdd, onClose]);
     useEffect(() => {
         if (organizationData?.organization) {
             handleAdd(organizationData.organization);
-            handleClose();
+            onClose();
         }
-    }, [handleAdd, handleClose, handleCreateClose, organizationData]);
+    }, [handleAdd, onClose, handleCreateClose, organizationData]);
 
     /**
      * Title bar with help button and close icon
@@ -86,22 +113,18 @@ export const OrganizationSelectOrCreateDialog = ({
             <Box sx={{ marginLeft: 'auto' }}>
                 <IconButton
                     edge="start"
-                    onClick={(e) => { handleClose() }}
+                    onClick={(e) => { onClose() }}
                 >
                     <CloseIcon sx={{ fill: palette.primary.contrastText }} />
                 </IconButton>
             </Box>
         </Box>
-    ), [handleClose, palette.primary.contrastText, palette.primary.dark])
-
-    const [searchString, setSearchString] = useState<string>('');
-    const [sortBy, setSortBy] = useState<string | undefined>(undefined);
-    const [timeFrame, setTimeFrame] = useState<string | undefined>(undefined);
+    ), [onClose, palette.primary.contrastText, palette.primary.dark])
 
     return (
         <Dialog
             open={isOpen}
-            onClose={handleClose}
+            onClose={onClose}
             sx={{
                 '& .MuiDialogContent-root': { overflow: 'visible', background: '#cdd6df' },
                 '& .MuiDialog-paper': { overflow: 'visible' }
@@ -124,20 +147,13 @@ export const OrganizationSelectOrCreateDialog = ({
                 <Stack direction="column" spacing={4}>
                     <SearchList
                         itemKeyPrefix='organization-list-item'
-                        defaultSortOption={organizationDefaultSortOption}
                         noResultsText={"None found. Maybe you should create one?"}
                         onObjectSelect={(newValue) => handleOrganizationSelect(newValue)}
+                        objectType={ObjectType.Organization}
                         query={organizationsQuery}
                         searchPlaceholder={'Select existing organization...'}
-                        searchString={searchString}
-                        setSearchString={setSearchString}
                         session={session}
-                        setSortBy={setSortBy}
-                        setTimeFrame={setTimeFrame}
-                        sortBy={sortBy}
-                        sortOptions={OrganizationSortOptions}
                         take={20}
-                        timeFrame={timeFrame}
                         where={{ userId: session?.id,}}
                     />
                     <Button
