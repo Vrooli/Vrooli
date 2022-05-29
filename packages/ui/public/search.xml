@@ -1,10 +1,10 @@
-<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/" xmlns:moz="http://www.mozilla.org/2006/browser/search/">
-    <script/>
+<?xml version="1.0" encoding="utf-8"?>
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
     <ShortName>Vrooli</ShortName>
     <Description>Search Vrooli</Description>
     <InputEncoding>UTF-8</InputEncoding>
-    <Image width="16" height="16" type="image/x-icon">Favicon url</Image>
+    <LongName>Vrooli Search</LongName>
+    <Image width="16" height="16">data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAABtlBMVEUAAAB4meaggtGFk+DBb8CSpui9ccLHarx5neh5mubEbL53m+fNZbh2m+eggtF2m+eyd8fQZLd3m+fSZLaZpeV8mOTBbr+Yh9Wqf83QcL2Ymd+zdcbQZbeLkN22c8R/leLMZrh2m+eahtSmfs3RZLaPjNqwdseCkd+8ccKRitmvecnSZLbQZLaHjt2VidfBp97Epty5dMSou+6xtul8mOW9r+OViNedh9WggtHLaLq+ueiqsuh9oOi5sua0sOWkpOKBleKzpuCJkt+Ekd+Nj9zKp9u6m9mYjNjBmtfVodami9XYnNObhNPEk9KjgtG+i8+1h8+mfs7Xj8y9g8ytfMzLg8i7e8iyd8fPgMbHa7zPZbeju+6tt+qEpOm1tuh3mufDueakrOaKouajquWbp+W3r+Stq+SKnOOHmePCsOKrp+KMmuK5q+GqpeGYneHMr+C+q+Cbm9/Gqd24ot2mm92Hj92sndyblNyTkdy4n9uWkdvUp9nFoNnRo9iqk9jRn9bGm9a/ltWxkdXRmdOri9PTldChgNDPks/Gj8+5iM+qg8+1e8jEf8ewd8e0dMW9dcPCbr/Abb9KYXmqAAAAL3RSTlMA/hgGBv7+/O7k5KiokpJJSUkYGPz8/O/v7+3t7eTk4+OxsbGxqKinp5KSkpJJSRonJLgAAAECSURBVBjTHcjTgsMAFADRmya117aVpHFt2+3atm37jzfb8zYDIsyoUdXJ2voMGFRUjzSmczIydtugk1S6p5x+DJEZH3HHd4kHGy4LxdB5JrGNh6PsIArGFqH0+52/Cb7FOZe9aRQ0QunnI18I+uNXLvPSfD90FCP3LzEfga8eBRyW9XaQR54vv16JFM8cnHk9zlqQ564Tn0mc52xrjtkVGgGVjCxkU6cMs+l1W6SIEgbI9wviITxjPjlcMJmsajA0J/fwnY1F+5ZHahpX6AEbyvr3uYCNcjvpSasWBZB0P0XZ4ylqmUamO6tAJNHVs7vUxByi0Ir9Dx3rba2RKtV6VIw/+F44yXYeBr4AAAAASUVORK5CYII=</Image>
+    <Url type="text/html" method="get" template="https://app.vrooli.com/?search={searchTerms}"/>
     <Url type="application/x-suggestions+json" method="GET" template="http://suggestqueries.google.com/complete/search?output=firefox&amp;q={searchTerms}" />
-    <Url type="text/html" method="GET" template="https://app.vrooli.com/?search={searchTerms}" />
-    <SearchForm>http://app.vrooli.com/</SearchForm>
-  </OpenSearchDescription>
+</OpenSearchDescription>
