@@ -427,6 +427,7 @@ export const BuildView = ({
     }, [changedRoutine, handleClose, isEditing, routine, updateRoutine]);
 
     const updateRoutineTitle = useCallback((title: string) => {
+        console.log('UPDATE ROUTINE TITLE', title, changedRoutine?.translations)
         if (!changedRoutine) return;
         setChangedRoutine({
             ...changedRoutine, translations: [
