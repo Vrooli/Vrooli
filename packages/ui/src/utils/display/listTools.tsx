@@ -1,15 +1,8 @@
-import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListStar, ListUser, ListView, Session } from "types";
+import { AutocompleteOption, ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListStar, ListUser, ListView, Session } from "types";
 import { OrganizationListItem, ProjectListItem, RoutineListItem, RunListItem, StandardListItem, UserListItem } from 'components';
 import { getTranslation, getUserLanguages } from "./translationTools";
 import { ObjectListItemProps } from "components/lists/types";
 import { Theme } from "@mui/material";
-
-export interface AutocompleteListItem {
-    __typename: string;
-    id: string;
-    label: string | null;
-    stars?: number;
-}
 
 /**
  * Gets label for List, either from its 
@@ -95,7 +88,7 @@ export const getListItemLabel = (
 export function listToAutocomplete(
     objects: readonly (ListOrganization | ListProject | ListRoutine | ListStandard | ListUser)[],
     languages: readonly string[]
-): AutocompleteListItem[] {
+): AutocompleteOption[] {
     return objects.map(o => ({
         __typename: o.__typename,
         id: o.id,

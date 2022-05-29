@@ -97,6 +97,14 @@ export interface RoutineListStep extends BaseStep {
 }
 export type RoutineStep = DecisionStep | SubroutineStep | RoutineListStep
 
+export interface AutocompleteOption {
+    __typename: string;
+    id: string;
+    label: string | null;
+    stars?: number;
+    [key: string]: any;
+}
+
 // Enable Nami integration
 declare global {
     interface Window { cardano: any; }
