@@ -46,6 +46,13 @@ export function AutocompleteSearchBar<T>({
             options={options}
             inputValue={internalValue}
             getOptionLabel={(option: any) => getOptionLabel(option, languages)}
+            onSubmit={(event: any) => {
+                // This is triggered when the user presses enter
+                // We want to prevent the form from submitting, since this reloads the page 
+                // for some reason.
+                event.preventDefault();
+                event.stopPropagation();
+            }}
             renderOption={(_, option) => {
                 return (
                     <MenuItem

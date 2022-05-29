@@ -951,27 +951,6 @@ const combineSupplements = (data: { [x: string]: any }, objectsById: { [x: strin
     return _.merge(result, objectsById[data.id])
 }
 
-/**
- * Picks the ID field from a nested object
- * @param data Object to pick ID from
- * @returns Object with all fields except nested objects/arrays and ID removed
- */
-const pickId = (data: { [x: string]: any }): { [x: string]: any } => {
-    var result: { [x: string]: any } = {};
-    Object.keys(data).forEach((key) => {
-        if (key === 'id') {
-            result[key] = data[key];
-        } else if (_.isArray(data[key])) {
-            const idArray = data[key].map((v: any) => pickId(v));
-            if (idArray.length > 0) result[key] = idArray;
-        } else if (isRelationshipObject(data[key])) {
-            const idObject = pickId(data[key]);
-            if (Object.keys(idObject).length > 0) result[key] = idObject;
-        }
-    });
-    return result;
-}
-
 // TODO might not work if ID appears multiple times in data, where the first
 // result is not the one we want
 /**
@@ -984,30 +963,61 @@ const pickObjectById = (data: any, id: string): { [x: string]: any } | undefined
     // Stringify data, so we can perform search of ID
     const dataString = JSON.stringify(data);
     // Find the location in the string where the ID is
-    const searchString = `{"id":"${id}",`;
-    const startIndex = dataString.indexOf(searchString);
-    // If start bracket for ID is not found, return undefined
-    if (startIndex === -1) return undefined;
-    // Loop through string until we find the end of the object
-    let openBracketCounter = 1;
+    const searchString = `"id":"${id}",`;
+    const idIndex = dataString.indexOf(searchString);
+    // If ID not found, return undefined
+    if (idIndex === -1) return undefined;
+    // Loop backwards until we find the start of the object (i.e. first unmatched open bracket before ID)
+    let openBracketCounter = 0;
     let inQuotes = false;
-    let endIndex = -1;
-    let found = false;
-    for (let i = startIndex + 1; i < dataString.length && !found; i++) {
-        if (!inQuotes) {
-            if (dataString[i] === '{') openBracketCounter++;
-            else if (dataString[i] === '}') openBracketCounter--;
-            // If we found the closing bracket, we're done
-            if (openBracketCounter === 0) {
-                endIndex = i;
-                found = true;
+    let startIndex = idIndex - 1;
+    let lastChar = dataString[idIndex];
+    while (startIndex >= 0) {
+        const currChar = dataString[startIndex];
+        // If current and last char are "\", then the next character is escaped and should be ignored
+        if (currChar !== '\\' && lastChar !== '\\') {
+            // Don't count bracket if it appears in quotes (i.e. part of a string)
+            if (!inQuotes) {
+                if (dataString[startIndex] === '{') openBracketCounter++;
+                else if (dataString[startIndex] === '}') openBracketCounter--;
+                // If we found the closing bracket, we're done
+                if (openBracketCounter === 1) {
+                    break;
+                }
             }
-        }
-        else if (dataString[i] === '"') inQuotes = !inQuotes;
+            else if (dataString[startIndex] === '"') inQuotes = !inQuotes;
+        } else startIndex--;
+        lastChar = dataString[startIndex];
+        startIndex--;
     }
-    // If we didn't find the end of the object, return undefined
-    if (endIndex === -1) return undefined;
-    // Return the object
+    // If start is not found, return undefined
+    if (startIndex === -1) return undefined;
+    // Loop forwards through string until we find the end of the object
+    openBracketCounter = 1;
+    inQuotes = false;
+    let endIndex = idIndex + searchString.length;
+    lastChar = dataString[idIndex + searchString.length];
+    while (endIndex < dataString.length) {
+        const currChar = dataString[endIndex];
+        // If current and last char are "\", then the next character is escaped and should be ignored
+        if (currChar !== '\\' && lastChar !== '\\') {
+            // Don't count bracket if it appears in quotes (i.e. part of a string)
+            if (!inQuotes) {
+                if (dataString[endIndex] === '{') openBracketCounter++;
+                else if (dataString[endIndex] === '}') openBracketCounter--;
+                // If we found the closing bracket, we're done
+                if (openBracketCounter === 0) {
+                    break;
+                }
+            }
+            else if (dataString[endIndex] === '"') inQuotes = !inQuotes;
+        } else endIndex++;
+        lastChar = dataString[endIndex];
+        endIndex++;
+    }
+    // If end is not found, return undefined
+    if (endIndex === dataString.length) return undefined;
+    // Return object
     return JSON.parse(dataString.substring(startIndex, endIndex + 1));
 }
 

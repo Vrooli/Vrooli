@@ -34,10 +34,8 @@ export const parseSearchParams = (searchParams: string): ParseSearchParamsResult
                 }
             }
         });
-        console.log('Parsed search params:', parsed);
         return parsed;
     } catch (error) {
-        console.error('caught error in parseSearchParams', search, error);
         return {};
     }
 }
