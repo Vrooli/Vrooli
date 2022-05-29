@@ -1,5 +1,6 @@
 import { Grid, Stack, Theme } from '@mui/material';
 import { FieldData, GridContainer, GridContainerBase, GridItemSpacing } from 'forms/types';
+import { Session } from 'types';
 import { generateInputComponent } from '.';
 
 /**
@@ -10,7 +11,7 @@ import { generateInputComponent } from '.';
  * @returns Grid item component
  */
 export const generateGridItem = (component: React.ReactElement, sizes: GridItemSpacing | undefined, index: number): React.ReactElement => (
-    <Grid item key={`grid-${index}`} {...sizes}>
+    <Grid item key={`grid-${index}`} spacing={sizes as any}>
         {component}
     </Grid>
 );
@@ -36,23 +37,28 @@ export const calculateGridItemSize = (numItems: number): GridItemSpacing => {
     }
 }
 
+interface GenerateGridProps {
+    childContainers?: GridContainer[];
+    fields: FieldData[];
+    formik: any;
+    layout?: GridContainer | GridContainerBase;
+    onUpload: (fieldName: string, files: string[]) => void;
+    session: Session;
+    theme: Theme;
+}
 /**
  * Wraps a list of Grid items in a Grid container
  * @returns Grid component
- * @param layout Layout data of the grid
- * @param fields Fields inside the grid
- * @param formik Formik object
- * @param theme MUI theme object
- * @param onUpload Callback for uploading files
  */
-export const generateGrid = (
-    layout: GridContainer | GridContainerBase | undefined,
-    childContainers: GridContainer[] | undefined,
-    fields: FieldData[],
-    formik: any,
-    theme: Theme,
-    onUpload: (fieldName: string, files: string[]) => void,
-): JSX.Element => {
+export const generateGrid = ({
+    childContainers,
+    fields,
+    formik,
+    layout,
+    onUpload,
+    session,
+    theme,
+}: GenerateGridProps): JSX.Element => {
     // Split fields into which containers they belong to.
     // Represented by 2D array, where each sub-array represents a container.
     let splitFields: FieldData[][] = [];
@@ -88,6 +94,7 @@ export const generateGrid = (
                 formik,
                 index,
                 onUpload,
+                session,
             });
             return inputComponent ? generateGridItem(inputComponent, currLayout?.itemSpacing ?? calculateGridItemSize(currFields.length), index) : null;
         });
@@ -114,14 +121,12 @@ export const generateGrid = (
         )
     }
     return (
-        <form>
-            <Stack
-                direction={layout?.direction ?? 'row'}
-                key={`form-container`}
-                spacing={layout?.spacing}
-            >
-                {grids}
-            </Stack>
-        </form>
+        <Stack
+            direction={layout?.direction ?? 'row'}
+            key={`form-container`}
+            spacing={layout?.spacing}
+        >
+            {grids}
+        </Stack>
     )
 };

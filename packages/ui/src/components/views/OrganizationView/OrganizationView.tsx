@@ -13,7 +13,7 @@ import {
     Share as ShareIcon,
     Today as CalendarIcon,
 } from "@mui/icons-material";
-import { userDefaultSortOption, UserSortOptions, BaseObjectActionDialog, projectDefaultSortOption, ProjectSortOptions, routineDefaultSortOption, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardSortOptions, StarButton } from "components";
+import { BaseObjectActionDialog, SearchList, SelectLanguageDialog, StarButton } from "components";
 import { containerShadow } from "styles";
 import { OrganizationViewProps } from "../types";
 import { Organization, ResourceList } from "types";
@@ -129,74 +129,61 @@ export const OrganizationView = ({
     }, [setLocation, params?.id, id]);
 
     // Create search data
-    const { itemKeyPrefix, placeholder, sortOptions, defaultSortOption, searchQuery, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
+    const { objectType, itemKeyPrefix, placeholder, searchQuery, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
         const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         switch (currTabType) {
             case TabOptions.Members:
                 return {
+                    objectType: ObjectType.User,
                     itemKeyPrefix: 'member-list-item',
                     placeholder: "Search orgnization's members...",
                     noResultsText: "No members found",
-                    sortOptions: UserSortOptions,
-                    defaultSortOption: userDefaultSortOption,
                     searchQuery: usersQuery,
                     where: { organizationId: id },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Profile, newValue.id),
                 };
             case TabOptions.Projects:
                 return {
+                    objectType: ObjectType.Project,
                     itemKeyPrefix: 'project-list-item',
                     placeholder: "Search organization's projects...",
                     noResultsText: "No projects found",
-                    sortOptions: ProjectSortOptions,
-                    defaultSortOption: projectDefaultSortOption,
                     searchQuery: projectsQuery,
                     where: { organizationId: id },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Project, newValue.id),
                 };
             case TabOptions.Routines:
                 return {
+                    objectType: ObjectType.Routine,
                     itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search organization's routines...",
                     noResultsText: "No routines found",
-                    sortOptions: RoutineSortOptions,
-                    defaultSortOption: routineDefaultSortOption,
                     searchQuery: routinesQuery,
                     where: { organizationId: id },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 };
             case TabOptions.Standards:
                 return {
+                    objectType: ObjectType.Standard,
                     itemKeyPrefix: 'standard-list-item',
                     placeholder: "Search organization's standards...",
                     noResultsText: "No standards found",
-                    sortOptions: StandardSortOptions,
-                    defaultSortOption: standardDefaultSortOption,
                     searchQuery: standardsQuery,
                     where: { organizationId: id },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
                 }
             default:
                 return {
+                    objectType: ObjectType.User,
                     itemKeyPrefix: '',
                     placeholder: '',
                     noResultsText: '',
-                    sortOptions: [],
-                    defaultSortOption: { label: '', value: null },
                     searchQuery: null,
                     where: {},
                     onSearchSelect: (o: any) => { },
                 }
         }
     }, [currTabType, setLocation, id]);
-
-    // Handle url search
-    const [searchString, setSearchString] = useState<string>('');
-    const [sortBy, setSortBy] = useState<string | undefined>(undefined);
-    const [timeFrame, setTimeFrame] = useState<string | undefined>(undefined);
-    useEffect(() => {
-        setSortBy(defaultSortOption.value ?? sortOptions.length > 0 ? sortOptions[0].value : undefined);
-    }, [defaultSortOption, sortOptions]);
 
     // Determine options available to object, in order
     const moreOptions: BaseObjectAction[] = useMemo(() => {
@@ -455,22 +442,15 @@ export const OrganizationView = ({
                         currTabType === TabOptions.Resources ? resources : (
                             <SearchList
                                 canSearch={uuidValidate(id)}
-                                defaultSortOption={defaultSortOption}
                                 handleAdd={toAddNew}
                                 itemKeyPrefix={itemKeyPrefix}
                                 noResultsText={noResultsText}
+                                objectType={objectType}
                                 onObjectSelect={onSearchSelect}
                                 query={searchQuery}
                                 searchPlaceholder={placeholder}
-                                searchString={searchString}
                                 session={session}
-                                setSearchString={setSearchString}
-                                setSortBy={setSortBy}
-                                setTimeFrame={setTimeFrame}
-                                sortBy={sortBy}
-                                sortOptions={sortOptions}
                                 take={20}
-                                timeFrame={timeFrame}
                                 where={where}
                             />
                         )

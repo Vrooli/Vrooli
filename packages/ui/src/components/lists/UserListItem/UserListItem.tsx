@@ -1,12 +1,11 @@
-// Used to display popular/search results of a particular object type
 import { Box, ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { UserListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, StarFor, UserSortBy } from '@local/shared';
+import { APP_LINKS, StarFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton } from '..';
-import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, placeholderColor } from 'utils';
+import { getTranslation, listItemColor, placeholderColor } from 'utils';
 import { Person as PersonIcon } from '@mui/icons-material';
 import { TextLoading } from '../TextLoading/TextLoading';
 
@@ -101,6 +100,3 @@ export const UserListItem = ({
         </Tooltip>
     )
 }
-
-export const UserSortOptions: LabelledSortOption<UserSortBy>[] = labelledSortOptions(UserSortBy);
-export const userDefaultSortOption = UserSortOptions[1];

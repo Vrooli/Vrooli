@@ -7,6 +7,7 @@ import { organizationVerifier } from "./organization";
 import pkg from '@prisma/client';
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
+import _ from "lodash";
 const { MemberRole } = pkg;
 
 //==============================================================
@@ -27,8 +28,8 @@ export const commentFormatter = (): FormatConverter<Comment> => ({
         'votes': GraphQLModelType.Vote,
     },
     removeCalculatedFields: (partial) => {
-        let { isUpvoted, isStarred, ...rest } = partial;
-        return rest;
+        const calculatedFields = ['isStarred', 'isUpvoted'];
+        return _.omit(partial, calculatedFields);
     },
     constructUnions: (data) => {
         let { project, routine, standard, ...modified } = addCreatorField(data);

@@ -162,25 +162,33 @@ export const AdvancedSearchDialog = ({
             handleClose();
         },
     });
-    console.log('formik values', formik.values)
-    console.log('formik error', formik.errors);
     const grid = useMemo(() => {
         if (!schema) return null;
-        return generateGrid(schema.formLayout, schema.containers, schema.fields, formik, theme, () => { })
-    }, [schema, formik, theme])
+        return generateGrid({
+            childContainers: schema.containers,
+            fields: schema.fields,
+            formik,
+            layout: schema.formLayout,
+            onUpload: () => { },
+            session,
+            theme,
+        })
+    }, [schema, formik, session, theme])
 
     /**
      * Title bar with help button and close icon
      */
     const titleBar = useMemo(() => (
-        <Box sx={{
-            background: theme.palette.primary.dark,
-            color: theme.palette.primary.contrastText,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: 2,
-        }}>
+        <Box
+            sx={{
+                background: theme.palette.primary.dark,
+                color: theme.palette.primary.contrastText,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 2,
+            }}
+        >
             <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto', paddingLeft: 2, paddingRight: 2 }}>
                 {'Advanced Search'}
             </Typography>
@@ -197,21 +205,26 @@ export const AdvancedSearchDialog = ({
 
     return (
         <Dialog
+            id="advanced-search-dialog"
             open={isOpen}
             onClose={handleClose}
+            scroll="body"
             sx={{
-                '& .MuiDialogContent-root': { 
-                    overflow: 'visible', 
-                    background: theme.palette.mode === 'light' ? '#cdd6df' : '#182028', 
+                '& .MuiDialogContent-root': {
+                    background: theme.palette.mode === 'light' ? '#cdd6df' : '#182028',
+                    minWidth: 'min(400px, 100%)',
                 },
-                '& .MuiDialog-paper': { 
-                    overflow: 'visible',
-                }
+                '& .MuiPaper-root': {
+                    margin: { xs: 0, sm: 2, md: 4 },
+                    maxWidth: { xs: '100%!important', md: 'calc(100% - 64px)' },
+                },
             }}
         >
             {titleBar}
             <form onSubmit={formik.handleSubmit}>
-                <DialogContent>
+                <DialogContent sx={{
+                    padding: { xs: 1, sm: 2 },
+                }}>
                     {grid}
                 </DialogContent>
                 {/* Search/Cancel buttons */}
@@ -220,14 +233,14 @@ export const AdvancedSearchDialog = ({
                     maxWidth: 'min(700px, 100%)',
                     margin: 0,
                 }}>
-                    <Grid item xs={12} sm={6} p={1} sx={{ paddingTop: 0 }}>
+                    <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
                         <Button
                             fullWidth
                             startIcon={<SearchIcon />}
                             type="submit"
                         >Search</Button>
                     </Grid>
-                    <Grid item xs={12} sm={6} p={1} sx={{ paddingTop: 0 }}>
+                    <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
                         <Button
                             fullWidth
                             startIcon={<CancelIcon />}

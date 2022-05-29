@@ -1,12 +1,11 @@
-// Used to display popular/search results of a particular object type
 import { Box, ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { OrganizationListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, OrganizationSortBy, StarFor } from '@local/shared';
+import { APP_LINKS, StarFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, TagList, TextLoading } from '..';
-import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, placeholderColor } from 'utils';
+import { getTranslation, listItemColor, placeholderColor } from 'utils';
 import { Apartment as ApartmentIcon } from '@mui/icons-material';
 import { owns } from 'utils/authentication';
 
@@ -74,7 +73,15 @@ export function OrganizationListItem({
                             height: '80%',
                         }} />
                     </Box>
-                    <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
+                    <Stack
+                        direction="column"
+                        spacing={1}
+                        pl={2}
+                        sx={{
+                            width: '-webkit-fill-available',
+                            display: 'grid',
+                        }}
+                    >
                         {/* Name/Title */}
                         {loading ? <TextLoading /> : <ListItemText
                             primary={name}
@@ -103,6 +110,3 @@ export function OrganizationListItem({
         </Tooltip>
     )
 }
-
-export const OrganizationSortOptions: LabelledSortOption<OrganizationSortBy>[] = labelledSortOptions(OrganizationSortBy);
-export const organizationDefaultSortOption = OrganizationSortOptions[1];

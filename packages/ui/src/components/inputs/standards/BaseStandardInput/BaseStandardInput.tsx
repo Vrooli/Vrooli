@@ -5,31 +5,65 @@
 import { InputType } from '@local/shared';
 import { createDefaultFieldData } from 'forms/generators';
 import { FieldData } from 'forms/types';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { CheckboxStandardInput, DropzoneStandardInput, JsonStandardInput, MarkdownStandardInput, QuantityBoxStandardInput, RadioStandardInput, SwitchStandardInput, TextFieldStandardInput } from '../';
 import { BaseStandardInputProps, CheckboxStandardInputProps, DropzoneStandardInputProps, JsonStandardInputProps, MarkdownStandardInputProps, QuantityBoxStandardInputProps, RadioStandardInputProps, SwitchStandardInputProps, TextFieldStandardInputProps } from '../types';
 
 export const BaseStandardInput = ({
+    fieldName,
+    inputType,
     isEditing,
     schema,
     onChange,
+    storageKey,
 }: BaseStandardInputProps<FieldData>) => {
 
-    // Random key
-    const [key] = useState(`standard-create-schema-${Math.random().toString(36).substring(2, 15)}`);
-
-    // Change schema when input type changes
+    /**
+     * Store schema in local storage when updated
+     */
     useEffect(() => {
-        // Find schema is in local storage, or create a new one
-        const storedData = localStorage.getItem(key);
-        const newSchema = storedData ? JSON.parse(storedData) : createDefaultFieldData(schema?.type ?? InputType.JSON);
+        if (!schema) return;
+        const typeKey = `${storageKey}-${schema.type}`;
+        localStorage.setItem(typeKey, JSON.stringify(schema));
+    }, [schema, storageKey]);
+
+    /**
+     * Change schema when input type changes
+     */
+    useEffect(() => {
+        console.log('input type change', inputType)
+        let newSchema: FieldData | null = null;
+        const typeKey = `${storageKey}-${inputType}`;
+        // Find schema in  local storage
+        if (localStorage.getItem(storageKey)) {
+            try {
+                console.log('is in local storage', localStorage.getItem(typeKey))
+                const storedData = JSON.parse(localStorage.getItem(typeKey) ?? '{}');
+                console.log('stored data', storedData)
+                if (typeof storedData === 'object' && storedData.type === inputType) {
+                    newSchema = storedData as FieldData;
+                }
+            } catch (error) {
+                console.error('Failed to parse stored standard input from local storage', error);
+            }
+        }
+        // If no schema found in local storage, create default schema
+        if (!newSchema) {
+            newSchema = createDefaultFieldData({
+                fieldName,
+                type: inputType,
+                yup: { required: true, checks: [] },
+            });
+        }
         // Update state
-        localStorage.setItem(key, JSON.stringify(newSchema));
-        onChange(newSchema)
-    }, [key, onChange, schema?.type]);
+        console.log('setting local storage', newSchema)
+        localStorage.setItem(typeKey, JSON.stringify(newSchema));
+        onChange(newSchema as FieldData)
+    }, [onChange, inputType, storageKey, fieldName]);
 
     // Generate input component for type-specific fields
     const SchemaInput = useMemo(() => {
+        console.log('schema input switch', schema)
         if (!schema) return null;
         const props = { isEditing, schema, onChange }
         switch (schema.type) {

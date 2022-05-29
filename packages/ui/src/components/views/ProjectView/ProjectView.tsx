@@ -12,7 +12,7 @@ import {
     Share as ShareIcon,
     Today as CalendarIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, ResourceListVertical, routineDefaultSortOption, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardSortOptions, StarButton } from "components";
+import { BaseObjectActionDialog, ResourceListVertical, SearchList, SelectLanguageDialog, StarButton } from "components";
 import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
 import { Project, ResourceList } from "types";
@@ -147,39 +147,36 @@ export const ProjectView = ({
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
     // Create search data
-    const { itemKeyPrefix, placeholder, sortOptions, defaultSortOption, searchQuery, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
+    const { objectType, itemKeyPrefix, placeholder, searchQuery, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
         const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         // The first tab doesn't have search results, as it is the project's set resources
         switch (currTabType) {
             case TabOptions.Routines:
                 return {
+                    objectType: ObjectType.Routine,
                     itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search project's routines...",
                     noResultsText: "No routines found",
-                    sortOptions: RoutineSortOptions,
-                    defaultSortOption: routineDefaultSortOption,
                     searchQuery: routinesQuery,
                     where: { projectId: id },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 };
             case TabOptions.Standards:
                 return {
+                    objectType: ObjectType.Standard,
                     itemKeyPrefix: 'standard-list-item',
                     placeholder: "Search project's standards...",
                     noResultsText: "No standards found",
-                    sortOptions: StandardSortOptions,
-                    defaultSortOption: standardDefaultSortOption,
                     searchQuery: standardsQuery,
                     where: { projectId: id },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
                 }
             default:
                 return {
+                    objectType: ObjectType.Routine,
                     itemKeyPrefix: '',
                     placeholder: '',
                     noResultsText: '',
-                    sortOptions: [],
-                    defaultSortOption: { label: '', value: null },
                     searchQuery: null,
                     where: {},
                     onSearchSelect: (o: any) => { },
@@ -187,14 +184,6 @@ export const ProjectView = ({
                 }
         }
     }, [currTabType, id, setLocation]);
-
-    // Handle url search
-    const [searchString, setSearchString] = useState<string>('');
-    const [sortBy, setSortBy] = useState<string | undefined>(undefined);
-    const [timeFrame, setTimeFrame] = useState<string | undefined>(undefined);
-    useEffect(() => {
-        setSortBy(defaultSortOption.value ?? sortOptions.length > 0 ? sortOptions[0].value : undefined);
-    }, [defaultSortOption, sortOptions]);
 
     /**
      * Displays name, avatar, bio, and quick links
@@ -400,22 +389,15 @@ export const ProjectView = ({
                         currTabType === TabOptions.Resources ? resources : (
                             <SearchList
                                 canSearch={uuidValidate(id)}
-                                defaultSortOption={defaultSortOption}
                                 handleAdd={toAddNew}
                                 itemKeyPrefix={itemKeyPrefix}
                                 noResultsText={noResultsText}
+                                objectType={objectType}
                                 onObjectSelect={onSearchSelect}
                                 query={searchQuery}
                                 searchPlaceholder={placeholder}
-                                searchString={searchString}
                                 session={session}
-                                setSearchString={setSearchString}
-                                setSortBy={setSortBy}
-                                setTimeFrame={setTimeFrame}
-                                sortBy={sortBy}
-                                sortOptions={sortOptions}
                                 take={20}
-                                timeFrame={timeFrame}
                                 where={where}
                             />
                         )

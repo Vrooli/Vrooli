@@ -60,8 +60,11 @@ export const SignUpForm = ({
                 onError: (response) => {
                     if (hasErrorCode(response, CODE.EmailInUse)) {
                         PubSub.publish(Pubs.AlertDialog, {
-                            message: `${errorToMessage(response)}. Press OK if you would like to be redirected to the forgot password form.`,
-                            buttons: [{ text: 'OK', onClick: () => onFormChange(Forms.ForgotPassword) }]
+                            message: `${errorToMessage(response)}. Did you forget your password?`,
+                            buttons: [
+                                { text: 'Yes', onClick: () => onFormChange(Forms.ForgotPassword) },
+                                { text: 'No' }
+                            ]
                         });
                     }
                     formik.setSubmitting(false);

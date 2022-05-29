@@ -1,6 +1,7 @@
 {
     "name": "Vrooli - Productivity, Decentralized",
     "short_name": "Vrooli",
+    "omnibox": { "keyword" : "vrooli" },
     "categories": [
         "automation",
         "productivity"

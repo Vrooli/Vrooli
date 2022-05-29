@@ -17,6 +17,7 @@ export const listOrganizationFields = gql`
         id
         handle
         stars
+        isOpenToNewMembers
         isStarred
         role
         tags {

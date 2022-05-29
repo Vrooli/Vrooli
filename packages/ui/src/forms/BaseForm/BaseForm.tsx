@@ -11,6 +11,7 @@ import { useTheme } from '@mui/material';
  */
 export const BaseForm = ({
     schema,
+    session,
     onSubmit,
 }: BaseFormProps) => {
     const theme = useTheme();
@@ -58,8 +59,16 @@ export const BaseForm = ({
     console.log('formik error', formik.errors);
     const grid = useMemo(() => {
         if (!schema) return null;
-        return generateGrid(schema.formLayout, schema.containers, schema.fields, formik, theme, onUpload)
-    }, [schema, formik, theme, onUpload])
+        return generateGrid({
+            childContainers: schema.containers,
+            fields: schema.fields,
+            formik,
+            layout: schema.formLayout,
+            onUpload: () => {},
+            session,
+            theme,
+        })
+    }, [schema, formik, session, theme])
 
     return (
         <form onSubmit={formik.handleSubmit}>

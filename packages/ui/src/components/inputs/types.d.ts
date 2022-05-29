@@ -175,6 +175,7 @@ export interface JsonInputProps {
 }
 
 export interface LanguageInputProps {
+    disabled?: boolean;
     /**
      * Currently-selected language, if using this component to add/edit an object
      * with translations. Not needed if using this component to select languages 
@@ -225,6 +226,7 @@ export interface PasswordTextFieldProps extends TextFieldProps {
 
 export interface QuantityBoxProps extends BoxProps {
     autoFocus?: boolean;
+    disabled?: boolean;
     error?: boolean;
     handleChange: (newValue: number) => any;
     helperText?: string | null | undefined;
@@ -277,12 +279,13 @@ export type TagSelectorTag = Partial<Tag> & {
 }
 
 export interface TagSelectorProps {
-    session: Session;
-    tags: TagSelectorTag[];
-    placeholder?: string;
+    disabled?: boolean;
     onTagAdd: (tag: TagSelectorTag) => any;
     onTagRemove: (tag: TagSelectorTag) => any;
     onTagsClear: () => any;
+    placeholder?: string;
+    session: Session;
+    tags: TagSelectorTag[];
 }
 
 export interface ThemeSwitchProps {

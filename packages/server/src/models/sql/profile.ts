@@ -15,6 +15,7 @@ import { WalletModel } from "./wallet";
 import { genErrorCode } from "../../logger";
 import { ResourceListModel } from "./resourceList";
 import { TagHiddenModel } from "./tagHidden";
+import _ from "lodash";
 const { AccountStatus } = pkg;
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
@@ -59,8 +60,8 @@ export const profileFormatter = (): FormatConverter<User> => ({
         'votes': GraphQLModelType.Vote,
     },
     removeCalculatedFields: (partial) => {
-        let { starredTags, hiddenTags, ...rest } = partial;
-        return rest;
+        const calculatedFields = ['starredTags', 'hiddenTags'];
+        return _.omit(partial, calculatedFields);
     },
     addJoinTables: (partial) => {
         return addJoinTablesHelper(partial, joinMapper);

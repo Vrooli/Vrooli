@@ -1,4 +1,4 @@
-import { CommonProps } from "types";
+import { CommonProps, Session } from "types";
 import { Forms } from "utils";
 import { DropzoneProps as DP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, QuantityBoxProps as QP, SelectorProps as SP, TagSelectorProps as TP, TagSelectorTag } from 'components/inputs/types';
 import { InputType } from "@local/shared";
@@ -8,6 +8,7 @@ import { InputType } from "@local/shared";
 //==============================================================
 export interface BaseFormProps {
     schema: FormSchema;
+    session: Session
     onSubmit: (values: any) => any;
 }
 
@@ -59,7 +60,7 @@ export interface DropzoneProps extends Omit<DP, 'onUpload'> {
 /**
  * Props for rendering a JSON input component
  */
-export interface JSONProps extends Omit<JP, 'onChange' | 'value'> {
+export interface JSONProps extends Omit<JP, 'id' | 'onChange' | 'value'> {
     defaultValue?: string;
 }
 
@@ -73,7 +74,7 @@ export interface LanguageInputProps extends Omit<LP, 'handleAdd' | 'handleChange
 /**
  * Props for rendering a Markdown input component
  */
-export interface MarkdownProps extends Omit<MP, 'onChange' | 'value'> {
+export interface MarkdownProps extends Omit<MP, 'id' | 'onChange' | 'value'> {
     defaultValue?: string;
 }
 
@@ -82,13 +83,13 @@ export interface MarkdownProps extends Omit<MP, 'onChange' | 'value'> {
  */
 export interface RadioProps {
     /**
-     * The initial value of the radio button. Must be one of the options in the `options` prop.
+     * The initial value of the radio button. Must be one of the values in the `options` prop.
      */
-    defaultValue?: any;
+    defaultValue?: string;
     /**
      * Radio button options.
      */
-    options: { label: string; value: any }[];
+    options: { label: string; value: string; }[];
     /**
      * If true, displays options in a row.
      */

@@ -12,6 +12,7 @@ import { AllLanguages, getUserLanguages } from 'utils';
 
 export const LanguageInput = ({
     currentLanguage,
+    disabled,
     handleAdd,
     handleChange,
     handleDelete,

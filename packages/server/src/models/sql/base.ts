@@ -90,9 +90,9 @@ export interface PartialInfo {
     __typename?: GraphQLModelType;
 }
 
-export type RelationshipMap = { 
+export type RelationshipMap = {
     __typename: GraphQLModelType;
-    [relationshipName: string]: GraphQLModelType | { [fieldName: string]: GraphQLModelType } 
+    [relationshipName: string]: GraphQLModelType | { [fieldName: string]: GraphQLModelType }
 };
 
 /**
@@ -792,34 +792,58 @@ export const deconstructUnion = (partial: any, unionField: string, relationshipT
 }
 
 /**
- * Counts the "similarity" of two objects. The more fields that match, the higher the score.
- * @returns Total number of matching fields, or 0
+ * Determines if a queried object matches the shape of a GraphQL request object
+ * @param obj - queried object
+ * @param query - GraphQL request object
+ * @returns True if obj matches query
  */
-const countSubset = (obj1: any, obj2: any): number => {
-    let count = 0;
-    if (obj1 === null || typeof obj1 !== 'object' || obj2 === null || typeof obj2 !== 'object') return count;
-    for (const key of Object.keys(obj1)) {
-        // If union, add greatest count
-        if (key[0] === key[0].toUpperCase()) {
-            let highestCount = 0;
-            for (const unionType of Object.keys(obj2)) {
-                const currCount = countSubset(obj1[key], unionType);
-                if (currCount > highestCount) highestCount = currCount;
-            }
-            count += highestCount;
-        }
-        if (Array.isArray((obj1)[key])) {
-            // Only add count for one object in array
-            if (obj1[key].length > 0) {
-                count += countSubset(obj1[key][0], obj2[key]);
-            }
-        }
-        else if (typeof (obj1)[key] === 'object') {
-            count += countSubset(obj1[key], obj2[key]);
-        }
-        else count++
+const subsetsMatch = (obj: any, query: any): boolean => {
+    // Check that both params are valid objects
+    if (obj === null || typeof obj !== 'object' || query === null || typeof query !== 'object') return false;
+    // Check if query type is in FormatterMap. 
+    // This should hopefully always be the case for the main subsetsMatch call, 
+    // but not necessarily for the recursive calls.
+    let formattedQuery = query;
+    if (query.__typename in FormatterMap) {
+        // Remove calculated fields from query, since these will not be in obj
+        const formatter = FormatterMap[query.__typename as keyof typeof FormatterMap];
+        formattedQuery = formatter?.removeCalculatedFields ? formatter.removeCalculatedFields(query) : query;
     }
-    return count;
+    // First, check if obj is a join table. If this is the case, what we want to check 
+    // is actually one layer down
+    let formttedObj = obj;
+    if (Object.keys(obj).length === 1 && isRelationshipObject(obj[Object.keys(obj)[0]])) {
+        formttedObj = obj[Object.keys(obj)[0]];
+    }
+    // If query contains any fields which are not in obj, return false
+    for (const key of Object.keys(formattedQuery)) {
+        // Ignore __typename
+        if (key === '__typename') continue;
+        // If key is not in object, return false
+        if (!formttedObj.hasOwnProperty(key)) {
+            return false;
+        }
+        // If union, check if any of the union types match formttedObj[key]
+        else if (key[0] === key[0].toUpperCase()) {
+            const unionTypes = Object.keys(formattedQuery[key]);
+            const unionSubsetsMatch = unionTypes.some(unionType => subsetsMatch(formttedObj[key], formattedQuery[key][unionType]));
+            if (!unionSubsetsMatch) return false;
+        }
+        // If formttedObj[key] is array, compare to first element of query[key]
+        else if (Array.isArray(formttedObj[key])) {
+            // Can't check if array is empty
+            if (formttedObj[key].length === 0) continue;
+            const firstElem = formttedObj[key][0];
+            const matches = subsetsMatch(firstElem, formattedQuery[key]);
+            if (!matches) return false;
+        }
+        // If formttedObj[key] is formttedObject, recurse
+        else if (isRelationshipObject((formttedObj)[key])) {
+            const matches = subsetsMatch(formttedObj[key], formattedQuery[key]);
+            if (!matches) return false;
+        }
+    }
+    return true;
 }
 
 /**
@@ -840,20 +864,15 @@ const groupIdsByType = (data: { [x: string]: any }, partial: PartialInfo): [{ [x
             // If every key in childPartial starts with a capital letter, then it is a union.
             // In this case, we must determine which union to use based on the shape of value
             if (_.isObject(childPartial) && Object.keys(childPartial).every(k => k[0] === k[0].toUpperCase())) {
-                // Find the union type which matches the shape of value, using countSubset
-                let highestCount = 0;
-                let highestType: string = '';
+                // Find the union type which matches the shape of value
+                let matchingType: string | undefined;
                 for (const unionType of Object.keys(childPartial)) {
-                    const currCount = countSubset(value, childPartial[unionType]);
-                    if (currCount > highestCount) {
-                        highestCount = currCount;
-                        highestType = unionType;
-                    }
+                    if (subsetsMatch(value, childPartial[unionType])) matchingType = unionType;
                 }
                 // If no union type matches, skip
-                if (!highestType) continue;
+                if (!matchingType) continue;
                 // If union type, update child partial
-                childPartial = childPartial[highestType] as PartialInfo;
+                childPartial = childPartial[matchingType] as PartialInfo;
             }
         // If value is an array, add each element to the correct key in objectDict
         if (Array.isArray(value)) {
@@ -933,35 +952,9 @@ const combineSupplements = (data: { [x: string]: any }, objectsById: { [x: strin
 }
 
 /**
- * Recursively checks object for a child object with the given ID
- * @param data Object to check
- * @param id ID to check for
- * @returns Object with ID if found, otherwise undefined
- */
-const findObjectById = (data: { [x: string]: any }, id: string): any => {
-    // If data is an array, check each element
-    if (Array.isArray(data)) {
-        return data.map((v: any) => findObjectById(v, id));
-    }
-    // If data is an object, check for ID and return if found
-    else if (_.isObject(data)) {
-        if ((data as any).id === id) return data;
-        // If data has children, check them
-        else if (Object.keys(data).length > 0) {
-            for (const [key, value] of Object.entries(data)) {
-                const result = findObjectById(value, id);
-                if (result) return result;
-            }
-        }
-    }
-    // Otherwise, return undefined
-    return undefined;
-}
-
-/**
  * Picks the ID field from a nested object
  * @param data Object to pick ID from
- * @returns Object with all fields except nexted objects/arrays and ID removed
+ * @returns Object with all fields except nested objects/arrays and ID removed
  */
 const pickId = (data: { [x: string]: any }): { [x: string]: any } => {
     var result: { [x: string]: any } = {};
@@ -979,31 +972,43 @@ const pickId = (data: { [x: string]: any }): { [x: string]: any } => {
     return result;
 }
 
+// TODO might not work if ID appears multiple times in data, where the first
+// result is not the one we want
 /**
  * Picks an object from a nested object, using the given ID
  * @param data Object array to pick from
  * @param id ID to pick
  * @returns Requested object with all its fields and children included
  */
-const pickObjectById = (data: any, id: string): any => {
-    // If data is an array, check each element
-    if (_.isArray(data)) {
-        for (const value of data) {
-            const result = pickObjectById(value, id);
-            if (result) return result;
+const pickObjectById = (data: any, id: string): { [x: string]: any } | undefined => {
+    // Stringify data, so we can perform search of ID
+    const dataString = JSON.stringify(data);
+    // Find the location in the string where the ID is
+    const searchString = `{"id":"${id}",`;
+    const startIndex = dataString.indexOf(searchString);
+    // If start bracket for ID is not found, return undefined
+    if (startIndex === -1) return undefined;
+    // Loop through string until we find the end of the object
+    let openBracketCounter = 1;
+    let inQuotes = false;
+    let endIndex = -1;
+    let found = false;
+    for (let i = startIndex + 1; i < dataString.length && !found; i++) {
+        if (!inQuotes) {
+            if (dataString[i] === '{') openBracketCounter++;
+            else if (dataString[i] === '}') openBracketCounter--;
+            // If we found the closing bracket, we're done
+            if (openBracketCounter === 0) {
+                endIndex = i;
+                found = true;
+            }
         }
+        else if (dataString[i] === '"') inQuotes = !inQuotes;
     }
-    // If data is an object (and not a date), check for ID and return if found
-    else if (isRelationshipObject(data)) {
-        if ((data as any).id === id) return data; // Base case
-        // If ID doesn't match, check children
-        for (const value of Object.values(data)) {
-            const result = pickObjectById(value, id);
-            if (result) return result
-        }
-    }
-    // Otherwise, return undefined
-    return undefined;
+    // If we didn't find the end of the object, return undefined
+    if (endIndex === -1) return undefined;
+    // Return the object
+    return JSON.parse(dataString.substring(startIndex, endIndex + 1));
 }
 
 /**
@@ -1153,17 +1158,14 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
     // Remove top-level union from partial, if necessary
     // If every key starts with a capital letter, it's a union
     if (Object.keys(partial).every(k => k[0] === k[0].toUpperCase())) {
-        // Find the union type which matches the shape of value, using countSubset
-        let highestCount = 0;
-        let highestType: string = '';
+        // Find the union type which matches the shape of value
+        let matchingType: string | undefined;
         for (const unionType of Object.keys(partial)) {
-            const currCount = countSubset(data, partial[unionType]);
-            if (currCount > highestCount) {
-                highestCount = currCount;
-                highestType = unionType;
-            }
+            if (subsetsMatch(data, partial[unionType])) matchingType = unionType;
         }
-        if (highestType) partial = partial[highestType] as PartialInfo;
+        if (matchingType) {
+            partial = partial[matchingType] as PartialInfo;
+        }
     }
     // Then loop through each key/value pair in data and call modelToGraphQL on each array item/object
     for (const [key, value] of Object.entries(data)) {
@@ -1210,7 +1212,7 @@ export async function readOneHelper<GraphQLModel>(
     }
     // Get the Prisma object
     const prismaObject = (PrismaMap[objectType as keyof typeof PrismaMap] as any)(model.prisma);
-    let object = input.id ? 
+    let object = input.id ?
         await prismaObject.findUnique({ where: { id: input.id }, ...selectHelper(partial) }) :
         await prismaObject.findFirst({ where: { handle: input.handle }, ...selectHelper(partial) });
     if (!object)

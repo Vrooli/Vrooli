@@ -1,3 +1,6 @@
+/**
+ * Search list for a single object type
+ */
 import { useLazyQuery } from "@apollo/client";
 import { Box, Button, CircularProgress, List, Tooltip, Typography, useTheme } from "@mui/material";
 import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
@@ -10,8 +13,13 @@ import {
     Sort as SortListIcon,
 } from '@mui/icons-material';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
-import { AutocompleteListItem, getUserLanguages, listToAutocomplete, listToListItems, parseSearchParams, stringifySearchParams, useReactSearch } from "utils";
+import { AutocompleteListItem, getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, objectToSearchInfo, parseSearchParams, SortValueToLabelMap, stringifySearchParams, useReactSearch } from "utils";
 import { useLocation } from "wouter";
+
+type TimeFrame = {
+    after?: Date;
+    before?: Date;
+}
 
 const searchButtonStyle = {
     ...clickSize,
@@ -29,52 +37,94 @@ const searchButtonStyle = {
 
 export function SearchList<DataType, SortBy, Query, QueryVariables extends SearchQueryVariablesInput<SortBy>>({
     canSearch = true,
-    defaultSortOption,
     handleAdd,
     itemKeyPrefix,
     noResultsText = 'No results',
     searchPlaceholder = 'Search...',
-    setSearchString,
-    sortOptions,
     query,
     take = 20,
-    searchString,
-    sortBy,
-    timeFrame,
-    setSortBy,
-    setTimeFrame,
+    objectType,
     onObjectSelect,
     onScrolledFar,
     where,
     session,
-}: SearchListProps<SortBy>) {
+}: SearchListProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+
+    const { advancedSearchSchema, defaultSortBy, sortByOptions } = useMemo(() => objectToSearchInfo[objectType], [objectType]);
+
+    const [sortBy, setSortBy] = useState<string>(defaultSortBy);
+    const [searchString, setSearchString] = useState<string>('');
+    const [timeFrame, setTimeFrame] = useState<TimeFrame | undefined>(undefined);
+    // Handle URL params
+    const searchParams = useReactSearch(null);
+    useEffect(() => {
+        console.log('search params', searchParams);
+        if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
+        if (typeof searchParams.sort === 'string') setSortBy(searchParams.sort);
+        if (typeof searchParams.time === 'object' &&
+            !Array.isArray(searchParams.time) &&
+            searchParams.time.hasOwnProperty('after') &&
+            searchParams.time.hasOwnProperty('before')) {
+            console.log('SET FRAME 1. GOT SEARCH PARAMS.TIME BOIIIII', searchParams.time);
+            setTimeFrame({
+                after: new Date((searchParams.time as any).after),
+                before: new Date((searchParams.time as any).before),
+            });
+        }
+    }, [searchParams]);
+
     const [sortAnchorEl, setSortAnchorEl] = useState(null);
     const [timeAnchorEl, setTimeAnchorEl] = useState(null);
     const [timeFrameLabel, setTimeFrameLabel] = useState<string>('Time');
     const after = useRef<string | undefined>(undefined);
-    const createdTimeFrame = useMemo(() => {
-        let result: { [x: string]: Date } = {}
-        const split = timeFrame?.split(',');
-        if (split?.length !== 2) return result;
-        const after = new Date(split[0]);
-        const before = new Date(split[1]);
-        if (Boolean(after.getMonth())) result.after = after;
-        if (Boolean(before.getMonth())) result.before = before;
-        return result;
-    }, [timeFrame]);
+
+    /**
+     * When sort and filter options change, update the URL
+     */
+    useEffect(() => {
+        console.log('basesearch useeffect start', window.location.search, searchString, sortBy, timeFrame)
+        const params = parseSearchParams(window.location.search);
+        if (searchString) params.search = searchString;
+        else delete params.search;
+        if (sortBy) params.sort = sortBy;
+        else delete params.sort;
+        if (timeFrame) {
+            params.time = {
+                after: timeFrame.after?.toISOString() ?? '',
+                before: timeFrame.before?.toISOString() ?? '',
+            }
+        }
+        else delete params.time;
+        console.log('basesearch setting location', params, stringifySearchParams(params))
+        setLocation(stringifySearchParams(params), { replace: true });
+    }, [searchString, sortBy, timeFrame, setLocation]);
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object>({});
-    const [getPageData, { data: pageData, loading }] = useLazyQuery<Query, QueryVariables>(query, { variables: ({ input: { after: after.current, take, sortBy, searchString, createdTimeFrame, ...where, ...advancedSearchParams } } as any) });
+    const [getPageData, { data: pageData, loading }] = useLazyQuery<Query, QueryVariables>(query, { 
+        variables: ({ 
+            input: { 
+                after: after.current, 
+                take, 
+                sortBy, 
+                searchString, 
+                createdTimeFrame: (timeFrame && Object.keys(timeFrame).length > 0) ? {
+                    after: timeFrame.after?.toISOString(),
+                    before: timeFrame.before?.toISOString(),
+                } : undefined, 
+                ...where, 
+                ...advancedSearchParams 
+            } 
+        } as any) });
     const [allData, setAllData] = useState<DataType[]>([]);
 
     // On search filters/sort change, reset the page
     useEffect(() => {
-        console.log('FETCHIN NEW PAGE DAWG');
+        console.log('on useeffect search', timeFrame)
         after.current = undefined;
         if (canSearch) getPageData();
-    }, [advancedSearchParams, canSearch, searchString, sortBy, createdTimeFrame, where, getPageData]);
+    }, [advancedSearchParams, canSearch, searchString, sortBy, timeFrame, where, getPageData]);
 
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
@@ -90,7 +140,9 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         }
     }, [getPageData, pageData]);
 
-    // Helper method for converting fetched data to an array of object data
+    /**
+     * Helper method for converting fetched data to an array of object data
+     */
     const parseData = useCallback((data: any) => {
         if (!data) return [];
         const queryData: any = Object.values(data)[0];
@@ -98,13 +150,18 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         return queryData.edges.map((edge, index) => edge.node);
     }, []);
 
-    const searchParams = useReactSearch();
+    // Handle advanced search
     useEffect(() => {
+        // Open advanced search dialog, if needed
         if (typeof searchParams.advanced === 'boolean') setAdvancedSearchDialogOpen(searchParams.advanced);
-        // Any search params that aren't advanced, search, sort, or time are set to the advanced search params
-        const { advanced, search, sort, time, ...advancedData } = searchParams;
-        setAdvancedSearchParams(advancedData);
-    }, [searchParams]);
+        // Any search params that aren't advanced, search, sort, or time MIGHT be advanced search params
+        const { advanced, search, sort, time, ...otherParams } = searchParams;
+        // Find valid advanced search params
+        const allAdvancedSearchParams = advancedSearchSchema.fields.map(f => f.fieldName);
+        // fields in both otherParams and allAdvancedSearchParams should be the new advanced search params
+        const advancedData = Object.keys(otherParams).filter(k => allAdvancedSearchParams.includes(k));
+        setAdvancedSearchParams(advancedData.reduce((acc, k) => ({ ...acc, [k]: otherParams[k] }), {}));
+    }, [advancedSearchSchema.fields, searchParams]);
 
     // Handle advanced search dialog
     const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(false);
@@ -118,9 +175,9 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         // Remove undefined and 0 values
         const valuesWithoutBlanks = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== undefined && v !== 0));
         // Add advanced search params to url search params
-        setLocation(stringifySearchParams({ 
+        setLocation(stringifySearchParams({
             ...searchParams,
-            ...valuesWithoutBlanks 
+            ...valuesWithoutBlanks
         }));
         setAdvancedSearchParams(valuesWithoutBlanks);
     }, [searchParams, setLocation]);
@@ -184,22 +241,25 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     };
 
     const handleTimeOpen = (event) => setTimeAnchorEl(event.currentTarget);
-    const handleTimeClose = (label?: string, after?: Date | null, before?: Date | null) => {
+    const handleTimeClose = (label?: string, frame?: { after?: Date | undefined, before?: Date | undefined }) => {
         setTimeAnchorEl(null);
-        if (!after && !before) setTimeFrame(undefined);
-        else setTimeFrame(`${after?.getTime()},${before?.getTime()}`);
+        console.log('SET FRAME 2. HANDLE TIME CLOSEEEEEE', frame)
+        setTimeFrame(frame);
         if (label) setTimeFrameLabel(label);
     };
 
     /**
+     * Wrap sortByOptions with labels
+     */
+    const sortOptionsLabelled = useMemo(() => labelledSortOptions(sortByOptions), [sortByOptions]);
+
+    /**
      * Find sort by label when sortBy changes
      */
-    const sortByLabel = useMemo(() => { 
-        // Find sort option with value equal to sortBy
-        const sortOption = sortOptions?.find(option => option.value === sortBy);
-        if (!sortOption) return '';
-        return sortOption.label;
-    }, [sortBy, sortOptions]);
+    const sortByLabel = useMemo(() => {
+        if (sortBy && sortBy in SortValueToLabelMap) return SortValueToLabelMap[sortBy];
+        return '';
+    }, [sortBy]);
 
     /**
      * When an autocomplete item is selected, navigate to object
@@ -268,7 +328,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
             />
             {/* Menu for selecting "sort by" type */}
             <SortMenu
-                sortOptions={sortOptions}
+                sortOptions={sortOptionsLabelled}
                 anchorEl={sortAnchorEl}
                 onClose={handleSortClose}
             />

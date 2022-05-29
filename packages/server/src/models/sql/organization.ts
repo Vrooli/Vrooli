@@ -11,6 +11,7 @@ import { ResourceListModel } from "./resourceList";
 import { WalletModel } from "./wallet";
 import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
+import _ from "lodash";
 
 //==============================================================
 /* #region Custom Components */
@@ -33,8 +34,8 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         'tags': GraphQLModelType.Tag,
     },
     removeCalculatedFields: (partial) => {
-        let { isStarred, role, ...rest } = partial;
-        return rest;
+        const calculatedFields = ['isStarred', 'role'];
+        return _.omit(partial, calculatedFields);
     },
     addJoinTables: (partial) => {
         return addJoinTablesHelper(partial, joinMapper);
@@ -48,6 +49,7 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         objects: RecursivePartial<any>[],
         partial: PartialInfo,
     ): Promise<RecursivePartial<Organization>[]> {
+        console.log('ORGANICATION ADDSUPP FIELDS start', JSON.stringify(objects), '\n\n');
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred

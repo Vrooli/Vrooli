@@ -21,7 +21,7 @@ export function ListTitleContainer({
                         textAlign: 'center',
                         paddingTop: '8px',
                     }}>{emptyText}</Typography> :
-                    <List>
+                    <List sx={{ overflow: 'hidden' }}>
                         {children}
                     </List>
             }

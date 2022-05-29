@@ -1,19 +1,19 @@
 import { DocumentNode } from "graphql";
 import { MouseEvent } from "react";
 import { Session } from "types";
+import { ObjectType } from "utils";
 
 export interface SearchQueryVariables {
     input: UserSearchInput;
 }
 
-export interface BaseSearchPageProps<DataType, SortBy> {
+export interface BaseSearchPageProps {
     itemKeyPrefix: string;
     title?: string | null;
     searchPlaceholder?: string;
-    sortOptions: SearchSortBy<SortBy>[];
-    defaultSortOption: SearchSortBy<SortBy>;
     query: DocumentNode;
     take?: number; // Number of items to fetch per page
+    objectType: ObjectType;
     onObjectSelect: (objectData: any) => void; // Passes all object data to the parent, so the known information can be displayed while more details are queried
     showAddButton?: boolean; // Displays add button next to title
     onAddClick?: (ev: MouseEvent<any>) => void; // Callback when add button is clicked

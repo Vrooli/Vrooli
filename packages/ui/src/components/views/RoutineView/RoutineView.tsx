@@ -390,6 +390,9 @@ export const RoutineView = ({
                 open={isBuildOpen}
                 onClose={stopBuild}
                 TransitionComponent={UpTransition}
+                sx={{
+                    zIndex: 101,
+                }}
             >
                 <BuildView
                     handleClose={stopBuild}

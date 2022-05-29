@@ -48,8 +48,6 @@ export const StandardViewPage = ({
         }}>
             {/* Add dialog */}
             <BaseObjectDialog
-                hasNext={false}
-                hasPrevious={false}
                 onAction={onAction}
                 open={isAddDialogOpen}
                 title={"Add Standard"}
@@ -62,8 +60,6 @@ export const StandardViewPage = ({
             </BaseObjectDialog>
             {/* Update dialog */}
             <BaseObjectDialog
-                hasNext={false}
-                hasPrevious={false}
                 onAction={onAction}
                 open={isEditDialogOpen}
                 title={"Update Standard"}

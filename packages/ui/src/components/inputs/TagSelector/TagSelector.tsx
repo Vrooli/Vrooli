@@ -9,6 +9,7 @@ import { StarButton } from 'components';
 import { Pubs } from 'utils';
 
 export const TagSelector = ({
+    disabled,
     session,
     tags,
     placeholder = 'Enter tags, followed by commas...',
@@ -86,6 +87,7 @@ export const TagSelector = ({
         <Autocomplete
             id="tags-input"
             disablePortal
+            disabled={disabled}
             fullWidth
             multiple
             freeSolo={true}
@@ -130,7 +132,6 @@ export const TagSelector = ({
             )}
             renderInput={(params) => (
                 <TextField
-                    sx={{ paddingRight: 0 }}
                     value={inputValue}
                     onChange={onChange}
                     placeholder={placeholder}
@@ -139,6 +140,7 @@ export const TagSelector = ({
                     InputProps={params.InputProps}
                     inputProps={params.inputProps}
                     onKeyDown={onKeyDown}
+                    sx={{ paddingRight: 0, minWidth: '250px' }}
                 />
             )}
         />

@@ -1,11 +1,12 @@
 import { APP_LINKS } from "@local/shared";
-import { userDefaultSortOption, UserSortOptions, ShareDialog, UserDialog } from "components";
+import { ShareDialog, UserDialog } from "components";
 import { usersQuery } from "graphql/query";
 import { useCallback, useEffect, useState } from "react";
 import { User } from "types";
 import { BaseSearchPage } from "./BaseSearchPage";
 import { SearchUsersPageProps } from "./types";
 import { useLocation } from "wouter";
+import { ObjectType } from "utils";
 
 export const SearchUsersPage = ({
     session
@@ -39,9 +40,6 @@ export const SearchUsersPage = ({
             <ShareDialog onClose={handleSurpriseDialogClose} open={surpriseDialogOpen} />
             {/* Selected dialog */}
             <UserDialog
-                hasPrevious={false}
-                hasNext={false}
-                canEdit={false}
                 partialData={selectedItem}
                 session={session}
             />
@@ -50,9 +48,8 @@ export const SearchUsersPage = ({
                 itemKeyPrefix="user-list-item"
                 title="Users"
                 searchPlaceholder="Search by name/handle..."
-                sortOptions={UserSortOptions}
-                defaultSortOption={userDefaultSortOption}
                 query={usersQuery}
+                objectType={ObjectType.User}
                 onObjectSelect={handleSelected}
                 showAddButton={false}
                 popupButtonText="Invite"

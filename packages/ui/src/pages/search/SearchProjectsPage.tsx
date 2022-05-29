@@ -1,12 +1,12 @@
 import { APP_LINKS, ROLES } from "@local/shared";
-import { projectDefaultSortOption, ProjectSortOptions, ProjectDialog } from "components";
+import { ProjectDialog } from "components";
 import { projectsQuery } from "graphql/query";
 import { useCallback, useEffect, useState } from "react";
 import { Project } from "types";
 import { BaseSearchPage } from "./BaseSearchPage";
 import { SearchProjectsPageProps } from "./types";
 import { useLocation } from "wouter";
-import { Pubs, stringifySearchParams } from "utils";
+import { ObjectType, Pubs, stringifySearchParams } from "utils";
 
 export const SearchProjectsPage = ({
     session
@@ -47,9 +47,6 @@ export const SearchProjectsPage = ({
         <>
             {/* Selected dialog */}
             <ProjectDialog
-                hasPrevious={false}
-                hasNext={false}
-                canEdit={false}
                 partialData={selectedItem}
                 session={session}
             />
@@ -58,9 +55,8 @@ export const SearchProjectsPage = ({
                 itemKeyPrefix="project-list-item"
                 title="Projects"
                 searchPlaceholder="Search..."
-                sortOptions={ProjectSortOptions}
-                defaultSortOption={projectDefaultSortOption}
                 query={projectsQuery}
+                objectType={ObjectType.Project}
                 onObjectSelect={handleSelected}
                 onAddClick={handleAddDialogOpen}
                 popupButtonText="Add"

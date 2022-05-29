@@ -474,6 +474,7 @@ export const HomePage = ({
                                 color: palette.text.secondary,
                                 fontStyle: 'italic',
                                 cursor: 'pointer',
+                                textAlign: 'center',
                             }}
                         >"{example[0]}"</Typography>
                     ))

@@ -9,9 +9,6 @@ import { APP_LINKS } from '@local/shared';
 import { Standard } from 'types';
 
 export const StandardDialog = ({
-    canEdit = false,
-    hasNext,
-    hasPrevious,
     partialData,
     session
 }: StandardDialogProps) => {
@@ -78,8 +75,6 @@ export const StandardDialog = ({
 
     return (
         <BaseObjectDialog
-            hasNext={hasNext}
-            hasPrevious={hasPrevious}
             onAction={onAction}
             open={Boolean(params?.params)}
             title={title}

@@ -1,12 +1,11 @@
-// Used to display popular/search results of a particular object type
 import { ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { StandardListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, StandardSortBy, StarFor, VoteFor } from '@local/shared';
+import { APP_LINKS, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, TagList, TextLoading, UpvoteDownvote } from '..';
-import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor } from 'utils';
+import { getTranslation, listItemColor } from 'utils';
 import { owns } from 'utils/authentication';
 
 export function StandardListItem({
@@ -58,7 +57,15 @@ export function StandardListItem({
                         score={data?.score}
                         onChange={(isUpvoted: boolean | null) => { }}
                     />
-                    <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
+                    <Stack
+                        direction="column"
+                        spacing={1}
+                        pl={2}
+                        sx={{
+                            width: '-webkit-fill-available',
+                            display: 'grid',
+                        }}
+                    >
                         {loading ? <TextLoading /> : <ListItemText
                             primary={data?.name}
                             sx={{ ...multiLineEllipsis(1) }}
@@ -85,6 +92,3 @@ export function StandardListItem({
         </Tooltip>
     )
 }
-
-export const StandardSortOptions: LabelledSortOption<StandardSortBy>[] = labelledSortOptions(StandardSortBy);
-export const standardDefaultSortOption = StandardSortOptions[1];

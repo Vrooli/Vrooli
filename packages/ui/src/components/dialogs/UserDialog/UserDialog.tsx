@@ -11,15 +11,12 @@ import { APP_LINKS } from '@local/shared';
 import { Pubs } from 'utils';
 
 export const UserDialog = ({
-    canEdit = false,
-    hasNext,
-    hasPrevious,
     partialData,
     session
 }: UserDialogProps) => {
     const [, setLocation] = useLocation();
     const [, params] = useRoute(`${APP_LINKS.SearchUsers}/:params*`);
-    const [state, id] = useMemo(() => Boolean(params?.params) ? (params?.params as string).split("/") : [undefined, undefined], [params]);
+    const [state] = useMemo(() => Boolean(params?.params) ? (params?.params as string).split("/") : [undefined, undefined], [params]);
 
     const [update] = useMutation<user>(profileUpdateMutation);
 
@@ -65,8 +62,6 @@ export const UserDialog = ({
 
     return (
         <BaseObjectDialog
-            hasNext={hasNext}
-            hasPrevious={hasPrevious}
             onAction={onAction}
             open={Boolean(params?.params)}
             title={title}

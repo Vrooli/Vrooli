@@ -48,8 +48,6 @@ export const ProjectViewPage = ({
         }}>
             {/* Add dialog */}
             <BaseObjectDialog
-                hasNext={false}
-                hasPrevious={false}
                 onAction={onAction}
                 open={isAddDialogOpen}
                 title={"Add Project"}
@@ -62,8 +60,6 @@ export const ProjectViewPage = ({
             </BaseObjectDialog>
             {/* Update dialog */}
             <BaseObjectDialog
-                hasNext={false}
-                hasPrevious={false}
                 onAction={onAction}
                 open={isEditDialogOpen}
                 title={"Update Project"}

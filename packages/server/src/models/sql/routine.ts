@@ -54,17 +54,8 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         'tags': GraphQLModelType.Tag,
     },
     removeCalculatedFields: (partial) => {
-        let {
-            inProgressCompletedSteps,
-            inProgressCompletedComplexity,
-            inProgressVersion,
-            isUpvoted,
-            isStarred,
-            role,
-            runs,
-            ...rest
-        } = partial;
-        return rest;
+        const calculatedFields = ['inProgressCompletedSteps', 'inProgressCompletedComplexity', 'inProgressVersion', 'isUpvoted', 'isStarred', 'role', 'runs'];
+        return _.omit(partial, calculatedFields);
     },
     constructUnions: (data) => {
         let modified = addCreatorField(data);

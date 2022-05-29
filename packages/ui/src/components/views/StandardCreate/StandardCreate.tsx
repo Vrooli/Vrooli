@@ -21,6 +21,7 @@ import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuidv4 } from 'uuid';
 import { FieldData } from "forms/types";
 import { BaseStandardInput } from "components/inputs";
+import { generateInputComponent, generateYupSchema } from "forms/generators";
 
 type InputTypeOption = { label: string, value: InputType }
 /**
@@ -51,10 +52,10 @@ export const InputTypeOptions: InputTypeOption[] = [
         label: 'Switch (On/Off)',
         value: InputType.Switch,
     },
-    {
-        label: 'File Upload',
-        value: InputType.Dropzone,
-    },
+    // {
+    //     label: 'File Upload',
+    //     value: InputType.Dropzone,
+    // },
     {
         label: 'Markdown',
         value: InputType.Markdown
@@ -71,12 +72,48 @@ export const StandardCreate = ({
     // Handle input type selector
     const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
     const handleInputTypeSelect = useCallback((event: any) => {
+        console.log('changing input type', event.target.value)
         setInputType(event.target.value)
     }, []);
 
     // Handle standard schema
     const [schema, setSchema] = useState<FieldData | null>(null);
     const handleSchemaUpdate = useCallback((schema: FieldData) => { setSchema(schema); }, []);
+    const [schemaKey] = useState(`standard-create-schema-${Math.random().toString(36).substring(2, 15)}`);
+
+    // Handle generated input preview
+    const previewDefaultValue = useMemo(() => {
+        switch (inputType.value) {
+            case InputType.TextField:
+                return '';
+            case InputType.JSON:
+                return '';
+            case InputType.QuantityBox:
+                return 0;
+            case InputType.Radio:
+                return 'Option 1';
+            case InputType.Checkbox:
+                return [false];
+            case InputType.Switch:
+                return false;
+            case InputType.Dropzone:
+                return '';
+            case InputType.Markdown:
+                return '';
+            default:
+                return '';
+        }
+    }, [inputType]);
+    const previewFormik = useFormik({
+        initialValues: {
+            value: previewDefaultValue,
+        },
+        validationSchema: schema ? generateYupSchema({
+            fields: [schema],
+        }) : undefined,
+        onSubmit: () => { },
+    });
+
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
@@ -144,8 +181,8 @@ export const StandardCreate = ({
                     default: values.default,
                     description: values.description,
                     name: values.name,
-                    props: schema?.props,
-                    yup: schema?.yup,
+                    props: JSON.stringify(schema?.props),
+                    yup: JSON.stringify(schema?.yup),
                     translations: allTranslations,
                     resourceListsCreate: [resourceListAdd],
                     ...tagsAdd,
@@ -292,20 +329,29 @@ export const StandardCreate = ({
                         handleChange={handleInputTypeSelect}
                         getOptionLabel={(option: InputTypeOption) => option.label}
                         inputAriaLabel='input-type-selector'
-                        label="Size"
+                        label="Type"
                     />
                 </Grid>
                 {/* Define the standard */}
                 <Grid item xs={12}>
                     <BaseStandardInput
+                        fieldName="preview"
+                        inputType={inputType.value}
                         isEditing={true}
                         schema={schema}
                         onChange={handleSchemaUpdate}
+                        storageKey={schemaKey}
                     />
                 </Grid>
                 {/* Standard preview */}
                 <Grid item xs={12}>
-                    {/* TODO */}
+                    {schema && generateInputComponent({
+                        data: schema,
+                        disabled: true,
+                        formik: previewFormik,
+                        session,
+                        onUpload: () => {}
+                    })}
                 </Grid>
                 <Grid item xs={12}>
                     <ResourceListHorizontal

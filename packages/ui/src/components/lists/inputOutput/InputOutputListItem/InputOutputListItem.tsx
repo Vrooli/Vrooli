@@ -1,6 +1,6 @@
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { InputOutputListItemProps } from '../types';
-import { inputCreate, outputCreate } from '@local/shared';
+import { inputCreate, InputType, outputCreate } from '@local/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { containerShadow } from 'styles';
 import {
@@ -11,8 +11,47 @@ import {
 import { getTranslation, updateArray } from 'utils';
 import { useFormik } from 'formik';
 import { ListStandard, NewObject, RoutineInput, RoutineOutput, Standard } from 'types';
-import { BaseStandardInput, StandardSelectSwitch } from 'components';
+import { BaseStandardInput, Selector, StandardSelectSwitch } from 'components';
 import { FieldData } from 'forms/types';
+
+type InputTypeOption = { label: string, value: InputType }
+/**
+ * Supported input types
+ */
+export const InputTypeOptions: InputTypeOption[] = [
+    {
+        label: 'Text',
+        value: InputType.TextField,
+    },
+    {
+        label: 'JSON',
+        value: InputType.JSON,
+    },
+    {
+        label: 'Integer',
+        value: InputType.QuantityBox
+    },
+    {
+        label: 'Radio (Select One)',
+        value: InputType.Radio,
+    },
+    {
+        label: 'Checkbox (Select any)',
+        value: InputType.Checkbox,
+    },
+    {
+        label: 'Switch (On/Off)',
+        value: InputType.Switch,
+    },
+    // {
+    //     label: 'File Upload',
+    //     value: InputType.Dropzone,
+    // },
+    {
+        label: 'Markdown',
+        value: InputType.Markdown
+    },
+]
 
 export const InputOutputListItem = ({
     isEditing,
@@ -33,9 +72,18 @@ export const InputOutputListItem = ({
     // Handle standard select switch
     const [standard, setStandard] = useState<ListStandard | null>(null);
     const onSwitchChange = useCallback((s: ListStandard | null) => { console.log('on switch change'); setStandard(s) }, []);
-    // Handle custom standard schema
+
+    // Handle input type selector
+    const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
+    const handleInputTypeSelect = useCallback((event: any) => {
+        setInputType(event.target.value)
+    }, []);
+
+    // Handle standard schema
     const [schema, setSchema] = useState<FieldData | null>(null);
     const handleSchemaUpdate = useCallback((schema: FieldData) => { setSchema(schema); }, []);
+    const [schemaKey] = useState(`input-output-schema-${Math.random().toString(36).substring(2, 15)}`);
+
     useEffect(() => {
         // Check if standard has changed
         if (item?.standard?.id === standard?.id) return;
@@ -190,7 +238,7 @@ export const InputOutputListItem = ({
             }}>
                 <Grid container spacing={2} sx={{ padding: 1 }}>
                     <Grid item xs={12}>
-                        <TextField
+                        {isEditing ? <TextField
                             fullWidth
                             id="name"
                             name="name"
@@ -200,11 +248,11 @@ export const InputOutputListItem = ({
                             onChange={formik.handleChange}
                             error={formik.touched.name && Boolean(formik.errors.name)}
                             helperText={formik.touched.name && formik.errors.name}
-                        />
+                        /> : <Typography variant="h6">{formik.values.name}</Typography>}
                     </Grid>
                     <Grid item xs={12}>
                         <Grid item xs={12}>
-                            <TextField
+                            {isEditing ? <TextField
                                 fullWidth
                                 id="description"
                                 name="description"
@@ -215,21 +263,46 @@ export const InputOutputListItem = ({
                                 onChange={formik.handleChange}
                                 error={formik.touched.description && Boolean(formik.errors.description)}
                                 helperText={formik.touched.description && formik.errors.description}
-                            />
+                            /> : <Typography variant="body2">{formik.values.description}</Typography>}
                         </Grid>
                     </Grid>
                     {/* Select standard */}
                     <Grid item xs={12}>
-                        <StandardSelectSwitch session={session} selected={standard} onChange={onSwitchChange} />
+                        <StandardSelectSwitch
+                            disabled={!isEditing}
+                            session={session}
+                            selected={standard}
+                            onChange={onSwitchChange}
+                        />
                     </Grid>
-                    {/* Custom standard inputs */}
-                    <Grid item xs={12}>
-                        {!standard && <BaseStandardInput
-                            isEditing={isEditing}
-                            schema={schema}
-                            onChange={handleSchemaUpdate}
-                        />}
-                    </Grid>
+                    {
+                        !standard && (
+                            <Grid item xs={12}>
+                                {isEditing ? <Selector
+                                    fullWidth
+                                    options={InputTypeOptions}
+                                    selected={inputType}
+                                    handleChange={handleInputTypeSelect}
+                                    getOptionLabel={(option: InputTypeOption) => option.label}
+                                    inputAriaLabel='input-type-selector'
+                                    label="Type"
+                                /> : <Typography variant="body2">Type: {inputType.label}</Typography>}
+                            </Grid>
+                        )
+                    }
+                    {
+                        !standard && (
+                            <Grid item xs={12}>
+                                <BaseStandardInput
+                                    inputType={inputType.value}
+                                    isEditing={isEditing}
+                                    schema={schema}
+                                    onChange={handleSchemaUpdate}
+                                    storageKey={schemaKey}
+                                />
+                            </Grid>
+                        )
+                    }
                     {isInput && <Grid item xs={12}>
                         <Tooltip placement={'right'} title='Is this input mandatory?'>
                             <FormControlLabel
@@ -250,6 +323,6 @@ export const InputOutputListItem = ({
                     </Grid>}
                 </Grid>
             </Collapse>
-        </Box>
+        </Box >
     )
 }

@@ -140,7 +140,6 @@ export const RoutineListNode = ({
             buttons: [
                 { text: 'Unlink', onClick: handleNodeUnlink },
                 { text: 'Remove', onClick: handleNodeDelete },
-                { text: 'Cancel' }
             ]
         });
     }, [handleNodeDelete, handleNodeUnlink])

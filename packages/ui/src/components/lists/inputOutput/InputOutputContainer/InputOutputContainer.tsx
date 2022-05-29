@@ -153,16 +153,16 @@ export const InputOutputContainer = ({
                             language={language}
                             session={session}
                         />
-                        <AddButton
+                        {isEditing && <AddButton
                             key={`add-input-item-${index}`}
                             index={index}
                             isInput={isInput}
                             handleAdd={onAdd}
-                        />
+                        />}
                     </Fragment>
                 ))}
                 {/* If no items to display, still show add button */}
-                {list.length === 0 && <AddButton
+                {list.length === 0 && isEditing && <AddButton
                     index={list.length}
                     isInput={isInput}
                     handleAdd={onAdd}

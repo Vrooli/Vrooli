@@ -1,12 +1,11 @@
-// Used to display popular/search results of a particular object type
 import { ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { RoutineListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, RoutineSortBy, StarFor, VoteFor } from '@local/shared';
+import { APP_LINKS, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, TagList, TextLoading, UpvoteDownvote } from '..';
-import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor } from 'utils';
+import { getTranslation, listItemColor } from 'utils';
 import { owns } from 'utils/authentication';
 
 export function RoutineListItem({
@@ -59,7 +58,15 @@ export function RoutineListItem({
                         score={data?.score}
                         onChange={(isUpvoted: boolean | null) => { }}
                     />
-                    <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
+                    <Stack
+                        direction="column"
+                        spacing={1}
+                        pl={2}
+                        sx={{
+                            width: '-webkit-fill-available',
+                            display: 'grid',
+                        }}
+                    >
                         {loading ? <TextLoading /> : <ListItemText
                             primary={title}
                             sx={{ ...multiLineEllipsis(1) }}
@@ -86,6 +93,3 @@ export function RoutineListItem({
         </Tooltip>
     )
 }
-
-export const RoutineSortOptions: LabelledSortOption<RoutineSortBy>[] = labelledSortOptions(RoutineSortBy);
-export const routineDefaultSortOption = RoutineSortOptions[1];

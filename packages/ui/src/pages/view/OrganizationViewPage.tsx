@@ -48,8 +48,6 @@ export const OrganizationViewPage = ({
         }}>
             {/* Add dialog */}
             <BaseObjectDialog
-                hasNext={false}
-                hasPrevious={false}
                 onAction={onAction}
                 open={isAddDialogOpen}
                 title={"Add Organization"}
@@ -62,8 +60,6 @@ export const OrganizationViewPage = ({
             </BaseObjectDialog>
             {/* Update dialog */}
             <BaseObjectDialog
-                hasNext={false}
-                hasPrevious={false}
                 onAction={onAction}
                 open={isEditDialogOpen}
                 title={"Update Organization"}

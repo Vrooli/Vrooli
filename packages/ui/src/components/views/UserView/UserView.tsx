@@ -13,7 +13,7 @@ import {
     Share as ShareIcon,
     Today as CalendarIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationSortOptions, projectDefaultSortOption, ProjectSortOptions, ResourceListVertical, routineDefaultSortOption, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardSortOptions, StarButton } from "components";
+import { BaseObjectActionDialog, ResourceListVertical, SearchList, SelectLanguageDialog, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
 import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, Pubs } from "utils";
@@ -147,75 +147,62 @@ export const UserView = ({
     }, [user, isOwn, session]);
 
     // Create search data
-    const { itemKeyPrefix, placeholder, sortOptions, defaultSortOption, searchQuery, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
+    const { objectType, itemKeyPrefix, placeholder, searchQuery, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
         const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         // The first tab doesn't have search results, as it is the user's set resources
         switch (currTabType) {
             case TabOptions.Organizations:
                 return {
+                    objectType: ObjectType.Organization,
                     itemKeyPrefix: 'organization-list-item',
                     placeholder: "Search user's organizations...",
                     noResultsText: "No organizations found",
-                    sortOptions: OrganizationSortOptions,
-                    defaultSortOption: organizationDefaultSortOption,
                     searchQuery: organizationsQuery,
                     where: { userId: id },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Organization, newValue.id),
                 }
             case TabOptions.Projects:
                 return {
+                    objectType: ObjectType.Project,
                     itemKeyPrefix: 'project-list-item',
                     placeholder: "Search user's projects...",
                     noResultsText: "No projects found",
-                    sortOptions: ProjectSortOptions,
-                    defaultSortOption: projectDefaultSortOption,
                     searchQuery: projectsQuery,
                     where: { userId: id },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Project, newValue.id),
                 }
             case TabOptions.Routines:
                 return {
+                    objectType: ObjectType.Routine,
                     itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search user's routines...",
                     noResultsText: "No routines found",
-                    sortOptions: RoutineSortOptions,
-                    defaultSortOption: routineDefaultSortOption,
                     searchQuery: routinesQuery,
                     where: { userId: id },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 }
             case TabOptions.Standards:
                 return {
+                    objectType: ObjectType.Standard,
                     itemKeyPrefix: 'standard-list-item',
                     placeholder: "Search user's standards...",
                     noResultsText: "No standards found",
-                    sortOptions: StandardSortOptions,
-                    defaultSortOption: standardDefaultSortOption,
                     searchQuery: standardsQuery,
                     where: { userId: id },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
                 }
             default:
                 return {
+                    objectType: ObjectType.Organization,
                     itemKeyPrefix: '',
                     placeholder: '',
                     noResultsText: '',
-                    sortOptions: [],
-                    defaultSortOption: { label: '', value: null },
                     searchQuery: null,
                     where: {},
                     onSearchSelect: (o: any) => { },
                 }
         }
     }, [currTabType, id, setLocation]);
-
-    // Handle url search
-    const [searchString, setSearchString] = useState<string>('');
-    const [sortBy, setSortBy] = useState<string | undefined>(undefined);
-    const [timeFrame, setTimeFrame] = useState<string | undefined>(undefined);
-    useEffect(() => {
-        setSortBy(defaultSortOption.value ?? sortOptions.length > 0 ? sortOptions[0].value : undefined);
-    }, [defaultSortOption, sortOptions]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -457,22 +444,15 @@ export const UserView = ({
                         currTabType === TabOptions.Resources ? resources : (
                             <SearchList
                                 canSearch={uuidValidate(id)}
-                                defaultSortOption={defaultSortOption}
                                 handleAdd={toAddNew}
                                 itemKeyPrefix={itemKeyPrefix}
                                 noResultsText={noResultsText}
+                                objectType={objectType}
                                 onObjectSelect={onSearchSelect}
                                 query={searchQuery}
                                 searchPlaceholder={placeholder}
-                                searchString={searchString}
                                 session={session}
-                                setSearchString={setSearchString}
-                                setSortBy={setSortBy}
-                                setTimeFrame={setTimeFrame}
-                                sortBy={sortBy}
-                                sortOptions={sortOptions}
                                 take={20}
-                                timeFrame={timeFrame}
                                 where={where}
                             />
                         )

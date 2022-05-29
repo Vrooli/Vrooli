@@ -404,28 +404,27 @@ export const BuildView = ({
      * If closing with unsaved changes, prompt user to save
      */
     const onClose = useCallback(() => {
-        if (changedRoutine) {
+        if (isEditing && JSON.stringify(routine) !== JSON.stringify(changedRoutine)) {
             PubSub.publish(Pubs.AlertDialog, {
-                message: 'There are unsaved changes. Would you like to save?',
+                message: 'There are unsaved changes. Would you like to save before exiting?',
                 buttons: [
                     {
-                        text: 'Save and Close', onClick: () => {
+                        text: 'Save', onClick: () => {
                             updateRoutine();
                             handleClose();
                         }
                     },
                     {
-                        text: 'Close without saving', onClick: () => {
+                        text: "Don't Save", onClick: () => {
                             handleClose();
                         }
                     },
-                    {
-                        text: 'Cancel', onClick: () => { }
-                    }
                 ]
             });
+        } else {
+            handleClose();
         }
-    }, [changedRoutine, handleClose, updateRoutine]);
+    }, [changedRoutine, handleClose, isEditing, routine, updateRoutine]);
 
     const updateRoutineTitle = useCallback((title: string) => {
         if (!changedRoutine) return;
@@ -916,8 +915,8 @@ export const BuildView = ({
         return (
             <Box>
                 <Box sx={{ background: palette.primary.dark }}>
-                    <IconButton edge="start" color="inherit" onClick={closeStatusMenu} aria-label="close">
-                        <CloseIcon sx={{ fill: palette.primary.contrastText, marginLeft: '0.5em' }} />
+                    <IconButton edge="end" color="inherit" onClick={closeStatusMenu} aria-label="close">
+                        <CloseIcon sx={{ fill: palette.primary.contrastText }} />
                     </IconButton>
                 </Box>
                 <Box sx={{ padding: 1 }}>
@@ -1020,21 +1019,7 @@ export const BuildView = ({
                     color: palette.primary.contrastText,
                     height: '64px',
                 }}>
-                {/* Close Icon */}
-                <IconButton
-                    edge="end"
-                    aria-label="close"
-                    onClick={onClose}
-                    color="inherit"
-                    sx={{
-                        marginRight: 'auto',
-                    }}
-                >
-                    <CloseIcon sx={{
-                        width: '32px',
-                        height: '32px',
-                    }} />
-                </IconButton>
+                {/* Title */}
                 <EditableLabel
                     canEdit={isEditing}
                     handleUpdate={updateRoutineTitle}
@@ -1051,9 +1036,24 @@ export const BuildView = ({
                     )}
                     text={getTranslation(routine, 'title', [language], false) ?? ''}
                     sxs={{
-                        stack: { marginRight: 'auto' }
+                        stack: { marginLeft: 'auto' }
                     }}
                 />
+                {/* Close Icon */}
+                <IconButton
+                    edge="start"
+                    aria-label="close"
+                    onClick={onClose}
+                    color="inherit"
+                    sx={{
+                        marginLeft: 'auto',
+                    }}
+                >
+                    <CloseIcon sx={{
+                        width: '32px',
+                        height: '32px',
+                    }} />
+                </IconButton>
             </Stack>
             {/* Second contains additional info and icons */}
             <Stack
@@ -1067,7 +1067,6 @@ export const BuildView = ({
                     height: '48px',
                     background: palette.primary.light,
                     color: palette.primary.contrastText,
-                    marginTop: { xs: '0', lg: '80px' },
                 }}
             >
                 {/* Status indicator */}

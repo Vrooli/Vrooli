@@ -39,6 +39,7 @@ export interface listOrganizationFields {
   id: string;
   handle: string | null;
   stars: number;
+  isOpenToNewMembers: boolean;
   isStarred: boolean;
   role: MemberRole | null;
   tags: listOrganizationFields_tags[];

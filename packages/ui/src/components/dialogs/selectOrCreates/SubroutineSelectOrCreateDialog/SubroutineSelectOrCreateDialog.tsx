@@ -8,7 +8,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { BaseObjectDialog, HelpButton } from 'components';
+import { BaseObjectDialog, HelpButton, routineSearchSchema } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SubroutineSelectOrCreateDialogProps } from '../types';
 import {
@@ -16,12 +16,14 @@ import {
     Close as CloseIcon
 } from '@mui/icons-material';
 import { Routine } from 'types';
-import { routineDefaultSortOption, RoutineSortOptions, SearchList } from 'components/lists';
+import { SearchList } from 'components/lists';
 import { routineQuery, routinesQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { routine, routineVariables } from 'graphql/generated/routine';
 import { RoutineCreate } from 'components/views/RoutineCreate/RoutineCreate';
 import { validate as uuidValidate } from 'uuid';
+import { ObjectType, parseSearchParams, stringifySearchParams } from 'utils';
+import { useLocation } from 'wouter';
 
 const helpText =
     `This dialog allows you to connect a new or existing subroutine. Each subroutine becomes a page when executing the routine (or if it contains its own subroutines, then those subroutines become pages).`
@@ -35,6 +37,31 @@ export const SubroutineSelectOrCreateDialog = ({
     session,
 }: SubroutineSelectOrCreateDialogProps) => {
     const { palette } = useTheme();
+    const [, setLocation] = useLocation();
+
+    /**
+     * Before closing, remove all URL search params for advanced search
+     */
+    const onClose = useCallback(() => {
+        // Find all search fields
+        const searchFields = [
+            ...routineSearchSchema.fields.map(f => f.fieldName),
+            'advanced',
+            'sort',
+            'time',
+        ];
+        // Find current search params
+        const params = parseSearchParams(window.location.search);
+        // Remove all search params that are advanced search fields
+        Object.keys(params).forEach(key => {
+            if (searchFields.includes(key)) {
+                delete params[key];
+            }
+        });
+        // Update URL
+        setLocation(stringifySearchParams(params), { replace: true });
+        handleClose();
+    }, [handleClose, setLocation]);
 
     // Create new routine dialog
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -42,8 +69,8 @@ export const SubroutineSelectOrCreateDialog = ({
     const handleCreated = useCallback((routine: Routine) => {
         setIsCreateOpen(false);
         handleAdd(nodeId, routine);
-        handleClose();
-    }, [handleAdd, handleClose, nodeId]);
+        onClose();
+    }, [handleAdd, onClose, nodeId]);
     const handleCreateClose = useCallback(() => {
         setIsCreateOpen(false);
     }, [setIsCreateOpen]);
@@ -56,9 +83,9 @@ export const SubroutineSelectOrCreateDialog = ({
     useEffect(() => {
         if (routineData?.routine) {
             handleAdd(nodeId, routineData.routine);
-            handleClose();
+            onClose();
         }
-    }, [handleAdd, handleClose, handleCreateClose, nodeId, routineData]);
+    }, [handleAdd, onClose, handleCreateClose, nodeId, routineData]);
 
     /**
      * Title bar with help button and close icon
@@ -79,22 +106,18 @@ export const SubroutineSelectOrCreateDialog = ({
             <Box sx={{ marginLeft: 'auto' }}>
                 <IconButton
                     edge="start"
-                    onClick={(e) => { handleClose() }}
+                    onClick={(e) => { onClose() }}
                 >
                     <CloseIcon sx={{ fill: palette.primary.contrastText }} />
                 </IconButton>
             </Box>
         </Box>
-    ), [handleClose, palette.primary.contrastText, palette.primary.dark])
-
-    const [searchString, setSearchString] = useState<string>('');
-    const [sortBy, setSortBy] = useState<string | undefined>(undefined);
-    const [timeFrame, setTimeFrame] = useState<string | undefined>(undefined);
+    ), [onClose, palette.primary.contrastText, palette.primary.dark])
 
     return (
         <Dialog
             open={isOpen}
-            onClose={handleClose}
+            onClose={onClose}
             sx={{
                 '& .MuiDialogContent-root': { 
                     overflow: 'visible', 
@@ -105,8 +128,6 @@ export const SubroutineSelectOrCreateDialog = ({
         >
             {/* Popup for creating a new routine */}
             <BaseObjectDialog
-                hasNext={false}
-                hasPrevious={false}
                 onAction={handleCreateClose}
                 open={isCreateOpen}
                 title={"Create Routine"}
@@ -122,20 +143,13 @@ export const SubroutineSelectOrCreateDialog = ({
                 <Stack direction="column" spacing={4}>
                     <SearchList
                         itemKeyPrefix='routine-list-item'
-                        defaultSortOption={routineDefaultSortOption}
                         noResultsText={"None found. Maybe you should create one?"}
+                        objectType={ObjectType.Routine}
                         onObjectSelect={(newValue) => handleRoutineSelect(newValue)}
                         query={routinesQuery}
                         searchPlaceholder={'Select existing subroutine...'}
-                        searchString={searchString}
                         session={session}
-                        setSearchString={setSearchString}
-                        setSortBy={setSortBy}
-                        setTimeFrame={setTimeFrame}
-                        sortOptions={RoutineSortOptions}
-                        sortBy={sortBy}
                         take={20}
-                        timeFrame={timeFrame}
                         where={uuidValidate(routineId) ? { excludeIds: [routineId] } : undefined}
                     />
                     <Button

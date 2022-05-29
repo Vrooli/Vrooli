@@ -8,11 +8,14 @@ import { reportCreateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { ReportDialogProps } from '../types';
 import {
+    Cancel as CancelIcon,
+    Check as SaveIcon,
     Close as CloseIcon
 } from '@mui/icons-material';
 import { getUserLanguages, Pubs } from 'utils';
 import { useEffect, useState } from 'react';
 import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
+import { Selector } from 'components';
 
 const helpText =
     `Reports help us moderate content. For now, reports will be handled by moderators. 
@@ -52,11 +55,14 @@ export const ReportDialog = ({
     const [mutation, { loading }] = useMutation<reportCreate>(reportCreateMutation);
     const formik = useFormik({
         initialValues: {
+            createdFor: reportFor,
+            createdForId: forId,
             reason: '',
             otherReason: '',
             details: '',
             language,
         },
+        enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
             mutationWrapper({
@@ -82,6 +88,8 @@ export const ReportDialog = ({
         formik.resetForm();
         onClose();
     }
+
+    console.log('FORMIK', formik.errors)
 
     return (
         <Dialog
@@ -126,20 +134,17 @@ export const ReportDialog = ({
                 </Box>
                 <Stack direction="column" spacing={2} sx={{ padding: 2 }}>
                     {/* Text displaying what you are reporting */}
-                    <FormControl fullWidth>
-                        <InputLabel id="report-reason-label">Reason</InputLabel>
-                        <Select
-                            labelId="report-reason-label"
-                            id="reason"
-                            value={formik.values.reason}
-                            label="Reason"
-                            onChange={(e) => formik.setFieldValue('reason', e.target.value)}
-                        >
-                            {Object.entries(ReportReasons).map(([key, value]) => (
-                                <MenuItem key={key} value={key}>{value}</MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+                    <Selector
+                        disabled={loading}
+                        options={Object.keys(ReportReasons)}
+                        getOptionLabel={(r) => ReportReasons[r]}
+                        selected={formik.values.reason}
+                        onBlur={formik.handleBlur}
+                        handleChange={(e) => formik.setFieldValue('reason', e.target.value)}
+                        fullWidth
+                        inputAriaLabel="select reason"
+                        label="Reason"
+                    />
                     {/* Textfield displayed if "Other" reason selected */}
                     {(formik.values.reason as any) === ReportOptions.Other ? <TextField
                         fullWidth
@@ -147,8 +152,11 @@ export const ReportDialog = ({
                         name="otherReason"
                         label="Custom Reason"
                         value={formik.values.otherReason}
+                        onBlur={formik.handleBlur}
                         onChange={formik.handleChange}
-                        helperText="Enter custom reason..."
+                        error={formik.touched.otherReason && Boolean(formik.errors.otherReason)}
+                        helperText={formik.touched.otherReason ? formik.errors.otherReason : 'Enter custom reason...'}
+
                     /> : null}
                     {/* Reason selector (with other option) */}
                     <TextField
@@ -156,19 +164,36 @@ export const ReportDialog = ({
                         id="details"
                         name="details"
                         label="Details (Optional)"
-                        value={formik.values.details}
-                        onChange={formik.handleChange}
-                        helperText="Enter any details you'd like to share about this indcident. DO NOT include any personal information!"
                         rows={4}
+                        value={formik.values.details}
+                        onBlur={formik.handleBlur}
+                        onChange={formik.handleChange}
+                        error={formik.touched.details && Boolean(formik.errors.details)}
+                        helperText={formik.touched.details ? formik.errors.details : "Enter any details you'd like to share about this incident. DO NOT include any personal information!"}
                     />
                     {/* Details multi-line text field */}
                     {/* Action buttons */}
                     <Grid container sx={{ padding: 0 }}>
-                        <Grid item xs={12} sm={6} sx={{ paddingRight: 1 }}>
-                            <Button fullWidth type="submit">Submit</Button>
+                        <Grid item xs={6} sx={{ padding: 1 }}>
+                            <Button
+                                type="submit"
+                                fullWidth
+                                disabled={loading}
+                                startIcon={<SaveIcon />}
+                            >
+                                Save
+                            </Button>
                         </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <Button fullWidth onClick={handleClose} sx={{ paddingLeft: 1 }}>Cancel</Button>
+                        <Grid item xs={6} sx={{ padding: 1 }}>
+                            <Button
+                                type="button"
+                                fullWidth
+                                disabled={loading}
+                                onClick={handleClose}
+                                startIcon={<CancelIcon />}
+                            >
+                                Cancel
+                            </Button>
                         </Grid>
                     </Grid>
                 </Stack>

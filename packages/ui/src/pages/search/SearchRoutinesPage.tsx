@@ -1,9 +1,9 @@
 import { APP_LINKS, ROLES } from "@local/shared";
-import { routineDefaultSortOption, RoutineSortOptions, RoutineDialog, ListMenu } from "components";
+import { RoutineDialog, ListMenu } from "components";
 import { routinesQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useState } from "react";
 import { Routine } from "types";
-import { Pubs, stringifySearchParams } from "utils";
+import { ObjectType, Pubs, stringifySearchParams } from "utils";
 import { BaseSearchPage } from "./BaseSearchPage";
 import { SearchRoutinesPageProps } from "./types";
 import { useLocation } from "wouter";
@@ -58,9 +58,6 @@ export const SearchRoutinesPage = ({
         <>
             {/* Selected dialog */}
             <RoutineDialog
-                hasPrevious={false}
-                hasNext={false}
-                canEdit={false}
                 partialData={selectedItem}
                 session={session}
             />
@@ -78,9 +75,8 @@ export const SearchRoutinesPage = ({
                 itemKeyPrefix="routine-list-item"
                 title="Routines"
                 searchPlaceholder="Search..."
-                sortOptions={RoutineSortOptions}
-                defaultSortOption={routineDefaultSortOption}
                 query={routinesQuery}
+                objectType={ObjectType.Routine}
                 onObjectSelect={handleSelected}
                 onAddClick={openAdd}
                 popupButtonText="Add"

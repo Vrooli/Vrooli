@@ -146,9 +146,9 @@ export const BuildInfoDialog = ({
                 onOpen={() => { }} // Intentionally empty
                 onClose={closeMenu}
                 sx={{
+                    zIndex: 102,
                     '& .MuiDrawer-paper': {
                         background: palette.background.default,
-                        borderLeft: `1px solid ${palette.text.primary}`,
                         maxWidth: { xs: '100%', sm: '75%', md: '50%', lg: '40%', xl: '30%' },
                     }
                 }}
@@ -194,8 +194,6 @@ export const BuildInfoDialog = ({
                     {/* Description */}
                     <Box sx={{
                         padding: 1,
-                        border: `1px solid ${palette.primary.dark}`,
-                        borderRadius: 1,
                     }}>
                         <Typography variant="h6">Description</Typography>
                         {
@@ -220,8 +218,6 @@ export const BuildInfoDialog = ({
                     {/* Instructions */}
                     <Box sx={{
                         padding: 1,
-                        border: `1px solid ${palette.background.paper}`,
-                        borderRadius: 1,
                     }}>
                         <Typography variant="h6">Instructions</Typography>
                         {
@@ -270,7 +266,11 @@ export const BuildInfoDialog = ({
                             <ListItemIcon>
                                 <Icon />
                             </ListItemIcon>
-                            <ListItemText primary={label} />
+                            <ListItemText primary={label} secondary="Coming soon" sx={{
+                                '& .MuiListItemText-secondary': {
+                                    color: 'red',
+                                },
+                            }} />
                         </ListItem>
                     ))}
                 </List>

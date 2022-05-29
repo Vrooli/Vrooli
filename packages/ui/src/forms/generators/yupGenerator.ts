@@ -1,6 +1,24 @@
-import { FormSchema, YupSchema } from "../types";
+import { FormSchema, YupSchema, YupType } from "../types";
 import { buildYup } from 'schema-to-yup';
 import { FormikConfig } from "formik";
+import { InputType } from "@local/shared";
+
+/**
+ * Maps input types to their yup types. 
+ * If an input type is not in this object, then 
+ * it cannot be validated with yup.
+ */
+export const InputToYupType: { [key in InputType]?: YupType } = {
+    // [InputType.Checkbox]: 'array', //TODO
+    [InputType.JSON]: 'string',
+    [InputType.Markdown]: 'string',
+    [InputType.Radio]: 'string',
+    [InputType.Selector]: 'string',
+    [InputType.Slider]: 'number',
+    [InputType.Switch]: 'boolean',
+    [InputType.TextField]: 'string',
+    [InputType.QuantityBox]: 'number',
+};
 
 /**
  * Generate a yup schema from a form schema. Each field in this schema 
@@ -8,7 +26,7 @@ import { FormikConfig } from "formik";
  * Then we convert this schema into a yup object.
  * @param formSchema The schema of the entire form
  */
-export const generateYupSchema = (formSchema: FormSchema): FormikConfig<any>['validationSchema'] => {
+export const generateYupSchema = (formSchema: Pick<FormSchema, 'fields'>): FormikConfig<any>['validationSchema'] => {
     if (!formSchema) return null;
     // Create shape object to describe yup validation
     const shape: YupSchema = {
@@ -21,10 +39,12 @@ export const generateYupSchema = (formSchema: FormSchema): FormikConfig<any>['va
     const config = { errMessages: {} }
     // Loop through each field in the form schema
     formSchema.fields.forEach(field => {
+        console.log('yup loop field', field)
         const name = field.fieldName;
-        if (field.yup) {
+        // Field will only be validated if it has a yup schema, and it is a valid input type
+        if (field.yup && InputToYupType[field.type]) {
             // Add field to properties
-            shape.properties[name] = { type: field.type };
+            shape.properties[name] = { type: InputToYupType[field.type] }
             // Set up required and error messages
             config.errMessages[name] = {}
             if (field.yup.required) {
@@ -46,6 +66,55 @@ export const generateYupSchema = (formSchema: FormSchema): FormikConfig<any>['va
             }
         }
     })
+    console.log('GENERTATING YUPPPPPPP. Shape: ', shape);
+    console.log('GENERTATING YUPPPPPPP. Config: ', config);
     // Build yup using newly-created shape and config
-    return buildYup(shape, config)
+    const yup = buildYup(shape, config);
+    console.log('GENERTATED YUPPPP RESULTTTTTTT. Yup: ', yup);
+    return yup;
+    // return buildYup({
+    //     $schema: "http://json-schema.org/draft-07/schema#",
+    //     $id: "http://example.com/person.schema.json",
+    //     title: "Person",
+    //     description: "A person",
+    //     type: "object",
+    //     properties: {
+    //         name: {
+    //             description: "Name of the person",
+    //             type: "string",
+    //         },
+    //         email: {
+    //             type: "string",
+    //             format: "email",
+    //         },
+    //         foobar: {
+    //             type: "string",
+    //             matches: "(foo|bar)",
+    //         },
+    //         age: {
+    //             description: "Age of person",
+    //             type: "number",
+    //             exclusiveMinimum: 0,
+    //             required: true,
+    //         },
+    //         characterType: {
+    //             enum: ["good", "bad"],
+    //             enum_titles: ["Good", "Bad"],
+    //             type: "string",
+    //             title: "Type of people",
+    //             propertyOrder: 3,
+    //         },
+    //     },
+    //     required: ["name", "email"],
+    // }, {
+    //     errMessages: {
+    //         age: {
+    //             required: "A person must have an age",
+    //         },
+    //         email: {
+    //             required: "You must enter an email address",
+    //             format: "Not a valid email address",
+    //         },
+    //     },
+    // })
 }
