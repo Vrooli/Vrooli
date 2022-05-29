@@ -20,9 +20,10 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
         'starredBy': GraphQLModelType.User,
     },
     removeCalculatedFields: (partial) => {
-        let { isStarred, isOwn, ...rest } = partial;
+        const calculatedFields = ['isStarred', 'isOwn'];
+        const omitted = _.omit(partial, calculatedFields);
         // Add createdByUserId field so we can calculate isOwn
-        return { ...rest, createdByUserId: true }
+        return { ...omitted, createdByUserId: true }
     },
     addJoinTables: (partial) => {
         return addJoinTablesHelper(partial, joinMapper);

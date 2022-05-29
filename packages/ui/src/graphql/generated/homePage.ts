@@ -39,6 +39,7 @@ export interface homePage_homePage_organizations {
   id: string;
   handle: string | null;
   stars: number;
+  isOpenToNewMembers: boolean;
   isStarred: boolean;
   role: MemberRole | null;
   tags: homePage_homePage_organizations_tags[];

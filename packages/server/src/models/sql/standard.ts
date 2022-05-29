@@ -35,8 +35,8 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
         'tags': GraphQLModelType.Tag,
     },
     removeCalculatedFields: (partial) => {
-        let { isUpvoted, isStarred, role, ...rest } = partial;
-        return rest;
+        const calculatedFields = ['isUpvoted', 'isStarred', 'role'];
+        return _.omit(partial, calculatedFields);
     },
     constructUnions: (data) => {
         let modified = addCreatorField(data);

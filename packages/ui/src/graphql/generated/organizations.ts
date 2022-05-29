@@ -45,6 +45,7 @@ export interface organizations_organizations_edges_node {
   id: string;
   handle: string | null;
   stars: number;
+  isOpenToNewMembers: boolean;
   isStarred: boolean;
   role: MemberRole | null;
   tags: organizations_organizations_edges_node_tags[];

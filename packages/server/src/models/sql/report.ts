@@ -5,6 +5,7 @@ import { PrismaType, RecursivePartial } from "types";
 import { validateProfanity } from "../../utils/censor";
 import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
+import _ from "lodash";
 
 //==============================================================
 /* #region Custom Components */
@@ -13,9 +14,10 @@ import { genErrorCode } from "../../logger";
 export const reportFormatter = (): FormatConverter<Report> => ({
     relationshipMap: { '__typename': GraphQLModelType.Report },
     removeCalculatedFields: (partial) => {
-        let { isOwn, ...rest } = partial;
+        const calculatedFields = ['isOwn']
+        const omitted = _.omit(partial, calculatedFields)
         // Add userId field so we can calculate isOwn
-        return { ...rest, userId: true }
+        return { ...omitted, userId: true }
     },
     removeJoinTables: (data) => {
         // Remove userId to hide who submitted the report

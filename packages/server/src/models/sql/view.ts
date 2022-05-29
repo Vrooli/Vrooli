@@ -94,7 +94,6 @@ export const viewFormatter = (): FormatConverter<View> => ({
                     default:
                         throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0186') });
                 }
-                console.log('view before readmanyhelper...', type, toIdsByType[type]);
                 const paginated = await readManyHelper(userId, { ids: toIdsByType[type] }, partial.to[type], typeModel);
                 tos.push(...paginated.edges.map(x => x.node));
             }

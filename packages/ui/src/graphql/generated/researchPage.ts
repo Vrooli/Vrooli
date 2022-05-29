@@ -245,6 +245,7 @@ export interface researchPage_researchPage_needMembers {
   id: string;
   handle: string | null;
   stars: number;
+  isOpenToNewMembers: boolean;
   isStarred: boolean;
   role: MemberRole | null;
   tags: researchPage_researchPage_needMembers_tags[];
