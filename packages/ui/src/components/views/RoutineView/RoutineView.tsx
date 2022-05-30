@@ -116,6 +116,7 @@ export const RoutineView = ({
     // If buildId is in the URL, open the build
     useEffect(() => {
         const searchParams = parseSearchParams(window.location.search);
+        console.log('checking url', searchParams)
         if (searchParams.build) {
             // If build === 'add', populate routine with default start data
             if (searchParams.build === 'add') {
@@ -204,9 +205,22 @@ export const RoutineView = ({
     const stopRoutine = () => { setIsRunOpen(false) };
 
     const onEdit = useCallback(() => {
-        // Depends on if we're in a search popup or a normal organization page
-        setLocation(Boolean(params?.id) ? `${APP_LINKS.Routine}/edit/${id}` : `${APP_LINKS.SearchRoutines}/edit/${id}`);
-    }, [setLocation, params?.id, id]);
+        // Depends on if we're in a search popup or a normal routine page
+        const isMultiStep = (Array.isArray(routine?.nodes) && (routine?.nodes as Routine['nodes']).length > 1) ||
+            (Array.isArray(routine?.nodeLinks) && (routine?.nodeLinks as Routine['nodeLinks']).length > 0);
+        // If multi step, navigate to build page
+        if (isMultiStep) {
+            setLocation(stringifySearchParams({
+                build: true,
+                edit: true,
+            }), { replace: true });
+            setIsBuildOpen(true);
+        }
+        // Otherwise, edit as single step
+        else {
+            setLocation(Boolean(params?.id) ? `${APP_LINKS.Routine}/edit/${id}` : `${APP_LINKS.SearchRoutines}/edit/${id}`);
+        }
+    }, [routine?.nodes, routine?.nodeLinks, setLocation, id, params?.id]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);

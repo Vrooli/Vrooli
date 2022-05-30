@@ -14,6 +14,7 @@ export const SubroutineView = ({
     loading,
     data,
     handleSaveProgress,
+    owner,
     session,
 }: SubroutineViewProps) => {
     const { palette } = useTheme();
@@ -28,7 +29,12 @@ export const SubroutineView = ({
         }
     }, [data, session.languages]);
 
-    const ownedBy = useMemo<string | null>(() => getOwnedByString(data, getUserLanguages(session)), [data, session]);
+    const ownedBy = useMemo<string | null>(() => {
+        if (!data) return null;
+        // If isInternal, owner is same as overall routine owner
+        const ownerObject = data.isInternal ? { owner } : data;
+        return getOwnedByString(ownerObject, getUserLanguages(session))
+    }, [data, owner, session]);
     const toOwner = useCallback(() => { 
         // Confirmation dialog for leaving routine
         PubSub.publish(Pubs.AlertDialog, {
@@ -38,12 +44,13 @@ export const SubroutineView = ({
                     // Save progress
                     handleSaveProgress();
                     // Navigate to owner
-                    toOwnedBy(data, setLocation)
+                    const ownerObject = data?.isInternal ? { owner } : data;
+                    toOwnedBy(ownerObject, setLocation)
                 } },
                 { text: 'Cancel' },
             ]
         });
-    }, [data, handleSaveProgress, setLocation]);
+    }, [data, handleSaveProgress, owner, setLocation]);
 
     // The schema for the form
     const [schema, setSchema] = useState<any>();

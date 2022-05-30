@@ -95,10 +95,6 @@ export const RoutineCreate = ({
         else if (Array.isArray(params.tags)) setTags(params.tags.map((t: any) => ({ tag: t })));
     }, [params]);
 
-    useEffect(() => {
-        console.log('TRANSLATIONS', translations);
-    }, [translations]);
-
     // Handle create
     const [mutation] = useMutation<routine>(routineCreateMutation);
     const formik = useFormik({

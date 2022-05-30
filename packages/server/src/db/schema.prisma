@@ -117,7 +117,7 @@ model node {
     translations    node_translation[]
     previous        node_link[]        @relation("node_previous")
     next            node_link[]        @relation("node_next")
-    runSteps        run_step[]
+    runSteps        run_step[]         @relation("run_step_node")
 }
 
 model node_translation {
@@ -549,6 +549,7 @@ model routine {
     reports                 report[]
     resourceLists           resource_list[]
     runs                    run[]                    @relation("run_routine")
+    runSteps                run_step[]               @relation("run_step_routine")
     starredBy               star[]                   @relation("star_routine")
     tags                    routine_tags[] // Categorical tags set by creators or community-voted
     translations            routine_translation[]
@@ -650,7 +651,7 @@ model run {
     routineId           String?    @db.Uuid
     userId              String     @db.Uuid
     routine             routine?   @relation("run_routine", fields: [routineId], references: [id], onDelete: SetNull)
-    steps               run_step[]
+    steps               run_step[] @relation("run_step_run")
     user                user       @relation("run_user", fields: [userId], references: [id])
 }
 
@@ -662,14 +663,16 @@ model run_step {
     pickups       Int           @default(1) // Measures context switches. 1 means that the step was executed completely without leaving
     runId         String        @db.Uuid
     nodeId        String        @db.Uuid
+    routineId     String        @db.Uuid
     timeStarted   DateTime?     @db.Timestamptz(6)
     timeElapsed   Int? // Time spent working on the step, in seconds
     timeCompleted DateTime?     @db.Timestamptz(6)
     step          Int[]
     status        RunStepStatus @default(InProgress)
-    run           run           @relation(fields: [runId], references: [id], onDelete: Cascade)
+    run           run           @relation("run_step_run", fields: [runId], references: [id], onDelete: Cascade)
     title         String        @db.VarChar(128) // Title of viewed item, as it appears to the user. Makes searching for items that changed names easier
-    node          node          @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+    node          node          @relation("run_step_node", fields: [nodeId], references: [id], onDelete: SetNull)
+    routine       routine       @relation("run_step_routine", fields: [routineId], references: [id], onDelete: SetNull)
 }
 
 // TODO scheduling runs
@@ -697,8 +700,8 @@ model standard {
     score                   Int                    @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
     stars                   Int                    @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
     type                    String // Type of standard. We don't bother with an enum here, since the supported types may change often
-    props                  String                 @db.VarChar(8192) // JSON object describing the shape of the data
-    yup                    String?                    @db.VarChar(8192) // Yup validation checks. (ex: If standard is a URL, then yup would contain a regex to validate it)
+    props                   String                 @db.VarChar(8192) // JSON object describing the shape of the data
+    yup                     String?                @db.VarChar(8192) // Yup validation checks. (ex: If standard is a URL, then yup would contain a regex to validate it)
     version                 String                 @default("1.0.0") @db.VarChar(16) // Arbitrary version number
     views                   Int                    @default(0) // Count of all views. Makes queries easier than counting the relationship every time
     createdByUserId         String?                @db.Uuid // User who created the standard, if exists (could have been created anonymously or by an organization)

@@ -64,13 +64,21 @@ export const RunView = ({
      * The amount of routine completed so far, measured in complexity
      */
     const [completedComplexity, setCompletedComplexity] = useState(0);
-
     /**
      * Every step completed so far. 
      * Steps are stored as an array that describes their nesting, like they appear in the URL (e.g. [1], [1,3], [1,5,2]).
      * TODO History key should be combination of routineId and updated_at, so history is reset when routine is updated.
      */
     const [progress, setProgress] = useHistoryState(params2?.routineId ?? '', [])
+    /**
+     * When run data is loaded, set completedComplexity and steps completed
+     */
+    useEffect(() => {
+        if (!run) return;
+        setCompletedComplexity(run.completedComplexity);
+        //TODO calculate steps from run.steps
+        // setProgress(fasfsd);
+    }, [run]);
 
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
@@ -575,6 +583,7 @@ export const RunView = ({
                     session={session}
                     data={(currentStep as SubroutineStep).routine}
                     handleSaveProgress={saveProgress}
+                    owner={routine.owner}
                     loading={subroutineLoading}
                 />
             default:
@@ -585,7 +594,7 @@ export const RunView = ({
                     session={session}
                 />
         }
-    }, [currentStep, routine?.nodes, saveProgress, session, subroutineLoading, toDecision]);
+    }, [currentStep, routine?.nodes, routine.owner, saveProgress, session, subroutineLoading, toDecision]);
 
     return (
         <Box sx={{ minHeight: '100vh' }}>

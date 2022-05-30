@@ -205,6 +205,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
      * will just be looking at the routine instead of using it.
      */
     async complete(userId: string, input: RunCompleteInput, info: InfoType): Promise<Run> {
+        console.log('RUN COMPLETE START', JSON.stringify(input), '\n\n');
         // Convert info to partial
         const partial = toPartialSelect(info, runFormatter().relationshipMap);
         if (partial === undefined) throw new CustomError(CODE.ErrorUnknown, 'Invalid query.', { code: genErrorCode('0179') });
@@ -246,7 +247,8 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
                     title: 'TODO',
                     userId,
                     version: 'TODO',
-                }
+                },
+                ...selectHelper(partial)
             });
         }
         console.log('run complete herrr', JSON.stringify(run));
