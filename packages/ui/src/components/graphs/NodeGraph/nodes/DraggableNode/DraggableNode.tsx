@@ -15,7 +15,9 @@ type DragRefs = {
  */
 export const DraggableNode = ({
     canDrag = true,
+    dragThreshold = 10,
     nodeId,
+    onClick,
     children,
     ...props
 }: DraggableNodeProps) => {
@@ -66,14 +68,14 @@ export const DraggableNode = ({
         // Determine current drag distance
         const { x, y } = data;
         // If dragged a little bit (to distinguish from a click), set isDragging to true
-        if (!isDragPublished.current && (Math.abs(x) > 5 || Math.abs(y) > 5)) {
+        if (!isDragPublished.current && (Math.abs(x) > dragThreshold || Math.abs(y) > dragThreshold)) {
             isDragPublished.current = true;
             // Alert other components that this node is being dragged (to turn on highlights, for example)
             PubSub.publish(Pubs.NodeDrag, { nodeId });
         }
-    }, [nodeId]);
+    }, [dragThreshold, nodeId]);
 
-    const handleDrop = useCallback((_e: any, data: any) => { //TODO dragging along grid messes up the position. maybe store grid's scroll position on drag start?
+    const handleDrop = useCallback((ev: any, data: any) => { //TODO dragging along grid messes up the position. maybe store grid's scroll position on drag start?
         setIsDragging(false);
         // Get dropped distance from data
         const { x, y } = data;
@@ -97,7 +99,11 @@ export const DraggableNode = ({
             PubSub.publish(Pubs.NodeDrop, { nodeId, position: { x: dropX, y: dropY } });
             isDragPublished.current = false;
         }
-    }, [nodeId]);
+        // If never dragged, send click event
+        else if (onClick) {
+            onClick(ev);
+        }
+    }, [nodeId, onClick]);
 
     return (
         <Draggable

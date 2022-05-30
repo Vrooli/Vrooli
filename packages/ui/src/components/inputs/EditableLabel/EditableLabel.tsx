@@ -23,6 +23,11 @@ export const EditableLabel = ({
 }: EditableLabelProps) => {
     const { palette } = useTheme();
 
+    /**
+     * Random string for unique ID
+     */
+    const [id] = useState(Math.random().toString(36).substr(2, 9));
+
     // Stores changed text before committing
     const [changedText, setChangedText] = useState<string>(text);
     useEffect(() => {
@@ -136,8 +141,8 @@ export const EditableLabel = ({
                 {renderLabel(text.trim().length > 0 ? text : (placeholder ?? ''))}
                 {/* Edit icon */}
                 {canEdit && (
-                    <IconButton onClick={toggleActive} sx={{ color: 'inherit' }}>
-                        <EditIcon />
+                    <IconButton id={`edit-label-icon-button-${id}`} onClick={toggleActive} sx={{ color: 'inherit' }}>
+                        <EditIcon id={`edit-label-icon-${id}`} />
                     </IconButton>
                 )}
             </Stack>

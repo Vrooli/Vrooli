@@ -8,7 +8,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { ChangeEvent, CSSProperties, MouseEvent, useCallback, useMemo, useRef, useState } from 'react';
+import { ChangeEvent, CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
 import { RoutineListNodeProps } from '../types';
 import { DraggableNode, RoutineSubnode } from '..';
 import {
@@ -27,6 +27,25 @@ import { NodeDataRoutineList, NodeDataRoutineListItem } from 'types';
 import { getTranslation, BuildAction, Pubs, updateTranslationField } from 'utils';
 import { EditableLabel } from 'components/inputs';
 
+/**
+ * Distance before a click is considered a drag
+ */
+const DRAG_THRESHOLD = 10;
+
+/**
+ * Decides if a clicked element should trigger a collapse/expand. 
+ * @param id ID of the clicked element
+ */
+const shouldCollapse = (id: string | null | undefined): boolean => {
+    // Don't collapse if clicking on the edit or delete buttons, or if unlinked
+    if (id && 
+        (id.startsWith('unlinked') ||
+        id.startsWith('edit-label-icon') || 
+        id.startsWith('node-delete'))) return false;
+    // In any other case, collapse
+    return true;
+}
+
 export const RoutineListNode = ({
     canDrag,
     canExpand,
@@ -40,12 +59,21 @@ export const RoutineListNode = ({
     scale = 1,
 }: RoutineListNodeProps) => {
     const { palette } = useTheme();
-
-    // Stores position of click/touch start, to cancel click event if drag occurs
-    const clickStartPosition = useRef<{ x: number, y: number }>({ x: 0, y: 0 });
-    // Stores if touch event was a drag
-    const touchIsDrag = useRef(false);
     const [collapseOpen, setCollapseOpen] = useState<boolean>(false);
+    const handleNodeClick = useCallback((event: any) => {
+        console.log('NODE CLICKED NOT DRAGGED!!!!!!!', event.target.id);
+        if (!canDrag || shouldCollapse(event.target.id)) setCollapseOpen(!collapseOpen);
+    }, [canDrag, collapseOpen]);
+    /**
+     * When not dragging, DraggableNode onClick will not be triggered. So 
+     * we must handle this ourselves.
+     */
+    const handleNodeMouseUp = useCallback((event: any) => {
+        console.log('MOUSE UP', !canDrag, event.target.id, shouldCollapse(event.target.id));
+        if (!canDrag && shouldCollapse(event.target.id)) {
+            setCollapseOpen(!collapseOpen);
+        }
+    }, [collapseOpen, canDrag]);
 
     const handleNodeUnlink = useCallback(() => { handleAction(BuildAction.UnlinkNode, node.id); }, [handleAction, node.id]);
     const handleNodeDelete = useCallback(() => { handleAction(BuildAction.DeleteNode, node.id); }, [handleAction, node.id]);
@@ -105,36 +133,12 @@ export const RoutineListNode = ({
         }
     }, [language, node]);
 
-    const handleTouchMove = useCallback((e: any) => {
-        if (!canExpand) return;
-        touchIsDrag.current = true;
-    }, [canExpand]);
-    const handleTouchEnd = useCallback((e: any) => {
-        if (!canExpand) return;
-        if (!touchIsDrag.current) {
-            setCollapseOpen(curr => !curr)
-        }
-        touchIsDrag.current = false;
-    }, [canExpand]);
-    const handleMouseDown = useCallback((e: any) => {
-        if (!canExpand) return;
-        clickStartPosition.current = { x: e.pageX, y: e.pageY };
-    }, [canExpand]);
-    const handleMouseUp = useCallback((e: any) => {
-        if (!canExpand) return;
-        const { x, y } = clickStartPosition.current;
-        const { pageX, pageY } = e;
-        if (Math.abs(pageX - x) < 5 && Math.abs(pageY - y) < 5) {
-            setCollapseOpen(curr => !curr)
-        }
-    }, [canExpand]);
-
     const nodeSize = useMemo(() => `${NodeWidth.RoutineList * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${NodeWidth.RoutineList * scale / 5}px, 2em)`, [scale]);
     const addSize = useMemo(() => `${NodeWidth.RoutineList * scale / 8}px`, [scale]);
 
     const confirmDelete = useCallback((event: any) => {
-        event.preventDefault();
+        console.log('DELETE CONFIRMED', event);
         PubSub.publish(Pubs.AlertDialog, {
             message: 'What would you like to do?',
             buttons: [
@@ -274,7 +278,12 @@ export const RoutineListNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <DraggableNode className="handle" canDrag={canDrag} nodeId={node.id}
+        <DraggableNode
+            className="handle"
+            canDrag={canDrag}
+            nodeId={node.id}
+            onClick={handleNodeClick}
+            dragThreshold={DRAG_THRESHOLD}
             sx={{
                 zIndex: 5,
                 width: nodeSize,
@@ -297,12 +306,9 @@ export const RoutineListNode = ({
             <Tooltip placement={'top'} title={label ?? 'Routine List'}>
                 <Container
                     id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
-                    onMouseDown={handleMouseDown}
-                    onMouseUp={handleMouseUp}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
                     aria-owns={contextOpen ? contextId : undefined}
                     onContextMenu={openContext}
+                    onMouseUp={handleNodeMouseUp}
                     sx={{
                         display: 'flex',
                         height: '48px', // Lighthouse SEO requirement
@@ -321,29 +327,28 @@ export const RoutineListNode = ({
                         },
                     }}
                 >
-                    {canExpand ?
-                        collapseOpen ?
-                            <ExpandLessIcon
-                                id={`${isLinked ? '' : 'unlinked-'}node-routinelist-shrink-icon-${node.id}`}
-                                sx={{
-                                    cursor: 'pointer',
-                                }}
-                            /> :
-                            <ExpandMoreIcon
-                                id={`${isLinked ? '' : 'unlinked-'}node-routinelist-expand-icon-${node.id}`}
-                                sx={{
-                                    cursor: 'pointer',
-                                }}
-                            />
-                        : null}
+                    {
+                        canExpand && (
+                            <IconButton
+                                id={`toggle-expand-icon-button-${node.id}`}
+                                color="inherit"
+                            >
+                                {collapseOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                            </IconButton>
+                        )
+                    }
                     {labelObject}
-                    {isEditing ? <DeleteIcon
-                        id={`${isLinked ? '' : 'unlinked-'}node-routinelist-delete-icon-${node.id}`}
-                        onClick={confirmDelete}
-                        sx={{
-                            cursor: 'pointer',
-                        }}
-                    /> : null}
+                    {
+                        isEditing && (
+                            <IconButton
+                                id={`${isLinked ? '' : 'unlinked-'}node-delete-icon-${node.id}`}
+                                onClick={confirmDelete}
+                                color="inherit"
+                            >
+                                <DeleteIcon id={`node-delete-icon-button-${node.id}`}/>
+                            </IconButton>
+                        )
+                    }
                 </Container>
             </Tooltip>
             {optionsCollapse}
