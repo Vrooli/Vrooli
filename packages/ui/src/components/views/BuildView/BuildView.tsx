@@ -1174,8 +1174,8 @@ export const BuildView = ({
                     />}
                     {/* Language select */}
                     <SelectLanguageDialog
-                        handleSelect={handleLanguageUpdate}
-                        language={language}
+                        currentLanguage={language}
+                        handleCurrent={setLanguage}
                         availableLanguages={routine?.translations.map(t => t.language) ?? []}
                         session={session}
                         sxs={{

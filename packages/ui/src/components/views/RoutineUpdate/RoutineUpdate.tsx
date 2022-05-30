@@ -174,47 +174,6 @@ export const RoutineUpdate = ({
             })
         }
     }, [formik, languages, setLanguage, setLanguages, translations])
-    const handleLanguageChange = useCallback((oldLanguage: string, newLanguage: string) => {
-        // Update main translations
-        updateTranslation(oldLanguage, {
-            language: newLanguage,
-            description: formik.values.description,
-            instructions: formik.values.instructions,
-            title: formik.values.title,
-        });
-        // Update inputs and outputs translations
-        setInputsList(inputsList.map(i => {
-            return {
-                ...i,
-                translations: i.translations.map(t => {
-                    if (t.language === oldLanguage) {
-                        return { ...t, language: newLanguage }
-                    }
-                    return t;
-                })
-            }
-        }));
-        setOutputsList(outputsList.map(o => {
-            return {
-                ...o,
-                translations: o.translations.map(t => {
-                    if (t.language === oldLanguage) {
-                        return { ...t, language: newLanguage }
-                    }
-                    return t;
-                })
-            }
-        }));
-        // Change selection
-        setLanguage(newLanguage);
-        // Update languages
-        const newLanguages = [...languages];
-        const index = newLanguages.findIndex(l => l === oldLanguage);
-        if (index >= 0) {
-            newLanguages[index] = newLanguage;
-            setLanguages(newLanguages);
-        }
-    }, [formik.values, inputsList, languages, outputsList, setLanguage, setLanguages, updateTranslation]);
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
         formik.setValues({
@@ -233,7 +192,7 @@ export const RoutineUpdate = ({
             title: formik.values.title,
         })
         // Update formik
-        updateFormikTranslation(newLanguage);
+        if (language !== newLanguage) updateFormikTranslation(newLanguage);
         // Change language
         setLanguage(newLanguage);
     }, [updateTranslation, language, formik.values.description, formik.values.instructions, formik.values.title, updateFormikTranslation]);
@@ -269,10 +228,9 @@ export const RoutineUpdate = ({
                 <LanguageInput
                     currentLanguage={language}
                     handleAdd={handleAddLanguage}
-                    handleChange={handleLanguageChange}
                     handleDelete={handleLanguageDelete}
-                    handleSelect={handleLanguageSelect}
-                    languages={languages}
+                    handleCurrent={handleLanguageSelect}
+                    selectedLanguages={languages}
                     session={session}
                 />
             </Grid>
@@ -368,7 +326,7 @@ export const RoutineUpdate = ({
                 />
             </Grid>
         </Grid>
-    ), [session, organizationFor, onSwitchChange, language, handleAddLanguage, handleLanguageChange, handleLanguageDelete, handleLanguageSelect, languages, formik, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
+    ), [session, organizationFor, onSwitchChange, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, formik, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{

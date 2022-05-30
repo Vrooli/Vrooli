@@ -120,8 +120,8 @@ export const ReportDialog = ({
                             {title}
                         </Typography>
                         <SelectLanguageDialog
-                            language={language}
-                            handleSelect={setLanguage}
+                            currentLanguage={language}
+                            handleCurrent={setLanguage}
                             session={session}
                         />
                     </Stack>

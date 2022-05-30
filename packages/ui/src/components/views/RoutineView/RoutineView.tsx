@@ -347,7 +347,7 @@ export const RoutineView = ({
     return (
         <Box sx={{
             display: 'flex',
-            alignItems: { xs: 'flex-end', sm: 'center' },
+            alignItems: 'center',
             justifyContent: 'center',
             margin: 'auto',
             // xs: 100vh - navbar (64px) - bottom nav (56px)
@@ -489,8 +489,8 @@ export const RoutineView = ({
                         <SelectLanguageDialog
                             availableLanguages={availableLanguages}
                             canDropdownOpen={availableLanguages.length > 1}
-                            handleSelect={setLanguage}
-                            language={language}
+                            currentLanguage={language}
+                            handleCurrent={setLanguage}
                             session={session}
                         />
                         {canEdit && <Tooltip title="Edit routine">

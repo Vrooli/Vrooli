@@ -179,12 +179,11 @@ export interface LanguageInputProps {
      * with translations. Not needed if using this component to select languages 
      * for an advanced search, for example.
      */
-    currentLanguage?: string;
+    currentLanguage: string;
     handleAdd: (language: string) => any;
-    handleChange: (oldLanguage: string, newLanguage: string) => void;
     handleDelete: (language: string) => void;
-    handleSelect: (language: string) => void;
-    languages: string[];
+    handleCurrent: (language: string) => void;
+    selectedLanguages: string[];
     session: Session;
 }
 

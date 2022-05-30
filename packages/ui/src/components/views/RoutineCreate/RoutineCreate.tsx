@@ -66,6 +66,8 @@ export const RoutineCreate = ({
     type Translation = NewObject<Routine['translations'][0]>;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
+        console.log('IN DELETE TRANS A', translations)
+        console.log('IN DELETE TRANS B', [...translations.filter(t => t.language !== language)])
         setTranslations([...translations.filter(t => t.language !== language)]);
         // Also delete translations from inputs and outputs
         setInputsList(inputsList.map(i => {
@@ -84,6 +86,7 @@ export const RoutineCreate = ({
         return index >= 0 ? updateArray(translations, index, translation) : [...translations, translation];
     }, [translations]);
     const updateTranslation = useCallback((language: string, translation: Translation) => {
+        console.log('updateTranslation', language, translation)
         setTranslations(getTranslationsUpdate(language, translation));
     }, [getTranslationsUpdate]);
 
@@ -91,6 +94,10 @@ export const RoutineCreate = ({
         if (typeof params.tag === 'string') setTags([{ tag: params.tag }]);
         else if (Array.isArray(params.tags)) setTags(params.tags.map((t: any) => ({ tag: t })));
     }, [params]);
+
+    useEffect(() => {
+        console.log('TRANSLATIONS', translations);
+    }, [translations]);
 
     // Handle create
     const [mutation] = useMutation<routine>(routineCreateMutation);
@@ -142,47 +149,6 @@ export const RoutineCreate = ({
             setLanguages([userLanguage])
         }
     }, [languages, session, setLanguage, setLanguages])
-    const handleLanguageChange = useCallback((oldLanguage: string, newLanguage: string) => {
-        // Update main translations
-        updateTranslation(oldLanguage, {
-            language: newLanguage,
-            description: formik.values.description,
-            instructions: formik.values.instructions,
-            title: formik.values.title,
-        });
-        // Update inputs and outputs translations
-        setInputsList(inputsList.map(i => {
-            return {
-                ...i,
-                translations: i.translations.map(t => {
-                    if (t.language === oldLanguage) {
-                        return { ...t, language: newLanguage }
-                    }
-                    return t;
-                })
-            }
-        }));
-        setOutputsList(outputsList.map(o => {
-            return {
-                ...o,
-                translations: o.translations.map(t => {
-                    if (t.language === oldLanguage) {
-                        return { ...t, language: newLanguage }
-                    }
-                    return t;
-                })
-            }
-        }));
-        // Change selection
-        setLanguage(newLanguage);
-        // Update languages
-        const newLanguages = [...languages];
-        const index = newLanguages.findIndex(l => l === oldLanguage);
-        if (index >= 0) {
-            newLanguages[index] = newLanguage;
-            setLanguages(newLanguages);
-        }
-    }, [formik.values, inputsList, languages, outputsList, setLanguage, setLanguages, updateTranslation]);
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
         formik.setValues({
@@ -193,6 +159,7 @@ export const RoutineCreate = ({
         });
     }, [formik, translations]);
     const handleLanguageSelect = useCallback((newLanguage: string) => {
+        console.log('handleLanguageSelect', newLanguage);
         // Update old select
         updateTranslation(language, {
             language,
@@ -201,7 +168,7 @@ export const RoutineCreate = ({
             title: formik.values.title,
         })
         // Update formik
-        updateFormikTranslation(newLanguage);
+        if (language !== newLanguage) updateFormikTranslation(newLanguage);
         // Change language
         setLanguage(newLanguage);
     }, [updateTranslation, language, formik.values.description, formik.values.instructions, formik.values.title, updateFormikTranslation]);
@@ -210,6 +177,7 @@ export const RoutineCreate = ({
         handleLanguageSelect(newLanguage);
     }, [handleLanguageSelect, languages, setLanguages]);
     const handleLanguageDelete = useCallback((language: string) => {
+        console.log('HANDLE LANGUAGE DELETE', language)
         const newLanguages = [...languages.filter(l => l !== language)]
         if (newLanguages.length === 0) return;
         deleteTranslation(language);
@@ -247,10 +215,9 @@ export const RoutineCreate = ({
                     <LanguageInput
                         currentLanguage={language}
                         handleAdd={handleAddLanguage}
-                        handleChange={handleLanguageChange}
                         handleDelete={handleLanguageDelete}
-                        handleSelect={handleLanguageSelect}
-                        languages={languages}
+                        handleCurrent={handleLanguageSelect}
+                        selectedLanguages={languages}
                         session={session}
                     />
                 </Grid>
