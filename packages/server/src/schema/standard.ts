@@ -73,16 +73,19 @@ export const typeDef = gql`
     input StandardTranslationCreateInput {
         language: String!
         description: String
+        jsonVariables: String
     }
     input StandardTranslationUpdateInput {
         id: ID!
         language: String
         description: String
+        jsonVariables: String
     }
     type StandardTranslation {
         id: ID!
         language: String!
         description: String
+        jsonVariables: String
     }
 
     input StandardSearchInput {

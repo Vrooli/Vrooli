@@ -12,6 +12,7 @@ export const JsonStandardInput = ({
     schema,
     onChange,
 }: JsonStandardInputProps) => {
+    console.log('in json standard input', schema);
 
     const formik = useFormik({
         initialValues: {

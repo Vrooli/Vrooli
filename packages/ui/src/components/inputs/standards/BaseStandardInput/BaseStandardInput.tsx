@@ -22,15 +22,16 @@ export const BaseStandardInput = ({
      * Store schema in local storage when updated
      */
     useEffect(() => {
-        if (!schema) return;
+        if (!schema || !isEditing) return;
         const typeKey = `${storageKey}-${schema.type}`;
         localStorage.setItem(typeKey, JSON.stringify(schema));
-    }, [schema, storageKey]);
+    }, [isEditing, schema, storageKey]);
 
     /**
      * Change schema when input type changes
      */
     useEffect(() => {
+        if (!isEditing) return;
         console.log('input type change', inputType)
         let newSchema: FieldData | null = null;
         const typeKey = `${storageKey}-${inputType}`;
@@ -59,7 +60,7 @@ export const BaseStandardInput = ({
         console.log('setting local storage', newSchema)
         localStorage.setItem(typeKey, JSON.stringify(newSchema));
         onChange(newSchema as FieldData)
-    }, [onChange, inputType, storageKey, fieldName]);
+    }, [onChange, inputType, storageKey, fieldName, isEditing]);
 
     // Generate input component for type-specific fields
     const SchemaInput = useMemo(() => {

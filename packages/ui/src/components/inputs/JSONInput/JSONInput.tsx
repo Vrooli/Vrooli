@@ -34,6 +34,7 @@
          // First make sure format is valid JSON
          let formatJSON;
          try {
+             console.log('jsoninput parse', format)
              formatJSON = JSON.parse(format);
          }
          catch (error) {
@@ -54,7 +55,7 @@
              if (variableData.defaultValue === undefined) continue;
              // 
          }
-     }, [format, onChange, variables]);
+     }, [format, onChange, value.length, variables]);
  
      /**
       * Uses format, variables, and value

@@ -227,6 +227,10 @@ export const standardQuerier = (prisma: PrismaType) => ({
 
 export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof standardVerifier>) => ({
     async toDBShapeAdd(userId: string | null, data: StandardCreateInput): Promise<any> {
+        let translations = TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, true)
+        if (translations?.jsonVariables) {
+            translations.jsonVariables = sortify(translations.jsonVariables);
+        }
         return {
             name: await standardQuerier(prisma).generateName(userId ?? '', data),
             default: data.default,
@@ -234,14 +238,18 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
             props: sortify(data.props),
             yup: data.yup ? sortify(data.yup) : undefined,
             tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Standard),
-            translations: TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false),
+            translations,
             version: data.version ?? '1.0.0',
         }
     },
     async toDBShapeUpdate(userId: string | null, data: StandardUpdateInput): Promise<any> {
+        let translations = TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false)
+        if (translations?.jsonVariables) {
+            translations.jsonVariables = sortify(translations.jsonVariables);
+        }
         return {
             tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Standard),
-            translations: TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false),
+            translations,
         }
     },
     async relationshipBuilder(

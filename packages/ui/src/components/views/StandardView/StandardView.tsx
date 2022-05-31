@@ -1,6 +1,6 @@
 import { Box, CircularProgress, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS } from "@local/shared";
+import { APP_LINKS, InputType } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
 import { standard, standardVariables } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
@@ -9,7 +9,7 @@ import {
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, LinkButton, SelectLanguageDialog, StarButton } from "components";
+import { BaseObjectActionDialog, BaseStandardInput, LinkButton, SelectLanguageDialog, StarButton } from "components";
 import { StandardViewProps } from "../types";
 import { getCreatedByString, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, toCreatedBy } from "utils";
 import { Standard } from "types";
@@ -18,6 +18,9 @@ import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
 import { validate as uuidValidate } from 'uuid';
 import { owns } from "utils/authentication";
+import { FieldData } from "forms/types";
+import { useFormik } from "formik";
+import { generateInputComponent } from "forms/generators";
 
 const TERTIARY_COLOR = '#95f3cd';
 
@@ -36,9 +39,38 @@ export const StandardView = ({
     useEffect(() => {
         if (id && uuidValidate(id)) getData({ variables: { input: { id } } });
     }, [getData, id])
+
     const standard = useMemo(() => data?.standard, [data]);
     const [changedStandard, setChangedStandard] = useState<Standard | null>(null); // Standard may change if it is starred/upvoted/etc.
     const canEdit = useMemo<boolean>(() => owns(standard?.role), [standard]);
+
+    const schema = useMemo<FieldData | null>(() => {
+        if (!standard) return null;
+        // props and yup are stored as JSON
+        let props: any;
+        let yup: any | undefined = undefined;
+        try {
+            props = JSON.parse(standard.props);
+            if (standard.yup) yup = JSON.parse(standard.yup);
+        } catch (error) {
+            console.error('Error parsing props/yup', error);
+            return null;
+        }
+        return {
+            fieldName: 'preview',
+            label: standard.name,
+            type: standard.type as InputType,
+            props,
+            yup,
+        }
+    }, [standard]);
+    const previewFormik = useFormik({
+        initialValues: {
+            preview: schema?.props?.defaultValue ?? '',
+        },
+        enableReinitialize: true,
+        onSubmit: () => { },
+    });
 
     useEffect(() => {
         if (standard) { setChangedStandard(standard) }
@@ -129,14 +161,27 @@ export const StandardView = ({
                         <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Description</Typography>
                         <Typography variant="body1">{description ?? 'No description set'}</Typography>
                     </Box>
-                    {/* Schema */}
-                    {/* TODO */}
-                    {/* Disabled view of what rendered schema looks like */}
-                    {/* TODO */}
+                    {/* Standard inputs (disabled) */}
+                    <BaseStandardInput
+                        fieldName="preview"
+                        inputType={schema?.type ?? InputType.TextField}
+                        isEditing={false}
+                        schema={schema}
+                        onChange={() => {}} // Intentionally blank
+                        storageKey={''} // Intentionally blank
+                    />
+                    {/* Standard preview */}
+                    {schema && generateInputComponent({
+                        data: schema,
+                        disabled: true,
+                        formik: previewFormik,
+                        session,
+                        onUpload: () => { }
+                    })}
                 </Stack>
             </>
         )
-    }, [loading, description, palette.background.textPrimary, palette.background.textSecondary]);
+    }, [loading, description, palette.background.textPrimary, palette.background.textSecondary, schema, previewFormik, session]);
 
     return (
         <Box sx={{
