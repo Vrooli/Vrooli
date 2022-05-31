@@ -23,7 +23,6 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
         // So we must modify the data a bit.
         const tagData = await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.TagHidden, 'tag');
         let tag: any = tagData && Array.isArray(tagData.create) ? tagData.create[0].tag : undefined;
-        console.log('taghidden todbshapeadd tags result', JSON.stringify(tag), '\n\n');
         return {
             userId: isRelationship ? undefined : userId,
             isBlur: data.isBlur ?? false,
@@ -41,7 +40,6 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
         isAdd: boolean = true,
         relationshipName: string = 'hiddenTags',
     ): Promise<{ [x: string]: any } | undefined> {
-        console.log('tag hidden relbuilder start')
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by TagHiddens (since they can only be applied to one object)
@@ -53,10 +51,8 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
             // Check for max tags TODO
             let result: any[] = [];
             for (let data of createMany) {
-                console.log('tag hidden relbuilder create start', data, '\n\n')
                 // Convert nested relationships
                 result.push(await this.toDBShapeAdd(userId, data, true))
-                console.log('tag hidden relbuilder create end', data, '\n\n')
             }
             createMany = result;
         }
@@ -65,17 +61,14 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
             tagHiddensUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
             let result: any[] = [];
             for (let data of updateMany) {
-                console.log('tag hidden relbuilder update start', data, '\n\n')
                 // Convert nested relationships
                 result.push(await this.toDBShapeUpdate(userId, data.data))
-                console.log('tag hidden relbuilder update end', data, '\n\n')
             }
             updateMany = updateMany.map(u => ({
                 where: u.where,
                 data: result.shift(),
             }))
         }
-        console.log('tag hidden relbuilder end', JSON.stringify(createMany), '\n\n', JSON.stringify(updateMany), '\n\n');
         return Object.keys(formattedInput).length > 0 ? {
             create: createMany,
             update: updateMany,
@@ -115,12 +108,10 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
         if (updateMany) {
             // Loop through each update input
             for (const input of updateMany) {
-                console.log('tag hidden cud update a', JSON.stringify(input), '\n\n')
                 // Find in database
                 let object = await prisma.user_tag_hidden.findFirst({
                     where: { ...input.where, userId: userId ?? '' },
                 })
-                console.log('tag hidden cud update b', JSON.stringify(object), '\n\n')
                 if (!object) throw new CustomError(CODE.ErrorUnknown, 'Could not find TagHidden to update', { code: genErrorCode('0188') });
                 // Update object
                 const currUpdated = await prisma.user_tag_hidden.update({
@@ -128,7 +119,6 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
                     data: await this.toDBShapeUpdate(userId ?? '', input.data),
                     ...selectHelper(partial)
                 });
-                console.log('tag hidden cud update c', JSON.stringify(currUpdated), '\n\n')
                 // Convert to GraphQL
                 const converted = modelToGraphQL(currUpdated, partial);
                 // Add to updated array
@@ -136,16 +126,13 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
             }
         }
         if (deleteMany) {
-            console.log('tag hidden cud deletemany a', JSON.stringify(deleteMany), '\n\n');
             const tagHiddens = await prisma.user_tag_hidden.findMany({
                 where: { id: { in: deleteMany } },
             })
-            console.log('tag hidden cud deletemany b', JSON.stringify(tagHiddens), '\n\n');
             if (tagHiddens.some(t => t.userId !== userId)) throw new CustomError(CODE.Unauthorized, "You can't delete TagHiddens that don't belong to you", { code: genErrorCode('0189') });
             deleted = await prisma.user_tag_hidden.deleteMany({
                 where: { id: { in: tagHiddens.map(t => t.id) } },
             });
-            console.log('tag hidden cud deletemany c', JSON.stringify(deleted), '\n\n');
         }
         return {
             created: createMany ? created : undefined,

@@ -27,6 +27,7 @@ import {
 } from '@mui/icons-material';
 import Markdown from 'markdown-to-jsx';
 import { noSelect } from 'styles';
+import { validate as uuidValidate } from 'uuid';
 
 //TODO
 const helpText =
@@ -77,7 +78,8 @@ export const BuildView = ({
      */
     useEffect(() => {
         const searchParams = parseSearchParams(window.location.search);
-        if (searchParams.edit) {
+        // If edit param is set or build param is not a valid id, set editing to true
+        if (searchParams.edit || !uuidValidate(searchParams.build ? `${searchParams.build}` : '')) {
             setIsEditing(true);
         }
     }, []);
@@ -1247,7 +1249,7 @@ export const BuildView = ({
                     handleScaleChange={handleScaleChange}
                     hasNext={false}
                     hasPrevious={false}
-                    isAdding={id === 'add'}
+                    isAdding={!uuidValidate(id)}
                     isEditing={isEditing}
                     loading={loading}
                     scale={scale}

@@ -51,17 +51,6 @@ export const stringifySearchParams = (params: { [key: string]: any }): string =>
     if (keys.length === 0) return '';
     // Filter out any keys which are associated with undefined or null values
     const filteredKeys = keys.filter(key => params[key] !== undefined && params[key] !== null);
-    console.log('qq filtered keyssssss', filteredKeys);
-    const temp = filteredKeys.map(key => {
-        console.log('qq key', key);
-        console.log('qq params[key]', params[key]);
-        console.log('qq encodedkey', encodeURIComponent(key));
-        console.log('qq encodedvalue 1', encodeURIComponent(params[key]));
-        console.log('qq encodedvalue 2', encodeURIComponent(JSON.stringify(params[key])));
-        return encodeURIComponent(key) + '=' + encodeURIComponent(JSON.stringify(params[key]))
-    })
-    console.log('qq filtered keysssssss resullttttttt', temp);
-    console.log('qq & combine', temp.join('&'));
     const encodedParams = filteredKeys.map(key => encodeURIComponent(key) + '=' + encodeURIComponent(JSON.stringify(params[key]))).join('&');
     return '?' + encodedParams;
 }

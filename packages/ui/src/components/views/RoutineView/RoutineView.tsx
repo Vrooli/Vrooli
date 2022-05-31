@@ -118,8 +118,8 @@ export const RoutineView = ({
         const searchParams = parseSearchParams(window.location.search);
         console.log('checking url', searchParams)
         if (searchParams.build) {
-            // If build === 'add', populate routine with default start data
-            if (searchParams.build === 'add') {
+            // If build is not an id, populate routine with default start data
+            if (!uuidValidate(searchParams.build ? `${searchParams.build}` : '')) {
                 const startNode: Node = {
                     id: uuidv4(),
                     type: NodeType.Start,
@@ -278,7 +278,7 @@ export const RoutineView = ({
                 </Grid>
                 {/* Show continue if routine already has progress TODO */}
                 <Grid item xs={12} sm={6}>
-                    {routine && routine.runs.length > 0 ?
+                    {routine && routine.runs?.length > 0 ?
                         <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Continue</Button> :
                         <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
                     }

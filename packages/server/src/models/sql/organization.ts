@@ -49,7 +49,6 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         objects: RecursivePartial<any>[],
         partial: PartialInfo,
     ): Promise<RecursivePartial<Organization>[]> {
-        console.log('ORGANICATION ADDSUPP FIELDS start', JSON.stringify(objects), '\n\n');
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred

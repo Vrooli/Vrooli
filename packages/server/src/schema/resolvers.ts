@@ -54,7 +54,6 @@ export const resolveContributor = (obj: any): GraphQLModelType => {
 }
 
 export const resolveStarTo = (obj: any): GraphQLModelType => {
-    console.log('RESOLVE STAR TO', JSON.stringify(obj));
     if (obj.hasOwnProperty('yup')) return GraphQLModelType.Standard;
     if (obj.hasOwnProperty('complexity')) return GraphQLModelType.Routine;
     if (obj.hasOwnProperty('isComplete')) return GraphQLModelType.Project;

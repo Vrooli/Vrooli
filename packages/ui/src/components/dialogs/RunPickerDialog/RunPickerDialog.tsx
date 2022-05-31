@@ -66,7 +66,7 @@ export const RunPickerDialog = ({
             onSelect(null);
         }
         // If routine has no runs, create a new one.
-        else if (routine && routine.runs.length === 0) {
+        else if (routine && routine.runs?.length === 0) {
             console.log('createnewrun call', routine, session.id);
             createNewRun();
         }

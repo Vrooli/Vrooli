@@ -50,7 +50,6 @@ export const mutationWrapper = ({
 }: MutationWrapperProps) => {
     if (spinnerDelay) PubSub.publish(Pubs.Loading, spinnerDelay);
     mutation(input ? { variables: { input } } : undefined).then((response: ApolloResponse) => {
-        console.log("MUTATION WRAPPER RESPONSE", JSON.stringify(response));
         if (successCondition(response)) {
             if (successMessage || successData) PubSub.publish(Pubs.Snack, { message: successMessage && successMessage(response), ...successData });
             if (spinnerDelay) PubSub.publish(Pubs.Loading, false);

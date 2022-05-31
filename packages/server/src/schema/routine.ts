@@ -284,7 +284,6 @@ export const resolvers = {
         },
         routines: async (_parent: undefined, { input }: IWrap<RoutineSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<RoutineSearchResult> => {
             await rateLimit({ context, info, max: 1000 });
-            console.log('readmany routines')
             return readManyHelper(context.req.userId, input, info, RoutineModel(context.prisma));
         },
         routinesCount: async (_parent: undefined, { input }: IWrap<RoutineCountInput>, context: Context, info: GraphQLResolveInfo): Promise<number> => {
