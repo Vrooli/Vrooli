@@ -67,12 +67,9 @@ export const InputOutputListItem = ({
     session,
 }: InputOutputListItemProps) => {
     const { palette } = useTheme();
-    console.log('iolistitem')
 
     // Handle standard select switch
     const [standard, setStandard] = useState<ListStandard | null>(null);
-    const onSwitchChange = useCallback((s: ListStandard | null) => { console.log('on switch change'); setStandard(s) }, []);
-
     // Handle input type selector
     const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
     const handleInputTypeSelect = useCallback((event: any) => {
@@ -81,20 +78,34 @@ export const InputOutputListItem = ({
 
     // Handle standard schema
     const [schema, setSchema] = useState<FieldData | null>(null);
-    const handleSchemaUpdate = useCallback((schema: FieldData) => { setSchema(schema); }, []);
+    const handleSchemaUpdate = useCallback((schema: FieldData) => {
+        console.log('list item handleSchemaUpdate', schema);
+        setSchema(schema);
+    }, []);
     const [schemaKey] = useState(`input-output-schema-${Math.random().toString(36).substring(2, 15)}`);
 
+    const onSwitchChange = useCallback((s: ListStandard | null) => {
+        console.log('on switch change!!', s);
+        setSchema(null);
+        setStandard(s);
+    }, []);
+
+    /**
+     * Update object when standard is changed
+     */
     useEffect(() => {
         // Check if standard has changed
         if (item?.standard?.id === standard?.id) return;
-        console.log('updating standardddd....', item?.standard, standard)
+        console.log('updating standardddd....', standard)
         handleUpdate(index, {
             ...item,
             standard: standard || null,
         })
     }, [handleUpdate, index, item, standard]);
-    // Custom schemas mean a new standard will be created. 
-    // So we must wrap the schema in a new standard object
+    /**
+     * Update object when schema (custom standard) is changed
+     * Schemas mock a standard, so they are wrapped in a new standard object
+     */
     useEffect(() => {
         if (!schema) return;
         console.log('updating schema....', item?.standard, schema)
@@ -107,7 +118,7 @@ export const InputOutputListItem = ({
                 yup: JSON.stringify(schema.yup),
             } as Standard
         })
-    })
+    }, [handleUpdate, index, item, schema]);
 
     type Translation = NewObject<(RoutineInput | RoutineOutput)['translations'][0]>;
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
@@ -126,7 +137,7 @@ export const InputOutputListItem = ({
         enableReinitialize: true,
         validationSchema: isInput ? inputCreate : outputCreate,
         onSubmit: (values) => {
-            console.log('formik handlesubmit😭')
+            console.log('formik handlesubmit😭', item)
             // Update translations
             const allTranslations = getTranslationsUpdate(language, {
                 language,
@@ -153,7 +164,6 @@ export const InputOutputListItem = ({
     return (
         <Box
             id={`${isInput ? 'input' : 'output'}-item-${index}`}
-            onBlur={() => { formik.handleSubmit() }}
             sx={{
                 ...containerShadow,
                 zIndex: 1,
@@ -244,7 +254,7 @@ export const InputOutputListItem = ({
                             name="name"
                             label="identifier"
                             value={formik.values.name}
-                            onBlur={formik.handleBlur}
+                            onBlur={(e) => { formik.handleBlur(e); formik.handleSubmit() }}
                             onChange={formik.handleChange}
                             error={formik.touched.name && Boolean(formik.errors.name)}
                             helperText={formik.touched.name && formik.errors.name}
@@ -259,7 +269,7 @@ export const InputOutputListItem = ({
                                 label="description"
                                 value={formik.values.description}
                                 rows={3}
-                                onBlur={formik.handleBlur}
+                                onBlur={(e) => { formik.handleBlur(e); formik.handleSubmit() }}
                                 onChange={formik.handleChange}
                                 error={formik.touched.description && Boolean(formik.errors.description)}
                                 helperText={formik.touched.description && formik.errors.description}
@@ -316,6 +326,7 @@ export const InputOutputListItem = ({
                                         color='secondary'
                                         checked={formik.values.isRequired}
                                         onChange={formik.handleChange}
+                                        onBlur={(e) => { formik.handleBlur(e); formik.handleSubmit() }}
                                     />
                                 }
                             />

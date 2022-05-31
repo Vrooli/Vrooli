@@ -79,7 +79,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
             timeStarted: new Date(),
             routineId: data.routineId,
             status: RunStatus.InProgress,
-            step: await StepModel(prisma).relationshipBuilder(userId, data, false, 'step'),
+            steps: await StepModel(prisma).relationshipBuilder(userId, data, false, 'step'),
             title: data.title,
             userId,
             version: data.version,

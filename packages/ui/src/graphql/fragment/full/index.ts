@@ -12,6 +12,7 @@ export * from './routineFields';
 export * from './runFields';
 export * from './sessionFields';
 export * from './standardFields';
+export * from './stepInputData';
 export * from './tagFields';
 export * from './userFields';
 export * from './walletFields';

@@ -47,7 +47,11 @@ export const BaseObjectDialog = ({
                         setScrollTarget(node);
                     }
                 }}>
-                    <Toolbar>
+                    <Toolbar sx={{
+                        background: palette.primary.dark,
+                        color: palette.primary.contrastText,
+                        width: '100vw',
+                    }}>
                         {/* Title */}
                         <Typography variant="h5" sx={{ marginLeft: 'auto' }}>
                             {title}

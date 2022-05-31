@@ -35,6 +35,7 @@ export const RoutineCreate = ({
     // Handle inputs
     const [inputsList, setInputsList] = useState<RoutineInputList>([]);
     const handleInputsUpdate = useCallback((updatedList: RoutineInputList) => {
+        console.log('HANDLE INPUTS UPDATEEEEEE', updatedList)
         setInputsList(updatedList);
     }, [setInputsList]);
 

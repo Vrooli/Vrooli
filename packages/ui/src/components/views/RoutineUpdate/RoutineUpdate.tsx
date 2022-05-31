@@ -47,6 +47,7 @@ export const RoutineUpdate = ({
     // Handle inputs
     const [inputsList, setInputsList] = useState<RoutineInputList>([]);
     const handleInputsUpdate = useCallback((updatedList: RoutineInputList) => {
+        console.log('handleiputsupdate', updatedList);
         setInputsList(updatedList);
     }, [setInputsList]);
 
@@ -152,7 +153,7 @@ export const RoutineUpdate = ({
                     ...resourceListUpdate,
                     ...tagsUpdate,
                     translations: allTranslations,
-                }, ['tags', 'inputs.standard', 'outputs.standard'], ['translations', 'inputs', 'outputs']),
+                }, ['tags', 'inputs.standard', 'outputs.standard'], ['translations', 'inputs', 'outputs', 'inputs.translations', 'outputs.translations']),
                 onSuccess: (response) => { onUpdated(response.data.routineUpdate) },
                 onError: () => { formik.setSubmitting(false) },
             })

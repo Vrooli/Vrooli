@@ -50,7 +50,7 @@ export const RoutineView = ({
     }, [data, setRoutine]);
     const updateRoutine = useCallback((routine: Routine) => { setRoutine(routine); }, [setRoutine]);
 
-    const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine]);
+    const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine?.role]);
     // Open boolean for delete routine confirmation
     const [deleteOpen, setDeleteOpen] = useState(false);
     const openDelete = () => setDeleteOpen(true);
@@ -419,7 +419,7 @@ export const RoutineView = ({
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
                 handleActionComplete={() => { }} //TODO
-                handleDelete={() => { }} //TODO
+                handleDelete={openDelete}
                 handleEdit={onEdit}
                 objectId={id ?? ''}
                 objectType={ObjectType.Routine}

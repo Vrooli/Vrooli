@@ -25,6 +25,8 @@ export * from './runsCount';
 export * from './standard';
 export * from './standards';
 export * from './standardsCount';
+export * from './stepInputData';
+export * from './stepInputDatas';
 export * from './tag';
 export * from './tags';
 export * from './tagsCount';

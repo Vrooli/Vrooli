@@ -449,8 +449,8 @@ export const routineMutater = (prisma: PrismaType) => ({
             version: data.version,
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
             tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Routine),
-            inputs: this.relationshipBuilderInput(userId, data, false),
-            outputs: this.relationshipBuilderOutput(userId, data, false),
+            inputs: await this.relationshipBuilderInput(userId, data, false),
+            outputs: await this.relationshipBuilderOutput(userId, data, false),
             nodes: await NodeModel(prisma).relationshipBuilder(userId, (data as RoutineUpdateInput)?.id ?? null, data, false),
             nodeLinks: NodeModel(prisma).relationshipBuilderNodeLink(userId, data, false),
             translations: TranslationModel().relationshipBuilder(userId, data, { create: routineTranslationCreate, update: routineTranslationUpdate }, false),
@@ -461,11 +461,11 @@ export const routineMutater = (prisma: PrismaType) => ({
     * NOTE: Input is whole routine data, not just the inputs. 
     * This is because we may need the node data to calculate inputs
     */
-    relationshipBuilderInput(
+    async relationshipBuilderInput(
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
-    ): { [x: string]: any } | undefined {
+    ): Promise<{ [x: string]: any } | undefined> {
         console.log('relationshipbuilderinput startttt', JSON.stringify(input))
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
@@ -486,7 +486,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                 // Convert nested relationships
                 result.push({
                     name: data.name,
-                    standard: standardModel.relationshipBuilder(userId, data, isAdd),
+                    standard: await standardModel.relationshipBuilder(userId, data, isAdd),
                     translations: TranslationModel().relationshipBuilder(userId, data, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
                 })
             }
@@ -505,7 +505,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                     where: update.where,
                     data: {
                         name: update.data.name,
-                        standard: standardModel.relationshipBuilder(userId, update.data, isAdd),
+                        standard: await standardModel.relationshipBuilder(userId, update.data, isAdd),
                         translations: TranslationModel().relationshipBuilder(userId, update.data, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
                     }
                 })
@@ -524,11 +524,11 @@ export const routineMutater = (prisma: PrismaType) => ({
      * NOTE: Input is whole routine data, not just the outputs. 
      * This is because we may need the node data to calculate outputs
      */
-    relationshipBuilderOutput(
+    async relationshipBuilderOutput(
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
-    ): { [x: string]: any } | undefined {
+    ): Promise<{ [x: string]: any } | undefined> {
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported in this case (since they can only be applied to one routine)
@@ -546,7 +546,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                 // Convert nested relationships
                 result.push({
                     name: data.name,
-                    standard: standardModel.relationshipBuilder(userId, data, isAdd),
+                    standard: await standardModel.relationshipBuilder(userId, data, isAdd),
                     translations: TranslationModel().relationshipBuilder(userId, data, { create: outputTranslationCreate, update: outputTranslationUpdate }, false),
                 })
             }
@@ -563,7 +563,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                     where: update.where,
                     data: {
                         name: update.data.name,
-                        standard: standardModel.relationshipBuilder(userId, update.data, isAdd),
+                        standard: await standardModel.relationshipBuilder(userId, update.data, isAdd),
                         translations: TranslationModel().relationshipBuilder(userId, update.data, { create: outputTranslationCreate, update: outputTranslationUpdate }, false),
                     }
                 })

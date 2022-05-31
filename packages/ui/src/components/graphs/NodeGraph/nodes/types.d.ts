@@ -1,6 +1,6 @@
 import { BoxProps } from '@mui/material';
 import { NodeType } from 'graphql/generated/globalTypes';
-import { Node, NodeDataRoutineListItem, Session } from "types";
+import { Node, NodeDataRoutineListItem } from "types";
 import { BuildAction } from 'utils';
 import { MouseEvent } from 'react';
 
