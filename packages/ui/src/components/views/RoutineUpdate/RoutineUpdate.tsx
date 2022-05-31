@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Grid, TextField } from "@mui/material"
+import { Box, Checkbox, CircularProgress, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material"
 import { useRoute } from "wouter";
 import { APP_LINKS } from "@local/shared";
 import { useMutation, useLazyQuery } from "@apollo/client";
@@ -123,7 +123,8 @@ export const RoutineUpdate = ({
             description: '',
             instructions: '',
             title: '',
-            version: routine?.version ?? 0,
+            version: routine?.version ?? '1.0.0',
+            isComplete: routine?.isComplete ?? true,
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
@@ -148,6 +149,7 @@ export const RoutineUpdate = ({
                     id,
                     ...ownedBy,
                     version: values.version,
+                    isComplete: values.isComplete,
                     inputs: inputsList,
                     outputs: outputsList,
                     ...resourceListUpdate,
@@ -317,7 +319,7 @@ export const RoutineUpdate = ({
                     mutate={false}
                 />
             </Grid>
-            <Grid item xs={12} marginBottom={4}>
+            <Grid item xs={12}>
                 <TagSelector
                     session={session}
                     tags={tags}
@@ -325,6 +327,23 @@ export const RoutineUpdate = ({
                     onTagRemove={removeTag}
                     onTagsClear={clearTags}
                 />
+            </Grid>
+            <Grid item xs={12} marginBottom={4}>
+                <Tooltip placement={'top'} title='Is this routine ready for anyone to use?'>
+                    <FormControlLabel
+                        label='Complete'
+                        control={
+                            <Checkbox
+                                id='routine-is-complete'
+                                name='isComplete'
+                                color='secondary'
+                                checked={formik.values.isComplete}
+                                onChange={formik.handleChange}
+                                onBlur={formik.handleBlur}
+                            />
+                        }
+                    />
+                </Tooltip>
             </Grid>
         </Grid>
     ), [session, organizationFor, onSwitchChange, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, formik, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);

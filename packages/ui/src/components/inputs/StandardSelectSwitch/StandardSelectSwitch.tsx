@@ -92,6 +92,7 @@ export function StandardSelectSwitch({
                     <input
                         type="checkbox"
                         checked={Boolean(selected)}
+                        readOnly
                         disabled={disabled}
                         aria-label="custom-standard-toggle"
                         onClick={handleClick}

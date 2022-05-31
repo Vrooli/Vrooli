@@ -47,7 +47,7 @@ export const SearchRoutinesPage = ({
     const closeAdd = useCallback(() => setAddAnchor(null), []);
     const handleAddSelect = useCallback((option: any) => {
         if (option === 'basic') setLocation(`${APP_LINKS.SearchRoutines}/add`)
-        else setLocation(`${APP_LINKS.Routine}/build=add`)
+        else setLocation(`${APP_LINKS.Routine}/build=true`)
     }, [setLocation]);
     const addOptions: ListMenuItemData<string>[] = [
         { label: 'Basic (Single Step)', value: 'basic' },

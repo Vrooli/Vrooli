@@ -76,7 +76,7 @@ const createNewPopupOptions: ListMenuItemData<string>[] = [
     { label: 'Organization', value: `${APP_LINKS.Organization}/add` },
     { label: 'Project', value: `${APP_LINKS.Project}/add` },
     { label: 'Routine (Single Step)', value: `${APP_LINKS.Routine}/add` },
-    { label: 'Routine (Multi Step)', value: `${APP_LINKS.Routine}/build=add` },
+    { label: 'Routine (Multi Step)', value: `${APP_LINKS.Routine}/build=true` },
     { label: 'Standard', value: `${APP_LINKS.Standard}/add` },
 ]
 
@@ -114,7 +114,7 @@ const shortcuts: ShortcutItem[] = [
     },
     {
         label: 'Create new multi-step routine',
-        link: `${APP_LINKS.Routine}/build=add`,
+        link: `${APP_LINKS.Routine}/build=true`,
     },
     {
         label: 'Create new standard',

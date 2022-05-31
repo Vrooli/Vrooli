@@ -22,7 +22,7 @@ export const standardTranslationsUpdate = yup.array().of(standardTranslationUpda
 export const standardCreateForm = yup.object().shape({
     default: standardDefault.notRequired().default(undefined),
     description: description.notRequired().default(undefined),
-    name: name.required(),
+    name: name.notRequired().default(undefined),
     type: type.required(),
     version: version.notRequired().default(undefined),
 })
@@ -35,7 +35,7 @@ export const standardUpdateForm = yup.object().shape({
  */
 export const standardCreate = yup.object().shape({
     default: standardDefault.notRequired().default(undefined),
-    name: name.required(),
+    name: name.notRequired().default(undefined),
     type: type.required(),
     props: stringifiedJson.required(),
     yup: stringifiedJson.notRequired().default(undefined),

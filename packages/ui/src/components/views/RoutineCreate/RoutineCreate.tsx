@@ -1,4 +1,4 @@
-import { Grid, TextField } from "@mui/material";
+import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { routine } from "graphql/generated/routine";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
@@ -104,6 +104,7 @@ export const RoutineCreate = ({
             instructions: 'Fill out the form below.',
             title: '',
             version: '1.0',
+            isComplete: true,
         },
         validationSchema,
         onSubmit: (values) => {
@@ -129,6 +130,7 @@ export const RoutineCreate = ({
                     resourceListsCreate: [resourceListAdd],
                     ...tagsAdd,
                     version: values.version,
+                    isComplete: values.isComplete,
                 }) as any,
                 onSuccess: (response) => { onCreated(response.data.routineCreate) },
                 onError: () => { formik.setSubmitting(false) }
@@ -300,7 +302,7 @@ export const RoutineCreate = ({
                         mutate={false}
                     />
                 </Grid>
-                <Grid item xs={12} marginBottom={4}>
+                <Grid item xs={12}>
                     <TagSelector
                         session={session}
                         tags={tags}
@@ -308,6 +310,23 @@ export const RoutineCreate = ({
                         onTagRemove={removeTag}
                         onTagsClear={clearTags}
                     />
+                </Grid>
+                <Grid item xs={12} marginBottom={4}>
+                    <Tooltip placement={'top'} title='Is this routine ready for anyone to use?'>
+                        <FormControlLabel
+                            label='Complete'
+                            control={
+                                <Checkbox
+                                    id='routine-is-complete'
+                                    name='isComplete'
+                                    color='secondary'
+                                    checked={formik.values.isComplete}
+                                    onChange={formik.handleChange}
+                                    onBlur={formik.handleBlur}
+                                />
+                            }
+                        />
+                    </Tooltip>
                 </Grid>
             </Grid>
             <DialogActionsContainer actions={actions} onResize={handleResize} />
