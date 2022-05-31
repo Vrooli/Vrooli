@@ -97,7 +97,7 @@ export const typeDef = gql`
         routineId: ID!
         title: String!
         version: String!
-        step: [RunStepCreateInput!]
+        stepsCreate: [RunStepCreateInput!]
         # If scheduling info provided, not starting immediately
         # TODO
     }

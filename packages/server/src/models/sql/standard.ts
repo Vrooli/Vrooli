@@ -175,7 +175,6 @@ export const standardQuerier = (prisma: PrismaType) => ({
         // Sort all JSON properties that are part of the comparison
         const props = sortify(data.props);
         const yup = data.yup ? sortify(data.yup) : null;
-        // name ,default
         // Find all standards that match the given standard
         const standards = await prisma.standard.findMany({
             where: {

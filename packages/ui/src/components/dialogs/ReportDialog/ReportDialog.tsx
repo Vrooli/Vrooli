@@ -1,6 +1,6 @@
 import { useMutation } from '@apollo/client';
 import { reportCreate as validationSchema } from '@local/shared';
-import { Box, Button, Dialog, FormControl, Grid, IconButton, InputLabel, MenuItem, Select, Stack, TextField, Typography, useTheme } from '@mui/material';
+import { Box, Button, Dialog, Grid, IconButton, Stack, TextField, Typography, useTheme } from '@mui/material';
 import { HelpButton } from 'components/buttons';
 import { useFormik } from 'formik';
 import { reportCreate } from 'graphql/generated/reportCreate';
@@ -96,8 +96,11 @@ export const ReportDialog = ({
             onClose={handleClose}
             open={open}
             sx={{
+                '& .MuiPaper-root': {
+                    minWidth: 'min(400px, 100%)',
+                    margin: '0 auto',
+                },
                 '& .MuiDialog-paper': {
-                    width: 'min(500px, 100vw)',
                     textAlign: 'center',
                     overflow: 'hidden',
                 }
@@ -117,8 +120,8 @@ export const ReportDialog = ({
                             {title}
                         </Typography>
                         <SelectLanguageDialog
-                            language={language}
-                            handleSelect={setLanguage}
+                            currentLanguage={language}
+                            handleCurrent={setLanguage}
                             session={session}
                         />
                     </Stack>
@@ -164,6 +167,7 @@ export const ReportDialog = ({
                         id="details"
                         name="details"
                         label="Details (Optional)"
+                        multiline
                         rows={4}
                         value={formik.values.details}
                         onBlur={formik.handleBlur}

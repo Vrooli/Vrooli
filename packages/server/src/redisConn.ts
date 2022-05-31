@@ -11,7 +11,6 @@ export const PORT = Number(split[1]);
 let redisClient: RedisClientType;
 
 const createRedisClient = async () => {
-    console.log('creating redis client...')
     const url = `redis://${HOST}:${PORT}`;
     logger.log(LogLevel.info, 'Creating Redis client.', { code: genErrorCode('0184'), url });
     const redisClient = createClient({ url });

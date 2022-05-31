@@ -1,4 +1,4 @@
-import { Grid, TextField } from "@mui/material";
+import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { routine } from "graphql/generated/routine";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
@@ -35,6 +35,7 @@ export const RoutineCreate = ({
     // Handle inputs
     const [inputsList, setInputsList] = useState<RoutineInputList>([]);
     const handleInputsUpdate = useCallback((updatedList: RoutineInputList) => {
+        console.log('HANDLE INPUTS UPDATEEEEEE', updatedList)
         setInputsList(updatedList);
     }, [setInputsList]);
 
@@ -66,6 +67,8 @@ export const RoutineCreate = ({
     type Translation = NewObject<Routine['translations'][0]>;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
+        console.log('IN DELETE TRANS A', translations)
+        console.log('IN DELETE TRANS B', [...translations.filter(t => t.language !== language)])
         setTranslations([...translations.filter(t => t.language !== language)]);
         // Also delete translations from inputs and outputs
         setInputsList(inputsList.map(i => {
@@ -84,6 +87,7 @@ export const RoutineCreate = ({
         return index >= 0 ? updateArray(translations, index, translation) : [...translations, translation];
     }, [translations]);
     const updateTranslation = useCallback((language: string, translation: Translation) => {
+        console.log('updateTranslation', language, translation)
         setTranslations(getTranslationsUpdate(language, translation));
     }, [getTranslationsUpdate]);
 
@@ -100,6 +104,7 @@ export const RoutineCreate = ({
             instructions: 'Fill out the form below.',
             title: '',
             version: '1.0',
+            isComplete: true,
         },
         validationSchema,
         onSubmit: (values) => {
@@ -125,6 +130,7 @@ export const RoutineCreate = ({
                     resourceListsCreate: [resourceListAdd],
                     ...tagsAdd,
                     version: values.version,
+                    isComplete: values.isComplete,
                 }) as any,
                 onSuccess: (response) => { onCreated(response.data.routineCreate) },
                 onError: () => { formik.setSubmitting(false) }
@@ -142,47 +148,6 @@ export const RoutineCreate = ({
             setLanguages([userLanguage])
         }
     }, [languages, session, setLanguage, setLanguages])
-    const handleLanguageChange = useCallback((oldLanguage: string, newLanguage: string) => {
-        // Update main translations
-        updateTranslation(oldLanguage, {
-            language: newLanguage,
-            description: formik.values.description,
-            instructions: formik.values.instructions,
-            title: formik.values.title,
-        });
-        // Update inputs and outputs translations
-        setInputsList(inputsList.map(i => {
-            return {
-                ...i,
-                translations: i.translations.map(t => {
-                    if (t.language === oldLanguage) {
-                        return { ...t, language: newLanguage }
-                    }
-                    return t;
-                })
-            }
-        }));
-        setOutputsList(outputsList.map(o => {
-            return {
-                ...o,
-                translations: o.translations.map(t => {
-                    if (t.language === oldLanguage) {
-                        return { ...t, language: newLanguage }
-                    }
-                    return t;
-                })
-            }
-        }));
-        // Change selection
-        setLanguage(newLanguage);
-        // Update languages
-        const newLanguages = [...languages];
-        const index = newLanguages.findIndex(l => l === oldLanguage);
-        if (index >= 0) {
-            newLanguages[index] = newLanguage;
-            setLanguages(newLanguages);
-        }
-    }, [formik.values, inputsList, languages, outputsList, setLanguage, setLanguages, updateTranslation]);
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
         formik.setValues({
@@ -193,6 +158,7 @@ export const RoutineCreate = ({
         });
     }, [formik, translations]);
     const handleLanguageSelect = useCallback((newLanguage: string) => {
+        console.log('handleLanguageSelect', newLanguage);
         // Update old select
         updateTranslation(language, {
             language,
@@ -201,7 +167,7 @@ export const RoutineCreate = ({
             title: formik.values.title,
         })
         // Update formik
-        updateFormikTranslation(newLanguage);
+        if (language !== newLanguage) updateFormikTranslation(newLanguage);
         // Change language
         setLanguage(newLanguage);
     }, [updateTranslation, language, formik.values.description, formik.values.instructions, formik.values.title, updateFormikTranslation]);
@@ -210,6 +176,7 @@ export const RoutineCreate = ({
         handleLanguageSelect(newLanguage);
     }, [handleLanguageSelect, languages, setLanguages]);
     const handleLanguageDelete = useCallback((language: string) => {
+        console.log('HANDLE LANGUAGE DELETE', language)
         const newLanguages = [...languages.filter(l => l !== language)]
         if (newLanguages.length === 0) return;
         deleteTranslation(language);
@@ -247,10 +214,9 @@ export const RoutineCreate = ({
                     <LanguageInput
                         currentLanguage={language}
                         handleAdd={handleAddLanguage}
-                        handleChange={handleLanguageChange}
                         handleDelete={handleLanguageDelete}
-                        handleSelect={handleLanguageSelect}
-                        languages={languages}
+                        handleCurrent={handleLanguageSelect}
+                        selectedLanguages={languages}
                         session={session}
                     />
                 </Grid>
@@ -336,7 +302,7 @@ export const RoutineCreate = ({
                         mutate={false}
                     />
                 </Grid>
-                <Grid item xs={12} marginBottom={4}>
+                <Grid item xs={12}>
                     <TagSelector
                         session={session}
                         tags={tags}
@@ -344,6 +310,23 @@ export const RoutineCreate = ({
                         onTagRemove={removeTag}
                         onTagsClear={clearTags}
                     />
+                </Grid>
+                <Grid item xs={12} marginBottom={4}>
+                    <Tooltip placement={'top'} title='Is this routine ready for anyone to use?'>
+                        <FormControlLabel
+                            label='Complete'
+                            control={
+                                <Checkbox
+                                    id='routine-is-complete'
+                                    name='isComplete'
+                                    color='secondary'
+                                    checked={formik.values.isComplete}
+                                    onChange={formik.handleChange}
+                                    onBlur={formik.handleBlur}
+                                />
+                            }
+                        />
+                    </Tooltip>
                 </Grid>
             </Grid>
             <DialogActionsContainer actions={actions} onResize={handleResize} />

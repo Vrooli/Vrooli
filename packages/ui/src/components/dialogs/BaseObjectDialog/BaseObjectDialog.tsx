@@ -4,16 +4,12 @@ import {
     Dialog,
     IconButton,
     Slide,
-    Stack,
     Toolbar,
-    Tooltip,
     Typography,
     useScrollTrigger,
     useTheme,
 } from '@mui/material';
 import {
-    ChevronLeft as PreviousIcon,
-    ChevronRight as NextIcon,
     Close as CloseIcon,
 } from '@mui/icons-material';
 import { UpTransition } from 'components';
@@ -36,8 +32,6 @@ export const BaseObjectDialog = ({
     const scrollTrigger = useScrollTrigger({ target: scrollTarget });
 
     const onClose = useCallback(() => onAction(ObjectDialogAction.Close), [onAction]);
-    const onPrevious = useCallback(() => onAction(ObjectDialogAction.Previous), [onAction]);
-    const onNext = useCallback(() => onAction(ObjectDialogAction.Next), [onAction]);
 
     return (
         <Dialog
@@ -53,9 +47,13 @@ export const BaseObjectDialog = ({
                         setScrollTarget(node);
                     }
                 }}>
-                    <Toolbar>
+                    <Toolbar sx={{
+                        background: palette.primary.dark,
+                        color: palette.primary.contrastText,
+                        width: '100vw',
+                    }}>
                         {/* Title */}
-                        <Typography variant="h5">
+                        <Typography variant="h5" sx={{ marginLeft: 'auto' }}>
                             {title}
                         </Typography>
                         {/* Close icon */}

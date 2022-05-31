@@ -2,13 +2,11 @@
  * Drawer to display overall routine info on the build page. 
  * Swipes left from right of screen
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    Cancel as CancelIcon,
     Close as CloseIcon,
     Delete as DeleteIcon,
     Info as InfoIcon,
-    Update as UpdateIcon,
     QueryStats as StatsIcon,
     ForkRight as ForkIcon,
 } from '@mui/icons-material';
@@ -30,14 +28,17 @@ import {
 } from '@mui/material';
 import { BaseObjectAction, BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import { LinkButton, MarkdownInput, ResourceListHorizontal } from 'components';
-import { getOwnedByString, getTranslation, Pubs, toOwnedBy } from 'utils';
+import { EditableLabel, LanguageInput, LinkButton, MarkdownInput, ResourceListHorizontal } from 'components';
+import { AllLanguages, getOwnedByString, getTranslation, Pubs, toOwnedBy, updateArray } from 'utils';
 import { useLocation } from 'wouter';
 import { useFormik } from 'formik';
 import { routineUpdateForm as validationSchema } from '@local/shared';
+import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
+import { NewObject, Routine } from 'types';
 
 export const BuildInfoDialog = ({
     handleAction,
+    handleLanguageChange,
     handleUpdate,
     isEditing,
     language,
@@ -46,35 +47,28 @@ export const BuildInfoDialog = ({
     session,
     sxs,
 }: BuildInfoDialogProps) => {
+    console.log('rendering buildinfodialog')
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const ownedBy = useMemo<string | null>(() => getOwnedByString(routine, [language]), [routine, language]);
     const toOwner = useCallback(() => { toOwnedBy(routine, setLocation) }, [routine, setLocation]);
 
-    /**
-     * Determines which action buttons to display
-     */
-    const actions = useMemo(() => {
-        // [value, label, icon]
-        const results: [BaseObjectAction, string, any][] = [];
-        // If editing, show "Update", "Cancel", and "Delete" buttons
-        if (isEditing) {
-            results.push(
-                [BaseObjectAction.Update, 'Update', UpdateIcon],
-                [BaseObjectAction.UpdateCancel, 'Cancel', CancelIcon],
-                [BaseObjectAction.Delete, 'Delete', DeleteIcon],
-            )
-        }
-        // If not editing, show "Stats" and "Fork" buttons
-        else {
-            results.push(
-                [BaseObjectAction.Stats, 'Stats', StatsIcon],
-                [BaseObjectAction.Fork, 'Fork', ForkIcon],
-            )
-        }
-        return results;
-    }, [isEditing]);
+    // Handle translations
+    type Translation = NewObject<Routine['translations'][0]>;
+    const [translations, setTranslations] = useState<Translation[]>([]);
+    const deleteTranslation = useCallback((language: string) => {
+        setTranslations([...translations.filter(t => t.language !== language)]);
+    }, [translations]);
+    const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
+        // Find translation
+        const index = translations.findIndex(t => language === t.language);
+        // Add to array, or update if found
+        return index >= 0 ? updateArray(translations, index, translation) : [...translations, translation];
+    }, [translations]);
+    const updateTranslation = useCallback((language: string, translation: Translation) => {
+        setTranslations(getTranslationsUpdate(language, translation));
+    }, [getTranslationsUpdate]);
 
     // Handle update
     const formik = useFormik({
@@ -88,19 +82,86 @@ export const BuildInfoDialog = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
+            const allTranslations = getTranslationsUpdate(language, {
+                language,
+                description: values.description,
+                instructions: values.instructions,
+                title: values.title,
+            })
             handleUpdate({
                 ...routine,
                 isInternal: values.isInternal,
                 version: values.version,
-                translations: [{
-                    language,
-                    title: values.title,
-                    description: values.description,
-                    instructions: values.instructions,
-                }],
+                translations: allTranslations,
             } as any);
         },
     });
+
+    // Handle languages
+    const [languages, setLanguages] = useState<string[]>([]);
+    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+    useEffect(() => {
+        if (isEditing) setAvailableLanguages(Object.keys(AllLanguages));
+        else setAvailableLanguages(routine?.translations?.map(t => t.language) ?? []);
+    }, [routine, isEditing])
+    useEffect(() => {
+        if (languages.length === 0 && translations.length > 0) {
+            handleLanguageChange(translations[0].language);
+            setLanguages(translations.map(t => t.language));
+            formik.setValues({
+                ...formik.values,
+                description: translations[0].description ?? '',
+                instructions: translations[0].instructions,
+                title: translations[0].title,
+            })
+        }
+    }, [formik, languages, handleLanguageChange, setLanguages, translations])
+    const updateFormikTranslation = useCallback((language: string) => {
+        const existingTranslation = translations.find(t => t.language === language);
+        formik.setValues({
+            ...formik.values,
+            description: existingTranslation?.description ?? '',
+            instructions: existingTranslation?.instructions ?? '',
+            title: existingTranslation?.title ?? '',
+        });
+    }, [formik, translations]);
+    const handleLanguageSelect = useCallback((newLanguage: string) => {
+        // Update old select
+        updateTranslation(language, {
+            language,
+            description: formik.values.description,
+            instructions: formik.values.instructions,
+            title: formik.values.title,
+        })
+        // Update formik
+        if (language !== newLanguage) updateFormikTranslation(newLanguage);
+        // Change language
+        handleLanguageChange(newLanguage);
+    }, [formik.values.description, formik.values.instructions, formik.values.title, handleLanguageChange, language, updateFormikTranslation, updateTranslation]);
+    const handleAddLanguage = useCallback((newLanguage: string) => {
+        setLanguages([...languages, newLanguage]);
+        handleLanguageSelect(newLanguage);
+    }, [handleLanguageSelect, languages, setLanguages]);
+    const handleLanguageDelete = useCallback((language: string) => {
+        const newLanguages = [...languages.filter(l => l !== language)]
+        if (newLanguages.length === 0) return;
+        deleteTranslation(language);
+        updateFormikTranslation(newLanguages[0]);
+        handleLanguageChange(newLanguages[0]);
+        setLanguages(newLanguages);
+    }, [deleteTranslation, handleLanguageChange, languages, updateFormikTranslation]);
+
+    const updateRoutineTitle = useCallback((title: string) => {
+        console.log('UPDATE ROUTINE TITLE IN BUILDINFODIALOG', title, routine?.translations)
+        if (!routine) return;
+        updateTranslation(language, {
+            language,
+            description: formik.values.description,
+            instructions: formik.values.instructions,
+            title: title,
+        })
+        formik.setFieldValue('title', title);
+    }, [formik, language, routine, updateTranslation]);
 
     // Open boolean for drawer
     const [open, setOpen] = useState(false);
@@ -135,6 +196,28 @@ export const BuildInfoDialog = ({
         />
     }, [loading, routine, session]);
 
+    /**
+     * Determines which action buttons to display
+     */
+    const actions = useMemo(() => {
+        // [value, label, icon, secondaryLabel]
+        const results: [BaseObjectAction, string, any, string | null][] = [];
+        // If editing, show "Update", "Cancel", and "Delete" buttons
+        if (isEditing) {
+            results.push(
+                [BaseObjectAction.Delete, 'Delete', DeleteIcon, null],
+            )
+        }
+        // If not editing, show "Stats" and "Fork" buttons
+        else {
+            results.push(
+                [BaseObjectAction.Stats, 'Stats', StatsIcon, 'Coming Soon'],
+                [BaseObjectAction.Fork, 'Fork', ForkIcon, 'Coming Soon'],
+            )
+        }
+        return results;
+    }, [isEditing]);
+
     return (
         <>
             <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
@@ -164,7 +247,22 @@ export const BuildInfoDialog = ({
                 }}>
                     {/* Title, created by, and version  */}
                     <Stack direction="column" spacing={1} alignItems="center" sx={{ marginLeft: 'auto' }}>
-                        <Typography variant="h5">{getTranslation(routine, 'title', [language])}</Typography>
+                        <EditableLabel
+                            canEdit={isEditing}
+                            handleUpdate={updateRoutineTitle}
+                            placeholder={loading ? 'Loading...' : 'Enter title...'}
+                            renderLabel={(t) => (
+                                <Typography
+                                    component="h2"
+                                    variant="h5"
+                                    textAlign="center"
+                                    sx={{
+                                        fontSize: { xs: '1em', sm: '1.25em', md: '1.5em' },
+                                    }}
+                                >{t ?? (loading ? 'Loading...' : 'Enter title')}</Typography>
+                            )}
+                            text={getTranslation(routine, 'title', [language], false) ?? ''}
+                        />
                         <Stack direction="row" spacing={1}>
                             {ownedBy ? (
                                 <LinkButton
@@ -189,6 +287,23 @@ export const BuildInfoDialog = ({
                 {/* Main content */}
                 {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
                 <Stack direction="column" spacing={2} padding={1}>
+                    {/* Language */}
+                    {
+                        isEditing ? <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleLanguageDelete}
+                            handleCurrent={handleLanguageSelect}
+                            selectedLanguages={languages}
+                            session={session}
+                        /> : <SelectLanguageDialog
+                            availableLanguages={availableLanguages}
+                            canDropdownOpen={availableLanguages.length > 1}
+                            currentLanguage={language}
+                            handleCurrent={handleLanguageSelect}
+                            session={session}
+                        />
+                    }
                     {/* Resources */}
                     {resourceList}
                     {/* Description */}
@@ -257,7 +372,7 @@ export const BuildInfoDialog = ({
                 </Stack>
                 {/* List of actions that can be taken, such as viewing stats, forking, and deleting */}
                 <List sx={{ marginTop: 'auto' }}>
-                    {actions.map(([value, label, Icon]) => (
+                    {actions.map(([value, label, Icon, secondaryLabel]) => (
                         <ListItem
                             key={value}
                             button
@@ -266,7 +381,7 @@ export const BuildInfoDialog = ({
                             <ListItemIcon>
                                 <Icon />
                             </ListItemIcon>
-                            <ListItemText primary={label} secondary="Coming soon" sx={{
+                            <ListItemText primary={label} secondary={secondaryLabel} sx={{
                                 '& .MuiListItemText-secondary': {
                                     color: 'red',
                                 },

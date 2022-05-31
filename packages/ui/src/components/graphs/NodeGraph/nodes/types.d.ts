@@ -1,6 +1,6 @@
 import { BoxProps } from '@mui/material';
 import { NodeType } from 'graphql/generated/globalTypes';
-import { Node, NodeDataRoutineListItem, Session } from "types";
+import { Node, NodeDataRoutineListItem } from "types";
 import { BuildAction } from 'utils';
 import { MouseEvent } from 'react';
 
@@ -109,4 +109,12 @@ export interface DraggableNodeProps extends BoxProps, Omit<DraggableProps, 'isLi
      */
     nodeId: string;
     children: React.JSX;
+    /**
+     * Threshold for dragging to start
+     */
+    dragThreshold?: number;
+    /**
+     * Callback when the node is clicked, but not dragged
+     */
+    onClick?: (event: MouseEvent) => void;
 }

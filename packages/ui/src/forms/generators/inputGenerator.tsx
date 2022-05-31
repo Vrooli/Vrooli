@@ -146,6 +146,7 @@ export const toLanguageInput = ({
     disabled,
     formik,
     index,
+    session,
 }: InputGeneratorProps): React.ReactElement => {
     let languages: string[] = [];
     if (_.isObject(formik.values) && Array.isArray(formik.values[data.fieldName]) && data.fieldName in formik.values) {
@@ -154,27 +155,19 @@ export const toLanguageInput = ({
     const addLanguage = (lang: string) => {
         formik.setFieldValue(data.fieldName, [...languages, lang]);
     };
-    const changeLanguage = (oldLang: string, newLang: string) => {
-        const newLanguages = [...languages];
-        const index = newLanguages.findIndex(l => l === oldLang);
-        if (index >= 0) {
-            newLanguages[index] = newLang;
-            formik.setFieldValue(data.fieldName, newLanguages);
-        }
-    }
     const deleteLanguage = (lang: string) => {
         const newLanguages = [...languages.filter(l => l !== lang)]
         formik.setFieldValue(data.fieldName, newLanguages);
     }
     return (
         <LanguageInput
+            currentLanguage={languages.length > 0 ? languages[0] : ''} //TOOD
             disabled={disabled}
             handleAdd={addLanguage}
-            handleChange={changeLanguage}
             handleDelete={deleteLanguage}
-            handleSelect={() => {}}
-            languages={languages}
-            session={{}} //TODO
+            handleCurrent={() => {}} //TODO
+            selectedLanguages={languages}
+            session={session}
         />
     )
 }

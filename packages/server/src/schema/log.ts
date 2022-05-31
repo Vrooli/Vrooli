@@ -99,7 +99,6 @@ export const resolvers = {
     LogType: LogType,
     Query: {
         logs: async (_parent: undefined, { input }: IWrap<LogSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<LogSearchResult> => {
-            console.log('logs start', JSON.stringify(input))
             await rateLimit({ context, info, max: 1000, byAccount: true });
             // Create the search and sort queries
             const findQuery = logSearcher().getFindQuery(context.req.userId ?? '', input);

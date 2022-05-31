@@ -18,6 +18,7 @@ import * as Routine from './routine';
 import * as Run from './run';
 import * as Standard from './standard';
 import * as Star from './star';
+import * as StepInputData from './stepInputData';
 import * as Tag from './tag';
 import * as User from './user';
 import * as View from './view';
@@ -27,7 +28,7 @@ import * as Wallet from './wallet';
 const models = [
     Root, Auth, Comment, Email, Feedback, Log, Node,
     Organization, Pages, Project, Report, Resource, ResourceList, Role,
-    Routine, Run, Standard, Star, Tag, User, View, Vote, Wallet
+    Routine, Run, Standard, Star, StepInputData, Tag, User, View, Vote, Wallet
 ]
 
 export const schema = makeExecutableSchema({

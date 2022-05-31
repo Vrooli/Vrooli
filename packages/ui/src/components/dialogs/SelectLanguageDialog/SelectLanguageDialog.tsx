@@ -3,7 +3,8 @@ import { SelectLanguageDialogProps } from '../types';
 import {
     ArrowDropDown as ArrowDropDownIcon,
     ArrowDropUp as ArrowDropUpIcon,
-    Close as DeleteIcon,
+    Check as CheckIcon,
+    Delete as DeleteIcon,
     Language as LanguageIcon,
 } from '@mui/icons-material';
 import { MouseEvent, useCallback, useMemo, useRef, useState } from 'react';
@@ -12,13 +13,12 @@ import { FixedSizeList } from 'react-window';
 
 export const SelectLanguageDialog = ({
     availableLanguages,
-    canDelete = false,
     canDropdownOpen = true,
-    color = 'default',
+    currentLanguage,
     handleDelete,
-    handleSelect,
-    language,
-    onClick,
+    handleCurrent,
+    isEditing = false,
+    selectedLanguages,
     session,
     sxs,
 }: SelectLanguageDialogProps) => {
@@ -28,19 +28,14 @@ export const SelectLanguageDialog = ({
         setSearchString(event.target.value);
     }, []);
 
-    const userLanguages = useMemo(() => getUserLanguages(session), [session]);
     const languageOptions = useMemo<Array<[string, string]>>(() => {
-        // Handle restricted languages
-        let options: Array<[string, string]> = availableLanguages ?
-            availableLanguages.map(l => [l, AllLanguages[l]]) : Object.entries(AllLanguages);
-        // Handle search string
-        if (searchString.length > 0) {
-            options = options.filter((o: [string, string]) => o[1].toLowerCase().includes(searchString.toLowerCase()));
-        }
-        // Reorder so user's languages are first
-        options = options.sort((a, b) => {
-            const aIndex = userLanguages.indexOf(a[0]);
-            const bIndex = userLanguages.indexOf(b[0]);
+        // Find user languages
+        const userLanguages = getUserLanguages(session);
+        const selected = selectedLanguages ?? [];
+        // Sort selected languages. Selected languages which are also user languages are first.
+        const sortedSelectedLanguages = selected.sort((a, b) => {
+            const aIndex = userLanguages.indexOf(a);
+            const bIndex = userLanguages.indexOf(b);
             if (aIndex === -1 && bIndex === -1) {
                 return 0;
             } else if (aIndex === -1) {
@@ -50,24 +45,38 @@ export const SelectLanguageDialog = ({
             } else {
                 return aIndex - bIndex;
             }
-        });
+        }) ?? [];
+        // Filter selected languages from user languages
+        const userLanguagesFiltered = userLanguages.filter(l => selected.indexOf(l) === -1);
+        // Select selected and user languages from all languages
+        const allLanguagesFiltered = (availableLanguages ?? Object.keys(AllLanguages)).filter(l => selected.indexOf(l) === -1).filter(l => userLanguagesFiltered.indexOf(l) === -1);
+        // Create array with all available languages.
+        // Selected and user languages first, then selected, then user languages which haven't been seleccted, then other available languages.
+        const displayed = [...sortedSelectedLanguages, ...userLanguagesFiltered, ...allLanguagesFiltered];
+        // Convert to array of [languageCode, languageDisplayName]
+        let options: Array<[string, string]> = displayed.map(l => [l, AllLanguages[l]]);
+        // Filter options with search string
+        if (searchString.length > 0) {
+            options = options.filter((o: [string, string]) => o[1].toLowerCase().includes(searchString.toLowerCase()));
+        }
         return options;
-    }, [availableLanguages, searchString, userLanguages]);
+    }, [availableLanguages, searchString, selectedLanguages, session]);
 
     // Popup for selecting language
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const anchorRef = useRef<HTMLElement | null>(null);
-    const open = Boolean(anchorEl || language === null);
+    const open = Boolean(anchorEl);
     const onOpen = useCallback((event: MouseEvent<HTMLDivElement>) => {
-        if (onClick) onClick(event);
         if (canDropdownOpen) setAnchorEl(anchorRef.current);
-    }, [canDropdownOpen, onClick]);
+        // Force parent to save current translation
+        if (currentLanguage) handleCurrent(currentLanguage);
+    }, [canDropdownOpen, currentLanguage, handleCurrent]);
     const onClose = useCallback(() => setAnchorEl(null), []);
 
-    const onDelete = useCallback((e: MouseEvent<HTMLButtonElement>) => {
+    const onDelete = useCallback((e: MouseEvent<HTMLButtonElement>, language: string) => {
         e.preventDefault();
         e.stopPropagation();
-        if (handleDelete) handleDelete()
+        if (handleDelete) handleDelete(language);
     }, [handleDelete]);
 
     return (
@@ -80,7 +89,6 @@ export const SelectLanguageDialog = ({
                 sx={{
                     '& .MuiPopover-paper': {
                         background: 'transparent',
-                        boxShadow: 'none',
                         border: 'none',
                         paddingBottom: 1,
                     }
@@ -134,15 +142,55 @@ export const SelectLanguageDialog = ({
                         {(props) => {
                             const { index, style } = props;
                             const option: [string, string] = languageOptions[index];
+                            const isSelected = selectedLanguages?.includes(option[0]) || option[0] === currentLanguage;
+                            const isCurrent = option[0] === currentLanguage;
                             return (
                                 <ListItem
                                     key={index}
                                     style={style}
                                     disablePadding
                                     button
-                                    onClick={() => { handleSelect(option[0]); onClose(); }}
+                                    onClick={() => { handleCurrent(option[0]); onClose(); }}
+                                    // Darken/lighten selected language (depending on light/dark mode)
+                                    sx={{
+                                        background: isCurrent ? palette.secondary.light : palette.background.default,
+                                        color: isCurrent ? palette.secondary.contrastText : palette.background.textPrimary,
+                                        '&:hover': {
+                                            background: isCurrent ? palette.secondary.light : palette.background.default,
+                                            filter: 'brightness(105%)',
+                                        },
+                                    }}
                                 >
-                                    {option[1]}
+                                    {/* Display check mark if selected */}
+                                    {isSelected && (
+                                        <CheckIcon
+                                            sx={{
+                                                color: (isCurrent) ? palette.secondary.contrastText : palette.background.textPrimary,
+                                                fontSize: '1.5rem',
+                                            }}
+                                        />
+                                    )}
+                                    <Typography variant="body2" style={{
+                                        display: 'block',
+                                        marginRight: 'auto',
+                                    }}>{option[1]}</Typography>
+                                    {/* Display delete icon if selected and editing */}
+                                    {isSelected && (selectedLanguages?.length ?? 0) > 1 && isEditing && (
+                                        <IconButton
+                                            size="small"
+                                            onClick={(e) => onDelete(e, option[0])}
+                                        >
+                                            <DeleteIcon
+                                                sx={{
+                                                    color: (isCurrent) ? palette.secondary.contrastText : palette.background.textPrimary,
+                                                    '&:hover': {
+                                                        color: palette.error.main,
+                                                    },
+                                                    fontSize: '1.5rem',
+                                                }}
+                                            />
+                                        </IconButton>
+                                    )}
                                 </ListItem>
                             );
                         }}
@@ -150,7 +198,7 @@ export const SelectLanguageDialog = ({
                 </Stack>
             </Popover>
             {/* Selected language label */}
-            <Tooltip title={AllLanguages[language] ?? ''} placement="top">
+            <Tooltip title={AllLanguages[currentLanguage] ?? ''} placement="top">
                 <Stack direction="row" ref={anchorRef} spacing={0} onClick={onOpen} sx={{
                     ...(sxs?.root ?? {}),
                     display: availableLanguages === undefined || availableLanguages.length > 0 ? 'flex' : 'none',
@@ -158,21 +206,18 @@ export const SelectLanguageDialog = ({
                     alignItems: 'center',
                     borderRadius: '50px',
                     cursor: canDropdownOpen ? 'pointer' : 'default',
-                    background: color === 'default' ? '#4e7d31' : color,
+                    background: '#4e7d31',
                     '&:hover': {
                         filter: canDropdownOpen ? 'brightness(120%)' : 'brightness(100%)',
                     },
                     transition: 'all 0.2s ease-in-out',
                     width: 'fit-content',
                 }}>
-                    {canDelete && <IconButton onClick={onDelete} size="large" sx={{ padding: '4px', marginRight: '-8px' }}>
-                        <DeleteIcon sx={{ fill: 'red' }} />
-                    </IconButton>}
                     <IconButton disabled={!canDropdownOpen} size="large" sx={{ padding: '4px' }}>
                         <LanguageIcon sx={{ fill: 'white' }} />
                     </IconButton>
                     <Typography variant="body2" sx={{ color: 'white', marginRight: '8px' }}>
-                        {language?.toLocaleUpperCase()}
+                        {currentLanguage?.toLocaleUpperCase()}
                     </Typography>
                     {/* Drop down or drop up icon */}
                     {canDropdownOpen && <IconButton size="large" aria-label="language-select" sx={{ padding: '4px', marginLeft: '-8px' }}>

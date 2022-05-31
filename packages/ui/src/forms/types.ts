@@ -67,7 +67,7 @@ export interface JSONProps extends Omit<JP, 'id' | 'onChange' | 'value'> {
 /**
  * Props for rendering a LanguageInput component
  */
-export interface LanguageInputProps extends Omit<LP, 'handleAdd' | 'handleChange' | 'handleDelete' | 'handleSelect' | 'languages' | 'session'> {
+export interface LanguageInputProps extends Omit<LP, 'currentLanguage' | 'handleAdd' | 'handleChange' | 'handleDelete' | 'handleCurrent' | 'selectedLanguages' | 'session'> {
     defaultValue?: string[];
 }
 

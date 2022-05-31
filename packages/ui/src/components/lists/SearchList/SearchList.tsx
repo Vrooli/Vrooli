@@ -13,8 +13,9 @@ import {
     Sort as SortListIcon,
 } from '@mui/icons-material';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
-import { AutocompleteListItem, getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, objectToSearchInfo, parseSearchParams, SortValueToLabelMap, stringifySearchParams, useReactSearch } from "utils";
+import { getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, objectToSearchInfo, parseSearchParams, SortValueToLabelMap, stringifySearchParams, useReactSearch } from "utils";
 import { useLocation } from "wouter";
+import { AutocompleteOption } from "types";
 
 type TimeFrame = {
     after?: Date;
@@ -198,7 +199,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         }
     }, [pageData, parseData, handleAdvancedSearchDialogClose]);
 
-    const autocompleteOptions: AutocompleteListItem[] = useMemo(() => {
+    const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         return listToAutocomplete(allData, getUserLanguages(session)).sort((a: any, b: any) => {
             return b.stars - a.stars;
         });
@@ -344,8 +345,6 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         placeholder={searchPlaceholder}
                         options={autocompleteOptions}
                         loading={loading}
-                        getOptionKey={(option: AutocompleteListItem) => option.label ?? ''}
-                        getOptionLabel={(option: AutocompleteListItem) => option.label ?? ''}
                         value={searchString}
                         onChange={handleSearch}
                         onInputChange={onInputSelect}

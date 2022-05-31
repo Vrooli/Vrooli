@@ -1,6 +1,5 @@
 import { APP_LINKS } from "@local/shared";
 import { Project, Routine, SetLocation, Standard, User } from "types";
-import { Pubs } from "../consts";
 import { getTranslation } from "./translationTools";
 
 /**
@@ -9,7 +8,10 @@ import { getTranslation } from "./translationTools";
  * @params languages Languages preferred by user
  * @returns String of owner, or empty string if no owner
  */
-export const getOwnedByString = (object: Project | Routine | null | undefined, languages: string[]): string => {
+export const getOwnedByString = (
+    object: { owner: Project['owner'] | Routine['owner'] } | null | undefined,
+    languages: string[]
+): string => {
     if (!object || !object.owner) return '';
     // Check if user or organization. Only users have a non-translated name
     if (object.owner.__typename === 'User' || object.owner.hasOwnProperty('name')) {
@@ -25,7 +27,10 @@ export const getOwnedByString = (object: Project | Routine | null | undefined, l
  * @params languages Languages preferred by user
  * @returns String of owner, or empty string if no owner
  */
- export const getCreatedByString = (object: Standard | null | undefined, languages: string[]): string => {
+export const getCreatedByString = (
+    object: { creator: Standard['creator'] } | null | undefined,
+    languages: string[]
+): string => {
     if (!object || !object.creator) return '';
     // Check if user or organization. Only users have a non-translated name
     if (object.creator.__typename === 'User' || object.creator.hasOwnProperty('name')) {
@@ -41,7 +46,7 @@ export const getOwnedByString = (object: Project | Routine | null | undefined, l
  * @params setLocation Function to set location in history
  */
 export const toOwnedBy = (
-    object: Project | Routine | null | undefined,
+    object: { owner: Project['owner'] | Routine['owner'] } | null | undefined,
     setLocation: SetLocation,
 ): void => {
     if (!object || !object.owner) {
@@ -62,8 +67,8 @@ export const toOwnedBy = (
  * @params object Either a project or routine
  * @params setLocation Function to set location in history
  */
- export const toCreatedBy = (
-    object: Standard | null | undefined,
+export const toCreatedBy = (
+    object: { creator: Standard['creator'] } | null | undefined,
     setLocation: SetLocation,
 ): void => {
     if (!object || !object.creator) {

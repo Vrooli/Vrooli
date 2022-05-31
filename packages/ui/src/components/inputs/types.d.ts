@@ -3,18 +3,16 @@ import { JSONVariable } from 'forms/types';
 import { ChangeEvent } from 'react';
 import { Organization, Session, Standard, Tag } from 'types';
 
-export interface AutocompleteSearchBarProps<T> extends SearchBarProps {
+export interface AutocompleteSearchBarProps extends SearchBarProps {
     debounce?: number;
-    getOptionKey: (option: T, languages: readonly string[]) => string;
-    getOptionLabel: (option: T, languages: readonly string[]) => string;
-    getOptionLabelSecondary?: (option: T) => string;
     id?: string;
     loading?: boolean;
     onChange: (updatedText: string) => any;
-    onInputChange: (newValue: T) => any;
-    options?: T[];
+    onInputChange: (newValue: AutocompleteOption) => any;
+    options?: AutocompleteOption[];
     placeholder?: string;
     session: Session;
+    showSecondaryLabel?: boolean;
     value: string;
 }
 
@@ -181,12 +179,11 @@ export interface LanguageInputProps {
      * with translations. Not needed if using this component to select languages 
      * for an advanced search, for example.
      */
-    currentLanguage?: string;
+    currentLanguage: string;
     handleAdd: (language: string) => any;
-    handleChange: (oldLanguage: string, newLanguage: string) => void;
     handleDelete: (language: string) => void;
-    handleSelect: (language: string) => void;
-    languages: string[];
+    handleCurrent: (language: string) => void;
+    selectedLanguages: string[];
     session: Session;
 }
 

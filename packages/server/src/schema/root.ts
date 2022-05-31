@@ -5,7 +5,6 @@ import { readFiles, saveFiles } from '../utils';
 // import ogs from 'open-graph-scraper';
 import { CODE } from '@local/shared';
 import { Context } from '../context';
-import { GraphQLModelType } from '../models';
 import { CustomError } from '../error';
 import { rateLimit } from '../rateLimit';
 import { resolveContributor } from './resolvers';

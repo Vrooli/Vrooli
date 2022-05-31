@@ -1,26 +1,24 @@
-import { Autocomplete, IconButton, Input, ListItemText, MenuItem, Paper, Typography } from '@mui/material';
+import { Autocomplete, CircularProgress, IconButton, Input, ListItemText, MenuItem, Paper, Typography } from '@mui/material';
 import { AutocompleteSearchBarProps } from '../types';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { Search as SearchIcon } from '@mui/icons-material';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
-import { getUserLanguages } from 'utils';
+import { AutocompleteOption } from 'types';
 
-export function AutocompleteSearchBar<T>({
+export function AutocompleteSearchBar({
     id = 'search-bar',
     placeholder = 'Search...',
     options = [],
-    getOptionKey,
-    getOptionLabel,
-    getOptionLabelSecondary,
     value,
     onChange,
     onInputChange,
     debounce = 200,
     loading = false,
     session,
+    showSecondaryLabel = false,
     sx,
     ...props
-}: AutocompleteSearchBarProps<T>) {
+}: AutocompleteSearchBarProps) {
     const [internalValue, setInternalValue] = useState<string>(value);
     const onChangeDebounced = useMemo(() => AwesomeDebouncePromise(
         onChange,
@@ -36,7 +34,26 @@ export function AutocompleteSearchBar<T>({
         onChangeDebounced(value);
     }, [onChangeDebounced]);
 
-    const languages = useMemo(() => getUserLanguages(session), [session]);
+    /**
+     * If no options but loading, display a loading indicator
+     */
+    const noOptionsText = useMemo(() => {
+        if (loading || (internalValue !== value)) {
+            return (
+                <>
+                    <CircularProgress
+                        color="secondary"
+                        size={20}
+                        sx={{
+                            marginRight: 1,
+                        }}
+                    />
+                    Loading...
+                </>
+            )
+        }
+        return 'No options';
+    }, [loading, value, internalValue]);
 
     return (
         <Autocomplete
@@ -45,14 +62,50 @@ export function AutocompleteSearchBar<T>({
             sx={sx}
             options={options}
             inputValue={internalValue}
-            getOptionLabel={(option: any) => getOptionLabel(option, languages)}
+            getOptionLabel={(option: AutocompleteOption) => option.label ?? ''}
+            onSubmit={(event: any) => {
+                // This is triggered when the user presses enter
+                // We want to prevent the form from submitting, since this reloads the page 
+                // for some reason.
+                event.preventDefault();
+                event.stopPropagation();
+            }}
             renderOption={(_, option) => {
+                console.log('boop', option)
+                // If loading, display spinner
+                if (option.__typename === 'Loading') {
+                    console.log('loading render spinnery thing')
+                    return (
+                        <MenuItem
+                            key="loading"
+                        >
+                            {/* Object title */}
+                            <ListItemText sx={{
+                                '& .MuiTypography-root': {
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                },
+                            }}>
+                                <CircularProgress
+                                    color="secondary"
+                                    size={20}
+                                    sx={{
+                                        marginRight: 1,
+                                    }}
+                                />
+                                {option.label ?? ''}
+                            </ListItemText>
+                        </MenuItem>
+                    )
+                }
                 return (
                     <MenuItem
-                        key={getOptionKey(option, languages)}
+                        key={option.id}
                         onClick={() => {
-                            setInternalValue(getOptionLabel(option, languages));
-                            onChangeDebounced(getOptionLabel(option, languages));
+                            const label = option.label ?? '';
+                            setInternalValue(label);
+                            onChangeDebounced(label);
                             onInputChange(option);
                         }}
                     >
@@ -64,13 +117,13 @@ export function AutocompleteSearchBar<T>({
                                 overflow: 'hidden',
                             },
                         }}>
-                            {getOptionLabel(option, languages)}
+                            {option.label}
                         </ListItemText>
                         {/* Type of object */}
                         {
-                            getOptionLabelSecondary ?
+                            showSecondaryLabel ?
                                 <Typography color="text.secondary">
-                                    {getOptionLabelSecondary(option)}
+                                    {option.__typename === 'Shortcut' ? "↪ Shortcut" : option.__typename}
                                 </Typography> :
                                 null
                         }
@@ -98,6 +151,7 @@ export function AutocompleteSearchBar<T>({
                 </Paper>
             )
             }
+            noOptionsText={noOptionsText}
         />
     );
 }

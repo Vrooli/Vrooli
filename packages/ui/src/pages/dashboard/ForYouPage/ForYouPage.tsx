@@ -65,7 +65,6 @@ export const ForYouPage = ({
         loading,
         session,
     }), [data?.forYouPage?.activeRuns, loading, session])
-    console.log('ACTIVE RUNS', activeRuns);
 
     const completedRuns = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Run'),

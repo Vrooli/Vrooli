@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Grid, TextField } from "@mui/material"
+import { Box, Checkbox, CircularProgress, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material"
 import { useRoute } from "wouter";
 import { APP_LINKS } from "@local/shared";
 import { useMutation, useLazyQuery } from "@apollo/client";
@@ -47,6 +47,7 @@ export const RoutineUpdate = ({
     // Handle inputs
     const [inputsList, setInputsList] = useState<RoutineInputList>([]);
     const handleInputsUpdate = useCallback((updatedList: RoutineInputList) => {
+        console.log('handleiputsupdate', updatedList);
         setInputsList(updatedList);
     }, [setInputsList]);
 
@@ -122,7 +123,8 @@ export const RoutineUpdate = ({
             description: '',
             instructions: '',
             title: '',
-            version: routine?.version ?? 0,
+            version: routine?.version ?? '1.0.0',
+            isComplete: routine?.isComplete ?? true,
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
@@ -147,12 +149,13 @@ export const RoutineUpdate = ({
                     id,
                     ...ownedBy,
                     version: values.version,
+                    isComplete: values.isComplete,
                     inputs: inputsList,
                     outputs: outputsList,
                     ...resourceListUpdate,
                     ...tagsUpdate,
                     translations: allTranslations,
-                }, ['tags', 'inputs.standard', 'outputs.standard'], ['translations', 'inputs', 'outputs']),
+                }, ['tags', 'inputs.standard', 'outputs.standard'], ['translations', 'inputs', 'outputs', 'inputs.translations', 'outputs.translations']),
                 onSuccess: (response) => { onUpdated(response.data.routineUpdate) },
                 onError: () => { formik.setSubmitting(false) },
             })
@@ -174,47 +177,6 @@ export const RoutineUpdate = ({
             })
         }
     }, [formik, languages, setLanguage, setLanguages, translations])
-    const handleLanguageChange = useCallback((oldLanguage: string, newLanguage: string) => {
-        // Update main translations
-        updateTranslation(oldLanguage, {
-            language: newLanguage,
-            description: formik.values.description,
-            instructions: formik.values.instructions,
-            title: formik.values.title,
-        });
-        // Update inputs and outputs translations
-        setInputsList(inputsList.map(i => {
-            return {
-                ...i,
-                translations: i.translations.map(t => {
-                    if (t.language === oldLanguage) {
-                        return { ...t, language: newLanguage }
-                    }
-                    return t;
-                })
-            }
-        }));
-        setOutputsList(outputsList.map(o => {
-            return {
-                ...o,
-                translations: o.translations.map(t => {
-                    if (t.language === oldLanguage) {
-                        return { ...t, language: newLanguage }
-                    }
-                    return t;
-                })
-            }
-        }));
-        // Change selection
-        setLanguage(newLanguage);
-        // Update languages
-        const newLanguages = [...languages];
-        const index = newLanguages.findIndex(l => l === oldLanguage);
-        if (index >= 0) {
-            newLanguages[index] = newLanguage;
-            setLanguages(newLanguages);
-        }
-    }, [formik.values, inputsList, languages, outputsList, setLanguage, setLanguages, updateTranslation]);
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
         formik.setValues({
@@ -233,7 +195,7 @@ export const RoutineUpdate = ({
             title: formik.values.title,
         })
         // Update formik
-        updateFormikTranslation(newLanguage);
+        if (language !== newLanguage) updateFormikTranslation(newLanguage);
         // Change language
         setLanguage(newLanguage);
     }, [updateTranslation, language, formik.values.description, formik.values.instructions, formik.values.title, updateFormikTranslation]);
@@ -269,10 +231,9 @@ export const RoutineUpdate = ({
                 <LanguageInput
                     currentLanguage={language}
                     handleAdd={handleAddLanguage}
-                    handleChange={handleLanguageChange}
                     handleDelete={handleLanguageDelete}
-                    handleSelect={handleLanguageSelect}
-                    languages={languages}
+                    handleCurrent={handleLanguageSelect}
+                    selectedLanguages={languages}
                     session={session}
                 />
             </Grid>
@@ -358,7 +319,7 @@ export const RoutineUpdate = ({
                     mutate={false}
                 />
             </Grid>
-            <Grid item xs={12} marginBottom={4}>
+            <Grid item xs={12}>
                 <TagSelector
                     session={session}
                     tags={tags}
@@ -367,8 +328,25 @@ export const RoutineUpdate = ({
                     onTagsClear={clearTags}
                 />
             </Grid>
+            <Grid item xs={12} marginBottom={4}>
+                <Tooltip placement={'top'} title='Is this routine ready for anyone to use?'>
+                    <FormControlLabel
+                        label='Complete'
+                        control={
+                            <Checkbox
+                                id='routine-is-complete'
+                                name='isComplete'
+                                color='secondary'
+                                checked={formik.values.isComplete}
+                                onChange={formik.handleChange}
+                                onBlur={formik.handleBlur}
+                            />
+                        }
+                    />
+                </Tooltip>
+            </Grid>
         </Grid>
-    ), [session, organizationFor, onSwitchChange, language, handleAddLanguage, handleLanguageChange, handleLanguageDelete, handleLanguageSelect, languages, formik, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
+    ), [session, organizationFor, onSwitchChange, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, formik, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{

@@ -49,7 +49,6 @@ services:
             DB_PULL: "${DB_PULL}"
             DB_PUSH: "${DB_PUSH}"
             MONGO_CONN: "${MONGO_CONN}"
-            NEW_MIGRATION_STRING: "${NEW_MIGRATION_STRING}"
             SITE_EMAIL_FROM: "${SITE_EMAIL_FROM}"
             ADMIN_WALLET: "${ADMIN_WALLET}"
             ADMIN_PASSWORD: "${ADMIN_PASSWORD}"

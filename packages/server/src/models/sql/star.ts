@@ -62,19 +62,16 @@ export const starFormatter = (): FormatConverter<Star> => ({
         objects: RecursivePartial<any>[],
         partial: PartialInfo,
     ): Promise<RecursivePartial<Star>[]> {
-        console.log('star addsupp aaaa', JSON.stringify(objects), '\n', JSON.stringify(partial));
         // Query for data that star is applied to
         if (_.isObject(partial.to)) {
             const toTypes: GraphQLModelType[] = objects.map(o => resolveStarTo(o.to))
             const toIds = objects.map(x => x.to?.id ?? '') as string[];
-            console.log('star addsupp bbbb', toTypes, toIds);
             // Group ids by types
             const toIdsByType: { [x: string]: string[] } = {};
             toTypes.forEach((type, i) => {
                 if (!toIdsByType[type]) toIdsByType[type] = [];
                 toIdsByType[type].push(toIds[i]);
             })
-            console.log('star addsupp cccc', toIdsByType);
             // Query for each type
             const tos: any[] = [];
             for (const type of Object.keys(toIdsByType)) {
@@ -105,19 +102,15 @@ export const starFormatter = (): FormatConverter<Star> => ({
                         throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0185') });
                 }
                 const paginated = await readManyHelper(userId, { ids: toIdsByType[type] }, partial.to[type], typeModel);
-                console.log('star addsupp dddd', JSON.stringify(paginated));
                 tos.push(...paginated.edges.map(x => x.node));
             }
             // Apply each "to" to the "to" property of each object
             for (const object of objects) {
-                console.log('star addsupp eeee', JSON.stringify(object));
                 // Find the correct "to", using object.to.id
                 const to = tos.find(x => x.id === object.to.id);
-                console.log('star addsupp ffff', JSON.stringify(to));
                 object.to = to;
             }
         }
-        console.log('star addsupp gggg', JSON.stringify(objects));
         return objects;
     },
 })
@@ -169,7 +162,6 @@ const starrer = (prisma: PrismaType) => ({
                 where: { id: input.forId },
                 data: { stars: starringFor.stars + 1 }
             })
-            console.log('before log star')
             // Log star event
             Log.collection.insertOne({
                 timestamp: Date.now(),
@@ -188,7 +180,6 @@ const starrer = (prisma: PrismaType) => ({
                 where: { id: input.forId },
                 data: { stars: starringFor.stars - 1 }
             })
-            console.log('before log unstar')
             // Log unstar event
             Log.collection.insertOne({
                 timestamp: Date.now(),

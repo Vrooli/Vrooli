@@ -61,6 +61,10 @@ export interface SubroutineViewProps {
     loading: boolean;
     data: Routine | null;
     handleSaveProgress: () => void;
+    /**
+     * Owner of overall routine, not subroutine
+     */
+    owner: Routine['owner'] | null;
     session: Session;
 }
 

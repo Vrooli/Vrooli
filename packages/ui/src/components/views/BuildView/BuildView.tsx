@@ -1,10 +1,10 @@
 import { Box, Chip, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, DeleteRoutineDialog, EditableLabel, UnlinkedNodesDialog, SelectLanguageDialog, BuildInfoDialog, HelpButton } from 'components';
+import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, DeleteRoutineDialog, EditableLabel, UnlinkedNodesDialog, BuildInfoDialog, HelpButton } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineDeleteOneMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, BuildStatus, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages } from 'utils';
+import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, BuildStatus, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages, parseSearchParams, stringifySearchParams } from 'utils';
 import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine } from 'types';
 import isEqual from 'lodash/isEqual';
 import { useLocation } from 'wouter';
@@ -27,6 +27,7 @@ import {
 } from '@mui/icons-material';
 import Markdown from 'markdown-to-jsx';
 import { noSelect } from 'styles';
+import { validate as uuidValidate } from 'uuid';
 
 //TODO
 const helpText =
@@ -70,10 +71,28 @@ export const BuildView = ({
     const [, setLocation] = useLocation();
     const id: string = useMemo(() => routine?.id ?? '', [routine]);
     const [isEditing, setIsEditing] = useState<boolean>(false);
-
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    useEffect(() => { setLanguage(getUserLanguages(session)[0]) }, [session]);
-    const handleLanguageUpdate = useCallback((language: string) => { setLanguage(language); }, []);
+
+    /**
+     * On page load, check if editing
+     */
+    useEffect(() => {
+        const searchParams = parseSearchParams(window.location.search);
+        // If edit param is set or build param is not a valid id, set editing to true
+        if (searchParams.edit || !uuidValidate(searchParams.build ? `${searchParams.build}` : '')) {
+            setIsEditing(true);
+        }
+    }, []);
+
+    /**
+     * Before closing, remove build-related url params
+     */
+    const removeSearchParams = useCallback(() => {
+        const params = parseSearchParams(window.location.search);
+        if (params.build) delete params.build;
+        if (params.edit) delete params.edit;
+        setLocation(stringifySearchParams(params), { replace: true });
+    }, [setLocation]);
 
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
     // Routine mutators
@@ -88,7 +107,17 @@ export const BuildView = ({
 
     useEffect(() => {
         setChangedRoutine(routine);
-    }, [routine]);
+        // Update language
+        if (routine) {
+            const userLanguages = getUserLanguages(session);
+            const routineLanguages = routine?.translations?.map(t => t.language) ?? [];
+            // Find the first language in the user's languages that is also in the routine's languages
+            const lang = userLanguages.find(l => routineLanguages.includes(l));
+            if (lang) setLanguage(lang);
+            else if (routineLanguages.length > 0) setLanguage(routineLanguages[0]);
+            else setLanguage(userLanguages[0]);
+        }
+    }, [routine, session]);
 
     // Add subroutine dialog
     const [addSubroutineNode, setAddSubroutineNode] = useState<string | null>(null);
@@ -114,25 +143,6 @@ export const BuildView = ({
     const [deleteOpen, setDeleteOpen] = useState(false);
     const openDelete = useCallback(() => setDeleteOpen(true), []);
     const closeDelete = useCallback(() => setDeleteOpen(false), []);
-
-    /**
-     * Hacky way to display dragging nodes over over elements. Disables z-index when dragging
-     */
-    const [isDragging, setIsDragging] = useState<boolean>(false);
-    useEffect(() => {
-        // Add PubSub subscribers
-        let dragStartSub = PubSub.subscribe(Pubs.NodeDrag, (_, data) => {
-            setIsDragging(true);
-        });
-        let dragDropSub = PubSub.subscribe(Pubs.NodeDrop, (_, data) => {
-            setIsDragging(false);
-        });
-        return () => {
-            // Remove PubSub subscribers
-            PubSub.unsubscribe(dragStartSub);
-            PubSub.unsubscribe(dragDropSub);
-        }
-    }, []);
 
     /**
      * Calculates:
@@ -343,10 +353,11 @@ export const BuildView = ({
             successMessage: () => 'Routine created.',
             onSuccess: ({ data }) => {
                 onChange(data.routineCreate);
+                removeSearchParams();
                 handleClose();
             },
         })
-    }, [changedRoutine, handleClose, onChange, routineCreate]);
+    }, [changedRoutine, handleClose, onChange, removeSearchParams, routineCreate]);
 
     /**
      * Mutates routine data
@@ -411,28 +422,38 @@ export const BuildView = ({
                     {
                         text: 'Save', onClick: () => {
                             updateRoutine();
+                            removeSearchParams();
                             handleClose();
                         }
                     },
                     {
                         text: "Don't Save", onClick: () => {
+                            removeSearchParams();
                             handleClose();
                         }
                     },
                 ]
             });
         } else {
+            removeSearchParams();
             handleClose();
         }
-    }, [changedRoutine, handleClose, isEditing, routine, updateRoutine]);
+    }, [changedRoutine, handleClose, isEditing, removeSearchParams, routine, updateRoutine]);
 
     const updateRoutineTitle = useCallback((title: string) => {
+        console.log('UPDATE ROUTINE TITLE', title)
         if (!changedRoutine) return;
+        const newTranslations = [...changedRoutine.translations.map(t => {
+            if (t.language === language) {
+                return { ...t, title }
+            }
+            return { ...t }
+        })];
+        console.log('new translationssssss', newTranslations)
         setChangedRoutine({
-            ...changedRoutine, translations: [
-                { language, title },
-            ]
-        } as any);
+            ...changedRoutine,
+            translations: newTranslations
+        });
     }, [changedRoutine, language]);
 
     const revertChanges = useCallback(() => {
@@ -847,10 +868,10 @@ export const BuildView = ({
                 //TODO
                 break;
             case BaseObjectAction.Delete:
-                //TODO
+                openDelete();
                 break;
             case BaseObjectAction.Downvote:
-                openDelete();
+                //TODO
                 break;
             case BaseObjectAction.Edit:
                 //TODO
@@ -1034,7 +1055,7 @@ export const BuildView = ({
                             }}
                         >{t ?? (loading ? 'Loading...' : 'Enter title')}</Typography>
                     )}
-                    text={getTranslation(routine, 'title', [language], false) ?? ''}
+                    text={getTranslation(changedRoutine, 'title', [language], false) ?? ''}
                     sxs={{
                         stack: { marginLeft: 'auto' }
                     }}
@@ -1171,20 +1192,6 @@ export const BuildView = ({
                         nodes={nodesOffGraph}
                         open={isUnlinkedNodesOpen}
                     />}
-                    {/* Language select */}
-                    <SelectLanguageDialog
-                        handleSelect={handleLanguageUpdate}
-                        language={language}
-                        availableLanguages={routine?.translations.map(t => t.language) ?? []}
-                        session={session}
-                        sxs={{
-                            root: {
-                                marginTop: 'auto',
-                                marginBottom: 'auto',
-                                height: 'fit-content',
-                            }
-                        }}
-                    />
                     {/* Edit button */}
                     {canEdit && !isEditing ? (
                         <IconButton aria-label="confirm-title-change" onClick={startEditing} >
@@ -1196,11 +1203,12 @@ export const BuildView = ({
                     {/* Display routine description, insturctionss, etc. */}
                     <BuildInfoDialog
                         handleAction={handleRoutineAction}
-                        handleUpdate={updateRoutine}
+                        handleLanguageChange={setLanguage}
+                        handleUpdate={(updated: Routine) => { setChangedRoutine(updated); }}
                         isEditing={isEditing}
                         language={language}
                         loading={loading}
-                        routine={routine}
+                        routine={changedRoutine}
                         session={session}
                         sxs={{ icon: { fill: TERTIARY_COLOR, marginRight: 1 } }}
                     />
@@ -1241,7 +1249,7 @@ export const BuildView = ({
                     handleScaleChange={handleScaleChange}
                     hasNext={false}
                     hasPrevious={false}
-                    isAdding={id === 'add'}
+                    isAdding={!uuidValidate(id)}
                     isEditing={isEditing}
                     loading={loading}
                     scale={scale}

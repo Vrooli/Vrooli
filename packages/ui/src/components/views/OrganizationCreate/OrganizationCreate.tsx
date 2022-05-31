@@ -108,23 +108,6 @@ export const OrganizationCreate = ({
             setLanguages([userLanguage])
         }
     }, [languages, session, setLanguage, setLanguages])
-    const handleLanguageChange = useCallback((oldLanguage: string, newLanguage: string) => {
-        // Update translation
-        updateTranslation(oldLanguage, {
-            language: newLanguage,
-            bio: formik.values.bio,
-            name: formik.values.name,
-        });
-        // Change selection
-        setLanguage(newLanguage);
-        // Update languages
-        const newLanguages = [...languages];
-        const index = newLanguages.findIndex(l => l === oldLanguage);
-        if (index >= 0) {
-            newLanguages[index] = newLanguage;
-            setLanguages(newLanguages);
-        }
-    }, [formik.values, languages, setLanguage, setLanguages, updateTranslation]);
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
         formik.setValues({
@@ -141,7 +124,7 @@ export const OrganizationCreate = ({
             name: formik.values.name,
         })
         // Update formik
-        updateFormikTranslation(newLanguage);
+        if (language !== newLanguage) updateFormikTranslation(newLanguage);
         // Change language
         setLanguage(newLanguage);
     }, [updateTranslation, language, formik.values.bio, formik.values.name, updateFormikTranslation]);
@@ -183,10 +166,9 @@ export const OrganizationCreate = ({
                     <LanguageInput
                         currentLanguage={language}
                         handleAdd={handleAddLanguage}
-                        handleChange={handleLanguageChange}
                         handleDelete={handleLanguageDelete}
-                        handleSelect={handleLanguageSelect}
-                        languages={languages}
+                        handleCurrent={handleLanguageSelect}
+                        selectedLanguages={languages}
                         session={session}
                     />
                 </Grid>

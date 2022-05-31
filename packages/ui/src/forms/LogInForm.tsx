@@ -74,7 +74,6 @@ export const LogInForm = ({
                             buttonClicked: () => { toSignUp() }
                         });
                     } else {
-                        console.log('IN ELSE', response);
                         PubSub.publish(Pubs.Snack, { message: errorToMessage(response), severity: 'error', data: response });
                     }
                     formik.setSubmitting(false);

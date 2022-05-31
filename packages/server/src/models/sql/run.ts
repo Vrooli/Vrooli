@@ -79,7 +79,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
             timeStarted: new Date(),
             routineId: data.routineId,
             status: RunStatus.InProgress,
-            step: await StepModel(prisma).relationshipBuilder(userId, data, false, 'step'),
+            steps: await StepModel(prisma).relationshipBuilder(userId, data, false, 'step'),
             title: data.title,
             userId,
             version: data.version,
@@ -147,20 +147,16 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
                     object2Id: createMany[i].routineId,
                 })
             }
-            console.log('before log run cud', JSON.stringify(logData), '\n\n');
             Log.collection.insertMany(logData).catch(error => logger.log(LogLevel.error, 'Failed creating "Run Start" log', { code: genErrorCode('0198'), error }));
         }
         if (updateMany) {
             // Loop through each update input
             for (const input of updateMany) {
-                console.log('going to update runnnnnnn', JSON.stringify(input), '\n\n')
                 // Find in database
                 let object = await prisma.run.findFirst({
                     where: { ...input.where, userId }
                 })
-                console.log('found run in db', JSON.stringify(object), '\n\n')
                 const temp = await this.toDBShapeUpdate(userId, input.data);
-                console.log('run todbshapeupdate', JSON.stringify(temp), '\n\n')
                 if (!object) throw new CustomError(CODE.ErrorUnknown, 'Run not found.', { code: genErrorCode('0176') });
                 // Update object
                 const currUpdated = await prisma.run.update({
@@ -246,17 +242,14 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
                     title: 'TODO',
                     userId,
                     version: 'TODO',
-                }
+                },
+                ...selectHelper(partial)
             });
         }
-        console.log('run complete herrr', JSON.stringify(run));
         // Convert to GraphQL
         let converted: any = modelToGraphQL(run, partial);
-        console.log('run complete converted', JSON.stringify(converted));
         // Add supplemental fields
         converted = (await addSupplementalFields(prisma, userId, [converted], partial))[0];
-        console.log('run complete addsupp', JSON.stringify(converted));
-        console.log('before log run complete')
         // Log run completion
         Log.collection.insertOne({
             timestamp: Date.now(),
@@ -299,7 +292,6 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
         let converted: any = modelToGraphQL(updated, partial);
         // Add supplemental fields
         converted = (await addSupplementalFields(prisma, userId, [converted], partial))[0];
-        console.log('before log run cancel')
         // Log run cancellation
         Log.collection.insertOne({
             timestamp: Date.now(),

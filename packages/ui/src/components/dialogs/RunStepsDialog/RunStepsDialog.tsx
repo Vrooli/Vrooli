@@ -129,12 +129,29 @@ export const RunStepsDialog = ({
     const [getSubroutine, { data: subroutineData, loading: subroutineLoading }] = useLazyQuery<routine, routineVariables>(routineQuery);
 
     /**
+     * Checks if a routine is complete. If it is a subroutine,
+     * recursively checks all subroutine steps.
+     * @param step RoutineStep
+     * @param location Array indicating step location
+     */
+    const isComplete = useCallback((step: RoutineStep, location: number[]) => {
+        // Check if the step has substeps
+        if (step.type === RoutineStepType.Subroutine) {
+            //TODO
+            return false;
+        }
+        // Otherwise, check the history for the step
+        return Boolean(history.find(h => h.length === location.length && h.every((val, index) => val === location[index])));
+    }, [history]);
+
+    /**
      * Generate a tree of the subroutine's steps
      */
     const getTreeItem = useCallback((step: RoutineStep, location: number[] = [1]) => {
         // Ignore first number in location array, as it only exists to group the tree items
         const realLocation = location.slice(1);
-        const isComplete = history.find(h => h.length === realLocation.length && h.every((val, index) => val === realLocation[index]))
+        // Determine if step is complete
+        const completed = isComplete(step, realLocation);
         const locationLabel = location.join('.');
         const realLocationLabel = realLocation.join('.');
         const toLocation = () => {
@@ -148,12 +165,12 @@ export const RunStepsDialog = ({
         switch (step.type) {
             // A decision step never has children
             case RoutineStepType.Decision:
-                return <StyledTreeItem nodeId={locationLabel} label={`${realLocationLabel}. Decision`} onToStep={toLocation} isComplete={isComplete} />
+                return <StyledTreeItem nodeId={locationLabel} label={`${realLocationLabel}. Decision`} onToStep={toLocation} isComplete={completed} />
             // A subroutine may have children, but they may not be loaded
             case RoutineStepType.Subroutine:
                 // If complexity = 1, there are no further steps
                 if (step.routine.complexity === 1) {
-                    return <StyledTreeItem nodeId={locationLabel} label={`${realLocationLabel}. ${step.title}`} onToStep={toLocation} isComplete={isComplete} />
+                    return <StyledTreeItem nodeId={locationLabel} label={`${realLocationLabel}. ${step.title}`} onToStep={toLocation} isComplete={completed} />
                 }
                 // Otherwise, Add a "Loading" node that will be replaced with queried data if opened
                 return (
@@ -172,7 +189,7 @@ export const RunStepsDialog = ({
                     </StyledTreeItem>
                 )
         }
-    }, [handleLoadSubroutine, handleStepParamsUpdate, history, setLocation]);
+    }, [handleLoadSubroutine, handleStepParamsUpdate, isComplete, setLocation]);
 
     return (
         <>

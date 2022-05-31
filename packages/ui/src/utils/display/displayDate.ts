@@ -1,9 +1,9 @@
 /**
  * Displays a date in a human readable format
  * @param timestamp Timestamp of date to display
- * @param showTime Whether to display the time and date, or just the date
+ * @param showDateAndTime Whether to display the time and date, or just the date
  */
-export const displayDate = (timestamp: number, showTime: boolean = true): string => {
+export const displayDate = (timestamp: number, showDateAndTime: boolean = true): string => {
     // Create date object
     const date = new Date(timestamp);
     // Only display year if it's not the current year
@@ -16,6 +16,10 @@ export const displayDate = (timestamp: number, showTime: boolean = true): string
     const dateString = (year || month || day) ? date.toLocaleDateString(navigator.language, { year, month, day }) : 'Today at';
     // Get time string
     const timeString = date.toLocaleTimeString(navigator.language);
-    // Return date and time string
-    return showTime ? `${dateString} ${timeString}` : dateString;
+    // Return date and/or time string
+    // If joined today, display time instead of date
+    if (dateString === 'Today at') {
+        return timeString;
+    }
+    return showDateAndTime ? `${dateString} ${timeString}` : dateString;
 }

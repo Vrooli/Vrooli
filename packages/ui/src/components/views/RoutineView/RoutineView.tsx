@@ -50,7 +50,7 @@ export const RoutineView = ({
     }, [data, setRoutine]);
     const updateRoutine = useCallback((routine: Routine) => { setRoutine(routine); }, [setRoutine]);
 
-    const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine]);
+    const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine?.role]);
     // Open boolean for delete routine confirmation
     const [deleteOpen, setDeleteOpen] = useState(false);
     const openDelete = () => setDeleteOpen(true);
@@ -116,9 +116,10 @@ export const RoutineView = ({
     // If buildId is in the URL, open the build
     useEffect(() => {
         const searchParams = parseSearchParams(window.location.search);
+        console.log('checking url', searchParams)
         if (searchParams.build) {
-            // If build === 'add', populate routine with default start data
-            if (searchParams.build === 'add') {
+            // If build is not an id, populate routine with default start data
+            if (!uuidValidate(searchParams.build ? `${searchParams.build}` : '')) {
                 const startNode: Node = {
                     id: uuidv4(),
                     type: NodeType.Start,
@@ -204,9 +205,22 @@ export const RoutineView = ({
     const stopRoutine = () => { setIsRunOpen(false) };
 
     const onEdit = useCallback(() => {
-        // Depends on if we're in a search popup or a normal organization page
-        setLocation(Boolean(params?.id) ? `${APP_LINKS.Routine}/edit/${id}` : `${APP_LINKS.SearchRoutines}/edit/${id}`);
-    }, [setLocation, params?.id, id]);
+        // Depends on if we're in a search popup or a normal routine page
+        const isMultiStep = (Array.isArray(routine?.nodes) && (routine?.nodes as Routine['nodes']).length > 1) ||
+            (Array.isArray(routine?.nodeLinks) && (routine?.nodeLinks as Routine['nodeLinks']).length > 0);
+        // If multi step, navigate to build page
+        if (isMultiStep) {
+            setLocation(stringifySearchParams({
+                build: true,
+                edit: true,
+            }), { replace: true });
+            setIsBuildOpen(true);
+        }
+        // Otherwise, edit as single step
+        else {
+            setLocation(Boolean(params?.id) ? `${APP_LINKS.Routine}/edit/${id}` : `${APP_LINKS.SearchRoutines}/edit/${id}`);
+        }
+    }, [routine?.nodes, routine?.nodeLinks, setLocation, id, params?.id]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -264,7 +278,7 @@ export const RoutineView = ({
                 </Grid>
                 {/* Show continue if routine already has progress TODO */}
                 <Grid item xs={12} sm={6}>
-                    {routine && routine.runs.length > 0 ?
+                    {routine && routine.runs?.length > 0 ?
                         <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Continue</Button> :
                         <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
                     }
@@ -347,7 +361,7 @@ export const RoutineView = ({
     return (
         <Box sx={{
             display: 'flex',
-            alignItems: { xs: 'flex-end', sm: 'center' },
+            alignItems: 'center',
             justifyContent: 'center',
             margin: 'auto',
             // xs: 100vh - navbar (64px) - bottom nav (56px)
@@ -405,7 +419,7 @@ export const RoutineView = ({
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
                 handleActionComplete={() => { }} //TODO
-                handleDelete={() => { }} //TODO
+                handleDelete={openDelete}
                 handleEdit={onEdit}
                 objectId={id ?? ''}
                 objectType={ObjectType.Routine}
@@ -489,8 +503,8 @@ export const RoutineView = ({
                         <SelectLanguageDialog
                             availableLanguages={availableLanguages}
                             canDropdownOpen={availableLanguages.length > 1}
-                            handleSelect={setLanguage}
-                            language={language}
+                            currentLanguage={language}
+                            handleCurrent={setLanguage}
                             session={session}
                         />
                         {canEdit && <Tooltip title="Edit routine">

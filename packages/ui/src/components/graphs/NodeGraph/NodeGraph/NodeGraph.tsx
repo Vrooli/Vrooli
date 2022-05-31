@@ -314,8 +314,6 @@ export const NodeGraph = ({
             dragRefs.current.currPosition = { x, y };
         }
         const onTouchMove = (ev: any) => {
-            // Prevent default behavior
-            ev.preventDefault();
             // Find touch point
             const x = ev.touches[0].clientX;
             const y = ev.touches[0].clientY;

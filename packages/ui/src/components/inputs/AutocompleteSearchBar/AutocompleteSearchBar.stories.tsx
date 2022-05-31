@@ -9,7 +9,7 @@ export default {
 } as Meta;
 
 // Define template for enabling control over props
-const Template: Story<Props<any>> = (args) => <Component {...args} />;
+const Template: Story<Props> = (args) => <Component {...args} />;
 
 // Export story
 export const Default = Template.bind({});

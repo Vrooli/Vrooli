@@ -18,7 +18,7 @@ import { HelpButton } from 'components';
 import { useCallback, useMemo, useState } from 'react';
 import { LinkDialogProps } from '../types';
 import { Close as CloseIcon } from '@mui/icons-material';
-import { Node } from 'types';
+import { NewObject, Node, NodeLink } from 'types';
 import { getTranslation, Pubs } from 'utils';
 import { NodeType } from 'graphql/generated/globalTypes';
 
@@ -41,26 +41,37 @@ export const LinkDialog = ({
     // Selected "From" and "To" nodes
     const [fromNode, setFromNode] = useState<Node | null>(null);
     const handleFromSelect = useCallback((node: Node) => {
+        console.log('handlefrom select', node)
         setFromNode(node);
     }, [setFromNode]);
     const [toNode, setToNode] = useState<Node | null>(null);
     const handleToSelect = useCallback((node: Node) => {
+        console.log('handle to select', node)
         setToNode(node);
     }, [setToNode]);
+
+    /**
+     * Before closing, clear inputs
+     */
+    const onClose = useCallback((newLink?: NewObject<NodeLink>) => {
+        setFromNode(null);
+        setToNode(null);
+        handleClose(newLink);
+    }, [handleClose, setFromNode, setToNode]);
 
     const addLink = useCallback(() => {
         if (!fromNode || !toNode) {
             PubSub.publish(Pubs.Snack, { message: 'Please select both from and to nodes', severity: 'error' });
             return;
         }
-        handleClose({
+        onClose({
             fromId: fromNode.id,
             toId: toNode.id,
             whens: [], //TODO
         })
-    }, [handleClose, fromNode, toNode]);
+    }, [onClose, fromNode, toNode]);
 
-    const closeDialog = useCallback(() => { handleClose(undefined); }, [handleClose]);
+    const closeDialog = useCallback(() => { onClose(undefined); }, [onClose]);
 
     /**
      * Title bar with help button and close icon
@@ -80,13 +91,13 @@ export const LinkDialog = ({
             <Box sx={{ marginLeft: 'auto' }}>
                 <IconButton
                     edge="start"
-                    onClick={(e) => { handleClose() }}
+                    onClick={(e) => { onClose() }}
                 >
                     <CloseIcon sx={{ fill: palette.primary.contrastText }} />
                 </IconButton>
             </Box>
         </Box>
-    ), [handleClose, isAdd, palette.primary.contrastText, palette.primary.dark]);
+    ), [onClose, isAdd, palette.primary.contrastText, palette.primary.dark]);
 
     /**
      * Calculate the "From" and "To" options
@@ -95,10 +106,12 @@ export const LinkDialog = ({
         if (!routine) return { fromOptions: [], toOptions: [] };
         // Initialize options
         let fromNodes: Node[] = routine.nodes;
+        console.log('calculating fromnodes', fromNodes);
         let toNodes: Node[] = routine.nodes.filter((node: Node) => node.type !== NodeType.Start); // Can't link to start node
         const existingLinks = routine.nodeLinks;
         // If from node is already selected
         if (fromNode) {
+            console.log('has from node', fromNode);
             // Remove it from the "to" options
             toNodes = toNodes.filter(node => node.id !== fromNode.id);
             // Remove all links that already exist
@@ -106,11 +119,13 @@ export const LinkDialog = ({
         }
         // If to node is already selected
         if (toNode) {
+            console.log('has to node', toNode);
             // Remove it from the "from" options
             fromNodes = fromNodes.filter(node => node.id !== toNode.id);
             // Remove all links that already exist
             fromNodes = fromNodes.filter(node => !existingLinks.some(link => link.fromId === node.id && link.toId === toNode.id));
         }
+        console.log('end of calculating fromnodes', fromNodes);
         return { fromOptions: fromNodes, toOptions: toNodes };
     }, [fromNode, routine, toNode]);
 

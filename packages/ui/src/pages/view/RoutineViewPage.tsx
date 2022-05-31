@@ -8,6 +8,8 @@ import { APP_LINKS } from "@local/shared";
 import { RoutineCreate } from "components/views/RoutineCreate/RoutineCreate";
 import { Routine } from "types";
 import { RoutineUpdate } from "components/views/RoutineUpdate/RoutineUpdate";
+import { validate as uuidValidate } from 'uuid';
+import { parseSearchParams } from "utils";
 
 export const RoutineViewPage = ({
     session
@@ -18,8 +20,17 @@ export const RoutineViewPage = ({
     const [matchUpdate, paramsUpdate] = useRoute(`${APP_LINKS.Routine}/edit/:id`);
     const id = useMemo(() => paramsView?.id ?? paramsUpdate?.id ?? '', [paramsView, paramsUpdate]);
 
-    const isAddDialogOpen = useMemo(() => Boolean(matchView) && paramsView?.id === 'add', [matchView, paramsView]);
-    const isEditDialogOpen = useMemo(() => Boolean(matchUpdate), [matchUpdate]);
+    const { isAddDialogOpen, isEditDialogOpen } = useMemo(() => {
+        const searchParams = parseSearchParams(window.location.search);
+        return {
+            /**
+             * Create dialog is open if id is not in the shape of an id, and the
+             * build search param is not present
+             */
+            isAddDialogOpen: matchView && !uuidValidate(paramsView?.id ?? '') && !searchParams.build,
+            isEditDialogOpen: matchUpdate,
+        }
+    }, [matchUpdate, matchView, paramsView?.id]);
 
     const onAction = useCallback((action: ObjectDialogAction, data?: any) => {
         switch (action) {

@@ -37,8 +37,6 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
         objects: RecursivePartial<any>[],
         partial: PartialInfo,
     ): Promise<RecursivePartial<Tag>[]> {
-        console.log('IN TAG addsupp objects', JSON.stringify(objects), '\n\n');
-        console.log('IN TAG addsupp partial', JSON.stringify(partial), '\n\n');
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred

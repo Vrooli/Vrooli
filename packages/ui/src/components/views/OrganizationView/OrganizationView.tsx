@@ -404,8 +404,8 @@ export const OrganizationView = ({
                     <SelectLanguageDialog
                         availableLanguages={availableLanguages}
                         canDropdownOpen={availableLanguages.length > 1}
-                        handleSelect={setLanguage}
-                        language={language}
+                        currentLanguage={language}
+                        handleCurrent={setLanguage}
                         session={session}
                     />
                 </Box>

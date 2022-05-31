@@ -2,13 +2,16 @@
  * Label that turns into a text input when clicked. 
  * Stores new text until committed.
  */
-import { Box, IconButton, Stack, TextField } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Stack, TextField, Typography, useTheme } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import {
     Cancel as CancelIcon,
+    Close as CloseIcon,
     Done as DoneIcon,
+    Edit as EditIcon,
 } from '@mui/icons-material';
 import { EditableLabelProps } from '../types';
+import { noSelect } from 'styles';
 
 export const EditableLabel = ({
     canEdit,
@@ -18,6 +21,13 @@ export const EditableLabel = ({
     text,
     sxs,
 }: EditableLabelProps) => {
+    const { palette } = useTheme();
+
+    /**
+     * Random string for unique ID
+     */
+    const [id] = useState(Math.random().toString(36).substr(2, 9));
+
     // Stores changed text before committing
     const [changedText, setChangedText] = useState<string>(text);
     useEffect(() => {
@@ -29,72 +39,113 @@ export const EditableLabel = ({
 
     // Used for editing the title of the routine
     const [active, setActive] = useState<boolean>(false);
-    const toggleActive = useCallback((e: any) => {
-        // e.stopPropagation();
-        // e.preventDefault();
+    const toggleActive = useCallback((event: React.MouseEvent<any>) => {
+        event.stopPropagation();
+        event.preventDefault();
         if (!canEdit) return;
         setActive(!active)
     }, [active, canEdit]);
-    const save = useCallback(() => {
+    const save = useCallback((event: React.MouseEvent<any>) => {
+        event.stopPropagation();
+        event.preventDefault();
         handleUpdate(changedText);
         setActive(false);
     }, [changedText, handleUpdate]);
-    const cancel = useCallback(() => {
+    const cancel = useCallback((event: React.MouseEvent<any>) => {
+        event.stopPropagation();
+        event.preventDefault();
         setChangedText(text ?? '');
         setActive(false);
     }, [text]);
 
-    return active ?
-        (<Stack direction="row" spacing={1} alignItems="center" sx={{ ...(sxs?.stack ?? {}) }}>
-            {/* Component for editing title */}
-            <TextField
-                autoFocus
-                variant="filled"
-                id="title"
-                name="title"
-                autoComplete="routine-title"
-                label="Title"
-                placeholder={placeholder}
-                value={changedText}
-                onChange={onTextChange}
+    return (
+        <>
+            {/* Dialog with TextField for editing label */}
+            <Dialog
+                open={active}
+                disableScrollLock={true}
+                onClose={() => { }}
+                aria-labelledby="edit-label-title"
+                aria-describedby="edit-label-body"
                 sx={{
-                    marginTop: 1,
-                    marginBottom: 1,
-                    '& .MuiInputLabel-root': {
-                        display: 'none',
+                    '& .MuiPaper-root': {
+                        minWidth: 'min(400px, 100%)',
+                        margin: '0 auto',
                     },
-                    '& .MuiInputBase-root': {
-                        borderBottom: 'none',
-                        borderRadius: '16px',
-                        border: `2px solid green`,//TODO titleValid ? green : red
-                        overflow: 'overlay',
-                    },
-                    '& .MuiInputBase-input': {
-                        position: 'relative',
-                        backgroundColor: '#ffffff94',
-                        border: '1px solid #ced4da',
-                        fontSize: 16,
-                        width: 'auto',
-                        padding: '8px 8px',
-                    }
                 }}
-            />
-            {/* Buttons for confirm/cancel */}
-            <IconButton aria-label="confirm-title-change" onClick={save} sx={{ margin: 0, marginLeft: 0, padding: 0 }}>
-                <DoneIcon sx={{ fill: '#40dd43' }} />
-            </IconButton>
-            <IconButton aria-label="cancel-title-change" onClick={cancel} sx={{ margin: 0, marginLeft: 0, padding: 0 }}>
-                <CancelIcon sx={{ fill: '#ff2a2a' }} />
-            </IconButton>
-        </Stack>) :
-        (<Box sx={{ 
-            ...(sxs?.stack ?? {}),
-            display: 'flex', 
-            alignItems: 'center', 
-            cursor: canEdit ? 'pointer' : 'default', 
-            paddingTop: 1, 
-            paddingBottom: 1
-        }} onClick={toggleActive}>
-            {renderLabel(text.trim().length > 0 ? text : (placeholder ?? ''))}
-        </Box>)
+            >
+                {/* Title with close icon */}
+                <DialogTitle
+                    id="edit-label-title"
+                    sx={{
+                        ...noSelect,
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: 2,
+                        background: palette.primary.dark,
+                        color: palette.primary.contrastText,
+                    }}
+                >
+                    <Typography
+                        variant="h6"
+                        sx={{
+                            width: '-webkit-fill-available',
+                            textAlign: 'center',
+                        }}
+                    >
+                        Edit Label
+                    </Typography>
+                    <IconButton
+                        aria-label="close"
+                        edge="start"
+                        onClick={cancel}
+                    >
+                        <CloseIcon sx={{ fill: palette.primary.contrastText }} />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText id="edit-label-body">
+                        <TextField
+                            autoFocus
+                            margin="dense"
+                            id="edit-label-input"
+                            label="Label"
+                            type="text"
+                            fullWidth
+                            value={changedText}
+                            onChange={onTextChange}
+                        />
+                    </DialogContentText>
+                </DialogContent>
+                {/* Save and cancel buttons */}
+                <DialogActions>
+                    <Button
+                        onClick={save}
+                        color="secondary"
+                        startIcon={<DoneIcon />}
+                    >
+                        Save
+                    </Button>
+                    <Button
+                        onClick={cancel}
+                        color="secondary"
+                        startIcon={<CancelIcon />}
+                    >
+                        Cancel
+                    </Button>
+                </DialogActions>
+            </Dialog >
+            {/* Non-popup elements */}
+            <Stack direction="row" spacing={0} alignItems="center" sx={{ ...(sxs?.stack ?? {}) }}>
+                {/* Label */}
+                {renderLabel(text.trim().length > 0 ? text : (placeholder ?? ''))}
+                {/* Edit icon */}
+                {canEdit && (
+                    <IconButton id={`edit-label-icon-button-${id}`} onClick={toggleActive} sx={{ color: 'inherit' }}>
+                        <EditIcon id={`edit-label-icon-${id}`} />
+                    </IconButton>
+                )}
+            </Stack>
+        </>
+    )
 };

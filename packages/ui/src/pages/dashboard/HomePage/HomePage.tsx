@@ -13,9 +13,9 @@ import {
     Add as CreateIcon,
     Search as SearchIcon,
 } from '@mui/icons-material';
-import { AutocompleteListItem, listToAutocomplete, listToListItems, ObjectType, openObject, openSearchPage, useReactSearch } from 'utils';
+import { listToAutocomplete, listToListItems, ObjectType, openObject, openSearchPage, useReactSearch } from 'utils';
 import _ from 'lodash';
-import { Organization, Project, Routine, Standard, User } from 'types';
+import { AutocompleteOption, Organization, Project, Routine, Standard, User } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 
 const faqText =
@@ -76,7 +76,7 @@ const createNewPopupOptions: ListMenuItemData<string>[] = [
     { label: 'Organization', value: `${APP_LINKS.Organization}/add` },
     { label: 'Project', value: `${APP_LINKS.Project}/add` },
     { label: 'Routine (Single Step)', value: `${APP_LINKS.Routine}/add` },
-    { label: 'Routine (Multi Step)', value: `${APP_LINKS.Routine}/build=add` },
+    { label: 'Routine (Multi Step)', value: `${APP_LINKS.Routine}/add?build=true` },
     { label: 'Standard', value: `${APP_LINKS.Standard}/add` },
 ]
 
@@ -114,7 +114,7 @@ const shortcuts: ShortcutItem[] = [
     },
     {
         label: 'Create new multi-step routine',
-        link: `${APP_LINKS.Routine}/build=add`,
+        link: `${APP_LINKS.Routine}/add?build=true`,
     },
     {
         label: 'Create new standard',
@@ -186,7 +186,7 @@ const shortcuts: ShortcutItem[] = [
     },
 ]
 // Shape shortcuts to match AutoCompleteListItem format
-const shortcutsItems: AutocompleteListItem[] = shortcuts.map(({ label, link }) => ({
+const shortcutsItems: AutocompleteOption[] = shortcuts.map(({ label, link }) => ({
     __typename: "Shortcut",
     label,
     id: link,
@@ -225,8 +225,8 @@ export const HomePage = ({
 
     const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
 
-    const autocompleteOptions: AutocompleteListItem[] = useMemo(() => {
-        const firstResults: AutocompleteListItem[] = [];
+    const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
+        const firstResults: AutocompleteOption[] = [];
         // If "help" typed, add help and faq shortcuts as first result
         if (searchString.toLowerCase().startsWith('help')) {
             firstResults.push({
@@ -249,7 +249,7 @@ export const HomePage = ({
     /**
      * When an autocomplete item is selected, navigate to object
      */
-    const onInputSelect = useCallback((newValue: AutocompleteListItem) => {
+    const onInputSelect = useCallback((newValue: AutocompleteOption) => {
         if (!newValue) return;
         // Replace current state with search string, so that search is not lost. 
         // Only do this if the selected item is not a shortcut
@@ -448,14 +448,12 @@ export const HomePage = ({
                     id="main-search"
                     placeholder='Search routines, projects, and more...'
                     options={autocompleteOptions}
-                    getOptionKey={(option) => option.id}
-                    getOptionLabel={(option) => option.label ?? ''}
-                    getOptionLabelSecondary={(option) => option.__typename === 'Shortcut' ? "↪ Shortcut" : option.__typename}
                     loading={loading}
                     value={searchString}
                     onChange={updateSearch}
                     onInputChange={onInputSelect}
                     session={session}
+                    showSecondaryLabel={true}
                     sx={{ width: 'min(100%, 600px)' }}
                 />
                 {/* =========  #endregion ========= */}

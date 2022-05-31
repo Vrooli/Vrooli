@@ -129,8 +129,6 @@ function getTimeIntervalStart(timeInterval: StatTimeInterval): number {
  * @returns Number of users who used the app in the given time interval
  */
 async function calculateActiveUsers(timeInterval: StatTimeInterval, prisma: PrismaType): Promise<number> {
-    console.log('activeusers start', timeInterval)
-    console.log(getTimeIntervalStart(timeInterval), new Date(getTimeIntervalStart(timeInterval)))
     // Count users in database who have used the site in the last time interval
     const activeUsers = await prisma.user.count({
         where: {
@@ -252,9 +250,8 @@ async function calculateStandards(timeInterval: StatTimeInterval, prisma: Prisma
  * where each key is a StatType, and the value is the calculated statistic as a number
  */
 async function calculateStats(timeInterval: StatTimeInterval): Promise<{ [key in StatType]: number } & { timestamp: number } | undefined> {
-    console.log('calculatestats start', timeInterval);
+    logger.log(LogLevel.info, 'Starting to calculate site statistics', { code: genErrorCode('0211') });
     const prisma = new PrismaClient();
-    console.log('got prisma')
     let results = undefined;
     try {
         results = {
@@ -285,7 +282,6 @@ async function calculateStats(timeInterval: StatTimeInterval): Promise<{ [key in
  * @param timeInterval The time interval the statistic is being calculated for.
  */
 async function logStats(timeInterval: StatTimeInterval) {
-    console.log('logstats start', timeInterval);
     try {
         // Query the database for the statistics relevant to this time interval
         const stats = await calculateStats(timeInterval);
@@ -329,22 +325,22 @@ export const initStatsCronJobs = () => {
     logger.log(LogLevel.info, 'Initializing stats cron jobs.', { code: genErrorCode('0209') });
     // Daily
     cron.schedule(dailyCron, () => {
-        console.log('daily start')
+        logger.log(LogLevel.info, 'Starting daily stats cron job.', { code: genErrorCode('0212') });
         logStats(StatTimeInterval.Daily);
     });
     // Weekly
     cron.schedule(weeklyCron, () => {
-        console.log('weekly start')
+        logger.log(LogLevel.info, 'Starting weekly stats cron job.', { code: genErrorCode('0213') });
         logStats(StatTimeInterval.Weekly);
     });
     // Monthly
     cron.schedule(monthlyCron, () => {
-        console.log('monthly start')
+        logger.log(LogLevel.info, 'Starting monthly stats cron job.', { code: genErrorCode('0214') });
         logStats(StatTimeInterval.Monthly);
     });
     // Yearly/All-time (they use the same time interval)
     cron.schedule(yearlyCron, () => {
-        console.log('yearly start')
+        logger.log(LogLevel.info, 'Starting yearly stats cron job.', { code: genErrorCode('0215') });
         logStats(StatTimeInterval.Yearly);
         logStats(StatTimeInterval.AllTime);
     });

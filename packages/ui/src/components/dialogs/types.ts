@@ -1,4 +1,3 @@
-import { MouseEvent } from 'react';
 import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
@@ -186,6 +185,7 @@ export interface LinkDialogProps {
 
 export interface BuildInfoDialogProps {
     handleAction: (action: BaseObjectAction) => any;
+    handleLanguageChange: (newLanguage: string) => any;
     handleUpdate: (routine: Routine) => any;
     isEditing: boolean;
     language: string;
@@ -240,23 +240,27 @@ export interface SelectLanguageDialogProps {
      * Languages to restrict selection to
      */
     availableLanguages?: string[];
-    canDelete?: boolean;
+    /**
+     * While there may be multiple selected languages, 
+     * there is only ever one current language
+     */
+    currentLanguage: string;
     canDropdownOpen?: boolean;
-    color?: string;
-    handleDelete?: () => any;
+    handleDelete?: (language: string) => any;
     /**
-     * Callback when language is selected
+     * Callback when new current language is selected
      */
-    handleSelect: (language: string) => any;
-    /**
-     * Selected language
-     */
-    language: string;
-    onClick?: (event: MouseEvent<HTMLDivElement>) => any;
+    handleCurrent: (language: string) => any;
+    isEditing?: boolean;
     /**
      * Contains user's languages. These are displayed at the top of the language selection list
      */
     session: Session;
+    /**
+     * Currently selected languages. Display with check marks. 
+     * If not provided, defaults to curentLanguage
+     */
+    selectedLanguages?: string[];
     sxs?: { root: any };
 }
 
