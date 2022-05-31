@@ -75,7 +75,7 @@ export interface JsonFormatInputProps {
      *  }
      * }
      */
-    format?: string;
+    format?: { [x: string]: any };
     helperText?: string | null | undefined;
     minRows?: number;
     onChange: (newText: string) => any;
@@ -143,7 +143,7 @@ export interface JsonInputProps {
      *  }
      * }
      */
-    format?: string;
+    format?: { [x: string]: any }
     helperText?: string | null | undefined;
     minRows?: number;
     onChange: (newText: string) => any;

@@ -189,7 +189,7 @@ export const AdvancedSearchDialog = ({
                 padding: 2,
             }}
         >
-            <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto', paddingLeft: 2, paddingRight: 2 }}>
+            <Typography component="h2" variant="h5" textAlign="center" sx={{ marginLeft: 'auto', paddingLeft: 2, paddingRight: 2 }}>
                 {'Advanced Search'}
             </Typography>
             <Box sx={{ marginLeft: 'auto' }}>
@@ -211,7 +211,8 @@ export const AdvancedSearchDialog = ({
             scroll="body"
             sx={{
                 '& .MuiDialogContent-root': {
-                    background: theme.palette.mode === 'light' ? '#cdd6df' : '#182028',
+                    background: theme.palette.background.default,
+                    color: theme.palette.background.textPrimary,
                     minWidth: 'min(400px, 100%)',
                 },
                 '& .MuiPaper-root': {

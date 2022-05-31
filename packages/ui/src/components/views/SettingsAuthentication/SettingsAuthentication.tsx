@@ -111,7 +111,7 @@ export const SettingsAuthentication = ({
                 justifyContent: 'center',
                 alignItems: 'center',
             }}>
-                <Typography component="h1" variant="h3" textAlign="center">Authentication</Typography>
+                <Typography component="h1" variant="h4" textAlign="center">Authentication</Typography>
                 <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
             </Box>
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">

@@ -39,21 +39,16 @@ export const EditableLabel = ({
 
     // Used for editing the title of the routine
     const [active, setActive] = useState<boolean>(false);
-    const toggleActive = useCallback((event: React.MouseEvent<any>) => {
-        event.stopPropagation();
-        event.preventDefault();
+    const toggleActive = useCallback((event: any) => {
+        console.log('TOGGLE ACTIVEEEE', event);
         if (!canEdit) return;
         setActive(!active)
     }, [active, canEdit]);
     const save = useCallback((event: React.MouseEvent<any>) => {
-        event.stopPropagation();
-        event.preventDefault();
         handleUpdate(changedText);
         setActive(false);
     }, [changedText, handleUpdate]);
     const cancel = useCallback((event: React.MouseEvent<any>) => {
-        event.stopPropagation();
-        event.preventDefault();
         setChangedText(text ?? '');
         setActive(false);
     }, [text]);
@@ -141,7 +136,12 @@ export const EditableLabel = ({
                 {renderLabel(text.trim().length > 0 ? text : (placeholder ?? ''))}
                 {/* Edit icon */}
                 {canEdit && (
-                    <IconButton id={`edit-label-icon-button-${id}`} onClick={toggleActive} sx={{ color: 'inherit' }}>
+                    <IconButton
+                        id={`edit-label-icon-button-${id}`}
+                        onClick={toggleActive}
+                        onTouchStart={toggleActive}
+                        sx={{ color: 'inherit' }}
+                    >
                         <EditIcon id={`edit-label-icon-${id}`} />
                     </IconButton>
                 )}

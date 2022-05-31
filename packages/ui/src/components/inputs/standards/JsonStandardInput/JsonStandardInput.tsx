@@ -16,7 +16,7 @@ export const JsonStandardInput = ({
 
     const formik = useFormik({
         initialValues: {
-            format: schema.props.format ?? '',
+            format: schema.props.format ?? {},
             defaultValue: schema.props.defaultValue ?? '',
             variables: schema.props.variables ?? {},
             // yup: [],

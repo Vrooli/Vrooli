@@ -160,7 +160,7 @@ export const SettingsDisplay = ({
                 padding: 0.5,
                 marginBottom: 2,
             }}>
-                <Typography component="h1" variant="h3">Display Preferences</Typography>
+                <Typography component="h1" variant="h4">Display Preferences</Typography>
                 <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
             </Stack>
             <Box sx={{ margin: 2, marginBottom: 5 }}>

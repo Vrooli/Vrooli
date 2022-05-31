@@ -440,6 +440,21 @@ export const BuildView = ({
         }
     }, [changedRoutine, handleClose, isEditing, removeSearchParams, routine, updateRoutine]);
 
+    /**
+     * On page leave, check if routine has changed. 
+     * If so, prompt user to save changes
+     */
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (isEditing && JSON.stringify(routine) !== JSON.stringify(changedRoutine)) {
+                e.preventDefault()
+                e.returnValue = ''
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [changedRoutine, isEditing, routine, updateRoutine]);
+
     const updateRoutineTitle = useCallback((title: string) => {
         console.log('UPDATE ROUTINE TITLE', title)
         if (!changedRoutine) return;

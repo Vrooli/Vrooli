@@ -23,7 +23,7 @@ export const SettingsNotifications = ({
                 marginBottom: 2,
                 padding: 0.5,
             }}>
-                <Typography component="h1" variant="h3">Notification</Typography>
+                <Typography component="h1" variant="h4">Notifications</Typography>
                 <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
             </Stack>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

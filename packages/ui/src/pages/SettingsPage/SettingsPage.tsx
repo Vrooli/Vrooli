@@ -99,16 +99,16 @@ export function SettingsPage({
     }, [selectedPage, session, profile, onUpdated]);
 
     return (
-        <Box id='page' sx={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
+        <Box id='page' sx={{
+            display: 'flex',
+            justifyContent: 'center',
             alignItems: 'center',
-            padding: '0.5em',
-            paddingTop: { xs: '64px', md: '80px' },
+            padding: { xs: '0', sm: '0.5em' },
+            paddingTop: { xs: '64px', sm: '80px' },
         }}>
             <Box sx={{
-                ...containerShadow,
-                borderRadius: 2,
+                boxShadow: { xs: 'none', sm: '0px 0px 12px gray' },
+                borderRadius: { xs: 0, sm: 2 },
                 overflow: 'overlay',
                 background: palette.background.default,
                 width: 'min(100%, 700px)',
