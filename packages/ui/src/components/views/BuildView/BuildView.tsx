@@ -1,15 +1,14 @@
-import { Box, Chip, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, DeleteRoutineDialog, EditableLabel, UnlinkedNodesDialog, BuildInfoDialog, HelpButton } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineDeleteOneMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, BuildStatus, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages, parseSearchParams, stringifySearchParams } from 'utils';
+import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, Status, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages, parseSearchParams, stringifySearchParams } from 'utils';
 import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine } from 'types';
 import isEqual from 'lodash/isEqual';
 import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
-import { BuildStatusObject } from 'components/graphs/NodeGraph/types';
 import { NodeType } from 'graphql/generated/globalTypes';
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
@@ -21,13 +20,10 @@ import {
     Close as CloseIcon,
     Compress as CleanUpIcon,
     Edit as EditIcon,
-    Mood as ValidIcon,
-    MoodBad as InvalidIcon,
-    SentimentDissatisfied as IncompleteIcon,
 } from '@mui/icons-material';
-import Markdown from 'markdown-to-jsx';
-import { noSelect } from 'styles';
 import { validate as uuidValidate } from 'uuid';
+import { StatusMessageArray } from 'components/buttons/types';
+import { StatusButton } from 'components/buttons';
 
 //TODO
 const helpText =
@@ -38,25 +34,6 @@ Lorem ipsum dolor sit amet consectetur adipisicing elit.
 ## How does it work?
 Lorem ipsum dolor sit amet consectetur adipisicing elit.
 `
-
-/**
- * Status indicator and slider change color to represent routine's status
- */
-const STATUS_COLOR = {
-    [BuildStatus.Incomplete]: '#cde22c', // Yellow
-    [BuildStatus.Invalid]: '#ff6a6a', // Red
-    [BuildStatus.Valid]: '#00d51e', // Green
-}
-const STATUS_LABEL = {
-    [BuildStatus.Incomplete]: 'Incomplete',
-    [BuildStatus.Invalid]: 'Invalid',
-    [BuildStatus.Valid]: 'Valid',
-}
-const STATUS_ICON = {
-    [BuildStatus.Incomplete]: IncompleteIcon,
-    [BuildStatus.Invalid]: InvalidIcon,
-    [BuildStatus.Valid]: ValidIcon,
-}
 
 const TERTIARY_COLOR = '#95f3cd';
 
@@ -100,7 +77,7 @@ export const BuildView = ({
     const [routineUpdate] = useMutation<any>(routineUpdateMutation);
     const [routineDelete] = useMutation<any>(routineDeleteOneMutation);
     // The routine's status (valid/invalid/incomplete)
-    const [status, setStatus] = useState<BuildStatusObject>({ code: BuildStatus.Incomplete, messages: ['Calculating...'] });
+    const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ['Calculating...'] });
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
     const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine]);
@@ -156,7 +133,7 @@ export const BuildView = ({
         const nodesOnGraph: Node[] = [];
         const nodesOffGraph: Node[] = [];
         const nodesById: { [id: string]: Node } = {};
-        const statuses: [BuildStatus, string][] = []; // Holds all status messages, so multiple can be displayed
+        const statuses: [Status, string][] = []; // Holds all status messages, so multiple can be displayed
         // Loop through nodes and add to appropriate array (and also populate nodesById dictionary)
         for (const node of changedRoutine.nodes) {
             if (!_.isNil(node.columnIndex) && !_.isNil(node.rowIndex)) {
@@ -174,7 +151,7 @@ export const BuildView = ({
         // Check if length of removed duplicates is equal to the length of the original positions dictionary
         if (uniqueDict.length !== Object.values(nodesOnGraph).length) {
             // Push to status
-            setStatus({ code: BuildStatus.Invalid, messages: ['Ran into error determining node positions'] });
+            setStatus({ status: Status.Invalid, messages: ['Ran into error determining node positions'] });
             // This is a critical error, so we'll remove all node positions and links
             setChangedRoutine({
                 ...changedRoutine,
@@ -192,42 +169,42 @@ export const BuildView = ({
         // First check
         const startNodes = changedRoutine.nodes.filter(node => node.type === NodeType.Start);
         if (startNodes.length === 0) {
-            statuses.push([BuildStatus.Invalid, 'No start node found']);
+            statuses.push([Status.Invalid, 'No start node found']);
         }
         else if (startNodes.length > 1) {
-            statuses.push([BuildStatus.Invalid, 'More than one start node found']);
+            statuses.push([Status.Invalid, 'More than one start node found']);
         }
         // Second check
         const nodesWithoutIncomingEdges = nodesOnGraph.filter(node => changedRoutine.nodeLinks.every(link => link.toId !== node.id));
         if (nodesWithoutIncomingEdges.length === 0) {
             //TODO this would be fine with a redirect link
-            statuses.push([BuildStatus.Invalid, 'Error determining start node']);
+            statuses.push([Status.Invalid, 'Error determining start node']);
         }
         else if (nodesWithoutIncomingEdges.length > 1) {
-            statuses.push([BuildStatus.Invalid, 'Nodes are not fully connected']);
+            statuses.push([Status.Invalid, 'Nodes are not fully connected']);
         }
         // Third check
         const nodesWithoutOutgoingEdges = nodesOnGraph.filter(node => changedRoutine.nodeLinks.every(link => link.fromId !== node.id));
         if (nodesWithoutOutgoingEdges.length >= 0) {
             // Check that every node without outgoing edges is an end node
             if (nodesWithoutOutgoingEdges.some(node => node.type !== NodeType.End)) {
-                statuses.push([BuildStatus.Invalid, 'Not all paths end with an end node']);
+                statuses.push([Status.Invalid, 'Not all paths end with an end node']);
             }
         }
         // Performs checks which make the routine incomplete, but not invalid
         // 1. There are unpositioned nodes
         // First check
         if (nodesOffGraph.length > 0) {
-            statuses.push([BuildStatus.Incomplete, 'Some nodes are not linked']);
+            statuses.push([Status.Incomplete, 'Some nodes are not linked']);
         }
         // Before returning, send the statuses to the status object
         if (statuses.length > 0) {
             // Status sent is the worst status
-            let code = BuildStatus.Incomplete;
-            if (statuses.some(status => status[0] === BuildStatus.Invalid)) code = BuildStatus.Invalid;
-            setStatus({ code, messages: statuses.map(status => status[1]) });
+            let status = Status.Incomplete;
+            if (statuses.some(status => status[0] === Status.Invalid)) status = Status.Invalid;
+            setStatus({ status, messages: statuses.map(status => status[1]) });
         } else {
-            setStatus({ code: BuildStatus.Valid, messages: ['Routine is fully connected'] });
+            setStatus({ status: Status.Valid, messages: ['Routine is fully connected'] });
         }
         // Remove any links which reference unlinked nodes
         const goodLinks = changedRoutine.nodeLinks.filter(link => !nodesOffGraph.some(node => node.id === link.fromId || node.id === link.toId));
@@ -921,49 +898,6 @@ export const BuildView = ({
         }
     }, [routine, updateRoutine, openDelete]);
 
-    /**
-     * List of status messages converted to markdown. 
-     * If one message, no bullet points. If multiple, bullet points.
-     */
-    const statusMarkdown = useMemo(() => {
-        if (status.messages.length === 0) return 'Routine is valid.';
-        if (status.messages.length === 1) {
-            return status.messages[0];
-        }
-        return status.messages.map((s) => {
-            return `* ${s}`;
-        }).join('\n');
-    }, [status]);
-
-    const [statusMenuAnchorEl, setStatusMenuAnchorEl] = useState(null);
-    const statusMenuOpen = Boolean(statusMenuAnchorEl);
-    const openStatusMenu = useCallback((event) => {
-        if (!statusMenuAnchorEl) setStatusMenuAnchorEl(event.currentTarget);
-    }, [statusMenuAnchorEl])
-    const closeStatusMenu = () => {
-        setStatusMenuAnchorEl(null);
-    };
-
-    /**
-     * Menu displayed when status is clicked
-     */
-    const statusMenu = useMemo(() => {
-        return (
-            <Box>
-                <Box sx={{ background: palette.primary.dark }}>
-                    <IconButton edge="end" color="inherit" onClick={closeStatusMenu} aria-label="close">
-                        <CloseIcon sx={{ fill: palette.primary.contrastText }} />
-                    </IconButton>
-                </Box>
-                <Box sx={{ padding: 1 }}>
-                    <Markdown>{statusMarkdown}</Markdown>
-                </Box>
-            </Box>
-        )
-    }, [palette.primary.contrastText, palette.primary.dark, statusMarkdown])
-
-    const StatusIcon = useMemo(() => STATUS_ICON[status.code], [status]);
-
     // Open/close unlinked nodes drawer
     const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);
     const toggleUnlinkedNodes = useCallback(() => setIsUnlinkedNodesOpen(curr => !curr), []);
@@ -1105,58 +1039,11 @@ export const BuildView = ({
                     color: palette.primary.contrastText,
                 }}
             >
-                {/* Status indicator */}
-                <Tooltip title='Press for details'>
-                    <Chip
-                        icon={<StatusIcon sx={{ fill: 'white' }} />}
-                        label={STATUS_LABEL[status.code]}
-                        onClick={openStatusMenu}
-                        sx={{
-                            ...noSelect,
-                            background: STATUS_COLOR[status.code],
-                            color: 'white',
-                            cursor: isEditing ? 'pointer' : 'default',
-                            marginTop: 'auto',
-                            marginBottom: 'auto',
-                            marginLeft: 2,
-                            // Hide label on small screens
-                            '& .MuiChip-label': {
-                                display: { xs: 'none', sm: 'block' },
-                            },
-                            // Hiding label messes up spacing with icon
-                            '& .MuiSvgIcon-root': {
-                                marginLeft: '4px',
-                                marginRight: { xs: '4px', sm: '-4px' },
-                            },
-                        }}
-                    />
-                </Tooltip>
-                <Menu
-                    id='status-menu'
-                    open={statusMenuOpen}
-                    disableScrollLock={true}
-                    anchorEl={statusMenuAnchorEl}
-                    onClose={closeStatusMenu}
-                    anchorOrigin={{
-                        vertical: 'bottom',
-                        horizontal: 'center',
-                    }}
-                    transformOrigin={{
-                        vertical: 'top',
-                        horizontal: 'center',
-                    }}
-                    sx={{
-                        '& .MuiPopover-paper': {
-                            background: palette.background.default,
-                            maxWidth: 'min(100vw, 400px)',
-                        },
-                        '& .MuiMenu-list': {
-                            padding: 0,
-                        }
-                    }}
-                >
-                    {statusMenu}
-                </Menu>
+                <StatusButton status={status.status} messages={status.messages} sx={{
+                    marginTop: 'auto',
+                    marginBottom: 'auto',
+                    marginLeft: 2,
+                }} />
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     {/* Clean up graph */}
                     {isEditing && <Tooltip title='Clean up graph'>
@@ -1269,7 +1156,7 @@ export const BuildView = ({
                     loading={loading}
                     scale={scale}
                     session={session}
-                    sliderColor={STATUS_COLOR[status.code]}
+                    sliderColor={palette.secondary.light}
                     routine={routine}
                     runState={BuildRunState.Stopped}
                 />

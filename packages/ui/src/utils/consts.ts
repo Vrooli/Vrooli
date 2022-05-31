@@ -33,9 +33,9 @@ export const DragTypes = {
 export type DragTypes = ValueOf<typeof DragTypes>;
 
 /**
- * Only routines that are valid or incomplete can be run
+ * A general status state for an object
  */
- export enum BuildStatus {
+ export enum Status {
     Incomplete = 'Incomplete', // Routine would be valid, except there are unlinked nodes
     Invalid = 'Invalid', // Something is wrong with the routine (e.g. no end node)
     Valid = 'Valid', // The routine is valid, and all nodes are linked

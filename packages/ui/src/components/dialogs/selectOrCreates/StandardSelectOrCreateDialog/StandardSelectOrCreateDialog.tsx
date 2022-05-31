@@ -124,7 +124,7 @@ export const StandardSelectOrCreateDialog = ({
             open={isOpen}
             onClose={onClose}
             sx={{
-                '& .MuiDialogContent-root': { overflow: 'visible', background: '#cdd6df' },
+                '& .MuiDialogContent-root': { overflow: 'visible', background: palette.background.default },
                 '& .MuiDialog-paper': { overflow: 'visible' }
             }}
         >

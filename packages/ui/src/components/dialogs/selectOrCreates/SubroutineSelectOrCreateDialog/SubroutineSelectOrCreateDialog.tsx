@@ -121,7 +121,7 @@ export const SubroutineSelectOrCreateDialog = ({
             sx={{
                 '& .MuiDialogContent-root': { 
                     overflow: 'visible', 
-                    background: palette.mode === 'light' ? '#cdd6df' : '#182028',
+                    background: palette.background.default ,
                 },
                 '& .MuiDialog-paper': { overflow: 'visible' }
             }}

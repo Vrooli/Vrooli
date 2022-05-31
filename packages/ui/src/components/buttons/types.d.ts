@@ -1,4 +1,5 @@
 import { ButtonProps } from '@mui/material';
+import { Status } from 'utils';
 
 export interface HelpButtonProps extends ButtonProps {
     id?: string;
@@ -24,3 +25,14 @@ export interface PopupMenuProps extends ButtonProps {
     text?: string;
     children: any
 };
+
+
+export interface StatusMessageArray {
+    status: Status;
+    messages: string[];
+}
+
+export interface StatusButtonProps extends ButtonProps {
+    status: Status;
+    messages: string[];
+}

@@ -1,5 +1,4 @@
 import { Node, NodeLink, Session } from 'types';
-import { BuildStatus } from 'utils';
 import { NodeContextMenuAction } from './NodeContextMenu/NodeContextMenu';
 
 export interface NodeContextMenuProps {
@@ -29,10 +28,6 @@ export interface AddBeforeLinkDialogProps {
     session: Session;
 }
 
-export type BuildStatusObject = {
-    code: BuildStatus,
-    messages: string[],
-}
 export interface NodeGraphProps {
     /**
      * 2D array of nodes, by column then row

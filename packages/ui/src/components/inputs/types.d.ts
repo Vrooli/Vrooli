@@ -106,7 +106,6 @@ export interface JsonFormatInputProps {
 
 export interface JsonInputProps {
     id: string;
-    description?: string;
     disabled?: boolean;
     error?: boolean;
     /**
@@ -148,7 +147,6 @@ export interface JsonInputProps {
     minRows?: number;
     onChange: (newText: string) => any;
     placeholder?: string;
-    title?: string;
     /**
      * JSON string representing the value of the input
      */
