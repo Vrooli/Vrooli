@@ -72,14 +72,12 @@ export const StandardCreate = ({
     // Handle input type selector
     const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
     const handleInputTypeSelect = useCallback((event: any) => {
-        console.log('changing input type', event.target.value)
         setInputType(event.target.value)
     }, []);
 
     // Handle standard schema
     const [schema, setSchema] = useState<FieldData | null>(null);
     const handleSchemaUpdate = useCallback((schema: FieldData) => {
-        console.log('handleschemaupDATE🔥', schema)
         setSchema(schema);
     }, []);
     const [schemaKey] = useState(`standard-create-schema-preview-${Math.random().toString(36).substring(2, 15)}`);
@@ -142,11 +140,11 @@ export const StandardCreate = ({
             default: '',
             description: '',
             name: '',
-            type: '',
             version: '',
         },
         validationSchema,
         onSubmit: (values) => {
+            console.log('IN SUBMITTTTTT', schema, values);
             const resourceListAdd = resourceList ? formatForCreate(resourceList) : {};
             const tagsAdd = tags.length > 0 ? {
                 tagsCreate: tags.filter(t => !t.id).map(t => ({ tag: t.tag })),
@@ -160,14 +158,13 @@ export const StandardCreate = ({
                 mutation,
                 input: formatForCreate({
                     default: values.default,
-                    description: values.description,
                     name: values.name,
                     props: JSON.stringify(schema?.props),
                     yup: JSON.stringify(schema?.yup),
                     translations: allTranslations,
                     resourceListsCreate: [resourceListAdd],
                     ...tagsAdd,
-                    type: values.type,
+                    type: inputType.value,
                     version: values.version,
                 }) as any,
                 onSuccess: (response) => {
@@ -179,6 +176,8 @@ export const StandardCreate = ({
             })
         },
     });
+
+    console.log('FORMIK ERRORS', formik.errors, schema);
 
     // Handle languages
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -240,9 +239,6 @@ export const StandardCreate = ({
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
     
-    console.log("SCHEMA", schema);
-    console.log("FORMIK.VALUES" , previewFormik.values);
-
     return (
         <form onSubmit={formik.handleSubmit} style={{
             display: 'flex',

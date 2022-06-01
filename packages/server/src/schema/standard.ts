@@ -29,6 +29,7 @@ export const typeDef = gql`
         version: String
         createdByUserId: ID
         createdByOrganizationId: ID
+        resourceListsCreate: [ResourceListCreateInput!]
         tagsConnect: [ID!]
         tagsCreate: [TagCreateInput!]
         translationsCreate: [StandardTranslationCreateInput!]
@@ -36,6 +37,9 @@ export const typeDef = gql`
     input StandardUpdateInput {
         id: ID!
         makeAnonymous: Boolean
+        resourceListsDelete: [ID!]
+        resourceListsCreate: [ResourceListCreateInput!]
+        resourceListsUpdate: [ResourceListUpdateInput!]
         tagsConnect: [ID!]
         tagsDisconnect: [ID!]
         tagsCreate: [TagCreateInput!]
@@ -63,6 +67,7 @@ export const typeDef = gql`
         comments: [Comment!]!
         creator: Contributor
         reports: [Report!]!
+        resourceLists: [ResourceList!]!
         routineInputs: [Routine!]!
         routineOutputs: [Routine!]!
         starredBy: [User!]!

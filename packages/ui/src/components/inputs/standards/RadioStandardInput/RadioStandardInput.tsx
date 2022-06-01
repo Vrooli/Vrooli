@@ -3,7 +3,7 @@
  * must match a certain schema.
  */
 import { RadioStandardInputProps } from '../types';
-import { InputType, radioStandardInputForm as validationSchema } from '@local/shared';
+import { radioStandardInputForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { useCallback, useEffect } from 'react';
 import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
@@ -90,17 +90,18 @@ const RadioOption = ({
 };
 
 export const RadioStandardInput = ({
+    defaultValue,
     isEditing,
-    schema,
-    onChange,
+    onPropsChange,
+    options,
+    row,
 }: RadioStandardInputProps) => {
 
     const formik = useFormik({
         initialValues: {
-            defaultValue: schema.props.defaultValue ?? '',
-            options: schema.props.options ?? [emptyOption(0)],
-            row: schema.props.row ?? false,
-            // yup: [],
+            defaultValue: defaultValue ?? '',
+            options: options ?? [emptyOption(0)],
+            row: row ?? false,
         },
         enableReinitialize: true,
         validationSchema,
@@ -147,16 +148,10 @@ export const RadioStandardInput = ({
             }
         }
         console.log('RADIO ONCHANGE', formik.values);
-        onChange({
-            type: InputType.Radio,
-            props: formik.values,
-            fieldName: schema.fieldName,
-            label: schema.label,
-            yup: schema.yup ?? {
-                checks: [],
-            }
+        onPropsChange({
+            ...formik.values,
         });
-    }, [formik, formik.values, onChange, schema.fieldName, schema.label, schema.yup]);
+    }, [formik, onPropsChange]);
 
     return (
         <Stack direction="column">

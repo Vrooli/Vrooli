@@ -158,7 +158,7 @@ export interface QuantityBoxProps extends Omit<QP, 'id' | 'value' | 'handleChang
 /**
  * Common props required by every FieldData type
  */
-interface FieldDataBase {
+export interface FieldDataBase {
     /**
      * The name of the field, as will be used by formik
      */

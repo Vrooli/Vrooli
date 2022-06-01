@@ -3,25 +3,27 @@
  * must match a certain schema.
  */
 import { QuantityBoxStandardInputProps } from '../types';
-import { InputType, quantityBoxStandardInputForm as validationSchema } from '@local/shared';
+import { quantityBoxStandardInputForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { useEffect } from 'react';
 import { Grid } from '@mui/material';
 import { QuantityBox } from 'components/inputs/QuantityBox/QuantityBox';
 
 export const QuantityBoxStandardInput = ({
+    defaultValue,
     isEditing,
-    schema,
-    onChange,
+    max,
+    min,
+    step,
+    onPropsChange,
 }: QuantityBoxStandardInputProps) => {
 
     const formik = useFormik({
         initialValues: {
-            defaultValue: schema.props.defaultValue ?? 0,
-            min: schema.props.min ?? 0,
-            max: schema.props.max ?? 1000000,
-            step: schema.props.step ?? 1,
-            // yup: [],
+            defaultValue: defaultValue ?? 0,
+            min: min ?? 0,
+            max: max ?? 1000000,
+            step: step ?? 1,
         },
         enableReinitialize: true,
         validationSchema,
@@ -29,16 +31,10 @@ export const QuantityBoxStandardInput = ({
     });
 
     useEffect(() => {
-        onChange({
-            type: InputType.QuantityBox,
-            props: formik.values,
-            fieldName: schema.fieldName,
-            label: schema.label,
-            yup: schema.yup ?? {
-                checks: [],
-            }
+        onPropsChange({
+            ...formik.values,
         });
-    }, [formik.values, onChange, schema.fieldName, schema.label, schema.yup]);
+    }, [formik.values, onPropsChange]);
 
     return (
         <Grid container spacing={2}>

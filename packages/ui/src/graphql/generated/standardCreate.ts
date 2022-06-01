@@ -3,11 +3,48 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { StandardCreateInput, MemberRole } from "./globalTypes";
+import { StandardCreateInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: standardCreate
 // ====================================================
+
+export interface standardCreate_standardCreate_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface standardCreate_standardCreate_resourceLists_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface standardCreate_standardCreate_resourceLists_resources {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: standardCreate_standardCreate_resourceLists_resources_translations[];
+}
+
+export interface standardCreate_standardCreate_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: standardCreate_standardCreate_resourceLists_translations[];
+  resources: standardCreate_standardCreate_resourceLists_resources[];
+}
 
 export interface standardCreate_standardCreate_tags_translations {
   __typename: "TagTranslation";
@@ -63,6 +100,7 @@ export interface standardCreate_standardCreate {
   yup: string | null;
   default: string | null;
   created_at: any;
+  resourceLists: standardCreate_standardCreate_resourceLists[];
   tags: standardCreate_standardCreate_tags[];
   translations: standardCreate_standardCreate_translations[];
   creator: standardCreate_standardCreate_creator | null;

@@ -352,10 +352,12 @@ model resource_list {
   organizationId String?                     @db.Uuid
   projectId      String?                     @db.Uuid
   routineId      String?                     @db.Uuid
+  standardId     String?                     @db.Uuid
   userId         String?                     @db.Uuid
   organization   organization?               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   project        project?                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   routine        routine?                    @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  standard       standard?                   @relation(fields: [standardId], references: [id], onDelete: Cascade)
   user           user?                       @relation(fields: [userId], references: [id], onDelete: Cascade)
   resources      resource[]
   translations   resource_list_translation[]
@@ -547,6 +549,7 @@ model standard {
   createdByUser           user?                  @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
   comments                comment[]
   reports                 report[]
+  resourceLists           resource_list[]
   routineInputs           routine_input[]
   routineOutputs          routine_output[]
   tags                    standard_tags[]

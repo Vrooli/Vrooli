@@ -35,7 +35,6 @@ export const RoutineCreate = ({
     // Handle inputs
     const [inputsList, setInputsList] = useState<RoutineInputList>([]);
     const handleInputsUpdate = useCallback((updatedList: RoutineInputList) => {
-        console.log('HANDLE INPUTS UPDATEEEEEE', updatedList)
         setInputsList(updatedList);
     }, [setInputsList]);
 
@@ -67,8 +66,6 @@ export const RoutineCreate = ({
     type Translation = NewObject<Routine['translations'][0]>;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
-        console.log('IN DELETE TRANS A', translations)
-        console.log('IN DELETE TRANS B', [...translations.filter(t => t.language !== language)])
         setTranslations([...translations.filter(t => t.language !== language)]);
         // Also delete translations from inputs and outputs
         setInputsList(inputsList.map(i => {
@@ -87,7 +84,6 @@ export const RoutineCreate = ({
         return index >= 0 ? updateArray(translations, index, translation) : [...translations, translation];
     }, [translations]);
     const updateTranslation = useCallback((language: string, translation: Translation) => {
-        console.log('updateTranslation', language, translation)
         setTranslations(getTranslationsUpdate(language, translation));
     }, [getTranslationsUpdate]);
 
@@ -158,7 +154,6 @@ export const RoutineCreate = ({
         });
     }, [formik, translations]);
     const handleLanguageSelect = useCallback((newLanguage: string) => {
-        console.log('handleLanguageSelect', newLanguage);
         // Update old select
         updateTranslation(language, {
             language,
@@ -176,7 +171,6 @@ export const RoutineCreate = ({
         handleLanguageSelect(newLanguage);
     }, [handleLanguageSelect, languages, setLanguages]);
     const handleLanguageDelete = useCallback((language: string) => {
-        console.log('HANDLE LANGUAGE DELETE', language)
         const newLanguages = [...languages.filter(l => l !== language)]
         if (newLanguages.length === 0) return;
         deleteTranslation(language);

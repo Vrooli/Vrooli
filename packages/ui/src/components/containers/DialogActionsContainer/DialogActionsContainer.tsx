@@ -54,7 +54,7 @@ export const DialogActionsContainer = ({
                     bottom: fixed ? '0' : 'auto',
                     width: fixed ? '-webkit-fill-available' : 'auto',
                     zIndex: 4,
-                    background: palette.primary.main,
+                    background: palette.primary.dark,
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',

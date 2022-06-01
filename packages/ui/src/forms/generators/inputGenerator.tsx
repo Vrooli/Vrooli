@@ -461,6 +461,5 @@ export const generateInputComponent = ({
     onUpload,
     session,
 }: InputGeneratorProps): React.ReactElement | null => {
-    console.log('GENERATE INPUT COMPONENT', data);
     return typeMap[data.type]({ data, disabled, formik, index, onUpload, session });
 }

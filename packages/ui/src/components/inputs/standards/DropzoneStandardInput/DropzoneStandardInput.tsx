@@ -6,9 +6,9 @@
  
  export const DropzoneStandardInput = ({
     isEditing,
-    schema,
-    onChange,
+    onPropsChange,
  }: DropzoneStandardInputProps) => {
+     //TODO
      return (
          <></>
      );

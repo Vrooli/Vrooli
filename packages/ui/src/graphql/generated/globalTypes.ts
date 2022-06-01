@@ -1032,6 +1032,7 @@ export interface StandardCreateInput {
   version?: string | null;
   createdByUserId?: string | null;
   createdByOrganizationId?: string | null;
+  resourceListsCreate?: ResourceListCreateInput[] | null;
   tagsConnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;
   translationsCreate?: StandardTranslationCreateInput[] | null;
@@ -1073,6 +1074,9 @@ export interface StandardTranslationUpdateInput {
 export interface StandardUpdateInput {
   id: string;
   makeAnonymous?: boolean | null;
+  resourceListsDelete?: string[] | null;
+  resourceListsCreate?: ResourceListCreateInput[] | null;
+  resourceListsUpdate?: ResourceListUpdateInput[] | null;
   tagsConnect?: string[] | null;
   tagsDisconnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;

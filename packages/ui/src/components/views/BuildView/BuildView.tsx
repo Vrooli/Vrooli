@@ -428,7 +428,6 @@ export const BuildView = ({
     }, [changedRoutine, isEditing, routine, updateRoutine]);
 
     const updateRoutineTitle = useCallback((title: string) => {
-        console.log('UPDATE ROUTINE TITLE', title)
         if (!changedRoutine) return;
         const newTranslations = [...changedRoutine.translations.map(t => {
             if (t.language === language) {
@@ -436,7 +435,6 @@ export const BuildView = ({
             }
             return { ...t }
         })];
-        console.log('new translationssssss', newTranslations)
         setChangedRoutine({
             ...changedRoutine,
             translations: newTranslations
@@ -726,22 +724,16 @@ export const BuildView = ({
      * @param newIndex The new index of the subroutine
      */
     const handleRoutineListItemReorder = useCallback((nodeId: string, oldIndex: number, newIndex: number) => {
-        console.log('qqq handleroutienlistitemreorder', nodeId, oldIndex, newIndex);
         // Find routines being swapped
         if (!changedRoutine) return;
         // Node containing routine list data with ID nodeId
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.data?.id === nodeId);
-        console.log('qqq nodeIndex', nodeIndex);
         if (nodeIndex === -1) return;
         const routineList: NodeDataRoutineList = changedRoutine.nodes[nodeIndex].data as NodeDataRoutineList;
         const routines = [...routineList.routines];
         const aIndex = routines.findIndex(r => r.index === oldIndex);
         const bIndex = routines.findIndex(r => r.index === newIndex);
-        console.log('qqq aIndex', aIndex);
-        console.log('qqq bIndex', bIndex);
         if (aIndex === -1 || bIndex === -1) return;
-        console.log('aroutine', routines[aIndex]);
-        console.log('broutine', routines[bIndex]);
         // Swap the routine indexes
         routines[aIndex] = { ...routines[aIndex], index: newIndex };
         routines[bIndex] = { ...routines[bIndex], index: oldIndex };

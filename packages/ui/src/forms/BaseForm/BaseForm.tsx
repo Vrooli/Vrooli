@@ -40,10 +40,8 @@ export const BaseForm = ({
      * a base64 encoded string. The files has not been uploaded anywhere yet.
      */
     const onUpload = useCallback((fieldName: string, files: string[]) => {
-        console.log('in baseform onUpload', fieldName, files.length);
         setUploadedFiles((prev) => {
             const newFiles = { ...prev, [fieldName]: files };
-            console.log('newFiles', Object.keys(newFiles));
             return newFiles;
         });
     }, []);
@@ -56,7 +54,6 @@ export const BaseForm = ({
         validationSchema,
         onSubmit: (values) => onSubmit(values),
     });
-    console.log('formik error', formik.errors);
     const grid = useMemo(() => {
         if (!schema) return null;
         return generateGrid({

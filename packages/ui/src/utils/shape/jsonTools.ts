@@ -274,3 +274,22 @@ export const jsonToString = (value: { [x: string]: any } | string | null | undef
         return null;
     }
 }
+
+/**
+ * Simple check to determine if two JSON objects are equal. 
+ * If objects have the same keys/values but they are ordered differently, then they are not equal.
+ * @param a First JSON object or string to compare
+ * @param b Second JSON object or string to compare
+ */
+export const isEqualJSON = (
+    a: { [x: string]: any } | string | null | undefined,
+    b: { [x: string]: any } | string | null | undefined
+): boolean => {
+    try {
+        const parsedA = typeof a === 'string' ? JSON.parse(a) : a;
+        const parsedB = typeof b === 'string' ? JSON.parse(b) : b;
+        return JSON.stringify(parsedA) === JSON.stringify(parsedB);
+    } catch (e) {
+        return false;
+    }
+}

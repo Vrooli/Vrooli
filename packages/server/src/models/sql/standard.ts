@@ -14,6 +14,7 @@ import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
 import { randomString } from "../../auth/walletAuth";
 import { sortify } from "../../utils/objectTools";
+import { ResourceListModel } from "./resourceList";
 
 //==============================================================
 /* #region Custom Components */
@@ -29,6 +30,7 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
             'Organization': GraphQLModelType.Organization,
         },
         'reports': GraphQLModelType.Report,
+        'resourceLists': GraphQLModelType.ResourceList,
         'routineInputs': GraphQLModelType.Routine,
         'routineOutputs': GraphQLModelType.Routine,
         'starredBy': GraphQLModelType.User,
@@ -237,6 +239,7 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
             type: data.type,
             props: sortify(data.props),
             yup: data.yup ? sortify(data.yup) : undefined,
+            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, true),
             tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Standard),
             translations,
             version: data.version ?? '1.0.0',
@@ -248,6 +251,7 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
             translations.jsonVariables = sortify(translations.jsonVariables);
         }
         return {
+            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
             tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Standard),
             translations,
         }

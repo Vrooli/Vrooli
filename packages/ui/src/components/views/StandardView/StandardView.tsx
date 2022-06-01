@@ -9,7 +9,7 @@ import {
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, BaseStandardInput, LinkButton, SelectLanguageDialog, StarButton } from "components";
+import { BaseObjectActionDialog, BaseStandardInput, LinkButton, ResourceListHorizontal, SelectLanguageDialog, StarButton } from "components";
 import { StandardViewProps } from "../types";
 import { getCreatedByString, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData, TERTIARY_COLOR, toCreatedBy } from "utils";
 import { Standard } from "types";
@@ -117,6 +117,21 @@ export const StandardView = ({
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(true);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
 
+    const resourceList = useMemo(() => {
+        if (!standard ||
+            !Array.isArray(standard.resourceLists) ||
+            standard.resourceLists.length < 1 ||
+            standard.resourceLists[0].resources.length < 1) return null;
+        return <ResourceListHorizontal
+            title={'Resources'}
+            list={(standard as any).resourceLists[0]}
+            canEdit={false}
+            handleUpdate={() => { }} // Intentionally blank
+            loading={loading}
+            session={session}
+        />
+    }, [loading, session, standard]);
+
     /**
      * Display body or loading indicator
      */
@@ -135,6 +150,8 @@ export const StandardView = ({
             <>
                 {/* Stack that shows standard info, such as description */}
                 <Stack direction="column" spacing={2} padding={1}>
+                    {/* Resources */}
+                    {resourceList}
                     {/* Description */}
                     <Box sx={{
                         padding: 1,
@@ -178,7 +195,7 @@ export const StandardView = ({
                 </Stack>
             </>
         )
-    }, [loading, description, palette.background.textPrimary, palette.background.textSecondary, isPreviewOn, onPreviewChange, schema, previewFormik, session]);
+    }, [loading, resourceList, description, palette.background.textPrimary, palette.background.textSecondary, isPreviewOn, onPreviewChange, schema, previewFormik, session]);
 
     return (
         <Box sx={{

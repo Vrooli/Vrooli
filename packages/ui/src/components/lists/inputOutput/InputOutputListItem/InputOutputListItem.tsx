@@ -80,7 +80,6 @@ export const InputOutputListItem = ({
     // Handle standard schema
     const [schema, setSchema] = useState<FieldData | null>(null);
     const handleSchemaUpdate = useCallback((schema: FieldData) => {
-        console.log('list item handleSchemaUpdate', schema);
         // Ignore if standard is already set
         if (standard) return;
         setSchema(schema);
@@ -88,7 +87,6 @@ export const InputOutputListItem = ({
     const [schemaKey] = useState(`input-output-schema-${Math.random().toString(36).substring(2, 15)}`);
 
     const onSwitchChange = useCallback((s: ListStandard | null) => {
-        console.log('on switch change!!', s);
         setSchema(null);
         setStandard(s);
     }, []);
@@ -99,7 +97,6 @@ export const InputOutputListItem = ({
     useEffect(() => {
         // Check if standard has changed
         if (item?.standard?.id === standard?.id) return;
-        console.log('updating standardddd....', standard)
         handleUpdate(index, {
             ...item,
             standard: standard || null,
@@ -111,7 +108,6 @@ export const InputOutputListItem = ({
      */
     useEffect(() => {
         if (!schema) return;
-        console.log('updating schema....', item?.standard, schema)
         handleUpdate(index, {
             ...item,
             standard: {
@@ -141,7 +137,6 @@ export const InputOutputListItem = ({
         enableReinitialize: true,
         validationSchema: isInput ? inputCreate : outputCreate,
         onSubmit: (values) => {
-            console.log('formik handlesubmit😭', item)
             // Update translations
             const allTranslations = getTranslationsUpdate(language, {
                 language,
@@ -157,7 +152,6 @@ export const InputOutputListItem = ({
     });
 
     const toggleOpen = useCallback(() => {
-        console.log('toggle open')
         if (isOpen) {
             formik.handleSubmit();
             handleClose(index);
@@ -167,11 +161,6 @@ export const InputOutputListItem = ({
 
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
-
-    useEffect(() => {
-        console.log('STANDARD', standard)
-        console.log('standard type', standard?.type, (standard?.type as InputType));
-    }, [standard]);
 
     return (
         <Box

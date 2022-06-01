@@ -3,11 +3,48 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, MemberRole } from "./globalTypes";
+import { FindByIdInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: standard
 // ====================================================
+
+export interface standard_standard_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface standard_standard_resourceLists_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface standard_standard_resourceLists_resources {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: standard_standard_resourceLists_resources_translations[];
+}
+
+export interface standard_standard_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: standard_standard_resourceLists_translations[];
+  resources: standard_standard_resourceLists_resources[];
+}
 
 export interface standard_standard_tags_translations {
   __typename: "TagTranslation";
@@ -63,6 +100,7 @@ export interface standard_standard {
   yup: string | null;
   default: string | null;
   created_at: any;
+  resourceLists: standard_standard_resourceLists[];
   tags: standard_standard_tags[];
   translations: standard_standard_translations[];
   creator: standard_standard_creator | null;

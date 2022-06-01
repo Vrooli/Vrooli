@@ -5,19 +5,19 @@
 import { InputType } from '@local/shared';
 import { createDefaultFieldData } from 'forms/generators';
 import { FieldData } from 'forms/types';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { CheckboxStandardInput, DropzoneStandardInput, JsonStandardInput, MarkdownStandardInput, QuantityBoxStandardInput, RadioStandardInput, SwitchStandardInput, TextFieldStandardInput } from '../';
-import { BaseStandardInputProps, CheckboxStandardInputProps, DropzoneStandardInputProps, JsonStandardInputProps, MarkdownStandardInputProps, QuantityBoxStandardInputProps, RadioStandardInputProps, SwitchStandardInputProps, TextFieldStandardInputProps } from '../types';
+import { BaseStandardInputProps } from '../types';
 
 export const BaseStandardInput = ({
     fieldName,
     inputType,
     isEditing,
-    schema,
+    label,
     onChange,
+    schema,
     storageKey,
-}: BaseStandardInputProps<FieldData>) => {
-
+}: BaseStandardInputProps) => {
     /**
      * Store schema in local storage when updated
      */
@@ -62,32 +62,49 @@ export const BaseStandardInput = ({
         onChange(newSchema as FieldData)
     }, [onChange, inputType, storageKey, fieldName, isEditing]);
 
+    const onPropsChange = useCallback((newProps: FieldData['props']) => {
+        if (!schema || !isEditing) return;
+        onChange({
+            ...schema,
+            props: {
+                ...schema.props,
+                ...newProps,
+            } as any,
+        });
+    }, [isEditing, onChange, schema]);
+
     // Generate input component for type-specific fields
     const SchemaInput = useMemo(() => {
         console.log('schema input switch', schema)
         if (!schema) return null;
-        const props = { isEditing, schema, onChange }
+        const props = { 
+            isEditing,
+            fieldName,
+            label: schema.label,
+            onPropsChange,
+            yup: schema.yup,
+        }
         switch (schema.type) {
             case InputType.TextField:
-                return <TextFieldStandardInput {...props as TextFieldStandardInputProps} />;
+                return <TextFieldStandardInput {...props} {...schema.props} />;
             case InputType.JSON:
-                return <JsonStandardInput {...props as JsonStandardInputProps} />;
+                return <JsonStandardInput {...props} {...schema.props} />;
             case InputType.QuantityBox:
-                return <QuantityBoxStandardInput {...props as QuantityBoxStandardInputProps} />;
+                return <QuantityBoxStandardInput {...props} {...schema.props} />;
             case InputType.Radio:
-                return <RadioStandardInput {...props as RadioStandardInputProps} />;
+                return <RadioStandardInput {...props} {...schema.props} />;
             case InputType.Checkbox:
-                return <CheckboxStandardInput {...props as CheckboxStandardInputProps} />;
+                return <CheckboxStandardInput {...props} {...schema.props} />;
             case InputType.Switch:
-                return <SwitchStandardInput {...props as SwitchStandardInputProps} />;
+                return <SwitchStandardInput {...props} {...schema.props} />;
             case InputType.Dropzone:
-                return <DropzoneStandardInput {...props as DropzoneStandardInputProps} />;
+                return <DropzoneStandardInput {...props} {...schema.props} />;
             case InputType.Markdown:
-                return <MarkdownStandardInput {...props as MarkdownStandardInputProps} />;
+                return <MarkdownStandardInput {...props} {...schema.props} />;
             default:
                 return null;
         }
-    }, [isEditing, onChange, schema]);
+    }, [fieldName, isEditing, onPropsChange, schema]);
 
     return SchemaInput;
 }

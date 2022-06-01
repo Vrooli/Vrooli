@@ -97,24 +97,17 @@ export const SettingsDisplay = ({
                 PubSub.publish(Pubs.Snack, { message: 'Detected topics in both favorites and hidden. These have been removed from hidden.', severity: 'warning' });
                 return;
             }
-            console.log('starred tags', starredTags);
-            console.log('profile starredtags', profile?.starredTags);
-            console.log('test a', profile?.starredTags?.filter(t => !starredTags.some(st => st.tag === t.tag)).map(t => (t.id)))
             // Starred tags are handled like normal tags (at least on the frontend), since they contain no extra data
             const starredTagsUpdate = {
                 starredTagsCreate: starredTags.filter(t => !t.id && !profile?.starredTags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
                 starredTagsConnect: starredTags.filter(t => t.id && !profile?.starredTags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
                 starredTagsDisconnect: profile?.starredTags?.filter(t => !starredTags.some(st => st.tag === t.tag)).map(t => (t.id)),
             };
-            console.log('starred tags update', starredTagsUpdate);
             // Hidden tags are wrapped in an object that specifies blur/no blur, so we have to structure them differently
             // Get tags within hidden tags data the same way as starred tags
             const hTagsCreate = filteredHiddenTags.filter(t => !t.id && !profile?.hiddenTags?.some(tag => tag.tag.tag === t.tag)).map(t => ({ tag: t.tag }));
             const hTagsConnect = filteredHiddenTags.filter(t => t.id && !profile?.hiddenTags?.some(tag => tag.tag.tag === t.tag)).map(t => (t.id));
             const hTagsDelete = profile?.hiddenTags?.filter(t => !filteredHiddenTags.some(ht => ht.tag === t.tag.tag)).map(t => t.id);
-            console.log('htagsdelete', hTagsDelete);
-            console.log('profile hiddentags', profile?.hiddenTags);
-            console.log('filteredhiddentags', filteredHiddenTags);
             // tagsCreate and tagsUpdate are joined into hiddenTagsCreate, and tagsDelete becomes hiddenTagsDelete
             const hiddenTagsUpdate = {
                 hiddenTagsCreate: [...hTagsCreate.map(t => ({ tagCreate: t, isBlur: false })), ...hTagsConnect.map(t => ({ tagConnect: t, isBlur: false }))],

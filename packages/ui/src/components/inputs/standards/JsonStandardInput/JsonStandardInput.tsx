@@ -3,12 +3,12 @@
  * must match a certain schema.
  */
 import { JsonStandardInputProps } from '../types';
-import { InputType, jsonStandardInputForm as validationSchema } from '@local/shared';
+import { jsonStandardInputForm as validationSchema } from '@local/shared';
 import { useEffect, useMemo, useState } from 'react';
 import { useFormik } from 'formik';
 import { Box, IconButton, Stack, TextField, Tooltip, useTheme } from '@mui/material';
 import { HelpButton, StatusButton } from 'components/buttons';
-import { isJson, jsonHelpText, jsonToMarkdown, jsonToString, Status, TERTIARY_COLOR } from 'utils';
+import { isEqualJSON, isJson, jsonHelpText, jsonToMarkdown, jsonToString, Status, TERTIARY_COLOR } from 'utils';
 import {
     VisibilityOff as PreviewOffIcon,
     Visibility as PreviewOnIcon,
@@ -16,30 +16,38 @@ import {
 import Markdown from 'markdown-to-jsx';
 
 export const JsonStandardInput = ({
+    defaultValue,
+    format,
     isEditing,
-    schema,
-    onChange,
+    onPropsChange,
+    variables,
 }: JsonStandardInputProps) => {
-    console.log('in json standard input', schema);
+    console.log('in json standard input', format);
     const { palette } = useTheme();
 
     // Last valid schema format
-    const [internalValue, setInternalValue] = useState<string>('');
-    useEffect(() => {
-        setInternalValue(jsonToString(schema.props.format) ?? '');
-    }, [isEditing, schema]);
+    const [internalValue, setInternalValue] = useState<string>('{}');
 
     const formik = useFormik({
         initialValues: {
             format: internalValue,
-            defaultValue: schema.props.defaultValue ?? '',
-            variables: schema.props.variables ?? {},
-            // yup: [],
+            defaultValue: defaultValue ?? '',
+            variables: variables ?? {},
         },
         enableReinitialize: true,
         validationSchema,
         onSubmit: () => { },
     });
+
+    /**
+    * Set internal value when format changes
+    */
+    useEffect(() => {
+        if (!isEditing) return;
+        // Compare to current internal value
+        if (isEqualJSON(formik.values.format, internalValue)) return;
+        setInternalValue(jsonToString(format) ?? '');
+    }, [format, formik.values.format, internalValue, isEditing]);
 
     // Check if formik.values.format is valid JSON
     useEffect(() => {
@@ -50,39 +58,21 @@ export const JsonStandardInput = ({
 
     // Update format only when it is valid
     useEffect(() => {
-        if (internalValue.length > 0) {
-            onChange({
-                type: InputType.JSON,
-                props: {
-                    defaultValue: formik.values.defaultValue,
-                    variables: formik.values.variables,
-                    format: JSON.parse(internalValue),
-                    // Don't update format here
-                },
-                fieldName: schema.fieldName,
-                label: schema.label,
-                yup: schema.yup ?? {
-                    checks: [],
-                }
+        if (internalValue.length > 2) {
+            console.log('IN UPDATE', internalValue, format, JSON.parse(internalValue), format === JSON.parse(internalValue));
+            onPropsChange({
+                format: JSON.parse(internalValue),
             });
         }
-    }, [formik.values.defaultValue, formik.values.variables, internalValue, onChange, schema.fieldName, schema.label, schema.yup]);
+    }, [format, internalValue, onPropsChange]);
 
+    // Update other props separately
     useEffect(() => {
-        onChange({
-            type: InputType.JSON,
-            props: {
-                defaultValue: formik.values.defaultValue,
-                variables: formik.values.variables,
-                // Don't update format here
-            },
-            fieldName: schema.fieldName,
-            label: schema.label,
-            yup: schema.yup ?? {
-                checks: [],
-            }
+        onPropsChange({
+            defaultValue: formik.values.defaultValue,
+            variables: formik.values.variables,
         });
-    }, [formik.values, onChange, schema.fieldName, schema.label, schema.yup]);
+    }, [formik.values.defaultValue, formik.values.variables, onPropsChange]);
 
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
     const togglePreview = () => setIsPreviewOn(!isPreviewOn);
@@ -142,7 +132,6 @@ export const JsonStandardInput = ({
                         }
                     </Box> :
                     <TextField
-                        id={schema.fieldName}
                         name="format"
                         disabled={!isEditing}
                         placeholder={"Enter JSON format. Click the '?' button for help."}

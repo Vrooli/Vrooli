@@ -3,21 +3,20 @@
  * must match a certain schema.
  */
 import { MarkdownStandardInputProps } from '../types';
-import { InputType, markdownStandardInputForm as validationSchema } from '@local/shared';
+import { markdownStandardInputForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { useEffect } from 'react';
 import { Grid, TextField } from '@mui/material';
 
 export const MarkdownStandardInput = ({
+    defaultValue,
     isEditing,
-    schema,
-    onChange,
+    onPropsChange,
 }: MarkdownStandardInputProps) => {
 
     const formik = useFormik({
         initialValues: {
-            defaultValue: schema.props.defaultValue ?? '',
-            // yup: [],
+            defaultValue: defaultValue ?? '',
         },
         enableReinitialize: true,
         validationSchema,
@@ -25,16 +24,10 @@ export const MarkdownStandardInput = ({
     });
 
     useEffect(() => {
-        onChange({
-            type: InputType.Markdown,
-            props: formik.values,
-            fieldName: schema.fieldName,
-            label: schema.label,
-            yup: schema.yup ?? {
-                checks: [],
-            }
+        onPropsChange({
+            ...formik.values,
         });
-    }, [formik.values, onChange, schema.fieldName, schema.label, schema.yup]);
+    }, [formik.values, onPropsChange]);
 
     return (
         <Grid container spacing={2}>

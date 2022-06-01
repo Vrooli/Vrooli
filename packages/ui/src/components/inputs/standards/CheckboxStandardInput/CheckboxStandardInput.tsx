@@ -3,7 +3,7 @@
  * must match a certain schema.
  */
 import { CheckboxStandardInputProps } from '../types';
-import { InputType, checkboxStandardInputForm as validationSchema } from '@local/shared';
+import { checkboxStandardInputForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { useCallback, useEffect } from 'react';
 import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
@@ -86,17 +86,19 @@ const CheckboxOption = ({
 };
 
 export const CheckboxStandardInput = ({
+    color,
+    defaultValue,
     isEditing,
-    schema,
-    onChange,
+    onPropsChange,
+    options,
+    row,
 }: CheckboxStandardInputProps) => {
 
     const formik = useFormik({
         initialValues: {
-            defaultValue: schema.props.defaultValue ?? [false],
-            options: schema.props.options ?? [emptyOption(0)],
-            row: schema.props.row ?? false,
-            // yup: [],
+            defaultValue: defaultValue ?? [false],
+            options: options ?? [emptyOption(0)],
+            row: row ?? false,
         },
         enableReinitialize: true,
         validationSchema,
@@ -128,16 +130,8 @@ export const CheckboxStandardInput = ({
     }, [formik]);
 
     useEffect(() => {
-        onChange({
-            type: InputType.Checkbox,
-            props: formik.values,
-            fieldName: schema.fieldName,
-            label: schema.label,
-            yup: schema.yup ?? {
-                checks: [],
-            }
-        });
-    }, [formik.values, onChange, schema.fieldName, schema.label, schema.yup]);
+        onPropsChange(formik.values);
+    }, [formik.values, onPropsChange]);
 
     return (
         <Stack direction="column">

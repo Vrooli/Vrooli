@@ -28,7 +28,6 @@ export const InputToYupType: { [key in InputType]?: YupType } = {
  */
 export const generateYupSchema = (formSchema: Pick<FormSchema, 'fields'>): FormikConfig<any>['validationSchema'] => {
     if (!formSchema) return null;
-    console.log('YUPPERS SCHEMA 2', JSON.stringify(formSchema));
     // Create shape object to describe yup validation
     const shape: YupSchema = {
         title: 'validationSchema',
@@ -40,7 +39,6 @@ export const generateYupSchema = (formSchema: Pick<FormSchema, 'fields'>): Formi
     const config = { errMessages: {} }
     // Loop through each field in the form schema
     formSchema.fields.forEach(field => {
-        console.log('yup loop field', field)
         const name = field.fieldName;
         // Field will only be validated if it has a yup schema, and it is a valid input type
         if (field.yup && InputToYupType[field.type]) {
@@ -67,13 +65,8 @@ export const generateYupSchema = (formSchema: Pick<FormSchema, 'fields'>): Formi
             }
         }
     })
-    console.log('GENERTATING YUPPPPPPP. Shape: ', shape);
-    console.log('GENERTATING YUPPPPPPP. Config: ', config);
-    console.log('GENERTATING YUPPPPPPP. Shape stringified: ', JSON.stringify(shape));
-    console.log('GENERTATING YUPPPPPPP. Config stringified: ', JSON.stringify(config));
     // Build yup using newly-created shape and config
     const yup = buildYup(shape, config);
-    console.log('GENERTATED YUPPPP RESULTTTTTTT. Yup: ', yup);
     return yup;
     // return buildYup({
     //     $schema: "http://json-schema.org/draft-07/schema#",

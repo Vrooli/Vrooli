@@ -33,8 +33,6 @@ export const RunView = ({
     const [, setLocation] = useLocation();
     const params = useReactSearch();
     const { stepParams, runId, testMode } = useMemo(() => {
-        console.log('hissssss', params)
-        console.log('calculating step paramsssssss', params.step)
         return {
             stepParams: Array.isArray(params.step) ? params.step as number[] : [],
             runId: typeof params.run === 'string' && uuidValidate(params.run) ? params.run : undefined,
@@ -222,10 +220,6 @@ export const RunView = ({
         }
     }, [currStepRunData]);
 
-    useEffect(() => {
-        console.log('timeElapsed', timeElapsed);
-    }, [timeElapsed]);
-
     /**
      * Calculates the complexity of a step
      */
@@ -249,7 +243,6 @@ export const RunView = ({
     const [getSubroutine, { data: subroutineData, loading: subroutineLoading }] = useLazyQuery<routine, routineVariables>(routineQuery);
     const [currentStep, setCurrentStep] = useState<RoutineStep | null>(null);
     useEffect(() => {
-        console.log('calculating step', stepParams)
         // If no steps, redirect to first step
         if (stepParams.length === 0) {
             setStepParams([1]);
@@ -257,7 +250,6 @@ export const RunView = ({
         }
         // Current step is the last step in steps list
         const currStep = findStep(stepParams);
-        console.log('found currstep', currStep)
         if (!currStep) {
             // TODO might need to fetch subroutines multiple times to get to current step, so this shouldn't be an error
             return;

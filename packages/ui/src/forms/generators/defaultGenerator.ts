@@ -111,7 +111,6 @@ export const createDefaultFieldData = ({
     type,
     yup
 }: CreateDefaultFieldDataProps): FieldData | null => {
-    console.log('createdefaultfieldata', type);
     if (!type || !defaultMap[type]) return null;
     return ({
         type,

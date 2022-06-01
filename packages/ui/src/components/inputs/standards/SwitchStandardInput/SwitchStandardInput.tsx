@@ -3,21 +3,20 @@
  * must match a certain schema.
  */
 import { SwitchStandardInputProps } from '../types';
-import { InputType, switchStandardInputForm as validationSchema } from '@local/shared';
+import { switchStandardInputForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { useEffect } from 'react';
 import { FormControlLabel, FormGroup, Switch } from '@mui/material';
 
 export const SwitchStandardInput = ({
+    defaultValue,
     isEditing,
-    schema,
-    onChange,
+    onPropsChange,
 }: SwitchStandardInputProps) => {
 
     const formik = useFormik({
         initialValues: {
-            defaultValue: schema.props.defaultValue ?? false,
-            // yup: [],
+            defaultValue: defaultValue ?? false,
         },
         enableReinitialize: true,
         validationSchema,
@@ -25,19 +24,13 @@ export const SwitchStandardInput = ({
     });
 
     useEffect(() => {
-        onChange({
-            type: InputType.Switch,
-            props: formik.values,
-            fieldName: schema.fieldName,
-            label: schema.label,
-            yup: schema.yup ?? {
-                checks: [],
-            }
+        onPropsChange({
+            ...formik.values,
         });
-    }, [formik.values, onChange, schema.fieldName, schema.label, schema.yup]);
+    }, [formik.values, onPropsChange]);
 
     return (
-        <FormGroup key={schema.fieldName}>
+        <FormGroup>
             <FormControlLabel control={(
                 <Switch
                     disabled={!isEditing}

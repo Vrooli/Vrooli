@@ -2328,6 +2328,7 @@ export type Standard = {
   name: Scalars['String'];
   props: Scalars['String'];
   reports: Array<Report>;
+  resourceLists: Array<ResourceList>;
   role?: Maybe<MemberRole>;
   routineInputs: Array<Routine>;
   routineOutputs: Array<Routine>;
@@ -2354,6 +2355,7 @@ export type StandardCreateInput = {
   default?: InputMaybe<Scalars['String']>;
   name?: InputMaybe<Scalars['String']>;
   props: Scalars['String'];
+  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   translationsCreate?: InputMaybe<Array<StandardTranslationCreateInput>>;
@@ -2431,6 +2433,9 @@ export type StandardTranslationUpdateInput = {
 export type StandardUpdateInput = {
   id: Scalars['ID'];
   makeAnonymous?: InputMaybe<Scalars['Boolean']>;
+  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
+  resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
