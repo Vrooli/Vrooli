@@ -88,6 +88,105 @@ export interface routineUpdate_routineUpdate_nodes_data_NodeEnd {
   wasSuccessful: boolean;
 }
 
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_translations {
+  __typename: "InputItemTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags_translations[];
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations {
+  __typename: "StandardTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard {
+  __typename: "Standard";
+  id: string;
+  default: string | null;
+  name: string;
+  type: string;
+  props: string;
+  yup: string | null;
+  tags: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags[];
+  translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations[];
+  version: string;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs {
+  __typename: "InputItem";
+  id: string;
+  isRequired: boolean | null;
+  name: string | null;
+  translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_translations[];
+  standard: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard | null;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_translations {
+  __typename: "OutputItemTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags_translations[];
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations {
+  __typename: "StandardTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard {
+  __typename: "Standard";
+  id: string;
+  default: string | null;
+  name: string;
+  type: string;
+  props: string;
+  yup: string | null;
+  tags: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags[];
+  translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations[];
+  version: string;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs {
+  __typename: "OutputItem";
+  id: string;
+  name: string | null;
+  translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_translations[];
+  standard: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard | null;
+}
+
 export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_owner_Organization_translations {
   __typename: "OrganizationTranslation";
   id: string;
@@ -125,8 +224,10 @@ export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines
   id: string;
   complexity: number;
   isInternal: boolean | null;
+  inputs: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs[];
   nodesCount: number | null;
   role: MemberRole | null;
+  outputs: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs[];
   owner: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_owner | null;
   simplicity: number;
   translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_translations[];

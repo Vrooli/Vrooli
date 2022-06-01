@@ -222,7 +222,10 @@ export const RoutineListNode = ({
         </Collapse>
     ), [collapseOpen, palette.mode, isEditing, label, node?.data, onOrderedChange, onOptionalChange]);
 
-    const routines = useMemo(() => (node?.data as NodeDataRoutineList)?.routines?.map(routine => (
+    /** 
+     * Subroutines, sorted from lowest to highest index
+     * */
+    const routines = useMemo(() => [...((node?.data as NodeDataRoutineList)?.routines ?? [])].sort((a, b) => a.index - b.index).map(routine => (
         <RoutineSubnode
             key={`${routine.id}`}
             data={routine}
@@ -236,7 +239,7 @@ export const RoutineListNode = ({
             language={language}
             scale={scale}
         />
-    )), [node?.data, handleSubroutineOpen, handleSubroutineEdit, handleSubroutineDelete, handleSubroutineUpdate, isEditing, collapseOpen, labelVisible, language, scale]);
+    )), [node, handleSubroutineOpen, handleSubroutineEdit, handleSubroutineDelete, handleSubroutineUpdate, isEditing, collapseOpen, labelVisible, language, scale]);
 
     const addButton = useMemo(() => isEditing ? (
         <IconButton

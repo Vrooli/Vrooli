@@ -492,7 +492,7 @@ export interface NodeRoutineListCreateInput {
 
 export interface NodeRoutineListItemCreateInput {
   id?: string | null;
-  index?: number | null;
+  index: number;
   isOptional?: boolean | null;
   routineConnect: string;
   translationsCreate?: NodeRoutineListItemTranslationCreateInput[] | null;
@@ -513,7 +513,7 @@ export interface NodeRoutineListItemTranslationUpdateInput {
 
 export interface NodeRoutineListItemUpdateInput {
   id: string;
-  index?: number | null;
+  index: number;
   isOptional?: boolean | null;
   translationsDelete?: string[] | null;
   translationsCreate?: NodeRoutineListItemTranslationCreateInput[] | null;
@@ -1060,12 +1060,14 @@ export interface StandardSearchInput {
 export interface StandardTranslationCreateInput {
   language: string;
   description?: string | null;
+  jsonVariables?: string | null;
 }
 
 export interface StandardTranslationUpdateInput {
   id: string;
   language?: string | null;
   description?: string | null;
+  jsonVariables?: string | null;
 }
 
 export interface StandardUpdateInput {

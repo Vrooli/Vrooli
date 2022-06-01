@@ -42,13 +42,14 @@ export const RoutineView = ({
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
     const [routine, setRoutine] = useState<Routine | null>(null);
     useEffect(() => {
-        if (id && uuidValidate(id)) getData({ variables: { input: { id } } });
+        if (id && uuidValidate(id)) { console.log('gETTING DTATA ROUTINE VIEW', id); getData({ variables: { input: { id } } }); }
     }, [getData, id])
     useEffect(() => {
         if (!data) return;
+        console.log("SETTING ROUTINE IN ROUTINE VIEW AFTER QUERY", data.routine);
         setRoutine(data.routine);
-    }, [data, setRoutine]);
-    const updateRoutine = useCallback((routine: Routine) => { setRoutine(routine); }, [setRoutine]);
+    }, [data]);
+    const updateRoutine = useCallback((routine: Routine) => { console.log('UPDATE ROUTINE', routine); setRoutine(routine); }, [setRoutine]);
 
     const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine?.role]);
     // Open boolean for delete routine confirmation
@@ -405,7 +406,7 @@ export const RoutineView = ({
                 onClose={stopBuild}
                 TransitionComponent={UpTransition}
                 sx={{
-                    zIndex: 101,
+                    zIndex: 103,
                 }}
             >
                 <BuildView

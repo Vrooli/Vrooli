@@ -22,28 +22,36 @@ import { SubroutineInfoDialogProps } from '../types';
 import { getOwnedByString, getTranslation, toOwnedBy } from 'utils';
 import Markdown from 'markdown-to-jsx';
 import { routineUpdateForm as validationSchema } from '@local/shared';
-import { InputOutputContainer, LinkButton, MarkdownInput } from 'components';
+import { InputOutputContainer, LinkButton, MarkdownInput, QuantityBox } from 'components';
 import { useFormik } from 'formik';
 import { RoutineInputList, RoutineOutputList } from 'types';
 import { owns } from 'utils/authentication';
+import { routine_routine_nodes_data_NodeRoutineList_routines } from 'graphql/generated/routine';
 
 export const SubroutineInfoDialog = ({
+    data,
     handleUpdate,
+    handleReorder,
     handleViewFull,
     isEditing,
     open,
     language,
     session,
-    subroutine,
     onClose,
 }: SubroutineInfoDialogProps) => {
-    console.log('boop isediting', isEditing)
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    console.log('SUBROUTINE INFO DIALOG', data)
 
-    const ownedBy = useMemo<string | null>(() => getOwnedByString(subroutine, [language]), [subroutine, language]);
-    const toOwner = useCallback(() => { toOwnedBy(subroutine, setLocation) }, [subroutine, setLocation]);
-    const canEdit = useMemo<boolean>(() => isEditing && owns(subroutine?.role), [subroutine]);
+    const subroutine = useMemo<routine_routine_nodes_data_NodeRoutineList_routines | undefined>(() => {
+        if (!data?.node || !data?.routineId) return undefined;
+        return data.node.routines.find(r => r.id === data.routineId);
+    }, [data]);
+    console.log("SUBROUTINE DATAAAAAA IN INFO DIALOG", subroutine)
+
+    const ownedBy = useMemo<string | null>(() => getOwnedByString(subroutine?.routine, [language]), [subroutine, language]);
+    const toOwner = useCallback(() => { toOwnedBy(subroutine?.routine, setLocation) }, [subroutine, setLocation]);
+    const canEdit = useMemo<boolean>(() => isEditing && (subroutine?.routine?.isInternal ?? owns(subroutine?.routine?.role)), [isEditing, subroutine?.routine?.isInternal, subroutine?.routine?.role]);
 
     // Handle inputs
     const [inputsList, setInputsList] = useState<RoutineInputList>([]);
@@ -58,18 +66,18 @@ export const SubroutineInfoDialog = ({
     }, [setOutputsList]);
 
     useEffect(() => {
-        setInputsList(subroutine?.inputs ?? []);
-        setOutputsList(subroutine?.outputs ?? []);
+        setInputsList(subroutine?.routine?.inputs ?? []);
+        setOutputsList(subroutine?.routine?.outputs ?? []);
     }, [subroutine]);
 
     // Handle update
     const formik = useFormik({
         initialValues: {
-            description: getTranslation(subroutine, 'description', [language]) ?? '',
-            instructions: getTranslation(subroutine, 'instructions', [language]) ?? '',
-            isInternal: subroutine?.isInternal ?? false,
-            title: getTranslation(subroutine, 'title', [language]) ?? '',
-            version: subroutine?.version ?? '',
+            description: getTranslation(subroutine?.routine, 'description', [language]) ?? '',
+            instructions: getTranslation(subroutine?.routine, 'instructions', [language]) ?? '',
+            isInternal: subroutine?.routine?.isInternal ?? false,
+            title: getTranslation(subroutine?.routine, 'title', [language]) ?? '',
+            version: subroutine?.routine?.version ?? '',
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
@@ -117,8 +125,9 @@ export const SubroutineInfoDialog = ({
                 color: palette.primary.contrastText,
                 padding: 1,
             }}>
-                {/* Subroutine title */}
-                <Typography variant="h5">{getTranslation(subroutine, 'title', [language])}</Typography>
+                {/* Subroutine title and position */}
+                <Typography variant="h5">{formik.values.title}</Typography>
+                <Typography variant="h6" ml={1}>{`(${(subroutine?.index ?? 0) + 1} of ${(data?.node?.routines?.length ?? 1)})`}</Typography>
                 {/* Owned by and version */}
                 <Stack direction="row" sx={{ marginLeft: 'auto' }}>
                     {ownedBy ? (
@@ -127,7 +136,7 @@ export const SubroutineInfoDialog = ({
                             text={`${ownedBy} - `}
                         />
                     ) : null}
-                    <Typography variant="body1">{subroutine?.version}</Typography>
+                    <Typography variant="body1">{subroutine?.routine?.version}</Typography>
                 </Stack>
                 {/* Close button */}
                 <IconButton onClick={onClose} sx={{
@@ -144,8 +153,26 @@ export const SubroutineInfoDialog = ({
                 padding: 2,
                 overflowY: 'auto',
             }}>
-                {/* Description and instructions */}
+                {/* Position, description and instructions */}
                 <Grid container>
+                    {/* Position */}
+                    <Grid item xs={12}>
+                        <Box sx={{
+                            padding: 1,
+                        }}>
+                            <Typography variant="h6">Order</Typography>
+                            <QuantityBox
+                                id="subroutine-position"
+                                disabled={!canEdit}
+                                label="Order"
+                                min={1}
+                                max={data?.node?.routines?.length ?? 1}
+                                tooltip="The order of this subroutine in its parent routine"
+                                value={(subroutine?.index ?? 0) + 1}
+                                handleChange={(value: number) => { handleReorder(data?.node?.id ?? '', subroutine?.index ?? 0, value - 1) }}
+                            />
+                        </Box>
+                    </Grid>
                     {/* Description */}
                     <Grid item xs={12} sm={6}>
                         <Box sx={{
@@ -193,7 +220,7 @@ export const SubroutineInfoDialog = ({
                         </Box>
                     </Grid>
                     {/* Inputs */}
-                    {inputsList.length > 0 && <Grid item xs={12} sm={6}>
+                    {(canEdit || inputsList.length > 0) && <Grid item xs={12} sm={6}>
                         <InputOutputContainer
                             isEditing={canEdit}
                             handleUpdate={handleInputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
@@ -204,7 +231,7 @@ export const SubroutineInfoDialog = ({
                         />
                     </Grid>}
                     {/* Outputs */}
-                    {outputsList.length > 0 && <Grid item xs={12} sm={6}>
+                    {(canEdit || outputsList.length > 0) && <Grid item xs={12} sm={6}>
                         <InputOutputContainer
                             isEditing={canEdit}
                             handleUpdate={handleOutputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}

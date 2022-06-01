@@ -39,6 +39,9 @@ export const BaseObjectDialog = ({
             open={open}
             onClose={onClose}
             TransitionComponent={UpTransition}
+            sx={{
+                zIndex: 102,
+            }}
         >
             {/* TODO hide not working */}
             <Slide appear={false} direction="down" in={!scrollTrigger}>

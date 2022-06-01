@@ -524,6 +524,7 @@ export async function init(prisma: PrismaType) {
                                     routines: {
                                         create: [
                                             {
+                                                index: 0,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -547,6 +548,7 @@ export async function init(prisma: PrismaType) {
                                                 }
                                             },
                                             {
+                                                index: 1,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -590,6 +592,7 @@ export async function init(prisma: PrismaType) {
                                     routines: {
                                         create: [
                                             {
+                                                index: 0,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -633,6 +636,7 @@ export async function init(prisma: PrismaType) {
                                     routines: {
                                         create: [
                                             {
+                                                index: 0,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -676,6 +680,7 @@ export async function init(prisma: PrismaType) {
                                     routines: {
                                         create: [
                                             {
+                                                index: 0,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -699,6 +704,7 @@ export async function init(prisma: PrismaType) {
                                                 }
                                             },
                                             {
+                                                index: 0,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -752,6 +758,7 @@ export async function init(prisma: PrismaType) {
                                     routines: {
                                         create: [
                                             {
+                                                index: 0,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -775,6 +782,7 @@ export async function init(prisma: PrismaType) {
                                                 }
                                             },
                                             {
+                                                index: 1,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -818,6 +826,7 @@ export async function init(prisma: PrismaType) {
                                     routines: {
                                         create: [
                                             {
+                                                index: 0,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -841,6 +850,7 @@ export async function init(prisma: PrismaType) {
                                                 }
                                             },
                                             {
+                                                index: 1,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -864,6 +874,7 @@ export async function init(prisma: PrismaType) {
                                                 }
                                             },
                                             {
+                                                index: 2,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -907,6 +918,7 @@ export async function init(prisma: PrismaType) {
                                     routines: {
                                         create: [
                                             {
+                                                index: 0,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -930,6 +942,7 @@ export async function init(prisma: PrismaType) {
                                                 }
                                             },
                                             {
+                                                index: 1,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -953,6 +966,7 @@ export async function init(prisma: PrismaType) {
                                                 }
                                             },
                                             {
+                                                index: 2,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -996,6 +1010,7 @@ export async function init(prisma: PrismaType) {
                                     routines: {
                                         create: [
                                             {
+                                                index: 0,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,

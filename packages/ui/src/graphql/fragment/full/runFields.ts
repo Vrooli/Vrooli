@@ -86,9 +86,15 @@ export const runFields = gql`
                     routine {
                         id
                         complexity
+                        inputs {
+                            ...runInputFields
+                        }
                         isInternal
                         nodesCount
                         role
+                        outputs {
+                            ...runOutputFields
+                        }
                         owner {
                             ... on Organization {
                                 id

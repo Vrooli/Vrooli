@@ -229,7 +229,7 @@ export const BuildInfoDialog = ({
                 onOpen={() => { }} // Intentionally empty
                 onClose={closeMenu}
                 sx={{
-                    zIndex: 102,
+                    zIndex: 105,
                     '& .MuiDrawer-paper': {
                         background: palette.background.default,
                         maxWidth: { xs: '100%', sm: '75%', md: '50%', lg: '40%', xl: '30%' },

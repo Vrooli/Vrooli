@@ -164,7 +164,7 @@ model node_routine_list {
 
 model node_routine_list_item {
   id           String                               @id @default(uuid()) @db.Uuid
-  index        Int?                                 @default(0)
+  index        Int
   isOptional   Boolean                              @default(false)
   listId       String                               @db.Uuid
   routineId    String                               @db.Uuid

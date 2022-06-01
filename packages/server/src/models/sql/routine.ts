@@ -738,9 +738,11 @@ export const routineMutater = (prisma: PrismaType) => ({
             }
         }
         if (deleteMany) {
+            console.log('deleting routine', JSON.stringify(deleteMany), '\n')
             deleted = await prisma.organization.deleteMany({
                 where: { id: { in: deleteMany } }
             })
+            console.log('deleted this many routines: ', deleted.count)
         }
         return {
             created: createMany ? created : undefined,

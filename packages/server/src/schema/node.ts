@@ -172,14 +172,14 @@ export const typeDef = gql`
 
     input NodeRoutineListItemCreateInput {
         id: ID
-        index: Int
+        index: Int!
         isOptional: Boolean
         routineConnect: ID!
         translationsCreate: [NodeRoutineListItemTranslationCreateInput!]
     }
     input NodeRoutineListItemUpdateInput {
         id: ID!
-        index: Int
+        index: Int!
         isOptional: Boolean
         translationsDelete: [ID!]
         translationsCreate: [NodeRoutineListItemTranslationCreateInput!]

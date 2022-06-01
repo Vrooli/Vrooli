@@ -80,7 +80,7 @@ export const BuildView = ({
     const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ['Calculating...'] });
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
-    const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine]);
+    const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine?.role]);
 
     useEffect(() => {
         setChangedRoutine(routine);
@@ -241,17 +241,14 @@ export const BuildView = ({
     }, [changedRoutine]);
 
     // Subroutine info drawer
-    const [selectedSubroutine, setSelectedSubroutine] = useState<Routine | null>(null);
+    const [openedSubroutine, setOpenedSubroutine] = useState<{ node: NodeDataRoutineList, routineId: string } | null>(null);
     const handleSubroutineOpen = useCallback((nodeId: string, subroutineId: string) => {
         const node = nodesById[nodeId];
-        if (node) {
-            const subroutine = (node.data as NodeDataRoutineList).routines.find(r => r.id === subroutineId);
-            if (subroutine) {
-                setSelectedSubroutine(subroutine.routine as any);
-            }
-        }
+        if (node) setOpenedSubroutine({ node: (node.data as NodeDataRoutineList), routineId: subroutineId });
     }, [nodesById]);
-    const closeRoutineInfo = useCallback(() => setSelectedSubroutine(null), []);
+    const closeRoutineInfo = useCallback(() => {
+        setOpenedSubroutine(null);
+    }, []);
 
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
     const openLinkDialog = useCallback(() => setIsLinkDialogOpen(true), []);
@@ -725,6 +722,45 @@ export const BuildView = ({
     }, [changedRoutine]);
 
     /**
+     * Reoders a subroutine in a routine list item
+     * @param nodeId The node id of the routine list item
+     * @param oldIndex The old index of the subroutine
+     * @param newIndex The new index of the subroutine
+     */
+    const handleRoutineListItemReorder = useCallback((nodeId: string, oldIndex: number, newIndex: number) => {
+        console.log('qqq handleroutienlistitemreorder', nodeId, oldIndex, newIndex);
+        // Find routines being swapped
+        if (!changedRoutine) return;
+        // Node containing routine list data with ID nodeId
+        const nodeIndex = changedRoutine.nodes.findIndex(n => n.data?.id === nodeId);
+        console.log('qqq nodeIndex', nodeIndex);
+        if (nodeIndex === -1) return;
+        const routineList: NodeDataRoutineList = changedRoutine.nodes[nodeIndex].data as NodeDataRoutineList;
+        const routines = [...routineList.routines];
+        const aIndex = routines.findIndex(r => r.index === oldIndex);
+        const bIndex = routines.findIndex(r => r.index === newIndex);
+        console.log('qqq aIndex', aIndex);
+        console.log('qqq bIndex', bIndex);
+        if (aIndex === -1 || bIndex === -1) return;
+        console.log('aroutine', routines[aIndex]);
+        console.log('broutine', routines[bIndex]);
+        // Swap the routine indexes
+        routines[aIndex] = { ...routines[aIndex], index: newIndex };
+        routines[bIndex] = { ...routines[bIndex], index: oldIndex };
+        // Update the routine list
+        setChangedRoutine({
+            ...changedRoutine,
+            nodes: updateArray(changedRoutine.nodes, nodeIndex, {
+                ...changedRoutine.nodes[nodeIndex],
+                data: {
+                    ...routineList,
+                    routines,
+                }
+            }),
+        });
+    }, [changedRoutine]);
+
+    /**
      * Add a new routine list AFTER a node
      */
     const handleAddAfter = useCallback((nodeId: string) => {
@@ -813,14 +849,14 @@ export const BuildView = ({
      * Navigates to a subroutine's build page. Fist checks if there are unsaved changes
      */
     const handleSubroutineViewFull = useCallback(() => {
-        if (!selectedSubroutine) return;
+        if (!openedSubroutine) return;
         if (!isEqual(routine, changedRoutine)) {
             PubSub.publish(Pubs.Snack, { message: 'You have unsaved changes. Please save or discard them before navigating to another routine.' });
             return;
         }
         // TODO - buildview should have its own buildview, to recursively open subroutines
         //setLocation(`${APP_LINKS.Build}/${selectedSubroutine.id}`);
-    }, [selectedSubroutine, routine, changedRoutine]);
+    }, [changedRoutine, openedSubroutine, routine]);
 
     const handleAction = useCallback((action: BuildAction, nodeId: string, subroutineId?: string) => {
         switch (action) {
@@ -969,13 +1005,14 @@ export const BuildView = ({
             /> : null}
             {/* Displays routine information when you click on a routine list item*/}
             <SubroutineInfoDialog
+                data={openedSubroutine}
                 isEditing={isEditing}
                 handleUpdate={handleSubroutineUpdate}
+                handleReorder={handleRoutineListItemReorder}
                 handleViewFull={handleSubroutineViewFull}
                 language={language}
-                open={Boolean(selectedSubroutine)}
+                open={Boolean(openedSubroutine)}
                 session={session}
-                subroutine={selectedSubroutine}
                 onClose={closeRoutineInfo}
             />
             {/* Display top navbars */}
@@ -1102,7 +1139,7 @@ export const BuildView = ({
                     ) : null}
                     {/* Help button */}
                     <HelpButton markdown={helpText} sxRoot={{ margin: "auto", marginRight: 1 }} sx={{ color: TERTIARY_COLOR }} />
-                    {/* Display routine description, insturctionss, etc. */}
+                    {/* Display routine description, insturctions, etc. */}
                     <BuildInfoDialog
                         handleAction={handleRoutineAction}
                         handleLanguageChange={setLanguage}

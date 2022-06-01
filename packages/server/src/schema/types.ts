@@ -953,7 +953,7 @@ export type NodeRoutineListItem = {
 
 export type NodeRoutineListItemCreateInput = {
   id?: InputMaybe<Scalars['ID']>;
-  index?: InputMaybe<Scalars['Int']>;
+  index: Scalars['Int'];
   isOptional?: InputMaybe<Scalars['Boolean']>;
   routineConnect: Scalars['ID'];
   translationsCreate?: InputMaybe<Array<NodeRoutineListItemTranslationCreateInput>>;
@@ -982,7 +982,7 @@ export type NodeRoutineListItemTranslationUpdateInput = {
 
 export type NodeRoutineListItemUpdateInput = {
   id: Scalars['ID'];
-  index?: InputMaybe<Scalars['Int']>;
+  index: Scalars['Int'];
   isOptional?: InputMaybe<Scalars['Boolean']>;
   translationsCreate?: InputMaybe<Array<NodeRoutineListItemTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -2411,17 +2411,20 @@ export type StandardTranslation = {
   __typename?: 'StandardTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
+  jsonVariables?: Maybe<Scalars['String']>;
   language: Scalars['String'];
 };
 
 export type StandardTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
+  jsonVariables?: InputMaybe<Scalars['String']>;
   language: Scalars['String'];
 };
 
 export type StandardTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
+  jsonVariables?: InputMaybe<Scalars['String']>;
   language?: InputMaybe<Scalars['String']>;
 };
 
