@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
-import { createHelper, deleteOneHelper, GraphQLModelType, NodeModel, updateHelper } from '../models';
+import { createHelper, NodeModel, updateHelper } from '../models';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, Node, NodeCreateInput, NodeUpdateInput, Success } from './types';
+import { Node, NodeCreateInput, NodeUpdateInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import pkg from '@prisma/client';
@@ -274,7 +274,6 @@ export const typeDef = gql`
     extend type Mutation {
         nodeCreate(input: NodeCreateInput!): Node!
         nodeUpdate(input: NodeUpdateInput!): Node!
-        nodeDeleteOne(input: DeleteOneInput!): Success!
     }
 `
 
@@ -297,9 +296,5 @@ export const resolvers = {
             await rateLimit({ context, info, max: 2000, byAccount: true });
             return updateHelper(context.req.userId, input, info, NodeModel(context.prisma));
         },
-        nodeDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            await rateLimit({ context, info, max: 1000, byAccount: true });
-            return deleteOneHelper(context.req.userId, input, NodeModel(context.prisma));
-        }
     }
 }

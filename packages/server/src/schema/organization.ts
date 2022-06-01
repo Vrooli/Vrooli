@@ -1,8 +1,8 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, Success, OrganizationSearchResult, OrganizationSortBy, MemberRole } from './types';
+import { FindByIdOrHandleInput, Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSearchResult, OrganizationSortBy, MemberRole } from './types';
 import { Context } from '../context';
-import { countHelper, createHelper, deleteOneHelper, OrganizationModel, readManyHelper, readOneHelper, updateHelper } from '../models';
+import { countHelper, createHelper, OrganizationModel, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
 
@@ -141,7 +141,6 @@ export const typeDef = gql`
     extend type Mutation {
         organizationCreate(input: OrganizationCreateInput!): Organization!
         organizationUpdate(input: OrganizationUpdateInput!): Organization!
-        organizationDeleteOne(input: DeleteOneInput): Success!
     }
 `
 
@@ -170,10 +169,6 @@ export const resolvers = {
         organizationUpdate: async (_parent: undefined, { input }: IWrap<OrganizationUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
             await rateLimit({ context, info, max: 250, byAccount: true });
             return updateHelper(context.req.userId, input, info, OrganizationModel(context.prisma));
-        },
-        organizationDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            await rateLimit({ context, info, max: 100, byAccount: true });
-            return deleteOneHelper(context.req.userId, input, OrganizationModel(context.prisma));
         },
     }
 }

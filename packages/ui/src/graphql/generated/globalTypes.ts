@@ -13,6 +13,18 @@ export enum CommentFor {
   Standard = "Standard",
 }
 
+export enum DeleteOneType {
+  Comment = "Comment",
+  Email = "Email",
+  Node = "Node",
+  Organization = "Organization",
+  Project = "Project",
+  Report = "Report",
+  Routine = "Routine",
+  Standard = "Standard",
+  Wallet = "Wallet",
+}
+
 export enum LogSortBy {
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
@@ -261,6 +273,7 @@ export interface DeleteManyInput {
 
 export interface DeleteOneInput {
   id: string;
+  objectType: DeleteOneType;
 }
 
 export interface EmailCreateInput {

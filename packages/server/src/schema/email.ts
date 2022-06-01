@@ -1,8 +1,8 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, Email, EmailCreateInput, EmailUpdateInput, Success } from './types';
+import { Email, EmailCreateInput, EmailUpdateInput, Success } from './types';
 import { Context } from '../context';
-import { createHelper, deleteOneHelper, EmailModel, ProfileModel, updateHelper } from '../models';
+import { createHelper, EmailModel, ProfileModel, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
 
@@ -35,7 +35,6 @@ export const typeDef = gql`
     extend type Mutation {
         emailCreate(input: EmailCreateInput!): Email!
         emailUpdate(input: EmailUpdateInput!): Email!
-        emailDeleteOne(input: DeleteOneInput!): Success!
         sendVerificationEmail(input: SendVerificationEmailInput!): Success!
     }
 `
@@ -55,10 +54,6 @@ export const resolvers = {
         emailUpdate: async (_parent: undefined, { input }: IWrap<EmailUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
             await rateLimit({ context, info, max: 10, byAccount: true });
             return updateHelper(context.req.userId, input, info, EmailModel(context.prisma));
-        },
-        emailDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            await rateLimit({ context, info, max: 10, byAccount: true });
-            return deleteOneHelper(context.req.userId, input, EmailModel(context.prisma));
         },
         sendVerificationEmail: async (_parent: undefined, { input }: IWrap<any>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
             await rateLimit({ context, info, max: 50, byAccount: true });

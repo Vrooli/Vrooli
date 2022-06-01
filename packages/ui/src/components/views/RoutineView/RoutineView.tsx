@@ -12,12 +12,12 @@ import {
     MoreHoriz as EllipsisIcon,
     PlayCircle as StartIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, BuildView, DeleteRoutineDialog, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition } from "components";
+import { BaseObjectActionDialog, BuildView, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
 import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, Pubs, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
 import { Node, NodeLink, Routine, Run } from "types";
 import Markdown from "markdown-to-jsx";
-import { runCompleteMutation, routineDeleteOneMutation } from "graphql/mutation";
+import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
 import { NodeType, StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
@@ -50,24 +50,6 @@ export const RoutineView = ({
     const updateRoutine = useCallback((routine: Routine) => { console.log('UPDATE ROUTINE', routine); setRoutine(routine); }, [setRoutine]);
 
     const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine?.role]);
-    // Open boolean for delete routine confirmation
-    const [deleteOpen, setDeleteOpen] = useState(false);
-    const openDelete = () => setDeleteOpen(true);
-    const closeDelete = () => setDeleteOpen(false);
-
-    const [routineDelete, { loading: loadingDelete }] = useMutation<any>(routineDeleteOneMutation);
-    /**
-     * Deletes the entire routine. Assumes confirmation was already given.
-     */
-    const deleteRoutine = useCallback(() => {
-        if (!routine) return;
-        mutationWrapper({
-            mutation: routineDelete,
-            input: { id: routine.id },
-            successMessage: () => 'Routine deleted.',
-            onSuccess: () => { setLocation(APP_LINKS.Home) },
-        })
-    }, [routine, routineDelete, setLocation])
 
     const search = useReactSearch(null);
     const { runId } = useMemo(() => ({
@@ -375,13 +357,6 @@ export const RoutineView = ({
                 routine={routine}
                 session={session}
             />
-            {/* Delete routine confirmation dialog */}
-            <DeleteRoutineDialog
-                isOpen={deleteOpen}
-                routineName={getTranslation(routine, 'title', getUserLanguages(session)) ?? ''}
-                handleClose={closeDelete}
-                handleDelete={deleteRoutine}
-            />
             {/* Dialog for running routine */}
             <Dialog
                 id="run-routine-view-dialog"
@@ -418,9 +393,9 @@ export const RoutineView = ({
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
                 handleActionComplete={() => { }} //TODO
-                handleDelete={openDelete}
                 handleEdit={onEdit}
                 objectId={id ?? ''}
+                objectName={title ?? ''}
                 objectType={ObjectType.Routine}
                 anchorEl={moreMenuAnchor}
                 title='Routine Options'

@@ -6,18 +6,18 @@
 import { DeleteOneInput } from "./globalTypes";
 
 // ====================================================
-// GraphQL mutation operation: projectDeleteOne
+// GraphQL mutation operation: deleteOne
 // ====================================================
 
-export interface projectDeleteOne_projectDeleteOne {
+export interface deleteOne_deleteOne {
   __typename: "Success";
   success: boolean | null;
 }
 
-export interface projectDeleteOne {
-  projectDeleteOne: projectDeleteOne_projectDeleteOne;
+export interface deleteOne {
+  deleteOne: deleteOne_deleteOne;
 }
 
-export interface projectDeleteOneVariables {
+export interface deleteOneVariables {
   input: DeleteOneInput;
 }

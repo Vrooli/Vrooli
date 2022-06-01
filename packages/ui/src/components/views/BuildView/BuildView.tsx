@@ -1,14 +1,14 @@
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, DeleteRoutineDialog, EditableLabel, UnlinkedNodesDialog, BuildInfoDialog, HelpButton } from 'components';
+import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, DeleteDialog, EditableLabel, UnlinkedNodesDialog, BuildInfoDialog, HelpButton } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
-import { routineCreateMutation, routineDeleteOneMutation, routineUpdateMutation } from 'graphql/mutation';
+import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, Status, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR } from 'utils';
 import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine } from 'types';
 import isEqual from 'lodash/isEqual';
 import { useLocation } from 'wouter';
-import { APP_LINKS } from '@local/shared';
+import { APP_LINKS, DeleteOneType } from '@local/shared';
 import { NodeType } from 'graphql/generated/globalTypes';
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
@@ -24,6 +24,8 @@ import {
 import { validate as uuidValidate } from 'uuid';
 import { StatusMessageArray } from 'components/buttons/types';
 import { StatusButton } from 'components/buttons';
+import { routineUpdate } from 'graphql/generated/routineUpdate';
+import { routineCreate } from 'graphql/generated/routineCreate';
 
 //TODO
 const helpText =
@@ -71,9 +73,8 @@ export const BuildView = ({
 
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
     // Routine mutators
-    const [routineCreate] = useMutation<any>(routineCreateMutation);
-    const [routineUpdate] = useMutation<any>(routineUpdateMutation);
-    const [routineDelete] = useMutation<any>(routineDeleteOneMutation);
+    const [routineCreate] = useMutation<routineCreate>(routineCreateMutation);
+    const [routineUpdate] = useMutation<routineUpdate>(routineUpdateMutation);
     // The routine's status (valid/invalid/incomplete)
     const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ['Calculating...'] });
     // Determines the size of the nodes and edges
@@ -114,10 +115,13 @@ export const BuildView = ({
     const [moveNode, setMoveNode] = useState<string | null>(null);
     const closeMoveNodeDialog = useCallback(() => { setMoveNode(null); }, []);
 
-    // Open boolean for delete routine confirmation
+    // Handle delete
     const [deleteOpen, setDeleteOpen] = useState(false);
     const openDelete = useCallback(() => setDeleteOpen(true), []);
-    const closeDelete = useCallback(() => setDeleteOpen(false), []);
+    const handleDeleteClose = useCallback((wasDeleted: boolean) => {
+        if (wasDeleted) setLocation(APP_LINKS.Home);
+        else setDeleteOpen(false);
+    }, [setLocation])
 
     /**
      * Calculates:
@@ -450,19 +454,6 @@ export const BuildView = ({
         // If adding new routine, go back
         else window.history.back();
     }, [id, routine])
-
-    /**
-     * Deletes the entire routine. Assumes confirmation was already given.
-     */
-    const deleteRoutine = useCallback(() => {
-        if (!routine) return;
-        mutationWrapper({
-            mutation: routineDelete,
-            input: { id: routine.id },
-            successMessage: () => 'Routine deleted.',
-            onSuccess: () => { setLocation(APP_LINKS.Home) },
-        })
-    }, [routine, routineDelete, setLocation])
 
     /**
      * Calculates the new set of links for an routine when a node is 
@@ -945,11 +936,12 @@ export const BuildView = ({
             width: '100%',
         }}>
             {/* Delete routine confirmation dialog */}
-            <DeleteRoutineDialog
+            <DeleteDialog
                 isOpen={deleteOpen}
-                routineName={getTranslation(changedRoutine, 'title', [language]) ?? ''}
-                handleClose={closeDelete}
-                handleDelete={deleteRoutine}
+                objectId={routine?.id ?? ''}
+                objectType={DeleteOneType.Routine}
+                objectName={getTranslation(changedRoutine, 'title', [language]) ?? ''}
+                handleClose={handleDeleteClose}
             />
             {/* Popup for adding new subroutines */}
             {addSubroutineNode && <SubroutineSelectOrCreateDialog

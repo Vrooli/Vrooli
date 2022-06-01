@@ -11,10 +11,10 @@ import {
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { Pubs, updateArray } from 'utils';
-import { emailCreateMutation, emailDeleteOneMutation, emailUpdateMutation, sendVerificationEmailMutation } from 'graphql/mutation';
+import { emailCreateMutation, deleteOneMutation, emailUpdateMutation, sendVerificationEmailMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';
 import { EmailListItem } from '../EmailListItem/EmailListItem';
-import { emailCreateButton as validationSchema } from '@local/shared';
+import { DeleteOneType, emailCreateButton as validationSchema } from '@local/shared';
 
 export const EmailList = ({
     handleUpdate,
@@ -32,7 +32,7 @@ export const EmailList = ({
         enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
-            if (!formik.isValid) return;
+            if (!formik.isValid || loadingAdd) return;
             mutationWrapper({
                 mutation: addMutation,
                 input: {
@@ -52,6 +52,7 @@ export const EmailList = ({
 
     const [updateMutation, { loading: loadingUpdate }] = useMutation<any>(emailUpdateMutation);
     const onUpdate = useCallback((index: number, updatedEmail: Email) => {
+        if (loadingUpdate) return;
         mutationWrapper({
             mutation: updateMutation,
             input: {
@@ -63,10 +64,11 @@ export const EmailList = ({
                 handleUpdate(updateArray(list, index, updatedEmail));
             },
         })
-    }, [handleUpdate, list, updateMutation]);
+    }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<any>(emailDeleteOneMutation);
+    const [deleteMutation, { loading: loadingDelete }] = useMutation<any>(deleteOneMutation);
     const onDelete = useCallback((email: Email) => {
+        if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 
         // (i.e. one other email or one other wallet)
         if (list.length <= 1 && numVerifiedWallets === 0) {
@@ -81,7 +83,7 @@ export const EmailList = ({
                     text: 'Yes', onClick: () => {
                         mutationWrapper({
                             mutation: deleteMutation,
-                            input: { id: email.id },
+                            input: { id: email.id, objectType: DeleteOneType.Email },
                             onSuccess: (response) => {
                                 handleUpdate([...list.filter(w => w.id !== email.id)])
                             },
@@ -91,10 +93,11 @@ export const EmailList = ({
                 { text: 'Cancel', onClick: () => { } },
             ]
         });
-    }, [deleteMutation, handleUpdate, list, numVerifiedWallets]);
+    }, [deleteMutation, handleUpdate, list, loadingDelete, numVerifiedWallets]);
 
     const [verifyMutation, { loading: loadingVerifyEmail }] = useMutation<any>(sendVerificationEmailMutation);
     const sendVerificationEmail = useCallback((email: Email) => {
+        if (loadingVerifyEmail) return;
         mutationWrapper({
             mutation: verifyMutation,
             input: { emailAddress: email.emailAddress },
@@ -102,7 +105,7 @@ export const EmailList = ({
                 PubSub.publish(Pubs.Snack, { message: 'Please check your email to complete verification.' });
             },
         })
-    }, [verifyMutation]);
+    }, [loadingVerifyEmail, verifyMutation]);
 
     return (
         <form onSubmit={formik.handleSubmit}>

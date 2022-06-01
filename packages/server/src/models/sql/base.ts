@@ -1,5 +1,5 @@
 // Components for providing basic functionality to model objects
-import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, PageInfo, Success, TimeFrame } from '../../schema/types';
+import { Count, DeleteManyInput, DeleteOneInput, FindByIdOrHandleInput, PageInfo, Success, TimeFrame } from '../../schema/types';
 import { PrismaType, RecursivePartial } from '../../types';
 import { GraphQLResolveInfo } from 'graphql';
 import pkg from 'lodash';

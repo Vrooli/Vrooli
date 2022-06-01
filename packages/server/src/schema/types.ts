@@ -138,7 +138,20 @@ export type DeleteManyInput = {
 
 export type DeleteOneInput = {
   id: Scalars['ID'];
+  objectType: DeleteOneType;
 };
+
+export enum DeleteOneType {
+  Comment = 'Comment',
+  Email = 'Email',
+  Node = 'Node',
+  Organization = 'Organization',
+  Project = 'Project',
+  Report = 'Report',
+  Routine = 'Routine',
+  Standard = 'Standard',
+  Wallet = 'Wallet'
+}
 
 export type DevelopPageResult = {
   __typename?: 'DevelopPageResult';
@@ -461,10 +474,9 @@ export enum MemberRole {
 export type Mutation = {
   __typename?: 'Mutation';
   commentCreate: Comment;
-  commentDeleteOne: Success;
   commentUpdate: Comment;
+  deleteOne: Success;
   emailCreate: Email;
-  emailDeleteOne: Success;
   emailLogIn: Session;
   emailRequestPasswordChange: Success;
   emailResetPassword: Session;
@@ -476,18 +488,14 @@ export type Mutation = {
   logDeleteMany: Count;
   logOut: Success;
   nodeCreate: Node;
-  nodeDeleteOne: Success;
   nodeUpdate: Node;
   organizationCreate: Organization;
-  organizationDeleteOne: Success;
   organizationUpdate: Organization;
   profileEmailUpdate: Profile;
   profileUpdate: Profile;
   projectCreate: Project;
-  projectDeleteOne: Success;
   projectUpdate: Project;
   reportCreate: Report;
-  reportDeleteOne: Success;
   reportUpdate: Report;
   resourceCreate: Resource;
   resourceDeleteMany: Count;
@@ -506,7 +514,6 @@ export type Mutation = {
   runUpdate: Run;
   sendVerificationEmail: Success;
   standardCreate: Standard;
-  standardDeleteOne: Success;
   standardUpdate: Standard;
   star: Success;
   stepInputDataCreate: StepInputData;
@@ -519,7 +526,6 @@ export type Mutation = {
   validateSession: Session;
   vote: Success;
   walletComplete: WalletComplete;
-  walletDeleteOne: Success;
   walletInit: Scalars['String'];
   walletUpdate: Wallet;
   writeAssets?: Maybe<Scalars['Boolean']>;
@@ -531,23 +537,18 @@ export type MutationCommentCreateArgs = {
 };
 
 
-export type MutationCommentDeleteOneArgs = {
-  input: DeleteOneInput;
-};
-
-
 export type MutationCommentUpdateArgs = {
   input: CommentUpdateInput;
 };
 
 
-export type MutationEmailCreateArgs = {
-  input: EmailCreateInput;
+export type MutationDeleteOneArgs = {
+  input: DeleteOneInput;
 };
 
 
-export type MutationEmailDeleteOneArgs = {
-  input: DeleteOneInput;
+export type MutationEmailCreateArgs = {
+  input: EmailCreateInput;
 };
 
 
@@ -591,11 +592,6 @@ export type MutationNodeCreateArgs = {
 };
 
 
-export type MutationNodeDeleteOneArgs = {
-  input: DeleteOneInput;
-};
-
-
 export type MutationNodeUpdateArgs = {
   input: NodeUpdateInput;
 };
@@ -603,11 +599,6 @@ export type MutationNodeUpdateArgs = {
 
 export type MutationOrganizationCreateArgs = {
   input: OrganizationCreateInput;
-};
-
-
-export type MutationOrganizationDeleteOneArgs = {
-  input?: InputMaybe<DeleteOneInput>;
 };
 
 
@@ -631,11 +622,6 @@ export type MutationProjectCreateArgs = {
 };
 
 
-export type MutationProjectDeleteOneArgs = {
-  input: DeleteOneInput;
-};
-
-
 export type MutationProjectUpdateArgs = {
   input: ProjectUpdateInput;
 };
@@ -643,11 +629,6 @@ export type MutationProjectUpdateArgs = {
 
 export type MutationReportCreateArgs = {
   input: ReportCreateInput;
-};
-
-
-export type MutationReportDeleteOneArgs = {
-  input: DeleteOneInput;
 };
 
 
@@ -736,11 +717,6 @@ export type MutationStandardCreateArgs = {
 };
 
 
-export type MutationStandardDeleteOneArgs = {
-  input: DeleteOneInput;
-};
-
-
 export type MutationStandardUpdateArgs = {
   input: StandardUpdateInput;
 };
@@ -793,11 +769,6 @@ export type MutationVoteArgs = {
 
 export type MutationWalletCompleteArgs = {
   input: WalletCompleteInput;
-};
-
-
-export type MutationWalletDeleteOneArgs = {
-  input: DeleteOneInput;
 };
 
 

@@ -1,7 +1,7 @@
 import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
-import { ReportFor } from '@local/shared';
+import { DeleteOneType, ReportFor } from '@local/shared';
 import { NewObject, Node, NodeDataRoutineList, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 import { ObjectType } from 'utils';
 
@@ -17,11 +17,12 @@ export interface BaseObjectDialogProps extends DialogProps {
     title: string;
 };
 
-export interface DeleteRoutineDialogProps {
-    handleClose: () => any;
-    handleDelete: () => any;
+export interface DeleteDialogProps {
+    handleClose: (wasDeleted: boolean) => void;
     isOpen: boolean;
-    routineName: string;
+    objectId: string;
+    objectName: string;
+    objectType: DeleteOneType;
 }
 
 export interface FormDialogProps {
@@ -164,9 +165,9 @@ export interface BaseObjectActionDialogProps {
     anchorEl: HTMLElement | null;
     availableOptions: BaseObjectAction[];
     handleActionComplete: (action: BaseObjectAction, data: any) => any;
-    handleDelete: () => any;
     handleEdit: () => any;
     objectId: string;
+    objectName: string;
     objectType: ObjectType;
     onClose: () => any;
     session: Session;

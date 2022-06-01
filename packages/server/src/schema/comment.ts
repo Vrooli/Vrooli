@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
-import { Comment, CommentCountInput, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentUpdateInput, DeleteOneInput, FindByIdInput, Success } from './types';
+import { Comment, CommentCountInput, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentUpdateInput, FindByIdInput } from './types';
 import { IWrap, RecursivePartial } from 'types';
-import { CommentModel, countHelper, createHelper, deleteOneHelper, GraphQLModelType, readManyHelper, readOneHelper, updateHelper } from '../models';
+import { CommentModel, countHelper, createHelper, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
@@ -115,7 +115,6 @@ export const typeDef = gql`
     extend type Mutation {
         commentCreate(input: CommentCreateInput!): Comment!
         commentUpdate(input: CommentUpdateInput!): Comment!
-        commentDeleteOne(input: DeleteOneInput!): Success!
     }
 `
 
@@ -147,10 +146,6 @@ export const resolvers = {
         commentUpdate: async (_parent: undefined, { input }: IWrap<CommentUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
             await rateLimit({ context, info, max: 1000, byAccount: true });
             return updateHelper(context.req.userId, input, info, CommentModel(context.prisma));
-        },
-        commentDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            await rateLimit({ context, info, max: 1000, byAccount: true });
-            return deleteOneHelper(context.req.userId, input, CommentModel(context.prisma));
         },
     }
 }

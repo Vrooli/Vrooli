@@ -325,9 +325,9 @@ export const ProjectView = ({
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
                 handleActionComplete={() => { }} //TODO
-                handleDelete={() => { }} //TODO
                 handleEdit={onEdit}
                 objectId={id}
+                objectName={name ?? ''}
                 objectType={ObjectType.Project}
                 anchorEl={moreMenuAnchor}
                 title='Project Options'

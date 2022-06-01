@@ -210,9 +210,9 @@ export const StandardView = ({
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
                 handleActionComplete={() => { }} //TODO
-                handleDelete={() => { }} //TODO
                 handleEdit={onEdit}
                 objectId={id ?? ''}
+                objectName={name ?? ''}
                 objectType={ObjectType.Standard}
                 anchorEl={moreMenuAnchor}
                 title='Standard Options'
