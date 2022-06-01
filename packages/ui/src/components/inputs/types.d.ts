@@ -150,7 +150,7 @@ export interface JsonInputProps {
     /**
      * JSON string representing the value of the input
      */
-    value: string;
+    value: string | null;
     /**
      * Dictionary which describes variables (e.g. <name>, <age>) in
      * the format JSON. 
@@ -217,6 +217,12 @@ export interface PasswordTextFieldProps extends TextFieldProps {
     onBlur?: (event: FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>) => void;
     onChange: (e: ChangeEvent<any>) => any;
     value: string;
+}
+
+export interface PreviewSwitchProps extends BoxProps {
+    disabled?: boolean;
+    isPreviewOn: boolean;
+    onChange: (isPreviewOn: boolean) => void;
 }
 
 export interface QuantityBoxProps extends BoxProps {

@@ -1,4 +1,4 @@
-import { Grid, TextField } from "@mui/material";
+import { Box, Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { standard } from "graphql/generated/standard";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
@@ -20,7 +20,7 @@ import { NewObject, ResourceList, Standard } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuidv4 } from 'uuid';
 import { FieldData } from "forms/types";
-import { BaseStandardInput } from "components/inputs";
+import { BaseStandardInput, PreviewSwitch } from "components/inputs";
 import { generateInputComponent, generateYupSchema } from "forms/generators";
 
 type InputTypeOption = { label: string, value: InputType }
@@ -78,8 +78,11 @@ export const StandardCreate = ({
 
     // Handle standard schema
     const [schema, setSchema] = useState<FieldData | null>(null);
-    const handleSchemaUpdate = useCallback((schema: FieldData) => { setSchema(schema); }, []);
-    const [schemaKey] = useState(`standard-create-schema-${Math.random().toString(36).substring(2, 15)}`);
+    const handleSchemaUpdate = useCallback((schema: FieldData) => {
+        console.log('handleschemaupDATE🔥', schema)
+        setSchema(schema);
+    }, []);
+    const [schemaKey] = useState(`standard-create-schema-preview-${Math.random().toString(36).substring(2, 15)}`);
 
     // Handle generated input preview
     const previewDefaultValue = useMemo(() => {
@@ -256,6 +259,9 @@ export const StandardCreate = ({
         setFormBottom(height);
     }, [setFormBottom]);
 
+    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
+    const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
+
     return (
         <form onSubmit={formik.handleSubmit} style={{
             display: 'flex',
@@ -303,38 +309,47 @@ export const StandardCreate = ({
                         helperText={formik.touched.description && formik.errors.description}
                     />
                 </Grid>
-                {/* Select the standard type */}
+                {/* Standard build/preview */}
                 <Grid item xs={12}>
-                    <Selector
-                        fullWidth
-                        options={InputTypeOptions}
-                        selected={inputType}
-                        handleChange={handleInputTypeSelect}
-                        getOptionLabel={(option: InputTypeOption) => option.label}
-                        inputAriaLabel='input-type-selector'
-                        label="Type"
+                    <PreviewSwitch
+                        isPreviewOn={isPreviewOn}
+                        onChange={onPreviewChange}
+                        sx={{
+                            marginBottom: 2
+                        }}
                     />
-                </Grid>
-                {/* Define the standard */}
-                <Grid item xs={12}>
-                    <BaseStandardInput
-                        fieldName="preview"
-                        inputType={inputType.value}
-                        isEditing={true}
-                        schema={schema}
-                        onChange={handleSchemaUpdate}
-                        storageKey={schemaKey}
-                    />
-                </Grid>
-                {/* Standard preview */}
-                <Grid item xs={12}>
-                    {schema && generateInputComponent({
-                        data: schema,
-                        disabled: true,
-                        formik: previewFormik,
-                        session,
-                        onUpload: () => {}
-                    })}
+                    {
+                        isPreviewOn ?
+                            (schema && generateInputComponent({
+                                data: schema,
+                                disabled: true,
+                                formik: previewFormik,
+                                session,
+                                onUpload: () => { }
+                            })) :
+                            <Box>
+                                <Selector
+                                    fullWidth
+                                    options={InputTypeOptions}
+                                    selected={inputType}
+                                    handleChange={handleInputTypeSelect}
+                                    getOptionLabel={(option: InputTypeOption) => option.label}
+                                    inputAriaLabel='input-type-selector'
+                                    label="Type"
+                                    style={{
+                                        marginBottom: 2
+                                    }}
+                                />
+                                <BaseStandardInput
+                                    fieldName="preview"
+                                    inputType={inputType.value}
+                                    isEditing={true}
+                                    schema={schema}
+                                    onChange={handleSchemaUpdate}
+                                    storageKey={schemaKey}
+                                />
+                            </Box>
+                    }
                 </Grid>
                 <Grid item xs={12}>
                     <ResourceListHorizontal

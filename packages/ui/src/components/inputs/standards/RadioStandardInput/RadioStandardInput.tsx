@@ -29,13 +29,13 @@ export const RadioStandardInput = ({
         onChange({
             type: InputType.Radio,
             props: formik.values,
-            fieldName: '',
-            label: '',
-            yup: {
+            fieldName: schema.fieldName,
+            label: schema.label,
+            yup: schema.yup ?? {
                 checks: [],
-            },
+            }
         });
-    }, [formik.values, onChange]);
+    }, [formik.values, onChange, schema.fieldName, schema.label, schema.yup]);
 
     return (
         <></>

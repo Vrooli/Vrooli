@@ -57,7 +57,7 @@ export const BaseStandardInput = ({
             });
         }
         // Update state
-        console.log('setting local storage', newSchema)
+        console.log('🙃setting local storage', newSchema)
         localStorage.setItem(typeKey, JSON.stringify(newSchema));
         onChange(newSchema as FieldData)
     }, [onChange, inputType, storageKey, fieldName, isEditing]);

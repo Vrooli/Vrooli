@@ -119,13 +119,13 @@ export const CheckboxStandardInput = ({
         onChange({
             type: InputType.Checkbox,
             props: formik.values,
-            fieldName: '',
-            label: '',
-            yup: {
+            fieldName: schema.fieldName,
+            label: schema.label,
+            yup: schema.yup ?? {
                 checks: [],
-            },
+            }
         });
-    }, [formik.values, onChange]);
+    }, [formik.values, onChange, schema.fieldName, schema.label, schema.yup]);
 
     return (
         <Stack direction="column">

@@ -2,7 +2,7 @@
  * Input for creating a JSON schema.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { JsonInputProps } from '../types';
 import { HelpButton, StatusButton } from 'components/buttons';
 import { Status } from 'utils';
@@ -35,9 +35,9 @@ type VariablePosition = { field: Position; value: Position };
  * @param value The string to check.
  * @returns True if the string can be parsed as JSON, false otherwise.
  */
-const isJson = (value: string): boolean => {
+const isJson = (value: string | null): boolean => {
     try {
-        JSON.parse(value);
+        value && JSON.parse(value);
         return true;
     } catch (e) {
         return false;
@@ -49,9 +49,9 @@ const isJson = (value: string): boolean => {
  * @param value The JSON string to convert.
  * @returns The pretty-printed JSON string, to be rendered in <Markdown />.
  */
-const jsonToMarkdown = (value: string): string | null => {
+const jsonToMarkdown = (value: string | null): string | null => {
     try {
-        return `\`\`\`json\n${JSON.stringify(JSON.parse(value), null, 2)}\n\`\`\``;
+        return value ? `\`\`\`json\n${JSON.stringify(JSON.parse(value), null, 2)}\n\`\`\`` : null;
     } catch (e) {
         return null;
     }
@@ -144,13 +144,15 @@ export const JsonInput = ({
     variables,
 }: JsonInputProps) => {
     const { palette } = useTheme();
+    console.log("JSON INPUT", value)
 
     /**
      * If value not set, defaults to format with variables 
      * substituted for their known defaults.
      */
     useEffect(() => {
-        if (value.length > 0 || !format) return;
+        if (disabled) return;
+        if ((value ?? '').length > 0 || !format) return;
         // Initialize with stringified format
         let changedFormat: string = JSON.stringify(format);
         // If variables not set, return stringified format
@@ -166,7 +168,7 @@ export const JsonInput = ({
             // Find locations of variables in format
             // TODO
         }
-    }, [format, onChange, value.length, variables]);
+    }, [disabled, format, onChange, value, variables]);
 
     /**
      * Uses format, variables, and value
@@ -232,12 +234,12 @@ export const JsonInput = ({
                                 <p>{`Error: Invalid JSON - ${value}`}</p>
                         }
                     </Box> :
-                    <textarea
+                    <TextField
                         id={`markdown-input-${id}`}
                         disabled={disabled}
                         placeholder={placeholder}
                         rows={minRows}
-                        value={value}
+                        value={value ?? ''}
                         onChange={(e) => { onChange(e.target.value) }}
                         style={{
                             minWidth: '-webkit-fill-available',

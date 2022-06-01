@@ -11,7 +11,7 @@ import {
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, BaseStandardInput, LinkButton, SelectLanguageDialog, StarButton } from "components";
 import { StandardViewProps } from "../types";
-import { getCreatedByString, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, toCreatedBy } from "utils";
+import { getCreatedByString, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData, toCreatedBy } from "utils";
 import { Standard } from "types";
 import { StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
@@ -21,6 +21,7 @@ import { owns } from "utils/authentication";
 import { FieldData } from "forms/types";
 import { useFormik } from "formik";
 import { generateInputComponent } from "forms/generators";
+import { PreviewSwitch } from "components/inputs";
 
 const TERTIARY_COLOR = '#95f3cd';
 
@@ -44,26 +45,7 @@ export const StandardView = ({
     const [changedStandard, setChangedStandard] = useState<Standard | null>(null); // Standard may change if it is starred/upvoted/etc.
     const canEdit = useMemo<boolean>(() => owns(standard?.role), [standard]);
 
-    const schema = useMemo<FieldData | null>(() => {
-        if (!standard) return null;
-        // props and yup are stored as JSON
-        let props: any;
-        let yup: any | undefined = undefined;
-        try {
-            props = JSON.parse(standard.props);
-            if (standard.yup) yup = JSON.parse(standard.yup);
-        } catch (error) {
-            console.error('Error parsing props/yup', error);
-            return null;
-        }
-        return {
-            fieldName: 'preview',
-            label: standard.name,
-            type: standard.type as InputType,
-            props,
-            yup,
-        }
-    }, [standard]);
+    const schema = useMemo<FieldData | null>(() => standardToFieldData(standard, 'preview'), [standard]);
     const previewFormik = useFormik({
         initialValues: {
             preview: schema?.props?.defaultValue ?? '',
@@ -134,6 +116,9 @@ export const StandardView = ({
         return options;
     }, [standard, canEdit, session]);
 
+    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(true);
+    const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
+
     /**
      * Display body or loading indicator
      */
@@ -161,27 +146,41 @@ export const StandardView = ({
                         <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Description</Typography>
                         <Typography variant="body1">{description ?? 'No description set'}</Typography>
                     </Box>
-                    {/* Standard inputs (disabled) */}
-                    <BaseStandardInput
-                        fieldName="preview"
-                        inputType={schema?.type ?? InputType.TextField}
-                        isEditing={false}
-                        schema={schema}
-                        onChange={() => {}} // Intentionally blank
-                        storageKey={''} // Intentionally blank
+                    {/* Build/Preview switch */}
+                    <PreviewSwitch
+                        isPreviewOn={isPreviewOn}
+                        onChange={onPreviewChange}
                     />
-                    {/* Standard preview */}
-                    {schema && generateInputComponent({
-                        data: schema,
-                        disabled: true,
-                        formik: previewFormik,
-                        session,
-                        onUpload: () => { }
-                    })}
+                    {
+                        isPreviewOn ?
+                            schema ? generateInputComponent({
+                                data: schema,
+                                disabled: true,
+                                formik: previewFormik,
+                                session,
+                                onUpload: () => { }
+                            }) :
+                                <Box sx={{
+                                    minHeight: 'min(300px, 25vh)',
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                }}>
+                                    <CircularProgress color="secondary" />
+                                </Box> :
+                            <BaseStandardInput
+                                fieldName="preview"
+                                inputType={schema?.type ?? InputType.TextField}
+                                isEditing={false}
+                                schema={schema}
+                                onChange={() => { }} // Intentionally blank
+                                storageKey={''} // Intentionally blank
+                            />
+                    }
                 </Stack>
             </>
         )
-    }, [loading, description, palette.background.textPrimary, palette.background.textSecondary, schema, previewFormik, session]);
+    }, [loading, description, palette.background.textPrimary, palette.background.textSecondary, isPreviewOn, onPreviewChange, schema, previewFormik, session]);
 
     return (
         <Box sx={{
