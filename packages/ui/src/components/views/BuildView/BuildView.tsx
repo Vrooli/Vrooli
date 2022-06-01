@@ -1006,11 +1006,11 @@ export const BuildView = ({
             {/* Displays routine information when you click on a routine list item*/}
             <SubroutineInfoDialog
                 data={openedSubroutine}
+                defaultLanguage={language}
                 isEditing={isEditing}
                 handleUpdate={handleSubroutineUpdate}
                 handleReorder={handleRoutineListItemReorder}
                 handleViewFull={handleSubroutineViewFull}
-                language={language}
                 open={Boolean(openedSubroutine)}
                 session={session}
                 onClose={closeRoutineInfo}

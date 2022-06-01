@@ -22,7 +22,7 @@ export const ResourceListHorizontal = ({
     handleUpdate,
     mutate = true,
     list,
-    loading,
+    loading = false,
     session,
 }: ResourceListHorizontalProps) => {
     const { palette } = useTheme();

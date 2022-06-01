@@ -86,6 +86,7 @@ export const routineFields = gql`
                     routine {
                         id
                         complexity
+                        isComplete
                         isInternal
                         inputs {
                             ...routineInputFields
@@ -111,7 +112,13 @@ export const routineFields = gql`
                                 handle
                             }
                         }
+                        resourceLists {
+                            ...routineResourceListFields
+                        }
                         simplicity
+                        tags {
+                            ...routineTagFields
+                        }
                         translations {
                             id
                             language

@@ -89,6 +89,7 @@ export const runFields = gql`
                         inputs {
                             ...runInputFields
                         }
+                        isComplete
                         isInternal
                         nodesCount
                         role
@@ -111,7 +112,13 @@ export const runFields = gql`
                                 handle
                             }
                         }
+                        resourceLists {
+                            ...runResourceListFields
+                        }
                         simplicity
+                        tags {
+                            ...runTagFields
+                        }
                         translations {
                             id
                             language

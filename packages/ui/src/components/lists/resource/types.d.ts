@@ -5,7 +5,7 @@ export interface ResourceListHorizontalProps {
     canEdit?: boolean;
     handleUpdate?: (updatedList: ResourceList) => void;
     list: ResourceList | null;
-    loading: boolean;
+    loading?: boolean;
     session: Session;
     mutate?: boolean;
 }

@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { NodeType, MemberRole } from "./globalTypes";
+import { NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: routineNodeFields
@@ -137,6 +137,57 @@ export interface routineNodeFields_data_NodeRoutineList_routines_routine_owner_U
 
 export type routineNodeFields_data_NodeRoutineList_routines_routine_owner = routineNodeFields_data_NodeRoutineList_routines_routine_owner_Organization | routineNodeFields_data_NodeRoutineList_routines_routine_owner_User;
 
+export interface routineNodeFields_data_NodeRoutineList_routines_routine_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface routineNodeFields_data_NodeRoutineList_routines_routine_resourceLists_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface routineNodeFields_data_NodeRoutineList_routines_routine_resourceLists_resources {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: routineNodeFields_data_NodeRoutineList_routines_routine_resourceLists_resources_translations[];
+}
+
+export interface routineNodeFields_data_NodeRoutineList_routines_routine_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: routineNodeFields_data_NodeRoutineList_routines_routine_resourceLists_translations[];
+  resources: routineNodeFields_data_NodeRoutineList_routines_routine_resourceLists_resources[];
+}
+
+export interface routineNodeFields_data_NodeRoutineList_routines_routine_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface routineNodeFields_data_NodeRoutineList_routines_routine_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  translations: routineNodeFields_data_NodeRoutineList_routines_routine_tags_translations[];
+}
+
 export interface routineNodeFields_data_NodeRoutineList_routines_routine_translations {
   __typename: "RoutineTranslation";
   id: string;
@@ -150,13 +201,16 @@ export interface routineNodeFields_data_NodeRoutineList_routines_routine {
   __typename: "Routine";
   id: string;
   complexity: number;
+  isComplete: boolean;
   isInternal: boolean | null;
   inputs: routineNodeFields_data_NodeRoutineList_routines_routine_inputs[];
   nodesCount: number | null;
   role: MemberRole | null;
   outputs: routineNodeFields_data_NodeRoutineList_routines_routine_outputs[];
   owner: routineNodeFields_data_NodeRoutineList_routines_routine_owner | null;
+  resourceLists: routineNodeFields_data_NodeRoutineList_routines_routine_resourceLists[];
   simplicity: number;
+  tags: routineNodeFields_data_NodeRoutineList_routines_routine_tags[];
   translations: routineNodeFields_data_NodeRoutineList_routines_routine_translations[];
   version: string | null;
 }

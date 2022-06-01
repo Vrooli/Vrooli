@@ -197,11 +197,11 @@ export interface BuildInfoDialogProps {
 
 export interface SubroutineInfoDialogProps {
     data: { node: NodeDataRoutineList, routineId: string } | null;
+    defaultLanguage: string;
     handleUpdate: (updatedSubroutine: Routine) => any;
     handleReorder: (nodeId: string, oldIndex: number, newIndex: number) => any;
     handleViewFull: () => any;
     isEditing: boolean;
-    language: string;
     open: boolean;
     session: Session;
     onClose: () => any;
