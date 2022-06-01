@@ -11,7 +11,7 @@ import {
     DoneAll as CompleteIcon,
 } from '@mui/icons-material';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getTranslation, getUserLanguages, Pubs, RoutineStepType, updateArray, useHistoryState, useReactSearch } from "utils";
+import { getTranslation, getUserLanguages, Pubs, RoutineStepType, TERTIARY_COLOR, updateArray, useHistoryState, useReactSearch } from "utils";
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
@@ -23,8 +23,6 @@ import { runComplete } from "graphql/generated/runComplete";
 import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils";
 import { runUpdate, runUpdateVariables } from "graphql/generated/runUpdate";
-
-const TERTIARY_COLOR = '#95f3cd';
 
 export const RunView = ({
     handleClose,

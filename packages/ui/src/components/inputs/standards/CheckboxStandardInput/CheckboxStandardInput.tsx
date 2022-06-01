@@ -13,6 +13,11 @@ import {
 } from '@mui/icons-material';
 
 /**
+ * Create new option
+ */
+const emptyOption = (index: number) => ({ label: `Enter option ${index + 1}` });
+
+/**
  * Checkbox option with delete icon, TextField for label, and Checkbox for default value.
  */
 const CheckboxOption = ({
@@ -89,7 +94,7 @@ export const CheckboxStandardInput = ({
     const formik = useFormik({
         initialValues: {
             defaultValue: schema.props.defaultValue ?? [false],
-            options: schema.props.options ?? [{ label: 'Enter option 1' }],
+            options: schema.props.options ?? [emptyOption(0)],
             row: schema.props.row ?? false,
             // yup: [],
         },
@@ -99,12 +104,19 @@ export const CheckboxStandardInput = ({
     });
 
     const handleOptionAdd = useCallback(() => {
-        formik.setFieldValue('options', [...formik.values.options, { label: `Enter option ${formik.values.options.length + 1}` }]);
+        formik.setFieldValue('options', [...formik.values.options, emptyOption(formik.values.options.length)]);
         formik.setFieldValue('defaultValue', [...formik.values.defaultValue, false]);
     }, [formik]);
     const handleOptionRemove = useCallback((index: number) => {
-        formik.setFieldValue('options', formik.values.options.filter((_, i) => i !== index));
-        formik.setFieldValue('defaultValue', formik.values.defaultValue.filter((_, i) => i !== index));
+        const filtered = formik.values.options.filter((_, i) => i !== index);
+        const defaults = formik.values.defaultValue.filter((_, i) => i !== index)
+        // If there will be no options left, add default
+        if (filtered.length === 0) {
+            filtered.push(emptyOption(0));
+            defaults.push(false);
+        }
+        formik.setFieldValue('options', filtered);
+        formik.setFieldValue('defaultValue', defaults);
     }, [formik]);
     const handleOptionChange = useCallback((index: number, label: string, dValue: boolean) => {
         const options = [...formik.values.options];

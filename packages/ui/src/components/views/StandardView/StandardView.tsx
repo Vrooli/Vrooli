@@ -11,7 +11,7 @@ import {
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, BaseStandardInput, LinkButton, SelectLanguageDialog, StarButton } from "components";
 import { StandardViewProps } from "../types";
-import { getCreatedByString, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData, toCreatedBy } from "utils";
+import { getCreatedByString, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData, TERTIARY_COLOR, toCreatedBy } from "utils";
 import { Standard } from "types";
 import { StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
@@ -22,8 +22,6 @@ import { FieldData } from "forms/types";
 import { useFormik } from "formik";
 import { generateInputComponent } from "forms/generators";
 import { PreviewSwitch } from "components/inputs";
-
-const TERTIARY_COLOR = '#95f3cd';
 
 export const StandardView = ({
     partialData,
@@ -48,7 +46,7 @@ export const StandardView = ({
     const schema = useMemo<FieldData | null>(() => standardToFieldData(standard, 'preview'), [standard]);
     const previewFormik = useFormik({
         initialValues: {
-            preview: schema?.props?.defaultValue ?? '',
+            preview: schema?.props?.defaultValue,
         },
         enableReinitialize: true,
         onSubmit: () => { },

@@ -6,7 +6,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, getUserLanguages, Pubs, updateArray } from "utils";
+import { formatForUpdate, getUserLanguages, Pubs, TERTIARY_COLOR, updateArray } from "utils";
 import {
     Refresh as RefreshIcon,
     Restore as CancelIcon,
@@ -33,8 +33,6 @@ To use an ADA Handle, make sure it is in a wallet which is authenticated with yo
 If you set a handle, your Vrooli profile will be accessible via https://app.vrooli.com/profile/{handle}.
 
 Your bio is displayed on your profile page. You may add multiple translations if you'd like.`;
-
-const TERTIARY_COLOR = '#95f3cd';
 
 export const SettingsProfile = ({
     onUpdated,

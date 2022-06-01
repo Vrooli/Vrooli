@@ -304,6 +304,7 @@ export const toSlider = ({
 export const toSwitch = ({
     data,
     disabled,
+    formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
     const props = data.props as SwitchProps;
@@ -315,6 +316,11 @@ export const toSwitch = ({
                     size={props.size}
                     color={props.color}
                     tabIndex={index}
+                    checked={formik.values[data.fieldName]}
+                    onBlur={formik.handleBlur}
+                    onChange={formik.handleChange}
+                    name={data.fieldName}
+                    inputProps={{ 'aria-label': data.fieldName }}
                 />
             )} label={data.fieldName} />
         </FormGroup>

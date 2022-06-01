@@ -20,11 +20,43 @@ export interface JSONValidationResult {
 }
 
 /**
+ * Markdown text that explains how to enter JSON data
+ */
+export const jsonHelpText =
+    `JSON is a widely used format for storing data objects.  
+
+If you are unfamiliar with JSON, you may [read this guide](https://www.tutorialspoint.com/json/json_quick_guide.htm) to learn how to use it.  
+
+On top of the JSON format, we also support the following:  
+- **Variables**: Any key or value can be substituted with a variable. These are used to make it easy for users to fill in their own data, as well as 
+provide details about those parts of the JSON. Variables follow the format of &lt;variable_name&gt;.  
+- **Optional fields**: Fields that are not required can be marked as optional. Optional fields must start with a question mark (e.g. ?field_name).  
+- **Additional fields**: If an object contains arbitrary fields, add a field with brackets (e.g. [variable]).  
+- **Data types**: Data types are specified by reserved words (e.g. &lt;string&gt;, &lt;number | boolean&gt;, &lt;any&gt;, etc.), variable names (e.g. &lt;variable_name&gt;), standard IDs (e.g. &lt;decdf6c8-4230-4777-b8e3-799df2503c42&gt;), or simply entered as normal JSON.
+`
+
+/**
  * Determines if input is an object, and not a Date or Array
  * @param obj - object to check
  * @returns true if object, false otherwise
  */
- const isActualObject = (obj: any): boolean => !Array.isArray(obj) && _.isObject(obj) && Object.prototype.toString.call(obj) !== '[object Date]'
+const isActualObject = (obj: any): boolean => !Array.isArray(obj) && _.isObject(obj) && Object.prototype.toString.call(obj) !== '[object Date]'
+
+/**
+ * Checks if a string can be parsed as JSON.
+ * @param value The string to check.
+ * @returns True if the string can be parsed as JSON, false otherwise.
+ */
+export const isJson = (value: { [x: string]: any } | string | null | undefined): boolean => {
+    try {
+        // If already a JSON object, return true
+        if (typeof value === 'object') return true;
+        value && JSON.parse(value);
+        return true;
+    } catch (e) {
+        return false;
+    }
+};
 
 /**
  * Recursive helper function for comparing a JSON format to JSON data
@@ -135,5 +167,110 @@ export const compareJSONToFormat = (format: string, data: any): JSONValidationRe
                 message: 'Failed to parse JSON format or data'
             }]
         }
+    }
+}
+
+type Position = { start: number; end: number };
+type VariablePosition = { field: Position; value: Position };
+/**
+ * Finds the start and end positions of every matching variable/value pair in a JSON format
+ * @param variable Name of variable
+ * @param format format to search
+ * @returns Array of start and end positions of every matching variable/value pair
+ */
+export const findVariablePositions = (variable: string, format: { [x: string]: any | undefined }): VariablePosition[] => {
+    // Initialize array of variable positions
+    const variablePositions: VariablePosition[] = [];
+    // Check for valid format
+    if (!format) return variablePositions;
+    const formatString = JSON.stringify(format);
+    // Create substring to search for
+    const keySubstring = `"<${variable}>":`;
+    // Create fields to store data about the current position in the format string
+    let openBracketCounter = 0; // Net number of open brackets since last variable
+    let inQuotes = false; // If in quotes, ignore brackets
+    let index = 1; // Current index in format string. Ignore first character, since we check the previous character in the loop (and the first character will always be a bracket)
+    let keyStartIndex = -1; // Start index of variable's key
+    let valueStartIndex = -1; // Start index of variable's value
+    // Loop through format string, until end is reached. 
+    while (index < formatString.length) {
+        const currChar = formatString[index];
+        const lastChar = formatString[index - 1];
+        // If current and last char are "\", then the next character is escaped and should be ignored
+        if (currChar !== '\\' && lastChar !== '\\') {
+            // If variableStart has not been found, then check if we are at the start of the next variable instance
+            if (keyStartIndex === -1) {
+                console.log('KEY A', currChar, lastChar, keyStartIndex, valueStartIndex)
+                // If the rest of the formatString is long enough to contain the variable substring, 
+                // and the substring is found, then we are at the start of a new variable instance
+                if (formatString.length - index >= keySubstring.length && formatString.substring(index, index + keySubstring.length) === keySubstring) {
+                    keyStartIndex = index;
+                }
+            }
+            // If variableStart has been found, check for the start of the value
+            else if (index === keyStartIndex + keySubstring.length) {
+                console.log('KEY B', currChar, lastChar, keyStartIndex, valueStartIndex)
+                // If the current character is not a quote or an open bracket, then the value is invalid
+                if (currChar !== '"' && currChar !== '{') {
+                    keyStartIndex = -1;
+                    valueStartIndex = -1;
+                }
+                // Otherwise, set up the startIndex, bracket counter and inQuotes flag
+                valueStartIndex = index;
+                openBracketCounter = Number(currChar === '{');
+                inQuotes = currChar === '"';
+            }
+            // If variableStart has been found, check if we are at the end
+            else if (index > keyStartIndex + keySubstring.length) {
+                openBracketCounter += Number(currChar === '{');
+                openBracketCounter -= Number(currChar === '}');
+                if (currChar === '"') inQuotes = !inQuotes;
+                // If the bracket counter is 0, and we are not in quotes, then we are at the end of the variable
+                if (openBracketCounter === 0 && !inQuotes) {
+                    // Add the variable to the array
+                    variablePositions.push({
+                        field: {
+                            start: keyStartIndex,
+                            end: keyStartIndex + keySubstring.length,
+                        },
+                        value: {
+                            start: valueStartIndex,
+                            end: index,
+                        },
+                    });
+                }
+            }
+        } else index++;
+        index++;
+    }
+    return variablePositions;
+}
+
+/**
+ * Converts a JSON string to a pretty-printed JSON markdown string.
+ * @param value The JSON string to convert.
+ * @returns The pretty-printed JSON string, to be rendered in <Markdown />.
+ */
+export const jsonToMarkdown = (value: { [x: string]: any } | string | null): string | null => {
+    try {
+        const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+        return value ? `\`\`\`json\n${JSON.stringify(parsed, null, 2)}\n\`\`\`` : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+/**
+ * Converts a JSON object to a pretty-printed JSON string. This includes adding 
+ * newlines and indentation to make the JSON more readable.
+ * @param value The JSON object to convert.
+ * @returns The pretty-printed JSON string, to be rendered in multiline <TextField />.
+ */
+export const jsonToString = (value: { [x: string]: any } | string | null | undefined): string | null => {
+    try {
+        const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+        return value ? JSON.stringify(parsed, null, 2) : null;
+    } catch (e) {
+        return null;
     }
 }

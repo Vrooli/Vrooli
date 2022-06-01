@@ -6,6 +6,7 @@ import { MarkdownStandardInputProps } from '../types';
 import { InputType, markdownStandardInputForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { useEffect } from 'react';
+import { Grid, TextField } from '@mui/material';
 
 export const MarkdownStandardInput = ({
     isEditing,
@@ -36,6 +37,22 @@ export const MarkdownStandardInput = ({
     }, [formik.values, onChange, schema.fieldName, schema.label, schema.yup]);
 
     return (
-        <></>
+        <Grid container spacing={2}>
+            <Grid item xs={12}>
+                <TextField
+                    fullWidth
+                    disabled={!isEditing}
+                    id="defaultValue"
+                    name="defaultValue"
+                    label="Default Value"
+                    multiline
+                    value={formik.values.defaultValue}
+                    onBlur={formik.handleBlur}
+                    onChange={formik.handleChange}
+                    error={formik.touched.defaultValue && Boolean(formik.errors.defaultValue)}
+                    helperText={formik.touched.defaultValue && formik.errors.defaultValue}
+                />
+            </Grid>
+        </Grid>
     );
 }

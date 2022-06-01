@@ -77,3 +77,6 @@ export const themes = {
     'light': lightTheme,
     'dark': darkTheme
 }
+
+// Additional color that's used often (not sure how to change MUI theme shape and have Typescript infer it)
+export const TERTIARY_COLOR = '#95f3cd';

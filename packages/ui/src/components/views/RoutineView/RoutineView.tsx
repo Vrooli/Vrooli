@@ -14,7 +14,7 @@ import {
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, BuildView, DeleteRoutineDialog, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
-import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, Pubs, stringifySearchParams, toOwnedBy, useReactSearch } from "utils";
+import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, Pubs, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
 import { Node, NodeLink, Routine, Run } from "types";
 import Markdown from "markdown-to-jsx";
 import { runCompleteMutation, routineDeleteOneMutation } from "graphql/mutation";
@@ -25,8 +25,6 @@ import { containerShadow } from "styles";
 import { validate as uuidValidate, v4 as uuidv4 } from 'uuid';
 import { runComplete } from "graphql/generated/runComplete";
 import { owns } from "utils/authentication";
-
-const TERTIARY_COLOR = '#95f3cd';
 
 export const RoutineView = ({
     partialData,

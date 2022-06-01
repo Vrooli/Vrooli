@@ -1,12 +1,11 @@
 import { Box, Stack, Typography, useTheme } from "@mui/material"
 import { SettingsNotificationsProps } from "../types";
 import { HelpButton } from "components/buttons";
+import { TERTIARY_COLOR } from "utils";
 
 const helpText =
     `Notification preferences set the types and frequency of notifcations you receive. More customizations will be available in the near future.  
 `
-
-const TERTIARY_COLOR = '#95f3cd';
 
 export const SettingsNotifications = ({
     profile,

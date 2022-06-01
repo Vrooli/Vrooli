@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineDeleteOneMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, Status, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages, parseSearchParams, stringifySearchParams } from 'utils';
+import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, Status, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR } from 'utils';
 import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine } from 'types';
 import isEqual from 'lodash/isEqual';
 import { useLocation } from 'wouter';
@@ -34,8 +34,6 @@ Lorem ipsum dolor sit amet consectetur adipisicing elit.
 ## How does it work?
 Lorem ipsum dolor sit amet consectetur adipisicing elit.
 `
-
-const TERTIARY_COLOR = '#95f3cd';
 
 export const BuildView = ({
     handleClose,

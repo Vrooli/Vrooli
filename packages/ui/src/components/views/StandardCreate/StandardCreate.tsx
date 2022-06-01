@@ -84,33 +84,11 @@ export const StandardCreate = ({
     }, []);
     const [schemaKey] = useState(`standard-create-schema-preview-${Math.random().toString(36).substring(2, 15)}`);
 
-    // Handle generated input preview
-    const previewDefaultValue = useMemo(() => {
-        switch (inputType.value) {
-            case InputType.TextField:
-                return '';
-            case InputType.JSON:
-                return '';
-            case InputType.QuantityBox:
-                return 0;
-            case InputType.Radio:
-                return 'Option 1';
-            case InputType.Checkbox:
-                return [false];
-            case InputType.Switch:
-                return false;
-            case InputType.Dropzone:
-                return '';
-            case InputType.Markdown:
-                return '';
-            default:
-                return '';
-        }
-    }, [inputType]);
     const previewFormik = useFormik({
         initialValues: {
-            value: previewDefaultValue,
+            preview: schema?.props?.defaultValue,
         },
+        enableReinitialize: true,
         validationSchema: schema ? generateYupSchema({
             fields: [schema],
         }) : undefined,
@@ -261,6 +239,9 @@ export const StandardCreate = ({
 
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
+    
+    console.log("SCHEMA", schema);
+    console.log("FORMIK.VALUES" , previewFormik.values);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{

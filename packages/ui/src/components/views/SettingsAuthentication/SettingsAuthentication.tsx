@@ -6,7 +6,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, Pubs } from "utils";
+import { formatForUpdate, Pubs, TERTIARY_COLOR } from "utils";
 import {
     AccountBalanceWallet as WalletIcon,
     Email as EmailIcon,
@@ -37,8 +37,6 @@ You may add or remove as many email addresses as you wish, but you must keep at 
 
 const passwordHelpText =
     `Change the password you use for email log ins. Wallet log ins use your wallet's extension, so no need to set a password here.`
-
-const TERTIARY_COLOR = '#95f3cd';
 
 export const SettingsAuthentication = ({
     profile,
