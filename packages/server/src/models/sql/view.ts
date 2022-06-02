@@ -129,7 +129,6 @@ export interface ViewInput {
  */
 const viewer = (prisma: PrismaType) => ({
     async view(userId: string, input: ViewInput): Promise<boolean> {
-        console.log('creating view', JSON.stringify(input));
         // Define prisma type for viewed object
         const prismaFor = (prisma[forMapper[input.viewFor] as keyof PrismaType] as any);
         // Check if object being viewed on exists
@@ -145,7 +144,6 @@ const viewer = (prisma: PrismaType) => ({
         })
         // If view already existed, update view time
         if (view) {
-            console.log('view existed. updating time', JSON.stringify(view))
             await prisma.view.update({
                 where: { id: view.id },
                 data: {
@@ -156,7 +154,6 @@ const viewer = (prisma: PrismaType) => ({
         }
         // If view did not exist, create it
         else {
-            console.log('view did not exist. creating', JSON.stringify(input))
             view = await prisma.view.create({
                 data: {
                     byId: userId,
@@ -267,7 +264,6 @@ const viewer = (prisma: PrismaType) => ({
                 where: { id: input.forId },
                 data: { views: viewFor.views + 1 }
             })
-            console.log('before log view')
             // Log view
             Log.collection.insertOne({
                 timestamp: Date.now(),

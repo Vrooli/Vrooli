@@ -40,7 +40,6 @@ export const EditableLabel = ({
     // Used for editing the title of the routine
     const [active, setActive] = useState<boolean>(false);
     const toggleActive = useCallback((event: any) => {
-        console.log('TOGGLE ACTIVEEEE', event);
         if (!canEdit) return;
         setActive(!active)
     }, [active, canEdit]);

@@ -25,7 +25,6 @@ export const JsonInput = ({
     variables,
 }: JsonInputProps) => {
     const { palette } = useTheme();
-    console.log("JSON INPUT", value)
 
     /**
      * If value not set, defaults to format with variables 

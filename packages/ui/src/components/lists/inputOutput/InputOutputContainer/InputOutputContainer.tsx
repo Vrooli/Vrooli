@@ -119,7 +119,6 @@ export const InputOutputContainer = ({
     }, [list, language, isInput, handleUpdate]);
 
     const onUpdate = useCallback((index: number, updatedItem: RoutineInput | RoutineOutput) => {
-        console.log('input output container onupdate', index, updatedItem)
         handleUpdate(updateArray(list, index, updatedItem));
     }, [handleUpdate, list]);
 

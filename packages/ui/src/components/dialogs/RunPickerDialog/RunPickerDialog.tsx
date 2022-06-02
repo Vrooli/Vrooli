@@ -32,7 +32,6 @@ export const RunPickerDialog = ({
         if (!searchParams.run) return
         const run = routine.runs.find(run => run.id === searchParams.run);
         if (run) {
-            console.log('on select zz', run, routine)
             onSelect(run);
             handleClose();
         }
@@ -40,7 +39,6 @@ export const RunPickerDialog = ({
 
     const [runCreate] = useMutation<runCreate>(runCreateMutation);
     const createNewRun = useCallback(() => {
-        console.log('CREATING NEW RUN')
         if (!routine) {
             PubSub.publish(Pubs.Snack, { message: 'Could not read routine data.', severity: 'error' });
             return;
@@ -53,7 +51,7 @@ export const RunPickerDialog = ({
                 title: getTranslation(routine, 'title', getUserLanguages(session)),
             },
             successCondition: (response) => response.data.runCreate !== null,
-            onSuccess: (response) => { console.log('onselect a'); onSelect(response.data.runCreate); handleClose(); },
+            onSuccess: (response) => { onSelect(response.data.runCreate); handleClose(); },
             onError: () => { PubSub.publish(Pubs.Snack, { message: 'Failed to create run.', severity: 'error' }) },
         })
     }, [handleClose, onSelect, routine, runCreate, session]);
@@ -62,12 +60,10 @@ export const RunPickerDialog = ({
         if (!open) return;
         // If not logged in, open routine without creating a new run
         if (!session.id) {
-            console.log('onselect b');
             onSelect(null);
         }
         // If routine has no runs, create a new one.
         else if (routine && routine.runs?.length === 0) {
-            console.log('createnewrun call', routine, session.id);
             createNewRun();
         }
     }, [open, routine, createNewRun, onSelect, session.id]);
@@ -84,7 +80,7 @@ export const RunPickerDialog = ({
     const items = useMemo(() => runOptions.map((data: ListMenuItemData<Run>, index) => {
         const itemText = <ListItemText primary={data.label} />;
         return (
-            <ListItem button onClick={() => { console.log('onselect c'); onSelect(data.value); handleClose(); }} key={index}>
+            <ListItem button onClick={() => { onSelect(data.value); handleClose(); }} key={index}>
                 {itemText}
             </ListItem>
         )

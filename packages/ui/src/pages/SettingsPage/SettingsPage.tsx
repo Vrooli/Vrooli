@@ -45,9 +45,6 @@ export function SettingsPage({
     const { selectedPage } = useMemo(() => ({
         selectedPage: searchParams.page as unknown as SettingsForm ?? SettingsForm.Profile,
     }), [searchParams]);
-    useEffect(() => {
-        console.log('searchparams updated', searchParams);
-    }, [searchParams]);
 
     // Fetch profile data
     const [getData, { data, loading }] = useLazyQuery<profile>(profileQuery);

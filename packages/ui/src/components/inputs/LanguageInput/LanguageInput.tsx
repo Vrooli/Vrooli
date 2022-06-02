@@ -22,9 +22,7 @@ export const LanguageInput = ({
      * Do not delete if already selected, as that is done separately.
      */
     const selectLanguage = useCallback((language: string) => {
-        console.log('selectLanguage', language);
         if (selectedLanguages.indexOf(language) === -1) {
-            console.log('adding languageeeee', language)
             handleAdd(language);
         }
         handleCurrent(language);
@@ -36,9 +34,7 @@ export const LanguageInput = ({
      * one of the other selected languages, or the first user language if none are selected.
      */
     const deleteLanguage = useCallback((language: string) => {
-        console.log('boop delete langauge ', language)
         const newList = selectedLanguages.filter(l => l !== language);
-        console.log('boop newList ', selectedLanguages, newList)
         // If deleting this language makes the list empty, add the first user language
         if (newList.length === 0) {
             const userLanguages = getUserLanguages(session);

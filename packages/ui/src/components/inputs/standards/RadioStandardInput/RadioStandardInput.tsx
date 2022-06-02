@@ -147,7 +147,6 @@ export const RadioStandardInput = ({
                 formik.setFieldValue('defaultValue', formik.values.options[0].value);
             }
         }
-        console.log('RADIO ONCHANGE', formik.values);
         onPropsChange({
             ...formik.values,
         });

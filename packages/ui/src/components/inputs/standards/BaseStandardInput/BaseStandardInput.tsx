@@ -32,15 +32,12 @@ export const BaseStandardInput = ({
      */
     useEffect(() => {
         if (!isEditing) return;
-        console.log('input type change', inputType)
         let newSchema: FieldData | null = null;
         const typeKey = `${storageKey}-${inputType}`;
         // Find schema in  local storage
         if (localStorage.getItem(storageKey)) {
             try {
-                console.log('is in local storage', localStorage.getItem(typeKey))
                 const storedData = JSON.parse(localStorage.getItem(typeKey) ?? '{}');
-                console.log('stored data', storedData)
                 if (typeof storedData === 'object' && storedData.type === inputType) {
                     newSchema = storedData as FieldData;
                 }
@@ -57,14 +54,12 @@ export const BaseStandardInput = ({
             });
         }
         // Update state
-        console.log('🙃setting local storage', newSchema)
         localStorage.setItem(typeKey, JSON.stringify(newSchema));
         onChange(newSchema as FieldData)
     }, [onChange, inputType, storageKey, fieldName, isEditing]);
 
     const onPropsChange = useCallback((newProps: FieldData['props']) => {
         if (!schema || !isEditing) return;
-        console.log('ON PROPS CHANGE', newProps, schema);
         const changedSchema = {
             ...schema,
             props: {
@@ -72,7 +67,6 @@ export const BaseStandardInput = ({
                 ...newProps,
             } as any,
         }
-        console.log('CHANGED SCHEMA', changedSchema)
         if (JSON.stringify(changedSchema) !== JSON.stringify(schema)) {
             onChange(changedSchema);
         }
@@ -80,7 +74,6 @@ export const BaseStandardInput = ({
 
     // Generate input component for type-specific fields
     const SchemaInput = useMemo(() => {
-        console.log('schema input switch', schema)
         if (!schema) return null;
         const props = { 
             isEditing,

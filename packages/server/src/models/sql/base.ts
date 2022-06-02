@@ -1038,7 +1038,6 @@ export const addSupplementalFields = async (
     data: ({ [x: string]: any } | null | undefined)[],
     partial: PartialInfo | PartialInfo[],
 ): Promise<{ [x: string]: any }[]> => {
-    console.log('ADDSUPPLEMENTAL START', JSON.stringify(data), '\n\n', JSON.stringify(partial));
     // Group data IDs and select fields by type. This is needed to reduce the number of times 
     // the database is called, as we can query all objects of the same type at once
     let objectIdsDict: { [x: string]: string[] } = {};
@@ -1059,21 +1058,17 @@ export const addSupplementalFields = async (
 
     // Dictionary to store objects by ID, instead of type. This is needed to combineSupplements
     const objectsById: { [x: string]: any } = {};
-    console.log('OBJECT IDS DICT', JSON.stringify(objectIdsDict), '\n\n');
 
     // Loop through each type in objectIdsDict
     for (const [type, ids] of Object.entries(objectIdsDict)) {
-        console.log('IN TYPE LOOP', type, ids);
         // Find the data for each id in ids. Since the data parameter is an array,
         // we must loop through each element in it and call pickObjectById
         const objectData = ids.map((id: string) => pickObjectById(data, id));
-        console.log('OBJECT DATA', JSON.stringify(objectData), '\n\n');
         // Now that we have the data for each object, we can add the supplemental fields
         if (type in FormatterMap) {
             const valuesWithSupplements = FormatterMap[type as keyof typeof FormatterMap]?.addSupplementalFields
                 ? await (FormatterMap[type as keyof typeof FormatterMap] as any).addSupplementalFields(prisma, userId, objectData, selectFieldsDict[type])
                 : objectData;
-            console.log('VALUES WITH SUPPLEMENTS', JSON.stringify(valuesWithSupplements), '\n\n');
             // Add each value to objectsById
             for (const v of valuesWithSupplements) {
                 objectsById[v.id] = v;
@@ -1389,7 +1384,6 @@ export async function createHelper<GraphQLModel>(
         throw new CustomError(CODE.InternalError, 'Model does not support create', { code: genErrorCode('0026') });
     // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
     const partial = toPartialSelect(info, model.relationshipMap);
-    console.log('IN CREATE PARTIAL SELECT', JSON.stringify(partial), '\n\n');
     if (!partial)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0027') });
     const cudResult = await model.cud({ partial, userId, createMany: [input] });
@@ -1398,7 +1392,6 @@ export async function createHelper<GraphQLModel>(
         // If organization, project, routine, or standard, log for stats
         const objectType = partial.__typename;
         if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {
-            console.log('CREATE LOG', objectType, JSON.stringify(created), '\n\n');
             const logs = created.map((c: any) => ({
                 timestamp: Date.now(),
                 userId: userId,

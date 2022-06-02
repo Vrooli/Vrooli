@@ -465,6 +465,5 @@ export const generateInputComponent = ({
     session,
     zIndex,
 }: InputGeneratorProps): React.ReactElement | null => {
-    console.log('GENERATE INPUT COMPONENT', data, formik.values);
     return typeMap[data.type]({ data, disabled, formik, index, onUpload, session, zIndex });
 }

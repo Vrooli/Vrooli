@@ -50,13 +50,11 @@ export const SubroutineInfoDialog = ({
 }: SubroutineInfoDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    console.log('SUBROUTINE INFO DIALOG', data)
 
     const subroutine = useMemo<routine_routine_nodes_data_NodeRoutineList_routines | undefined>(() => {
         if (!data?.node || !data?.routineId) return undefined;
         return data.node.routines.find(r => r.id === data.routineId);
     }, [data]);
-    console.log("SUBROUTINE DATAAAAAA IN INFO DIALOG", subroutine)
 
     // Handle user/organization switch
     const [organizationFor, setOrganizationFor] = useState<Organization | null>(null);
@@ -255,9 +253,6 @@ export const SubroutineInfoDialog = ({
         formik.resetForm();
         onClose();
     }, [formik, onClose]);
-
-    console.log('INPUTS LIST', inputsList);
-    console.log('OUTPUTS LIST', outputsList);
 
     return (
         <SwipeableDrawer

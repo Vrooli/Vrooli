@@ -36,7 +36,6 @@ export const StandardSelectOrCreateDialog = ({
     session,
     zIndex,
 }: StandardSelectOrCreateDialogProps) => {
-    if (isOpen) console.log('standardslectorcrate dialog isopen!', zIndex)
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 

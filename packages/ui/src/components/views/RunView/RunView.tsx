@@ -566,7 +566,6 @@ export const RunView = ({
      * Displays either a subroutine view or decision view
      */
     const childView = useMemo(() => {
-        console.log('in child view', currentStep)
         if (!currentStep) return null;
         switch (currentStep.type) {
             case RoutineStepType.Subroutine:

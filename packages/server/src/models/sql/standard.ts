@@ -104,7 +104,6 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
         objects: RecursivePartial<any>[],
         partial: PartialInfo,
     ): Promise<RecursivePartial<Standard>[]> {
-        console.log('STANDARD ADDDSUPPLEMENTAL FIELDS START', JSON.stringify(objects), '\n\n', JSON.stringify(partial), '\n\n');
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
@@ -147,7 +146,6 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
                 return { ...x, role: x.creator?.id === userId ? MemberRole.Owner : undefined };
             }) as any;
         }
-        console.log('STANDARD ADDDSUPPLEMENTAL FIELDS END', JSON.stringify(objects), '\n\n');
         // Convert Prisma objects to GraphQL objects
         return objects as RecursivePartial<Standard>[];
     },
@@ -327,10 +325,8 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
         // Shape
         if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
             const create = formattedInput.create[0];
-            console.log('STANDARD CREATE', JSON.stringify(create), '\n\n');
             // Create standard
             const standard = await createHelper(userId, create, standardSelect, StandardModel(prisma));
-            console.log('CREATED STANDARRD', JSON.stringify(standard), '\n\n');
             return standard?.id ?? null;
         }
         if (Array.isArray(formattedInput.connect) && formattedInput.connect.length > 0) {
@@ -341,14 +337,12 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
         }
         if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
             const update = formattedInput.update[0];
-            console.log('STANDARD UPDATE', JSON.stringify(update), '\n\n');
             // Update standard
             const standard = await updateHelper(userId, update.data, standardSelect, StandardModel(prisma));
             return standard?.id ?? null;
         }
         if (Array.isArray(formattedInput.delete) && formattedInput.delete.length > 0) {
             const deleteId = formattedInput.delete[0].id;
-            console.log('STANDARD DELETE', JSON.stringify(deleteId), '\n\n');
             // Delete standard
             await deleteOneHelper(userId, { id: deleteId, objectType: DeleteOneType.Standard }, StandardModel(prisma));
             return deleteId;
@@ -403,9 +397,7 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
             for (const input of createMany) {
                 // Call createData helper function
                 // TODO check for exact matches, and don't add
-                console.log('IN STANDARD CREATE MANY CUD', JSON.stringify(input), '\n\n');
                 let data = await this.toDBShapeAdd(userId, input);
-                console.log("SHAPED:)", JSON.stringify(data), '\n\n');
                 // Associate with either organization or user
                 if (input.createdByOrganizationId) {
                     data = {
@@ -419,14 +411,11 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
                     };
                 }
                 // Create object
-                console.log('GOING TO CREATE', JSON.stringify(data), '\n\n');
                 const currCreated = await prisma.standard.create({ data, ...selectHelper(partial) });
                 // Convert to GraphQL
-                console.log('GOITN TO CONVERT', JSON.stringify(currCreated), '\n\n');
                 const converted = modelToGraphQL(currCreated, partial);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
-                console.log('CREATED RESULT', JSON.stringify(created), '\n\n');
             }
         }
         if (updateMany) {

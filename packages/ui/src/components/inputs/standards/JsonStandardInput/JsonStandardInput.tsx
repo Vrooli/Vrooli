@@ -22,7 +22,6 @@ export const JsonStandardInput = ({
     onPropsChange,
     variables,
 }: JsonStandardInputProps) => {
-    console.log('in json standard input', format);
     const { palette } = useTheme();
 
     // Last valid schema format
@@ -59,7 +58,6 @@ export const JsonStandardInput = ({
     // Update format only when it is valid
     useEffect(() => {
         if (internalValue.length > 2) {
-            console.log('IN UPDATE', internalValue, format, JSON.parse(internalValue), format === JSON.parse(internalValue));
             onPropsChange({
                 format: JSON.parse(internalValue),
             });

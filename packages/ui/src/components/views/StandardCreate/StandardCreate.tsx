@@ -79,7 +79,6 @@ export const StandardCreate = ({
     // Handle standard schema
     const [schema, setSchema] = useState<FieldData | null>(null);
     const handleSchemaUpdate = useCallback((schema: FieldData) => {
-        console.log('HANDLE SCHEMA UPDATE', schema);
         setSchema(schema);
     }, []);
     const [schemaKey] = useState(`standard-create-schema-preview-${Math.random().toString(36).substring(2, 15)}`);
@@ -146,7 +145,6 @@ export const StandardCreate = ({
         },
         validationSchema,
         onSubmit: (values) => {
-            console.log('IN SUBMITTTTTT', schema, values);
             const resourceListAdd = resourceList ? formatForCreate(resourceList) : {};
             const tagsAdd = tags.length > 0 ? {
                 tagsCreate: tags.filter(t => !t.id).map(t => ({ tag: t.tag })),
@@ -178,8 +176,6 @@ export const StandardCreate = ({
             })
         },
     });
-
-    console.log('FORMIK ERRORS', formik.errors, schema);
 
     // Handle languages
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);

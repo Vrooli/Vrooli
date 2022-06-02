@@ -361,10 +361,6 @@ export const NodeGraph = ({
         // If data required to render edges is not yet available
         // (i.e. no links, or column dimensions not complete)
         if (!links) return [];
-        console.log('calculating edges.... links are: ', links.map(l => ({
-            from: l.fromId,
-            to: l.toId,
-        })))
         return links?.map(link => {
             if (!link.fromId || !link.toId) return null;
             const fromNode = nodesById[link.fromId];

@@ -90,13 +90,11 @@ export const SettingsProfile = ({
         })) ?? []
         // If no translations found, add default
         if (foundTranslations.length === 0) {
-            console.log('no translations found, adding default');
             setTranslations([{
                 language: getUserLanguages(session)[0],
                 bio: '',
             }]);
         } else {
-            console.log('translation found', foundTranslations);
             setTranslations(foundTranslations);
         }
     }, [profile, session]);
@@ -129,15 +127,12 @@ export const SettingsProfile = ({
         },
     });
 
-    console.log('PRODILE', profile);
-
     // Handle languages
     const [language, setLanguage] = useState<string>('');
     const [languages, setLanguages] = useState<string[]>([]);
     useEffect(() => {
         if (languages.length === 0 && translations.length > 0) {
             setLanguage(translations[0].language);
-            console.log("SETTTING LANGUAGES", translations)
             setLanguages(translations.map(t => t.language));
             formik.setFieldValue('bio', translations[0].bio ?? '');
         }

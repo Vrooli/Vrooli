@@ -41,14 +41,13 @@ export const RoutineView = ({
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
     const [routine, setRoutine] = useState<Routine | null>(null);
     useEffect(() => {
-        if (id && uuidValidate(id)) { console.log('gETTING DTATA ROUTINE VIEW', id); getData({ variables: { input: { id } } }); }
+        if (id && uuidValidate(id)) { getData({ variables: { input: { id } } }); }
     }, [getData, id])
     useEffect(() => {
         if (!data) return;
-        console.log("SETTING ROUTINE IN ROUTINE VIEW AFTER QUERY", data.routine);
         setRoutine(data.routine);
     }, [data]);
-    const updateRoutine = useCallback((routine: Routine) => { console.log('UPDATE ROUTINE', routine); setRoutine(routine); }, [setRoutine]);
+    const updateRoutine = useCallback((routine: Routine) => { setRoutine(routine); }, [setRoutine]);
 
     const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine?.role]);
 
@@ -97,7 +96,6 @@ export const RoutineView = ({
     // If buildId is in the URL, open the build
     useEffect(() => {
         const searchParams = parseSearchParams(window.location.search);
-        console.log('checking url', searchParams)
         if (searchParams.build) {
             // If build is not an id, populate routine with default start data
             if (!uuidValidate(searchParams.build ? `${searchParams.build}` : '')) {
@@ -143,7 +141,6 @@ export const RoutineView = ({
     const [isRunOpen, setIsRunOpen] = useState(false)
     const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
     const handleRunSelect = useCallback((run: Run | null) => {
-        console.log("HANDLE RUN SELECT", run)
         // If run is null, it means the routine will be opened without a run
         if (!run) {
             setLocation(stringifySearchParams({

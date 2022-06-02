@@ -121,9 +121,7 @@ export const ResourceDialog = ({
                 usedFor: values.usedFor,
                 translations: allTranslations,
             };
-            console.log('data before update', data)
             const input = (index < 0) ? formatForCreate(data) : formatForUpdate(partialData, data, [], ['translations']);
-            console.log('input before update', input);
             if (mutate) {
                 mutationWrapper({
                     mutation: (index < 0) ? addMutation : updateMutation,

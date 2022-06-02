@@ -37,7 +37,6 @@ const DRAG_THRESHOLD = 10;
  * @param id ID of the clicked element
  */
 const shouldCollapse = (id: string | null | undefined): boolean => {
-    console.log('shouldCollapse', id);
     // Only collapse if clicked on shrink/expand icon, title bar, or title
     return Boolean(id && (
         id.startsWith('toggle-expand-icon-') ||
@@ -136,7 +135,6 @@ export const RoutineListNode = ({
     const addSize = useMemo(() => `${NodeWidth.RoutineList * scale / 8}px`, [scale]);
 
     const confirmDelete = useCallback((event: any) => {
-        console.log('DELETE CONFIRMED', event);
         PubSub.publish(Pubs.AlertDialog, {
             message: 'What would you like to do?',
             buttons: [

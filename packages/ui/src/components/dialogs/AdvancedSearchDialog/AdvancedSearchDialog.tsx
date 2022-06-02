@@ -156,7 +156,6 @@ export const AdvancedSearchDialog = ({
         enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
-            console.log('in advanced search submit!!!!!!!!!!!😎', values);
             // Shape values to match search query
             const searchValues = shapeFormik[path](values);
             handleSearch(searchValues);

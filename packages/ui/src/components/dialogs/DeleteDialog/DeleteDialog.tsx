@@ -40,7 +40,6 @@ export const DeleteDialog = ({
             mutation: deleteOne,
             input: { id: objectId, objectType },
             onSuccess: (response) => {
-                console.log('DELETE RESPONSE', response)
                 if (response?.data?.deleteOne?.success) {
                     PubSub.publish(Pubs.Snack, { message: `${objectName} deleted.` });
                     setLocation(APP_LINKS.Home);

@@ -200,7 +200,6 @@ export const findVariablePositions = (variable: string, format: { [x: string]: a
         if (currChar !== '\\' && lastChar !== '\\') {
             // If variableStart has not been found, then check if we are at the start of the next variable instance
             if (keyStartIndex === -1) {
-                console.log('KEY A', currChar, lastChar, keyStartIndex, valueStartIndex)
                 // If the rest of the formatString is long enough to contain the variable substring, 
                 // and the substring is found, then we are at the start of a new variable instance
                 if (formatString.length - index >= keySubstring.length && formatString.substring(index, index + keySubstring.length) === keySubstring) {
@@ -209,7 +208,6 @@ export const findVariablePositions = (variable: string, format: { [x: string]: a
             }
             // If variableStart has been found, check for the start of the value
             else if (index === keyStartIndex + keySubstring.length) {
-                console.log('KEY B', currChar, lastChar, keyStartIndex, valueStartIndex)
                 // If the current character is not a quote or an open bracket, then the value is invalid
                 if (currChar !== '"' && currChar !== '{') {
                     keyStartIndex = -1;

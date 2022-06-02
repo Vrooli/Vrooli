@@ -82,18 +82,14 @@ export function App() {
     useEffect(() => {
         // if not a hash link, scroll to top
         if (window.location.hash === '') {
-            console.log('scroll to top')
             window.scrollTo(0, 0);
         }
         // else scroll to id
         else {
             setTimeout(() => {
                 const id = window.location.hash.replace('#', '');
-                console.log('hash timeout id', id)
                 const element = document.getElementById(id);
-                console.log('hash timeout element', element)
                 if (element) {
-                    console.log('hash scrolling into view')
                     element.scrollIntoView();
                 }
             }, 0);

@@ -90,8 +90,6 @@ export const ReportDialog = ({
         onClose();
     }
 
-    console.log('FORMIK', formik.errors)
-
     return (
         <Dialog
             onClose={handleClose}

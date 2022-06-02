@@ -48,7 +48,6 @@ export const BuildInfoDialog = ({
     sxs,
     zIndex,
 }: BuildInfoDialogProps) => {
-    console.log('rendering buildinfodialog')
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -153,7 +152,6 @@ export const BuildInfoDialog = ({
     }, [deleteTranslation, handleLanguageChange, languages, updateFormikTranslation]);
 
     const updateRoutineTitle = useCallback((title: string) => {
-        console.log('UPDATE ROUTINE TITLE IN BUILDINFODIALOG', title, routine?.translations)
         if (!routine) return;
         updateTranslation(language, {
             language,
