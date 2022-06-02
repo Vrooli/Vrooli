@@ -100,7 +100,7 @@ export const nodeVerifier = () => ({
             // If not all nodes are new, then there must be one that is not new and not owned by the user
             else throw new CustomError(CODE.Unauthorized, 'You do not own all nodes', { code: genErrorCode('0050') });
         }
-        if (uniqueRoutineIds.size > 1) 
+        if (uniqueRoutineIds.size > 1)
             throw new CustomError(CODE.InvalidArgs, 'All nodes must be in the same routine!', { code: genErrorCode('0051') });
         return uniqueRoutineIds.values().next().value;
     },
@@ -118,7 +118,7 @@ export const nodeVerifier = () => ({
             throw new CustomError(CODE.ErrorUnknown, `To prevent performance issues, no more than ${MAX_NODES_IN_ROUTINE} nodes can be added to a routine. If you think this is a mistake, please contact us`, { code: genErrorCode('0052') });
         }
     },
-    profanityCheck(data:( NodeCreateInput | NodeUpdateInput)[]): void {
+    profanityCheck(data: (NodeCreateInput | NodeUpdateInput)[]): void {
         validateProfanity(data.map((d: any) => ({
             condition: d.condition,
             description: d.description,
@@ -368,6 +368,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
             for (const data of formattedInput.create) {
                 // Routines are a one-to-one relationship, so we have to get rid of the array
                 let routineRel = await routineModel.relationshipBuilder(userId, data, isAdd, 'routine')
+                // For now, routines are created before the node, so we only support connecting
                 if (routineRel?.connect) routineRel.connect = routineRel.connect[0];
                 result.push({
                     id: data.id ?? undefined,
@@ -385,12 +386,16 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
             nodeRoutineListItemsUpdate.validateSync(formattedInput.update.map(u => u.data), { abortEarly: false });
             let result = [];
             for (const data of formattedInput.update) {
-                // Cannot switch routines, so no need to worry about it in the update
+                // Routines are a one-to-one relationship, so we have to get rid of the array
+                let routineRel = await routineModel.relationshipBuilder(userId, data, false, 'routine')
+                // For now, only routine updates supported
+                if (routineRel?.update) routineRel.update = routineRel.update[0];
                 result.push({
                     where: data.where,
                     data: {
                         index: data.data.index,
                         isOptional: data.data.isOptional,
+                        routine: routineRel,
                         translations: TranslationModel().relationshipBuilder(userId, data, { create: nodeRoutineListItemTranslationCreate, update: nodeRoutineListItemTranslationUpdate }, false),
                     }
                 })
@@ -445,7 +450,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<NodeCreateInput, NodeUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId) 
+        if (!userId)
             throw new CustomError(CODE.Unauthorized, 'Must pass valid userId to validateMutations', { code: genErrorCode('0054') });
         // Make sure the user has access to these nodes
         const createNodeIds = createMany?.map(node => node.id) ?? []; // Nodes can have an ID on create, unlike most other objects

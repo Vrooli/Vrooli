@@ -2,7 +2,7 @@ import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
 import { DeleteOneType, ReportFor } from '@local/shared';
-import { NewObject, Node, NodeDataRoutineList, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
+import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 import { ObjectType } from 'utils';
 
 export interface AlertDialogProps extends DialogProps { };
@@ -211,9 +211,9 @@ export interface BuildInfoDialogProps {
 }
 
 export interface SubroutineInfoDialogProps {
-    data: { node: NodeDataRoutineList, routineId: string } | null;
+    data: { node: NodeDataRoutineList, routineItemId: string } | null;
     defaultLanguage: string;
-    handleUpdate: (updatedSubroutine: Routine) => any;
+    handleUpdate: (updatedSubroutine: NodeDataRoutineListItem) => any;
     handleReorder: (nodeId: string, oldIndex: number, newIndex: number) => any;
     handleViewFull: () => any;
     isEditing: boolean;

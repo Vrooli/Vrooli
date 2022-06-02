@@ -30,9 +30,8 @@ import Markdown from 'markdown-to-jsx';
 import { ResourceListUsedFor, routineUpdateForm as validationSchema } from '@local/shared';
 import { InputOutputContainer, LanguageInput, LinkButton, MarkdownInput, QuantityBox, ResourceListHorizontal, TagList, TagSelector, UserOrganizationSwitch } from 'components';
 import { useFormik } from 'formik';
-import { NewObject, Organization, ResourceList, Routine, RoutineInputList, RoutineOutputList } from 'types';
+import { NewObject, NodeDataRoutineListItem, Organization, ResourceList, Routine, RoutineInputList, RoutineOutputList } from 'types';
 import { owns } from 'utils/authentication';
-import { routine_routine_nodes_data_NodeRoutineList_routines } from 'graphql/generated/routine';
 import { v4 as uuidv4 } from 'uuid';
 import { TagSelectorTag } from 'components/inputs/types';
 
@@ -51,9 +50,9 @@ export const SubroutineInfoDialog = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const subroutine = useMemo<routine_routine_nodes_data_NodeRoutineList_routines | undefined>(() => {
-        if (!data?.node || !data?.routineId) return undefined;
-        return data.node.routines.find(r => r.id === data.routineId);
+    const subroutine = useMemo<NodeDataRoutineListItem | undefined>(() => {
+        if (!data?.node || !data?.routineItemId) return undefined;
+        return data.node.routines.find(r => r.id === data.routineItemId);
     }, [data]);
 
     // Handle user/organization switch
@@ -134,6 +133,7 @@ export const SubroutineInfoDialog = ({
     // Handle update
     const formik = useFormik({
         initialValues: {
+            index: subroutine?.index ?? 1,
             description: getTranslation(subroutine?.routine, 'description', [defaultLanguage]) ?? '',
             instructions: getTranslation(subroutine?.routine, 'instructions', [defaultLanguage]) ?? '',
             isComplete: subroutine?.routine?.isComplete ?? true,
@@ -144,6 +144,7 @@ export const SubroutineInfoDialog = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
+            if (!subroutine) return;
             const resourceIndex = Array.isArray(subroutine?.routine?.resourceLists) ? (subroutine?.routine?.resourceLists?.findIndex(list => list.usedFor === ResourceListUsedFor.Display) ?? -1) : -1;
             const resourceListUpdate = resourceIndex > -1 ? {
                 resourceLists: updateArray(
@@ -161,15 +162,19 @@ export const SubroutineInfoDialog = ({
             })
             handleUpdate({
                 ...subroutine,
-                ...ownedBy,
-                isInternal: values.isInternal,
-                isComplete: values.isComplete,
-                version: values.version,
-                inputs: inputsList,
-                outputs: outputsList,
-                ...resourceListUpdate,
-                tags,
-                translations: allTranslations,
+                index: Math.max(values.index - 1, 1), // Formik index starts at 1, for user convenience
+                routine: {
+                    ...subroutine.routine,
+                    ...ownedBy,
+                    isInternal: values.isInternal,
+                    isComplete: values.isComplete,
+                    version: values.version,
+                    inputs: inputsList,
+                    outputs: outputsList,
+                    ...resourceListUpdate,
+                    tags,
+                    translations: allTranslations,
+                }
             } as any);
         },
     });
@@ -305,219 +310,224 @@ export const SubroutineInfoDialog = ({
                 padding: 2,
                 overflowY: 'auto',
             }}>
-                {/* Position, description and instructions */}
-                <Grid container>
-                    {/* Owner */}
-                    <Grid item xs={12}>
-                        <UserOrganizationSwitch 
-                            session={session} 
-                            selected={organizationFor} 
-                            onChange={onSwitchChange} 
-                            zIndex={zIndex}
-                        />
-                    </Grid>
-                    <Grid item xs={12}>
-                        <LanguageInput
-                            currentLanguage={language}
-                            handleAdd={handleAddLanguage}
-                            handleDelete={handleLanguageDelete}
-                            handleCurrent={handleLanguageSelect}
-                            selectedLanguages={languages}
-                            session={session}
-                            zIndex={zIndex}
-                        />
-                    </Grid>
-                    {/* Position */}
-                    <Grid item xs={12}>
-                        {
-                            canEdit && <Box sx={{
-                                padding: 1,
-                                marginBottom: 2,
-                            }}>
-                                <Typography variant="h6">Order</Typography>
-                                <QuantityBox
-                                    id="subroutine-position"
-                                    disabled={!canEdit}
-                                    label="Order"
-                                    min={1}
-                                    max={data?.node?.routines?.length ?? 1}
-                                    tooltip="The order of this subroutine in its parent routine"
-                                    value={(subroutine?.index ?? 0) + 1}
-                                    handleChange={(value: number) => { handleReorder(data?.node?.id ?? '', subroutine?.index ?? 0, value - 1) }}
-                                />
-                            </Box>
-                        }
-                    </Grid>
-                    {/* Title */}
-                    {
-                        canEdit && <Grid item xs={12}>
-                            <TextField
-                                fullWidth
-                                id="title"
-                                name="title"
-                                label="title"
-                                value={formik.values.title}
-                                onBlur={formik.handleBlur}
-                                onChange={formik.handleChange}
-                                error={formik.touched.title && Boolean(formik.errors.title)}
-                                helperText={formik.touched.title && formik.errors.title}
-                            />
-                        </Grid>
-                    }
-                    {/* Description */}
-                    <Grid item xs={12} sm={6}>
-                        <Box sx={{
-                            padding: 1,
-                        }}>
-                            <Typography variant="h6">Description</Typography>
-                            {
-                                canEdit ? (
-                                    <MarkdownInput
-                                        id="description"
-                                        placeholder="Description"
-                                        value={formik.values.description}
-                                        minRows={2}
-                                        onChange={(newText: string) => formik.setFieldValue('description', newText)}
-                                        error={formik.touched.description && Boolean(formik.errors.description)}
-                                        helperText={formik.touched.description ? formik.errors.description as string : null}
-                                    />
-                                ) : (
-                                    <Markdown>{getTranslation(subroutine, 'description', [language]) ?? ''}</Markdown>
-                                )
-                            }
-                        </Box>
-                    </Grid>
-                    {/* Instructions */}
-                    <Grid item xs={12} sm={6}>
-                        <Box sx={{
-                            padding: 1,
-                        }}>
-                            <Typography variant="h6">Instructions</Typography>
-                            {
-                                canEdit ? (
-                                    <MarkdownInput
-                                        id="instructions"
-                                        placeholder="Instructions"
-                                        value={formik.values.instructions}
-                                        minRows={2}
-                                        onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
-                                        error={formik.touched.instructions && Boolean(formik.errors.instructions)}
-                                        helperText={formik.touched.instructions ? formik.errors.instructions as string : null}
-                                    />
-                                ) : (
-                                    <Markdown>{getTranslation(subroutine, 'instructions', [language]) ?? ''}</Markdown>
-                                )
-                            }
-                        </Box>
-                    </Grid>
-                    {
-                        isEditing && <Grid item xs={12}>
-                            <TextField
-                                fullWidth
-                                id="version"
-                                name="version"
-                                label="version"
-                                value={formik.values.version}
-                                onBlur={formik.handleBlur}
-                                onChange={formik.handleChange}
-                                error={formik.touched.version && Boolean(formik.errors.version)}
-                                helperText={formik.touched.version && formik.errors.version}
-                            />
-                        </Grid>
-                    }
-                    {/* Inputs */}
-                    {(canEdit || (inputsList?.length > 0)) && <Grid item xs={12} sm={6}>
-                        <InputOutputContainer
-                            isEditing={canEdit}
-                            handleUpdate={handleInputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
-                            isInput={true}
-                            language={language}
-                            list={inputsList}
-                            session={session}
-                            zIndex={zIndex}
-                        />
-                    </Grid>}
-                    {/* Outputs */}
-                    {(canEdit || (outputsList?.length > 0)) && <Grid item xs={12} sm={6}>
-                        <InputOutputContainer
-                            isEditing={canEdit}
-                            handleUpdate={handleOutputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
-                            isInput={false}
-                            language={language}
-                            list={outputsList}
-                            session={session}
-                            zIndex={zIndex}
-                        />
-                    </Grid>}
-                    {
-                        (isEditing || (resourceList?.resources?.length > 0)) && <Grid item xs={12} mb={2}>
-                            <ResourceListHorizontal
-                                title={'Resources'}
-                                list={resourceList}
-                                canEdit={canEdit}
-                                handleUpdate={handleResourcesUpdate}
+                <form onSubmit={formik.handleSubmit}>
+                    {/* Position, description and instructions */}
+                    <Grid container>
+                        {/* Owner */}
+                        <Grid item xs={12}>
+                            <UserOrganizationSwitch
                                 session={session}
-                                mutate={false}
+                                selected={organizationFor}
+                                onChange={onSwitchChange}
                                 zIndex={zIndex}
                             />
                         </Grid>
-                    }
-                    <Grid item xs={12}>
-                        {
-                            canEdit ? <TagSelector
+                        <Grid item xs={12}>
+                            <LanguageInput
+                                currentLanguage={language}
+                                handleAdd={handleAddLanguage}
+                                handleDelete={handleLanguageDelete}
+                                handleCurrent={handleLanguageSelect}
+                                selectedLanguages={languages}
                                 session={session}
-                                tags={tags}
-                                onTagAdd={addTag}
-                                onTagRemove={removeTag}
-                                onTagsClear={clearTags}
-                            /> :
-                                <TagList session={session} parentId={''} tags={subroutine?.routine?.tags ?? []} />
-                        }
-                    </Grid>
-                    <Grid item xs={12} marginBottom={4}>
-                        <Tooltip placement={'top'} title='Is this routine ready for anyone to use?'>
-                            <FormControlLabel
-                                label='Complete'
-                                disabled={!canEdit}
-                                control={
-                                    <Checkbox
-                                        id='routine-is-complete'
-                                        name='isComplete'
-                                        color='secondary'
-                                        checked={formik.values.isComplete}
-                                        onChange={formik.handleChange}
-                                        onBlur={formik.handleBlur}
-                                    />
-                                }
+                                zIndex={zIndex}
                             />
-                        </Tooltip>
-                    </Grid>
-                </Grid>
-                {/* Save/Cancel buttons */}
-                {
-                    canEdit && <Grid container spacing={1}>
-                        <Grid item xs={6}>
-                            <Button
-                                fullWidth
-                                startIcon={<SaveIcon />}
-                                disabled={!formik.isValid || formik.isSubmitting}
-                                type="submit"
-                            >
-                                Save
-                            </Button>
                         </Grid>
-                        <Grid item xs={6}>
-                            <Button
-                                fullWidth
-                                startIcon={<RevertIcon />}
-                                disabled={formik.isSubmitting}
-                                onClick={handleCancel}
-                            >
-                                Cancel
-                            </Button>
+                        {/* Position */}
+                        <Grid item xs={12}>
+                            {
+                                canEdit && <Box sx={{
+                                    padding: 1,
+                                    marginBottom: 2,
+                                }}>
+                                    <Typography variant="h6">Order</Typography>
+                                    <QuantityBox
+                                        id="subroutine-position"
+                                        disabled={!canEdit}
+                                        label="Order"
+                                        min={1}
+                                        max={data?.node?.routines?.length ?? 1}
+                                        tooltip="The order of this subroutine in its parent routine"
+                                        value={formik.values.index}
+                                        handleChange={(value: number) => { 
+                                            formik.setFieldValue('index', value);
+                                            handleReorder(data?.node?.id ?? '', subroutine?.index ?? 0, value - 1);
+                                        }}
+                                    />
+                                </Box>
+                            }
+                        </Grid>
+                        {/* Title */}
+                        {
+                            canEdit && <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    id="title"
+                                    name="title"
+                                    label="title"
+                                    value={formik.values.title}
+                                    onBlur={formik.handleBlur}
+                                    onChange={formik.handleChange}
+                                    error={formik.touched.title && Boolean(formik.errors.title)}
+                                    helperText={formik.touched.title && formik.errors.title}
+                                />
+                            </Grid>
+                        }
+                        {/* Description */}
+                        <Grid item xs={12} sm={6}>
+                            <Box sx={{
+                                padding: 1,
+                            }}>
+                                <Typography variant="h6">Description</Typography>
+                                {
+                                    canEdit ? (
+                                        <MarkdownInput
+                                            id="description"
+                                            placeholder="Description"
+                                            value={formik.values.description}
+                                            minRows={2}
+                                            onChange={(newText: string) => formik.setFieldValue('description', newText)}
+                                            error={formik.touched.description && Boolean(formik.errors.description)}
+                                            helperText={formik.touched.description ? formik.errors.description as string : null}
+                                        />
+                                    ) : (
+                                        <Markdown>{getTranslation(subroutine, 'description', [language]) ?? ''}</Markdown>
+                                    )
+                                }
+                            </Box>
+                        </Grid>
+                        {/* Instructions */}
+                        <Grid item xs={12} sm={6}>
+                            <Box sx={{
+                                padding: 1,
+                            }}>
+                                <Typography variant="h6">Instructions</Typography>
+                                {
+                                    canEdit ? (
+                                        <MarkdownInput
+                                            id="instructions"
+                                            placeholder="Instructions"
+                                            value={formik.values.instructions}
+                                            minRows={2}
+                                            onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
+                                            error={formik.touched.instructions && Boolean(formik.errors.instructions)}
+                                            helperText={formik.touched.instructions ? formik.errors.instructions as string : null}
+                                        />
+                                    ) : (
+                                        <Markdown>{getTranslation(subroutine, 'instructions', [language]) ?? ''}</Markdown>
+                                    )
+                                }
+                            </Box>
+                        </Grid>
+                        {
+                            isEditing && <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    id="version"
+                                    name="version"
+                                    label="version"
+                                    value={formik.values.version}
+                                    onBlur={formik.handleBlur}
+                                    onChange={formik.handleChange}
+                                    error={formik.touched.version && Boolean(formik.errors.version)}
+                                    helperText={formik.touched.version && formik.errors.version}
+                                />
+                            </Grid>
+                        }
+                        {/* Inputs */}
+                        {(canEdit || (inputsList?.length > 0)) && <Grid item xs={12} sm={6}>
+                            <InputOutputContainer
+                                isEditing={canEdit}
+                                handleUpdate={handleInputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
+                                isInput={true}
+                                language={language}
+                                list={inputsList}
+                                session={session}
+                                zIndex={zIndex}
+                            />
+                        </Grid>}
+                        {/* Outputs */}
+                        {(canEdit || (outputsList?.length > 0)) && <Grid item xs={12} sm={6}>
+                            <InputOutputContainer
+                                isEditing={canEdit}
+                                handleUpdate={handleOutputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
+                                isInput={false}
+                                language={language}
+                                list={outputsList}
+                                session={session}
+                                zIndex={zIndex}
+                            />
+                        </Grid>}
+                        {
+                            (isEditing || (resourceList?.resources?.length > 0)) && <Grid item xs={12} mb={2}>
+                                <ResourceListHorizontal
+                                    title={'Resources'}
+                                    list={resourceList}
+                                    canEdit={canEdit}
+                                    handleUpdate={handleResourcesUpdate}
+                                    session={session}
+                                    mutate={false}
+                                    zIndex={zIndex}
+                                />
+                            </Grid>
+                        }
+                        <Grid item xs={12}>
+                            {
+                                canEdit ? <TagSelector
+                                    session={session}
+                                    tags={tags}
+                                    onTagAdd={addTag}
+                                    onTagRemove={removeTag}
+                                    onTagsClear={clearTags}
+                                /> :
+                                    <TagList session={session} parentId={''} tags={subroutine?.routine?.tags ?? []} />
+                            }
+                        </Grid>
+                        <Grid item xs={12} marginBottom={4}>
+                            <Tooltip placement={'top'} title='Is this routine ready for anyone to use?'>
+                                <FormControlLabel
+                                    label='Complete'
+                                    disabled={!canEdit}
+                                    control={
+                                        <Checkbox
+                                            id='routine-is-complete'
+                                            name='isComplete'
+                                            color='secondary'
+                                            checked={formik.values.isComplete}
+                                            onChange={formik.handleChange}
+                                            onBlur={formik.handleBlur}
+                                        />
+                                    }
+                                />
+                            </Tooltip>
                         </Grid>
                     </Grid>
-                }
+                    {/* Save/Cancel buttons */}
+                    {
+                        canEdit && <Grid container spacing={1}>
+                            <Grid item xs={6}>
+                                <Button
+                                    fullWidth
+                                    startIcon={<SaveIcon />}
+                                    disabled={!formik.isValid || formik.isSubmitting}
+                                    type="submit"
+                                >
+                                    Save
+                                </Button>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Button
+                                    fullWidth
+                                    startIcon={<RevertIcon />}
+                                    disabled={formik.isSubmitting}
+                                    onClick={handleCancel}
+                                >
+                                    Cancel
+                                </Button>
+                            </Grid>
+                        </Grid>
+                    }
+                </form>
             </Box>
             {/* Bottom nav container */}
 

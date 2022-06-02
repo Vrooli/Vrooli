@@ -953,8 +953,9 @@ export type NodeRoutineListItemTranslationUpdateInput = {
 
 export type NodeRoutineListItemUpdateInput = {
   id: Scalars['ID'];
-  index: Scalars['Int'];
+  index?: InputMaybe<Scalars['Int']>;
   isOptional?: InputMaybe<Scalars['Boolean']>;
+  routineUpdate?: InputMaybe<RoutineUpdateInput>;
   translationsCreate?: InputMaybe<Array<NodeRoutineListItemTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<NodeRoutineListItemTranslationUpdateInput>>;

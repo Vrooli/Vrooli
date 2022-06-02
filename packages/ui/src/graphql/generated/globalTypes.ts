@@ -526,8 +526,9 @@ export interface NodeRoutineListItemTranslationUpdateInput {
 
 export interface NodeRoutineListItemUpdateInput {
   id: string;
-  index: number;
+  index?: number | null;
   isOptional?: boolean | null;
+  routineUpdate?: RoutineUpdateInput | null;
   translationsDelete?: string[] | null;
   translationsCreate?: NodeRoutineListItemTranslationCreateInput[] | null;
   translationsUpdate?: NodeRoutineListItemTranslationUpdateInput[] | null;

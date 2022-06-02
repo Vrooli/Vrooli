@@ -244,10 +244,10 @@ export const BuildView = ({
     }, [changedRoutine]);
 
     // Subroutine info drawer
-    const [openedSubroutine, setOpenedSubroutine] = useState<{ node: NodeDataRoutineList, routineId: string } | null>(null);
+    const [openedSubroutine, setOpenedSubroutine] = useState<{ node: NodeDataRoutineList, routineItemId: string } | null>(null);
     const handleSubroutineOpen = useCallback((nodeId: string, subroutineId: string) => {
         const node = nodesById[nodeId];
-        if (node) setOpenedSubroutine({ node: (node.data as NodeDataRoutineList), routineId: subroutineId });
+        if (node) setOpenedSubroutine({ node: (node.data as NodeDataRoutineList), routineItemId: subroutineId });
     }, [nodesById]);
     const closeRoutineInfo = useCallback(() => {
         setOpenedSubroutine(null);
@@ -348,7 +348,12 @@ export const BuildView = ({
             PubSub.publish(Pubs.Snack, { message: 'Cannot update: Invalid routine data', severity: 'error' });
             return;
         }
-        const input: any = formatForUpdate(routine, changedRoutine, ['tags', 'nodes.data.routines.routine'], ['nodes', 'nodeLinks', 'node.data.routines'])
+        const input: any = formatForUpdate(
+            routine, 
+            changedRoutine, 
+            ['tags', 'nodes.data.routines.routine'], 
+            ['nodes', 'nodeLinks', 'node.data.routines']
+        )
         // If routine belongs to an organization, add organizationId to input
         if (routine?.owner?.__typename === 'Organization') {
             input.organizationId = routine.owner.id;
@@ -804,19 +809,27 @@ export const BuildView = ({
     /**
      * Updates the current selected subroutine
      */
-    const handleSubroutineUpdate = useCallback((updatedSubroutine: Routine) => {
+    const handleSubroutineUpdate = useCallback((updatedSubroutine: NodeDataRoutineListItem) => {
         if (!changedRoutine) return;
+        // Update routine
         setChangedRoutine({
             ...changedRoutine,
             nodes: changedRoutine.nodes.map((n: Node) => {
-                if (n.type === NodeType.RoutineList && (n.data as NodeDataRoutineList).routines.some(r => r.routine.id === updatedSubroutine.id)) {
+                if (n.type === NodeType.RoutineList && (n.data as NodeDataRoutineList).routines.some(r => r.id === updatedSubroutine.id)) {
                     return {
                         ...n,
                         data: {
                             ...n.data,
                             routines: (n.data as NodeDataRoutineList).routines.map(r => {
-                                if (r.routine.id === updatedSubroutine.id) {
-                                    return { ...r, routine: updatedSubroutine };
+                                if (r.id === updatedSubroutine.id) {
+                                    return {
+                                        ...r,
+                                        ...updatedSubroutine,
+                                        routine: {
+                                            ...r.routine,
+                                            ...updatedSubroutine.routine,
+                                        }
+                                    };
                                 }
                                 return r;
                             }),
@@ -826,7 +839,9 @@ export const BuildView = ({
                 return n;
             }),
         } as any);
-    }, [changedRoutine]);
+        // Close dialog
+        closeRoutineInfo();
+    }, [changedRoutine, closeRoutineInfo]);
 
     /**
      * Navigates to a subroutine's build page. Fist checks if there are unsaved changes

@@ -4,11 +4,14 @@ import {
 } from "@mui/icons-material";
 import { LinkButton, ResourceListHorizontal } from "components";
 import Markdown from "markdown-to-jsx";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { containerShadow } from "styles";
-import { getOwnedByString, getTranslation, getUserLanguages, Pubs, toOwnedBy } from "utils";
+import { getOwnedByString, getTranslation, getUserLanguages, Pubs, standardToFieldData, toOwnedBy } from "utils";
 import { useLocation } from "wouter";
 import { SubroutineViewProps } from "../types";
+import { FieldData } from "forms/types";
+import { generateInputComponent } from 'forms/generators';
+import { useFormik } from "formik";
 
 export const SubroutineView = ({
     loading,
@@ -36,25 +39,44 @@ export const SubroutineView = ({
         const ownerObject = data.isInternal ? { owner } : data;
         return getOwnedByString(ownerObject, getUserLanguages(session))
     }, [data, owner, session]);
-    const toOwner = useCallback(() => { 
+    const toOwner = useCallback(() => {
         // Confirmation dialog for leaving routine
         PubSub.publish(Pubs.AlertDialog, {
             message: 'Are you sure you want to stop this routine? You can continue it later.',
             buttons: [
-                { text: 'Yes', onClick: () => {
-                    // Save progress
-                    handleSaveProgress();
-                    // Navigate to owner
-                    const ownerObject = data?.isInternal ? { owner } : data;
-                    toOwnedBy(ownerObject, setLocation)
-                } },
+                {
+                    text: 'Yes', onClick: () => {
+                        // Save progress
+                        handleSaveProgress();
+                        // Navigate to owner
+                        const ownerObject = data?.isInternal ? { owner } : data;
+                        toOwnedBy(ownerObject, setLocation)
+                    }
+                },
                 { text: 'Cancel' },
             ]
         });
     }, [data, handleSaveProgress, owner, setLocation]);
 
-    // The schema for the form
-    const [schema, setSchema] = useState<any>();
+    // The schema and formik keys for the form
+    const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {
+        if (!data) return null;
+        const schemas: { [fieldName: string]: FieldData } = {};
+        for (let i = 0; i < data.inputs.length; i++) {
+            const currSchema = standardToFieldData(data.inputs[i].standard, `inputs-${i}`);
+            if (currSchema) {
+                schemas[currSchema.fieldName] = currSchema;
+            }
+        }
+        return schemas;
+    }, [data]);
+    const previewFormik = useFormik({
+        initialValues: {
+            ...formValueMap,
+        },
+        enableReinitialize: true,
+        onSubmit: () => { },
+    });
 
     const resourceList = useMemo(() => {
         if (!data ||
@@ -151,6 +173,27 @@ export const SubroutineView = ({
                     <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Instructions</Typography>
                     <Markdown>{instructions ?? 'No instructions'}</Markdown>
                 </Box>
+                {/* Auto-generated inputs */}
+                {
+                    Object.values(formValueMap ?? {}).map((field: FieldData, i: number) => (
+                        <Box key={i} sx={{
+                            padding: 1,
+                            borderRadius: 1,
+                        }}>
+                            <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>{field.label ?? `Input ${i + 1}`}</Typography>
+                            {
+                                generateInputComponent({
+                                    data: field,
+                                    disabled: false,
+                                    formik: previewFormik,
+                                    session,
+                                    onUpload: () => { },
+                                    zIndex,
+                                })
+                            }
+                        </Box>
+                    ))
+                }
             </Stack>
         </Box>
     )

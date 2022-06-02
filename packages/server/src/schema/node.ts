@@ -179,8 +179,9 @@ export const typeDef = gql`
     }
     input NodeRoutineListItemUpdateInput {
         id: ID!
-        index: Int!
+        index: Int
         isOptional: Boolean
+        routineUpdate: RoutineUpdateInput
         translationsDelete: [ID!]
         translationsCreate: [NodeRoutineListItemTranslationCreateInput!]
         translationsUpdate: [NodeRoutineListItemTranslationUpdateInput!]
