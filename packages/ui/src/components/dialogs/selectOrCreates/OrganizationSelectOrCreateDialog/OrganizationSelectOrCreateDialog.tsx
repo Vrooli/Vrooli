@@ -126,6 +126,7 @@ export const OrganizationSelectOrCreateDialog = ({
         <Dialog
             open={isOpen}
             onClose={onClose}
+            scroll="body"
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': { overflow: 'visible', background: palette.background.default },

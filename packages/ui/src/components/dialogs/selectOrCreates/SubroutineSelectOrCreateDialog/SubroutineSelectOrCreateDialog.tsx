@@ -119,6 +119,7 @@ export const SubroutineSelectOrCreateDialog = ({
         <Dialog
             open={isOpen}
             onClose={onClose}
+            scroll="body"
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': { 

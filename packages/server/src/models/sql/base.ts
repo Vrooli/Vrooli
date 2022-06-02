@@ -957,16 +957,18 @@ const combineSupplements = (data: { [x: string]: any }, objectsById: { [x: strin
  * Picks an object from a nested object, using the given ID
  * @param data Object array to pick from
  * @param id ID to pick
- * @returns Requested object with all its fields and children included
+ * @returns Requested object with all its fields and children included. If object not found, 
+ * returns { id }
  */
-const pickObjectById = (data: any, id: string): { [x: string]: any } | undefined => {
+const pickObjectById = (data: any, id: string): { [x: string]: any } => {
     // Stringify data, so we can perform search of ID
     const dataString = JSON.stringify(data);
-    // Find the location in the string where the ID is
+    // Find the location in the string where the ID is. 
+    // Data is only found if there are more fields than just the ID
     const searchString = `"id":"${id}",`;
     const idIndex = dataString.indexOf(searchString);
-    // If ID not found, return undefined
-    if (idIndex === -1) return undefined;
+    // If ID not found
+    if (idIndex === -1) return { id };
     // Loop backwards until we find the start of the object (i.e. first unmatched open bracket before ID)
     let openBracketCounter = 0;
     let inQuotes = false;
@@ -990,8 +992,8 @@ const pickObjectById = (data: any, id: string): { [x: string]: any } | undefined
         lastChar = dataString[startIndex];
         startIndex--;
     }
-    // If start is not found, return undefined
-    if (startIndex === -1) return undefined;
+    // If start is not found
+    if (startIndex === -1) return { id };
     // Loop forwards through string until we find the end of the object
     openBracketCounter = 1;
     inQuotes = false;
@@ -1016,7 +1018,7 @@ const pickObjectById = (data: any, id: string): { [x: string]: any } | undefined
         endIndex++;
     }
     // If end is not found, return undefined
-    if (endIndex === dataString.length) return undefined;
+    if (endIndex === dataString.length) return { id };
     // Return object
     return JSON.parse(dataString.substring(startIndex, endIndex + 1));
 }
@@ -1036,6 +1038,7 @@ export const addSupplementalFields = async (
     data: ({ [x: string]: any } | null | undefined)[],
     partial: PartialInfo | PartialInfo[],
 ): Promise<{ [x: string]: any }[]> => {
+    console.log('ADDSUPPLEMENTAL START', JSON.stringify(data), '\n\n', JSON.stringify(partial));
     // Group data IDs and select fields by type. This is needed to reduce the number of times 
     // the database is called, as we can query all objects of the same type at once
     let objectIdsDict: { [x: string]: string[] } = {};
@@ -1056,17 +1059,21 @@ export const addSupplementalFields = async (
 
     // Dictionary to store objects by ID, instead of type. This is needed to combineSupplements
     const objectsById: { [x: string]: any } = {};
+    console.log('OBJECT IDS DICT', JSON.stringify(objectIdsDict), '\n\n');
 
     // Loop through each type in objectIdsDict
     for (const [type, ids] of Object.entries(objectIdsDict)) {
+        console.log('IN TYPE LOOP', type, ids);
         // Find the data for each id in ids. Since the data parameter is an array,
         // we must loop through each element in it and call pickObjectById
         const objectData = ids.map((id: string) => pickObjectById(data, id));
+        console.log('OBJECT DATA', JSON.stringify(objectData), '\n\n');
         // Now that we have the data for each object, we can add the supplemental fields
         if (type in FormatterMap) {
             const valuesWithSupplements = FormatterMap[type as keyof typeof FormatterMap]?.addSupplementalFields
                 ? await (FormatterMap[type as keyof typeof FormatterMap] as any).addSupplementalFields(prisma, userId, objectData, selectFieldsDict[type])
                 : objectData;
+            console.log('VALUES WITH SUPPLEMENTS', JSON.stringify(valuesWithSupplements), '\n\n');
             // Add each value to objectsById
             for (const v of valuesWithSupplements) {
                 objectsById[v.id] = v;
@@ -1382,6 +1389,7 @@ export async function createHelper<GraphQLModel>(
         throw new CustomError(CODE.InternalError, 'Model does not support create', { code: genErrorCode('0026') });
     // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
     const partial = toPartialSelect(info, model.relationshipMap);
+    console.log('IN CREATE PARTIAL SELECT', JSON.stringify(partial), '\n\n');
     if (!partial)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0027') });
     const cudResult = await model.cud({ partial, userId, createMany: [input] });
@@ -1390,6 +1398,7 @@ export async function createHelper<GraphQLModel>(
         // If organization, project, routine, or standard, log for stats
         const objectType = partial.__typename;
         if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {
+            console.log('CREATE LOG', objectType, JSON.stringify(created), '\n\n');
             const logs = created.map((c: any) => ({
                 timestamp: Date.now(),
                 userId: userId,

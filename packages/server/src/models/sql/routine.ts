@@ -674,6 +674,7 @@ export const routineMutater = (prisma: PrismaType) => ({
      */
     async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<RoutineCreateInput, RoutineUpdateInput>): Promise<CUDResult<Routine>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
+        console.log('ROUTINE CUD STAERTTTTTT', JSON.stringify(createMany), '\n\n')
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
         if (createMany) {
