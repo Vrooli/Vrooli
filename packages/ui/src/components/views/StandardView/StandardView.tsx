@@ -18,7 +18,7 @@ import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
 import { validate as uuidValidate } from 'uuid';
 import { owns } from "utils/authentication";
-import { FieldData } from "forms/types";
+import { FieldData, FieldDataJSON } from "forms/types";
 import { useFormik } from "formik";
 import { generateInputComponent } from "forms/generators";
 import { PreviewSwitch } from "components/inputs";
@@ -47,7 +47,7 @@ export const StandardView = ({
     const schema = useMemo<FieldData | null>(() => standardToFieldData(standard, 'preview'), [standard]);
     const previewFormik = useFormik({
         initialValues: {
-            preview: schema?.props?.defaultValue,
+            preview: JSON.stringify((schema as FieldDataJSON)?.props?.format),
         },
         enableReinitialize: true,
         onSubmit: () => { },

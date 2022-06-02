@@ -79,6 +79,7 @@ export const StandardCreate = ({
     // Handle standard schema
     const [schema, setSchema] = useState<FieldData | null>(null);
     const handleSchemaUpdate = useCallback((schema: FieldData) => {
+        console.log('HANDLE SCHEMA UPDATE', schema);
         setSchema(schema);
     }, []);
     const [schemaKey] = useState(`standard-create-schema-preview-${Math.random().toString(36).substring(2, 15)}`);

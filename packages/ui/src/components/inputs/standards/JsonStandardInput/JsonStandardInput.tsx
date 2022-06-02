@@ -78,7 +78,7 @@ export const JsonStandardInput = ({
     const togglePreview = () => setIsPreviewOn(!isPreviewOn);
     const { previewMarkdown, isValueValid } = useMemo(() => ({
         previewMarkdown: jsonToMarkdown(formik.values.format),
-        isValueValid: internalValue.length > 0 && isJson(formik.values.format),
+        isValueValid: internalValue.length > 2 && isJson(formik.values.format),
     }), [formik.values.format, internalValue.length]);
 
     return (
@@ -95,7 +95,7 @@ export const JsonStandardInput = ({
             }}>
                 <StatusButton
                     status={isValueValid ? Status.Valid : Status.Invalid}
-                    messages={isValueValid ? ['JSON is valid'] : ['JSON could not be parsed']}
+                    messages={isValueValid ? ['JSON is valid'] : ['JSON is empty or could not be parsed']}
                     sx={{
                         marginLeft: 1,
                         marginRight: 'auto',

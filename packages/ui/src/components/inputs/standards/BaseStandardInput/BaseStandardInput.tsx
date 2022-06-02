@@ -64,13 +64,18 @@ export const BaseStandardInput = ({
 
     const onPropsChange = useCallback((newProps: FieldData['props']) => {
         if (!schema || !isEditing) return;
-        onChange({
+        console.log('ON PROPS CHANGE', newProps, schema);
+        const changedSchema = {
             ...schema,
             props: {
                 ...schema.props,
                 ...newProps,
             } as any,
-        });
+        }
+        console.log('CHANGED SCHEMA', changedSchema)
+        if (JSON.stringify(changedSchema) !== JSON.stringify(schema)) {
+            onChange(changedSchema);
+        }
     }, [isEditing, onChange, schema]);
 
     // Generate input component for type-specific fields
