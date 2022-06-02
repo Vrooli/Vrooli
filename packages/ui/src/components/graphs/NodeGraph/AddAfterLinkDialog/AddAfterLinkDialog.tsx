@@ -20,6 +20,7 @@ export const AddAfterLinkDialog = ({
     nodes,
     links,
     session,
+    zIndex,
 }: AddAfterLinkDialogProps) => {
     const { palette } = useTheme();
 
@@ -45,6 +46,9 @@ export const AddAfterLinkDialog = ({
         <Dialog
             open={isOpen}
             onClose={handleClose}
+            sx={{
+                zIndex,
+            }}
         >
             <Box
                 sx={{

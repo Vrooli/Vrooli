@@ -51,11 +51,13 @@ export const StandardViewPage = ({
                 onAction={onAction}
                 open={isAddDialogOpen}
                 title={"Add Standard"}
+                zIndex={200}
             >
                 <StandardCreate
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
                     onCreated={(data: Standard) => onAction(ObjectDialogAction.Add, data)}
                     session={session}
+                    zIndex={200}
                 />
             </BaseObjectDialog>
             {/* Update dialog */}
@@ -63,15 +65,17 @@ export const StandardViewPage = ({
                 onAction={onAction}
                 open={isEditDialogOpen}
                 title={"Update Standard"}
+                zIndex={200}
             >
                 <StandardUpdate
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
                     onUpdated={() => onAction(ObjectDialogAction.Save)}
                     session={session}
+                    zIndex={200}
                 />
             </BaseObjectDialog>
             {/* Main view */}
-            <StandardView session={session} />
+            <StandardView session={session} zIndex={200} />
         </Box>
     )
 }

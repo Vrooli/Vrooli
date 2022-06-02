@@ -286,7 +286,6 @@ export const resolvers = {
             // Create session
             const session: RecursivePartial<Session> = {
                 roles: [ROLES.Guest],
-                theme: 'light',
             }
             // Set up session token
             await generateSessionToken(context.res, session);
@@ -307,7 +306,6 @@ export const resolvers = {
             if (context.req.roles.includes(ROLES.Guest)) {
                 return {
                     roles: [ROLES.Guest],
-                    theme: 'light',
                 }
             }
             // Otherwise, check if session can be verified from userId
@@ -479,7 +477,7 @@ export const resolvers = {
                 id: userData?.id,
                 languages: userData?.languages?.map((l: any) => l.language) ?? [],
                 roles: [ROLES.Actor],
-                theme: userData?.theme ?? 'light',
+                theme: userData?.theme,
             }
             // Update user's lastSessionVerified
             await context.prisma.user.update({

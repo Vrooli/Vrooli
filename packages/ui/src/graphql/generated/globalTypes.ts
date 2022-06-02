@@ -13,6 +13,18 @@ export enum CommentFor {
   Standard = "Standard",
 }
 
+export enum DeleteOneType {
+  Comment = "Comment",
+  Email = "Email",
+  Node = "Node",
+  Organization = "Organization",
+  Project = "Project",
+  Report = "Report",
+  Routine = "Routine",
+  Standard = "Standard",
+  Wallet = "Wallet",
+}
+
 export enum LogSortBy {
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
@@ -261,6 +273,7 @@ export interface DeleteManyInput {
 
 export interface DeleteOneInput {
   id: string;
+  objectType: DeleteOneType;
 }
 
 export interface EmailCreateInput {
@@ -492,7 +505,7 @@ export interface NodeRoutineListCreateInput {
 
 export interface NodeRoutineListItemCreateInput {
   id?: string | null;
-  index?: number | null;
+  index: number;
   isOptional?: boolean | null;
   routineConnect: string;
   translationsCreate?: NodeRoutineListItemTranslationCreateInput[] | null;
@@ -515,6 +528,7 @@ export interface NodeRoutineListItemUpdateInput {
   id: string;
   index?: number | null;
   isOptional?: boolean | null;
+  routineUpdate?: RoutineUpdateInput | null;
   translationsDelete?: string[] | null;
   translationsCreate?: NodeRoutineListItemTranslationCreateInput[] | null;
   translationsUpdate?: NodeRoutineListItemTranslationUpdateInput[] | null;
@@ -955,12 +969,14 @@ export interface RunCancelInput {
 }
 
 export interface RunCompleteInput {
-  id?: string | null;
+  id: string;
   completedComplexity?: number | null;
   exists?: boolean | null;
   pickups?: number | null;
   timeElapsed?: number | null;
+  title: string;
   finalStepUpdate?: RunStepUpdateInput | null;
+  version: string;
 }
 
 export interface RunCountInput {
@@ -1032,6 +1048,7 @@ export interface StandardCreateInput {
   version?: string | null;
   createdByUserId?: string | null;
   createdByOrganizationId?: string | null;
+  resourceListsCreate?: ResourceListCreateInput[] | null;
   tagsConnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;
   translationsCreate?: StandardTranslationCreateInput[] | null;
@@ -1060,17 +1077,22 @@ export interface StandardSearchInput {
 export interface StandardTranslationCreateInput {
   language: string;
   description?: string | null;
+  jsonVariables?: string | null;
 }
 
 export interface StandardTranslationUpdateInput {
   id: string;
   language?: string | null;
   description?: string | null;
+  jsonVariables?: string | null;
 }
 
 export interface StandardUpdateInput {
   id: string;
   makeAnonymous?: boolean | null;
+  resourceListsDelete?: string[] | null;
+  resourceListsCreate?: ResourceListCreateInput[] | null;
+  resourceListsUpdate?: ResourceListUpdateInput[] | null;
   tagsConnect?: string[] | null;
   tagsDisconnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;

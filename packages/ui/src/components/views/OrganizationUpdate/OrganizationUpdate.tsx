@@ -27,6 +27,7 @@ export const OrganizationUpdate = ({
     onCancel,
     onUpdated,
     session,
+    zIndex,
 }: OrganizationUpdateProps) => {
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Organization}/edit/:id`);
@@ -187,6 +188,7 @@ export const OrganizationUpdate = ({
                     handleCurrent={handleLanguageSelect}
                     selectedLanguages={languages}
                     session={session}
+                    zIndex={zIndex}
                 />
             </Grid>
             <Grid item xs={12}>
@@ -226,6 +228,7 @@ export const OrganizationUpdate = ({
                     loading={loading}
                     session={session}
                     mutate={false}
+                    zIndex={zIndex}
                 />
             </Grid>
             <Grid item xs={12} marginBottom={4}>
@@ -238,7 +241,7 @@ export const OrganizationUpdate = ({
                 />
             </Grid>
         </Grid>
-    ), [language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, session, formik.values.name, formik.values.bio, formik.handleBlur, formik.handleChange, formik.touched.name, formik.touched.bio, formik.errors.name, formik.errors.bio, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
+    ), [language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, session, zIndex, formik.values.name, formik.values.bio, formik.handleBlur, formik.handleChange, formik.touched.name, formik.touched.bio, formik.errors.name, formik.errors.bio, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{

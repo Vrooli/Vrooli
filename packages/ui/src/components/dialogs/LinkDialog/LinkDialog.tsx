@@ -35,18 +35,17 @@ export const LinkDialog = ({
     language,
     link,
     routine,
+    zIndex,
 }: LinkDialogProps) => {
     const { palette } = useTheme();
 
     // Selected "From" and "To" nodes
     const [fromNode, setFromNode] = useState<Node | null>(null);
     const handleFromSelect = useCallback((node: Node) => {
-        console.log('handlefrom select', node)
         setFromNode(node);
     }, [setFromNode]);
     const [toNode, setToNode] = useState<Node | null>(null);
     const handleToSelect = useCallback((node: Node) => {
-        console.log('handle to select', node)
         setToNode(node);
     }, [setToNode]);
 
@@ -106,12 +105,10 @@ export const LinkDialog = ({
         if (!routine) return { fromOptions: [], toOptions: [] };
         // Initialize options
         let fromNodes: Node[] = routine.nodes;
-        console.log('calculating fromnodes', fromNodes);
         let toNodes: Node[] = routine.nodes.filter((node: Node) => node.type !== NodeType.Start); // Can't link to start node
         const existingLinks = routine.nodeLinks;
         // If from node is already selected
         if (fromNode) {
-            console.log('has from node', fromNode);
             // Remove it from the "to" options
             toNodes = toNodes.filter(node => node.id !== fromNode.id);
             // Remove all links that already exist
@@ -119,13 +116,11 @@ export const LinkDialog = ({
         }
         // If to node is already selected
         if (toNode) {
-            console.log('has to node', toNode);
             // Remove it from the "from" options
             fromNodes = fromNodes.filter(node => node.id !== toNode.id);
             // Remove all links that already exist
             fromNodes = fromNodes.filter(node => !existingLinks.some(link => link.fromId === node.id && link.toId === toNode.id));
         }
-        console.log('end of calculating fromnodes', fromNodes);
         return { fromOptions: fromNodes, toOptions: toNodes };
     }, [fromNode, routine, toNode]);
 
@@ -205,6 +200,7 @@ export const LinkDialog = ({
             open={isOpen}
             onClose={() => { handleClose() }}
             sx={{
+                zIndex,
                 '& .MuiDialogContent-root': { overflow: 'visible' },
                 '& .MuiDialog-paper': { overflow: 'visible' }
             }}

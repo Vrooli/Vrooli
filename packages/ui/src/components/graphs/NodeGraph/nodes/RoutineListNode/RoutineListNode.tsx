@@ -8,7 +8,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { ChangeEvent, CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
+import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
 import { RoutineListNodeProps } from '../types';
 import { DraggableNode, RoutineSubnode } from '..';
 import {
@@ -37,13 +37,11 @@ const DRAG_THRESHOLD = 10;
  * @param id ID of the clicked element
  */
 const shouldCollapse = (id: string | null | undefined): boolean => {
-    // Don't collapse if clicking on the edit or delete buttons, or if unlinked
-    if (id && 
-        (id.startsWith('unlinked') ||
-        id.startsWith('edit-label-icon') || 
-        id.startsWith('node-delete'))) return false;
-    // In any other case, collapse
-    return true;
+    // Only collapse if clicked on shrink/expand icon, title bar, or title
+    return Boolean(id && (
+        id.startsWith('toggle-expand-icon-') ||
+        id.startsWith('node-')
+    ));
 }
 
 export const RoutineListNode = ({
@@ -57,23 +55,22 @@ export const RoutineListNode = ({
     isEditing,
     node,
     scale = 1,
+    zIndex,
 }: RoutineListNodeProps) => {
     const { palette } = useTheme();
     const [collapseOpen, setCollapseOpen] = useState<boolean>(false);
     const handleNodeClick = useCallback((event: any) => {
-        console.log('NODE CLICKED NOT DRAGGED!!!!!!!', event.target.id);
-        if (!canDrag || shouldCollapse(event.target.id)) setCollapseOpen(!collapseOpen);
-    }, [canDrag, collapseOpen]);
+        if (isLinked && (!canDrag || shouldCollapse(event.target.id))) setCollapseOpen(!collapseOpen);
+    }, [canDrag, collapseOpen, isLinked]);
     /**
      * When not dragging, DraggableNode onClick will not be triggered. So 
      * we must handle this ourselves.
      */
     const handleNodeMouseUp = useCallback((event: any) => {
-        console.log('MOUSE UP', !canDrag, event.target.id, shouldCollapse(event.target.id));
-        if (!canDrag && shouldCollapse(event.target.id)) {
+        if (isLinked && !canDrag && shouldCollapse(event.target.id)) {
             setCollapseOpen(!collapseOpen);
         }
-    }, [collapseOpen, canDrag]);
+    }, [canDrag, isLinked, collapseOpen]);
 
     const handleNodeUnlink = useCallback(() => { handleAction(BuildAction.UnlinkNode, node.id); }, [handleAction, node.id]);
     const handleNodeDelete = useCallback(() => { handleAction(BuildAction.DeleteNode, node.id); }, [handleAction, node.id]);
@@ -85,14 +82,14 @@ export const RoutineListNode = ({
         });
     }, [handleUpdate, language, node]);
 
-    const onOrderedChange = useCallback((e: ChangeEvent<HTMLInputElement>, checked: boolean) => {
+    const onOrderedChange = useCallback((checked: boolean) => {
         handleUpdate({
             ...node,
             data: { ...node.data, isOrdered: checked } as any,
         });
     }, [handleUpdate, node]);
 
-    const onOptionalChange = useCallback((e: ChangeEvent<HTMLInputElement>, checked: boolean) => {
+    const onOptionalChange = useCallback((checked: boolean) => {
         handleUpdate({
             ...node,
             data: { ...node.data, isOptional: checked } as any,
@@ -138,7 +135,6 @@ export const RoutineListNode = ({
     const addSize = useMemo(() => `${NodeWidth.RoutineList * scale / 8}px`, [scale]);
 
     const confirmDelete = useCallback((event: any) => {
-        console.log('DELETE CONFIRMED', event);
         PubSub.publish(Pubs.AlertDialog, {
             message: 'What would you like to do?',
             buttons: [
@@ -156,7 +152,7 @@ export const RoutineListNode = ({
                 handleUpdate={handleLabelUpdate}
                 renderLabel={(t) => (
                     <Typography
-                        id={`${isLinked ? '' : 'unlinked-'}node-routinelist-title-${node.id}`}
+                        id={`node-routinelist-title-${node.id}`}
                         variant="h6"
                         sx={{
                             ...noSelect,
@@ -178,7 +174,7 @@ export const RoutineListNode = ({
                 text={label}
             />
         )
-    }, [collapseOpen, label, labelVisible, isEditing, node.id, handleLabelUpdate, isLinked]);
+    }, [collapseOpen, label, labelVisible, isEditing, node.id, handleLabelUpdate]);
 
     const optionsCollapse = useMemo(() => (
         <Collapse in={collapseOpen} sx={{
@@ -195,7 +191,8 @@ export const RoutineListNode = ({
                             name='isOrderedCheckbox'
                             color='secondary'
                             checked={(node?.data as NodeDataRoutineList)?.isOrdered}
-                            onChange={onOrderedChange}
+                            onChange={(_e, checked) => { onOrderedChange(checked) }}
+                            onTouchStart={() => { onOrderedChange(!(node?.data as NodeDataRoutineList)?.isOrdered) }}
                             sx={{ ...routineNodeCheckboxOption }}
                         />
                     }
@@ -213,7 +210,8 @@ export const RoutineListNode = ({
                             name='isOptionalCheckbox'
                             color='secondary'
                             checked={(node?.data as NodeDataRoutineList)?.isOptional}
-                            onChange={onOptionalChange}
+                            onChange={(_e, checked) => { onOptionalChange(checked) }}
+                            onTouchStart={() => { onOptionalChange(!(node?.data as NodeDataRoutineList)?.isOptional) }}
                             sx={{ ...routineNodeCheckboxOption }}
                         />
                     }
@@ -223,7 +221,10 @@ export const RoutineListNode = ({
         </Collapse>
     ), [collapseOpen, palette.mode, isEditing, label, node?.data, onOrderedChange, onOptionalChange]);
 
-    const routines = useMemo(() => (node?.data as NodeDataRoutineList)?.routines?.map(routine => (
+    /** 
+     * Subroutines, sorted from lowest to highest index
+     * */
+    const routines = useMemo(() => [...((node?.data as NodeDataRoutineList)?.routines ?? [])].sort((a, b) => a.index - b.index).map(routine => (
         <RoutineSubnode
             key={`${routine.id}`}
             data={routine}
@@ -237,11 +238,12 @@ export const RoutineListNode = ({
             language={language}
             scale={scale}
         />
-    )), [node?.data, handleSubroutineOpen, handleSubroutineEdit, handleSubroutineDelete, handleSubroutineUpdate, isEditing, collapseOpen, labelVisible, language, scale]);
+    )), [node, handleSubroutineOpen, handleSubroutineEdit, handleSubroutineDelete, handleSubroutineUpdate, isEditing, collapseOpen, labelVisible, language, scale]);
 
     const addButton = useMemo(() => isEditing ? (
         <IconButton
             onClick={handleSubroutineAdd}
+            onTouchStart={handleSubroutineAdd}
             sx={{
                 ...containerShadow,
                 width: addSize,
@@ -302,6 +304,7 @@ export const RoutineListNode = ({
                 anchorEl={contextAnchor}
                 handleClose={closeContext}
                 handleSelect={(option) => { handleAction(option, node.id) }}
+                zIndex={zIndex + 1}
             />
             <Tooltip placement={'top'} title={label ?? 'Routine List'}>
                 <Container
@@ -333,7 +336,7 @@ export const RoutineListNode = ({
                                 id={`toggle-expand-icon-button-${node.id}`}
                                 color="inherit"
                             >
-                                {collapseOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                                {collapseOpen ? <ExpandLessIcon id={`toggle-expand-icon-${node.id}`} /> : <ExpandMoreIcon id={`toggle-expand-icon-${node.id}`} />}
                             </IconButton>
                         )
                     }
@@ -341,11 +344,12 @@ export const RoutineListNode = ({
                     {
                         isEditing && (
                             <IconButton
-                                id={`${isLinked ? '' : 'unlinked-'}node-delete-icon-${node.id}`}
+                                id={`${isLinked ? '' : 'unlinked-'}delete-node-icon-${node.id}`}
                                 onClick={confirmDelete}
+                                onTouchStart={confirmDelete}
                                 color="inherit"
                             >
-                                <DeleteIcon id={`node-delete-icon-button-${node.id}`}/>
+                                <DeleteIcon id={`delete-node-icon-button-${node.id}`} />
                             </IconButton>
                         )
                     }

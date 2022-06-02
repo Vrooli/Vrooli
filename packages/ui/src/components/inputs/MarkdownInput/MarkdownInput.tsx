@@ -211,7 +211,12 @@ export const MarkdownInput = ({
                 <Stack direction="row" spacing={1} sx={{ marginRight: 'auto' }}>
                     {/* Insert header selector */}
                     <Tooltip title="Insert header" placement="top">
-                        <IconButton aria-describedby={`markdown-input-header-popover-${id}`} size="small" onClick={openHeaderSelect}>
+                        <IconButton 
+                            aria-describedby={`markdown-input-header-popover-${id}`} 
+                            disabled={disabled}
+                            size="small" 
+                            onClick={openHeaderSelect}
+                        >
                             <HeaderIcon sx={{ fill: palette.primary.contrastText }} />
                         </IconButton>
                     </Tooltip>
@@ -249,25 +254,42 @@ export const MarkdownInput = ({
                     </Popover>
                     {/* Button for bold */}
                     <Tooltip title="Bold" placement="top">
-                        <IconButton size="small" onClick={bold}>
+                        <IconButton 
+                            disabled={disabled}
+                            size="small" 
+                            onClick={bold}
+                        >
                             <BoldIcon sx={{ fill: palette.primary.contrastText }} />
                         </IconButton>
                     </Tooltip>
                     {/* Button for italic */}
                     <Tooltip title="Italic" placement="top">
-                        <IconButton size="small" onClick={italic}>
+                        <IconButton 
+                            disabled={disabled}
+                            size="small" 
+                            onClick={italic}
+                        >
                             <ItalicIcon sx={{ fill: palette.primary.contrastText }} />
                         </IconButton>
                     </Tooltip>
                     {/* Button for strikethrough */}
                     <Tooltip title="Strikethrough" placement="top">
-                        <IconButton size="small" onClick={strikethrough}>
+                        <IconButton 
+                            disabled={disabled}
+                            size="small" 
+                            onClick={strikethrough}
+                        >
                             <StrikethroughIcon sx={{ fill: palette.primary.contrastText }} />
                         </IconButton>
                     </Tooltip>
                     {/* Insert bulleted or numbered list selector */}
                     <Tooltip title="Insert list" placement="top">
-                        <IconButton aria-describedby={`markdown-input-list-popover-${id}`} size="small" onClick={openListSelect}>
+                        <IconButton 
+                            aria-describedby={`markdown-input-list-popover-${id}`} 
+                            disabled={disabled}
+                            size="small" 
+                            onClick={openListSelect}
+                        >
                             <ListIcon sx={{ fill: palette.primary.contrastText }} />
                         </IconButton>
                     </Tooltip>
@@ -315,7 +337,11 @@ export const MarkdownInput = ({
                     </Popover>
                     {/* Button for inserting link */}
                     <Tooltip title="Insert link" placement="top">
-                        <IconButton size="small" onClick={insertLink}>
+                        <IconButton 
+                            disabled={disabled}
+                            size="small" 
+                            onClick={insertLink}
+                        >
                             <LinkIcon sx={{ fill: palette.primary.contrastText }} />
                         </IconButton>
                     </Tooltip>

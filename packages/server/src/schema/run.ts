@@ -127,12 +127,14 @@ export const typeDef = gql`
     }
 
     input RunCompleteInput {
-        id: ID # Either run ID, or routine ID
+        id: ID! # Run ID if "exists" is true, or routine ID if "exists" is false
         completedComplexity: Int # Even though the run was completed, the user may not have completed every subroutine
         exists: Boolean # If true, run ID is provided, otherwise routine ID so we can create a run
         pickups: Int
         timeElapsed: Int
+        title: String! # Title of routine, so run name stays consistent even if routine updates/deletes
         finalStepUpdate: RunStepUpdateInput
+        version: String! # Version of routine which was ran
     }
 
     input RunCancelInput {

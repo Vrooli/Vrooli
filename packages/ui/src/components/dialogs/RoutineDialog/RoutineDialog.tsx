@@ -10,7 +10,8 @@ import { Routine } from 'types';
 
 export const RoutineDialog = ({
     partialData,
-    session
+    session,
+    zIndex,
 }: RoutineDialogProps) => {
     const [, setLocation] = useLocation();
     const [, params] = useRoute(`${APP_LINKS.SearchRoutines}/:params*`);
@@ -58,26 +59,30 @@ export const RoutineDialog = ({
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
                     onCreated={(data: Routine) => onAction(ObjectDialogAction.Add, data)}
                     session={session}
+                    zIndex={zIndex}
                 />
             case 'edit':
                 return <RoutineUpdate
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
                     onUpdated={() => onAction(ObjectDialogAction.Save)}
                     session={session}
+                    zIndex={zIndex}
                 />
             default:
                 return <RoutineView
                     partialData={partialData}
                     session={session}
+                    zIndex={zIndex}
                 />
         }
-    }, [onAction, partialData, session, state]);
+    }, [onAction, partialData, session, state, zIndex]);
 
     return (
         <BaseObjectDialog
             onAction={onAction}
             open={Boolean(params?.params)}
             title={title}
+            zIndex={zIndex}
         >
             {child}
         </BaseObjectDialog>

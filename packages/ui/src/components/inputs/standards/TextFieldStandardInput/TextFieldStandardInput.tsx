@@ -3,24 +3,25 @@
  * must match a certain schema.
  */
 import { TextFieldStandardInputProps } from '../types';
-import { InputType, textFieldStandardInputForm as validationSchema } from '@local/shared';
+import { textFieldStandardInputForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { Grid, TextField } from '@mui/material';
 import { QuantityBox } from 'components/inputs/QuantityBox/QuantityBox';
 import { useEffect } from 'react';
 
 export const TextFieldStandardInput = ({
+    autoComplete,
+    defaultValue,
     isEditing,
-    schema,
-    onChange,
+    maxRows,
+    onPropsChange,
 }: TextFieldStandardInputProps) => {
 
     const formik = useFormik({
         initialValues: {
-            defaultValue: schema.props.defaultValue ?? '',
-            autoComplete: schema.props.autoComplete ?? '',
-            maxRows: schema.props.maxRows ?? 1,
-            // yup: [],
+            defaultValue: defaultValue ?? '',
+            autoComplete: autoComplete ?? '',
+            maxRows: maxRows ?? 1,
         },
         enableReinitialize: true,
         validationSchema,
@@ -28,16 +29,10 @@ export const TextFieldStandardInput = ({
     });
 
     useEffect(() => {
-        onChange({
-            type: InputType.TextField,
-            props: formik.values,
-            fieldName: '',
-            label: '',
-            yup: {
-                checks: [],
-            },
+        onPropsChange({
+            ...formik.values,
         });
-    }, [formik.values, onChange]);
+    }, [formik.values, onPropsChange]);
 
     return (
         <Grid container spacing={2}>
@@ -56,7 +51,7 @@ export const TextFieldStandardInput = ({
                     helperText={formik.touched.defaultValue && formik.errors.defaultValue}
                 />
             </Grid>
-            <Grid item xs={12}>
+            {/* <Grid item xs={12}>
                 <TextField
                     fullWidth
                     disabled={!isEditing}
@@ -69,7 +64,7 @@ export const TextFieldStandardInput = ({
                     error={formik.touched.autoComplete && Boolean(formik.errors.autoComplete)}
                     helperText={formik.touched.autoComplete && formik.errors.autoComplete}
                 />
-            </Grid>
+            </Grid> */}
             <Grid item xs={12}>
                 <QuantityBox
                     id="maxRows"

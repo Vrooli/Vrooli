@@ -2,7 +2,7 @@ import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Ro
 import { PrismaType, RecursivePartial } from "types";
 import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialSelect, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
-import { CODE, inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, inputUpdate, MemberRole, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routinesUpdate, routineTranslationCreate, routineTranslationUpdate } from "@local/shared";
+import { CODE, inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, MemberRole, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routinesUpdate, routineTranslationCreate, routineTranslationUpdate } from "@local/shared";
 import { hasProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -303,7 +303,6 @@ export const routineMutater = (prisma: PrismaType) => ({
      * @returns [simplicity, complexity] Numbers representing the shorted and longest weighted paths
      */
     async calculateComplexity(data: RoutineCreateInput | RoutineUpdateInput): Promise<[number, number]> {
-        console.log('calculate complexity start', JSON.stringify(data), '\n\n')
         // If the routine is being updated, Find the complexity of existing subroutines
         let existingRoutine;
         if ((data as RoutineUpdateInput).id) {
@@ -328,7 +327,6 @@ export const routineMutater = (prisma: PrismaType) => ({
                 }
             })
         }
-        console.log('Existing routine', JSON.stringify(existingRoutine), '\n\n')
         // Calculate the list of links after mutations are applied
         let nodeLinks: any[] = existingRoutine?.nodeLinks || [];
         if (data.nodeLinksCreate) nodeLinks = nodeLinks.concat(data.nodeLinksCreate);
@@ -357,10 +355,8 @@ export const routineMutater = (prisma: PrismaType) => ({
         const subroutineIdsByNode: { [id: string]: string[] } = {};
         // Find the ID of every subroutine
         const subroutineIds: string[] = nodes.map((node: any | NodeCreateInput | NodeUpdateInput) => {
-            console.log('in subroutineIds loop node', JSON.stringify(node));
             // Calculate the list of subroutines after mutations are applied
             let ids: string[] = node.nodeRoutineList?.routines?.map((item: NodeRoutineListItem) => item.routine.id) ?? [];
-            console.log('got idsss', ids);
             if ((data as NodeCreateInput).nodeRoutineListCreate) {
                 const listCreate = (data as NodeCreateInput).nodeRoutineListCreate as NodeRoutineListCreateInput;
                 // Handle creates
@@ -378,8 +374,6 @@ export const routineMutater = (prisma: PrismaType) => ({
             subroutineIdsByNode[node.id] = ids;
             return ids
         }).flat();
-        console.log('LINKS HEREEEEE', JSON.stringify(nodeLinks));
-        console.log('NODES HEREEEEE', JSON.stringify(subroutineIdsByNode));
         // Query every subroutine's complexity, simplicity, and number of inputs
         const subroutineWeightData = await prisma.routine.findMany({
             where: { id: { in: subroutineIds } },
@@ -414,7 +408,6 @@ export const routineMutater = (prisma: PrismaType) => ({
                 allInputs: subroutineIdsByNode[node.id]?.reduce((acc, cur) => acc + subroutineWeightDataDict[cur].allInputs, 0) || 0,
             }
         }
-        console.log('NODE WEIGHT DATA DICT', JSON.stringify(nodeWeightDataDict));
         // Using the node links, determine the most complex path through the routine
         const [shortest, longest] = calculateShortestLongestWeightedPath(nodeWeightDataDict, nodeLinks);
         // return with +1, so that nesting routines has a small factor in determining weight
@@ -435,9 +428,8 @@ export const routineMutater = (prisma: PrismaType) => ({
         // if (uniqueNodes.length < combinedNodes.length) throw new CustomError(CODE.NodeDuplicatePosition);
         return;
     },
-    async toDBShape(userId: string | null, data: RoutineCreateInput | RoutineUpdateInput): Promise<any> {
+    async toDBShape(userId: string | null, data: RoutineCreateInput | RoutineUpdateInput, isAdd: boolean): Promise<any> {
         const [simplicity, complexity] = await this.calculateComplexity(data);
-        console.log('complexity calculated', complexity, simplicity);
         return {
             isAutomatable: data.isAutomatable,
             isComplete: data.isComplete,
@@ -447,13 +439,13 @@ export const routineMutater = (prisma: PrismaType) => ({
             isInternal: data.isInternal,
             parentId: data.parentId,
             version: data.version,
-            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
+            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, isAdd),
             tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Routine),
-            inputs: await this.relationshipBuilderInput(userId, data, false),
-            outputs: await this.relationshipBuilderOutput(userId, data, false),
-            nodes: await NodeModel(prisma).relationshipBuilder(userId, (data as RoutineUpdateInput)?.id ?? null, data, false),
-            nodeLinks: NodeModel(prisma).relationshipBuilderNodeLink(userId, data, false),
-            translations: TranslationModel().relationshipBuilder(userId, data, { create: routineTranslationCreate, update: routineTranslationUpdate }, false),
+            inputs: await this.relationshipBuilderInput(userId, data, isAdd),
+            outputs: await this.relationshipBuilderOutput(userId, data, isAdd),
+            nodes: await NodeModel(prisma).relationshipBuilder(userId, (data as RoutineUpdateInput)?.id ?? null, data, isAdd),
+            nodeLinks: NodeModel(prisma).relationshipBuilderNodeLink(userId, data, isAdd),
+            translations: TranslationModel().relationshipBuilder(userId, data, { create: routineTranslationCreate, update: routineTranslationUpdate }, isAdd),
         }
     },
     /**
@@ -466,7 +458,6 @@ export const routineMutater = (prisma: PrismaType) => ({
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): Promise<{ [x: string]: any } | undefined> {
-        console.log('relationshipbuilderinput startttt', JSON.stringify(input))
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported in this case (since they can only be applied to one routine)
@@ -486,7 +477,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                 // Convert nested relationships
                 result.push({
                     name: data.name,
-                    standard: await standardModel.relationshipBuilder(userId, data, isAdd),
+                    standardId: await standardModel.relationshipBuilder(userId, data, isAdd),
                     translations: TranslationModel().relationshipBuilder(userId, data, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
                 })
             }
@@ -505,14 +496,13 @@ export const routineMutater = (prisma: PrismaType) => ({
                     where: update.where,
                     data: {
                         name: update.data.name,
-                        standard: await standardModel.relationshipBuilder(userId, update.data, isAdd),
+                        standardId: await standardModel.relationshipBuilder(userId, update.data, isAdd),
                         translations: TranslationModel().relationshipBuilder(userId, update.data, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
                     }
                 })
             }
             updateMany = result;
         }
-        console.log('formattedinput complete', JSON.stringify(createMany));
         return Object.keys(formattedInput).length > 0 ? {
             create: createMany,
             update: updateMany,
@@ -597,14 +587,14 @@ export const routineMutater = (prisma: PrismaType) => ({
         });
         // Shape
         if (Array.isArray(formattedInput.create)) {
-            formattedInput.create = formattedInput.create.map(async (data) => await this.toDBShape(userId, data as any));
+            formattedInput.create = formattedInput.create.map(async (data) => await this.toDBShape(userId, data as any, true));
         }
         if (Array.isArray(formattedInput.update)) {
             const updates = [];
             for (const update of formattedInput.update) {
                 updates.push({
                     where: update.where,
-                    data: await this.toDBShape(userId, update.data as any),
+                    data: await this.toDBShape(userId, update.data as any, false),
                 })
             }
             formattedInput.update = updates;
@@ -669,7 +659,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0095') })
     },
     /**
-     * Performs adds, updates, and deletes of organizations. First validates that every action is allowed.
+     * Performs adds, updates, and deletes of routines. First validates that every action is allowed.
      */
     async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<RoutineCreateInput, RoutineUpdateInput>): Promise<CUDResult<Routine>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
@@ -679,7 +669,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             // Loop through each create input
             for (const input of createMany) {
                 // Call createData helper function
-                let data = await this.toDBShape(userId, input);
+                let data = await this.toDBShape(userId, input, true);
                 // Associate with either organization or user
                 if (input.createdByOrganizationId) {
                     data = {
@@ -706,7 +696,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             // Loop through each update input
             for (const input of updateMany) {
                 // Call createData helper function
-                let data = await this.toDBShape(userId, input.data);
+                let data = await this.toDBShape(userId, input.data, false);
                 // Find object
                 let object = await prisma.routine.findFirst({ where: input.where })
                 if (!object)

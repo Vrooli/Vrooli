@@ -25,6 +25,7 @@ export const BaseObjectDialog = ({
     onAction,
     open = true,
     title,
+    zIndex,
 }: BaseObjectDialogProps) => {
     const { palette } = useTheme();
 
@@ -39,6 +40,9 @@ export const BaseObjectDialog = ({
             open={open}
             onClose={onClose}
             TransitionComponent={UpTransition}
+            sx={{
+                zIndex,
+            }}
         >
             {/* TODO hide not working */}
             <Slide appear={false} direction="down" in={!scrollTrigger}>

@@ -36,6 +36,7 @@ enum TabOptions {
 export const OrganizationView = ({
     partialData,
     session,
+    zIndex,
 }: OrganizationViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -56,14 +57,12 @@ export const OrganizationView = ({
     }, [data]);
     const canEdit = useMemo<boolean>(() => owns(organization?.role), [organization]);
 
-    const [language, setLanguage] = useState<string>('');
-    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+    const availableLanguages = useMemo<string[]>(() => (organization?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [organization?.translations]);
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
-        const availableLanguages = organization?.translations?.map(t => getLanguageSubtag(t.language)) ?? [];
-        const userLanguages = getUserLanguages(session);
-        setAvailableLanguages(availableLanguages);
-        setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
-    }, [organization, session]);
+        if (availableLanguages.length === 0) return;
+        setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
+    }, [availableLanguages, setLanguage, session]);
 
     const { bio, handle, name, resourceList } = useMemo(() => {
         const resourceList: ResourceList | undefined = Array.isArray(organization?.resourceLists) ? organization?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
@@ -94,8 +93,9 @@ export const OrganizationView = ({
             }}
             loading={loading}
             mutate={true}
+            zIndex={zIndex}
         />
-    ) : null, [canEdit, loading, organization, resourceList, session]);
+    ) : null, [canEdit, loading, organization, resourceList, session, zIndex]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -378,15 +378,16 @@ export const OrganizationView = ({
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
                 handleActionComplete={() => { }} //TODO
-                handleDelete={() => { }} //TODO
                 handleEdit={onEdit}
                 objectId={id}
+                objectName={name ?? ''}
                 objectType={ObjectType.Organization}
                 anchorEl={moreMenuAnchor}
                 title='Organization Options'
                 availableOptions={moreOptions}
                 onClose={closeMoreMenu}
                 session={session}
+                zIndex={zIndex + 1}
             />
             <Box sx={{
                 background: palette.mode === 'light' ? "#b2b3b3" : "#303030",
@@ -407,6 +408,7 @@ export const OrganizationView = ({
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         session={session}
+                        zIndex={zIndex}
                     />
                 </Box>
                 {overviewComponent}
@@ -452,6 +454,7 @@ export const OrganizationView = ({
                                 session={session}
                                 take={20}
                                 where={where}
+                                zIndex={zIndex}
                             />
                         )
                     }

@@ -74,6 +74,7 @@ export interface SearchListProps {
     where?: any; // Additional where clause to pass to the query
     noResultsText?: string; // Text to display when no results are found
     session: Session;
+    zIndex: number;
 }
 
 export interface SearchQueryVariablesInput<SortBy> {

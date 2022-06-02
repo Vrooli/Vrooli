@@ -11,9 +11,11 @@ import {
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { Pubs, updateArray } from 'utils';
-import { walletDeleteOneMutation, walletUpdateMutation } from 'graphql/mutation';
+import { deleteOneMutation, walletUpdateMutation } from 'graphql/mutation';
 import { hasWalletExtension, validateWallet, WalletProvider, walletProviderInfo } from 'utils/authentication/walletIntegration';
 import { WalletListItem } from '../WalletListItem/WalletListItem';
+import { DeleteOneType } from '@local/shared';
+import { deleteOne } from 'graphql/generated/deleteOne';
 
 export const WalletList = ({
     handleUpdate,
@@ -24,6 +26,7 @@ export const WalletList = ({
 
     const [updateMutation, { loading: loadingUpdate }] = useMutation<any>(walletUpdateMutation);
     const onUpdate = useCallback((index: number, updatedWallet: Wallet) => {
+        if (loadingUpdate) return;
         mutationWrapper({
             mutation: updateMutation,
             input: {
@@ -34,10 +37,11 @@ export const WalletList = ({
                 handleUpdate(updateArray(list, index, updatedWallet));
             },
         })
-    }, [handleUpdate, list, updateMutation]);
+    }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<any>(walletDeleteOneMutation);
+    const [deleteMutation, { loading: loadingDelete }] = useMutation<deleteOne>(deleteOneMutation);
     const onDelete = useCallback((wallet: Wallet) => {
+        if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 
         // (i.e. one other wallet or one other email)
         if (list.length <= 1 && numVerifiedEmails === 0) {
@@ -52,7 +56,7 @@ export const WalletList = ({
                     text: 'Yes', onClick: () => {
                         mutationWrapper({
                             mutation: deleteMutation,
-                            input: { id: wallet.id },
+                            input: { id: wallet.id, objectType: DeleteOneType.Wallet },
                             onSuccess: (response) => {
                                 handleUpdate([...list.filter(w => w.id !== wallet.id)])
                             },
@@ -62,7 +66,7 @@ export const WalletList = ({
                 { text: 'Cancel', onClick: () => { } },
             ]
         });
-    }, [deleteMutation, handleUpdate, list, numVerifiedEmails]);
+    }, [deleteMutation, handleUpdate, list, loadingDelete, numVerifiedEmails]);
 
     // Opens link to install wallet extension
     const downloadExtension = useCallback((provider: WalletProvider) => {

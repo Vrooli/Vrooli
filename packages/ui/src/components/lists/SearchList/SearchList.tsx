@@ -49,6 +49,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     onScrolledFar,
     where,
     session,
+    zIndex,
 }: SearchListProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -61,14 +62,12 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     // Handle URL params
     const searchParams = useReactSearch(null);
     useEffect(() => {
-        console.log('search params', searchParams);
         if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
         if (typeof searchParams.sort === 'string') setSortBy(searchParams.sort);
         if (typeof searchParams.time === 'object' &&
             !Array.isArray(searchParams.time) &&
             searchParams.time.hasOwnProperty('after') &&
             searchParams.time.hasOwnProperty('before')) {
-            console.log('SET FRAME 1. GOT SEARCH PARAMS.TIME BOIIIII', searchParams.time);
             setTimeFrame({
                 after: new Date((searchParams.time as any).after),
                 before: new Date((searchParams.time as any).before),
@@ -85,7 +84,6 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
      * When sort and filter options change, update the URL
      */
     useEffect(() => {
-        console.log('basesearch useeffect start', window.location.search, searchString, sortBy, timeFrame)
         const params = parseSearchParams(window.location.search);
         if (searchString) params.search = searchString;
         else delete params.search;
@@ -98,31 +96,30 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
             }
         }
         else delete params.time;
-        console.log('basesearch setting location', params, stringifySearchParams(params))
         setLocation(stringifySearchParams(params), { replace: true });
     }, [searchString, sortBy, timeFrame, setLocation]);
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object>({});
-    const [getPageData, { data: pageData, loading }] = useLazyQuery<Query, QueryVariables>(query, { 
-        variables: ({ 
-            input: { 
-                after: after.current, 
-                take, 
-                sortBy, 
-                searchString, 
+    const [getPageData, { data: pageData, loading }] = useLazyQuery<Query, QueryVariables>(query, {
+        variables: ({
+            input: {
+                after: after.current,
+                take,
+                sortBy,
+                searchString,
                 createdTimeFrame: (timeFrame && Object.keys(timeFrame).length > 0) ? {
                     after: timeFrame.after?.toISOString(),
                     before: timeFrame.before?.toISOString(),
-                } : undefined, 
-                ...where, 
-                ...advancedSearchParams 
-            } 
-        } as any) });
+                } : undefined,
+                ...where,
+                ...advancedSearchParams
+            }
+        } as any)
+    });
     const [allData, setAllData] = useState<DataType[]>([]);
 
     // On search filters/sort change, reset the page
     useEffect(() => {
-        console.log('on useeffect search', timeFrame)
         after.current = undefined;
         if (canSearch) getPageData();
     }, [advancedSearchParams, canSearch, searchString, sortBy, timeFrame, where, getPageData]);
@@ -168,11 +165,9 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(false);
     const handleAdvancedSearchDialogOpen = useCallback(() => { setAdvancedSearchDialogOpen(true) }, []);
     const handleAdvancedSearchDialogClose = useCallback(() => {
-        console.log('CLOSE. removingg search params');
         setAdvancedSearchDialogOpen(false)
     }, []);
     const handleAdvancedSearchDialogSubmit = useCallback((values: any) => {
-        console.log('SUMIT. setting advanced search params', values);
         // Remove undefined and 0 values
         const valuesWithoutBlanks = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== undefined && v !== 0));
         // Add advanced search params to url search params
@@ -244,7 +239,6 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     const handleTimeOpen = (event) => setTimeAnchorEl(event.currentTarget);
     const handleTimeClose = (label?: string, frame?: { after?: Date | undefined, before?: Date | undefined }) => {
         setTimeAnchorEl(null);
-        console.log('SET FRAME 2. HANDLE TIME CLOSEEEEEE', frame)
         setTimeFrame(frame);
         if (label) setTimeFrameLabel(label);
     };
@@ -314,7 +308,6 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         let params = parseSearchParams(window.location.search);
         if (advancedSearchDialogOpen) params.advanced = true;
         else delete params.advanced;
-        console.log('set heyaaaa', params)
         setLocation(stringifySearchParams(params), { replace: true });
     }, [advancedSearchDialogOpen, setLocation]);
 
@@ -326,6 +319,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 handleSearch={handleAdvancedSearchDialogSubmit}
                 isOpen={advancedSearchDialogOpen}
                 session={session}
+                zIndex={zIndex + 1}
             />
             {/* Menu for selecting "sort by" type */}
             <SortMenu

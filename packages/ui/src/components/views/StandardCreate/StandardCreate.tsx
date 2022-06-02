@@ -1,4 +1,4 @@
-import { Grid, TextField } from "@mui/material";
+import { Box, Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { standard } from "graphql/generated/standard";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
@@ -20,7 +20,7 @@ import { NewObject, ResourceList, Standard } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuidv4 } from 'uuid';
 import { FieldData } from "forms/types";
-import { BaseStandardInput } from "components/inputs";
+import { BaseStandardInput, PreviewSwitch } from "components/inputs";
 import { generateInputComponent, generateYupSchema } from "forms/generators";
 
 type InputTypeOption = { label: string, value: InputType }
@@ -66,48 +66,28 @@ export const StandardCreate = ({
     onCreated,
     onCancel,
     session,
+    zIndex,
 }: StandardCreateProps) => {
     const params = useReactSearch(null);
 
     // Handle input type selector
     const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
     const handleInputTypeSelect = useCallback((event: any) => {
-        console.log('changing input type', event.target.value)
         setInputType(event.target.value)
     }, []);
 
     // Handle standard schema
     const [schema, setSchema] = useState<FieldData | null>(null);
-    const handleSchemaUpdate = useCallback((schema: FieldData) => { setSchema(schema); }, []);
-    const [schemaKey] = useState(`standard-create-schema-${Math.random().toString(36).substring(2, 15)}`);
+    const handleSchemaUpdate = useCallback((schema: FieldData) => {
+        setSchema(schema);
+    }, []);
+    const [schemaKey] = useState(`standard-create-schema-preview-${Math.random().toString(36).substring(2, 15)}`);
 
-    // Handle generated input preview
-    const previewDefaultValue = useMemo(() => {
-        switch (inputType.value) {
-            case InputType.TextField:
-                return '';
-            case InputType.JSON:
-                return '';
-            case InputType.QuantityBox:
-                return 0;
-            case InputType.Radio:
-                return 'Option 1';
-            case InputType.Checkbox:
-                return [false];
-            case InputType.Switch:
-                return false;
-            case InputType.Dropzone:
-                return '';
-            case InputType.Markdown:
-                return '';
-            default:
-                return '';
-        }
-    }, [inputType]);
     const previewFormik = useFormik({
         initialValues: {
-            value: previewDefaultValue,
+            preview: schema?.props?.defaultValue,
         },
+        enableReinitialize: true,
         validationSchema: schema ? generateYupSchema({
             fields: [schema],
         }) : undefined,
@@ -161,7 +141,6 @@ export const StandardCreate = ({
             default: '',
             description: '',
             name: '',
-            type: '',
             version: '',
         },
         validationSchema,
@@ -179,14 +158,13 @@ export const StandardCreate = ({
                 mutation,
                 input: formatForCreate({
                     default: values.default,
-                    description: values.description,
                     name: values.name,
                     props: JSON.stringify(schema?.props),
                     yup: JSON.stringify(schema?.yup),
                     translations: allTranslations,
                     resourceListsCreate: [resourceListAdd],
                     ...tagsAdd,
-                    type: values.type,
+                    type: inputType.value,
                     version: values.version,
                 }) as any,
                 onSuccess: (response) => {
@@ -256,6 +234,9 @@ export const StandardCreate = ({
         setFormBottom(height);
     }, [setFormBottom]);
 
+    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
+    const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
+    
     return (
         <form onSubmit={formik.handleSubmit} style={{
             display: 'flex',
@@ -273,6 +254,7 @@ export const StandardCreate = ({
                         handleCurrent={handleLanguageSelect}
                         selectedLanguages={languages}
                         session={session}
+                        zIndex={zIndex}
                     />
                 </Grid>
                 <Grid item xs={12}>
@@ -303,38 +285,48 @@ export const StandardCreate = ({
                         helperText={formik.touched.description && formik.errors.description}
                     />
                 </Grid>
-                {/* Select the standard type */}
+                {/* Standard build/preview */}
                 <Grid item xs={12}>
-                    <Selector
-                        fullWidth
-                        options={InputTypeOptions}
-                        selected={inputType}
-                        handleChange={handleInputTypeSelect}
-                        getOptionLabel={(option: InputTypeOption) => option.label}
-                        inputAriaLabel='input-type-selector'
-                        label="Type"
+                    <PreviewSwitch
+                        isPreviewOn={isPreviewOn}
+                        onChange={onPreviewChange}
+                        sx={{
+                            marginBottom: 2
+                        }}
                     />
-                </Grid>
-                {/* Define the standard */}
-                <Grid item xs={12}>
-                    <BaseStandardInput
-                        fieldName="preview"
-                        inputType={inputType.value}
-                        isEditing={true}
-                        schema={schema}
-                        onChange={handleSchemaUpdate}
-                        storageKey={schemaKey}
-                    />
-                </Grid>
-                {/* Standard preview */}
-                <Grid item xs={12}>
-                    {schema && generateInputComponent({
-                        data: schema,
-                        disabled: true,
-                        formik: previewFormik,
-                        session,
-                        onUpload: () => {}
-                    })}
+                    {
+                        isPreviewOn ?
+                            (schema && generateInputComponent({
+                                data: schema,
+                                disabled: true,
+                                formik: previewFormik,
+                                session,
+                                onUpload: () => { },
+                                zIndex,
+                            })) :
+                            <Box>
+                                <Selector
+                                    fullWidth
+                                    options={InputTypeOptions}
+                                    selected={inputType}
+                                    handleChange={handleInputTypeSelect}
+                                    getOptionLabel={(option: InputTypeOption) => option.label}
+                                    inputAriaLabel='input-type-selector'
+                                    label="Type"
+                                    style={{
+                                        marginBottom: 2
+                                    }}
+                                />
+                                <BaseStandardInput
+                                    fieldName="preview"
+                                    inputType={inputType.value}
+                                    isEditing={true}
+                                    schema={schema}
+                                    onChange={handleSchemaUpdate}
+                                    storageKey={schemaKey}
+                                />
+                            </Box>
+                    }
                 </Grid>
                 <Grid item xs={12}>
                     <ResourceListHorizontal
@@ -345,6 +337,7 @@ export const StandardCreate = ({
                         loading={false}
                         session={session}
                         mutate={false}
+                        zIndex={zIndex}
                     />
                 </Grid>
                 <Grid item xs={12} marginBottom={4}>

@@ -1,15 +1,14 @@
-import { Box, Chip, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, DeleteRoutineDialog, EditableLabel, UnlinkedNodesDialog, BuildInfoDialog, HelpButton } from 'components';
+import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, DeleteDialog, EditableLabel, UnlinkedNodesDialog, BuildInfoDialog, HelpButton } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
-import { routineCreateMutation, routineDeleteOneMutation, routineUpdateMutation } from 'graphql/mutation';
+import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, BuildStatus, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages, parseSearchParams, stringifySearchParams } from 'utils';
+import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, Status, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR } from 'utils';
 import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine } from 'types';
 import isEqual from 'lodash/isEqual';
 import { useLocation } from 'wouter';
-import { APP_LINKS } from '@local/shared';
-import { BuildStatusObject } from 'components/graphs/NodeGraph/types';
+import { APP_LINKS, DeleteOneType } from '@local/shared';
 import { NodeType } from 'graphql/generated/globalTypes';
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
@@ -21,13 +20,12 @@ import {
     Close as CloseIcon,
     Compress as CleanUpIcon,
     Edit as EditIcon,
-    Mood as ValidIcon,
-    MoodBad as InvalidIcon,
-    SentimentDissatisfied as IncompleteIcon,
 } from '@mui/icons-material';
-import Markdown from 'markdown-to-jsx';
-import { noSelect } from 'styles';
 import { validate as uuidValidate } from 'uuid';
+import { StatusMessageArray } from 'components/buttons/types';
+import { StatusButton } from 'components/buttons';
+import { routineUpdate } from 'graphql/generated/routineUpdate';
+import { routineCreate } from 'graphql/generated/routineCreate';
 
 //TODO
 const helpText =
@@ -39,33 +37,13 @@ Lorem ipsum dolor sit amet consectetur adipisicing elit.
 Lorem ipsum dolor sit amet consectetur adipisicing elit.
 `
 
-/**
- * Status indicator and slider change color to represent routine's status
- */
-const STATUS_COLOR = {
-    [BuildStatus.Incomplete]: '#cde22c', // Yellow
-    [BuildStatus.Invalid]: '#ff6a6a', // Red
-    [BuildStatus.Valid]: '#00d51e', // Green
-}
-const STATUS_LABEL = {
-    [BuildStatus.Incomplete]: 'Incomplete',
-    [BuildStatus.Invalid]: 'Invalid',
-    [BuildStatus.Valid]: 'Valid',
-}
-const STATUS_ICON = {
-    [BuildStatus.Incomplete]: IncompleteIcon,
-    [BuildStatus.Invalid]: InvalidIcon,
-    [BuildStatus.Valid]: ValidIcon,
-}
-
-const TERTIARY_COLOR = '#95f3cd';
-
 export const BuildView = ({
     handleClose,
     loading,
     onChange,
     routine,
-    session
+    session,
+    zIndex,
 }: BuildViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -96,21 +74,20 @@ export const BuildView = ({
 
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
     // Routine mutators
-    const [routineCreate] = useMutation<any>(routineCreateMutation);
-    const [routineUpdate] = useMutation<any>(routineUpdateMutation);
-    const [routineDelete] = useMutation<any>(routineDeleteOneMutation);
+    const [routineCreate] = useMutation<routineCreate>(routineCreateMutation);
+    const [routineUpdate] = useMutation<routineUpdate>(routineUpdateMutation);
     // The routine's status (valid/invalid/incomplete)
-    const [status, setStatus] = useState<BuildStatusObject>({ code: BuildStatus.Incomplete, messages: ['Calculating...'] });
+    const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ['Calculating...'] });
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
-    const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine]);
+    const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine?.role]);
 
     useEffect(() => {
         setChangedRoutine(routine);
         // Update language
         if (routine) {
             const userLanguages = getUserLanguages(session);
-            const routineLanguages = routine?.translations?.map(t => t.language) ?? [];
+            const routineLanguages = routine?.translations?.map(t => t.language)?.filter(l => typeof l === 'string' && l.length > 1) ?? [];
             // Find the first language in the user's languages that is also in the routine's languages
             const lang = userLanguages.find(l => routineLanguages.includes(l));
             if (lang) setLanguage(lang);
@@ -139,10 +116,13 @@ export const BuildView = ({
     const [moveNode, setMoveNode] = useState<string | null>(null);
     const closeMoveNodeDialog = useCallback(() => { setMoveNode(null); }, []);
 
-    // Open boolean for delete routine confirmation
+    // Handle delete
     const [deleteOpen, setDeleteOpen] = useState(false);
     const openDelete = useCallback(() => setDeleteOpen(true), []);
-    const closeDelete = useCallback(() => setDeleteOpen(false), []);
+    const handleDeleteClose = useCallback((wasDeleted: boolean) => {
+        if (wasDeleted) setLocation(APP_LINKS.Home);
+        else setDeleteOpen(false);
+    }, [setLocation])
 
     /**
      * Calculates:
@@ -156,7 +136,7 @@ export const BuildView = ({
         const nodesOnGraph: Node[] = [];
         const nodesOffGraph: Node[] = [];
         const nodesById: { [id: string]: Node } = {};
-        const statuses: [BuildStatus, string][] = []; // Holds all status messages, so multiple can be displayed
+        const statuses: [Status, string][] = []; // Holds all status messages, so multiple can be displayed
         // Loop through nodes and add to appropriate array (and also populate nodesById dictionary)
         for (const node of changedRoutine.nodes) {
             if (!_.isNil(node.columnIndex) && !_.isNil(node.rowIndex)) {
@@ -174,7 +154,7 @@ export const BuildView = ({
         // Check if length of removed duplicates is equal to the length of the original positions dictionary
         if (uniqueDict.length !== Object.values(nodesOnGraph).length) {
             // Push to status
-            setStatus({ code: BuildStatus.Invalid, messages: ['Ran into error determining node positions'] });
+            setStatus({ status: Status.Invalid, messages: ['Ran into error determining node positions'] });
             // This is a critical error, so we'll remove all node positions and links
             setChangedRoutine({
                 ...changedRoutine,
@@ -192,42 +172,42 @@ export const BuildView = ({
         // First check
         const startNodes = changedRoutine.nodes.filter(node => node.type === NodeType.Start);
         if (startNodes.length === 0) {
-            statuses.push([BuildStatus.Invalid, 'No start node found']);
+            statuses.push([Status.Invalid, 'No start node found']);
         }
         else if (startNodes.length > 1) {
-            statuses.push([BuildStatus.Invalid, 'More than one start node found']);
+            statuses.push([Status.Invalid, 'More than one start node found']);
         }
         // Second check
         const nodesWithoutIncomingEdges = nodesOnGraph.filter(node => changedRoutine.nodeLinks.every(link => link.toId !== node.id));
         if (nodesWithoutIncomingEdges.length === 0) {
             //TODO this would be fine with a redirect link
-            statuses.push([BuildStatus.Invalid, 'Error determining start node']);
+            statuses.push([Status.Invalid, 'Error determining start node']);
         }
         else if (nodesWithoutIncomingEdges.length > 1) {
-            statuses.push([BuildStatus.Invalid, 'Nodes are not fully connected']);
+            statuses.push([Status.Invalid, 'Nodes are not fully connected']);
         }
         // Third check
         const nodesWithoutOutgoingEdges = nodesOnGraph.filter(node => changedRoutine.nodeLinks.every(link => link.fromId !== node.id));
         if (nodesWithoutOutgoingEdges.length >= 0) {
             // Check that every node without outgoing edges is an end node
             if (nodesWithoutOutgoingEdges.some(node => node.type !== NodeType.End)) {
-                statuses.push([BuildStatus.Invalid, 'Not all paths end with an end node']);
+                statuses.push([Status.Invalid, 'Not all paths end with an end node']);
             }
         }
         // Performs checks which make the routine incomplete, but not invalid
         // 1. There are unpositioned nodes
         // First check
         if (nodesOffGraph.length > 0) {
-            statuses.push([BuildStatus.Incomplete, 'Some nodes are not linked']);
+            statuses.push([Status.Incomplete, 'Some nodes are not linked']);
         }
         // Before returning, send the statuses to the status object
         if (statuses.length > 0) {
             // Status sent is the worst status
-            let code = BuildStatus.Incomplete;
-            if (statuses.some(status => status[0] === BuildStatus.Invalid)) code = BuildStatus.Invalid;
-            setStatus({ code, messages: statuses.map(status => status[1]) });
+            let status = Status.Incomplete;
+            if (statuses.some(status => status[0] === Status.Invalid)) status = Status.Invalid;
+            setStatus({ status, messages: statuses.map(status => status[1]) });
         } else {
-            setStatus({ code: BuildStatus.Valid, messages: ['Routine is fully connected'] });
+            setStatus({ status: Status.Valid, messages: ['Routine is fully connected'] });
         }
         // Remove any links which reference unlinked nodes
         const goodLinks = changedRoutine.nodeLinks.filter(link => !nodesOffGraph.some(node => node.id === link.fromId || node.id === link.toId));
@@ -264,17 +244,14 @@ export const BuildView = ({
     }, [changedRoutine]);
 
     // Subroutine info drawer
-    const [selectedSubroutine, setSelectedSubroutine] = useState<Routine | null>(null);
+    const [openedSubroutine, setOpenedSubroutine] = useState<{ node: NodeDataRoutineList, routineItemId: string } | null>(null);
     const handleSubroutineOpen = useCallback((nodeId: string, subroutineId: string) => {
         const node = nodesById[nodeId];
-        if (node) {
-            const subroutine = (node.data as NodeDataRoutineList).routines.find(r => r.id === subroutineId);
-            if (subroutine) {
-                setSelectedSubroutine(subroutine.routine as any);
-            }
-        }
+        if (node) setOpenedSubroutine({ node: (node.data as NodeDataRoutineList), routineItemId: subroutineId });
     }, [nodesById]);
-    const closeRoutineInfo = useCallback(() => setSelectedSubroutine(null), []);
+    const closeRoutineInfo = useCallback(() => {
+        setOpenedSubroutine(null);
+    }, []);
 
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
     const openLinkDialog = useCallback(() => setIsLinkDialogOpen(true), []);
@@ -371,7 +348,12 @@ export const BuildView = ({
             PubSub.publish(Pubs.Snack, { message: 'Cannot update: Invalid routine data', severity: 'error' });
             return;
         }
-        const input: any = formatForUpdate(routine, changedRoutine, ['tags', 'nodes.data.routines.routine'], ['nodes', 'nodeLinks', 'node.data.routines'])
+        const input: any = formatForUpdate(
+            routine, 
+            changedRoutine, 
+            ['tags', 'nodes.data.routines.routine'], 
+            ['nodes', 'nodeLinks', 'node.data.routines']
+        )
         // If routine belongs to an organization, add organizationId to input
         if (routine?.owner?.__typename === 'Organization') {
             input.organizationId = routine.owner.id;
@@ -440,8 +422,22 @@ export const BuildView = ({
         }
     }, [changedRoutine, handleClose, isEditing, removeSearchParams, routine, updateRoutine]);
 
+    /**
+     * On page leave, check if routine has changed. 
+     * If so, prompt user to save changes
+     */
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (isEditing && JSON.stringify(routine) !== JSON.stringify(changedRoutine)) {
+                e.preventDefault()
+                e.returnValue = ''
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [changedRoutine, isEditing, routine, updateRoutine]);
+
     const updateRoutineTitle = useCallback((title: string) => {
-        console.log('UPDATE ROUTINE TITLE', title)
         if (!changedRoutine) return;
         const newTranslations = [...changedRoutine.translations.map(t => {
             if (t.language === language) {
@@ -449,7 +445,6 @@ export const BuildView = ({
             }
             return { ...t }
         })];
-        console.log('new translationssssss', newTranslations)
         setChangedRoutine({
             ...changedRoutine,
             translations: newTranslations
@@ -465,19 +460,6 @@ export const BuildView = ({
         // If adding new routine, go back
         else window.history.back();
     }, [id, routine])
-
-    /**
-     * Deletes the entire routine. Assumes confirmation was already given.
-     */
-    const deleteRoutine = useCallback(() => {
-        if (!routine) return;
-        mutationWrapper({
-            mutation: routineDelete,
-            input: { id: routine.id },
-            successMessage: () => 'Routine deleted.',
-            onSuccess: () => { setLocation(APP_LINKS.Home) },
-        })
-    }, [routine, routineDelete, setLocation])
 
     /**
      * Calculates the new set of links for an routine when a node is 
@@ -716,6 +698,7 @@ export const BuildView = ({
         const routineList: NodeDataRoutineList = changedRoutine.nodes[nodeIndex].data as NodeDataRoutineList;
         let routineItem: NodeDataRoutineListItem = {
             id: uuidv4(),
+            index: routineList.routines.length,
             isOptional: true,
             routine,
         } as any
@@ -727,6 +710,39 @@ export const BuildView = ({
                 data: {
                     ...routineList,
                     routines: [...routineList.routines, routineItem],
+                }
+            }),
+        });
+    }, [changedRoutine]);
+
+    /**
+     * Reoders a subroutine in a routine list item
+     * @param nodeId The node id of the routine list item
+     * @param oldIndex The old index of the subroutine
+     * @param newIndex The new index of the subroutine
+     */
+    const handleRoutineListItemReorder = useCallback((nodeId: string, oldIndex: number, newIndex: number) => {
+        // Find routines being swapped
+        if (!changedRoutine) return;
+        // Node containing routine list data with ID nodeId
+        const nodeIndex = changedRoutine.nodes.findIndex(n => n.data?.id === nodeId);
+        if (nodeIndex === -1) return;
+        const routineList: NodeDataRoutineList = changedRoutine.nodes[nodeIndex].data as NodeDataRoutineList;
+        const routines = [...routineList.routines];
+        const aIndex = routines.findIndex(r => r.index === oldIndex);
+        const bIndex = routines.findIndex(r => r.index === newIndex);
+        if (aIndex === -1 || bIndex === -1) return;
+        // Swap the routine indexes
+        routines[aIndex] = { ...routines[aIndex], index: newIndex };
+        routines[bIndex] = { ...routines[bIndex], index: oldIndex };
+        // Update the routine list
+        setChangedRoutine({
+            ...changedRoutine,
+            nodes: updateArray(changedRoutine.nodes, nodeIndex, {
+                ...changedRoutine.nodes[nodeIndex],
+                data: {
+                    ...routineList,
+                    routines,
                 }
             }),
         });
@@ -793,19 +809,27 @@ export const BuildView = ({
     /**
      * Updates the current selected subroutine
      */
-    const handleSubroutineUpdate = useCallback((updatedSubroutine: Routine) => {
+    const handleSubroutineUpdate = useCallback((updatedSubroutine: NodeDataRoutineListItem) => {
         if (!changedRoutine) return;
+        // Update routine
         setChangedRoutine({
             ...changedRoutine,
             nodes: changedRoutine.nodes.map((n: Node) => {
-                if (n.type === NodeType.RoutineList && (n.data as NodeDataRoutineList).routines.some(r => r.routine.id === updatedSubroutine.id)) {
+                if (n.type === NodeType.RoutineList && (n.data as NodeDataRoutineList).routines.some(r => r.id === updatedSubroutine.id)) {
                     return {
                         ...n,
                         data: {
                             ...n.data,
                             routines: (n.data as NodeDataRoutineList).routines.map(r => {
-                                if (r.routine.id === updatedSubroutine.id) {
-                                    return { ...r, routine: updatedSubroutine };
+                                if (r.id === updatedSubroutine.id) {
+                                    return {
+                                        ...r,
+                                        ...updatedSubroutine,
+                                        routine: {
+                                            ...r.routine,
+                                            ...updatedSubroutine.routine,
+                                        }
+                                    };
                                 }
                                 return r;
                             }),
@@ -815,20 +839,22 @@ export const BuildView = ({
                 return n;
             }),
         } as any);
-    }, [changedRoutine]);
+        // Close dialog
+        closeRoutineInfo();
+    }, [changedRoutine, closeRoutineInfo]);
 
     /**
      * Navigates to a subroutine's build page. Fist checks if there are unsaved changes
      */
     const handleSubroutineViewFull = useCallback(() => {
-        if (!selectedSubroutine) return;
+        if (!openedSubroutine) return;
         if (!isEqual(routine, changedRoutine)) {
             PubSub.publish(Pubs.Snack, { message: 'You have unsaved changes. Please save or discard them before navigating to another routine.' });
             return;
         }
         // TODO - buildview should have its own buildview, to recursively open subroutines
         //setLocation(`${APP_LINKS.Build}/${selectedSubroutine.id}`);
-    }, [selectedSubroutine, routine, changedRoutine]);
+    }, [changedRoutine, openedSubroutine, routine]);
 
     const handleAction = useCallback((action: BuildAction, nodeId: string, subroutineId?: string) => {
         switch (action) {
@@ -906,49 +932,6 @@ export const BuildView = ({
         }
     }, [routine, updateRoutine, openDelete]);
 
-    /**
-     * List of status messages converted to markdown. 
-     * If one message, no bullet points. If multiple, bullet points.
-     */
-    const statusMarkdown = useMemo(() => {
-        if (status.messages.length === 0) return 'Routine is valid.';
-        if (status.messages.length === 1) {
-            return status.messages[0];
-        }
-        return status.messages.map((s) => {
-            return `* ${s}`;
-        }).join('\n');
-    }, [status]);
-
-    const [statusMenuAnchorEl, setStatusMenuAnchorEl] = useState(null);
-    const statusMenuOpen = Boolean(statusMenuAnchorEl);
-    const openStatusMenu = useCallback((event) => {
-        if (!statusMenuAnchorEl) setStatusMenuAnchorEl(event.currentTarget);
-    }, [statusMenuAnchorEl])
-    const closeStatusMenu = () => {
-        setStatusMenuAnchorEl(null);
-    };
-
-    /**
-     * Menu displayed when status is clicked
-     */
-    const statusMenu = useMemo(() => {
-        return (
-            <Box>
-                <Box sx={{ background: palette.primary.dark }}>
-                    <IconButton edge="end" color="inherit" onClick={closeStatusMenu} aria-label="close">
-                        <CloseIcon sx={{ fill: palette.primary.contrastText }} />
-                    </IconButton>
-                </Box>
-                <Box sx={{ padding: 1 }}>
-                    <Markdown>{statusMarkdown}</Markdown>
-                </Box>
-            </Box>
-        )
-    }, [palette.primary.contrastText, palette.primary.dark, statusMarkdown])
-
-    const StatusIcon = useMemo(() => STATUS_ICON[status.code], [status]);
-
     // Open/close unlinked nodes drawer
     const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);
     const toggleUnlinkedNodes = useCallback(() => setIsUnlinkedNodesOpen(curr => !curr), []);
@@ -970,11 +953,13 @@ export const BuildView = ({
             width: '100%',
         }}>
             {/* Delete routine confirmation dialog */}
-            <DeleteRoutineDialog
+            <DeleteDialog
                 isOpen={deleteOpen}
-                routineName={getTranslation(changedRoutine, 'title', [language]) ?? ''}
-                handleClose={closeDelete}
-                handleDelete={deleteRoutine}
+                objectId={routine?.id ?? ''}
+                objectType={DeleteOneType.Routine}
+                objectName={getTranslation(changedRoutine, 'title', [language]) ?? ''}
+                handleClose={handleDeleteClose}
+                zIndex={zIndex + 3}
             />
             {/* Popup for adding new subroutines */}
             {addSubroutineNode && <SubroutineSelectOrCreateDialog
@@ -984,6 +969,7 @@ export const BuildView = ({
                 nodeId={addSubroutineNode}
                 routineId={routine?.id ?? ''}
                 session={session}
+                zIndex={zIndex + 3}
             />}
             {/* Popup for editing existing subroutines */}
             {/* TODO */}
@@ -996,6 +982,7 @@ export const BuildView = ({
                 links={changedRoutine?.nodeLinks ?? []}
                 nodeId={addAfterLinkNode}
                 session={session}
+                zIndex={zIndex + 3}
             />}
             {/* Popup for "Add before" dialog */}
             {addBeforeLinkNode && <AddBeforeLinkDialog
@@ -1006,6 +993,7 @@ export const BuildView = ({
                 links={changedRoutine?.nodeLinks ?? []}
                 nodeId={addBeforeLinkNode}
                 session={session}
+                zIndex={zIndex + 3}
             />}
             {/* Popup for creating new links */}
             {changedRoutine ? <LinkDialog
@@ -1016,18 +1004,21 @@ export const BuildView = ({
                 language={language}
                 link={undefined}
                 routine={changedRoutine}
+                zIndex={zIndex + 3}
             // partial={ }
             /> : null}
             {/* Displays routine information when you click on a routine list item*/}
             <SubroutineInfoDialog
+                data={openedSubroutine}
+                defaultLanguage={language}
                 isEditing={isEditing}
                 handleUpdate={handleSubroutineUpdate}
+                handleReorder={handleRoutineListItemReorder}
                 handleViewFull={handleSubroutineViewFull}
-                language={language}
-                open={Boolean(selectedSubroutine)}
+                open={Boolean(openedSubroutine)}
                 session={session}
-                subroutine={selectedSubroutine}
                 onClose={closeRoutineInfo}
+                zIndex={zIndex + 3}
             />
             {/* Display top navbars */}
             {/* First contains close icon and title */}
@@ -1090,58 +1081,11 @@ export const BuildView = ({
                     color: palette.primary.contrastText,
                 }}
             >
-                {/* Status indicator */}
-                <Tooltip title='Press for details'>
-                    <Chip
-                        icon={<StatusIcon sx={{ fill: 'white' }} />}
-                        label={STATUS_LABEL[status.code]}
-                        onClick={openStatusMenu}
-                        sx={{
-                            ...noSelect,
-                            background: STATUS_COLOR[status.code],
-                            color: 'white',
-                            cursor: isEditing ? 'pointer' : 'default',
-                            marginTop: 'auto',
-                            marginBottom: 'auto',
-                            marginLeft: 2,
-                            // Hide label on small screens
-                            '& .MuiChip-label': {
-                                display: { xs: 'none', sm: 'block' },
-                            },
-                            // Hiding label messes up spacing with icon
-                            '& .MuiSvgIcon-root': {
-                                marginLeft: '4px',
-                                marginRight: { xs: '4px', sm: '-4px' },
-                            },
-                        }}
-                    />
-                </Tooltip>
-                <Menu
-                    id='status-menu'
-                    open={statusMenuOpen}
-                    disableScrollLock={true}
-                    anchorEl={statusMenuAnchorEl}
-                    onClose={closeStatusMenu}
-                    anchorOrigin={{
-                        vertical: 'bottom',
-                        horizontal: 'center',
-                    }}
-                    transformOrigin={{
-                        vertical: 'top',
-                        horizontal: 'center',
-                    }}
-                    sx={{
-                        '& .MuiPopover-paper': {
-                            background: palette.background.default,
-                            maxWidth: 'min(100vw, 400px)',
-                        },
-                        '& .MuiMenu-list': {
-                            padding: 0,
-                        }
-                    }}
-                >
-                    {statusMenu}
-                </Menu>
+                <StatusButton status={status.status} messages={status.messages} sx={{
+                    marginTop: 'auto',
+                    marginBottom: 'auto',
+                    marginLeft: 2,
+                }} />
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     {/* Clean up graph */}
                     {isEditing && <Tooltip title='Clean up graph'>
@@ -1191,6 +1135,7 @@ export const BuildView = ({
                         language={language}
                         nodes={nodesOffGraph}
                         open={isUnlinkedNodesOpen}
+                        zIndex={zIndex + 3}
                     />}
                     {/* Edit button */}
                     {canEdit && !isEditing ? (
@@ -1200,7 +1145,7 @@ export const BuildView = ({
                     ) : null}
                     {/* Help button */}
                     <HelpButton markdown={helpText} sxRoot={{ margin: "auto", marginRight: 1 }} sx={{ color: TERTIARY_COLOR }} />
-                    {/* Display routine description, insturctionss, etc. */}
+                    {/* Display routine description, insturctions, etc. */}
                     <BuildInfoDialog
                         handleAction={handleRoutineAction}
                         handleLanguageChange={setLanguage}
@@ -1211,6 +1156,7 @@ export const BuildView = ({
                         routine={changedRoutine}
                         session={session}
                         sxs={{ icon: { fill: TERTIARY_COLOR, marginRight: 1 } }}
+                        zIndex={zIndex + 1}
                     />
                 </Box>
             </Stack>
@@ -1238,6 +1184,7 @@ export const BuildView = ({
                     links={changedRoutine?.nodeLinks ?? []}
                     nodesById={nodesById}
                     scale={scale}
+                    zIndex={zIndex}
                 />
                 <BuildBottomContainer
                     canCancelMutate={!loading}
@@ -1254,9 +1201,10 @@ export const BuildView = ({
                     loading={loading}
                     scale={scale}
                     session={session}
-                    sliderColor={STATUS_COLOR[status.code]}
+                    sliderColor={palette.secondary.light}
                     routine={routine}
                     runState={BuildRunState.Stopped}
+                    zIndex={zIndex}
                 />
             </Box>
         </Box>

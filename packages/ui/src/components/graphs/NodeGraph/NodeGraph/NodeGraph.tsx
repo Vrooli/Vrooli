@@ -40,6 +40,7 @@ export const NodeGraph = ({
     links,
     nodesById,
     scale = 1,
+    zIndex,
 }: NodeGraphProps) => {
     const { palette } = useTheme();
 
@@ -360,10 +361,6 @@ export const NodeGraph = ({
         // If data required to render edges is not yet available
         // (i.e. no links, or column dimensions not complete)
         if (!links) return [];
-        console.log('calculating edges.... links are: ', links.map(l => ({
-            from: l.fromId,
-            to: l.toId,
-        })))
         return links?.map(link => {
             if (!link.fromId || !link.toId) return null;
             const fromNode = nodesById[link.fromId];
@@ -405,8 +402,9 @@ export const NodeGraph = ({
             language={language}
             nodes={col}
             scale={scale}
+            zIndex={zIndex}
         />)
-    }, [columns, dragId, handleAction, handleNodeDrop, handleNodeUpdate, isEditing, labelVisible, language, scale]);
+    }, [columns, dragId, handleAction, handleNodeDrop, handleNodeUpdate, isEditing, labelVisible, language, scale, zIndex]);
 
     return (
         <Box id="graph-root" position="relative" sx={{
@@ -437,8 +435,9 @@ export const NodeGraph = ({
             {edges}
             <Stack id="graph-grid" direction="row" spacing={0} zIndex={5} sx={{
                 width: 'fit-content',
+                minWidth: '100vw',
                 minHeight: '-webkit-fill-available',
-                // Create grid background pattern
+                // Create grid background pattern on stack, so it scrolls with content
                 '--line-color': palette.mode === 'light' ? `rgba(0 0 0 / .05)` : `rgba(255 255 255 / .05)`,
                 '--line-thickness': `1px`,
                 '--minor-length': `${80 * scale}px`,

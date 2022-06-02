@@ -10,7 +10,8 @@ import { Organization } from 'types';
 
 export const OrganizationDialog = ({
     partialData,
-    session
+    session,
+    zIndex,
 }: OrganizationDialogProps) => {
     const [, setLocation] = useLocation();
     const [, params] = useRoute(`${APP_LINKS.SearchOrganizations}/:params*`);
@@ -58,27 +59,30 @@ export const OrganizationDialog = ({
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
                     onCreated={(data: Organization) => onAction(ObjectDialogAction.Add, data)}
                     session={session}
+                    zIndex={zIndex}
                 />
             case 'edit':
                 return <OrganizationUpdate
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
                     onUpdated={() => onAction(ObjectDialogAction.Save)}
                     session={session}
-
+                    zIndex={zIndex}
                 />
             default:
                 return <OrganizationView
                     partialData={partialData}
                     session={session}
+                    zIndex={zIndex}
                 />
         }
-    }, [onAction, partialData, session, state]);
+    }, [onAction, partialData, session, state, zIndex]);
 
     return (
         <BaseObjectDialog
             onAction={onAction}
             open={Boolean(params?.params)}
             title={title}
+            zIndex={zIndex}
         >
             {child}
         </BaseObjectDialog>

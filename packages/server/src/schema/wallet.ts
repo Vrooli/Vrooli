@@ -1,8 +1,8 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, Success, Wallet, WalletUpdateInput } from './types';
+import { Wallet, WalletUpdateInput } from './types';
 import { Context } from '../context';
-import { deleteOneHelper, updateHelper, WalletModel } from '../models';
+import { updateHelper, WalletModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 import { CustomError } from '../error';
 import { CODE } from '@local/shared';
@@ -45,7 +45,6 @@ export const typeDef = gql`
 
     extend type Mutation {
         walletUpdate(input: WalletUpdateInput!): Wallet!
-        walletDeleteOne(input: DeleteOneInput!): Success!
     }
 `
 
@@ -186,9 +185,5 @@ export const resolvers = {
             await rateLimit({ context, info, max: 250, byAccount: true });
             return updateHelper(context.req.userId, input, info, WalletModel(context.prisma));
         },
-        walletDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            await rateLimit({ context, info, max: 20, byAccount: true });
-            return deleteOneHelper(context.req.userId, input, WalletModel(context.prisma));
-        }
     }
 }

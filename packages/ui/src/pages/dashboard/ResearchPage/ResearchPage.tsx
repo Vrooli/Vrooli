@@ -197,6 +197,7 @@ export const ResearchPage = ({
                     loading={resourcesLoading}
                     mutate={true}
                     session={session}
+                    zIndex={200}
                 />
                 <ListTitleContainer
                     title={"Processes"}

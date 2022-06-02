@@ -100,6 +100,7 @@ const standardSelect = {
     isUpvoted: true,
     translations: {
         id: true,
+        description: true,
         language: true,
     },
     tags: tagSelect,

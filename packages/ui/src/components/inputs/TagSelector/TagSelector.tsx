@@ -135,11 +135,10 @@ export const TagSelector = ({
                     value={inputValue}
                     onChange={onChange}
                     placeholder={placeholder}
-                    autoFocus
-                    fullWidth
                     InputProps={params.InputProps}
                     inputProps={params.inputProps}
                     onKeyDown={onKeyDown}
+                    fullWidth
                     sx={{ paddingRight: 0, minWidth: '250px' }}
                 />
             )}

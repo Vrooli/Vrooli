@@ -1,8 +1,8 @@
-import { CODE, MemberRole, standardsCreate, standardsUpdate, standardTranslationCreate, standardTranslationUpdate } from "@local/shared";
+import { CODE, DeleteOneType, MemberRole, standardsCreate, standardsUpdate, standardTranslationCreate, standardTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count } from "../../schema/types";
-import { addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCreatorField, addJoinTablesHelper, createHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, updateHelper, ValidateMutationsInput } from "./base";
 import { validateProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -14,6 +14,51 @@ import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
 import { randomString } from "../../auth/walletAuth";
 import { sortify } from "../../utils/objectTools";
+import { ResourceListModel } from "./resourceList";
+
+const tagSelect = {
+    __typename: 'Tag',
+    id: true,
+    created_at: true,
+    tag: true,
+    stars: true,
+    isStarred: true,
+    translations: {
+        id: true,
+        language: true,
+        description: true,
+    }
+}
+const standardSelect = {
+    __typename: 'Standard',
+    id: true,
+    created_at: true,
+    updated_at: true,
+    default: true,
+    name: true,
+    score: true,
+    stars: true,
+    type: true,
+    props: true,
+    yup: true,
+    version: true,
+    views: true,
+    creator: {
+        Organization: {
+            id: true,
+        },
+        User: {
+            id: true,
+        },
+    },
+    isFile: true,
+    tags: tagSelect,
+    translations: {
+        id: true,
+        description: true,
+        language: true,
+    },
+}
 
 //==============================================================
 /* #region Custom Components */
@@ -29,6 +74,7 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
             'Organization': GraphQLModelType.Organization,
         },
         'reports': GraphQLModelType.Report,
+        'resourceLists': GraphQLModelType.ResourceList,
         'routineInputs': GraphQLModelType.Routine,
         'routineOutputs': GraphQLModelType.Routine,
         'starredBy': GraphQLModelType.User,
@@ -227,75 +273,87 @@ export const standardQuerier = (prisma: PrismaType) => ({
 
 export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof standardVerifier>) => ({
     async toDBShapeAdd(userId: string | null, data: StandardCreateInput): Promise<any> {
+        let translations = TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, true)
+        if (translations?.jsonVariables) {
+            translations.jsonVariables = sortify(translations.jsonVariables);
+        }
         return {
             name: await standardQuerier(prisma).generateName(userId ?? '', data),
             default: data.default,
             type: data.type,
             props: sortify(data.props),
             yup: data.yup ? sortify(data.yup) : undefined,
+            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, true),
             tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Standard),
-            translations: TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false),
+            translations,
             version: data.version ?? '1.0.0',
         }
     },
     async toDBShapeUpdate(userId: string | null, data: StandardUpdateInput): Promise<any> {
+        let translations = TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false)
+        if (translations?.jsonVariables) {
+            translations.jsonVariables = sortify(translations.jsonVariables);
+        }
         return {
+            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
             tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Standard),
-            translations: TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false),
+            translations,
         }
     },
+    /**
+     * Add, update, or remove a one-to-one standard relationship. 
+     * Due to some unknown Prisma bug, it won't let us create/update a standard directly
+     * in the main mutation query like most other relationship builders. Instead, we 
+     * must do this separately, and return the standard's ID.
+     */
     async relationshipBuilder(
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
-        relationshipName: string = 'standards',
-    ): Promise<{ [x: string]: any } | undefined> {
+    ): Promise<string | null> {
+        // Convert input to Prisma shape
         const fieldExcludes: string[] = [];
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, fieldExcludes })
+        let formattedInput: any = relationshipToPrisma({ data: input, relationshipName: 'standard', isAdd, fieldExcludes })
         // Validate
         const { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         await this.validateMutations({
             userId,
             createMany: createMany as StandardCreateInput[],
             updateMany: updateMany as { where: { id: string }, data: StandardUpdateInput }[],
-            deleteMany: deleteMany?.map(d => d.id)
+            deleteMany: deleteMany?.map((d: any) => d.id)
         });
         // Shape
-        if (Array.isArray(formattedInput.create)) {
-            // For all creates that are exact matches to existing standards, make them connects instead
-            const newConnectIds: string[] = [];
-            for (const create of formattedInput.create) {
-                const existingId = await standardQuerier(prisma).findMatchingStandard(create as any)
-                if (existingId) {
-                    newConnectIds.push(existingId);
-                }
-            }
-            // Add newConnectIds to formattedInput.connect
-            if (newConnectIds.length > 0) {
-                formattedInput.connect = formattedInput.connect ?? [];
-                formattedInput.connect = [...formattedInput.connect, ...newConnectIds.map(id => ({ id }))];
-                // Remove newConnectIds from formattedInput.create
-                formattedInput.create = formattedInput.create.filter(create => !newConnectIds.includes(create.id));
-            }
-            formattedInput.create = formattedInput.create.map(async (data) => await this.toDBShapeAdd(userId, data as any));
+        if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
+            const create = formattedInput.create[0];
+            // Create standard
+            const standard = await createHelper(userId, create, standardSelect, StandardModel(prisma));
+            return standard?.id ?? null;
         }
-        if (Array.isArray(formattedInput.update)) {
-            const updates = [];
-            for (const update of formattedInput.update) {
-                updates.push({
-                    where: update.where,
-                    data: await this.toDBShapeUpdate(userId, update.data as any),
-                })
-            }
-            formattedInput.update = updates;
+        if (Array.isArray(formattedInput.connect) && formattedInput.connect.length > 0) {
+            return formattedInput.connect[0].id;
         }
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+        if (Array.isArray(formattedInput.disconnect) && formattedInput.disconnect.length > 0) {
+            return null;
+        }
+        if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
+            const update = formattedInput.update[0];
+            // Update standard
+            const standard = await updateHelper(userId, update.data, standardSelect, StandardModel(prisma));
+            return standard?.id ?? null;
+        }
+        if (Array.isArray(formattedInput.delete) && formattedInput.delete.length > 0) {
+            const deleteId = formattedInput.delete[0].id;
+            // Delete standard
+            await deleteOneHelper(userId, { id: deleteId, objectType: DeleteOneType.Standard }, StandardModel(prisma));
+            return deleteId;
+        }
+        return null;
     },
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<StandardCreateInput, StandardUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId) 
+        if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0103') });
         // Collect organizationIds from each object, and check if the user is an admin/owner of every organization
         const organizationIds: (string | null | undefined)[] = [];
@@ -372,12 +430,12 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
                         createdByOrganizationId: true,
                     }
                 })
-                if (!object) 
+                if (!object)
                     throw new CustomError(CODE.ErrorUnknown, 'Standard not found', { code: genErrorCode('0105') });
                 // Check if authorized to update
-                if (!object) 
+                if (!object)
                     throw new CustomError(CODE.NotFound, 'Standard not found', { code: genErrorCode('0106') });
-                if (object.createdByUserId && object.createdByUserId !== userId) 
+                if (object.createdByUserId && object.createdByUserId !== userId)
                     throw new CustomError(CODE.Unauthorized, 'Not authorized to update standard', { code: genErrorCode('0107') });
                 // Update standard
                 const currUpdated = await prisma.standard.update({

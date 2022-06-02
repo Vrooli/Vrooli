@@ -34,6 +34,7 @@ enum TabOptions {
 export const UserView = ({
     session,
     partialData,
+    zIndex,
 }: UserViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -57,14 +58,12 @@ export const UserView = ({
         setUser((data?.user as User) ?? partialData);
     }, [data, isProfile, partialData]);
 
-    const [language, setLanguage] = useState<string>('');
-    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+    const availableLanguages = useMemo<string[]>(() => (user?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [user?.translations]);
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
-        const availableLanguages = user?.translations?.map(t => getLanguageSubtag(t.language)) ?? [];
-        const userLanguages = getUserLanguages(session);
-        setAvailableLanguages(availableLanguages);
-        setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
-    }, [session, user]);
+        if (availableLanguages.length === 0) return;
+        setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
+    }, [availableLanguages, setLanguage, session]);
 
     const { bio, name, handle, resourceList } = useMemo(() => {
         const resourceList: ResourceList | undefined = Array.isArray(user?.resourceLists) ? user?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
@@ -95,8 +94,9 @@ export const UserView = ({
             }}
             loading={loading}
             mutate={true}
+            zIndex={zIndex}
         />
-    ) : null, [isOwn, loading, resourceList, session, user]);
+    ) : null, [isOwn, loading, resourceList, session, user, zIndex]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -139,9 +139,6 @@ export const UserView = ({
         options.push(BaseObjectAction.Donate, BaseObjectAction.Share)
         if (session?.id) {
             options.push(BaseObjectAction.Report);
-        }
-        if (isOwn) {
-            options.push(BaseObjectAction.Delete);
         }
         return options;
     }, [user, isOwn, session]);
@@ -380,15 +377,16 @@ export const UserView = ({
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
                 handleActionComplete={() => { }} //TODO
-                handleDelete={() => { }} //TODO
                 handleEdit={onEdit}
                 objectId={id}
+                objectName={name ?? ''}
                 objectType={ObjectType.User}
                 anchorEl={moreMenuAnchor}
                 title='User Options'
                 availableOptions={moreOptions}
                 onClose={closeMoreMenu}
                 session={session}
+                zIndex={zIndex+1}
             />
             <Box sx={{
                 display: 'flex',
@@ -409,6 +407,7 @@ export const UserView = ({
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         session={session}
+                        zIndex={zIndex}
                     />
                 </Box>
                 {overviewComponent}
@@ -454,6 +453,7 @@ export const UserView = ({
                                 session={session}
                                 take={20}
                                 where={where}
+                                zIndex={zIndex}
                             />
                         )
                     }

@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { NodeType, MemberRole } from "./globalTypes";
+import { NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: runNodeFields
@@ -13,6 +13,105 @@ export interface runNodeFields_data_NodeEnd {
   __typename: "NodeEnd";
   id: string;
   wasSuccessful: boolean;
+}
+
+export interface runNodeFields_data_NodeRoutineList_routines_routine_inputs_translations {
+  __typename: "InputItemTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface runNodeFields_data_NodeRoutineList_routines_routine_inputs_standard_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface runNodeFields_data_NodeRoutineList_routines_routine_inputs_standard_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  translations: runNodeFields_data_NodeRoutineList_routines_routine_inputs_standard_tags_translations[];
+}
+
+export interface runNodeFields_data_NodeRoutineList_routines_routine_inputs_standard_translations {
+  __typename: "StandardTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface runNodeFields_data_NodeRoutineList_routines_routine_inputs_standard {
+  __typename: "Standard";
+  id: string;
+  default: string | null;
+  name: string;
+  type: string;
+  props: string;
+  yup: string | null;
+  tags: runNodeFields_data_NodeRoutineList_routines_routine_inputs_standard_tags[];
+  translations: runNodeFields_data_NodeRoutineList_routines_routine_inputs_standard_translations[];
+  version: string;
+}
+
+export interface runNodeFields_data_NodeRoutineList_routines_routine_inputs {
+  __typename: "InputItem";
+  id: string;
+  isRequired: boolean | null;
+  name: string | null;
+  translations: runNodeFields_data_NodeRoutineList_routines_routine_inputs_translations[];
+  standard: runNodeFields_data_NodeRoutineList_routines_routine_inputs_standard | null;
+}
+
+export interface runNodeFields_data_NodeRoutineList_routines_routine_outputs_translations {
+  __typename: "OutputItemTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface runNodeFields_data_NodeRoutineList_routines_routine_outputs_standard_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface runNodeFields_data_NodeRoutineList_routines_routine_outputs_standard_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  translations: runNodeFields_data_NodeRoutineList_routines_routine_outputs_standard_tags_translations[];
+}
+
+export interface runNodeFields_data_NodeRoutineList_routines_routine_outputs_standard_translations {
+  __typename: "StandardTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface runNodeFields_data_NodeRoutineList_routines_routine_outputs_standard {
+  __typename: "Standard";
+  id: string;
+  default: string | null;
+  name: string;
+  type: string;
+  props: string;
+  yup: string | null;
+  tags: runNodeFields_data_NodeRoutineList_routines_routine_outputs_standard_tags[];
+  translations: runNodeFields_data_NodeRoutineList_routines_routine_outputs_standard_translations[];
+  version: string;
+}
+
+export interface runNodeFields_data_NodeRoutineList_routines_routine_outputs {
+  __typename: "OutputItem";
+  id: string;
+  name: string | null;
+  translations: runNodeFields_data_NodeRoutineList_routines_routine_outputs_translations[];
+  standard: runNodeFields_data_NodeRoutineList_routines_routine_outputs_standard | null;
 }
 
 export interface runNodeFields_data_NodeRoutineList_routines_routine_owner_Organization_translations {
@@ -38,6 +137,57 @@ export interface runNodeFields_data_NodeRoutineList_routines_routine_owner_User 
 
 export type runNodeFields_data_NodeRoutineList_routines_routine_owner = runNodeFields_data_NodeRoutineList_routines_routine_owner_Organization | runNodeFields_data_NodeRoutineList_routines_routine_owner_User;
 
+export interface runNodeFields_data_NodeRoutineList_routines_routine_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface runNodeFields_data_NodeRoutineList_routines_routine_resourceLists_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface runNodeFields_data_NodeRoutineList_routines_routine_resourceLists_resources {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: runNodeFields_data_NodeRoutineList_routines_routine_resourceLists_resources_translations[];
+}
+
+export interface runNodeFields_data_NodeRoutineList_routines_routine_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: runNodeFields_data_NodeRoutineList_routines_routine_resourceLists_translations[];
+  resources: runNodeFields_data_NodeRoutineList_routines_routine_resourceLists_resources[];
+}
+
+export interface runNodeFields_data_NodeRoutineList_routines_routine_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface runNodeFields_data_NodeRoutineList_routines_routine_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  translations: runNodeFields_data_NodeRoutineList_routines_routine_tags_translations[];
+}
+
 export interface runNodeFields_data_NodeRoutineList_routines_routine_translations {
   __typename: "RoutineTranslation";
   id: string;
@@ -51,11 +201,16 @@ export interface runNodeFields_data_NodeRoutineList_routines_routine {
   __typename: "Routine";
   id: string;
   complexity: number;
+  inputs: runNodeFields_data_NodeRoutineList_routines_routine_inputs[];
+  isComplete: boolean;
   isInternal: boolean | null;
   nodesCount: number | null;
   role: MemberRole | null;
+  outputs: runNodeFields_data_NodeRoutineList_routines_routine_outputs[];
   owner: runNodeFields_data_NodeRoutineList_routines_routine_owner | null;
+  resourceLists: runNodeFields_data_NodeRoutineList_routines_routine_resourceLists[];
   simplicity: number;
+  tags: runNodeFields_data_NodeRoutineList_routines_routine_tags[];
   translations: runNodeFields_data_NodeRoutineList_routines_routine_translations[];
   version: string | null;
 }

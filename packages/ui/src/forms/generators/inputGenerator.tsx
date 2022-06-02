@@ -32,6 +32,7 @@ export interface InputGeneratorProps {
     index?: number,
     onUpload: (fieldName: string, files: string[]) => void,
     session: Session;
+    zIndex: number
 }
 
 /**
@@ -147,6 +148,7 @@ export const toLanguageInput = ({
     formik,
     index,
     session,
+    zIndex,
 }: InputGeneratorProps): React.ReactElement => {
     let languages: string[] = [];
     if (_.isObject(formik.values) && Array.isArray(formik.values[data.fieldName]) && data.fieldName in formik.values) {
@@ -168,6 +170,7 @@ export const toLanguageInput = ({
             handleCurrent={() => {}} //TODO
             selectedLanguages={languages}
             session={session}
+            zIndex={zIndex}
         />
     )
 }
@@ -304,6 +307,7 @@ export const toSlider = ({
 export const toSwitch = ({
     data,
     disabled,
+    formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
     const props = data.props as SwitchProps;
@@ -315,6 +319,11 @@ export const toSwitch = ({
                     size={props.size}
                     color={props.color}
                     tabIndex={index}
+                    checked={formik.values[data.fieldName]}
+                    onBlur={formik.handleBlur}
+                    onChange={formik.handleChange}
+                    name={data.fieldName}
+                    inputProps={{ 'aria-label': data.fieldName }}
                 />
             )} label={data.fieldName} />
         </FormGroup>
@@ -454,6 +463,7 @@ export const generateInputComponent = ({
     index,
     onUpload,
     session,
+    zIndex,
 }: InputGeneratorProps): React.ReactElement | null => {
-    return typeMap[data.type]({ data, disabled, formik, index, onUpload, session });
+    return typeMap[data.type]({ data, disabled, formik, index, onUpload, session, zIndex });
 }

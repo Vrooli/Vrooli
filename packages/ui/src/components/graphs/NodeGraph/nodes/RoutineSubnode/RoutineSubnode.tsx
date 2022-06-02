@@ -39,7 +39,7 @@ export const RoutineSubnode = ({
     const nodeSize = useMemo(() => `${220 * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${220 * scale / 5}px, 2em)`, [scale]);
     // Determines if the subroutine is one you can edit
-    const canEdit = useMemo<boolean>(() => owns(data.routine?.role), [data.routine]);
+    const canEdit = useMemo<boolean>(() => (data?.routine?.isInternal ?? owns(data?.routine?.role)), [data.routine]);
 
     const { title } = useMemo(() => {
         const languages = navigator.languages;
@@ -59,7 +59,7 @@ export const RoutineSubnode = ({
         });
     }, [handleUpdate, data, language]);
 
-    const onOptionalChange = useCallback((e: ChangeEvent<HTMLInputElement>, checked: boolean) => {
+    const onOptionalChange = useCallback((checked: boolean) => {
         handleUpdate(data.id, {
             ...data,
             isOptional: checked,
@@ -131,8 +131,7 @@ export const RoutineSubnode = ({
                 }}
             >
                 {labelObject}
-                {/* {isEditing && canEdit ? <EditIcon onClick={editSubnode} /> : null} */}
-                {isEditing ? <DeleteIcon onClick={deleteSubnode} /> : null}
+                {isEditing ? <DeleteIcon onClick={deleteSubnode} onTouchStart={deleteSubnode} /> : null}
             </Container>
             <Stack direction="row" justifyContent="space-between" borderRadius={0}>
                 <Tooltip placement={'top'} title='Routine can be skipped'>
@@ -146,7 +145,8 @@ export const RoutineSubnode = ({
                                 name='isOptionalCheckbox'
                                 color='secondary'
                                 checked={data?.isOptional}
-                                onChange={onOptionalChange}
+                                onChange={(_e, checked) => { onOptionalChange(checked) }}
+                                onTouchStart={() => { onOptionalChange(!data?.isOptional) }}
                                 sx={{ ...routineNodeCheckboxOption }}
                             />
                         }

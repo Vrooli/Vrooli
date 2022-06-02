@@ -22,6 +22,7 @@ export const ResourceListVertical = ({
     list,
     loading,
     session,
+    zIndex,
 }: ResourceListVerticalProps) => {
 
     const onAdd = useCallback((newResource: NewObject<Resource>) => {
@@ -88,13 +89,13 @@ export const ResourceListVertical = ({
     const openDialog = useCallback(() => { setIsDialogOpen(true) }, []);
     const closeDialog = useCallback(() => { setIsDialogOpen(false) }, []);
     const [editingIndex, setEditingIndex] = useState<number>(-1);
-    const openUpdateDialog = useCallback((index: number) => { 
+    const openUpdateDialog = useCallback((index: number) => {
         setEditingIndex(index);
-        setIsDialogOpen(true) 
+        setIsDialogOpen(true)
     }, []);
-    const closeUpdateDialog = useCallback(() => { 
+    const closeUpdateDialog = useCallback(() => {
         setEditingIndex(-1);
-        setIsDialogOpen(false) 
+        setIsDialogOpen(false)
     }, []);
 
     const dialog = useMemo(() => (
@@ -108,8 +109,9 @@ export const ResourceListVertical = ({
             onUpdated={onUpdate}
             mutate={mutate}
             session={session}
+            zIndex={zIndex + 1}
         /> : null
-    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, session]);
+    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, session, zIndex]);
 
     return (
         <>

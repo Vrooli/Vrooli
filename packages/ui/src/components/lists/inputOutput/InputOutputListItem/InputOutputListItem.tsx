@@ -8,11 +8,12 @@ import {
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
-import { getTranslation, updateArray } from 'utils';
+import { getTranslation, jsonToString, standardToFieldData, updateArray } from 'utils';
 import { useFormik } from 'formik';
 import { ListStandard, NewObject, RoutineInput, RoutineOutput, Standard } from 'types';
-import { BaseStandardInput, Selector, StandardSelectSwitch } from 'components';
+import { BaseStandardInput, PreviewSwitch, Selector, StandardSelectSwitch } from 'components';
 import { FieldData } from 'forms/types';
+import { generateInputComponent } from 'forms/generators';
 
 type InputTypeOption = { label: string, value: InputType }
 /**
@@ -65,6 +66,7 @@ export const InputOutputListItem = ({
     handleUpdate,
     language,
     session,
+    zIndex,
 }: InputOutputListItemProps) => {
     const { palette } = useTheme();
 
@@ -79,13 +81,13 @@ export const InputOutputListItem = ({
     // Handle standard schema
     const [schema, setSchema] = useState<FieldData | null>(null);
     const handleSchemaUpdate = useCallback((schema: FieldData) => {
-        console.log('list item handleSchemaUpdate', schema);
+        // Ignore if standard is already set
+        if (standard) return;
         setSchema(schema);
-    }, []);
+    }, [standard]);
     const [schemaKey] = useState(`input-output-schema-${Math.random().toString(36).substring(2, 15)}`);
 
     const onSwitchChange = useCallback((s: ListStandard | null) => {
-        console.log('on switch change!!', s);
         setSchema(null);
         setStandard(s);
     }, []);
@@ -96,7 +98,6 @@ export const InputOutputListItem = ({
     useEffect(() => {
         // Check if standard has changed
         if (item?.standard?.id === standard?.id) return;
-        console.log('updating standardddd....', standard)
         handleUpdate(index, {
             ...item,
             standard: standard || null,
@@ -108,7 +109,6 @@ export const InputOutputListItem = ({
      */
     useEffect(() => {
         if (!schema) return;
-        console.log('updating schema....', item?.standard, schema)
         handleUpdate(index, {
             ...item,
             standard: {
@@ -133,11 +133,12 @@ export const InputOutputListItem = ({
             description: getTranslation(item, 'description', [language]) ?? '',
             isRequired: true,
             name: item.name ?? '',
+            // Value of generated input component preview
+            [schemaKey]: jsonToString(((standardToFieldData(standard, schemaKey) ?? schema)?.props as any)?.format),
         },
         enableReinitialize: true,
         validationSchema: isInput ? inputCreate : outputCreate,
         onSubmit: (values) => {
-            console.log('formik handlesubmit😭', item)
             // Update translations
             const allTranslations = getTranslationsUpdate(language, {
                 language,
@@ -153,13 +154,15 @@ export const InputOutputListItem = ({
     });
 
     const toggleOpen = useCallback(() => {
-        console.log('toggle open')
         if (isOpen) {
             formik.handleSubmit();
             handleClose(index);
         }
         else handleOpen(index);
     }, [isOpen, handleOpen, index, formik, handleClose]);
+
+    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
+    const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
 
     return (
         <Box
@@ -283,36 +286,54 @@ export const InputOutputListItem = ({
                             session={session}
                             selected={standard}
                             onChange={onSwitchChange}
+                            zIndex={zIndex}
                         />
                     </Grid>
-                    {
-                        !standard && (
-                            <Grid item xs={12}>
-                                {isEditing ? <Selector
-                                    fullWidth
-                                    options={InputTypeOptions}
-                                    selected={inputType}
-                                    handleChange={handleInputTypeSelect}
-                                    getOptionLabel={(option: InputTypeOption) => option.label}
-                                    inputAriaLabel='input-type-selector'
-                                    label="Type"
-                                /> : <Typography variant="body2">Type: {inputType.label}</Typography>}
-                            </Grid>
-                        )
-                    }
-                    {
-                        !standard && (
-                            <Grid item xs={12}>
-                                <BaseStandardInput
-                                    inputType={inputType.value}
-                                    isEditing={isEditing}
-                                    schema={schema}
-                                    onChange={handleSchemaUpdate}
-                                    storageKey={schemaKey}
-                                />
-                            </Grid>
-                        )
-                    }
+                    {/* Standard build/preview */}
+                    <Grid item xs={12}>
+                        <PreviewSwitch
+                            isPreviewOn={isPreviewOn}
+                            onChange={onPreviewChange}
+                            sx={{
+                                marginBottom: 2
+                            }}
+                        />
+                        {
+                            isPreviewOn ?
+                                (Boolean(standardToFieldData(standard, schemaKey) ?? schema) && generateInputComponent({
+                                    data: standardToFieldData(standard, schemaKey) ?? schema as FieldData,
+                                    disabled: true,
+                                    formik,
+                                    session,
+                                    onUpload: () => { },
+                                    zIndex,
+                                })) :
+                                // Only editable if standard not selected
+                                <Box>
+                                    <Selector
+                                        disabled={Boolean(standard)}
+                                        fullWidth
+                                        options={InputTypeOptions}
+                                        selected={standard?.type ? (InputTypeOptions.find(option => option.value === standard.type) ?? InputTypeOptions[0]) : inputType}
+                                        handleChange={handleInputTypeSelect}
+                                        getOptionLabel={(option: InputTypeOption) => option.label}
+                                        inputAriaLabel='input-type-selector'
+                                        label="Type"
+                                        style={{
+                                            marginBottom: 2
+                                        }}
+                                    />
+                                    <BaseStandardInput
+                                        fieldName={schemaKey}
+                                        inputType={(standard?.type as InputType) ?? inputType.value}
+                                        isEditing={!Boolean(standard)}
+                                        schema={standardToFieldData(standard, schemaKey) ?? schema}
+                                        onChange={handleSchemaUpdate}
+                                        storageKey={schemaKey}
+                                    />
+                                </Box>
+                        }
+                    </Grid>
                     {isInput && <Grid item xs={12}>
                         <Tooltip placement={'right'} title='Is this input mandatory?'>
                             <FormControlLabel

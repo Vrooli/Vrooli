@@ -64,11 +64,6 @@ export const typeDef = gql`
         handle: String
     }
 
-    # Input for deleting one object
-    input DeleteOneInput {
-        id: ID!
-    }
-
     # Input for deleting multiple objects
     input DeleteManyInput {
         ids: [ID!]!

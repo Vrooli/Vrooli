@@ -1,9 +1,10 @@
-import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { SelectLanguageDialogProps } from '../types';
 import {
     ArrowDropDown as ArrowDropDownIcon,
     ArrowDropUp as ArrowDropUpIcon,
     Check as CheckIcon,
+    Close as CloseIcon,
     Delete as DeleteIcon,
     Language as LanguageIcon,
 } from '@mui/icons-material';
@@ -21,6 +22,7 @@ export const SelectLanguageDialog = ({
     selectedLanguages,
     session,
     sxs,
+    zIndex,
 }: SelectLanguageDialogProps) => {
     const { palette } = useTheme();
     const [searchString, setSearchString] = useState('');
@@ -71,13 +73,45 @@ export const SelectLanguageDialog = ({
         // Force parent to save current translation
         if (currentLanguage) handleCurrent(currentLanguage);
     }, [canDropdownOpen, currentLanguage, handleCurrent]);
-    const onClose = useCallback(() => setAnchorEl(null), []);
+    const onClose = useCallback(() => {
+        // Chear text field
+        setSearchString('');
+        setAnchorEl(null)
+    }, []);
 
     const onDelete = useCallback((e: MouseEvent<HTMLButtonElement>, language: string) => {
         e.preventDefault();
         e.stopPropagation();
         if (handleDelete) handleDelete(language);
     }, [handleDelete]);
+
+    /**
+     * Title bar with close icon
+     */
+    const titleBar = useMemo(() => (
+        <Box
+            sx={{
+                background: palette.primary.dark,
+                color: palette.primary.contrastText,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 1,
+            }}
+        >
+            <Typography component="h2" variant="h5" textAlign="center" sx={{ marginLeft: 'auto' }}>
+                Select Language
+            </Typography>
+            <Box sx={{ marginLeft: 'auto' }}>
+                <IconButton
+                    edge="start"
+                    onClick={onClose}
+                >
+                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
+                </IconButton>
+            </Box>
+        </Box>
+    ), [onClose, palette])
 
     return (
         <>
@@ -87,6 +121,7 @@ export const SelectLanguageDialog = ({
                 anchorEl={anchorEl}
                 onClose={onClose}
                 sx={{
+                    zIndex: zIndex + 1,
                     '& .MuiPopover-paper': {
                         background: 'transparent',
                         border: 'none',
@@ -102,10 +137,13 @@ export const SelectLanguageDialog = ({
                     horizontal: 'center',
                 }}
             >
+                {/* Title */}
+                {titleBar}
                 {/* Search bar and list of languages */}
                 <Stack direction="column" spacing={2} sx={{
                     width: 'min(100vw, 400px)',
                     maxHeight: 'min(100vh, 600px)',
+                    maxWidth: '100%',
                     overflowX: 'auto',
                     overflowY: 'hidden',
                     background: palette.background.default,
@@ -127,6 +165,10 @@ export const SelectLanguageDialog = ({
                         autoFocus={true}
                         value={searchString}
                         onChange={updateSearchString}
+                        sx={{ 
+                            paddingLeft: 1,
+                            paddingRight: 1,
+                        }}
                     />
                     <FixedSizeList
                         height={600}
@@ -137,6 +179,7 @@ export const SelectLanguageDialog = ({
                         style={{
                             scrollbarColor: '#409590 #dae5f0',
                             scrollbarWidth: 'thin',
+                            maxWidth: '100%',
                         }}
                     >
                         {(props) => {

@@ -22,8 +22,9 @@ export const ResourceListHorizontal = ({
     handleUpdate,
     mutate = true,
     list,
-    loading,
+    loading = false,
     session,
+    zIndex,
 }: ResourceListHorizontalProps) => {
     const { palette } = useTheme();
 
@@ -93,7 +94,6 @@ export const ResourceListHorizontal = ({
     const openDialog = useCallback(() => { setIsDialogOpen(true) }, []);
     const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1) }, []);
     const openUpdateDialog = useCallback((index: number) => {
-        console.log('open update dialog', index)
         setEditingIndex(index);
         setIsDialogOpen(true)
     }, []);
@@ -109,8 +109,9 @@ export const ResourceListHorizontal = ({
             onUpdated={onUpdate}
             mutate={mutate}
             session={session}
+            zIndex={zIndex + 1}
         /> : null
-    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, session]);
+    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, session, zIndex]);
 
     return (
         <Box>
@@ -127,6 +128,7 @@ export const ResourceListHorizontal = ({
                 onDelete={onDelete}
                 onEdit={() => openUpdateDialog(selectedIndex ?? 0)}
                 onMove={() => { }}
+                zIndex={zIndex + 1}
             />
             <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>
             <Box

@@ -37,11 +37,16 @@ export const SearchUsersPage = ({
     return (
         <>
             {/* Invite link dialog */}
-            <ShareDialog onClose={handleSurpriseDialogClose} open={surpriseDialogOpen} />
+            <ShareDialog 
+                onClose={handleSurpriseDialogClose} 
+                open={surpriseDialogOpen} 
+                zIndex={200}
+            />
             {/* Selected dialog */}
             <UserDialog
                 partialData={selectedItem}
                 session={session}
+                zIndex={200}
             />
             {/* Search component */}
             <BaseSearchPage

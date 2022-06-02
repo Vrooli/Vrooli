@@ -12,12 +12,12 @@ import {
     MoreHoriz as EllipsisIcon,
     PlayCircle as StartIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, BuildView, DeleteRoutineDialog, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition } from "components";
+import { BaseObjectActionDialog, BuildView, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
-import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, Pubs, stringifySearchParams, toOwnedBy, useReactSearch } from "utils";
+import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, Pubs, standardToFieldData, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
 import { Node, NodeLink, Routine, Run } from "types";
 import Markdown from "markdown-to-jsx";
-import { runCompleteMutation, routineDeleteOneMutation } from "graphql/mutation";
+import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
 import { NodeType, StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
@@ -25,12 +25,14 @@ import { containerShadow } from "styles";
 import { validate as uuidValidate, v4 as uuidv4 } from 'uuid';
 import { runComplete } from "graphql/generated/runComplete";
 import { owns } from "utils/authentication";
-
-const TERTIARY_COLOR = '#95f3cd';
+import { useFormik } from "formik";
+import { FieldData } from "forms/types";
+import { generateInputComponent } from "forms/generators";
 
 export const RoutineView = ({
     partialData,
     session,
+    zIndex,
 }: RoutineViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -42,47 +44,28 @@ export const RoutineView = ({
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
     const [routine, setRoutine] = useState<Routine | null>(null);
     useEffect(() => {
-        if (id && uuidValidate(id)) getData({ variables: { input: { id } } });
+        if (id && uuidValidate(id)) { getData({ variables: { input: { id } } }); }
     }, [getData, id])
     useEffect(() => {
         if (!data) return;
         setRoutine(data.routine);
-    }, [data, setRoutine]);
+    }, [data]);
     const updateRoutine = useCallback((routine: Routine) => { setRoutine(routine); }, [setRoutine]);
 
     const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine?.role]);
-    // Open boolean for delete routine confirmation
-    const [deleteOpen, setDeleteOpen] = useState(false);
-    const openDelete = () => setDeleteOpen(true);
-    const closeDelete = () => setDeleteOpen(false);
-
-    const [routineDelete, { loading: loadingDelete }] = useMutation<any>(routineDeleteOneMutation);
-    /**
-     * Deletes the entire routine. Assumes confirmation was already given.
-     */
-    const deleteRoutine = useCallback(() => {
-        if (!routine) return;
-        mutationWrapper({
-            mutation: routineDelete,
-            input: { id: routine.id },
-            successMessage: () => 'Routine deleted.',
-            onSuccess: () => { setLocation(APP_LINKS.Home) },
-        })
-    }, [routine, routineDelete, setLocation])
 
     const search = useReactSearch(null);
     const { runId } = useMemo(() => ({
         runId: typeof search.run === 'string' && uuidValidate(search.run) ? search.run : null,
     }), [search]);
 
-    const [language, setLanguage] = useState<string>('');
-    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+    const availableLanguages = useMemo<string[]>(() => (routine?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [routine?.translations]);
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
-        const availableLanguages = routine?.translations?.map(t => getLanguageSubtag(t.language)) ?? [];
-        const userLanguages = getUserLanguages(session);
-        setAvailableLanguages(availableLanguages);
-        setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
-    }, [routine, session]);
+        if (availableLanguages.length === 0) return;
+        setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
+    }, [availableLanguages, setLanguage, session]);
+
     const { title, description, instructions } = useMemo(() => {
         return {
             title: getTranslation(routine, 'title', [language]) ?? getTranslation(partialData, 'title', [language]),
@@ -103,20 +86,24 @@ export const RoutineView = ({
         if (!routine) return;
         mutationWrapper({
             mutation: runComplete,
-            input: { id: routine.id, exists: false },
+            input: {
+                id: routine.id,
+                exists: false,
+                title: title,
+                version: routine?.version ?? '',
+            },
             successMessage: () => 'Routine completed!🎉',
             onSuccess: () => {
                 PubSub.publish(Pubs.Celebration);
                 setLocation(APP_LINKS.Home)
             },
         })
-    }, [routine, runComplete, setLocation]);
+    }, [routine, runComplete, setLocation, title]);
 
     const [isBuildOpen, setIsBuildOpen] = useState(false);
     // If buildId is in the URL, open the build
     useEffect(() => {
         const searchParams = parseSearchParams(window.location.search);
-        console.log('checking url', searchParams)
         if (searchParams.build) {
             // If build is not an id, populate routine with default start data
             if (!uuidValidate(searchParams.build ? `${searchParams.build}` : '')) {
@@ -162,7 +149,6 @@ export const RoutineView = ({
     const [isRunOpen, setIsRunOpen] = useState(false)
     const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
     const handleRunSelect = useCallback((run: Run | null) => {
-        console.log("HANDLE RUN SELECT", run)
         // If run is null, it means the routine will be opened without a run
         if (!run) {
             setLocation(stringifySearchParams({
@@ -287,6 +273,26 @@ export const RoutineView = ({
         )
     }, [routine, viewGraph, runRoutine, session?.id, markAsComplete]);
 
+    // The schema and formik keys for the form
+    const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {
+        if (!routine) return null;
+        const schemas: { [fieldName: string]: FieldData } = {};
+        for (let i = 0; i < routine.inputs.length; i++) {
+            const currSchema = standardToFieldData(routine.inputs[i].standard, `inputs-${i}`);
+            if (currSchema) {
+                schemas[currSchema.fieldName] = currSchema;
+            }
+        }
+        return schemas;
+    }, [routine]);
+    const previewFormik = useFormik({
+        initialValues: {
+            ...formValueMap,
+        },
+        enableReinitialize: true,
+        onSubmit: () => { },
+    });
+
     const resourceList = useMemo(() => {
         if (!routine ||
             !Array.isArray(routine.resourceLists) ||
@@ -299,8 +305,9 @@ export const RoutineView = ({
             handleUpdate={() => { }} // Intentionally blank
             loading={loading}
             session={session}
+            zIndex={zIndex}
         />
-    }, [loading, routine, session]);
+    }, [loading, routine, session, zIndex]);
 
     /**
      * Display body or loading indicator
@@ -339,6 +346,35 @@ export const RoutineView = ({
                         <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Instructions</Typography>
                         <Markdown>{instructions ?? 'No instructions'}</Markdown>
                     </Box>
+                    {/* Auto-generated inputs */}
+                    {
+                        Object.keys(previewFormik.values).length > 0 && <Box sx={{
+                            padding: 1,
+                            borderRadius: 1,
+                        }}>
+                            <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Inputs</Typography>
+                            {
+                                Object.values(formValueMap ?? {}).map((field: FieldData, i: number) => (
+                                    <Box key={i} sx={{
+                                        padding: 1,
+                                        borderRadius: 1,
+                                    }}>
+                                        <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>{field.label ?? `Input ${i + 1}`}</Typography>
+                                        {
+                                            generateInputComponent({
+                                                data: field,
+                                                disabled: false,
+                                                formik: previewFormik,
+                                                session,
+                                                onUpload: () => { },
+                                                zIndex,
+                                            })
+                                        }
+                                    </Box>
+                                ))
+                            }
+                        </Box>
+                    }
                     {/* Stats */}
                     {Array.isArray(routine?.nodes) && (routine as any).nodes.length > 0 && <Box sx={{
                         padding: 1,
@@ -356,7 +392,7 @@ export const RoutineView = ({
                 {actions}
             </>
         )
-    }, [loading, routine, resourceList, description, palette.background.textPrimary, palette.background.textSecondary, instructions, actions]);
+    }, [loading, resourceList, description, palette.background.textPrimary, palette.background.textSecondary, instructions, formValueMap, routine, actions, previewFormik, session, zIndex]);
 
     return (
         <Box sx={{
@@ -376,13 +412,6 @@ export const RoutineView = ({
                 routine={routine}
                 session={session}
             />
-            {/* Delete routine confirmation dialog */}
-            <DeleteRoutineDialog
-                isOpen={deleteOpen}
-                routineName={getTranslation(routine, 'title', getUserLanguages(session)) ?? ''}
-                handleClose={closeDelete}
-                handleDelete={deleteRoutine}
-            />
             {/* Dialog for running routine */}
             <Dialog
                 id="run-routine-view-dialog"
@@ -390,11 +419,15 @@ export const RoutineView = ({
                 open={isRunOpen}
                 onClose={stopRoutine}
                 TransitionComponent={UpTransition}
+                sx={{
+                    zIndex: zIndex + 1,
+                }}
             >
                 {routine && <RunView
                     handleClose={stopRoutine}
                     routine={routine}
                     session={session}
+                    zIndex={zIndex + 1}
                 />}
             </Dialog>
             {/* Dialog for building routine */}
@@ -405,7 +438,7 @@ export const RoutineView = ({
                 onClose={stopBuild}
                 TransitionComponent={UpTransition}
                 sx={{
-                    zIndex: 101,
+                    zIndex: zIndex + 1,
                 }}
             >
                 <BuildView
@@ -414,20 +447,22 @@ export const RoutineView = ({
                     onChange={updateRoutine}
                     routine={routine}
                     session={session}
+                    zIndex={zIndex + 1}
                 />
             </Dialog>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
                 handleActionComplete={() => { }} //TODO
-                handleDelete={openDelete}
                 handleEdit={onEdit}
                 objectId={id ?? ''}
+                objectName={title ?? ''}
                 objectType={ObjectType.Routine}
                 anchorEl={moreMenuAnchor}
                 title='Routine Options'
                 availableOptions={moreOptions}
                 onClose={closeMoreMenu}
                 session={session}
+                zIndex={zIndex + 1}
             />
             {/* Main container */}
             <Box sx={{
@@ -506,6 +541,7 @@ export const RoutineView = ({
                             currentLanguage={language}
                             handleCurrent={setLanguage}
                             session={session}
+                            zIndex={zIndex}
                         />
                         {canEdit && <Tooltip title="Edit routine">
                             <IconButton

@@ -10,7 +10,8 @@ import { Project } from 'types';
 
 export const ProjectDialog = ({
     partialData,
-    session
+    session,
+    zIndex,
 }: ProjectDialogProps) => {
     const [, setLocation] = useLocation();
     const [, params] = useRoute(`${APP_LINKS.SearchProjects}/:params*`);
@@ -58,26 +59,30 @@ export const ProjectDialog = ({
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
                     onCreated={(data: Project) => onAction(ObjectDialogAction.Add, data)}
                     session={session}
+                    zIndex={zIndex}
                 />
             case 'edit':
                 return <ProjectUpdate
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
                     onUpdated={() => onAction(ObjectDialogAction.Save)}
                     session={session}
+                    zIndex={zIndex}
                 />
             default:
                 return <ProjectView
                     partialData={partialData}
                     session={session}
+                    zIndex={zIndex}
                 />
         }
-    }, [onAction, partialData, session, state]);
+    }, [onAction, partialData, session, state, zIndex]);
 
     return (
         <BaseObjectDialog
             onAction={onAction}
             open={Boolean(params?.params)}
             title={title}
+            zIndex={zIndex}
         >
             {child}
         </BaseObjectDialog>

@@ -49,6 +49,7 @@ export const SearchStandardsPage = ({
             <StandardDialog
                 partialData={selectedItem}
                 session={session}
+                zIndex={200}
             />
             {/* Search component */}
             <BaseSearchPage

@@ -35,6 +35,7 @@ export const SubroutineSelectOrCreateDialog = ({
     nodeId,
     routineId,
     session,
+    zIndex,
 }: SubroutineSelectOrCreateDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -118,10 +119,12 @@ export const SubroutineSelectOrCreateDialog = ({
         <Dialog
             open={isOpen}
             onClose={onClose}
+            scroll="body"
             sx={{
+                zIndex,
                 '& .MuiDialogContent-root': { 
                     overflow: 'visible', 
-                    background: palette.mode === 'light' ? '#cdd6df' : '#182028',
+                    background: palette.background.default ,
                 },
                 '& .MuiDialog-paper': { overflow: 'visible' }
             }}
@@ -131,11 +134,13 @@ export const SubroutineSelectOrCreateDialog = ({
                 onAction={handleCreateClose}
                 open={isCreateOpen}
                 title={"Create Routine"}
+                zIndex={zIndex+1}
             >
                 <RoutineCreate
                     onCancel={handleCreateClose}
                     onCreated={handleCreated}
                     session={session}
+                    zIndex={zIndex+1}
                 />
             </BaseObjectDialog>
             {titleBar}
@@ -151,6 +156,7 @@ export const SubroutineSelectOrCreateDialog = ({
                         session={session}
                         take={20}
                         where={uuidValidate(routineId) ? { excludeIds: [routineId] } : undefined}
+                        zIndex={zIndex}
                     />
                     <Button
                         fullWidth

@@ -1,6 +1,6 @@
 import { Box, CircularProgress, Grid } from "@mui/material"
 import { useRoute } from "wouter";
-import { APP_LINKS } from "@local/shared";
+import { APP_LINKS, ResourceListUsedFor } from "@local/shared";
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { standard, standardVariables } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
@@ -15,16 +15,18 @@ import {
     Restore as CancelIcon,
     Save as SaveIcon,
 } from '@mui/icons-material';
-import { LanguageInput, TagSelector } from "components";
+import { LanguageInput, ResourceListHorizontal, TagSelector } from "components";
 import { TagSelectorTag } from "components/inputs/types";
 import { DialogActionItem } from "components/containers/types";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { NewObject, Organization, Standard } from "types";
+import { NewObject, ResourceList, Standard } from "types";
+import { v4 as uuidv4 } from 'uuid';
 
 export const StandardUpdate = ({
     onCancel,
     onUpdated,
     session,
+    zIndex,
 }: StandardUpdateProps) => {
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Standard}/edit/:id`);
@@ -36,6 +38,12 @@ export const StandardUpdate = ({
         if (id) getData({ variables: { input: { id } } });
     }, [getData, id])
     const standard = useMemo(() => data?.standard, [data]);
+
+    // Handle resources
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
+        setResourceList(updatedList);
+    }, [setResourceList]);
 
     // Handle tags
     const [tags, setTags] = useState<TagSelectorTag[]>([]);
@@ -66,6 +74,7 @@ export const StandardUpdate = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
+        setResourceList(standard?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(standard?.tags ?? []);
         setTranslations(standard?.translations?.map(t => ({
             id: t.id,
@@ -83,6 +92,8 @@ export const StandardUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
+            const existingResourceList = Array.isArray(standard?.resourceLists) ? (standard as Standard).resourceLists.find(list => list.usedFor === ResourceListUsedFor.Display) : undefined;
+            const resourceListUpdate = existingResourceList ? { resourceListsUpdate: formatForUpdate(existingResourceList, resourceList, [], ['resources']) } : {};
             const tagsUpdate = tags.length > 0 ? {
                 tagsCreate: tags.filter(t => !t.id && !standard?.tags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
                 tagsConnect: tags.filter(t => t.id && !standard?.tags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
@@ -96,7 +107,7 @@ export const StandardUpdate = ({
                 mutation,
                 input: formatForUpdate(standard, {
                     id,
-                    organizationId: (standard?.creator as Organization)?.id ?? undefined,
+                    ...resourceListUpdate,
                     ...tagsUpdate,
                     translations: allTranslations,
                 }, ['tags'], ['translations']),
@@ -169,9 +180,22 @@ export const StandardUpdate = ({
                     handleCurrent={handleLanguageSelect}
                     selectedLanguages={languages}
                     session={session}
+                    zIndex={zIndex}
                 />
             </Grid>
-            {/* TODO */}
+            {/* TODO description, versioning */}
+            <Grid item xs={12}>
+                <ResourceListHorizontal
+                    title={'Resources'}
+                    list={resourceList}
+                    canEdit={true}
+                    handleUpdate={handleResourcesUpdate}
+                    loading={loading}
+                    session={session}
+                    mutate={false}
+                    zIndex={zIndex}
+                />
+            </Grid>
             <Grid item xs={12} marginBottom={4}>
                 <TagSelector
                     session={session}
@@ -182,7 +206,7 @@ export const StandardUpdate = ({
                 />
             </Grid>
         </Grid>
-    ), [language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, session, tags, addTag, removeTag, clearTags]);
+    ), [language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, session, zIndex, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
 
 
     return (

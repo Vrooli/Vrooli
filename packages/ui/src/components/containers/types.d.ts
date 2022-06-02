@@ -1,6 +1,5 @@
 import { BuildRunState } from "utils";
-import { Node, Routine, Session } from "types";
-import { BuildStatusObject } from "components/graphs/NodeGraph/types";
+import { Routine, Session } from "types";
 
 export interface TitleContainerProps {
     children: JSX.Element | JSX.Element[];
@@ -49,4 +48,5 @@ export interface BuildBottomContainerProps {
     sliderColor: string;
     routine: Routine | null;
     runState: BuildRunState
+    zIndex: number;
 }

@@ -119,6 +119,7 @@ export const AdvancedSearchDialog = ({
     handleSearch,
     isOpen,
     session,
+    zIndex,
 }: AdvancedSearchDialogProps) => {
     const theme = useTheme();
     // Search schema to use
@@ -155,7 +156,6 @@ export const AdvancedSearchDialog = ({
         enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
-            console.log('in advanced search submit!!!!!!!!!!!😎', values);
             // Shape values to match search query
             const searchValues = shapeFormik[path](values);
             handleSearch(searchValues);
@@ -172,8 +172,9 @@ export const AdvancedSearchDialog = ({
             onUpload: () => { },
             session,
             theme,
+            zIndex,
         })
-    }, [schema, formik, session, theme])
+    }, [schema, formik, session, theme, zIndex])
 
     /**
      * Title bar with help button and close icon
@@ -189,7 +190,7 @@ export const AdvancedSearchDialog = ({
                 padding: 2,
             }}
         >
-            <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto', paddingLeft: 2, paddingRight: 2 }}>
+            <Typography component="h2" variant="h5" textAlign="center" sx={{ marginLeft: 'auto', paddingLeft: 2, paddingRight: 2 }}>
                 {'Advanced Search'}
             </Typography>
             <Box sx={{ marginLeft: 'auto' }}>
@@ -211,7 +212,8 @@ export const AdvancedSearchDialog = ({
             scroll="body"
             sx={{
                 '& .MuiDialogContent-root': {
-                    background: theme.palette.mode === 'light' ? '#cdd6df' : '#182028',
+                    background: theme.palette.background.default,
+                    color: theme.palette.background.textPrimary,
                     minWidth: 'min(400px, 100%)',
                 },
                 '& .MuiPaper-root': {

@@ -6,7 +6,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, getUserLanguages, Pubs, updateArray } from "utils";
+import { formatForUpdate, getUserLanguages, Pubs, TERTIARY_COLOR, updateArray } from "utils";
 import {
     Refresh as RefreshIcon,
     Restore as CancelIcon,
@@ -34,12 +34,11 @@ If you set a handle, your Vrooli profile will be accessible via https://app.vroo
 
 Your bio is displayed on your profile page. You may add multiple translations if you'd like.`;
 
-const TERTIARY_COLOR = '#95f3cd';
-
 export const SettingsProfile = ({
     onUpdated,
     profile,
     session,
+    zIndex,
 }: SettingsProfileProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -80,10 +79,11 @@ export const SettingsProfile = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
-        if (profile?.handle) {
+        if (!profile) return;
+        if (profile.handle) {
             setSelectedHandle(profile.handle);
         }
-        const foundTranslations = profile?.translations?.map(t => ({
+        const foundTranslations = profile.translations?.map(t => ({
             id: t.id,
             language: t.language,
             bio: t.bio ?? '',
@@ -134,18 +134,12 @@ export const SettingsProfile = ({
         if (languages.length === 0 && translations.length > 0) {
             setLanguage(translations[0].language);
             setLanguages(translations.map(t => t.language));
-            formik.setValues({
-                ...formik.values,
-                bio: translations[0].bio ?? '',
-            })
+            formik.setFieldValue('bio', translations[0].bio ?? '');
         }
     }, [formik, languages, setLanguage, setLanguages, translations])
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
-        formik.setValues({
-            ...formik.values,
-            bio: existingTranslation?.bio ?? '',
-        });
+        formik.setFieldValue('bio', existingTranslation?.bio ?? '');
     }, [formik, translations]);
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
@@ -201,6 +195,7 @@ export const SettingsProfile = ({
                             handleCurrent={handleLanguageSelect}
                             selectedLanguages={languages}
                             session={session}
+                            zIndex={zIndex}
                         />
                     </Grid>
                     <Grid item xs={12}>

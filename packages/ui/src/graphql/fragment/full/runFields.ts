@@ -86,9 +86,16 @@ export const runFields = gql`
                     routine {
                         id
                         complexity
+                        inputs {
+                            ...runInputFields
+                        }
+                        isComplete
                         isInternal
                         nodesCount
                         role
+                        outputs {
+                            ...runOutputFields
+                        }
                         owner {
                             ... on Organization {
                                 id
@@ -105,7 +112,13 @@ export const runFields = gql`
                                 handle
                             }
                         }
+                        resourceLists {
+                            ...runResourceListFields
+                        }
                         simplicity
+                        tags {
+                            ...runTagFields
+                        }
                         translations {
                             id
                             language

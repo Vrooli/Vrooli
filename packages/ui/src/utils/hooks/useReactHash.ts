@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 export const useReactHash = () => {
     const [hash, setHash] = useState(window.location.hash);
     const listenToPopstate = () => {
-        console.log('react hash listentopopstate', window.location.hash)
         const winHash = window.location.hash;
         setHash(winHash);
     };

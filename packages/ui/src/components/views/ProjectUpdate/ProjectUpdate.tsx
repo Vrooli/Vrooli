@@ -27,6 +27,7 @@ export const ProjectUpdate = ({
     onCancel,
     onUpdated,
     session,
+    zIndex,
 }: ProjectUpdateProps) => {
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Project}/edit/:id`);
@@ -187,7 +188,12 @@ export const ProjectUpdate = ({
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12}>
-                <UserOrganizationSwitch session={session} selected={organizationFor} onChange={onSwitchChange} />
+                <UserOrganizationSwitch 
+                    session={session} 
+                    selected={organizationFor} 
+                    onChange={onSwitchChange} 
+                    zIndex={zIndex}
+                />
             </Grid>
             <Grid item xs={12}>
                 <LanguageInput
@@ -197,6 +203,7 @@ export const ProjectUpdate = ({
                     handleCurrent={handleLanguageSelect}
                     selectedLanguages={languages}
                     session={session}
+                    zIndex={zIndex}
                 />
             </Grid>
             <Grid item xs={12}>
@@ -236,6 +243,7 @@ export const ProjectUpdate = ({
                     loading={loading}
                     session={session}
                     mutate={false}
+                    zIndex={zIndex}
                 />
             </Grid>
             <Grid item xs={12} marginBottom={4}>
@@ -248,7 +256,7 @@ export const ProjectUpdate = ({
                 />
             </Grid>
         </Grid>
-    ), [session, organizationFor, onSwitchChange, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, formik.values.name, formik.values.description, formik.handleBlur, formik.handleChange, formik.touched.name, formik.touched.description, formik.errors.name, formik.errors.description, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
+    ), [session, organizationFor, onSwitchChange, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, formik.values.name, formik.values.description, formik.handleBlur, formik.handleChange, formik.touched.name, formik.touched.description, formik.errors.name, formik.errors.description, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
 
 
     return (
@@ -257,6 +265,7 @@ export const ProjectUpdate = ({
             alignItems: 'center',
             justifyContent: 'center',
             paddingBottom: `${formBottom}px`,
+            zIndex,
         }}
         >
             {loading ? (

@@ -31,6 +31,7 @@ enum TabOptions {
 export const ProjectView = ({
     partialData,
     session,
+    zIndex,
 }: ProjectViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -50,14 +51,12 @@ export const ProjectView = ({
     }, [data]);
     const canEdit = useMemo<boolean>(() => owns(project?.role), [project]);
 
-    const [language, setLanguage] = useState<string>('');
-    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+    const availableLanguages = useMemo<string[]>(() => (project?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [project?.translations]);
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
-        const availableLanguages = project?.translations?.map(t => getLanguageSubtag(t.language)) ?? [];
-        const userLanguages = getUserLanguages(session);
-        setAvailableLanguages(availableLanguages);
-        setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
-    }, [project, session]);
+        if (availableLanguages.length === 0) return;
+        setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
+    }, [availableLanguages, setLanguage, session]);
 
     const { name, description, handle, resourceList } = useMemo(() => {
         const resourceList: ResourceList | undefined = Array.isArray(project?.resourceLists) ? project?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
@@ -88,8 +87,9 @@ export const ProjectView = ({
             }}
             loading={loading}
             mutate={true}
+            zIndex={zIndex}
         />
-    ) : null, [canEdit, loading, project, resourceList, session]);
+    ) : null, [canEdit, loading, project, resourceList, session, zIndex]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -325,15 +325,16 @@ export const ProjectView = ({
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
                 handleActionComplete={() => { }} //TODO
-                handleDelete={() => { }} //TODO
                 handleEdit={onEdit}
                 objectId={id}
+                objectName={name ?? ''}
                 objectType={ObjectType.Project}
                 anchorEl={moreMenuAnchor}
                 title='Project Options'
                 availableOptions={moreOptions}
                 onClose={closeMoreMenu}
                 session={session}
+                zIndex={zIndex+1}
             />
             <Box sx={{
                 display: 'flex',
@@ -354,6 +355,7 @@ export const ProjectView = ({
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         session={session}
+                        zIndex={zIndex}
                     />
                 </Box>
                 {overviewComponent}
@@ -399,6 +401,7 @@ export const ProjectView = ({
                                 session={session}
                                 take={20}
                                 where={where}
+                                zIndex={zIndex}
                             />
                         )
                     }

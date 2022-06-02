@@ -32,6 +32,7 @@ export const BuildBottomContainer = ({
     sliderColor,
     routine,
     runState,
+    zIndex,
 }: BuildBottomContainerProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -196,11 +197,15 @@ export const BuildBottomContainer = ({
                 onClose={stopRoutine}
                 open={isRunOpen}
                 TransitionComponent={UpTransition}
+                sx={{
+                    zIndex: zIndex + 1,
+                }}
             >
                 {routine && <RunView
                     handleClose={stopRoutine}
                     routine={routine}
                     session={session}
+                    zIndex={zIndex + 1}
                 />}
             </Dialog>
             {slider}

@@ -133,6 +133,7 @@ export const LearnPage = ({
                     loading={resourcesLoading}
                     mutate={true}
                     session={session}
+                    zIndex={1}
                 />}
                 {/* Available courses */}
                 <ListTitleContainer

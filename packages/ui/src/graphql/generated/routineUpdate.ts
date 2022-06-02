@@ -88,6 +88,105 @@ export interface routineUpdate_routineUpdate_nodes_data_NodeEnd {
   wasSuccessful: boolean;
 }
 
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_translations {
+  __typename: "InputItemTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags_translations[];
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations {
+  __typename: "StandardTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard {
+  __typename: "Standard";
+  id: string;
+  default: string | null;
+  name: string;
+  type: string;
+  props: string;
+  yup: string | null;
+  tags: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags[];
+  translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations[];
+  version: string;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs {
+  __typename: "InputItem";
+  id: string;
+  isRequired: boolean | null;
+  name: string | null;
+  translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_translations[];
+  standard: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard | null;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_translations {
+  __typename: "OutputItemTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags_translations[];
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations {
+  __typename: "StandardTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard {
+  __typename: "Standard";
+  id: string;
+  default: string | null;
+  name: string;
+  type: string;
+  props: string;
+  yup: string | null;
+  tags: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags[];
+  translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations[];
+  version: string;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs {
+  __typename: "OutputItem";
+  id: string;
+  name: string | null;
+  translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_translations[];
+  standard: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard | null;
+}
+
 export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_owner_Organization_translations {
   __typename: "OrganizationTranslation";
   id: string;
@@ -111,6 +210,57 @@ export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines
 
 export type routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_owner = routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_owner_Organization | routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_owner_User;
 
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_resourceLists_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_resourceLists_resources {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_resourceLists_resources_translations[];
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_resourceLists_translations[];
+  resources: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_resourceLists_resources[];
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_tags_translations[];
+}
+
 export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_translations {
   __typename: "RoutineTranslation";
   id: string;
@@ -124,11 +274,16 @@ export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines
   __typename: "Routine";
   id: string;
   complexity: number;
+  isComplete: boolean;
   isInternal: boolean | null;
+  inputs: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs[];
   nodesCount: number | null;
   role: MemberRole | null;
+  outputs: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs[];
   owner: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_owner | null;
+  resourceLists: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_resourceLists[];
   simplicity: number;
+  tags: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_tags[];
   translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_translations[];
   version: string | null;
 }

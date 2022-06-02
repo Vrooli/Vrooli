@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
-import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, StandardModel, updateHelper } from '../models';
+import { countHelper, createHelper, readManyHelper, readOneHelper, StandardModel, updateHelper } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, Success, StandardSearchResult, StandardSortBy } from './types';
+import { FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSearchResult, StandardSortBy } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
@@ -29,6 +29,7 @@ export const typeDef = gql`
         version: String
         createdByUserId: ID
         createdByOrganizationId: ID
+        resourceListsCreate: [ResourceListCreateInput!]
         tagsConnect: [ID!]
         tagsCreate: [TagCreateInput!]
         translationsCreate: [StandardTranslationCreateInput!]
@@ -36,6 +37,9 @@ export const typeDef = gql`
     input StandardUpdateInput {
         id: ID!
         makeAnonymous: Boolean
+        resourceListsDelete: [ID!]
+        resourceListsCreate: [ResourceListCreateInput!]
+        resourceListsUpdate: [ResourceListUpdateInput!]
         tagsConnect: [ID!]
         tagsDisconnect: [ID!]
         tagsCreate: [TagCreateInput!]
@@ -63,6 +67,7 @@ export const typeDef = gql`
         comments: [Comment!]!
         creator: Contributor
         reports: [Report!]!
+        resourceLists: [ResourceList!]!
         routineInputs: [Routine!]!
         routineOutputs: [Routine!]!
         starredBy: [User!]!
@@ -73,16 +78,19 @@ export const typeDef = gql`
     input StandardTranslationCreateInput {
         language: String!
         description: String
+        jsonVariables: String
     }
     input StandardTranslationUpdateInput {
         id: ID!
         language: String
         description: String
+        jsonVariables: String
     }
     type StandardTranslation {
         id: ID!
         language: String!
         description: String
+        jsonVariables: String
     }
 
     input StandardSearchInput {
@@ -132,7 +140,6 @@ export const typeDef = gql`
     extend type Mutation {
         standardCreate(input: StandardCreateInput!): Standard!
         standardUpdate(input: StandardUpdateInput!): Standard!
-        standardDeleteOne(input: DeleteOneInput!): Success!
     }
 `
 
@@ -171,14 +178,6 @@ export const resolvers = {
         standardUpdate: async (_parent: undefined, { input }: IWrap<StandardUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
             await rateLimit({ context, info, max: 500, byAccount: true });
             return updateHelper(context.req.userId, input, info, StandardModel(context.prisma));
-        },
-        /**
-         * Delete a standard you've created. Other standards must go through a reporting system
-         * @returns 
-         */
-        standardDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            await rateLimit({ context, info, max: 100, byAccount: true });
-            return deleteOneHelper(context.req.userId, input, StandardModel(context.prisma));
         },
     }
 }

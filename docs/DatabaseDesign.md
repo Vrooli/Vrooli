@@ -108,6 +108,9 @@ A user or organization cannot update a standard once it has been published (exce
 
 NOTE: standard name is not translated because it is used as a unique identifier. Think of standard names like CIP proposals. There isn't a translation for CIP-0030 - that's just its name
 
+## standard_translation
+- `jsonVariables` - If standard is a JSON type, then it may contain variables that have labels and helper text
+
 
 ## star
 Objects can only be starred by a user, not an organization.

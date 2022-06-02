@@ -22,3 +22,7 @@ Before you even think about migrating your schema, make sure you have already cr
 4. `cd packages/server`  
 5. `prisma migrate dev --name <ENTER_NAME_FOR_MIGRATTION> --schema src/db/schema.prisma`  
 4. Type `exit` to exit the shell.  
+
+
+## Resolving Migration Issues
+The first thing to do when trying to resolve issues is to enter this command: `prisma migrate status --schema src/db/schema.prisma`, after following the same steps above for accessing the server.

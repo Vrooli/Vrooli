@@ -75,7 +75,7 @@ export interface JsonFormatInputProps {
      *  }
      * }
      */
-    format?: string;
+    format?: { [x: string]: any };
     helperText?: string | null | undefined;
     minRows?: number;
     onChange: (newText: string) => any;
@@ -106,7 +106,6 @@ export interface JsonFormatInputProps {
 
 export interface JsonInputProps {
     id: string;
-    description?: string;
     disabled?: boolean;
     error?: boolean;
     /**
@@ -143,16 +142,15 @@ export interface JsonInputProps {
      *  }
      * }
      */
-    format?: string;
+    format?: { [x: string]: any }
     helperText?: string | null | undefined;
     minRows?: number;
     onChange: (newText: string) => any;
     placeholder?: string;
-    title?: string;
     /**
      * JSON string representing the value of the input
      */
-    value: string;
+    value: string | null;
     /**
      * Dictionary which describes variables (e.g. <name>, <age>) in
      * the format JSON. 
@@ -185,6 +183,7 @@ export interface LanguageInputProps {
     handleCurrent: (language: string) => void;
     selectedLanguages: string[];
     session: Session;
+    zIndex: number;
 }
 
 export interface LinkButtonProps {
@@ -219,6 +218,12 @@ export interface PasswordTextFieldProps extends TextFieldProps {
     onBlur?: (event: FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>) => void;
     onChange: (e: ChangeEvent<any>) => any;
     value: string;
+}
+
+export interface PreviewSwitchProps extends BoxProps {
+    disabled?: boolean;
+    isPreviewOn: boolean;
+    onChange: (isPreviewOn: boolean) => void;
 }
 
 export interface QuantityBoxProps extends BoxProps {
@@ -268,6 +273,7 @@ export interface StandardSelectSwitchProps extends UseSwitchProps {
     selected: Standard | null;
     onChange: (value: Standard | null) => any;
     disabled?: boolean;
+    zIndex: number;
 }
 
 // Tag object which may not exist in the database
@@ -295,4 +301,5 @@ export interface UserOrganizationSwitchProps extends UseSwitchProps {
     selected: Organization | null;
     onChange: (value: Organization | null) => any;
     disabled?: boolean;
+    zIndex: number;
 }

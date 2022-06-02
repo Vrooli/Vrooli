@@ -1,830 +1,834 @@
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "postgresql"
-    url      = env("DB_URL")
+  provider = "postgresql"
+  url      = env("DB_URL")
 }
 
 model comment {
-    id             String                @id @default(uuid()) @db.Uuid
-    created_at     DateTime              @default(now()) @db.Timestamptz(6)
-    updated_at     DateTime              @default(now()) @db.Timestamptz(6)
-    userId         String?               @db.Uuid
-    organizationId String?               @db.Uuid
-    projectId      String?               @db.Uuid
-    routineId      String?               @db.Uuid
-    standardId     String?               @db.Uuid
-    stars          Int                   @default(0)
-    score          Int                   @default(0)
-    organization   organization?         @relation(fields: [organizationId], references: [id])
-    project        project?              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    routine        routine?              @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    standard       standard?             @relation(fields: [standardId], references: [id], onDelete: Cascade)
-    user           user?                 @relation(fields: [userId], references: [id])
-    translations   comment_translation[]
-    reports        report[]
-    starredBy      star[]                @relation("star_comment")
-    votes          vote[]                @relation("vote_comment")
+  id             String                @id @default(uuid()) @db.Uuid
+  created_at     DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime              @default(now()) @db.Timestamptz(6)
+  userId         String?               @db.Uuid
+  organizationId String?               @db.Uuid
+  projectId      String?               @db.Uuid
+  routineId      String?               @db.Uuid
+  standardId     String?               @db.Uuid
+  stars          Int                   @default(0)
+  score          Int                   @default(0)
+  organization   organization?         @relation(fields: [organizationId], references: [id])
+  project        project?              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  routine        routine?              @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  standard       standard?             @relation(fields: [standardId], references: [id], onDelete: Cascade)
+  user           user?                 @relation(fields: [userId], references: [id])
+  translations   comment_translation[]
+  reports        report[]
+  starredBy      star[]                @relation("star_comment")
+  votes          vote[]                @relation("vote_comment")
 }
 
 model comment_translation {
-    id        String  @id @default(uuid()) @db.Uuid
-    text      String  @db.VarChar(2048)
-    language  String  @db.VarChar(3)
-    commentId String  @db.Uuid
-    comment   comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  id        String  @id @default(uuid()) @db.Uuid
+  text      String  @db.VarChar(2048)
+  language  String  @db.VarChar(3)
+  commentId String  @db.Uuid
+  comment   comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
-    @@unique([commentId, language])
+  @@unique([commentId, language])
 }
 
 model email {
-    id                                 String    @id @default(uuid()) @db.Uuid
-    emailAddress                       String    @unique @db.Citext
-    receivesAccountUpdates             Boolean   @default(true)
-    receivesBusinessUpdates            Boolean   @default(true)
-    verified                           Boolean   @default(false)
-    lastVerifiedTime                   DateTime? @db.Timestamptz(6)
-    verificationCode                   String?   @unique @db.VarChar(256)
-    lastVerificationCodeRequestAttempt DateTime? @db.Timestamptz(6)
-    userId                             String?   @db.Uuid
-    user                               user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                                 String    @id @default(uuid()) @db.Uuid
+  emailAddress                       String    @unique @db.Citext
+  receivesAccountUpdates             Boolean   @default(true)
+  receivesBusinessUpdates            Boolean   @default(true)
+  verified                           Boolean   @default(false)
+  lastVerifiedTime                   DateTime? @db.Timestamptz(6)
+  verificationCode                   String?   @unique @db.VarChar(256)
+  lastVerificationCodeRequestAttempt DateTime? @db.Timestamptz(6)
+  userId                             String?   @db.Uuid
+  user                               user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model handle {
-    id       String  @id @default(uuid()) @db.Uuid
-    handle   String? @unique @db.VarChar(16)
-    walletId String? @db.Uuid
-    wallet   wallet? @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  id       String  @id @default(uuid()) @db.Uuid
+  handle   String? @unique @db.VarChar(16)
+  walletId String? @db.Uuid
+  wallet   wallet? @relation(fields: [walletId], references: [id], onDelete: Cascade)
 }
 
 model node {
-    id              String             @id @default(uuid()) @db.Uuid
-    created_at      DateTime           @default(now()) @db.Timestamptz(6)
-    updated_at      DateTime           @default(now()) @db.Timestamptz(6)
-    columnIndex     Int?
-    rowIndex        Int?
-    type            NodeType
-    routineId       String             @db.Uuid
-    routine         routine            @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    nodeEnd         node_end?
-    previous        node_link[]        @relation("node_previous")
-    next            node_link[]        @relation("node_next")
-    loop            node_loop?
-    nodeRoutineList node_routine_list?
-    translations    node_translation[]
-    runSteps        run_step[]         @relation("run_step_node")
+  id              String             @id @default(uuid()) @db.Uuid
+  created_at      DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime           @default(now()) @db.Timestamptz(6)
+  columnIndex     Int?
+  rowIndex        Int?
+  type            NodeType
+  routineId       String             @db.Uuid
+  routine         routine            @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  nodeEnd         node_end?
+  previous        node_link[]        @relation("node_previous")
+  next            node_link[]        @relation("node_next")
+  loop            node_loop?
+  nodeRoutineList node_routine_list?
+  translations    node_translation[]
+  runSteps        run_step[]         @relation("run_step_node")
 }
 
 model node_translation {
-    id          String  @id @default(uuid()) @db.Uuid
-    description String? @db.VarChar(2048)
-    title       String  @default("Name Me") @db.VarChar(128)
-    language    String  @db.VarChar(3)
-    nodeId      String  @db.Uuid
-    node        node    @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  id          String  @id @default(uuid()) @db.Uuid
+  description String? @db.VarChar(2048)
+  title       String  @default("Name Me") @db.VarChar(128)
+  language    String  @db.VarChar(3)
+  nodeId      String  @db.Uuid
+  node        node    @relation(fields: [nodeId], references: [id], onDelete: Cascade)
 
-    @@unique([nodeId, language])
+  @@unique([nodeId, language])
 }
 
 model node_end {
-    id            String  @id @default(uuid()) @db.Uuid
-    wasSuccessful Boolean @default(true)
-    nodeId        String  @unique @db.Uuid
-    node          node    @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  id            String  @id @default(uuid()) @db.Uuid
+  wasSuccessful Boolean @default(true)
+  nodeId        String  @unique @db.Uuid
+  node          node    @relation(fields: [nodeId], references: [id], onDelete: Cascade)
 }
 
 model node_link {
-    id        String           @id @default(uuid()) @db.Uuid
-    fromId    String           @db.Uuid
-    routineId String           @db.Uuid
-    toId      String           @db.Uuid
-    operation String?          @db.VarChar(512)
-    from      node             @relation("node_previous", fields: [fromId], references: [id], onDelete: Cascade)
-    routine   routine          @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    to        node             @relation("node_next", fields: [toId], references: [id], onDelete: Cascade)
-    whens     node_link_when[]
+  id        String           @id @default(uuid()) @db.Uuid
+  fromId    String           @db.Uuid
+  routineId String           @db.Uuid
+  toId      String           @db.Uuid
+  operation String?          @db.VarChar(512)
+  from      node             @relation("node_previous", fields: [fromId], references: [id], onDelete: Cascade)
+  routine   routine          @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  to        node             @relation("node_next", fields: [toId], references: [id], onDelete: Cascade)
+  whens     node_link_when[]
 }
 
 model node_link_when {
-    id           String                       @id @default(uuid()) @db.Uuid
-    linkId       String                       @db.Uuid
-    condition    String                       @db.VarChar(8192)
-    link         node_link                    @relation(fields: [linkId], references: [id], onDelete: Cascade)
-    translations node_link_when_translation[]
+  id           String                       @id @default(uuid()) @db.Uuid
+  linkId       String                       @db.Uuid
+  condition    String                       @db.VarChar(8192)
+  link         node_link                    @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  translations node_link_when_translation[]
 }
 
 model node_link_when_translation {
-    id          String         @id @default(uuid()) @db.Uuid
-    description String?        @db.VarChar(2048)
-    title       String         @db.VarChar(128)
-    language    String         @db.VarChar(3)
-    whenId      String         @db.Uuid
-    when        node_link_when @relation(fields: [whenId], references: [id], onDelete: Cascade)
+  id          String         @id @default(uuid()) @db.Uuid
+  description String?        @db.VarChar(2048)
+  title       String         @db.VarChar(128)
+  language    String         @db.VarChar(3)
+  whenId      String         @db.Uuid
+  when        node_link_when @relation(fields: [whenId], references: [id], onDelete: Cascade)
 
-    @@unique([whenId, language])
+  @@unique([whenId, language])
 }
 
 model node_loop {
-    id        String            @id @default(uuid()) @db.Uuid
-    loops     Int?              @default(1)
-    maxLoops  Int?              @default(1)
-    operation String?           @db.VarChar(512)
-    nodeId    String            @unique @db.Uuid
-    node      node              @relation(fields: [nodeId], references: [id], onDelete: Cascade)
-    whiles    node_loop_while[]
+  id        String            @id @default(uuid()) @db.Uuid
+  loops     Int?              @default(1)
+  maxLoops  Int?              @default(1)
+  operation String?           @db.VarChar(512)
+  nodeId    String            @unique @db.Uuid
+  node      node              @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  whiles    node_loop_while[]
 }
 
 model node_loop_while {
-    id           String                        @id @default(uuid()) @db.Uuid
-    loopId       String                        @db.Uuid
-    condition    String                        @db.VarChar(8192)
-    loop         node_loop                     @relation(fields: [loopId], references: [id], onDelete: Cascade)
-    translations node_loop_while_translation[]
+  id           String                        @id @default(uuid()) @db.Uuid
+  loopId       String                        @db.Uuid
+  condition    String                        @db.VarChar(8192)
+  loop         node_loop                     @relation(fields: [loopId], references: [id], onDelete: Cascade)
+  translations node_loop_while_translation[]
 }
 
 model node_loop_while_translation {
-    id          String          @id @default(uuid()) @db.Uuid
-    description String          @db.VarChar(2048)
-    title       String          @db.VarChar(128)
-    language    String          @db.VarChar(3)
-    whileId     String          @db.Uuid
-    while       node_loop_while @relation(fields: [whileId], references: [id], onDelete: Cascade)
+  id          String          @id @default(uuid()) @db.Uuid
+  description String          @db.VarChar(2048)
+  title       String          @db.VarChar(128)
+  language    String          @db.VarChar(3)
+  whileId     String          @db.Uuid
+  while       node_loop_while @relation(fields: [whileId], references: [id], onDelete: Cascade)
 }
 
 model node_routine_list {
-    id         String                   @id @default(uuid()) @db.Uuid
-    isOrdered  Boolean                  @default(false)
-    isOptional Boolean                  @default(false)
-    nodeId     String                   @unique @db.Uuid
-    node       node                     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
-    routines   node_routine_list_item[]
+  id         String                   @id @default(uuid()) @db.Uuid
+  isOrdered  Boolean                  @default(false)
+  isOptional Boolean                  @default(false)
+  nodeId     String                   @unique @db.Uuid
+  node       node                     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  routines   node_routine_list_item[]
 }
 
 model node_routine_list_item {
-    id           String                               @id @default(uuid()) @db.Uuid
-    index        Int?                                 @default(0)
-    isOptional   Boolean                              @default(false)
-    listId       String                               @db.Uuid
-    routineId    String                               @db.Uuid
-    list         node_routine_list                    @relation(fields: [listId], references: [id], onDelete: Cascade)
-    routine      routine                              @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    translations node_routine_list_item_translation[]
+  id           String                               @id @default(uuid()) @db.Uuid
+  index        Int
+  isOptional   Boolean                              @default(false)
+  listId       String                               @db.Uuid
+  routineId    String                               @db.Uuid
+  list         node_routine_list                    @relation(fields: [listId], references: [id], onDelete: Cascade)
+  routine      routine                              @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  translations node_routine_list_item_translation[]
 
-    @@unique([listId, routineId], name: "node_routine_list_item_listid_routineid_unique")
+  @@unique([listId, routineId], name: "node_routine_list_item_listid_routineid_unique")
 }
 
 model node_routine_list_item_translation {
-    id          String                 @id @default(uuid()) @db.Uuid
-    description String?                @db.VarChar(2048)
-    title       String?                @db.VarChar(128)
-    language    String                 @db.VarChar(3)
-    itemId      String                 @db.Uuid
-    item        node_routine_list_item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  id          String                 @id @default(uuid()) @db.Uuid
+  description String?                @db.VarChar(2048)
+  title       String?                @db.VarChar(128)
+  language    String                 @db.VarChar(3)
+  itemId      String                 @db.Uuid
+  item        node_routine_list_item @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
-    @@unique([itemId, language])
+  @@unique([itemId, language])
 }
 
 model organization {
-    id                 String                     @id @default(uuid()) @db.Uuid
-    created_at         DateTime                   @default(now()) @db.Timestamptz(6)
-    updated_at         DateTime                   @default(now()) @db.Timestamptz(6)
-    handle             String?                    @unique @db.VarChar(16)
-    isOpenToNewMembers Boolean                    @default(false)
-    stars              Int                        @default(0)
-    views              Int                        @default(0)
-    comments           comment[]
-    tags               organization_tags[]
-    translations       organization_translation[]
-    members            organization_users[]
-    projectsCreated    project[]                  @relation("project_organization_creator")
-    projects           project[]                  @relation("project_organization_owner")
-    reports            report[]
-    resourceLists      resource_list[]
-    routinesCreated    routine[]                  @relation("routine_organization_creator")
-    routines           routine[]                  @relation("routine_organization_owner")
-    standards          standard[]
-    starredBy          star[]                     @relation("star_organization")
-    viewedBy           view[]                     @relation("view_organization")
-    wallets            wallet[]
+  id                 String                     @id @default(uuid()) @db.Uuid
+  created_at         DateTime                   @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime                   @default(now()) @db.Timestamptz(6)
+  handle             String?                    @unique @db.VarChar(16)
+  isOpenToNewMembers Boolean                    @default(false)
+  stars              Int                        @default(0)
+  views              Int                        @default(0)
+  comments           comment[]
+  tags               organization_tags[]
+  translations       organization_translation[]
+  members            organization_users[]
+  projectsCreated    project[]                  @relation("project_organization_creator")
+  projects           project[]                  @relation("project_organization_owner")
+  reports            report[]
+  resourceLists      resource_list[]
+  routinesCreated    routine[]                  @relation("routine_organization_creator")
+  routines           routine[]                  @relation("routine_organization_owner")
+  standards          standard[]
+  starredBy          star[]                     @relation("star_organization")
+  viewedBy           view[]                     @relation("view_organization")
+  wallets            wallet[]
 }
 
 model organization_translation {
-    id             String       @id @default(uuid()) @db.Uuid
-    bio            String?      @db.VarChar(2048)
-    name           String       @db.VarChar(128)
-    language       String       @db.VarChar(3)
-    organizationId String       @db.Uuid
-    organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id             String       @id @default(uuid()) @db.Uuid
+  bio            String?      @db.VarChar(2048)
+  name           String       @db.VarChar(128)
+  language       String       @db.VarChar(3)
+  organizationId String       @db.Uuid
+  organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-    @@unique([organizationId, language])
+  @@unique([organizationId, language])
 }
 
 model organization_tags {
-    id       String       @id @default(uuid()) @db.Uuid
-    taggedId String       @db.Uuid
-    tagId    String       @db.Uuid
-    tag      tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
-    tagged   organization @relation(fields: [taggedId], references: [id], onDelete: Cascade)
+  id       String       @id @default(uuid()) @db.Uuid
+  taggedId String       @db.Uuid
+  tagId    String       @db.Uuid
+  tag      tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagged   organization @relation(fields: [taggedId], references: [id], onDelete: Cascade)
 
-    @@unique([taggedId, tagId], name: "organization_tags_taggedid_tagid_unique")
+  @@unique([taggedId, tagId], name: "organization_tags_taggedid_tagid_unique")
 }
 
 model organization_users {
-    id             String       @id @default(uuid()) @db.Uuid
-    organizationId String       @db.Uuid
-    userId         String       @db.Uuid
-    role           MemberRole   @default(Member)
-    organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    user           user         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @db.Uuid
+  userId         String       @db.Uuid
+  role           MemberRole   @default(Member)
+  organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           user         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([organizationId, userId], name: "organization_users_organizationid_userid_unique")
+  @@unique([organizationId, userId], name: "organization_users_organizationid_userid_unique")
 }
 
 model project {
-    id                      String                @id @default(uuid()) @db.Uuid
-    created_at              DateTime              @default(now()) @db.Timestamptz(6)
-    updated_at              DateTime              @default(now()) @db.Timestamptz(6)
-    isComplete              Boolean               @default(false)
-    completedAt             DateTime?             @db.Timestamptz(6)
-    score                   Int                   @default(0)
-    stars                   Int                   @default(0)
-    views                   Int                   @default(0)
-    createdByUserId         String?               @db.Uuid
-    createdByOrganizationId String?               @db.Uuid
-    handle                  String?               @unique @db.VarChar(16)
-    userId                  String?               @db.Uuid
-    organizationId          String?               @db.Uuid
-    parentId                String?               @db.Uuid
-    createdByOrganization   organization?         @relation("project_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
-    createdByUser           user?                 @relation("project_user_creator", fields: [createdByUserId], references: [id], onDelete: Cascade)
-    organization            organization?         @relation("project_organization_owner", fields: [organizationId], references: [id], onDelete: Cascade)
-    parent                  project?              @relation("project_fork", fields: [parentId], references: [id])
-    user                    user?                 @relation("project_user_owner", fields: [userId], references: [id], onDelete: Cascade)
-    comments                comment[]
-    forks                   project[]             @relation("project_fork")
-    tags                    project_tags[]
-    translations            project_translation[]
-    reports                 report[]
-    resourceLists           resource_list[]
-    routines                routine[]
-    starredBy               star[]                @relation("star_project")
-    viewedBy                view[]                @relation("view_project")
-    votes                   vote[]                @relation("vote_project")
-    wallets                 wallet[]
+  id                      String                @id @default(uuid()) @db.Uuid
+  created_at              DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime              @default(now()) @db.Timestamptz(6)
+  isComplete              Boolean               @default(false)
+  completedAt             DateTime?             @db.Timestamptz(6)
+  score                   Int                   @default(0)
+  stars                   Int                   @default(0)
+  views                   Int                   @default(0)
+  createdByUserId         String?               @db.Uuid
+  createdByOrganizationId String?               @db.Uuid
+  handle                  String?               @unique @db.VarChar(16)
+  userId                  String?               @db.Uuid
+  organizationId          String?               @db.Uuid
+  parentId                String?               @db.Uuid
+  createdByOrganization   organization?         @relation("project_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
+  createdByUser           user?                 @relation("project_user_creator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  organization            organization?         @relation("project_organization_owner", fields: [organizationId], references: [id], onDelete: Cascade)
+  parent                  project?              @relation("project_fork", fields: [parentId], references: [id])
+  user                    user?                 @relation("project_user_owner", fields: [userId], references: [id], onDelete: Cascade)
+  comments                comment[]
+  forks                   project[]             @relation("project_fork")
+  tags                    project_tags[]
+  translations            project_translation[]
+  reports                 report[]
+  resourceLists           resource_list[]
+  routines                routine[]
+  starredBy               star[]                @relation("star_project")
+  viewedBy                view[]                @relation("view_project")
+  votes                   vote[]                @relation("vote_project")
+  wallets                 wallet[]
 }
 
 model project_translation {
-    id          String  @id @default(uuid()) @db.Uuid
-    description String? @db.VarChar(2048)
-    name        String  @db.VarChar(128)
-    language    String  @db.VarChar(3)
-    projectId   String  @db.Uuid
-    project     project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id          String  @id @default(uuid()) @db.Uuid
+  description String? @db.VarChar(2048)
+  name        String  @db.VarChar(128)
+  language    String  @db.VarChar(3)
+  projectId   String  @db.Uuid
+  project     project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-    @@unique([projectId, language])
+  @@unique([projectId, language])
 }
 
 model project_tags {
-    id       String  @id @default(uuid()) @db.Uuid
-    taggedId String  @db.Uuid
-    tagId    String  @db.Uuid
-    tag      tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
-    tagged   project @relation(fields: [taggedId], references: [id], onDelete: Cascade)
+  id       String  @id @default(uuid()) @db.Uuid
+  taggedId String  @db.Uuid
+  tagId    String  @db.Uuid
+  tag      tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagged   project @relation(fields: [taggedId], references: [id], onDelete: Cascade)
 
-    @@unique([taggedId, tagId], name: "project_tags_taggedid_tagid_unique")
+  @@unique([taggedId, tagId], name: "project_tags_taggedid_tagid_unique")
 }
 
 model report {
-    id             String        @id @default(uuid()) @db.Uuid
-    reason         String        @db.VarChar(128)
-    details        String?       @db.VarChar(1024)
-    language       String        @db.VarChar(3)
-    created_at     DateTime      @default(now()) @db.Timestamptz(6)
-    fromId         String        @db.Uuid
-    commentId      String?       @db.Uuid
-    organizationId String?       @db.Uuid
-    projectId      String?       @db.Uuid
-    routineId      String?       @db.Uuid
-    standardId     String?       @db.Uuid
-    tagId          String?       @db.Uuid
-    userId         String?       @db.Uuid
-    comment        comment?      @relation(fields: [commentId], references: [id], onDelete: Cascade)
-    from           user          @relation("report_from", fields: [fromId], references: [id], onDelete: Cascade)
-    organization   organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    project        project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    routine        routine?      @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    standard       standard?     @relation(fields: [standardId], references: [id], onDelete: Cascade)
-    tag            tag?          @relation(fields: [tagId], references: [id], onDelete: Cascade)
-    user           user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String        @id @default(uuid()) @db.Uuid
+  reason         String        @db.VarChar(128)
+  details        String?       @db.VarChar(1024)
+  language       String        @db.VarChar(3)
+  created_at     DateTime      @default(now()) @db.Timestamptz(6)
+  fromId         String        @db.Uuid
+  commentId      String?       @db.Uuid
+  organizationId String?       @db.Uuid
+  projectId      String?       @db.Uuid
+  routineId      String?       @db.Uuid
+  standardId     String?       @db.Uuid
+  tagId          String?       @db.Uuid
+  userId         String?       @db.Uuid
+  comment        comment?      @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  from           user          @relation("report_from", fields: [fromId], references: [id], onDelete: Cascade)
+  organization   organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project        project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  routine        routine?      @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  standard       standard?     @relation(fields: [standardId], references: [id], onDelete: Cascade)
+  tag            tag?          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  user           user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model resource {
-    id           String                 @id @default(uuid()) @db.Uuid
-    created_at   DateTime               @default(now()) @db.Timestamptz(6)
-    updated_at   DateTime               @default(now()) @db.Timestamptz(6)
-    index        Int?                   @default(0)
-    link         String                 @db.VarChar(1024)
-    usedFor      ResourceUsedFor        @default(Context)
-    listId       String                 @db.Uuid
-    list         resource_list          @relation(fields: [listId], references: [id], onDelete: Cascade)
-    translations resource_translation[]
+  id           String                 @id @default(uuid()) @db.Uuid
+  created_at   DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime               @default(now()) @db.Timestamptz(6)
+  index        Int?                   @default(0)
+  link         String                 @db.VarChar(1024)
+  usedFor      ResourceUsedFor        @default(Context)
+  listId       String                 @db.Uuid
+  list         resource_list          @relation(fields: [listId], references: [id], onDelete: Cascade)
+  translations resource_translation[]
 }
 
 model resource_translation {
-    id          String   @id @default(uuid()) @db.Uuid
-    description String?  @db.VarChar(2048)
-    title       String?  @db.VarChar(128)
-    language    String   @db.VarChar(3)
-    resourceId  String   @db.Uuid
-    resource    resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  id          String   @id @default(uuid()) @db.Uuid
+  description String?  @db.VarChar(2048)
+  title       String?  @db.VarChar(128)
+  language    String   @db.VarChar(3)
+  resourceId  String   @db.Uuid
+  resource    resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
-    @@unique([resourceId, language])
+  @@unique([resourceId, language])
 }
 
 model resource_list {
-    id             String                      @id @default(uuid()) @db.Uuid
-    created_at     DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at     DateTime                    @default(now()) @db.Timestamptz(6)
-    index          Int?                        @default(0)
-    usedFor        ResourceListUsedFor         @default(Display)
-    organizationId String?                     @db.Uuid
-    projectId      String?                     @db.Uuid
-    routineId      String?                     @db.Uuid
-    userId         String?                     @db.Uuid
-    organization   organization?               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    project        project?                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    routine        routine?                    @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    user           user?                       @relation(fields: [userId], references: [id], onDelete: Cascade)
-    resources      resource[]
-    translations   resource_list_translation[]
+  id             String                      @id @default(uuid()) @db.Uuid
+  created_at     DateTime                    @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime                    @default(now()) @db.Timestamptz(6)
+  index          Int?                        @default(0)
+  usedFor        ResourceListUsedFor         @default(Display)
+  organizationId String?                     @db.Uuid
+  projectId      String?                     @db.Uuid
+  routineId      String?                     @db.Uuid
+  standardId     String?                     @db.Uuid
+  userId         String?                     @db.Uuid
+  organization   organization?               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project        project?                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  routine        routine?                    @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  standard       standard?                   @relation(fields: [standardId], references: [id], onDelete: Cascade)
+  user           user?                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resources      resource[]
+  translations   resource_list_translation[]
 }
 
 model resource_list_translation {
-    id          String        @id @default(uuid()) @db.Uuid
-    description String?       @db.VarChar(512)
-    title       String?       @db.VarChar(128)
-    language    String        @db.VarChar(3)
-    listId      String        @db.Uuid
-    list        resource_list @relation(fields: [listId], references: [id], onDelete: Cascade)
+  id          String        @id @default(uuid()) @db.Uuid
+  description String?       @db.VarChar(512)
+  title       String?       @db.VarChar(128)
+  language    String        @db.VarChar(3)
+  listId      String        @db.Uuid
+  list        resource_list @relation(fields: [listId], references: [id], onDelete: Cascade)
 
-    @@unique([listId, language])
+  @@unique([listId, language])
 }
 
 model role {
-    id          String       @id @default(uuid()) @db.Uuid
-    title       String       @unique @db.VarChar(128)
-    description String?      @db.VarChar(2048)
-    created_at  DateTime     @default(now()) @db.Timestamptz(6)
-    updated_at  DateTime     @default(now()) @db.Timestamptz(6)
-    users       user_roles[]
+  id          String       @id @default(uuid()) @db.Uuid
+  title       String       @unique @db.VarChar(128)
+  description String?      @db.VarChar(2048)
+  created_at  DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime     @default(now()) @db.Timestamptz(6)
+  users       user_roles[]
 }
 
 model routine {
-    id                      String                   @id @default(uuid()) @db.Uuid
-    created_at              DateTime                 @default(now()) @db.Timestamptz(6)
-    updated_at              DateTime                 @default(now()) @db.Timestamptz(6)
-    completedAt             DateTime?                @db.Timestamptz(6)
-    complexity              Int                      @default(1)
-    isAutomatable           Boolean                  @default(false)
-    isComplete              Boolean                  @default(true)
-    isInternal              Boolean                  @default(false)
-    score                   Int                      @default(0)
-    simplicity              Int                      @default(1)
-    stars                   Int                      @default(0)
-    timesStarted            Int                      @default(0)
-    timesCompleted          Int                      @default(0)
-    views                   Int                      @default(0)
-    createdByUserId         String?                  @db.Uuid
-    createdByOrganizationId String?                  @db.Uuid
-    organizationId          String?                  @db.Uuid
-    parentId                String?                  @db.Uuid
-    projectId               String?                  @db.Uuid
-    userId                  String?                  @db.Uuid
-    version                 String                   @default("1.0.0") @db.VarChar(16)
-    createdByOrganization   organization?            @relation("routine_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
-    createdByUser           user?                    @relation("routine_user_creator", fields: [createdByUserId], references: [id], onDelete: Cascade)
-    organization            organization?            @relation("routine_organization_owner", fields: [organizationId], references: [id], onDelete: Cascade)
-    parent                  routine?                 @relation("routine_fork", fields: [parentId], references: [id])
-    project                 project?                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    user                    user?                    @relation("routine_user_owner", fields: [userId], references: [id], onDelete: Cascade)
-    comments                comment[]
-    nodes                   node[]
-    nodeLinks               node_link[]
-    nodeLists               node_routine_list_item[]
-    reports                 report[]
-    resourceLists           resource_list[]
-    forks                   routine[]                @relation("routine_fork")
-    inputs                  routine_input[]
-    outputs                 routine_output[]
-    tags                    routine_tags[]
-    translations            routine_translation[]
-    runs                    run[]                    @relation("run_routine")
-    runSteps                run_step[]               @relation("run_step_subroutine")
-    starredBy               star[]                   @relation("star_routine")
-    viewedBy                view[]                   @relation("view_routine")
-    votes                   vote[]                   @relation("vote_routine")
+  id                      String                   @id @default(uuid()) @db.Uuid
+  created_at              DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime                 @default(now()) @db.Timestamptz(6)
+  completedAt             DateTime?                @db.Timestamptz(6)
+  complexity              Int                      @default(1)
+  isAutomatable           Boolean                  @default(false)
+  isComplete              Boolean                  @default(true)
+  isInternal              Boolean                  @default(false)
+  score                   Int                      @default(0)
+  simplicity              Int                      @default(1)
+  stars                   Int                      @default(0)
+  timesStarted            Int                      @default(0)
+  timesCompleted          Int                      @default(0)
+  views                   Int                      @default(0)
+  createdByUserId         String?                  @db.Uuid
+  createdByOrganizationId String?                  @db.Uuid
+  organizationId          String?                  @db.Uuid
+  parentId                String?                  @db.Uuid
+  projectId               String?                  @db.Uuid
+  userId                  String?                  @db.Uuid
+  version                 String                   @default("1.0.0") @db.VarChar(16)
+  createdByOrganization   organization?            @relation("routine_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
+  createdByUser           user?                    @relation("routine_user_creator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  organization            organization?            @relation("routine_organization_owner", fields: [organizationId], references: [id], onDelete: Cascade)
+  parent                  routine?                 @relation("routine_fork", fields: [parentId], references: [id])
+  project                 project?                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user                    user?                    @relation("routine_user_owner", fields: [userId], references: [id], onDelete: Cascade)
+  comments                comment[]
+  nodes                   node[]
+  nodeLinks               node_link[]
+  nodeLists               node_routine_list_item[]
+  reports                 report[]
+  resourceLists           resource_list[]
+  forks                   routine[]                @relation("routine_fork")
+  inputs                  routine_input[]
+  outputs                 routine_output[]
+  tags                    routine_tags[]
+  translations            routine_translation[]
+  runs                    run[]                    @relation("run_routine")
+  runSteps                run_step[]               @relation("run_step_subroutine")
+  starredBy               star[]                   @relation("star_routine")
+  viewedBy                view[]                   @relation("view_routine")
+  votes                   vote[]                   @relation("vote_routine")
 }
 
 model routine_translation {
-    id           String  @id @default(uuid()) @db.Uuid
-    description  String? @db.VarChar(2048)
-    instructions String  @db.VarChar(8192)
-    title        String  @db.VarChar(128)
-    language     String  @db.VarChar(3)
-    routineId    String  @db.Uuid
-    routine      routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  id           String  @id @default(uuid()) @db.Uuid
+  description  String? @db.VarChar(2048)
+  instructions String  @db.VarChar(8192)
+  title        String  @db.VarChar(128)
+  language     String  @db.VarChar(3)
+  routineId    String  @db.Uuid
+  routine      routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
 
-    @@unique([routineId, language])
+  @@unique([routineId, language])
 }
 
 model routine_input {
-    id           String                      @id @default(uuid()) @db.Uuid
-    isRequired   Boolean                     @default(true)
-    name         String?                     @db.VarChar(128)
-    routineId    String                      @db.Uuid
-    standardId   String?                     @db.Uuid
-    routine      routine                     @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    standard     standard?                   @relation(fields: [standardId], references: [id], onDelete: Cascade)
-    translations routine_input_translation[]
+  id           String                      @id @default(uuid()) @db.Uuid
+  isRequired   Boolean                     @default(true)
+  name         String?                     @db.VarChar(128)
+  routineId    String                      @db.Uuid
+  standardId   String?                     @db.Uuid
+  routine      routine                     @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  standard     standard?                   @relation(fields: [standardId], references: [id], onDelete: Cascade)
+  translations routine_input_translation[]
 }
 
 model routine_input_translation {
-    id             String        @id @default(uuid()) @db.Uuid
-    description    String?       @db.VarChar(2048)
-    routineInputId String        @db.Uuid
-    language       String        @db.VarChar(3)
-    routineInput   routine_input @relation(fields: [routineInputId], references: [id], onDelete: Cascade)
+  id             String        @id @default(uuid()) @db.Uuid
+  description    String?       @db.VarChar(2048)
+  routineInputId String        @db.Uuid
+  language       String        @db.VarChar(3)
+  routineInput   routine_input @relation(fields: [routineInputId], references: [id], onDelete: Cascade)
 
-    @@unique([routineInputId, language])
+  @@unique([routineInputId, language])
 }
 
 model routine_output {
-    id           String                       @id @default(uuid()) @db.Uuid
-    name         String?                      @db.VarChar(128)
-    routineId    String                       @db.Uuid
-    standardId   String?                      @db.Uuid
-    routine      routine                      @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    standard     standard?                    @relation(fields: [standardId], references: [id], onDelete: Cascade)
-    translations routine_output_translation[]
+  id           String                       @id @default(uuid()) @db.Uuid
+  name         String?                      @db.VarChar(128)
+  routineId    String                       @db.Uuid
+  standardId   String?                      @db.Uuid
+  routine      routine                      @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  standard     standard?                    @relation(fields: [standardId], references: [id], onDelete: Cascade)
+  translations routine_output_translation[]
 }
 
 model routine_output_translation {
-    id              String         @id @default(uuid()) @db.Uuid
-    description     String?        @db.VarChar(2048)
-    routineOutputId String         @db.Uuid
-    language        String         @db.VarChar(3)
-    routineOutput   routine_output @relation(fields: [routineOutputId], references: [id], onDelete: Cascade)
+  id              String         @id @default(uuid()) @db.Uuid
+  description     String?        @db.VarChar(2048)
+  routineOutputId String         @db.Uuid
+  language        String         @db.VarChar(3)
+  routineOutput   routine_output @relation(fields: [routineOutputId], references: [id], onDelete: Cascade)
 
-    @@unique([routineOutputId, language])
+  @@unique([routineOutputId, language])
 }
 
 model routine_tags {
-    id       String  @id @default(uuid()) @db.Uuid
-    taggedId String  @db.Uuid
-    tagId    String  @db.Uuid
-    tag      tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
-    tagged   routine @relation(fields: [taggedId], references: [id], onDelete: Cascade)
+  id       String  @id @default(uuid()) @db.Uuid
+  taggedId String  @db.Uuid
+  tagId    String  @db.Uuid
+  tag      tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagged   routine @relation(fields: [taggedId], references: [id], onDelete: Cascade)
 
-    @@unique([taggedId, tagId], name: "routine_tags_taggedid_tagid_unique")
+  @@unique([taggedId, tagId], name: "routine_tags_taggedid_tagid_unique")
 }
 
 model run {
-    id                  String     @id @default(uuid()) @db.Uuid
-    created_at          DateTime   @default(now()) @db.Timestamptz(6)
-    updated_at          DateTime   @default(now()) @db.Timestamptz(6)
-    completedComplexity Int        @default(0)
-    pickups             Int        @default(1)
-    timeStarted         DateTime?  @db.Timestamptz(6)
-    timeElapsed         Int?
-    timeCompleted       DateTime?  @db.Timestamptz(6)
-    title               String     @db.VarChar(128)
-    status              RunStatus  @default(Scheduled)
-    version             String     @db.VarChar(16)
-    routineId           String?    @db.Uuid
-    userId              String     @db.Uuid
-    routine             routine?   @relation("run_routine", fields: [routineId], references: [id])
-    user                user       @relation("run_user", fields: [userId], references: [id])
-    steps               run_step[] @relation("run_step_run")
+  id                  String     @id @default(uuid()) @db.Uuid
+  created_at          DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime   @default(now()) @db.Timestamptz(6)
+  completedComplexity Int        @default(0)
+  pickups             Int        @default(1)
+  timeStarted         DateTime?  @db.Timestamptz(6)
+  timeElapsed         Int?
+  timeCompleted       DateTime?  @db.Timestamptz(6)
+  title               String     @db.VarChar(128)
+  status              RunStatus  @default(Scheduled)
+  version             String     @db.VarChar(16)
+  routineId           String?    @db.Uuid
+  userId              String     @db.Uuid
+  routine             routine?   @relation("run_routine", fields: [routineId], references: [id])
+  user                user       @relation("run_user", fields: [userId], references: [id])
+  steps               run_step[] @relation("run_step_run")
 }
 
 model run_step {
-    id            String        @id @default(uuid()) @db.Uuid
-    order         Int
-    pickups       Int           @default(1)
-    runId         String        @db.Uuid
-    nodeId        String        @db.Uuid
-    subroutineId  String?       @db.Uuid
-    timeStarted   DateTime?     @db.Timestamptz(6)
-    timeElapsed   Int?
-    timeCompleted DateTime?     @db.Timestamptz(6)
-    step          Int[]
-    status        RunStepStatus @default(InProgress)
-    title         String        @db.VarChar(128)
-    node          node          @relation("run_step_node", fields: [nodeId], references: [id], onDelete: SetNull)
-    run           run           @relation("run_step_run", fields: [runId], references: [id], onDelete: Cascade)
-    subroutine    routine?      @relation("run_step_subroutine", fields: [subroutineId], references: [id], onDelete: SetNull)
+  id            String        @id @default(uuid()) @db.Uuid
+  order         Int
+  pickups       Int           @default(1)
+  runId         String        @db.Uuid
+  nodeId        String        @db.Uuid
+  subroutineId  String?       @db.Uuid
+  timeStarted   DateTime?     @db.Timestamptz(6)
+  timeElapsed   Int?
+  timeCompleted DateTime?     @db.Timestamptz(6)
+  step          Int[]
+  status        RunStepStatus @default(InProgress)
+  title         String        @db.VarChar(128)
+  node          node          @relation("run_step_node", fields: [nodeId], references: [id], onDelete: SetNull)
+  run           run           @relation("run_step_run", fields: [runId], references: [id], onDelete: Cascade)
+  subroutine    routine?      @relation("run_step_subroutine", fields: [subroutineId], references: [id])
 }
 
 model standard {
-    id                      String                 @id @default(uuid()) @db.Uuid
-    created_at              DateTime               @default(now()) @db.Timestamptz(6)
-    updated_at              DateTime               @default(now()) @db.Timestamptz(6)
-    default                 String?                @db.VarChar(1024)
-    name                    String                 @db.VarChar(128)
-    score                   Int                    @default(0)
-    stars                   Int                    @default(0)
-    type                    String
-    props                   String                 @db.VarChar(8192)
-    yup                     String?                @db.VarChar(8192)
-    version                 String                 @default("1.0.0") @db.VarChar(16)
-    views                   Int                    @default(0)
-    createdByUserId         String?                @db.Uuid
-    createdByOrganizationId String?                @db.Uuid
-    isFile                  Boolean                @default(false)
-    createdByOrganization   organization?          @relation(fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
-    createdByUser           user?                  @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
-    comments                comment[]
-    reports                 report[]
-    routineInputs           routine_input[]
-    routineOutputs          routine_output[]
-    tags                    standard_tags[]
-    translations            standard_translation[]
-    starredBy               star[]                 @relation("star_standard")
-    viewedBy                view[]                 @relation("view_standard")
-    votes                   vote[]                 @relation("vote_standard")
+  id                      String                 @id @default(uuid()) @db.Uuid
+  created_at              DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime               @default(now()) @db.Timestamptz(6)
+  default                 String?                @db.VarChar(1024)
+  name                    String                 @db.VarChar(128)
+  score                   Int                    @default(0)
+  stars                   Int                    @default(0)
+  type                    String
+  props                   String                 @db.VarChar(8192)
+  yup                     String?                @db.VarChar(8192)
+  version                 String                 @default("1.0.0") @db.VarChar(16)
+  views                   Int                    @default(0)
+  createdByUserId         String?                @db.Uuid
+  createdByOrganizationId String?                @db.Uuid
+  isFile                  Boolean                @default(false)
+  createdByOrganization   organization?          @relation(fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
+  createdByUser           user?                  @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  comments                comment[]
+  reports                 report[]
+  resourceLists           resource_list[]
+  routineInputs           routine_input[]
+  routineOutputs          routine_output[]
+  tags                    standard_tags[]
+  translations            standard_translation[]
+  starredBy               star[]                 @relation("star_standard")
+  viewedBy                view[]                 @relation("view_standard")
+  votes                   vote[]                 @relation("vote_standard")
 
-    @@unique([createdByUserId, createdByOrganizationId, name, version], name: "standard_createdByUserId_createdByOrganizationId_name_version_unique")
+  @@unique([createdByUserId, createdByOrganizationId, name, version], name: "standard_createdByUserId_createdByOrganizationId_name_version_unique")
 }
 
 model standard_translation {
-    id          String   @id @default(uuid()) @db.Uuid
-    description String?  @db.VarChar(2048)
-    standardId  String   @db.Uuid
-    language    String   @db.VarChar(3)
-    standard    standard @relation(fields: [standardId], references: [id], onDelete: Cascade)
+  id          String   @id @default(uuid()) @db.Uuid
+  description String?  @db.VarChar(2048)
+  jsonVariable String?  @db.VarChar(8192)
+  standardId  String   @db.Uuid
+  language    String   @db.VarChar(3)
+  standard    standard @relation(fields: [standardId], references: [id], onDelete: Cascade)
 
-    @@unique([standardId, language])
+  @@unique([standardId, language])
 }
 
 model standard_tags {
-    id       String   @id @default(uuid()) @db.Uuid
-    taggedId String   @db.Uuid
-    tagId    String   @db.Uuid
-    tag      tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
-    tagged   standard @relation(fields: [taggedId], references: [id], onDelete: Cascade)
+  id       String   @id @default(uuid()) @db.Uuid
+  taggedId String   @db.Uuid
+  tagId    String   @db.Uuid
+  tag      tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagged   standard @relation(fields: [taggedId], references: [id], onDelete: Cascade)
 
-    @@unique([taggedId, tagId], name: "standard_tags_taggedid_tagid_unique")
+  @@unique([taggedId, tagId], name: "standard_tags_taggedid_tagid_unique")
 }
 
 model star {
-    id             String        @id @default(uuid()) @db.Uuid
-    byId           String        @db.Uuid
-    commentId      String?       @db.Uuid
-    organizationId String?       @db.Uuid
-    projectId      String?       @db.Uuid
-    routineId      String?       @db.Uuid
-    standardId     String?       @db.Uuid
-    tagId          String?       @db.Uuid
-    userId         String?       @db.Uuid
-    by             user          @relation("star_by", fields: [byId], references: [id])
-    comment        comment?      @relation("star_comment", fields: [commentId], references: [id])
-    organization   organization? @relation("star_organization", fields: [organizationId], references: [id])
-    project        project?      @relation("star_project", fields: [projectId], references: [id], onDelete: Cascade)
-    routine        routine?      @relation("star_routine", fields: [routineId], references: [id], onDelete: Cascade)
-    standard       standard?     @relation("star_standard", fields: [standardId], references: [id], onDelete: Cascade)
-    tag            tag?          @relation("star_tag", fields: [tagId], references: [id], onDelete: Cascade)
-    user           user?         @relation("star_user", fields: [userId], references: [id])
+  id             String        @id @default(uuid()) @db.Uuid
+  byId           String        @db.Uuid
+  commentId      String?       @db.Uuid
+  organizationId String?       @db.Uuid
+  projectId      String?       @db.Uuid
+  routineId      String?       @db.Uuid
+  standardId     String?       @db.Uuid
+  tagId          String?       @db.Uuid
+  userId         String?       @db.Uuid
+  by             user          @relation("star_by", fields: [byId], references: [id])
+  comment        comment?      @relation("star_comment", fields: [commentId], references: [id])
+  organization   organization? @relation("star_organization", fields: [organizationId], references: [id])
+  project        project?      @relation("star_project", fields: [projectId], references: [id], onDelete: Cascade)
+  routine        routine?      @relation("star_routine", fields: [routineId], references: [id], onDelete: Cascade)
+  standard       standard?     @relation("star_standard", fields: [standardId], references: [id], onDelete: Cascade)
+  tag            tag?          @relation("star_tag", fields: [tagId], references: [id], onDelete: Cascade)
+  user           user?         @relation("star_user", fields: [userId], references: [id])
 }
 
 model tag {
-    id              String              @id @default(uuid()) @db.Uuid
-    created_at      DateTime            @default(now()) @db.Timestamptz(6)
-    updated_at      DateTime            @default(now()) @db.Timestamptz(6)
-    tag             String              @unique @db.VarChar(128)
-    createdByUserId String?             @db.Uuid
-    stars           Int                 @default(0)
-    createdByUser   user?               @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
-    organizations   organization_tags[]
-    projects        project_tags[]
-    reports         report[]
-    routines        routine_tags[]
-    standards       standard_tags[]
-    starredBy       star[]              @relation("star_tag")
-    translations    tag_translation[]
-    hiddenBy        user_tag_hidden[]
+  id              String              @id @default(uuid()) @db.Uuid
+  created_at      DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime            @default(now()) @db.Timestamptz(6)
+  tag             String              @unique @db.VarChar(128)
+  createdByUserId String?             @db.Uuid
+  stars           Int                 @default(0)
+  createdByUser   user?               @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  organizations   organization_tags[]
+  projects        project_tags[]
+  reports         report[]
+  routines        routine_tags[]
+  standards       standard_tags[]
+  starredBy       star[]              @relation("star_tag")
+  translations    tag_translation[]
+  hiddenBy        user_tag_hidden[]
 }
 
 model tag_translation {
-    id          String  @id @default(uuid()) @db.Uuid
-    description String? @db.VarChar(2048)
-    tagId       String  @db.Uuid
-    language    String  @db.VarChar(3)
-    tag         tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  id          String  @id @default(uuid()) @db.Uuid
+  description String? @db.VarChar(2048)
+  tagId       String  @db.Uuid
+  language    String  @db.VarChar(3)
+  tag         tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
-    @@unique([tagId, language])
+  @@unique([tagId, language])
 }
 
 model user {
-    id                             String               @id @default(uuid()) @db.Uuid
-    created_at                     DateTime             @default(now()) @db.Timestamptz(6)
-    updated_at                     DateTime             @default(now()) @db.Timestamptz(6)
-    confirmationCode               String?              @unique @db.VarChar(256)
-    confirmationCodeDate           DateTime?            @db.Timestamptz(6)
-    lastExport                     DateTime?            @db.Timestamptz(6)
-    lastLoginAttempt               DateTime             @default(now()) @db.Timestamptz(6)
-    lastResetPasswordReqestAttempt DateTime?            @db.Timestamptz(6)
-    logInAttempts                  Int                  @default(0)
-    lastSessionVerified            DateTime?            @db.Timestamptz(6)
-    numExports                     Int                  @default(0)
-    password                       String?              @db.VarChar(256)
-    resetPasswordCode              String?              @unique @db.VarChar(256)
-    sessionToken                   String?              @db.VarChar(1024)
-    name                           String               @db.VarChar(128)
-    theme                          String               @default("light") @db.VarChar(255)
-    handle                         String?              @unique @db.VarChar(16)
-    stars                          Int                  @default(0)
-    views                          Int                  @default(0)
-    status                         AccountStatus        @default(Unlocked)
-    comments                       comment[]
-    emails                         email[]
-    organizations                  organization_users[]
-    projectsCreated                project[]            @relation("project_user_creator")
-    projects                       project[]            @relation("project_user_owner")
-    sentReports                    report[]             @relation("report_from")
-    reports                        report[]
-    resourceLists                  resource_list[]
-    routinesCreated                routine[]            @relation("routine_user_creator")
-    routines                       routine[]            @relation("routine_user_owner")
-    runs                           run[]                @relation("run_user")
-    standards                      standard[]
-    starred                        star[]               @relation("star_by")
-    starredBy                      star[]               @relation("star_user")
-    tags                           tag[]
-    languages                      user_language[]
-    roles                          user_roles[]
-    hiddenTags                     user_tag_hidden[]
-    translations                   user_translation[]
-    viewed                         view[]               @relation("view_by")
-    viewedBy                       view[]               @relation("view_user")
-    votes                          vote[]               @relation("vote_by")
-    wallets                        wallet[]
+  id                             String               @id @default(uuid()) @db.Uuid
+  created_at                     DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at                     DateTime             @default(now()) @db.Timestamptz(6)
+  confirmationCode               String?              @unique @db.VarChar(256)
+  confirmationCodeDate           DateTime?            @db.Timestamptz(6)
+  lastExport                     DateTime?            @db.Timestamptz(6)
+  lastLoginAttempt               DateTime             @default(now()) @db.Timestamptz(6)
+  lastResetPasswordReqestAttempt DateTime?            @db.Timestamptz(6)
+  logInAttempts                  Int                  @default(0)
+  lastSessionVerified            DateTime?            @db.Timestamptz(6)
+  numExports                     Int                  @default(0)
+  password                       String?              @db.VarChar(256)
+  resetPasswordCode              String?              @unique @db.VarChar(256)
+  sessionToken                   String?              @db.VarChar(1024)
+  name                           String               @db.VarChar(128)
+  theme                          String               @default("light") @db.VarChar(255)
+  handle                         String?              @unique @db.VarChar(16)
+  stars                          Int                  @default(0)
+  views                          Int                  @default(0)
+  status                         AccountStatus        @default(Unlocked)
+  comments                       comment[]
+  emails                         email[]
+  organizations                  organization_users[]
+  projectsCreated                project[]            @relation("project_user_creator")
+  projects                       project[]            @relation("project_user_owner")
+  sentReports                    report[]             @relation("report_from")
+  reports                        report[]
+  resourceLists                  resource_list[]
+  routinesCreated                routine[]            @relation("routine_user_creator")
+  routines                       routine[]            @relation("routine_user_owner")
+  runs                           run[]                @relation("run_user")
+  standards                      standard[]
+  starred                        star[]               @relation("star_by")
+  starredBy                      star[]               @relation("star_user")
+  tags                           tag[]
+  languages                      user_language[]
+  roles                          user_roles[]
+  hiddenTags                     user_tag_hidden[]
+  translations                   user_translation[]
+  viewed                         view[]               @relation("view_by")
+  viewedBy                       view[]               @relation("view_user")
+  votes                          vote[]               @relation("vote_by")
+  wallets                        wallet[]
 }
 
 model user_translation {
-    id       String  @id @default(uuid()) @db.Uuid
-    bio      String? @db.VarChar(2048)
-    userId   String  @db.Uuid
-    language String  @db.VarChar(3)
-    user     user    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id       String  @id @default(uuid()) @db.Uuid
+  bio      String? @db.VarChar(2048)
+  userId   String  @db.Uuid
+  language String  @db.VarChar(3)
+  user     user    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([userId, language])
+  @@unique([userId, language])
 }
 
 model user_language {
-    id       String @id @default(uuid()) @db.Uuid
-    userId   String @db.Uuid
-    language String @db.VarChar(3)
-    user     user   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id       String @id @default(uuid()) @db.Uuid
+  userId   String @db.Uuid
+  language String @db.VarChar(3)
+  user     user   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([userId, language])
+  @@unique([userId, language])
 }
 
 model user_roles {
-    id     String @id @default(uuid()) @db.Uuid
-    userId String @db.Uuid
-    roleId String @db.Uuid
-    role   role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
-    user   user   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  roleId String @db.Uuid
+  role   role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user   user   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([userId, roleId], name: "user_roles_userid_roleid_unique")
+  @@unique([userId, roleId], name: "user_roles_userid_roleid_unique")
 }
 
 model user_tag_hidden {
-    id     String  @id @default(uuid()) @db.Uuid
-    isBlur Boolean @default(true)
-    userId String  @db.Uuid
-    tagId  String  @db.Uuid
-    tag    tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
-    user   user    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String  @id @default(uuid()) @db.Uuid
+  isBlur Boolean @default(true)
+  userId String  @db.Uuid
+  tagId  String  @db.Uuid
+  tag    tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  user   user    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([userId, tagId], name: "user_tags_hidden_userid_tagid_unique")
+  @@unique([userId, tagId], name: "user_tags_hidden_userid_tagid_unique")
 }
 
 model view {
-    id             String        @id @default(uuid()) @db.Uuid
-    lastViewed     DateTime      @default(now()) @db.Timestamptz(6)
-    title          String        @db.VarChar(128)
-    byId           String        @db.Uuid
-    organizationId String?       @db.Uuid
-    projectId      String?       @db.Uuid
-    routineId      String?       @db.Uuid
-    standardId     String?       @db.Uuid
-    userId         String?       @db.Uuid
-    by             user          @relation("view_by", fields: [byId], references: [id])
-    organization   organization? @relation("view_organization", fields: [organizationId], references: [id])
-    project        project?      @relation("view_project", fields: [projectId], references: [id], onDelete: Cascade)
-    routine        routine?      @relation("view_routine", fields: [routineId], references: [id], onDelete: Cascade)
-    standard       standard?     @relation("view_standard", fields: [standardId], references: [id], onDelete: Cascade)
-    user           user?         @relation("view_user", fields: [userId], references: [id])
+  id             String        @id @default(uuid()) @db.Uuid
+  lastViewed     DateTime      @default(now()) @db.Timestamptz(6)
+  title          String        @db.VarChar(128)
+  byId           String        @db.Uuid
+  organizationId String?       @db.Uuid
+  projectId      String?       @db.Uuid
+  routineId      String?       @db.Uuid
+  standardId     String?       @db.Uuid
+  userId         String?       @db.Uuid
+  by             user          @relation("view_by", fields: [byId], references: [id])
+  organization   organization? @relation("view_organization", fields: [organizationId], references: [id])
+  project        project?      @relation("view_project", fields: [projectId], references: [id], onDelete: Cascade)
+  routine        routine?      @relation("view_routine", fields: [routineId], references: [id], onDelete: Cascade)
+  standard       standard?     @relation("view_standard", fields: [standardId], references: [id], onDelete: Cascade)
+  user           user?         @relation("view_user", fields: [userId], references: [id])
 
-    @@unique([byId, organizationId, projectId, routineId, standardId, userId])
+  @@unique([byId, organizationId, projectId, routineId, standardId, userId])
 }
 
 model vote {
-    id         String    @id @default(uuid()) @db.Uuid
-    isUpvote   Boolean   @default(true)
-    byId       String    @db.Uuid
-    commentId  String?   @db.Uuid
-    projectId  String?   @db.Uuid
-    routineId  String?   @db.Uuid
-    standardId String?   @db.Uuid
-    by         user      @relation("vote_by", fields: [byId], references: [id])
-    comment    comment?  @relation("vote_comment", fields: [commentId], references: [id])
-    project    project?  @relation("vote_project", fields: [projectId], references: [id], onDelete: Cascade)
-    routine    routine?  @relation("vote_routine", fields: [routineId], references: [id], onDelete: Cascade)
-    standard   standard? @relation("vote_standard", fields: [standardId], references: [id], onDelete: Cascade)
+  id         String    @id @default(uuid()) @db.Uuid
+  isUpvote   Boolean   @default(true)
+  byId       String    @db.Uuid
+  commentId  String?   @db.Uuid
+  projectId  String?   @db.Uuid
+  routineId  String?   @db.Uuid
+  standardId String?   @db.Uuid
+  by         user      @relation("vote_by", fields: [byId], references: [id])
+  comment    comment?  @relation("vote_comment", fields: [commentId], references: [id])
+  project    project?  @relation("vote_project", fields: [projectId], references: [id], onDelete: Cascade)
+  routine    routine?  @relation("vote_routine", fields: [routineId], references: [id], onDelete: Cascade)
+  standard   standard? @relation("vote_standard", fields: [standardId], references: [id], onDelete: Cascade)
 }
 
 model wallet {
-    id                String        @id @default(uuid()) @db.Uuid
-    stakingAddress    String        @unique @db.VarChar(128)
-    publicAddress     String?       @unique @db.VarChar(128)
-    name              String?       @db.VarChar(128)
-    nonce             String?       @db.VarChar(8092)
-    nonceCreationTime DateTime?     @db.Timestamptz(6)
-    verified          Boolean       @default(false)
-    lastVerifiedTime  DateTime?     @db.Timestamptz(6)
-    wasReported       Boolean       @default(false)
-    userId            String?       @db.Uuid
-    organizationId    String?       @db.Uuid
-    projectId         String?       @db.Uuid
-    created_at        DateTime      @default(now()) @db.Timestamptz(6)
-    updated_at        DateTime      @default(now()) @db.Timestamptz(6)
-    organization      organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    project           project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    user              user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
-    handles           handle[]
+  id                String        @id @default(uuid()) @db.Uuid
+  stakingAddress    String        @unique @db.VarChar(128)
+  publicAddress     String?       @unique @db.VarChar(128)
+  name              String?       @db.VarChar(128)
+  nonce             String?       @db.VarChar(8092)
+  nonceCreationTime DateTime?     @db.Timestamptz(6)
+  verified          Boolean       @default(false)
+  lastVerifiedTime  DateTime?     @db.Timestamptz(6)
+  wasReported       Boolean       @default(false)
+  userId            String?       @db.Uuid
+  organizationId    String?       @db.Uuid
+  projectId         String?       @db.Uuid
+  created_at        DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime      @default(now()) @db.Timestamptz(6)
+  organization      organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project           project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user              user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  handles           handle[]
 }
 
 enum AccountStatus {
-    Deleted
-    Unlocked
-    SoftLocked
-    HardLocked
+  Deleted
+  Unlocked
+  SoftLocked
+  HardLocked
 }
 
 enum MemberRole {
-    Admin
-    Member
-    Owner
+  Admin
+  Member
+  Owner
 }
 
 enum NodeType {
-    End
-    Redirect
-    RoutineList
-    Start
+  End
+  Redirect
+  RoutineList
+  Start
 }
 
 enum ResourceUsedFor {
-    Community
-    Context
-    Developer
-    Donation
-    ExternalService
-    Feed
-    Install
-    Learning
-    Notes
-    OfficialWebsite
-    Proposal
-    Related
-    Researching
-    Scheduling
-    Social
-    Tutorial
+  Community
+  Context
+  Developer
+  Donation
+  ExternalService
+  Feed
+  Install
+  Learning
+  Notes
+  OfficialWebsite
+  Proposal
+  Related
+  Researching
+  Scheduling
+  Social
+  Tutorial
 }
 
 enum ResourceListUsedFor {
-    Custom
-    Display
-    Learn
-    Research
-    Develop
+  Custom
+  Display
+  Learn
+  Research
+  Develop
 }
 
 enum RunStatus {
-    Scheduled
-    InProgress
-    Completed
-    Failed
-    Cancelled
+  Scheduled
+  InProgress
+  Completed
+  Failed
+  Cancelled
 }
 
 enum RunStepStatus {
-    InProgress
-    Completed
-    Skipped
+  InProgress
+  Completed
+  Skipped
 }

@@ -275,49 +275,7 @@ export async function init(prisma: PrismaType) {
                     ]
                 },
                 type: InputType.JSON,
-                props: `
-                    { TODO
-                        "721": {
-                            "<policy_id>": {
-                                "<asset_name>": {
-                                    "name": {
-                                        "type": "string",
-                                        "checks": [
-                                            {
-                                                "key": "minLength",
-                                                "val": 1,
-                                                "err": "is invalid"
-                                            }
-                                        ]
-                                    },
-                                    "image": {
-                                        "type": "string",
-                                        "checks": [
-                                            {
-                                                "key": "minLength",
-                                                "val": 1,
-                                                "err": "is invalid"
-                                            }
-                                        ]
-                                    },
-                                    "mediaType": "image/<mime_sub_type>",
-                            
-                                    "description": <string | array>,
-                            
-                                    "files": [{
-                                        "name": <string>,
-                                        "mediaType": <mime_type>,
-                                        "src": <uri | array>,
-                                        <other_properties>
-                                    }],
-                            
-                                    <other properties>
-                                }
-                            },
-                            "version": "1.0"
-                        }
-                    }
-                `
+                props: `{"format":{"<721>":{"<policy_id>":{"<asset_name>":{"name":"<asset_name>","image":"<ipfs_link>","?mediaType":"<mime_type>","?description":"<description>","?files":[{"name":"<asset_name>","mediaType":"<mime_type>","src":"<ipfs_link>"}],"[x]":"[any]"}},"version":"1.0"}},"defaults":[]}`,
             }
         })
     }
@@ -566,6 +524,7 @@ export async function init(prisma: PrismaType) {
                                     routines: {
                                         create: [
                                             {
+                                                index: 0,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -589,6 +548,7 @@ export async function init(prisma: PrismaType) {
                                                 }
                                             },
                                             {
+                                                index: 1,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -632,6 +592,7 @@ export async function init(prisma: PrismaType) {
                                     routines: {
                                         create: [
                                             {
+                                                index: 0,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -675,6 +636,7 @@ export async function init(prisma: PrismaType) {
                                     routines: {
                                         create: [
                                             {
+                                                index: 0,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -718,6 +680,7 @@ export async function init(prisma: PrismaType) {
                                     routines: {
                                         create: [
                                             {
+                                                index: 0,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -741,6 +704,7 @@ export async function init(prisma: PrismaType) {
                                                 }
                                             },
                                             {
+                                                index: 0,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -794,6 +758,7 @@ export async function init(prisma: PrismaType) {
                                     routines: {
                                         create: [
                                             {
+                                                index: 0,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -817,6 +782,7 @@ export async function init(prisma: PrismaType) {
                                                 }
                                             },
                                             {
+                                                index: 1,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -860,6 +826,7 @@ export async function init(prisma: PrismaType) {
                                     routines: {
                                         create: [
                                             {
+                                                index: 0,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -883,6 +850,7 @@ export async function init(prisma: PrismaType) {
                                                 }
                                             },
                                             {
+                                                index: 1,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -906,6 +874,7 @@ export async function init(prisma: PrismaType) {
                                                 }
                                             },
                                             {
+                                                index: 2,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -949,6 +918,7 @@ export async function init(prisma: PrismaType) {
                                     routines: {
                                         create: [
                                             {
+                                                index: 0,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -972,6 +942,7 @@ export async function init(prisma: PrismaType) {
                                                 }
                                             },
                                             {
+                                                index: 1,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -995,6 +966,7 @@ export async function init(prisma: PrismaType) {
                                                 }
                                             },
                                             {
+                                                index: 2,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,
@@ -1038,6 +1010,7 @@ export async function init(prisma: PrismaType) {
                                     routines: {
                                         create: [
                                             {
+                                                index: 0,
                                                 routine: {
                                                     create: {
                                                         complexity: 1,

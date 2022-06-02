@@ -430,6 +430,7 @@ export const HomePage = ({
                 data={advancedSearchPopupOptions}
                 onSelect={handleAdvancedSearchSelect}
                 onClose={closeAdvancedSearch}
+                zIndex={200}
             />
             {/* Create new dialog */}
             <ListMenu
@@ -439,6 +440,7 @@ export const HomePage = ({
                 data={createNewPopupOptions}
                 onSelect={handleCreateNewSelect}
                 onClose={closeCreateNew}
+                zIndex={200}
             />
             {/* Prompt stack */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: '5vh', sm: '20vh' } }}>

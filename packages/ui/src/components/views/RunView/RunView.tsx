@@ -11,7 +11,7 @@ import {
     DoneAll as CompleteIcon,
 } from '@mui/icons-material';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getTranslation, getUserLanguages, Pubs, RoutineStepType, updateArray, useHistoryState, useReactSearch } from "utils";
+import { getTranslation, getUserLanguages, Pubs, RoutineStepType, TERTIARY_COLOR, updateArray, useHistoryState, useReactSearch } from "utils";
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
@@ -24,19 +24,16 @@ import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils";
 import { runUpdate, runUpdateVariables } from "graphql/generated/runUpdate";
 
-const TERTIARY_COLOR = '#95f3cd';
-
 export const RunView = ({
     handleClose,
     routine,
-    session
+    session,
+    zIndex,
 }: RunViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const params = useReactSearch();
     const { stepParams, runId, testMode } = useMemo(() => {
-        console.log('hissssss', params)
-        console.log('calculating step paramsssssss', params.step)
         return {
             stepParams: Array.isArray(params.step) ? params.step as number[] : [],
             runId: typeof params.run === 'string' && uuidValidate(params.run) ? params.run : undefined,
@@ -224,10 +221,6 @@ export const RunView = ({
         }
     }, [currStepRunData]);
 
-    useEffect(() => {
-        console.log('timeElapsed', timeElapsed);
-    }, [timeElapsed]);
-
     /**
      * Calculates the complexity of a step
      */
@@ -251,7 +244,6 @@ export const RunView = ({
     const [getSubroutine, { data: subroutineData, loading: subroutineLoading }] = useLazyQuery<routine, routineVariables>(routineQuery);
     const [currentStep, setCurrentStep] = useState<RoutineStep | null>(null);
     useEffect(() => {
-        console.log('calculating step', stepParams)
         // If no steps, redirect to first step
         if (stepParams.length === 0) {
             setStepParams([1]);
@@ -259,7 +251,6 @@ export const RunView = ({
         }
         // Current step is the last step in steps list
         const currStep = findStep(stepParams);
-        console.log('found currstep', currStep)
         if (!currStep) {
             // TODO might need to fetch subroutines multiple times to get to current step, so this shouldn't be an error
             return;
@@ -487,8 +478,10 @@ export const RunView = ({
                 standalone: true,
                 completedComplexity: run.completedComplexity,
                 timeElapsed: (run.timeElapsed ?? 0) + timeElapsed,
+                title: getTranslation(routine, 'title', getUserLanguages(session), true),
                 pickups: run.pickups + 1,
                 stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
+                version: routine.version,
             },
             successMessage: () => 'Routine completed!🎉',
             onSuccess: () => {
@@ -496,7 +489,7 @@ export const RunView = ({
                 handleClose()
             },
         })
-    }, [testMode, run, timeElapsed, logRunComplete, handleClose, currentStep]);
+    }, [testMode, run, timeElapsed, logRunComplete, routine, session, handleClose, currentStep]);
 
     /**
      * Stores current progress, both for overall routine and the current subroutine
@@ -575,7 +568,6 @@ export const RunView = ({
      * Displays either a subroutine view or decision view
      */
     const childView = useMemo(() => {
-        console.log('in child view', currentStep)
         if (!currentStep) return null;
         switch (currentStep.type) {
             case RoutineStepType.Subroutine:
@@ -585,6 +577,7 @@ export const RunView = ({
                     handleSaveProgress={saveProgress}
                     owner={routine.owner}
                     loading={subroutineLoading}
+                    zIndex={zIndex}
                 />
             default:
                 return <DecisionView
@@ -592,9 +585,10 @@ export const RunView = ({
                     handleDecisionSelect={toDecision}
                     nodes={routine?.nodes ?? []}
                     session={session}
+                    zIndex={zIndex}
                 />
         }
-    }, [currentStep, routine?.nodes, routine.owner, saveProgress, session, subroutineLoading, toDecision]);
+    }, [currentStep, routine?.nodes, routine.owner, saveProgress, session, subroutineLoading, toDecision, zIndex]);
 
     return (
         <Box sx={{ minHeight: '100vh' }}>
@@ -647,6 +641,7 @@ export const RunView = ({
                             routineId={routine?.id}
                             stepList={stepList}
                             sxs={{ icon: { marginLeft: 1, width: '32px', height: '32px' } }}
+                            zIndex={zIndex + 1}
                         />
                     </Box>
                     {/* Progress bar */}

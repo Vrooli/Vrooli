@@ -22,7 +22,7 @@
         "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
         "@graphql-tools/schema": "^8.2.0",
         "@local/shared": "^1.0.0",
-        "@prisma/client": "^3.10.0",
+        "@prisma/client": "^3.14.0",
         "apollo-server-express": "^3.3.0",
         "bcrypt": "^5.0.1",
         "bull": "^3.22.4",

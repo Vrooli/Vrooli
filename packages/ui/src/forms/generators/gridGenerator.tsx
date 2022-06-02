@@ -45,6 +45,7 @@ interface GenerateGridProps {
     onUpload: (fieldName: string, files: string[]) => void;
     session: Session;
     theme: Theme;
+    zIndex: number;
 }
 /**
  * Wraps a list of Grid items in a Grid container
@@ -58,6 +59,7 @@ export const generateGrid = ({
     onUpload,
     session,
     theme,
+    zIndex,
 }: GenerateGridProps): JSX.Element => {
     // Split fields into which containers they belong to.
     // Represented by 2D array, where each sub-array represents a container.
@@ -95,6 +97,7 @@ export const generateGrid = ({
                 index,
                 onUpload,
                 session,
+                zIndex,
             });
             return inputComponent ? generateGridItem(inputComponent, currLayout?.itemSpacing ?? calculateGridItemSize(currFields.length), index) : null;
         });

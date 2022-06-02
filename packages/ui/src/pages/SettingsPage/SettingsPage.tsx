@@ -17,7 +17,6 @@ import { profileQuery } from 'graphql/query';
 import { SettingsAuthentication } from 'components/views/SettingsAuthentication/SettingsAuthentication';
 import { SettingsDisplay } from 'components/views/SettingsDisplay/SettingsDisplay';
 import { SettingsNotifications } from 'components/views/SettingsNotifications/SettingsNotifications';
-import { containerShadow } from 'styles';
 import { useReactSearch } from 'utils';
 
 /**
@@ -46,9 +45,6 @@ export function SettingsPage({
     const { selectedPage } = useMemo(() => ({
         selectedPage: searchParams.page as unknown as SettingsForm ?? SettingsForm.Profile,
     }), [searchParams]);
-    useEffect(() => {
-        console.log('searchparams updated', searchParams);
-    }, [searchParams]);
 
     // Fetch profile data
     const [getData, { data, loading }] = useLazyQuery<profile>(profileQuery);
@@ -88,27 +84,27 @@ export function SettingsPage({
     const mainContent: JSX.Element = useMemo(() => {
         switch (selectedPage) {
             case SettingsForm.Profile:
-                return <SettingsProfile session={session} profile={profile} onUpdated={onUpdated} />
+                return <SettingsProfile session={session} profile={profile} onUpdated={onUpdated} zIndex={200} />
             case SettingsForm.Display:
-                return <SettingsDisplay session={session} profile={profile} onUpdated={onUpdated} />
+                return <SettingsDisplay session={session} profile={profile} onUpdated={onUpdated} zIndex={200} />
             case SettingsForm.Notifications:
-                return <SettingsNotifications session={session} profile={profile} onUpdated={onUpdated} />
+                return <SettingsNotifications session={session} profile={profile} onUpdated={onUpdated} zIndex={200} />
             case SettingsForm.Authentication:
-                return <SettingsAuthentication session={session} profile={profile} onUpdated={onUpdated} />
+                return <SettingsAuthentication session={session} profile={profile} onUpdated={onUpdated} zIndex={200} />
         }
     }, [selectedPage, session, profile, onUpdated]);
 
     return (
-        <Box id='page' sx={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
+        <Box id='page' sx={{
+            display: 'flex',
+            justifyContent: 'center',
             alignItems: 'center',
-            padding: '0.5em',
-            paddingTop: { xs: '64px', md: '80px' },
+            padding: { xs: '0', sm: '0.5em' },
+            paddingTop: { xs: '64px', sm: '80px' },
         }}>
             <Box sx={{
-                ...containerShadow,
-                borderRadius: 2,
+                boxShadow: { xs: 'none', sm: '0px 0px 12px gray' },
+                borderRadius: { xs: 0, sm: 2 },
                 overflow: 'overlay',
                 background: palette.background.default,
                 width: 'min(100%, 700px)',

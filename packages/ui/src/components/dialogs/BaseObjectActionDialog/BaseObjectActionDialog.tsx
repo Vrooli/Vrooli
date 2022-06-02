@@ -4,7 +4,7 @@ import { vote } from 'graphql/generated/vote';
 import { starMutation, voteMutation } from "graphql/mutation";
 import { useCallback, useMemo, useState } from "react";
 import { ReportFor, StarFor, VoteFor } from "@local/shared";
-import { ListMenu, ReportDialog } from "..";
+import { DeleteDialog, ListMenu, ReportDialog } from "..";
 import { BaseObjectActionDialogProps, BaseObjectAction, ListMenuItemData } from "../types";
 import {
     Cancel as CancelIcon,
@@ -49,18 +49,23 @@ export const BaseObjectActionDialog = ({
     anchorEl,
     availableOptions,
     handleActionComplete,
-    handleDelete,
     handleEdit,
     objectId,
+    objectName,
     objectType,
     onClose,
     session,
     title,
+    zIndex,
 }: BaseObjectActionDialogProps) => {
     // States
-    const [donateOpen, setDonateOpen] = useState(false);
-    const [shareOpen, setShareOpen] = useState(false);
-    const [reportOpen, setReportOpen] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState<boolean>(false);
+    const [donateOpen, setDonateOpen] = useState<boolean>(false);
+    const [shareOpen, setShareOpen] = useState<boolean>(false);
+    const [reportOpen, setReportOpen] = useState<boolean>(false);
+
+    const openDelete = useCallback(() => setDeleteOpen(true), [setDeleteOpen]);
+    const closeDelete = useCallback(() => setDeleteOpen(false), [setDeleteOpen]);
 
     const openDonate = useCallback(() => setDonateOpen(true), [setDonateOpen]);
     const closeDonate = useCallback(() => setDonateOpen(false), [setDonateOpen]);
@@ -73,7 +78,6 @@ export const BaseObjectActionDialog = ({
 
     // Mutations
     //const [copy] = useMutation<copy>(copyMutation);
-    //const [delete] = useMutation<delete>(deleteMutation);
     //const [fork] = useMutation<fork>(forkMutation);
     const [star] = useMutation<star>(starMutation);
     const [vote] = useMutation<vote>(voteMutation);
@@ -98,7 +102,7 @@ export const BaseObjectActionDialog = ({
                 //copy({ variables: { input: { id: objectId } } });
                 break;
             case BaseObjectAction.Delete:
-                //delete({ variables: { input: { id: objectId } } });
+                openDelete();
                 break;
             case BaseObjectAction.Donate:
                 openDonate();
@@ -129,7 +133,7 @@ export const BaseObjectActionDialog = ({
                 break;
         }
         onClose();
-    }, [handleStar, handleVote, objectType, onClose, openDonate, openReport, openShare]);
+    }, [handleStar, handleVote, objectType, onClose, openDelete, openDonate, openReport, openShare]);
 
     const data: ListMenuItemData<BaseObjectAction>[] = useMemo(() => {
         // Convert options to ListMenuItemData
@@ -148,6 +152,15 @@ export const BaseObjectActionDialog = ({
 
     return (
         <>
+            {/* Delete routine confirmation dialog */}
+            <DeleteDialog
+                isOpen={deleteOpen}
+                objectId={objectId}
+                objectType={objectType as any}
+                objectName={objectName}
+                handleClose={closeDelete}
+                zIndex={zIndex+1}
+            />
             {/* Report dialog */}
             <ReportDialog
                 forId={objectId}
@@ -155,6 +168,7 @@ export const BaseObjectActionDialog = ({
                 open={reportOpen}
                 reportFor={objectType as string as ReportFor}
                 session={session}
+                zIndex={zIndex+1}
             />
             {/* Actual action dialog */}
             <ListMenu
@@ -164,6 +178,7 @@ export const BaseObjectActionDialog = ({
                 onClose={onClose}
                 onSelect={onSelect}
                 title={title}
+                zIndex={zIndex}
             />
         </>
     )

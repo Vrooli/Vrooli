@@ -29,6 +29,7 @@ export const UnlinkedNodesDialog = ({
     language,
     nodes,
     open,
+    zIndex,
 }: UnlinkedNodesDialogProps) => {
     const { palette } = useTheme();
 
@@ -47,6 +48,7 @@ export const UnlinkedNodesDialog = ({
             labelVisible: false,
             node,
             scale: 0.5,
+            zIndex,
         }
         // Determine node to display based on node type
         switch (node.type) {
@@ -65,7 +67,7 @@ export const UnlinkedNodesDialog = ({
             default:
                 return null;
         }
-    }, [language])
+    }, [language, zIndex])
 
     return (
         <Tooltip title="Unlinked nodes">

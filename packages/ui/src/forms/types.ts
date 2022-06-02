@@ -10,6 +10,7 @@ export interface BaseFormProps {
     schema: FormSchema;
     session: Session
     onSubmit: (values: any) => any;
+    zIndex: number;
 }
 
 export interface FormProps extends Partial<CommonProps> {
@@ -53,28 +54,28 @@ export interface CheckboxProps {
 /**
  * Props for rendering a Checkbox input component
  */
-export interface DropzoneProps extends Omit<DP, 'onUpload'> {
+export interface DropzoneProps extends Omit<DP, 'onUpload' | 'zIndex'> {
     defaultValue?: [];
 } // onUpload handled by form
 
 /**
  * Props for rendering a JSON input component
  */
-export interface JSONProps extends Omit<JP, 'id' | 'onChange' | 'value'> {
+export interface JSONProps extends Omit<JP, 'id' | 'onChange' | 'value' | 'zIndex'> {
     defaultValue?: string;
 }
 
 /**
  * Props for rendering a LanguageInput component
  */
-export interface LanguageInputProps extends Omit<LP, 'currentLanguage' | 'handleAdd' | 'handleChange' | 'handleDelete' | 'handleCurrent' | 'selectedLanguages' | 'session'> {
+export interface LanguageInputProps extends Omit<LP, 'currentLanguage' | 'handleAdd' | 'handleChange' | 'handleDelete' | 'handleCurrent' | 'selectedLanguages' | 'session' | 'zIndex'> {
     defaultValue?: string[];
 }
 
 /**
  * Props for rendering a Markdown input component
  */
-export interface MarkdownProps extends Omit<MP, 'id' | 'onChange' | 'value'> {
+export interface MarkdownProps extends Omit<MP, 'id' | 'onChange' | 'value' | 'zIndex'> {
     defaultValue?: string;
 }
 
@@ -99,7 +100,7 @@ export interface RadioProps {
 /**
  * Props for rendering a Selector input component
  */
-export interface SelectorProps extends Omit<SP, 'selected' | 'handleChange'> {
+export interface SelectorProps extends Omit<SP, 'selected' | 'handleChange' | 'zIndex'> {
     defaultValue?: any; // Ignored for now
 }
 
@@ -126,7 +127,7 @@ export interface SwitchProps {
 /**
  * Props for rendering a TagSelector input component
  */
-export interface TagSelectorProps extends Omit<TP, 'currentLanguage' | 'session' | 'tags' | 'onTagAdd' | 'onTagRemove' | 'onTagsClear'> {
+export interface TagSelectorProps extends Omit<TP, 'currentLanguage' | 'session' | 'tags' | 'onTagAdd' | 'onTagRemove' | 'onTagsClear' | 'zIndex'> {
     defaultValue?: TagSelectorTag[];
 }
 
@@ -158,7 +159,7 @@ export interface QuantityBoxProps extends Omit<QP, 'id' | 'value' | 'handleChang
 /**
  * Common props required by every FieldData type
  */
-interface FieldDataBase {
+export interface FieldDataBase {
     /**
      * The name of the field, as will be used by formik
      */

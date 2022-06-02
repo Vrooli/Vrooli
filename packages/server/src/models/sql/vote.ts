@@ -79,7 +79,6 @@ const voter = (prisma: PrismaType) => ({
             if (input.isUpvote === null) {
                 // Delete vote
                 await prisma.vote.delete({ where: { id: vote.id } })
-                console.log('before log vote a')
                 // Log remove vote
                 Log.collection.insertOne({
                     timestamp: Date.now(),
@@ -95,7 +94,6 @@ const voter = (prisma: PrismaType) => ({
                     where: { id: vote.id },
                     data: { isUpvote: input.isUpvote }
                 })
-                console.log('before log vote b')
                 // Log vote/unvote
                 Log.collection.insertOne({
                     timestamp: Date.now(),
@@ -127,7 +125,6 @@ const voter = (prisma: PrismaType) => ({
                     [`${forMapper[input.voteFor]}Id`]: input.forId
                 }
             })
-            console.log('before log vote c')
             // Log vote
             Log.collection.insertOne({
                 timestamp: Date.now(),

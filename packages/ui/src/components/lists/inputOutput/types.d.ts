@@ -7,6 +7,7 @@ export interface InputOutputContainerProps {
     language: string;
     list: RoutineInputList | RoutineOutputList;
     session: Session;
+    zIndex: number;
 }
 
 export interface InputOutputListItemProps {
@@ -21,4 +22,5 @@ export interface InputOutputListItemProps {
     handleUpdate: (index: number, updatedItem: RoutineInput | RoutineOutput) => void;
     language: string;
     session: Session;
+    zIndex: number;
 }

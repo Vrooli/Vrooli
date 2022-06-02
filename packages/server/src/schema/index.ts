@@ -3,6 +3,7 @@ import { makeExecutableSchema } from '@graphql-tools/schema';
 import * as Root from './root';
 import * as Auth from './auth';
 import * as Comment from './comment';
+import * as DeleteOne from './deleteOne';
 import * as Email from './email';
 import * as Feedback from './feedback';
 import * as Log from './log';
@@ -26,7 +27,7 @@ import * as Vote from './vote';
 import * as Wallet from './wallet';
 
 const models = [
-    Root, Auth, Comment, Email, Feedback, Log, Node,
+    Root, Auth, Comment, DeleteOne, Email, Feedback, Log, Node,
     Organization, Pages, Project, Report, Resource, ResourceList, Role,
     Routine, Run, Standard, Star, StepInputData, Tag, User, View, Vote, Wallet
 ]

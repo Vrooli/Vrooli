@@ -7,7 +7,9 @@ import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { ResourceDialogProps } from '../types';
 import {
-    Close as CloseIcon
+    Add as AddIcon,
+    Cancel as CancelIcon,
+    Close as CloseIcon,
 } from '@mui/icons-material';
 import { formatForCreate, formatForUpdate, getTranslation, getUserLanguages, Pubs, updateArray } from 'utils';
 import { resourceCreate } from 'graphql/generated/resourceCreate';
@@ -61,6 +63,7 @@ export const ResourceDialog = ({
     partialData,
     session,
     listId,
+    zIndex,
 }: ResourceDialogProps) => {
     const { palette } = useTheme();
 
@@ -93,7 +96,7 @@ export const ResourceDialog = ({
     }, [partialData]);
 
     const [language, setLanguage] = useState<string>(index < 0 ? getUserLanguages(session)[0] : '');
-    const [languages, setLanguages] = useState<string[]>(index < 0 ? getUserLanguages(session): []);
+    const [languages, setLanguages] = useState<string[]>(index < 0 ? getUserLanguages(session) : []);
 
     const formik = useFormik({
         initialValues: {
@@ -118,9 +121,7 @@ export const ResourceDialog = ({
                 usedFor: values.usedFor,
                 translations: allTranslations,
             };
-            console.log('data before update', data)
             const input = (index < 0) ? formatForCreate(data) : formatForUpdate(partialData, data, [], ['translations']);
-            console.log('input before update', input);
             if (mutate) {
                 mutationWrapper({
                     mutation: (index < 0) ? addMutation : updateMutation,
@@ -197,6 +198,7 @@ export const ResourceDialog = ({
             onClose={handleClose}
             open={open}
             sx={{
+                zIndex,
                 '& .MuiDialog-paper': {
                     width: 'min(500px, 100vw)',
                     textAlign: 'center',
@@ -237,6 +239,7 @@ export const ResourceDialog = ({
                         handleCurrent={handleLanguageSelect}
                         selectedLanguages={languages}
                         session={session}
+                        zIndex={zIndex + 1}
                     />
                     {/* Enter link */}
                     <TextField
@@ -290,12 +293,20 @@ export const ResourceDialog = ({
                         helperText={(formik.touched.description && formik.errors.description) ?? "Enter description (optional)"}
                     />
                     {/* Action buttons */}
-                    <Grid container sx={{ padding: 0 }}>
-                        <Grid item xs={12} sm={6} sx={{ paddingRight: 1 }}>
-                            <Button fullWidth type="submit">Submit</Button>
+                    <Grid container spacing={1}>
+                        <Grid item xs={6}>
+                            <Button
+                                fullWidth
+                                type="submit"
+                                startIcon={<AddIcon />}
+                            >Create</Button>
                         </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <Button fullWidth onClick={handleClose} sx={{ paddingLeft: 1 }}>Cancel</Button>
+                        <Grid item xs={6}>
+                            <Button
+                                fullWidth
+                                onClick={handleClose}
+                                startIcon={<CancelIcon />}
+                            >Cancel</Button>
                         </Grid>
                     </Grid>
                 </Stack>

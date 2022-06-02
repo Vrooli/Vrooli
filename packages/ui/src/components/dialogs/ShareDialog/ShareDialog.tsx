@@ -34,7 +34,8 @@ const buttonProps = {
 
 export const ShareDialog = ({
     open,
-    onClose
+    onClose,
+    zIndex,
 }: ShareDialogProps) => {
     const [copied, setCopied] = useState<boolean>(false);
     const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
@@ -49,7 +50,7 @@ export const ShareDialog = ({
             onClose={onClose}
             open={open}
             sx={{
-                zIndex: 10000,
+                zIndex,
                 '& .MuiDialogContent-root': {
                     overflow: 'hidden',
                     borderRadius: 2,

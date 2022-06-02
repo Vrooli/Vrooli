@@ -29,7 +29,7 @@ import {
 import { BaseObjectAction, BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { EditableLabel, LanguageInput, LinkButton, MarkdownInput, ResourceListHorizontal } from 'components';
-import { AllLanguages, getOwnedByString, getTranslation, Pubs, toOwnedBy, updateArray } from 'utils';
+import { AllLanguages, getLanguageSubtag, getOwnedByString, getTranslation, Pubs, toOwnedBy, updateArray } from 'utils';
 import { useLocation } from 'wouter';
 import { useFormik } from 'formik';
 import { routineUpdateForm as validationSchema } from '@local/shared';
@@ -46,8 +46,8 @@ export const BuildInfoDialog = ({
     routine,
     session,
     sxs,
+    zIndex,
 }: BuildInfoDialogProps) => {
-    console.log('rendering buildinfodialog')
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -98,16 +98,16 @@ export const BuildInfoDialog = ({
     });
 
     // Handle languages
+    const availableLanguages = useMemo<string[]>(() => {
+        if (isEditing) return Object.keys(AllLanguages);
+        return routine?.translations?.map(t => getLanguageSubtag(t.language)) ?? [];
+    }, [isEditing, routine?.translations]);
     const [languages, setLanguages] = useState<string[]>([]);
-    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+
     useEffect(() => {
-        if (isEditing) setAvailableLanguages(Object.keys(AllLanguages));
-        else setAvailableLanguages(routine?.translations?.map(t => t.language) ?? []);
-    }, [routine, isEditing])
-    useEffect(() => {
-        if (languages.length === 0 && translations.length > 0) {
-            handleLanguageChange(translations[0].language);
-            setLanguages(translations.map(t => t.language));
+        if (!language || !translations) return;
+        const translation = translations.find(t => language === t.language);
+        if (translation) {
             formik.setValues({
                 ...formik.values,
                 description: translations[0].description ?? '',
@@ -115,7 +115,7 @@ export const BuildInfoDialog = ({
                 title: translations[0].title,
             })
         }
-    }, [formik, languages, handleLanguageChange, setLanguages, translations])
+    }, [formik, language, translations])
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
         formik.setValues({
@@ -152,7 +152,6 @@ export const BuildInfoDialog = ({
     }, [deleteTranslation, handleLanguageChange, languages, updateFormikTranslation]);
 
     const updateRoutineTitle = useCallback((title: string) => {
-        console.log('UPDATE ROUTINE TITLE IN BUILDINFODIALOG', title, routine?.translations)
         if (!routine) return;
         updateTranslation(language, {
             language,
@@ -193,8 +192,9 @@ export const BuildInfoDialog = ({
             handleUpdate={() => { }} // Intentionally blank
             loading={loading}
             session={session}
+            zIndex={zIndex}
         />
-    }, [loading, routine, session]);
+    }, [loading, routine, session, zIndex]);
 
     /**
      * Determines which action buttons to display
@@ -229,7 +229,7 @@ export const BuildInfoDialog = ({
                 onOpen={() => { }} // Intentionally empty
                 onClose={closeMenu}
                 sx={{
-                    zIndex: 102,
+                    zIndex,
                     '& .MuiDrawer-paper': {
                         background: palette.background.default,
                         maxWidth: { xs: '100%', sm: '75%', md: '50%', lg: '40%', xl: '30%' },
@@ -296,12 +296,14 @@ export const BuildInfoDialog = ({
                             handleCurrent={handleLanguageSelect}
                             selectedLanguages={languages}
                             session={session}
+                            zIndex={zIndex}
                         /> : <SelectLanguageDialog
                             availableLanguages={availableLanguages}
                             canDropdownOpen={availableLanguages.length > 1}
                             currentLanguage={language}
                             handleCurrent={handleLanguageSelect}
                             session={session}
+                            zIndex={zIndex}
                         />
                     }
                     {/* Resources */}

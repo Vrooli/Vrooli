@@ -71,10 +71,8 @@ export function AutocompleteSearchBar({
                 event.stopPropagation();
             }}
             renderOption={(_, option) => {
-                console.log('boop', option)
                 // If loading, display spinner
                 if (option.__typename === 'Loading') {
-                    console.log('loading render spinnery thing')
                     return (
                         <MenuItem
                             key="loading"

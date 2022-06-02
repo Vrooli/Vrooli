@@ -24,6 +24,7 @@ export const OrganizationCreate = ({
     onCreated,
     onCancel,
     session,
+    zIndex,
 }: OrganizationCreateProps) => {
     const params = useReactSearch(null);
 
@@ -170,6 +171,7 @@ export const OrganizationCreate = ({
                         handleCurrent={handleLanguageSelect}
                         selectedLanguages={languages}
                         session={session}
+                        zIndex={zIndex}
                     />
                 </Grid>
                 <Grid item xs={12}>
@@ -209,6 +211,7 @@ export const OrganizationCreate = ({
                         loading={false}
                         session={session}
                         mutate={false}
+                        zIndex={zIndex}
                     />
                 </Grid>
                 <Grid item xs={12} marginBottom={4}>

@@ -3,7 +3,7 @@
  * must match a certain schema.
  */
 import { CheckboxStandardInputProps } from '../types';
-import { InputType, checkboxStandardInputForm as validationSchema } from '@local/shared';
+import { checkboxStandardInputForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { useCallback, useEffect } from 'react';
 import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
@@ -11,6 +11,11 @@ import {
     Add as AddIcon,
     Delete as DeleteIcon,
 } from '@mui/icons-material';
+
+/**
+ * Create new option
+ */
+const emptyOption = (index: number) => ({ label: `Enter option ${index + 1}` });
 
 /**
  * Checkbox option with delete icon, TextField for label, and Checkbox for default value.
@@ -81,17 +86,19 @@ const CheckboxOption = ({
 };
 
 export const CheckboxStandardInput = ({
+    color,
+    defaultValue,
     isEditing,
-    schema,
-    onChange,
+    onPropsChange,
+    options,
+    row,
 }: CheckboxStandardInputProps) => {
 
     const formik = useFormik({
         initialValues: {
-            defaultValue: schema.props.defaultValue ?? [false],
-            options: schema.props.options ?? [{ label: 'Enter option 1' }],
-            row: schema.props.row ?? false,
-            // yup: [],
+            defaultValue: defaultValue ?? [false],
+            options: options ?? [emptyOption(0)],
+            row: row ?? false,
         },
         enableReinitialize: true,
         validationSchema,
@@ -99,12 +106,19 @@ export const CheckboxStandardInput = ({
     });
 
     const handleOptionAdd = useCallback(() => {
-        formik.setFieldValue('options', [...formik.values.options, { label: `Enter option ${formik.values.options.length + 1}` }]);
+        formik.setFieldValue('options', [...formik.values.options, emptyOption(formik.values.options.length)]);
         formik.setFieldValue('defaultValue', [...formik.values.defaultValue, false]);
     }, [formik]);
     const handleOptionRemove = useCallback((index: number) => {
-        formik.setFieldValue('options', formik.values.options.filter((_, i) => i !== index));
-        formik.setFieldValue('defaultValue', formik.values.defaultValue.filter((_, i) => i !== index));
+        const filtered = formik.values.options.filter((_, i) => i !== index);
+        const defaults = formik.values.defaultValue.filter((_, i) => i !== index)
+        // If there will be no options left, add default
+        if (filtered.length === 0) {
+            filtered.push(emptyOption(0));
+            defaults.push(false);
+        }
+        formik.setFieldValue('options', filtered);
+        formik.setFieldValue('defaultValue', defaults);
     }, [formik]);
     const handleOptionChange = useCallback((index: number, label: string, dValue: boolean) => {
         const options = [...formik.values.options];
@@ -116,16 +130,8 @@ export const CheckboxStandardInput = ({
     }, [formik]);
 
     useEffect(() => {
-        onChange({
-            type: InputType.Checkbox,
-            props: formik.values,
-            fieldName: '',
-            label: '',
-            yup: {
-                checks: [],
-            },
-        });
-    }, [formik.values, onChange]);
+        onPropsChange(formik.values);
+    }, [formik.values, onPropsChange]);
 
     return (
         <Stack direction="column">

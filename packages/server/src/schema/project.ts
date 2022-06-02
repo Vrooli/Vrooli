@@ -1,8 +1,8 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, Success, ProjectCountInput, ProjectSearchResult, ProjectSortBy } from './types';
+import { FindByIdOrHandleInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, Success, ProjectCountInput, ProjectSearchResult, ProjectSortBy } from './types';
 import { Context } from '../context';
-import { countHelper, createHelper, deleteOneHelper, ProjectModel, readManyHelper, readOneHelper, updateHelper } from '../models';
+import { countHelper, createHelper, ProjectModel, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
 
@@ -146,7 +146,6 @@ export const typeDef = gql`
     extend type Mutation {
         projectCreate(input: ProjectCreateInput!): Project!
         projectUpdate(input: ProjectUpdateInput!): Project!
-        projectDeleteOne(input: DeleteOneInput!): Success!
     }
 `
 
@@ -174,10 +173,6 @@ export const resolvers = {
         projectUpdate: async (_parent: undefined, { input }: IWrap<ProjectUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
             await rateLimit({ context, info, max: 250, byAccount: true });
             return updateHelper(context.req.userId, input, info, ProjectModel(context.prisma));
-        },
-        projectDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            await rateLimit({ context, info, max: 100, byAccount: true });
-            return deleteOneHelper(context.req.userId, input, ProjectModel(context.prisma));
         },
     }
 }
