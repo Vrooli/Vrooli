@@ -14,7 +14,7 @@ import {
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, BuildView, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
-import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, Pubs, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
+import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, Pubs, standardToFieldData, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
 import { Node, NodeLink, Routine, Run } from "types";
 import Markdown from "markdown-to-jsx";
 import { runCompleteMutation } from "graphql/mutation";
@@ -25,6 +25,9 @@ import { containerShadow } from "styles";
 import { validate as uuidValidate, v4 as uuidv4 } from 'uuid';
 import { runComplete } from "graphql/generated/runComplete";
 import { owns } from "utils/authentication";
+import { useFormik } from "formik";
+import { FieldData } from "forms/types";
+import { generateInputComponent } from "forms/generators";
 
 export const RoutineView = ({
     partialData,
@@ -83,8 +86,8 @@ export const RoutineView = ({
         if (!routine) return;
         mutationWrapper({
             mutation: runComplete,
-            input: { 
-                id: routine.id, 
+            input: {
+                id: routine.id,
                 exists: false,
                 title: title,
                 version: routine?.version ?? '',
@@ -270,6 +273,26 @@ export const RoutineView = ({
         )
     }, [routine, viewGraph, runRoutine, session?.id, markAsComplete]);
 
+    // The schema and formik keys for the form
+    const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {
+        if (!routine) return null;
+        const schemas: { [fieldName: string]: FieldData } = {};
+        for (let i = 0; i < routine.inputs.length; i++) {
+            const currSchema = standardToFieldData(routine.inputs[i].standard, `inputs-${i}`);
+            if (currSchema) {
+                schemas[currSchema.fieldName] = currSchema;
+            }
+        }
+        return schemas;
+    }, [routine]);
+    const previewFormik = useFormik({
+        initialValues: {
+            ...formValueMap,
+        },
+        enableReinitialize: true,
+        onSubmit: () => { },
+    });
+
     const resourceList = useMemo(() => {
         if (!routine ||
             !Array.isArray(routine.resourceLists) ||
@@ -323,6 +346,35 @@ export const RoutineView = ({
                         <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Instructions</Typography>
                         <Markdown>{instructions ?? 'No instructions'}</Markdown>
                     </Box>
+                    {/* Auto-generated inputs */}
+                    {
+                        Object.keys(previewFormik.values).length > 0 && <Box sx={{
+                            padding: 1,
+                            borderRadius: 1,
+                        }}>
+                            <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Inputs</Typography>
+                            {
+                                Object.values(formValueMap ?? {}).map((field: FieldData, i: number) => (
+                                    <Box key={i} sx={{
+                                        padding: 1,
+                                        borderRadius: 1,
+                                    }}>
+                                        <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>{field.label ?? `Input ${i + 1}`}</Typography>
+                                        {
+                                            generateInputComponent({
+                                                data: field,
+                                                disabled: false,
+                                                formik: previewFormik,
+                                                session,
+                                                onUpload: () => { },
+                                                zIndex,
+                                            })
+                                        }
+                                    </Box>
+                                ))
+                            }
+                        </Box>
+                    }
                     {/* Stats */}
                     {Array.isArray(routine?.nodes) && (routine as any).nodes.length > 0 && <Box sx={{
                         padding: 1,
@@ -340,7 +392,7 @@ export const RoutineView = ({
                 {actions}
             </>
         )
-    }, [loading, routine, resourceList, description, palette.background.textPrimary, palette.background.textSecondary, instructions, actions]);
+    }, [loading, resourceList, description, palette.background.textPrimary, palette.background.textSecondary, instructions, formValueMap, routine, actions, previewFormik, session, zIndex]);
 
     return (
         <Box sx={{
@@ -410,7 +462,7 @@ export const RoutineView = ({
                 availableOptions={moreOptions}
                 onClose={closeMoreMenu}
                 session={session}
-                zIndex={zIndex+1}
+                zIndex={zIndex + 1}
             />
             {/* Main container */}
             <Box sx={{

@@ -175,24 +175,32 @@ export const SubroutineView = ({
                 </Box>
                 {/* Auto-generated inputs */}
                 {
-                    Object.values(formValueMap ?? {}).map((field: FieldData, i: number) => (
-                        <Box key={i} sx={{
-                            padding: 1,
-                            borderRadius: 1,
-                        }}>
-                            <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>{field.label ?? `Input ${i + 1}`}</Typography>
-                            {
-                                generateInputComponent({
-                                    data: field,
-                                    disabled: false,
-                                    formik: previewFormik,
-                                    session,
-                                    onUpload: () => { },
-                                    zIndex,
-                                })
-                            }
-                        </Box>
-                    ))
+                    Object.keys(previewFormik.values).length > 0 && <Box sx={{
+                        padding: 1,
+                        borderRadius: 1,
+                    }}>
+                        <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Inputs</Typography>
+                        {
+                            Object.values(formValueMap ?? {}).map((field: FieldData, i: number) => (
+                                <Box key={i} sx={{
+                                    padding: 1,
+                                    borderRadius: 1,
+                                }}>
+                                    <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>{field.label ?? `Input ${i + 1}`}</Typography>
+                                    {
+                                        generateInputComponent({
+                                            data: field,
+                                            disabled: false,
+                                            formik: previewFormik,
+                                            session,
+                                            onUpload: () => { },
+                                            zIndex,
+                                        })
+                                    }
+                                </Box>
+                            ))
+                        }
+                    </Box>
                 }
             </Stack>
         </Box>
