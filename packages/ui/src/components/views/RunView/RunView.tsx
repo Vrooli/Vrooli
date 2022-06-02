@@ -478,8 +478,10 @@ export const RunView = ({
                 standalone: true,
                 completedComplexity: run.completedComplexity,
                 timeElapsed: (run.timeElapsed ?? 0) + timeElapsed,
+                title: getTranslation(routine, 'title', getUserLanguages(session), true),
                 pickups: run.pickups + 1,
                 stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
+                version: routine.version,
             },
             successMessage: () => 'Routine completed!🎉',
             onSuccess: () => {
@@ -487,7 +489,7 @@ export const RunView = ({
                 handleClose()
             },
         })
-    }, [testMode, run, timeElapsed, logRunComplete, handleClose, currentStep]);
+    }, [testMode, run, timeElapsed, logRunComplete, routine, session, handleClose, currentStep]);
 
     /**
      * Stores current progress, both for overall routine and the current subroutine

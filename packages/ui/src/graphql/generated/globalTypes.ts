@@ -968,12 +968,14 @@ export interface RunCancelInput {
 }
 
 export interface RunCompleteInput {
-  id?: string | null;
+  id: string;
   completedComplexity?: number | null;
   exists?: boolean | null;
   pickups?: number | null;
   timeElapsed?: number | null;
+  title: string;
   finalStepUpdate?: RunStepUpdateInput | null;
+  version: string;
 }
 
 export interface RunCountInput {

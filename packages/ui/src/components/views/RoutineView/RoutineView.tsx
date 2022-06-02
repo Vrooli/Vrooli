@@ -83,14 +83,19 @@ export const RoutineView = ({
         if (!routine) return;
         mutationWrapper({
             mutation: runComplete,
-            input: { id: routine.id, exists: false },
+            input: { 
+                id: routine.id, 
+                exists: false,
+                title: title,
+                version: routine?.version ?? '',
+            },
             successMessage: () => 'Routine completed!🎉',
             onSuccess: () => {
                 PubSub.publish(Pubs.Celebration);
                 setLocation(APP_LINKS.Home)
             },
         })
-    }, [routine, runComplete, setLocation]);
+    }, [routine, runComplete, setLocation, title]);
 
     const [isBuildOpen, setIsBuildOpen] = useState(false);
     // If buildId is in the URL, open the build

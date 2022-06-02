@@ -2166,9 +2166,11 @@ export type RunCompleteInput = {
   completedComplexity?: InputMaybe<Scalars['Int']>;
   exists?: InputMaybe<Scalars['Boolean']>;
   finalStepUpdate?: InputMaybe<RunStepUpdateInput>;
-  id?: InputMaybe<Scalars['ID']>;
+  id: Scalars['ID'];
   pickups?: InputMaybe<Scalars['Int']>;
   timeElapsed?: InputMaybe<Scalars['Int']>;
+  title: Scalars['String'];
+  version: Scalars['String'];
 };
 
 export type RunCountInput = {

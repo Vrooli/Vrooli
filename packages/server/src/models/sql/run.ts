@@ -212,7 +212,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
                 where: {
                     AND: [
                         { userId },
-                        { id: input.id ?? '' },
+                        { id: input.id },
                     ]
                 }
             })
@@ -239,9 +239,9 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
                     pickups: input.pickups ?? undefined,
                     routineId: input.id,
                     status: RunStatus.Completed,
-                    title: 'TODO',
+                    title: input.title,
                     userId,
-                    version: 'TODO',
+                    version: input.version,
                 },
                 ...selectHelper(partial)
             });
