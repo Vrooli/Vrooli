@@ -28,6 +28,7 @@ export const RoutineUpdate = ({
     onCancel,
     onUpdated,
     session,
+    zIndex,
 }: RoutineUpdateProps) => {
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Routine}/edit/:id`);
@@ -223,7 +224,12 @@ export const RoutineUpdate = ({
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12}>
-                <UserOrganizationSwitch session={session} selected={organizationFor} onChange={onSwitchChange} />
+                <UserOrganizationSwitch 
+                    session={session} 
+                    selected={organizationFor} 
+                    onChange={onSwitchChange} 
+                    zIndex={zIndex}
+                />
             </Grid>
             {/* TODO add project selector */}
             <Grid item xs={12}>
@@ -234,6 +240,7 @@ export const RoutineUpdate = ({
                     handleCurrent={handleLanguageSelect}
                     selectedLanguages={languages}
                     session={session}
+                    zIndex={zIndex}
                 />
             </Grid>
             <Grid item xs={12}>
@@ -295,6 +302,7 @@ export const RoutineUpdate = ({
                     language={language}
                     list={inputsList}
                     session={session}
+                    zIndex={zIndex}
                 />
             </Grid>
             <Grid item xs={12}>
@@ -305,6 +313,7 @@ export const RoutineUpdate = ({
                     language={language}
                     list={outputsList}
                     session={session}
+                    zIndex={zIndex}
                 />
             </Grid>
             <Grid item xs={12}>
@@ -316,6 +325,7 @@ export const RoutineUpdate = ({
                     loading={loading}
                     session={session}
                     mutate={false}
+                    zIndex={zIndex}
                 />
             </Grid>
             <Grid item xs={12}>
@@ -345,7 +355,7 @@ export const RoutineUpdate = ({
                 </Tooltip>
             </Grid>
         </Grid>
-    ), [session, organizationFor, onSwitchChange, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, formik, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
+    ), [session, organizationFor, onSwitchChange, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, formik, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{
@@ -353,6 +363,7 @@ export const RoutineUpdate = ({
             alignItems: 'center',
             justifyContent: 'center',
             paddingBottom: `${formBottom}px`,
+            zIndex,
         }}
         >
             {loading ? (

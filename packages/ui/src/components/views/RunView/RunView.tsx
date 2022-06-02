@@ -27,7 +27,8 @@ import { runUpdate, runUpdateVariables } from "graphql/generated/runUpdate";
 export const RunView = ({
     handleClose,
     routine,
-    session
+    session,
+    zIndex,
 }: RunViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -575,6 +576,7 @@ export const RunView = ({
                     handleSaveProgress={saveProgress}
                     owner={routine.owner}
                     loading={subroutineLoading}
+                    zIndex={zIndex}
                 />
             default:
                 return <DecisionView
@@ -582,9 +584,10 @@ export const RunView = ({
                     handleDecisionSelect={toDecision}
                     nodes={routine?.nodes ?? []}
                     session={session}
+                    zIndex={zIndex}
                 />
         }
-    }, [currentStep, routine?.nodes, routine.owner, saveProgress, session, subroutineLoading, toDecision]);
+    }, [currentStep, routine?.nodes, routine.owner, saveProgress, session, subroutineLoading, toDecision, zIndex]);
 
     return (
         <Box sx={{ minHeight: '100vh' }}>
@@ -637,6 +640,7 @@ export const RunView = ({
                             routineId={routine?.id}
                             stepList={stepList}
                             sxs={{ icon: { marginLeft: 1, width: '32px', height: '32px' } }}
+                            zIndex={zIndex + 1}
                         />
                     </Box>
                     {/* Progress bar */}

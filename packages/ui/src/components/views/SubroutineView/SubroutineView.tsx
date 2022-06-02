@@ -16,6 +16,7 @@ export const SubroutineView = ({
     handleSaveProgress,
     owner,
     session,
+    zIndex,
 }: SubroutineViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -67,8 +68,9 @@ export const SubroutineView = ({
             handleUpdate={() => { }} // Intentionally blank
             loading={loading}
             session={session}
+            zIndex={zIndex}
         />
-    }, [data, loading, session]);
+    }, [data, loading, session, zIndex]);
 
     if (loading) return (
         <Box sx={{
@@ -106,7 +108,7 @@ export const SubroutineView = ({
                         <IconButton
                             aria-label="More"
                             size="small"
-                            onClick={() => { }}
+                            onClick={() => { }} //TODO
                             sx={{
                                 display: 'block',
                                 marginLeft: 'auto',

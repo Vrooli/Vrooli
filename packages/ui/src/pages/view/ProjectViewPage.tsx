@@ -51,11 +51,13 @@ export const ProjectViewPage = ({
                 onAction={onAction}
                 open={isAddDialogOpen}
                 title={"Add Project"}
+                zIndex={200}
             >
                 <ProjectCreate
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
                     onCreated={(data: Project) => onAction(ObjectDialogAction.Add, data)}
                     session={session}
+                    zIndex={200}
                 />
             </BaseObjectDialog>
             {/* Update dialog */}
@@ -63,15 +65,17 @@ export const ProjectViewPage = ({
                 onAction={onAction}
                 open={isEditDialogOpen}
                 title={"Update Project"}
+                zIndex={200}
             >
                 <ProjectUpdate
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
                     onUpdated={() => onAction(ObjectDialogAction.Save)}
                     session={session}
+                    zIndex={200}
                 />
             </BaseObjectDialog>
             {/* Main view */}
-            <ProjectView session={session} />
+            <ProjectView session={session} zIndex={200} />
         </Box>
     )
 }

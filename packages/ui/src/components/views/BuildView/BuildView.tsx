@@ -42,7 +42,8 @@ export const BuildView = ({
     loading,
     onChange,
     routine,
-    session
+    session,
+    zIndex,
 }: BuildViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -942,6 +943,7 @@ export const BuildView = ({
                 objectType={DeleteOneType.Routine}
                 objectName={getTranslation(changedRoutine, 'title', [language]) ?? ''}
                 handleClose={handleDeleteClose}
+                zIndex={zIndex + 3}
             />
             {/* Popup for adding new subroutines */}
             {addSubroutineNode && <SubroutineSelectOrCreateDialog
@@ -951,6 +953,7 @@ export const BuildView = ({
                 nodeId={addSubroutineNode}
                 routineId={routine?.id ?? ''}
                 session={session}
+                zIndex={zIndex + 3}
             />}
             {/* Popup for editing existing subroutines */}
             {/* TODO */}
@@ -963,6 +966,7 @@ export const BuildView = ({
                 links={changedRoutine?.nodeLinks ?? []}
                 nodeId={addAfterLinkNode}
                 session={session}
+                zIndex={zIndex + 3}
             />}
             {/* Popup for "Add before" dialog */}
             {addBeforeLinkNode && <AddBeforeLinkDialog
@@ -973,6 +977,7 @@ export const BuildView = ({
                 links={changedRoutine?.nodeLinks ?? []}
                 nodeId={addBeforeLinkNode}
                 session={session}
+                zIndex={zIndex + 3}
             />}
             {/* Popup for creating new links */}
             {changedRoutine ? <LinkDialog
@@ -983,6 +988,7 @@ export const BuildView = ({
                 language={language}
                 link={undefined}
                 routine={changedRoutine}
+                zIndex={zIndex + 3}
             // partial={ }
             /> : null}
             {/* Displays routine information when you click on a routine list item*/}
@@ -996,6 +1002,7 @@ export const BuildView = ({
                 open={Boolean(openedSubroutine)}
                 session={session}
                 onClose={closeRoutineInfo}
+                zIndex={zIndex + 3}
             />
             {/* Display top navbars */}
             {/* First contains close icon and title */}
@@ -1112,6 +1119,7 @@ export const BuildView = ({
                         language={language}
                         nodes={nodesOffGraph}
                         open={isUnlinkedNodesOpen}
+                        zIndex={zIndex + 3}
                     />}
                     {/* Edit button */}
                     {canEdit && !isEditing ? (
@@ -1132,6 +1140,7 @@ export const BuildView = ({
                         routine={changedRoutine}
                         session={session}
                         sxs={{ icon: { fill: TERTIARY_COLOR, marginRight: 1 } }}
+                        zIndex={zIndex + 1}
                     />
                 </Box>
             </Stack>
@@ -1159,6 +1168,7 @@ export const BuildView = ({
                     links={changedRoutine?.nodeLinks ?? []}
                     nodesById={nodesById}
                     scale={scale}
+                    zIndex={zIndex}
                 />
                 <BuildBottomContainer
                     canCancelMutate={!loading}
@@ -1178,6 +1188,7 @@ export const BuildView = ({
                     sliderColor={palette.secondary.light}
                     routine={routine}
                     runState={BuildRunState.Stopped}
+                    zIndex={zIndex}
                 />
             </Box>
         </Box>

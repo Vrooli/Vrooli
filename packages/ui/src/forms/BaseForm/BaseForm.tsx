@@ -13,6 +13,7 @@ export const BaseForm = ({
     schema,
     session,
     onSubmit,
+    zIndex,
 }: BaseFormProps) => {
     const theme = useTheme();
 
@@ -64,8 +65,9 @@ export const BaseForm = ({
             onUpload: () => {},
             session,
             theme,
+            zIndex,
         })
-    }, [schema, formik, session, theme])
+    }, [schema, formik, session, theme, zIndex])
 
     return (
         <form onSubmit={formik.handleSubmit}>

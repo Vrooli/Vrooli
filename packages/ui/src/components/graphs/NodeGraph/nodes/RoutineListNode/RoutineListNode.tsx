@@ -40,7 +40,7 @@ const shouldCollapse = (id: string | null | undefined): boolean => {
     console.log('shouldCollapse', id);
     // Only collapse if clicked on shrink/expand icon, title bar, or title
     return Boolean(id && (
-        id.startsWith('toggle-expand-icon-') || 
+        id.startsWith('toggle-expand-icon-') ||
         id.startsWith('node-')
     ));
 }
@@ -56,6 +56,7 @@ export const RoutineListNode = ({
     isEditing,
     node,
     scale = 1,
+    zIndex,
 }: RoutineListNodeProps) => {
     const { palette } = useTheme();
     const [collapseOpen, setCollapseOpen] = useState<boolean>(false);
@@ -305,6 +306,7 @@ export const RoutineListNode = ({
                 anchorEl={contextAnchor}
                 handleClose={closeContext}
                 handleSelect={(option) => { handleAction(option, node.id) }}
+                zIndex={zIndex + 1}
             />
             <Tooltip placement={'top'} title={label ?? 'Routine List'}>
                 <Container

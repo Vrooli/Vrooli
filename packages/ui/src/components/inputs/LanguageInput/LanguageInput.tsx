@@ -15,6 +15,7 @@ export const LanguageInput = ({
     handleCurrent,
     selectedLanguages,
     session,
+    zIndex,
 }: LanguageInputProps) => {
 
     /**
@@ -71,6 +72,7 @@ export const LanguageInput = ({
                 sxs={{
                     root: { marginLeft: 0.5, marginRight: 0.5 },
                 }}
+                zIndex={zIndex + 1}
             />
             {
                 selectedLanguages.length > 1 && (

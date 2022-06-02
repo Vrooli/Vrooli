@@ -15,6 +15,7 @@ export interface BaseObjectDialogProps extends DialogProps {
     onAction: (state: ObjectDialogAction) => any;
     open: boolean;
     title: string;
+    zIndex: number;
 };
 
 export interface DeleteDialogProps {
@@ -23,6 +24,7 @@ export interface DeleteDialogProps {
     objectId: string;
     objectName: string;
     objectType: DeleteOneType;
+    zIndex: number;
 }
 
 export interface FormDialogProps {
@@ -65,6 +67,7 @@ export interface ListMenuProps<T> {
     onSelect: (value: T) => void;
     onClose: () => void;
     title?: string;
+    zIndex: number;
 }
 
 export enum ObjectDialogState {
@@ -86,12 +89,14 @@ export interface OrganizationDialogProps {
     hasPrevious?: boolean;
     partialData?: Partial<Organization>;
     session: Session;
+    zIndex: number;
 };
 
 export interface ProjectDialogProps {
     hasPrevious?: boolean;
     partialData?: Partial<Project>;
     session: Session;
+    zIndex: number;
 };
 
 export interface ReportDialogProps extends DialogProps {
@@ -101,6 +106,7 @@ export interface ReportDialogProps extends DialogProps {
     reportFor: keyof typeof ReportFor;
     session: Session;
     title?: string;
+    zIndex: number;
 }
 
 export interface ResourceDialogProps extends DialogProps {
@@ -119,26 +125,31 @@ export interface ResourceDialogProps extends DialogProps {
     onUpdated: (index: number, resource: Resource) => any;
     partialData?: Partial<Resource>;
     session: Session;
+    zIndex: number;
 }
 
 export interface RoutineDialogProps {
     partialData?: Partial<Routine>;
     session: Session;
+    zIndex: number;
 };
 
 export interface ShareDialogProps extends DialogProps {
     open: boolean;
     onClose: () => any;
+    zIndex: number;
 }
 
 export interface StandardDialogProps {
     partialData?: Partial<Standard>;
     session: Session;
+    zIndex: number;
 };
 
 export interface UserDialogProps {
     partialData?: Partial<User>;
     session: Session;
+    zIndex: number;
 };
 
 /**
@@ -172,6 +183,7 @@ export interface BaseObjectActionDialogProps {
     onClose: () => any;
     session: Session;
     title: string;
+    zIndex: number;
 }
 
 export interface LinkDialogProps {
@@ -182,6 +194,7 @@ export interface LinkDialogProps {
     language: string; // Language to display/edit
     link?: NodeLink; // Link to display on open, if editing
     routine: Routine;
+    zIndex: number;
 }
 
 export interface BuildInfoDialogProps {
@@ -194,6 +207,7 @@ export interface BuildInfoDialogProps {
     routine: Routine | null;
     session: Session;
     sxs?: { icon: any };
+    zIndex: number;
 }
 
 export interface SubroutineInfoDialogProps {
@@ -206,6 +220,7 @@ export interface SubroutineInfoDialogProps {
     open: boolean;
     session: Session;
     onClose: () => any;
+    zIndex: number;
 }
 
 export interface UnlinkedNodesDialogProps {
@@ -217,6 +232,7 @@ export interface UnlinkedNodesDialogProps {
     language: string;
     nodes: Node[];
     open: boolean;
+    zIndex: number;
 }
 
 export interface CreateNewDialogProps {
@@ -235,6 +251,7 @@ export interface RunStepsDialogProps {
     routineId: string | null | undefined;
     stepList: RoutineStep | null;
     sxs?: { icon: any };
+    zIndex: number;
 }
 
 export interface SelectLanguageDialogProps {
@@ -264,6 +281,7 @@ export interface SelectLanguageDialogProps {
      */
     selectedLanguages?: string[];
     sxs?: { root: any };
+    zIndex: number;
 }
 
 export interface AdvancedSearchDialogProps {
@@ -271,6 +289,7 @@ export interface AdvancedSearchDialogProps {
     handleSearch: (searchQuery: { [x: string]: any }) => any;
     isOpen: boolean;
     session: Session;
+    zIndex: number;
 }
 
 export interface RunPickerDialogProps {

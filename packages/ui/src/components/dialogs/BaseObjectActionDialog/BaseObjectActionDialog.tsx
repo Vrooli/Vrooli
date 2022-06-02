@@ -56,6 +56,7 @@ export const BaseObjectActionDialog = ({
     onClose,
     session,
     title,
+    zIndex,
 }: BaseObjectActionDialogProps) => {
     // States
     const [deleteOpen, setDeleteOpen] = useState<boolean>(false);
@@ -158,6 +159,7 @@ export const BaseObjectActionDialog = ({
                 objectType={objectType as any}
                 objectName={objectName}
                 handleClose={closeDelete}
+                zIndex={zIndex+1}
             />
             {/* Report dialog */}
             <ReportDialog
@@ -166,6 +168,7 @@ export const BaseObjectActionDialog = ({
                 open={reportOpen}
                 reportFor={objectType as string as ReportFor}
                 session={session}
+                zIndex={zIndex+1}
             />
             {/* Actual action dialog */}
             <ListMenu
@@ -175,6 +178,7 @@ export const BaseObjectActionDialog = ({
                 onClose={onClose}
                 onSelect={onSelect}
                 title={title}
+                zIndex={zIndex}
             />
         </>
     )

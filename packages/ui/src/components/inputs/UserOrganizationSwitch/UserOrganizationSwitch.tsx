@@ -19,6 +19,7 @@ export function UserOrganizationSwitch({
     selected,
     onChange,
     disabled,
+    zIndex,
     ...props
 }: UserOrganizationSwitchProps) {
     const { palette } = useTheme();
@@ -52,6 +53,7 @@ export function UserOrganizationSwitch({
                 handleAdd={onChange}
                 handleClose={closeCreateDialog}
                 session={session}
+                zIndex={zIndex+1}
             />
             {/* Main component */}
             <Stack direction="row" spacing={1} justifyContent="center">

@@ -87,13 +87,13 @@ export function SettingsPage({
     const mainContent: JSX.Element = useMemo(() => {
         switch (selectedPage) {
             case SettingsForm.Profile:
-                return <SettingsProfile session={session} profile={profile} onUpdated={onUpdated} />
+                return <SettingsProfile session={session} profile={profile} onUpdated={onUpdated} zIndex={200} />
             case SettingsForm.Display:
-                return <SettingsDisplay session={session} profile={profile} onUpdated={onUpdated} />
+                return <SettingsDisplay session={session} profile={profile} onUpdated={onUpdated} zIndex={200} />
             case SettingsForm.Notifications:
-                return <SettingsNotifications session={session} profile={profile} onUpdated={onUpdated} />
+                return <SettingsNotifications session={session} profile={profile} onUpdated={onUpdated} zIndex={200} />
             case SettingsForm.Authentication:
-                return <SettingsAuthentication session={session} profile={profile} onUpdated={onUpdated} />
+                return <SettingsAuthentication session={session} profile={profile} onUpdated={onUpdated} zIndex={200} />
         }
     }, [selectedPage, session, profile, onUpdated]);
 

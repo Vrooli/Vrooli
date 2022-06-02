@@ -12,19 +12,19 @@ export default {
 // Define templates for enabling control over props
 const EmptyTemplate: Story<Props> = (args) => <Component {...args} />;
 const OrganizationTemplate: Story<Props> = (args) => (<Component {...args}>
-    <OrganizationView session={{}} />
+    <OrganizationView session={{}} zIndex={1} />
 </Component>);
 const ProjectTemplate: Story<Props> = (args) => (<Component {...args}>
-    <ProjectView session={{}} />
+    <ProjectView session={{}} zIndex={1} />
 </Component>);
 const RoutineTemplate: Story<Props> = (args) => (<Component {...args}>
-    <RoutineView session={{}} />
+    <RoutineView session={{}} zIndex={1} />
 </Component>);
 const StandardTemplate: Story<Props> = (args) => (<Component {...args}>
-    <StandardView session={{}} />
+    <StandardView session={{}} zIndex={1} />
 </Component>);
 const UserTemplate: Story<Props> = (args) => (<Component {...args}>
-    <UserView session={{}} />
+    <UserView session={{}} zIndex={1} />
 </Component>);
 
 // Export stories

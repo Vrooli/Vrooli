@@ -32,6 +32,7 @@ export interface InputGeneratorProps {
     index?: number,
     onUpload: (fieldName: string, files: string[]) => void,
     session: Session;
+    zIndex: number
 }
 
 /**
@@ -147,6 +148,7 @@ export const toLanguageInput = ({
     formik,
     index,
     session,
+    zIndex,
 }: InputGeneratorProps): React.ReactElement => {
     let languages: string[] = [];
     if (_.isObject(formik.values) && Array.isArray(formik.values[data.fieldName]) && data.fieldName in formik.values) {
@@ -168,6 +170,7 @@ export const toLanguageInput = ({
             handleCurrent={() => {}} //TODO
             selectedLanguages={languages}
             session={session}
+            zIndex={zIndex}
         />
     )
 }
@@ -460,6 +463,8 @@ export const generateInputComponent = ({
     index,
     onUpload,
     session,
+    zIndex,
 }: InputGeneratorProps): React.ReactElement | null => {
-    return typeMap[data.type]({ data, disabled, formik, index, onUpload, session });
+    console.log('GENERATE INPUT COMPONENT', data, formik.values);
+    return typeMap[data.type]({ data, disabled, formik, index, onUpload, session, zIndex });
 }

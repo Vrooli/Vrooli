@@ -12,7 +12,8 @@ import { Pubs } from 'utils';
 
 export const UserDialog = ({
     partialData,
-    session
+    session,
+    zIndex,
 }: UserDialogProps) => {
     const [, setLocation] = useLocation();
     const [, params] = useRoute(`${APP_LINKS.SearchUsers}/:params*`);
@@ -65,8 +66,13 @@ export const UserDialog = ({
             onAction={onAction}
             open={Boolean(params?.params)}
             title={title}
+            zIndex={zIndex}
         >
-            <UserView session={session} partialData={partialData} />
+            <UserView 
+                session={session} 
+                partialData={partialData} 
+                zIndex={zIndex}
+            />
         </BaseObjectDialog>
     );
 }

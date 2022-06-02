@@ -49,6 +49,7 @@ export const SearchProjectsPage = ({
             <ProjectDialog
                 partialData={selectedItem}
                 session={session}
+                zIndex={200}
             />
             {/* Search component */}
             <BaseSearchPage

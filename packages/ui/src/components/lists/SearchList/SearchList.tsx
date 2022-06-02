@@ -49,6 +49,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     onScrolledFar,
     where,
     session,
+    zIndex,
 }: SearchListProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -99,21 +100,22 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     }, [searchString, sortBy, timeFrame, setLocation]);
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object>({});
-    const [getPageData, { data: pageData, loading }] = useLazyQuery<Query, QueryVariables>(query, { 
-        variables: ({ 
-            input: { 
-                after: after.current, 
-                take, 
-                sortBy, 
-                searchString, 
+    const [getPageData, { data: pageData, loading }] = useLazyQuery<Query, QueryVariables>(query, {
+        variables: ({
+            input: {
+                after: after.current,
+                take,
+                sortBy,
+                searchString,
                 createdTimeFrame: (timeFrame && Object.keys(timeFrame).length > 0) ? {
                     after: timeFrame.after?.toISOString(),
                     before: timeFrame.before?.toISOString(),
-                } : undefined, 
-                ...where, 
-                ...advancedSearchParams 
-            } 
-        } as any) });
+                } : undefined,
+                ...where,
+                ...advancedSearchParams
+            }
+        } as any)
+    });
     const [allData, setAllData] = useState<DataType[]>([]);
 
     // On search filters/sort change, reset the page
@@ -317,6 +319,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 handleSearch={handleAdvancedSearchDialogSubmit}
                 isOpen={advancedSearchDialogOpen}
                 session={session}
+                zIndex={zIndex + 1}
             />
             {/* Menu for selecting "sort by" type */}
             <SortMenu

@@ -10,7 +10,7 @@ import { BaseSearchPage } from "./BaseSearchPage";
 import { SearchOrganizationsPageProps } from "./types";
 
 export const SearchOrganizationsPage = ({
-    session
+    session,
 }: SearchOrganizationsPageProps) => {
     const [location, setLocation] = useLocation();
 
@@ -52,11 +52,16 @@ export const SearchOrganizationsPage = ({
     return (
         <>
             {/* Invite link dialog */}
-            <ShareDialog onClose={handleSurpriseDialogClose} open={surpriseDialogOpen} />
+            <ShareDialog
+                onClose={handleSurpriseDialogClose}
+                open={surpriseDialogOpen}
+                zIndex={200}
+            />
             {/* View/Add/Update dialog */}
             <OrganizationDialog
                 partialData={selectedItem}
                 session={session}
+                zIndex={200}
             />
             {/* Search component */}
             <BaseSearchPage

@@ -40,6 +40,7 @@ export const NodeGraph = ({
     links,
     nodesById,
     scale = 1,
+    zIndex,
 }: NodeGraphProps) => {
     const { palette } = useTheme();
 
@@ -405,8 +406,9 @@ export const NodeGraph = ({
             language={language}
             nodes={col}
             scale={scale}
+            zIndex={zIndex}
         />)
-    }, [columns, dragId, handleAction, handleNodeDrop, handleNodeUpdate, isEditing, labelVisible, language, scale]);
+    }, [columns, dragId, handleAction, handleNodeDrop, handleNodeUpdate, isEditing, labelVisible, language, scale, zIndex]);
 
     return (
         <Box id="graph-root" position="relative" sx={{

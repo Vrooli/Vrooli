@@ -5,6 +5,7 @@ export interface OrganizationSelectOrCreateDialogProps {
     handleClose: () => any;
     isOpen: boolean;
     session: Session;
+    zIndex: number;
 }
 
 export interface StandardSelectOrCreateDialogProps {
@@ -12,6 +13,7 @@ export interface StandardSelectOrCreateDialogProps {
     handleClose: () => any;
     isOpen: boolean;
     session: Session;
+    zIndex: number;
 }
 
 export interface SubroutineSelectOrCreateDialogProps {
@@ -21,4 +23,5 @@ export interface SubroutineSelectOrCreateDialogProps {
     nodeId: string;
     routineId: string;
     session: Session;
+    zIndex: number;
 }

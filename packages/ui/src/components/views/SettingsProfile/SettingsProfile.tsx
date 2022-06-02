@@ -38,6 +38,7 @@ export const SettingsProfile = ({
     onUpdated,
     profile,
     session,
+    zIndex,
 }: SettingsProfileProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -199,6 +200,7 @@ export const SettingsProfile = ({
                             handleCurrent={handleLanguageSelect}
                             selectedLanguages={languages}
                             session={session}
+                            zIndex={zIndex}
                         />
                     </Grid>
                     <Grid item xs={12}>

@@ -26,6 +26,7 @@ export const StandardUpdate = ({
     onCancel,
     onUpdated,
     session,
+    zIndex,
 }: StandardUpdateProps) => {
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Standard}/edit/:id`);
@@ -179,6 +180,7 @@ export const StandardUpdate = ({
                     handleCurrent={handleLanguageSelect}
                     selectedLanguages={languages}
                     session={session}
+                    zIndex={zIndex}
                 />
             </Grid>
             {/* TODO description, versioning */}
@@ -191,6 +193,7 @@ export const StandardUpdate = ({
                     loading={loading}
                     session={session}
                     mutate={false}
+                    zIndex={zIndex}
                 />
             </Grid>
             <Grid item xs={12} marginBottom={4}>
@@ -203,7 +206,7 @@ export const StandardUpdate = ({
                 />
             </Grid>
         </Grid>
-    ), [language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, session, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
+    ), [language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, session, zIndex, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
 
 
     return (

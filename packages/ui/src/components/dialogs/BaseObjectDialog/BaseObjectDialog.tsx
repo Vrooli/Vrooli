@@ -25,6 +25,7 @@ export const BaseObjectDialog = ({
     onAction,
     open = true,
     title,
+    zIndex,
 }: BaseObjectDialogProps) => {
     const { palette } = useTheme();
 
@@ -40,7 +41,7 @@ export const BaseObjectDialog = ({
             onClose={onClose}
             TransitionComponent={UpTransition}
             sx={{
-                zIndex: 102,
+                zIndex,
             }}
         >
             {/* TODO hide not working */}

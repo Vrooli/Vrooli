@@ -34,7 +34,9 @@ export const StandardSelectOrCreateDialog = ({
     handleClose,
     isOpen,
     session,
+    zIndex,
 }: StandardSelectOrCreateDialogProps) => {
+    if (isOpen) console.log('standardslectorcrate dialog isopen!', zIndex)
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -124,6 +126,7 @@ export const StandardSelectOrCreateDialog = ({
             open={isOpen}
             onClose={onClose}
             sx={{
+                zIndex,
                 '& .MuiDialogContent-root': { overflow: 'visible', background: palette.background.default },
                 '& .MuiDialog-paper': { overflow: 'visible' }
             }}
@@ -133,11 +136,13 @@ export const StandardSelectOrCreateDialog = ({
                 onAction={handleCreateClose}
                 open={isCreateOpen}
                 title={"Create Standard"}
+                zIndex={zIndex+1}
             >
                 <StandardCreate
                     onCreated={handleCreated}
                     onCancel={handleCreateClose}
                     session={session}
+                    zIndex={zIndex+1}
                 />
             </BaseObjectDialog>
             {titleBar}
@@ -152,6 +157,7 @@ export const StandardSelectOrCreateDialog = ({
                         searchPlaceholder={'Select existing standard...'}
                         session={session}
                         take={20}
+                        zIndex={zIndex}
                     />
                     <Button
                         fullWidth

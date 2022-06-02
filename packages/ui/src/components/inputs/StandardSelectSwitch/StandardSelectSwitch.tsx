@@ -18,6 +18,7 @@ export function StandardSelectSwitch({
     selected,
     onChange,
     disabled,
+    zIndex,
     ...props
 }: StandardSelectSwitchProps) {
     const { palette } = useTheme();
@@ -50,6 +51,7 @@ export function StandardSelectSwitch({
                 handleAdd={onChange}
                 handleClose={closeCreateDialog}
                 session={session}
+                zIndex={zIndex+1}
             />
             {/* Main component */}
             <Stack direction="row" spacing={1}>

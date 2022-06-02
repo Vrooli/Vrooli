@@ -10,7 +10,7 @@ export const UserViewPage = ({
             minHeight: '100vh',
             paddingTop: { xs: '64px', md: '80px' },
         }}>
-            <UserView session={session} />
+            <UserView session={session} zIndex={200} />
         </Box>
     )
 }

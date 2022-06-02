@@ -22,6 +22,7 @@ export const SelectLanguageDialog = ({
     selectedLanguages,
     session,
     sxs,
+    zIndex,
 }: SelectLanguageDialogProps) => {
     const { palette } = useTheme();
     const [searchString, setSearchString] = useState('');
@@ -120,6 +121,7 @@ export const SelectLanguageDialog = ({
                 anchorEl={anchorEl}
                 onClose={onClose}
                 sx={{
+                    zIndex: zIndex + 1,
                     '& .MuiPopover-paper': {
                         background: 'transparent',
                         border: 'none',

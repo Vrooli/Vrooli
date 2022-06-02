@@ -29,6 +29,7 @@ import { owns } from "utils/authentication";
 export const RoutineView = ({
     partialData,
     session,
+    zIndex,
 }: RoutineViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -280,8 +281,9 @@ export const RoutineView = ({
             handleUpdate={() => { }} // Intentionally blank
             loading={loading}
             session={session}
+            zIndex={zIndex}
         />
-    }, [loading, routine, session]);
+    }, [loading, routine, session, zIndex]);
 
     /**
      * Display body or loading indicator
@@ -364,11 +366,15 @@ export const RoutineView = ({
                 open={isRunOpen}
                 onClose={stopRoutine}
                 TransitionComponent={UpTransition}
+                sx={{
+                    zIndex: zIndex + 1,
+                }}
             >
                 {routine && <RunView
                     handleClose={stopRoutine}
                     routine={routine}
                     session={session}
+                    zIndex={zIndex + 1}
                 />}
             </Dialog>
             {/* Dialog for building routine */}
@@ -379,7 +385,7 @@ export const RoutineView = ({
                 onClose={stopBuild}
                 TransitionComponent={UpTransition}
                 sx={{
-                    zIndex: 103,
+                    zIndex: zIndex + 1,
                 }}
             >
                 <BuildView
@@ -388,6 +394,7 @@ export const RoutineView = ({
                     onChange={updateRoutine}
                     routine={routine}
                     session={session}
+                    zIndex={zIndex + 1}
                 />
             </Dialog>
             {/* Popup menu displayed when "More" ellipsis pressed */}
@@ -402,6 +409,7 @@ export const RoutineView = ({
                 availableOptions={moreOptions}
                 onClose={closeMoreMenu}
                 session={session}
+                zIndex={zIndex+1}
             />
             {/* Main container */}
             <Box sx={{
@@ -480,6 +488,7 @@ export const RoutineView = ({
                             currentLanguage={language}
                             handleCurrent={setLanguage}
                             session={session}
+                            zIndex={zIndex}
                         />
                         {canEdit && <Tooltip title="Edit routine">
                             <IconButton

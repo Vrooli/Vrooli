@@ -115,6 +115,7 @@ export function BaseSearchPage({
                 onObjectSelect={onObjectSelect}
                 onScrolledFar={handleScrolledFar}
                 session={session}
+                zIndex={200}
             />
             {popupButtonContainer}
         </Box >

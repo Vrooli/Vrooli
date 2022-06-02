@@ -6,6 +6,7 @@ export interface NodeContextMenuProps {
     anchorEl: HTMLElement | null;
     handleClose: () => void;
     handleSelect: (option: NodeContextMenuAction) => void;
+    zIndex: number;
 }
 
 export interface AddAfterLinkDialogProps {
@@ -16,6 +17,7 @@ export interface AddAfterLinkDialogProps {
     nodes: Node[];
     links: NodeLink[];
     session: Session;
+    zIndex: number;
 }
 
 export interface AddBeforeLinkDialogProps {
@@ -26,6 +28,7 @@ export interface AddBeforeLinkDialogProps {
     nodes: Node[];
     links: NodeLink[];
     session: Session;
+    zIndex: number;
 }
 
 export interface NodeGraphProps {
@@ -65,6 +68,7 @@ export interface NodeGraphProps {
      * Dictionary of row and column pairs for every node ID on graph
      */
     nodesById: { [x: string]: Node };
+    zIndex: number;
 }
 
 /**
@@ -82,4 +86,5 @@ export interface NodeColumnProps {
     handleNodeDrop: (nodeId: string, columnIndex: number | null, rowIndex: number | null) => void;
     handleNodeUpdate: (updatedNode: Node) => void;
     language: string;
+    zIndex: number;
 }

@@ -31,6 +31,7 @@ export const NodeContextMenu = ({
     anchorEl,
     handleClose,
     handleSelect,
+    zIndex,
 }: NodeContextMenuProps) => {
     return (
         <ListMenu
@@ -40,6 +41,7 @@ export const NodeContextMenu = ({
             data={listOptions}
             onSelect={handleSelect}
             onClose={handleClose}
+            zIndex={zIndex}
         />
     )
 }

@@ -112,6 +112,7 @@ export const DevelopPage = ({
                     loading={resourcesLoading}
                     mutate={true}
                     session={session}
+                    zIndex={1}
                 />
                 <ListTitleContainer
                     title={"In Progress"}

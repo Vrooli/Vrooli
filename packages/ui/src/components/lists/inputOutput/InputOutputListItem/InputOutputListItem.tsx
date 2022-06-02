@@ -8,7 +8,7 @@ import {
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
-import { getTranslation, standardToFieldData, updateArray } from 'utils';
+import { getTranslation, jsonToString, standardToFieldData, updateArray } from 'utils';
 import { useFormik } from 'formik';
 import { ListStandard, NewObject, RoutineInput, RoutineOutput, Standard } from 'types';
 import { BaseStandardInput, PreviewSwitch, Selector, StandardSelectSwitch } from 'components';
@@ -66,6 +66,7 @@ export const InputOutputListItem = ({
     handleUpdate,
     language,
     session,
+    zIndex,
 }: InputOutputListItemProps) => {
     const { palette } = useTheme();
 
@@ -132,7 +133,8 @@ export const InputOutputListItem = ({
             description: getTranslation(item, 'description', [language]) ?? '',
             isRequired: true,
             name: item.name ?? '',
-            [schemaKey]: schema?.props?.defaultValue ?? '',
+            // Value of generated input component preview
+            [schemaKey]: jsonToString(((standardToFieldData(standard, schemaKey) ?? schema)?.props as any)?.format),
         },
         enableReinitialize: true,
         validationSchema: isInput ? inputCreate : outputCreate,
@@ -284,6 +286,7 @@ export const InputOutputListItem = ({
                             session={session}
                             selected={standard}
                             onChange={onSwitchChange}
+                            zIndex={zIndex}
                         />
                     </Grid>
                     {/* Standard build/preview */}
@@ -302,7 +305,8 @@ export const InputOutputListItem = ({
                                     disabled: true,
                                     formik,
                                     session,
-                                    onUpload: () => { }
+                                    onUpload: () => { },
+                                    zIndex,
                                 })) :
                                 // Only editable if standard not selected
                                 <Box>

@@ -75,6 +75,7 @@ export const InputOutputContainer = ({
     language,
     list,
     session,
+    zIndex,
 }: InputOutputContainerProps) => {
     // Store open/close state of each list item
     const [isOpenArray, setIsOpenArray] = useState<boolean[]>([]);
@@ -152,6 +153,7 @@ export const InputOutputContainer = ({
                             handleUpdate={onUpdate}
                             language={language}
                             session={session}
+                            zIndex={zIndex}
                         />
                         {isEditing && <AddButton
                             key={`add-input-item-${index}`}

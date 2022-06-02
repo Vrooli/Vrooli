@@ -60,6 +60,7 @@ export const SearchRoutinesPage = ({
             <RoutineDialog
                 partialData={selectedItem}
                 session={session}
+                zIndex={200}
             />
             {/* Select type to add */}
             <ListMenu
@@ -69,6 +70,7 @@ export const SearchRoutinesPage = ({
                 data={addOptions}
                 onSelect={handleAddSelect}
                 onClose={closeAdd}
+                zIndex={200}
             />
             {/* Search component */}
             <BaseSearchPage

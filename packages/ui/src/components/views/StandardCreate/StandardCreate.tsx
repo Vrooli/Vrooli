@@ -66,6 +66,7 @@ export const StandardCreate = ({
     onCreated,
     onCancel,
     session,
+    zIndex,
 }: StandardCreateProps) => {
     const params = useReactSearch(null);
 
@@ -256,6 +257,7 @@ export const StandardCreate = ({
                         handleCurrent={handleLanguageSelect}
                         selectedLanguages={languages}
                         session={session}
+                        zIndex={zIndex}
                     />
                 </Grid>
                 <Grid item xs={12}>
@@ -302,7 +304,8 @@ export const StandardCreate = ({
                                 disabled: true,
                                 formik: previewFormik,
                                 session,
-                                onUpload: () => { }
+                                onUpload: () => { },
+                                zIndex,
                             })) :
                             <Box>
                                 <Selector
@@ -337,6 +340,7 @@ export const StandardCreate = ({
                         loading={false}
                         session={session}
                         mutate={false}
+                        zIndex={zIndex}
                     />
                 </Grid>
                 <Grid item xs={12} marginBottom={4}>

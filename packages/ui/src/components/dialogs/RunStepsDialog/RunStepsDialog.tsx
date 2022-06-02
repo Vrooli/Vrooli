@@ -118,6 +118,7 @@ export const RunStepsDialog = ({
     routineId,
     stepList,
     sxs,
+    zIndex,
 }: RunStepsDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -206,6 +207,7 @@ export const RunStepsDialog = ({
                     style: { position: "absolute" },
                 }}
                 sx={{
+                    zIndex,
                     '& .MuiDrawer-paper': {
                         background: palette.background.default,
                         borderRight: `1px solid ${palette.text.primary}`,

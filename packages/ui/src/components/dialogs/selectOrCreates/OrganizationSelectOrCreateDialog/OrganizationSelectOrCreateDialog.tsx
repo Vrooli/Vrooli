@@ -36,6 +36,7 @@ export const OrganizationSelectOrCreateDialog = ({
     handleClose,
     isOpen,
     session,
+    zIndex,
 }: OrganizationSelectOrCreateDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -126,6 +127,7 @@ export const OrganizationSelectOrCreateDialog = ({
             open={isOpen}
             onClose={onClose}
             sx={{
+                zIndex,
                 '& .MuiDialogContent-root': { overflow: 'visible', background: palette.background.default },
                 '& .MuiDialog-paper': { overflow: 'visible' }
             }}
@@ -135,11 +137,13 @@ export const OrganizationSelectOrCreateDialog = ({
                 onAction={handleCreateClose}
                 open={isCreateOpen}
                 title={"Create Organization"}
+                zIndex={zIndex+1}
             >
                 <OrganizationCreate
                     onCreated={handleCreated}
                     onCancel={handleCreateClose}
                     session={session}
+                    zIndex={zIndex+1}
                 />
             </BaseObjectDialog>
             {titleBar}
@@ -154,7 +158,8 @@ export const OrganizationSelectOrCreateDialog = ({
                         searchPlaceholder={'Select existing organization...'}
                         session={session}
                         take={20}
-                        where={{ userId: session?.id,}}
+                        where={{ userId: session?.id }}
+                        zIndex={zIndex}
                     />
                     <Button
                         fullWidth

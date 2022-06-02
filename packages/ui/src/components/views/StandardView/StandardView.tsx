@@ -26,6 +26,7 @@ import { PreviewSwitch } from "components/inputs";
 export const StandardView = ({
     partialData,
     session,
+    zIndex,
 }: StandardViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -129,8 +130,9 @@ export const StandardView = ({
             handleUpdate={() => { }} // Intentionally blank
             loading={loading}
             session={session}
+            zIndex={zIndex}
         />
-    }, [loading, session, standard]);
+    }, [loading, session, standard, zIndex]);
 
     /**
      * Display body or loading indicator
@@ -173,7 +175,8 @@ export const StandardView = ({
                                 disabled: true,
                                 formik: previewFormik,
                                 session,
-                                onUpload: () => { }
+                                onUpload: () => { },
+                                zIndex,
                             }) :
                                 <Box sx={{
                                     minHeight: 'min(300px, 25vh)',
@@ -195,7 +198,7 @@ export const StandardView = ({
                 </Stack>
             </>
         )
-    }, [loading, resourceList, description, palette.background.textPrimary, palette.background.textSecondary, isPreviewOn, onPreviewChange, schema, previewFormik, session]);
+    }, [loading, resourceList, description, palette.background.textPrimary, palette.background.textSecondary, isPreviewOn, onPreviewChange, schema, previewFormik, session, zIndex]);
 
     return (
         <Box sx={{
@@ -219,6 +222,7 @@ export const StandardView = ({
                 availableOptions={moreOptions}
                 onClose={closeMoreMenu}
                 session={session}
+                zIndex={zIndex+1}
             />
             {/* Main container */}
             <Box sx={{
@@ -295,6 +299,7 @@ export const StandardView = ({
                             currentLanguage={language}
                             handleCurrent={setLanguage}
                             session={session}
+                            zIndex={zIndex}
                         />
                         {canEdit && <Tooltip title="Edit standard">
                             <IconButton

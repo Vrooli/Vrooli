@@ -35,6 +35,7 @@ export const LinkDialog = ({
     language,
     link,
     routine,
+    zIndex,
 }: LinkDialogProps) => {
     const { palette } = useTheme();
 
@@ -205,6 +206,7 @@ export const LinkDialog = ({
             open={isOpen}
             onClose={() => { handleClose() }}
             sx={{
+                zIndex,
                 '& .MuiDialogContent-root': { overflow: 'visible' },
                 '& .MuiDialog-paper': { overflow: 'visible' }
             }}

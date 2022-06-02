@@ -62,11 +62,13 @@ export const RoutineViewPage = ({
                 onAction={onAction}
                 open={isAddDialogOpen}
                 title={"Add Routine"}
+                zIndex={200}
             >
                 <RoutineCreate
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
                     onCreated={(data: Routine) => onAction(ObjectDialogAction.Add, data)}
                     session={session}
+                    zIndex={200}
                 />
             </BaseObjectDialog>
             {/* Update dialog */}
@@ -74,15 +76,17 @@ export const RoutineViewPage = ({
                 onAction={onAction}
                 open={isEditDialogOpen}
                 title={"Update Routine"}
+                zIndex={200}
             >
                 <RoutineUpdate
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
                     onUpdated={() => onAction(ObjectDialogAction.Save)}
                     session={session}
+                    zIndex={200}
                 />
             </BaseObjectDialog>
             {/* Main view */}
-            <RoutineView session={session} />
+            <RoutineView session={session} zIndex={200} />
         </Box>
     )
 }

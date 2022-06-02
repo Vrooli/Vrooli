@@ -18,6 +18,7 @@ export const DecisionView = ({
     handleDecisionSelect,
     nodes,
     session,
+    zIndex,
 }: DecisionViewProps) => {
     const { palette } = useTheme();
 

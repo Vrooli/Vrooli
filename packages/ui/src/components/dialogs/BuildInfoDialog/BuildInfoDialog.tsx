@@ -46,6 +46,7 @@ export const BuildInfoDialog = ({
     routine,
     session,
     sxs,
+    zIndex,
 }: BuildInfoDialogProps) => {
     console.log('rendering buildinfodialog')
     const { palette } = useTheme();
@@ -193,8 +194,9 @@ export const BuildInfoDialog = ({
             handleUpdate={() => { }} // Intentionally blank
             loading={loading}
             session={session}
+            zIndex={zIndex}
         />
-    }, [loading, routine, session]);
+    }, [loading, routine, session, zIndex]);
 
     /**
      * Determines which action buttons to display
@@ -229,7 +231,7 @@ export const BuildInfoDialog = ({
                 onOpen={() => { }} // Intentionally empty
                 onClose={closeMenu}
                 sx={{
-                    zIndex: 105,
+                    zIndex,
                     '& .MuiDrawer-paper': {
                         background: palette.background.default,
                         maxWidth: { xs: '100%', sm: '75%', md: '50%', lg: '40%', xl: '30%' },
@@ -296,12 +298,14 @@ export const BuildInfoDialog = ({
                             handleCurrent={handleLanguageSelect}
                             selectedLanguages={languages}
                             session={session}
+                            zIndex={zIndex}
                         /> : <SelectLanguageDialog
                             availableLanguages={availableLanguages}
                             canDropdownOpen={availableLanguages.length > 1}
                             currentLanguage={language}
                             handleCurrent={handleLanguageSelect}
                             session={session}
+                            zIndex={zIndex}
                         />
                     }
                     {/* Resources */}

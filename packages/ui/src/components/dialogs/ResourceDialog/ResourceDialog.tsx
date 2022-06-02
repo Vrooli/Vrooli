@@ -63,6 +63,7 @@ export const ResourceDialog = ({
     partialData,
     session,
     listId,
+    zIndex,
 }: ResourceDialogProps) => {
     const { palette } = useTheme();
 
@@ -199,6 +200,7 @@ export const ResourceDialog = ({
             onClose={handleClose}
             open={open}
             sx={{
+                zIndex,
                 '& .MuiDialog-paper': {
                     width: 'min(500px, 100vw)',
                     textAlign: 'center',
@@ -239,6 +241,7 @@ export const ResourceDialog = ({
                         handleCurrent={handleLanguageSelect}
                         selectedLanguages={languages}
                         session={session}
+                        zIndex={zIndex + 1}
                     />
                     {/* Enter link */}
                     <TextField

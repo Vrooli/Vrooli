@@ -36,6 +36,7 @@ enum TabOptions {
 export const OrganizationView = ({
     partialData,
     session,
+    zIndex,
 }: OrganizationViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -94,8 +95,9 @@ export const OrganizationView = ({
             }}
             loading={loading}
             mutate={true}
+            zIndex={zIndex}
         />
-    ) : null, [canEdit, loading, organization, resourceList, session]);
+    ) : null, [canEdit, loading, organization, resourceList, session, zIndex]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -387,6 +389,7 @@ export const OrganizationView = ({
                 availableOptions={moreOptions}
                 onClose={closeMoreMenu}
                 session={session}
+                zIndex={zIndex+1}
             />
             <Box sx={{
                 background: palette.mode === 'light' ? "#b2b3b3" : "#303030",
@@ -407,6 +410,7 @@ export const OrganizationView = ({
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         session={session}
+                        zIndex={zIndex}
                     />
                 </Box>
                 {overviewComponent}
@@ -452,6 +456,7 @@ export const OrganizationView = ({
                                 session={session}
                                 take={20}
                                 where={where}
+                                zIndex={zIndex}
                             />
                         )
                     }

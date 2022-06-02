@@ -31,6 +31,7 @@ enum TabOptions {
 export const ProjectView = ({
     partialData,
     session,
+    zIndex,
 }: ProjectViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -88,8 +89,9 @@ export const ProjectView = ({
             }}
             loading={loading}
             mutate={true}
+            zIndex={zIndex}
         />
-    ) : null, [canEdit, loading, project, resourceList, session]);
+    ) : null, [canEdit, loading, project, resourceList, session, zIndex]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -334,6 +336,7 @@ export const ProjectView = ({
                 availableOptions={moreOptions}
                 onClose={closeMoreMenu}
                 session={session}
+                zIndex={zIndex+1}
             />
             <Box sx={{
                 display: 'flex',
@@ -354,6 +357,7 @@ export const ProjectView = ({
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         session={session}
+                        zIndex={zIndex}
                     />
                 </Box>
                 {overviewComponent}
@@ -399,6 +403,7 @@ export const ProjectView = ({
                                 session={session}
                                 take={20}
                                 where={where}
+                                zIndex={zIndex}
                             />
                         )
                     }

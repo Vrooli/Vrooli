@@ -9,6 +9,7 @@ import { MouseEvent } from 'react';
  */
 export interface NodeDataProps {
     node: Node;
+    zIndex: number;
 }
 
 /**

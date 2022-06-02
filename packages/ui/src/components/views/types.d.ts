@@ -4,11 +4,13 @@ export interface CreateProps<T> {
     onCancel: () => void;
     onCreated: (item: T) => void;
     session: Session;
+    zIndex: number;
 }
 export interface UpdateProps<T> {
     onCancel: () => void;
     onUpdated: (item: T) => void;
     session: Session;
+    zIndex: number;
 }
 export interface ViewProps<T> {
     /**
@@ -17,6 +19,7 @@ export interface ViewProps<T> {
      */
     partialData?: Partial<T>;
     session: Session;
+    zIndex: number;
 }
 
 export interface OrganizationCreateProps extends CreateProps<Organization> {}
@@ -43,19 +46,13 @@ export interface UserViewProps extends ViewProps<User> {}
 export interface SettingsBaseProps {
     profile: Profile | undefined;
     onUpdated: (profile: Profile) => void;
-}
-export interface SettingsAuthenticationProps extends SettingsBaseProps {
-    session: Session
-}
-export interface SettingsDisplayProps extends SettingsBaseProps {
     session: Session;
+    zIndex: number;
 }
-export interface SettingsNotificationsProps extends SettingsBaseProps {
-    session: Session
-}
-export interface SettingsProfileProps extends SettingsBaseProps {
-    session: Session;
-}
+export interface SettingsAuthenticationProps extends SettingsBaseProps {}
+export interface SettingsDisplayProps extends SettingsBaseProps {}
+export interface SettingsNotificationsProps extends SettingsBaseProps {}
+export interface SettingsProfileProps extends SettingsBaseProps {}
 
 export interface SubroutineViewProps {
     loading: boolean;
@@ -66,6 +63,7 @@ export interface SubroutineViewProps {
      */
     owner: Routine['owner'] | null;
     session: Session;
+    zIndex: number;
 }
 
 export interface DecisionViewProps {
@@ -73,6 +71,7 @@ export interface DecisionViewProps {
     handleDecisionSelect: (node: Node) => void;
     nodes: Node[];
     session: Session;
+    zIndex: number;
 }
 
 export interface RunViewProps extends ViewProps<Routine> {
@@ -85,4 +84,5 @@ export interface BuildViewProps extends ViewProps<Routine> {
     loading: boolean;
     onChange: (routine: Routine) => void;
     routine: Routine | null;
+    zIndex: number;
 }

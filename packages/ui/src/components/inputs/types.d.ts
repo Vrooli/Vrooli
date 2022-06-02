@@ -183,6 +183,7 @@ export interface LanguageInputProps {
     handleCurrent: (language: string) => void;
     selectedLanguages: string[];
     session: Session;
+    zIndex: number;
 }
 
 export interface LinkButtonProps {
@@ -272,6 +273,7 @@ export interface StandardSelectSwitchProps extends UseSwitchProps {
     selected: Standard | null;
     onChange: (value: Standard | null) => any;
     disabled?: boolean;
+    zIndex: number;
 }
 
 // Tag object which may not exist in the database
@@ -299,4 +301,5 @@ export interface UserOrganizationSwitchProps extends UseSwitchProps {
     selected: Organization | null;
     onChange: (value: Organization | null) => any;
     disabled?: boolean;
+    zIndex: number;
 }

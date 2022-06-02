@@ -46,6 +46,7 @@ export const ReportDialog = ({
     reportFor,
     session,
     title = 'Report',
+    zIndex,
 }: ReportDialogProps) => {
     const { palette } = useTheme();
 
@@ -96,6 +97,7 @@ export const ReportDialog = ({
             onClose={handleClose}
             open={open}
             sx={{
+                zIndex,
                 '& .MuiPaper-root': {
                     minWidth: 'min(400px, 100%)',
                     margin: '0 auto',
@@ -123,6 +125,7 @@ export const ReportDialog = ({
                             currentLanguage={language}
                             handleCurrent={setLanguage}
                             session={session}
+                            zIndex={zIndex}
                         />
                     </Stack>
                     <Box sx={{ marginLeft: 'auto' }}>

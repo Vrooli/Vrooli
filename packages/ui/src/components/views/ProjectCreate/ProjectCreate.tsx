@@ -25,6 +25,7 @@ export const ProjectCreate = ({
     onCreated,
     onCancel,
     session,
+    zIndex,
 }: ProjectCreateProps) => {
     const params = useReactSearch(null);
 
@@ -166,11 +167,17 @@ export const ProjectCreate = ({
             alignItems: 'center',
             justifyContent: 'center',
             paddingBottom: `${formBottom}px`,
+            zIndex,
         }}
         >
             <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
                 <Grid item xs={12}>
-                    <UserOrganizationSwitch session={session} selected={organizationFor} onChange={onSwitchChange} />
+                    <UserOrganizationSwitch 
+                        session={session} 
+                        selected={organizationFor} 
+                        onChange={onSwitchChange} 
+                        zIndex={zIndex}
+                    />
                 </Grid>
                 <Grid item xs={12}>
                     <LanguageInput
@@ -180,6 +187,7 @@ export const ProjectCreate = ({
                         handleCurrent={handleLanguageSelect}
                         selectedLanguages={languages}
                         session={session}
+                        zIndex={zIndex}
                     />
                 </Grid>
                 <Grid item xs={12}>
@@ -219,6 +227,7 @@ export const ProjectCreate = ({
                         loading={false}
                         session={session}
                         mutate={false}
+                        zIndex={zIndex}
                     />
                 </Grid>
                 <Grid item xs={12} marginBottom={4}>

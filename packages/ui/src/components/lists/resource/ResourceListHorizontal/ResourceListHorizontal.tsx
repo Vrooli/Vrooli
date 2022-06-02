@@ -24,6 +24,7 @@ export const ResourceListHorizontal = ({
     list,
     loading = false,
     session,
+    zIndex,
 }: ResourceListHorizontalProps) => {
     const { palette } = useTheme();
 
@@ -108,8 +109,9 @@ export const ResourceListHorizontal = ({
             onUpdated={onUpdate}
             mutate={mutate}
             session={session}
+            zIndex={zIndex + 1}
         /> : null
-    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, session]);
+    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, session, zIndex]);
 
     return (
         <Box>
@@ -126,6 +128,7 @@ export const ResourceListHorizontal = ({
                 onDelete={onDelete}
                 onEdit={() => openUpdateDialog(selectedIndex ?? 0)}
                 onMove={() => { }}
+                zIndex={zIndex + 1}
             />
             <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>
             <Box

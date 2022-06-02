@@ -22,6 +22,7 @@ export function ListMenu<T>({
     onClose,
     title = 'Select Item',
     data,
+    zIndex,
 }: ListMenuProps<T>) {
     const { palette } = useTheme();
 
@@ -70,6 +71,7 @@ export function ListMenu<T>({
             }}
             onClose={(e) => { onClose() }}
             sx={{
+                zIndex,
                 '& .MuiMenu-paper': {
                     background: palette.background.default
                 },

@@ -34,6 +34,7 @@ enum TabOptions {
 export const UserView = ({
     session,
     partialData,
+    zIndex,
 }: UserViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -95,8 +96,9 @@ export const UserView = ({
             }}
             loading={loading}
             mutate={true}
+            zIndex={zIndex}
         />
-    ) : null, [isOwn, loading, resourceList, session, user]);
+    ) : null, [isOwn, loading, resourceList, session, user, zIndex]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -139,9 +141,6 @@ export const UserView = ({
         options.push(BaseObjectAction.Donate, BaseObjectAction.Share)
         if (session?.id) {
             options.push(BaseObjectAction.Report);
-        }
-        if (isOwn) {
-            options.push(BaseObjectAction.Delete);
         }
         return options;
     }, [user, isOwn, session]);
@@ -389,6 +388,7 @@ export const UserView = ({
                 availableOptions={moreOptions}
                 onClose={closeMoreMenu}
                 session={session}
+                zIndex={zIndex+1}
             />
             <Box sx={{
                 display: 'flex',
@@ -409,6 +409,7 @@ export const UserView = ({
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         session={session}
+                        zIndex={zIndex}
                     />
                 </Box>
                 {overviewComponent}
@@ -454,6 +455,7 @@ export const UserView = ({
                                 session={session}
                                 take={20}
                                 where={where}
+                                zIndex={zIndex}
                             />
                         )
                     }

@@ -26,6 +26,7 @@ export const DeleteDialog = ({
     objectId,
     objectName,
     objectType,
+    zIndex,
 }: DeleteDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -38,10 +39,15 @@ export const DeleteDialog = ({
         mutationWrapper({
             mutation: deleteOne,
             input: { id: objectId, objectType },
-            onSuccess: () => {
-                PubSub.publish(Pubs.Snack, { message: `${objectName} deleted.` });
+            onSuccess: (response) => {
+                console.log('DELETE RESPONSE', response)
+                if (response?.data?.deleteOne?.success) {
+                    PubSub.publish(Pubs.Snack, { message: `${objectName} deleted.` });
+                    setLocation(APP_LINKS.Home);
+                } else {
+                    PubSub.publish(Pubs.Snack, { message: `Error deleting ${objectName}.`, severity: 'error' });
+                }
                 handleClose(true);
-                setLocation(APP_LINKS.Home);
             },
             onError: () => {
                 PubSub.publish(Pubs.Snack, { message: `Failed to delete ${objectName}.` });
@@ -56,6 +62,9 @@ export const DeleteDialog = ({
             onClose={handleClose}
             aria-labelledby="delete-object-dialog-title"
             aria-describedby="delete-object-dialog-description"
+            sx={{
+                zIndex
+            }}
         >
             <Box sx={{
                 background: palette.primary.dark,

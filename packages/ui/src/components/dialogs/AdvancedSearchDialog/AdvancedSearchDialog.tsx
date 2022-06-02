@@ -119,6 +119,7 @@ export const AdvancedSearchDialog = ({
     handleSearch,
     isOpen,
     session,
+    zIndex,
 }: AdvancedSearchDialogProps) => {
     const theme = useTheme();
     // Search schema to use
@@ -172,8 +173,9 @@ export const AdvancedSearchDialog = ({
             onUpload: () => { },
             session,
             theme,
+            zIndex,
         })
-    }, [schema, formik, session, theme])
+    }, [schema, formik, session, theme, zIndex])
 
     /**
      * Title bar with help button and close icon

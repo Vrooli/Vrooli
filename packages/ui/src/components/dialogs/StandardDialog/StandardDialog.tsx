@@ -10,7 +10,8 @@ import { Standard } from 'types';
 
 export const StandardDialog = ({
     partialData,
-    session
+    session,
+    zIndex,
 }: StandardDialogProps) => {
     const [, setLocation] = useLocation();
     const [, params] = useRoute(`${APP_LINKS.SearchStandards}/:params*`);
@@ -58,26 +59,30 @@ export const StandardDialog = ({
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
                     onCreated={(data: Standard) => onAction(ObjectDialogAction.Add, data)}
                     session={session}
+                    zIndex={zIndex}
                 />
             case 'edit':
                 return <StandardUpdate
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
                     onUpdated={() => onAction(ObjectDialogAction.Save)}
                     session={session}
+                    zIndex={zIndex}
                 />
             default:
                 return <StandardView
                     partialData={partialData}
                     session={session}
+                    zIndex={zIndex}
                 />
         }
-    }, [onAction, partialData, session, state]);
+    }, [onAction, partialData, session, state, zIndex]);
 
     return (
         <BaseObjectDialog
             onAction={onAction}
             open={Boolean(params?.params)}
             title={title}
+            zIndex={zIndex}
         >
             {child}
         </BaseObjectDialog>

@@ -46,6 +46,7 @@ export const SubroutineInfoDialog = ({
     open,
     session,
     onClose,
+    zIndex,
 }: SubroutineInfoDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -266,6 +267,7 @@ export const SubroutineInfoDialog = ({
             onOpen={() => { }}
             onClose={handleClose}
             sx={{
+                zIndex,
                 '& .MuiDrawer-paper': {
                     background: palette.background.default,
                 }
@@ -312,7 +314,12 @@ export const SubroutineInfoDialog = ({
                 <Grid container>
                     {/* Owner */}
                     <Grid item xs={12}>
-                        <UserOrganizationSwitch session={session} selected={organizationFor} onChange={onSwitchChange} />
+                        <UserOrganizationSwitch 
+                            session={session} 
+                            selected={organizationFor} 
+                            onChange={onSwitchChange} 
+                            zIndex={zIndex}
+                        />
                     </Grid>
                     <Grid item xs={12}>
                         <LanguageInput
@@ -322,6 +329,7 @@ export const SubroutineInfoDialog = ({
                             handleCurrent={handleLanguageSelect}
                             selectedLanguages={languages}
                             session={session}
+                            zIndex={zIndex}
                         />
                     </Grid>
                     {/* Position */}
@@ -431,6 +439,7 @@ export const SubroutineInfoDialog = ({
                             language={language}
                             list={inputsList}
                             session={session}
+                            zIndex={zIndex}
                         />
                     </Grid>}
                     {/* Outputs */}
@@ -442,6 +451,7 @@ export const SubroutineInfoDialog = ({
                             language={language}
                             list={outputsList}
                             session={session}
+                            zIndex={zIndex}
                         />
                     </Grid>}
                     {
@@ -453,6 +463,7 @@ export const SubroutineInfoDialog = ({
                                 handleUpdate={handleResourcesUpdate}
                                 session={session}
                                 mutate={false}
+                                zIndex={zIndex}
                             />
                         </Grid>
                     }

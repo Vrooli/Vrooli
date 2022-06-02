@@ -51,11 +51,13 @@ export const OrganizationViewPage = ({
                 onAction={onAction}
                 open={isAddDialogOpen}
                 title={"Add Organization"}
+                zIndex={200}
             >
                 <OrganizationCreate
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
                     onCreated={(data: Organization) => onAction(ObjectDialogAction.Add, data)}
                     session={session}
+                    zIndex={200}
                 />
             </BaseObjectDialog>
             {/* Update dialog */}
@@ -63,16 +65,19 @@ export const OrganizationViewPage = ({
                 onAction={onAction}
                 open={isEditDialogOpen}
                 title={"Update Organization"}
+                zIndex={200}
             >
                 <OrganizationUpdate
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
                     onUpdated={() => onAction(ObjectDialogAction.Save)}
                     session={session}
+                    zIndex={200}
                 />
             </BaseObjectDialog>
             {/* Main view */}
             <OrganizationView
                 session={session}
+                zIndex={200}
             />
         </Box>
     )

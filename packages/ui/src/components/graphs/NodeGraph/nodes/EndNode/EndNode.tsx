@@ -14,6 +14,7 @@ export const EndNode = ({
     label = 'End',
     labelVisible = true,
     canDrag = true,
+    zIndex,
 }: EndNodeProps) => {
 
     const labelObject = useMemo(() => labelVisible && scale >= 0.5 ? (
@@ -52,6 +53,7 @@ export const EndNode = ({
                 anchorEl={contextAnchor}
                 handleClose={closeContext}
                 handleSelect={(option) => { handleAction(option, node.id) }}
+                zIndex={zIndex+1}
             />
             <Tooltip placement={'top'} title={'End'}>
                 <Box
