@@ -79,21 +79,24 @@ export const SettingsProfile = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
-        if (profile?.handle) {
+        if (!profile) return;
+        if (profile.handle) {
             setSelectedHandle(profile.handle);
         }
-        const foundTranslations = profile?.translations?.map(t => ({
+        const foundTranslations = profile.translations?.map(t => ({
             id: t.id,
             language: t.language,
             bio: t.bio ?? '',
         })) ?? []
         // If no translations found, add default
         if (foundTranslations.length === 0) {
+            console.log('no translations found, adding default');
             setTranslations([{
                 language: getUserLanguages(session)[0],
                 bio: '',
             }]);
         } else {
+            console.log('translation found', foundTranslations);
             setTranslations(foundTranslations);
         }
     }, [profile, session]);
@@ -126,25 +129,22 @@ export const SettingsProfile = ({
         },
     });
 
+    console.log('PRODILE', profile);
+
     // Handle languages
     const [language, setLanguage] = useState<string>('');
     const [languages, setLanguages] = useState<string[]>([]);
     useEffect(() => {
         if (languages.length === 0 && translations.length > 0) {
             setLanguage(translations[0].language);
+            console.log("SETTTING LANGUAGES", translations)
             setLanguages(translations.map(t => t.language));
-            formik.setValues({
-                ...formik.values,
-                bio: translations[0].bio ?? '',
-            })
+            formik.setFieldValue('bio', translations[0].bio ?? '');
         }
     }, [formik, languages, setLanguage, setLanguages, translations])
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
-        formik.setValues({
-            ...formik.values,
-            bio: existingTranslation?.bio ?? '',
-        });
+        formik.setFieldValue('bio', existingTranslation?.bio ?? '');
     }, [formik, translations]);
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select

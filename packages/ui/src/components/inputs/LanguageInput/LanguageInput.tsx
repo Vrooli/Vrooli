@@ -17,7 +17,6 @@ export const LanguageInput = ({
     session,
     zIndex,
 }: LanguageInputProps) => {
-
     /**
      * When a language is selected, call handleCurrent and add it to the list of selected languages.
      * Do not delete if already selected, as that is done separately.
