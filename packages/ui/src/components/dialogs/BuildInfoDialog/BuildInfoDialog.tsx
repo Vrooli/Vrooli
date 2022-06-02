@@ -106,9 +106,9 @@ export const BuildInfoDialog = ({
         else setAvailableLanguages(routine?.translations?.map(t => t.language) ?? []);
     }, [routine, isEditing])
     useEffect(() => {
-        if (languages.length === 0 && translations.length > 0) {
-            handleLanguageChange(translations[0].language);
-            setLanguages(translations.map(t => t.language));
+        if (!language || !translations) return;
+        const translation = translations.find(t => language === t.language);
+        if (translation) {
             formik.setValues({
                 ...formik.values,
                 description: translations[0].description ?? '',
@@ -116,7 +116,7 @@ export const BuildInfoDialog = ({
                 title: translations[0].title,
             })
         }
-    }, [formik, languages, handleLanguageChange, setLanguages, translations])
+    }, [formik, language, translations])
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
         formik.setValues({

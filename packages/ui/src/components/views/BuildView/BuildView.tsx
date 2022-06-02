@@ -50,6 +50,7 @@ export const BuildView = ({
     const id: string = useMemo(() => routine?.id ?? '', [routine]);
     const [isEditing, setIsEditing] = useState<boolean>(false);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+    console.log('languageeeeeeee', language)
 
     /**
      * On page load, check if editing
@@ -87,9 +88,11 @@ export const BuildView = ({
         // Update language
         if (routine) {
             const userLanguages = getUserLanguages(session);
-            const routineLanguages = routine?.translations?.map(t => t.language) ?? [];
+            const routineLanguages = routine?.translations?.map(t => t.language)?.filter(l => typeof l === 'string' && l.length > 1) ?? [];
+            console.log('languages user routine', userLanguages, routineLanguages)
             // Find the first language in the user's languages that is also in the routine's languages
             const lang = userLanguages.find(l => routineLanguages.includes(l));
+            console.log('lang', lang)
             if (lang) setLanguage(lang);
             else if (routineLanguages.length > 0) setLanguage(routineLanguages[0]);
             else setLanguage(userLanguages[0]);
