@@ -1,8 +1,8 @@
-import { CODE, MemberRole, standardsCreate, standardsUpdate, standardTranslationCreate, standardTranslationUpdate } from "@local/shared";
+import { CODE, DeleteOneType, MemberRole, standardsCreate, standardsUpdate, standardTranslationCreate, standardTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count } from "../../schema/types";
-import { addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, RelationshipTypes, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCreatorField, addJoinTablesHelper, createHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, updateHelper, ValidateMutationsInput } from "./base";
 import { validateProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -15,6 +15,50 @@ import { ViewModel } from "./view";
 import { randomString } from "../../auth/walletAuth";
 import { sortify } from "../../utils/objectTools";
 import { ResourceListModel } from "./resourceList";
+
+const tagSelect = {
+    __typename: 'Tag',
+    id: true,
+    created_at: true,
+    tag: true,
+    stars: true,
+    isStarred: true,
+    translations: {
+        id: true,
+        language: true,
+        description: true,
+    }
+}
+const standardSelect = {
+    __typename: 'Standard',
+    id: true,
+    created_at: true,
+    updated_at: true,
+    default: true,
+    name: true,
+    score: true,
+    stars: true,
+    type: true,
+    props: true,
+    yup: true,
+    version: true,
+    views: true,
+    createdBy: {
+        Organization: {
+            id: true,
+        },
+        User: {
+            id: true,
+        },
+    },
+    isFile: true,
+    tags: tagSelect,
+    translations: {
+        id: true,
+        description: true,
+        language: true,
+    },
+}
 
 //==============================================================
 /* #region Custom Components */
@@ -257,13 +301,16 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
         }
     },
     /**
-     * Add, update, or remove a one-to-one standard relationship
+     * Add, update, or remove a one-to-one standard relationship. 
+     * Due to some unknown Prisma bug, it won't let us create/update a standard directly
+     * in the main mutation query like most other relationship builders. Instead, we 
+     * must do this separately, and return the standard's ID.
      */
     async relationshipBuilder(
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
-    ): Promise<{ [x: string]: any } | undefined> {
+    ): Promise<string | null> {
         // Convert input to Prisma shape
         const fieldExcludes: string[] = [];
         let formattedInput: any = relationshipToPrisma({ data: input, relationshipName: 'standard', isAdd, fieldExcludes })
@@ -278,33 +325,32 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
         // Shape
         if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
             const create = formattedInput.create[0];
-            // If create is an exact match to an existing standard, make it a connect instead
-            const newConnectId = await standardQuerier(prisma).findMatchingStandard(create as any)
-            // Set newConnectId to formattedInput.connect
-            if (newConnectId) {
-                formattedInput.create = undefined;
-                formattedInput.connect = newConnectId;
-            } else {
-                formattedInput.create = await this.toDBShapeAdd(userId, create)
-            }
+            console.log('STANDARD CREATE', JSON.stringify(create), '\n\n');
+            // Create standard
+            const standard = await createHelper(userId, create, standardSelect, StandardModel(prisma));
+            return standard?.id ?? null;
         }
         if (Array.isArray(formattedInput.connect) && formattedInput.connect.length > 0) {
-            formattedInput.connect = formattedInput.connect[0].id
+            return formattedInput.connect[0].id;
         }
         if (Array.isArray(formattedInput.disconnect) && formattedInput.disconnect.length > 0) {
-            formattedInput.disconnect = formattedInput.disconnect[0].id
+            return null;
         }
         if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
             const update = formattedInput.update[0];
-            formattedInput.update = ({
-                where: update.where,
-                data: await this.toDBShapeUpdate(userId, update.data),
-            })
+            console.log('STANDARD UPDATE', JSON.stringify(update), '\n\n');
+            // Update standard
+            const standard = await updateHelper(userId, update.data, standardSelect, StandardModel(prisma));
+            return standard?.id ?? null;
         }
         if (Array.isArray(formattedInput.delete) && formattedInput.delete.length > 0) {
-            formattedInput.delete = formattedInput.delete[0].id
+            const deleteId = formattedInput.delete[0].id;
+            console.log('STANDARD DELETE', JSON.stringify(deleteId), '\n\n');
+            // Delete standard
+            await deleteOneHelper(userId, { id: deleteId, objectType: DeleteOneType.Standard }, StandardModel(prisma));
+            return deleteId;
         }
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+        return null;
     },
     async validateMutations({
         userId, createMany, updateMany, deleteMany

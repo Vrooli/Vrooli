@@ -57,14 +57,12 @@ export const OrganizationView = ({
     }, [data]);
     const canEdit = useMemo<boolean>(() => owns(organization?.role), [organization]);
 
-    const [language, setLanguage] = useState<string>('');
-    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+    const availableLanguages = useMemo<string[]>(() => (organization?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [organization?.translations]);
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
-        const availableLanguages = organization?.translations?.map(t => getLanguageSubtag(t.language)) ?? [];
-        const userLanguages = getUserLanguages(session);
-        setAvailableLanguages(availableLanguages);
-        setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
-    }, [organization, session]);
+        if (availableLanguages.length === 0) return;
+        setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
+    }, [availableLanguages, setLanguage, session]);
 
     const { bio, handle, name, resourceList } = useMemo(() => {
         const resourceList: ResourceList | undefined = Array.isArray(organization?.resourceLists) ? organization?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
@@ -389,7 +387,7 @@ export const OrganizationView = ({
                 availableOptions={moreOptions}
                 onClose={closeMoreMenu}
                 session={session}
-                zIndex={zIndex+1}
+                zIndex={zIndex + 1}
             />
             <Box sx={{
                 background: palette.mode === 'light' ? "#b2b3b3" : "#303030",

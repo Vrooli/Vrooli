@@ -51,14 +51,12 @@ export const ProjectView = ({
     }, [data]);
     const canEdit = useMemo<boolean>(() => owns(project?.role), [project]);
 
-    const [language, setLanguage] = useState<string>('');
-    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+    const availableLanguages = useMemo<string[]>(() => (project?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [project?.translations]);
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
-        const availableLanguages = project?.translations?.map(t => getLanguageSubtag(t.language)) ?? [];
-        const userLanguages = getUserLanguages(session);
-        setAvailableLanguages(availableLanguages);
-        setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
-    }, [project, session]);
+        if (availableLanguages.length === 0) return;
+        setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
+    }, [availableLanguages, setLanguage, session]);
 
     const { name, description, handle, resourceList } = useMemo(() => {
         const resourceList: ResourceList | undefined = Array.isArray(project?.resourceLists) ? project?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;

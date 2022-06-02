@@ -29,7 +29,7 @@ import {
 import { BaseObjectAction, BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { EditableLabel, LanguageInput, LinkButton, MarkdownInput, ResourceListHorizontal } from 'components';
-import { AllLanguages, getOwnedByString, getTranslation, Pubs, toOwnedBy, updateArray } from 'utils';
+import { AllLanguages, getLanguageSubtag, getOwnedByString, getTranslation, Pubs, toOwnedBy, updateArray } from 'utils';
 import { useLocation } from 'wouter';
 import { useFormik } from 'formik';
 import { routineUpdateForm as validationSchema } from '@local/shared';
@@ -99,12 +99,12 @@ export const BuildInfoDialog = ({
     });
 
     // Handle languages
+    const availableLanguages = useMemo<string[]>(() => {
+        if (isEditing) return Object.keys(AllLanguages);
+        return routine?.translations?.map(t => getLanguageSubtag(t.language)) ?? [];
+    }, [isEditing, routine?.translations]);
     const [languages, setLanguages] = useState<string[]>([]);
-    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
-    useEffect(() => {
-        if (isEditing) setAvailableLanguages(Object.keys(AllLanguages));
-        else setAvailableLanguages(routine?.translations?.map(t => t.language) ?? []);
-    }, [routine, isEditing])
+
     useEffect(() => {
         if (!language || !translations) return;
         const translation = translations.find(t => language === t.language);

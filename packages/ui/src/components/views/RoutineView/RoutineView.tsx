@@ -57,14 +57,13 @@ export const RoutineView = ({
         runId: typeof search.run === 'string' && uuidValidate(search.run) ? search.run : null,
     }), [search]);
 
-    const [language, setLanguage] = useState<string>('');
-    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+    const availableLanguages = useMemo<string[]>(() => (routine?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [routine?.translations]);
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
-        const availableLanguages = routine?.translations?.map(t => getLanguageSubtag(t.language)) ?? [];
-        const userLanguages = getUserLanguages(session);
-        setAvailableLanguages(availableLanguages);
-        setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
-    }, [routine, session]);
+        if (availableLanguages.length === 0) return;
+        setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
+    }, [availableLanguages, setLanguage, session]);
+
     const { title, description, instructions } = useMemo(() => {
         return {
             title: getTranslation(routine, 'title', [language]) ?? getTranslation(partialData, 'title', [language]),

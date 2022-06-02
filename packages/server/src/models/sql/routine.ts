@@ -486,7 +486,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                 // Convert nested relationships
                 result.push({
                     name: data.name,
-                    standard: await standardModel.relationshipBuilder(userId, data, isAdd),
+                    standardId: await standardModel.relationshipBuilder(userId, data, isAdd),
                     translations: TranslationModel().relationshipBuilder(userId, data, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
                 })
             }
@@ -505,7 +505,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                     where: update.where,
                     data: {
                         name: update.data.name,
-                        standard: await standardModel.relationshipBuilder(userId, update.data, isAdd),
+                        standardId: await standardModel.relationshipBuilder(userId, update.data, isAdd),
                         translations: TranslationModel().relationshipBuilder(userId, update.data, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
                     }
                 })

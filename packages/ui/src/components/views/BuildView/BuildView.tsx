@@ -696,6 +696,7 @@ export const BuildView = ({
         const routineList: NodeDataRoutineList = changedRoutine.nodes[nodeIndex].data as NodeDataRoutineList;
         let routineItem: NodeDataRoutineListItem = {
             id: uuidv4(),
+            index: routineList.routines.length,
             isOptional: true,
             routine,
         } as any
