@@ -177,6 +177,21 @@ export const StandardCreate = ({
         },
     });
 
+    /**
+     * On page leave, check if unsaved work. 
+     * If so, prompt for confirmation.
+     */
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (formik.dirty) {
+                e.preventDefault()
+                e.returnValue = ''
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [formik.dirty]);
+
     // Handle languages
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     const [languages, setLanguages] = useState<string[]>([getUserLanguages(session)[0]]);
@@ -236,7 +251,7 @@ export const StandardCreate = ({
 
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
-    
+
     return (
         <form onSubmit={formik.handleSubmit} style={{
             display: 'flex',
