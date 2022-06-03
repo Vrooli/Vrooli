@@ -15,7 +15,7 @@ import {
 import { BaseObjectActionDialog, BuildView, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
 import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, Pubs, standardToFieldData, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
-import { Node, NodeLink, Routine, Run } from "types";
+import { Node, NodeDataRoutineList, NodeLink, Routine, Run } from "types";
 import Markdown from "markdown-to-jsx";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
@@ -112,27 +112,51 @@ export const RoutineView = ({
                     type: NodeType.Start,
                     columnIndex: 0,
                     rowIndex: 0,
+                } as Node;
+                const routineListNode: Node = {
+                    id: uuidv4(),
+                    type: NodeType.RoutineList,
+                    columnIndex: 1,
+                    rowIndex: 0,
+                    data: {
+                        id: uuidv4(),
+                        isOptional: false,
+                        isOrdered: false,
+                        routines: [],
+                    } as any,
+                    translations: [{
+                        language,
+                        title: 'Subroutine 1',
+                    }] as any
                 } as Node
                 const endNode: Node = {
                     id: uuidv4(),
                     type: NodeType.End,
-                    columnIndex: 1,
+                    columnIndex: 2,
                     rowIndex: 0,
                 } as Node
-                const link: NodeLink = {
+                const link1: NodeLink = {
                     id: uuidv4(),
                     fromId: startNode.id,
+                    toId: routineListNode.id,
+                } as NodeLink
+                const link2: NodeLink = {
+                    id: uuidv4(),
+                    fromId: routineListNode.id,
                     toId: endNode.id,
                 } as NodeLink
                 setRoutine({
-                    nodes: [startNode, endNode],
-                    nodeLinks: [link],
+                    inputs: [],
+                    outputs: [],
+                    nodes: [startNode, routineListNode, endNode],
+                    nodeLinks: [link1, link2],
                     translations: [{
                         language,
                         title: 'New Routine',
                         instructions: 'Enter instructions here',
+                        description: '',
                     }]
-                } as Routine)
+                } as any)
             }
             setIsBuildOpen(true);
         }
@@ -277,7 +301,7 @@ export const RoutineView = ({
     const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {
         if (!routine) return null;
         const schemas: { [fieldName: string]: FieldData } = {};
-        for (let i = 0; i < routine.inputs.length; i++) {
+        for (let i = 0; i < routine.inputs?.length; i++) {
             const currSchema = standardToFieldData(routine.inputs[i].standard, `inputs-${i}`);
             if (currSchema) {
                 schemas[currSchema.fieldName] = currSchema;

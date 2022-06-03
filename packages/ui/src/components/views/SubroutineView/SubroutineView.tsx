@@ -62,7 +62,7 @@ export const SubroutineView = ({
     const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {
         if (!data) return null;
         const schemas: { [fieldName: string]: FieldData } = {};
-        for (let i = 0; i < data.inputs.length; i++) {
+        for (let i = 0; i < data.inputs?.length; i++) {
             const currSchema = standardToFieldData(data.inputs[i].standard, `inputs-${i}`);
             if (currSchema) {
                 schemas[currSchema.fieldName] = currSchema;
