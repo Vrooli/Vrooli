@@ -76,6 +76,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
     async toDBShapeAdd(userId: string, data: RunCreateInput): Promise<any> {
         // TODO - when scheduling added, don't assume that it is being started right away
         return {
+            id: data.id ?? undefined,
             timeStarted: new Date(),
             routineId: data.routineId,
             status: RunStatus.InProgress,

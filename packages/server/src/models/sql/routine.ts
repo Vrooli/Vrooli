@@ -431,6 +431,7 @@ export const routineMutater = (prisma: PrismaType) => ({
     async toDBShape(userId: string | null, data: RoutineCreateInput | RoutineUpdateInput, isAdd: boolean): Promise<any> {
         const [simplicity, complexity] = await this.calculateComplexity(data);
         return {
+            id: data.id ?? undefined,
             isAutomatable: data.isAutomatable,
             isComplete: data.isComplete,
             completedAt: data.isComplete ? new Date().toISOString() : null,
@@ -476,6 +477,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                     throw new CustomError(CODE.BannedWord, 'Name or description includes bad word', { code: genErrorCode('0091') });
                 // Convert nested relationships
                 result.push({
+                    id: data.id ?? undefined,
                     name: data.name,
                     standardId: await standardModel.relationshipBuilder(userId, data, isAdd),
                     translations: TranslationModel().relationshipBuilder(userId, data, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
@@ -535,6 +537,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             for (let data of createMany) {
                 // Convert nested relationships
                 result.push({
+                    id: data.id ?? undefined,
                     name: data.name,
                     standard: await standardModel.relationshipBuilder(userId, data, isAdd),
                     translations: TranslationModel().relationshipBuilder(userId, data, { create: outputTranslationCreate, update: outputTranslationUpdate }, false),

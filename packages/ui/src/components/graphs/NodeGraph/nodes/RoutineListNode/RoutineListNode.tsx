@@ -58,7 +58,8 @@ export const RoutineListNode = ({
     zIndex,
 }: RoutineListNodeProps) => {
     const { palette } = useTheme();
-    const [collapseOpen, setCollapseOpen] = useState<boolean>(false);
+    // Default to open if editing and empty
+    const [collapseOpen, setCollapseOpen] = useState<boolean>(isEditing && (node?.data as NodeDataRoutineList)?.routines?.length === 0);
     const handleNodeClick = useCallback((event: any) => {
         if (isLinked && (!canDrag || shouldCollapse(event.target.id))) setCollapseOpen(!collapseOpen);
     }, [canDrag, collapseOpen, isLinked]);

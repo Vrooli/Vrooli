@@ -278,6 +278,7 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
             translations.jsonVariables = sortify(translations.jsonVariables);
         }
         return {
+            id: data.id ?? undefined,
             name: await standardQuerier(prisma).generateName(userId ?? '', data),
             default: data.default,
             type: data.type,

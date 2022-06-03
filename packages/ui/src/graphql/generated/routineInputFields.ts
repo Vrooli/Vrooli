@@ -14,20 +14,6 @@ export interface routineInputFields_translations {
   description: string | null;
 }
 
-export interface routineInputFields_standard_tags_translations {
-  __typename: "TagTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-}
-
-export interface routineInputFields_standard_tags {
-  __typename: "Tag";
-  id: string;
-  tag: string;
-  translations: routineInputFields_standard_tags_translations[];
-}
-
 export interface routineInputFields_standard_translations {
   __typename: "StandardTranslation";
   id: string;
@@ -43,7 +29,6 @@ export interface routineInputFields_standard {
   type: string;
   props: string;
   yup: string | null;
-  tags: routineInputFields_standard_tags[];
   translations: routineInputFields_standard_translations[];
   version: string;
 }

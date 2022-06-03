@@ -70,6 +70,7 @@ export const typeDef = gql`
     }
 
     input UserTranslationCreateInput {
+        id: ID
         language: String!
         bio: String
     }

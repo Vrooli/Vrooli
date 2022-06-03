@@ -43,6 +43,7 @@ export const typeDef = gql`
     }
 
     input ResourceCreateInput {
+        id: ID
         listId: ID!
         index: Int
         link: String!
@@ -71,6 +72,7 @@ export const typeDef = gql`
     }
 
     input ResourceTranslationCreateInput {
+        id: ID
         language: String!
         description: String
         title: String

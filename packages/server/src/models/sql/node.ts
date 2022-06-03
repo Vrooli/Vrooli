@@ -130,7 +130,7 @@ export const nodeVerifier = () => ({
 export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof nodeVerifier>) => ({
     async toDBShape(userId: string | null, data: NodeCreateInput | NodeUpdateInput): Promise<any> {
         let nodeData: { [x: string]: any } = {
-            id: data.id,
+            id: data.id ?? undefined,
             columnIndex: data.columnIndex,
             routineId: data.routineId,
             rowIndex: data.rowIndex,
@@ -424,6 +424,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
             nodeRoutineListCreate.validateSync(create, { abortEarly: false });
             // Convert nested relationships
             formattedInput.create = {
+                id: create.id ?? undefined,
                 isOrdered: create.isOrdered,
                 isOptional: create.isOptional,
                 routines: await this.relationshipBuilderRoutineListNodeItem(userId, create, isAdd)

@@ -20,7 +20,7 @@ export const typeDef = gql`
     union NodeData = NodeEnd | NodeRoutineList
 
     input NodeCreateInput {
-        id: ID!
+        id: ID
         columnIndex: Int
         rowIndex: Int
         type: NodeType
@@ -60,6 +60,7 @@ export const typeDef = gql`
     }
 
     input NodeTranslationCreateInput {
+        id: ID
         language: String!
         title: String!
         description: String
@@ -78,6 +79,7 @@ export const typeDef = gql`
     }
 
     input NodeEndCreateInput {
+        id: ID
         wasSuccessful: Boolean
     }
     input NodeEndUpdateInput {
@@ -90,6 +92,7 @@ export const typeDef = gql`
     }
 
     input LoopCreateInput {
+        id: ID
         loops: Int
         maxLoops: Int
         operation: String
@@ -113,6 +116,7 @@ export const typeDef = gql`
     }
 
     input LoopWhileCreateInput {
+        id: ID
         translationsCreate: [LoopWhileTranslationCreateInput!]
         condition: String!
         toId: ID
@@ -133,6 +137,7 @@ export const typeDef = gql`
     } 
 
     input LoopWhileTranslationCreateInput {
+        id: ID
         language: String!
         description: String
         title: String!
@@ -151,6 +156,7 @@ export const typeDef = gql`
     }
 
     input NodeRoutineListCreateInput {
+        id: ID
         isOrdered: Boolean
         isOptional: Boolean
         routinesCreate: [NodeRoutineListItemCreateInput!]
@@ -195,6 +201,7 @@ export const typeDef = gql`
     }
 
     input NodeRoutineListItemTranslationCreateInput {
+        id: ID
         language: String!
         description: String
         title: String
@@ -213,6 +220,7 @@ export const typeDef = gql`
     }
 
     input NodeLinkCreateInput {
+        id: ID
         whens: [NodeLinkWhenCreateInput!]
         operation: String
         fromId: ID!
@@ -236,6 +244,7 @@ export const typeDef = gql`
     }
 
     input NodeLinkWhenCreateInput {
+        id: ID
         toId: ID
         translationsCreate: [NodeLinkWhenTranslationCreateInput!]
         condition: String!
@@ -255,6 +264,7 @@ export const typeDef = gql`
     } 
 
     input NodeLinkWhenTranslationCreateInput {
+        id: ID
         language: String!
         description: String
         title: String!

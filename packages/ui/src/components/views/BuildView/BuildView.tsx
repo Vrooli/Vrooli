@@ -296,7 +296,10 @@ export const BuildView = ({
         if (!changedRoutine) {
             return;
         }
-        const input: any = formatForCreate(changedRoutine, ['nodes', 'nodeLinks', 'node.data.routines'])
+        const input: any = formatForCreate(
+            changedRoutine, 
+            ['nodes', 'nodeLinks', 'nodes.data', 'nodes.data.routines']
+        )
         // If nodes have a data create/update, convert to nodeEnd or nodeRoutineList (i.e. deconstruct union)
         const relationFields = ['Create', 'Update'];
         for (const iField of relationFields) {

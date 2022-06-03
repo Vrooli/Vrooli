@@ -1045,6 +1045,7 @@ export type OrganizationCountInput = {
 };
 
 export type OrganizationCreateInput = {
+    id?: any;
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -1273,6 +1274,7 @@ export type ProjectCountInput = {
 };
 
 export type ProjectCreateInput = {
+    id?: any;
   createdByOrganizationId?: InputMaybe<Scalars['ID']>;
   createdByUserId?: InputMaybe<Scalars['ID']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
@@ -1652,6 +1654,7 @@ export type ReportCountInput = {
 };
 
 export type ReportCreateInput = {
+    id?: any;
   createdFor: ReportFor;
   createdForId: Scalars['ID'];
   details?: InputMaybe<Scalars['String']>;
@@ -1739,6 +1742,7 @@ export type ResourceCountInput = {
 };
 
 export type ResourceCreateInput = {
+    id?: any;
   index?: InputMaybe<Scalars['Int']>;
   link: Scalars['String'];
   listId: Scalars['ID'];
@@ -2010,6 +2014,7 @@ export type RoutineCountInput = {
 };
 
 export type RoutineCreateInput = {
+    id?: any;
   createdByOrganizationId?: InputMaybe<Scalars['ID']>;
   createdByUserId?: InputMaybe<Scalars['ID']>;
   inputsCreate?: InputMaybe<Array<InputItemCreateInput>>;
@@ -2180,6 +2185,7 @@ export type RunCountInput = {
 };
 
 export type RunCreateInput = {
+    id?: any;
   routineId: Scalars['ID'];
   stepsCreate?: InputMaybe<Array<RunStepCreateInput>>;
   title: Scalars['String'];
@@ -2324,6 +2330,7 @@ export type StandardCountInput = {
 };
 
 export type StandardCreateInput = {
+    id?: any;
   createdByOrganizationId?: InputMaybe<Scalars['ID']>;
   createdByUserId?: InputMaybe<Scalars['ID']>;
   default?: InputMaybe<Scalars['String']>;
@@ -2568,6 +2575,7 @@ export type TagCountInput = {
 };
 
 export type TagCreateInput = {
+    id?: any;
   anonymous?: InputMaybe<Scalars['Boolean']>;
   tag: Scalars['String'];
   translationsCreate?: InputMaybe<Array<TagTranslationCreateInput>>;

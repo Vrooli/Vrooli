@@ -231,7 +231,7 @@ export const SubroutineInfoDialog = ({
 
     const ownedBy = useMemo<string | null>(() => getOwnedByString(subroutine?.routine, [language]), [subroutine, language]);
     const toOwner = useCallback(() => { toOwnedBy(subroutine?.routine, setLocation) }, [subroutine, setLocation]);
-    const canEdit = useMemo<boolean>(() => isEditing && (subroutine?.routine?.isInternal ?? owns(subroutine?.routine?.role)), [isEditing, subroutine?.routine?.isInternal, subroutine?.routine?.role]);
+    const canEdit = useMemo<boolean>(() => isEditing && (subroutine?.routine?.isInternal || owns(subroutine?.routine?.role)), [isEditing, subroutine?.routine?.isInternal, subroutine?.routine?.role]);
 
     /**
      * Navigate to the subroutine's build page

@@ -244,12 +244,14 @@ export enum VoteFor {
 }
 
 export interface CommentCreateInput {
+  id?: string | null;
   createdFor: CommentFor;
   forId: string;
   translationsCreate?: CommentTranslationCreateInput[] | null;
 }
 
 export interface CommentTranslationCreateInput {
+  id?: string | null;
   language: string;
   text: string;
 }
@@ -341,6 +343,7 @@ export interface HomePageInput {
 }
 
 export interface InputItemCreateInput {
+  id?: string | null;
   isRequired?: boolean | null;
   name?: string | null;
   standardConnect?: string | null;
@@ -351,6 +354,7 @@ export interface InputItemCreateInput {
 }
 
 export interface InputItemTranslationCreateInput {
+  id?: string | null;
   language: string;
   description?: string | null;
 }
@@ -387,6 +391,7 @@ export interface LogSearchInput {
 }
 
 export interface LoopCreateInput {
+  id?: string | null;
   loops?: number | null;
   maxLoops?: number | null;
   operation?: string | null;
@@ -404,12 +409,14 @@ export interface LoopUpdateInput {
 }
 
 export interface LoopWhileCreateInput {
+  id?: string | null;
   translationsCreate?: LoopWhileTranslationCreateInput[] | null;
   condition: string;
   toId?: string | null;
 }
 
 export interface LoopWhileTranslationCreateInput {
+  id?: string | null;
   language: string;
   description?: string | null;
   title: string;
@@ -432,7 +439,7 @@ export interface LoopWhileUpdateInput {
 }
 
 export interface NodeCreateInput {
-  id: string;
+  id?: string | null;
   columnIndex?: number | null;
   rowIndex?: number | null;
   type?: NodeType | null;
@@ -444,6 +451,7 @@ export interface NodeCreateInput {
 }
 
 export interface NodeEndCreateInput {
+  id?: string | null;
   wasSuccessful?: boolean | null;
 }
 
@@ -453,6 +461,7 @@ export interface NodeEndUpdateInput {
 }
 
 export interface NodeLinkCreateInput {
+  id?: string | null;
   whens?: NodeLinkWhenCreateInput[] | null;
   operation?: string | null;
   fromId: string;
@@ -470,12 +479,14 @@ export interface NodeLinkUpdateInput {
 }
 
 export interface NodeLinkWhenCreateInput {
+  id?: string | null;
   toId?: string | null;
   translationsCreate?: NodeLinkWhenTranslationCreateInput[] | null;
   condition: string;
 }
 
 export interface NodeLinkWhenTranslationCreateInput {
+  id?: string | null;
   language: string;
   description?: string | null;
   title: string;
@@ -498,6 +509,7 @@ export interface NodeLinkWhenUpdateInput {
 }
 
 export interface NodeRoutineListCreateInput {
+  id?: string | null;
   isOrdered?: boolean | null;
   isOptional?: boolean | null;
   routinesCreate?: NodeRoutineListItemCreateInput[] | null;
@@ -512,6 +524,7 @@ export interface NodeRoutineListItemCreateInput {
 }
 
 export interface NodeRoutineListItemTranslationCreateInput {
+  id?: string | null;
   language: string;
   description?: string | null;
   title?: string | null;
@@ -544,6 +557,7 @@ export interface NodeRoutineListUpdateInput {
 }
 
 export interface NodeTranslationCreateInput {
+  id?: string | null;
   language: string;
   title: string;
   description?: string | null;
@@ -578,6 +592,7 @@ export interface OrganizationCountInput {
 }
 
 export interface OrganizationCreateInput {
+  id?: string | null;
   isOpenToNewMembers?: boolean | null;
   resourceListsCreate?: ResourceListCreateInput[] | null;
   tagsConnect?: string[] | null;
@@ -608,6 +623,7 @@ export interface OrganizationSearchInput {
 }
 
 export interface OrganizationTranslationCreateInput {
+  id?: string | null;
   language: string;
   bio?: string | null;
   name: string;
@@ -638,6 +654,7 @@ export interface OrganizationUpdateInput {
 }
 
 export interface OutputItemCreateInput {
+  id?: string | null;
   name?: string | null;
   standardConnect?: string | null;
   standardCreate?: StandardCreateInput | null;
@@ -645,6 +662,7 @@ export interface OutputItemCreateInput {
 }
 
 export interface OutputItemTranslationCreateInput {
+  id?: string | null;
   language: string;
   description?: string | null;
 }
@@ -689,6 +707,7 @@ export interface ProjectCountInput {
 }
 
 export interface ProjectCreateInput {
+  id?: string | null;
   createdByOrganizationId?: string | null;
   createdByUserId?: string | null;
   isComplete?: boolean | null;
@@ -722,6 +741,7 @@ export interface ProjectSearchInput {
 }
 
 export interface ProjectTranslationCreateInput {
+  id?: string | null;
   language: string;
   description?: string | null;
   name: string;
@@ -757,6 +777,7 @@ export interface ReadAssetsInput {
 }
 
 export interface ReportCreateInput {
+  id?: string | null;
   createdFor: ReportFor;
   createdForId: string;
   details?: string | null;
@@ -777,6 +798,7 @@ export interface ResourceCountInput {
 }
 
 export interface ResourceCreateInput {
+  id?: string | null;
   listId: string;
   index?: number | null;
   link: string;
@@ -839,6 +861,7 @@ export interface ResourceSearchInput {
 }
 
 export interface ResourceTranslationCreateInput {
+  id?: string | null;
   language: string;
   description?: string | null;
   title?: string | null;
@@ -868,6 +891,7 @@ export interface RoutineCountInput {
 }
 
 export interface RoutineCreateInput {
+  id?: string | null;
   isAutomatable?: boolean | null;
   isComplete?: boolean | null;
   isInternal?: boolean | null;
@@ -918,6 +942,7 @@ export interface RoutineSearchInput {
 }
 
 export interface RoutineTranslationCreateInput {
+  id?: string | null;
   language: string;
   description?: string | null;
   instructions: string;
@@ -985,6 +1010,7 @@ export interface RunCountInput {
 }
 
 export interface RunCreateInput {
+  id?: string | null;
   routineId: string;
   title: string;
   version: string;
@@ -1007,6 +1033,7 @@ export interface RunSearchInput {
 }
 
 export interface RunStepCreateInput {
+  id?: string | null;
   nodeId: string;
   order: number;
   step: number[];
@@ -1040,6 +1067,7 @@ export interface StandardCountInput {
 }
 
 export interface StandardCreateInput {
+  id?: string | null;
   default?: string | null;
   name?: string | null;
   type: string;
@@ -1075,6 +1103,7 @@ export interface StandardSearchInput {
 }
 
 export interface StandardTranslationCreateInput {
+  id?: string | null;
   language: string;
   description?: string | null;
   jsonVariables?: string | null;
@@ -1152,12 +1181,14 @@ export interface TagCountInput {
 }
 
 export interface TagCreateInput {
+  id?: string | null;
   anonymous?: boolean | null;
   tag: string;
   translationsCreate?: TagTranslationCreateInput[] | null;
 }
 
 export interface TagHiddenCreateInput {
+  id?: string | null;
   isBlur?: boolean | null;
   tagCreate?: TagCreateInput | null;
   tagConnect?: string | null;
@@ -1183,6 +1214,7 @@ export interface TagSearchInput {
 }
 
 export interface TagTranslationCreateInput {
+  id?: string | null;
   language: string;
   description?: string | null;
 }
@@ -1237,6 +1269,7 @@ export interface UserSearchInput {
 }
 
 export interface UserTranslationCreateInput {
+  id?: string | null;
   language: string;
   bio?: string | null;
 }

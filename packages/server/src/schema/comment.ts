@@ -26,6 +26,7 @@ export const typeDef = gql`
     }
 
     input CommentCreateInput {
+        id: ID
         createdFor: CommentFor!
         forId: ID!
         translationsCreate: [CommentTranslationCreateInput!]
@@ -56,6 +57,7 @@ export const typeDef = gql`
     }
 
     input CommentTranslationCreateInput {
+        id: ID
         language: String!
         text: String!
     }

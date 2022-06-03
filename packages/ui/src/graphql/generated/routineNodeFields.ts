@@ -22,20 +22,6 @@ export interface routineNodeFields_data_NodeRoutineList_routines_routine_inputs_
   description: string | null;
 }
 
-export interface routineNodeFields_data_NodeRoutineList_routines_routine_inputs_standard_tags_translations {
-  __typename: "TagTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-}
-
-export interface routineNodeFields_data_NodeRoutineList_routines_routine_inputs_standard_tags {
-  __typename: "Tag";
-  id: string;
-  tag: string;
-  translations: routineNodeFields_data_NodeRoutineList_routines_routine_inputs_standard_tags_translations[];
-}
-
 export interface routineNodeFields_data_NodeRoutineList_routines_routine_inputs_standard_translations {
   __typename: "StandardTranslation";
   id: string;
@@ -51,7 +37,6 @@ export interface routineNodeFields_data_NodeRoutineList_routines_routine_inputs_
   type: string;
   props: string;
   yup: string | null;
-  tags: routineNodeFields_data_NodeRoutineList_routines_routine_inputs_standard_tags[];
   translations: routineNodeFields_data_NodeRoutineList_routines_routine_inputs_standard_translations[];
   version: string;
 }
@@ -72,20 +57,6 @@ export interface routineNodeFields_data_NodeRoutineList_routines_routine_outputs
   description: string | null;
 }
 
-export interface routineNodeFields_data_NodeRoutineList_routines_routine_outputs_standard_tags_translations {
-  __typename: "TagTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-}
-
-export interface routineNodeFields_data_NodeRoutineList_routines_routine_outputs_standard_tags {
-  __typename: "Tag";
-  id: string;
-  tag: string;
-  translations: routineNodeFields_data_NodeRoutineList_routines_routine_outputs_standard_tags_translations[];
-}
-
 export interface routineNodeFields_data_NodeRoutineList_routines_routine_outputs_standard_translations {
   __typename: "StandardTranslation";
   id: string;
@@ -101,7 +72,6 @@ export interface routineNodeFields_data_NodeRoutineList_routines_routine_outputs
   type: string;
   props: string;
   yup: string | null;
-  tags: routineNodeFields_data_NodeRoutineList_routines_routine_outputs_standard_tags[];
   translations: routineNodeFields_data_NodeRoutineList_routines_routine_outputs_standard_translations[];
   version: string;
 }

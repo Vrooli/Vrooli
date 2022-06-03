@@ -21,6 +21,7 @@ export const typeDef = gql`
     }
 
     input StandardCreateInput {
+        id: ID
         default: String
         name: String
         type: String!
@@ -76,6 +77,7 @@ export const typeDef = gql`
     }
 
     input StandardTranslationCreateInput {
+        id: ID
         language: String!
         description: String
         jsonVariables: String

@@ -167,6 +167,7 @@ export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typ
         }
         return {
             ...members,
+            id: data.id ?? undefined,
             handle: (data as OrganizationUpdateInput).handle ?? null,
             isOpenToNewMembers: data.isOpenToNewMembers,
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
