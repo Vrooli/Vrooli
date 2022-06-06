@@ -69,6 +69,12 @@ export const typeDef = gql`
         ids: [ID!]!
     }
 
+    # Input for an exception to a boolean search query parameter
+    input BooleanSearchException {
+        id: ID!
+        relation: String!
+    }
+
     # Base query. Must contain something,
     # which can be as simple as '_empty: String'
     type Query {

@@ -75,14 +75,14 @@ export const commentSearcher = (): Searcher<CommentSearchInput> => ({
     },
     customQueries(input: CommentSearchInput): { [x: string]: any } {
         return {
-            ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            ...(input.minScore ? { score: { gte: input.minScore } } : {}),
-            ...(input.minStars ? { stars: { gte: input.minStars } } : {}),
-            ...(input.userId ? { userId: input.userId } : {}),
-            ...(input.organizationId ? { organizationId: input.organizationId } : {}),
-            ...(input.projectId ? { projectId: input.projectId } : {}),
-            ...(input.routineId ? { routineId: input.routineId } : {}),
-            ...(input.standardId ? { standardId: input.standardId } : {}),
+            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            ...(input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
+            ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
+            ...(input.userId !== undefined ? { userId: input.userId } : {}),
+            ...(input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
+            ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
+            ...(input.routineId !== undefined ? { routineId: input.routineId } : {}),
+            ...(input.standardId !== undefined ? { standardId: input.standardId } : {}),
         }
     },
 })

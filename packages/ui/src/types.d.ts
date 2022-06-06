@@ -63,6 +63,16 @@ export type Tag = tag_tag;
 export type User = user_user;
 export type Wallet = profile_profile_wallets;
 
+// Common query input groups
+export type IsCompleteInput = {
+    isComplete?: boolean;
+    isCompleteExceptions: { id: string, relation: string }[];
+}
+export type IsInternalInput = {
+    isInternal?: boolean;
+    isInternalExceptions: { id: string, relation: string }[];
+}
+
 /**
  * Wrapper for removing __typename from any object. Useful when creating 
  * new objects, rather than using queried data.

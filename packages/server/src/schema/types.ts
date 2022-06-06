@@ -23,6 +23,11 @@ export enum AccountStatus {
   Unlocked = 'Unlocked'
 }
 
+export type BooleanSearchException = {
+  id: Scalars['ID'];
+  relation: Scalars['String'];
+};
+
 export type Comment = {
   __typename?: 'Comment';
   commentedOn: CommentedOn;
@@ -48,6 +53,7 @@ export type CommentCountInput = {
 export type CommentCreateInput = {
   createdFor: CommentFor;
   forId: Scalars['ID'];
+  id?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<CommentTranslationCreateInput>>;
 };
 
@@ -106,6 +112,7 @@ export type CommentTranslation = {
 };
 
 export type CommentTranslationCreateInput = {
+  id?: InputMaybe<Scalars['ID']>;
   language: Scalars['String'];
   text: Scalars['String'];
 };
@@ -270,6 +277,7 @@ export type InputItem = {
 };
 
 export type InputItemCreateInput = {
+  id?: InputMaybe<Scalars['ID']>;
   isRequired?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
   standardConnect?: InputMaybe<Scalars['ID']>;
@@ -288,6 +296,7 @@ export type InputItemTranslation = {
 
 export type InputItemTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
+  id?: InputMaybe<Scalars['ID']>;
   language: Scalars['String'];
 };
 
@@ -399,6 +408,7 @@ export type Loop = {
 };
 
 export type LoopCreateInput = {
+  id?: InputMaybe<Scalars['ID']>;
   loops?: InputMaybe<Scalars['Int']>;
   maxLoops?: InputMaybe<Scalars['Int']>;
   operation?: InputMaybe<Scalars['String']>;
@@ -425,6 +435,7 @@ export type LoopWhile = {
 
 export type LoopWhileCreateInput = {
   condition: Scalars['String'];
+  id?: InputMaybe<Scalars['ID']>;
   toId?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<LoopWhileTranslationCreateInput>>;
 };
@@ -439,6 +450,7 @@ export type LoopWhileTranslation = {
 
 export type LoopWhileTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
+  id?: InputMaybe<Scalars['ID']>;
   language: Scalars['String'];
   title: Scalars['String'];
 };
@@ -803,7 +815,7 @@ export type Node = {
 
 export type NodeCreateInput = {
   columnIndex?: InputMaybe<Scalars['Int']>;
-  id: Scalars['ID'];
+  id?: InputMaybe<Scalars['ID']>;
   loopCreate?: InputMaybe<LoopCreateInput>;
   nodeEndCreate?: InputMaybe<NodeEndCreateInput>;
   nodeRoutineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
@@ -822,6 +834,7 @@ export type NodeEnd = {
 };
 
 export type NodeEndCreateInput = {
+  id?: InputMaybe<Scalars['ID']>;
   wasSuccessful?: InputMaybe<Scalars['Boolean']>;
 };
 
@@ -841,6 +854,7 @@ export type NodeLink = {
 
 export type NodeLinkCreateInput = {
   fromId: Scalars['ID'];
+  id?: InputMaybe<Scalars['ID']>;
   operation?: InputMaybe<Scalars['String']>;
   toId: Scalars['ID'];
   whens?: InputMaybe<Array<NodeLinkWhenCreateInput>>;
@@ -865,6 +879,7 @@ export type NodeLinkWhen = {
 
 export type NodeLinkWhenCreateInput = {
   condition: Scalars['String'];
+  id?: InputMaybe<Scalars['ID']>;
   toId?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<NodeLinkWhenTranslationCreateInput>>;
 };
@@ -879,6 +894,7 @@ export type NodeLinkWhenTranslation = {
 
 export type NodeLinkWhenTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
+  id?: InputMaybe<Scalars['ID']>;
   language: Scalars['String'];
   title: Scalars['String'];
 };
@@ -908,6 +924,7 @@ export type NodeRoutineList = {
 };
 
 export type NodeRoutineListCreateInput = {
+  id?: InputMaybe<Scalars['ID']>;
   isOptional?: InputMaybe<Scalars['Boolean']>;
   isOrdered?: InputMaybe<Scalars['Boolean']>;
   routinesCreate?: InputMaybe<Array<NodeRoutineListItemCreateInput>>;
@@ -940,6 +957,7 @@ export type NodeRoutineListItemTranslation = {
 
 export type NodeRoutineListItemTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
+  id?: InputMaybe<Scalars['ID']>;
   language: Scalars['String'];
   title?: InputMaybe<Scalars['String']>;
 };
@@ -980,6 +998,7 @@ export type NodeTranslation = {
 
 export type NodeTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
+  id?: InputMaybe<Scalars['ID']>;
   language: Scalars['String'];
   title: Scalars['String'];
 };
@@ -1045,7 +1064,7 @@ export type OrganizationCountInput = {
 };
 
 export type OrganizationCreateInput = {
-    id?: any;
+  id?: InputMaybe<Scalars['ID']>;
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -1106,6 +1125,7 @@ export type OrganizationTranslation = {
 
 export type OrganizationTranslationCreateInput = {
   bio?: InputMaybe<Scalars['String']>;
+  id?: InputMaybe<Scalars['ID']>;
   language: Scalars['String'];
   name: Scalars['String'];
 };
@@ -1144,6 +1164,7 @@ export type OutputItem = {
 };
 
 export type OutputItemCreateInput = {
+  id?: InputMaybe<Scalars['ID']>;
   name?: InputMaybe<Scalars['String']>;
   standardConnect?: InputMaybe<Scalars['ID']>;
   standardCreate?: InputMaybe<StandardCreateInput>;
@@ -1159,6 +1180,7 @@ export type OutputItemTranslation = {
 
 export type OutputItemTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
+  id?: InputMaybe<Scalars['ID']>;
   language: Scalars['String'];
 };
 
@@ -1274,9 +1296,9 @@ export type ProjectCountInput = {
 };
 
 export type ProjectCreateInput = {
-    id?: any;
   createdByOrganizationId?: InputMaybe<Scalars['ID']>;
   createdByUserId?: InputMaybe<Scalars['ID']>;
+  id?: InputMaybe<Scalars['ID']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
   parentId?: InputMaybe<Scalars['ID']>;
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
@@ -1302,6 +1324,7 @@ export type ProjectSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
+  isCompleteExceptions?: InputMaybe<Array<BooleanSearchException>>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
@@ -1352,6 +1375,7 @@ export type ProjectTranslation = {
 
 export type ProjectTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
+  id?: InputMaybe<Scalars['ID']>;
   language: Scalars['String'];
   name: Scalars['String'];
 };
@@ -1654,10 +1678,10 @@ export type ReportCountInput = {
 };
 
 export type ReportCreateInput = {
-    id?: any;
   createdFor: ReportFor;
   createdForId: Scalars['ID'];
   details?: InputMaybe<Scalars['String']>;
+  id?: InputMaybe<Scalars['ID']>;
   language: Scalars['String'];
   reason: Scalars['String'];
 };
@@ -1742,7 +1766,7 @@ export type ResourceCountInput = {
 };
 
 export type ResourceCreateInput = {
-    id?: any;
+  id?: InputMaybe<Scalars['ID']>;
   index?: InputMaybe<Scalars['Int']>;
   link: Scalars['String'];
   listId: Scalars['ID'];
@@ -1914,6 +1938,7 @@ export type ResourceTranslation = {
 
 export type ResourceTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
+  id?: InputMaybe<Scalars['ID']>;
   language: Scalars['String'];
   title?: InputMaybe<Scalars['String']>;
 };
@@ -2014,9 +2039,9 @@ export type RoutineCountInput = {
 };
 
 export type RoutineCreateInput = {
-    id?: any;
   createdByOrganizationId?: InputMaybe<Scalars['ID']>;
   createdByUserId?: InputMaybe<Scalars['ID']>;
+  id?: InputMaybe<Scalars['ID']>;
   inputsCreate?: InputMaybe<Array<InputItemCreateInput>>;
   isAutomatable?: InputMaybe<Scalars['Boolean']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
@@ -2045,7 +2070,9 @@ export type RoutineSearchInput = {
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
+  isCompleteExceptions?: InputMaybe<Array<BooleanSearchException>>;
   isInternal?: InputMaybe<Scalars['Boolean']>;
+  isInternalExceptions?: InputMaybe<Array<BooleanSearchException>>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   maxComplexity?: InputMaybe<Scalars['Int']>;
   maxSimplicity?: InputMaybe<Scalars['Int']>;
@@ -2104,6 +2131,7 @@ export type RoutineTranslation = {
 
 export type RoutineTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
+  id?: InputMaybe<Scalars['ID']>;
   instructions: Scalars['String'];
   language: Scalars['String'];
   title: Scalars['String'];
@@ -2185,7 +2213,7 @@ export type RunCountInput = {
 };
 
 export type RunCreateInput = {
-    id?: any;
+  id?: InputMaybe<Scalars['ID']>;
   routineId: Scalars['ID'];
   stepsCreate?: InputMaybe<Array<RunStepCreateInput>>;
   title: Scalars['String'];
@@ -2254,6 +2282,7 @@ export type RunStep = {
 };
 
 export type RunStepCreateInput = {
+  id?: InputMaybe<Scalars['ID']>;
   nodeId: Scalars['ID'];
   order: Scalars['Int'];
   step: Array<Scalars['Int']>;
@@ -2330,10 +2359,10 @@ export type StandardCountInput = {
 };
 
 export type StandardCreateInput = {
-    id?: any;
   createdByOrganizationId?: InputMaybe<Scalars['ID']>;
   createdByUserId?: InputMaybe<Scalars['ID']>;
   default?: InputMaybe<Scalars['String']>;
+  id?: InputMaybe<Scalars['ID']>;
   name?: InputMaybe<Scalars['String']>;
   props: Scalars['String'];
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
@@ -2400,6 +2429,7 @@ export type StandardTranslation = {
 
 export type StandardTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
+  id?: InputMaybe<Scalars['ID']>;
   jsonVariables?: InputMaybe<Scalars['String']>;
   language: Scalars['String'];
 };
@@ -2575,8 +2605,8 @@ export type TagCountInput = {
 };
 
 export type TagCreateInput = {
-    id?: any;
   anonymous?: InputMaybe<Scalars['Boolean']>;
+  id?: InputMaybe<Scalars['ID']>;
   tag: Scalars['String'];
   translationsCreate?: InputMaybe<Array<TagTranslationCreateInput>>;
 };
@@ -2595,6 +2625,7 @@ export type TagHidden = {
 };
 
 export type TagHiddenCreateInput = {
+  id?: InputMaybe<Scalars['ID']>;
   isBlur?: InputMaybe<Scalars['Boolean']>;
   tagConnect?: InputMaybe<Scalars['ID']>;
   tagCreate?: InputMaybe<TagCreateInput>;
@@ -2643,6 +2674,7 @@ export type TagTranslation = {
 
 export type TagTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
+  id?: InputMaybe<Scalars['ID']>;
   language: Scalars['String'];
 };
 
@@ -2752,6 +2784,7 @@ export type UserTranslation = {
 
 export type UserTranslationCreateInput = {
   bio?: InputMaybe<Scalars['String']>;
+  id?: InputMaybe<Scalars['ID']>;
   language: Scalars['String'];
 };
 

@@ -243,6 +243,11 @@ export enum VoteFor {
   Tag = "Tag",
 }
 
+export interface BooleanSearchException {
+  id: string;
+  relation: string;
+}
+
 export interface CommentCreateInput {
   id?: string | null;
   createdFor: CommentFor;
@@ -723,6 +728,7 @@ export interface ProjectSearchInput {
   createdTimeFrame?: TimeFrame | null;
   ids?: string[] | null;
   isComplete?: boolean | null;
+  isCompleteExceptions?: BooleanSearchException[] | null;
   languages?: string[] | null;
   minScore?: number | null;
   minStars?: number | null;
@@ -916,7 +922,9 @@ export interface RoutineSearchInput {
   excludeIds?: string[] | null;
   ids?: string[] | null;
   isComplete?: boolean | null;
+  isCompleteExceptions?: BooleanSearchException[] | null;
   isInternal?: boolean | null;
+  isInternalExceptions?: BooleanSearchException[] | null;
   languages?: string[] | null;
   minComplexity?: number | null;
   maxComplexity?: number | null;

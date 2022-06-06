@@ -104,6 +104,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         isComplete: Boolean
+        isCompleteExceptions: [BooleanSearchException!]
         languages: [String!]
         minScore: Int
         minStars: Int

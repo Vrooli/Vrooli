@@ -76,8 +76,8 @@ export const tagSearcher = (): Searcher<TagSearchInput> => ({
     },
     customQueries(input: TagSearchInput): { [x: string]: any } {
         return {
-            ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            ...(input.minStars ? { stars: { gte: input.minStars } } : {}),
+            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
         }
     },
 })

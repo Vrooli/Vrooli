@@ -225,7 +225,9 @@ export const typeDef = gql`
         excludeIds: [ID!]
         ids: [ID!]
         isComplete: Boolean
+        isCompleteExceptions: [BooleanSearchException!]
         isInternal: Boolean
+        isInternalExceptions: [BooleanSearchException!]
         languages: [String!]
         minComplexity: Int
         maxComplexity: Int

@@ -149,7 +149,7 @@ export const OrganizationView = ({
                     placeholder: "Search organization's projects...",
                     noResultsText: "No projects found",
                     searchQuery: projectsQuery,
-                    where: { organizationId: id },
+                    where: { organizationId: id, isComplete: !canEdit ? true : undefined },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Project, newValue.id),
                 };
             case TabOptions.Routines:
@@ -159,7 +159,7 @@ export const OrganizationView = ({
                     placeholder: "Search organization's routines...",
                     noResultsText: "No routines found",
                     searchQuery: routinesQuery,
-                    where: { organizationId: id },
+                    where: { organizationId: id, isComplete: !canEdit ? true : undefined },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 };
             case TabOptions.Standards:
@@ -183,7 +183,7 @@ export const OrganizationView = ({
                     onSearchSelect: (o: any) => { },
                 }
         }
-    }, [currTabType, setLocation, id]);
+    }, [currTabType, setLocation, id, canEdit]);
 
     // Determine options available to object, in order
     const moreOptions: BaseObjectAction[] = useMemo(() => {

@@ -55,10 +55,10 @@ export const runSearcher = (): Searcher<RunSearchInput> => ({
     },
     customQueries(input: RunSearchInput): { [x: string]: any } {
         return {
-            ...(input.routineId ? { routines: { some: { id: input.routineId } } } : {}),
-            ...(input.completedTimeFrame ? timeFrameToPrisma('timeCompleted', input.completedTimeFrame) : {}),
-            ...(input.startedTimeFrame ? timeFrameToPrisma('timeStarted', input.startedTimeFrame) : {}),
-            ...(input.status ? { status: input.status } : {}),
+            ...(input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
+            ...(input.completedTimeFrame !== undefined ? timeFrameToPrisma('timeCompleted', input.completedTimeFrame) : {}),
+            ...(input.startedTimeFrame !== undefined ? timeFrameToPrisma('timeStarted', input.startedTimeFrame) : {}),
+            ...(input.status !== undefined ? { status: input.status } : {}),
         }
     },
 })

@@ -196,28 +196,54 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
         })
     },
     customQueries(input: RoutineSearchInput): { [x: string]: any } {
+        // isComplete routines may be set to true or false generally, and also set exceptions
+        let isComplete: any;
+        if (!!input.isCompleteExceptions) {
+            isComplete = { OR: [{ isComplete: input.isComplete }] };
+            for (const exception of input.isCompleteExceptions) {
+                if (['createdByOrganization', 'createdByUser', 'organization', 'parent', 'project', 'user'].includes(exception.relation)) {
+                    isComplete.OR.push({ [exception.relation]: { id: exception.id } });
+                }
+            }
+        } else {
+            isComplete = { isComplete: input.isComplete };
+        }
+        // isInternal routines may be set to true or false generally, and also set exceptions
+        let isInternal: any;
+        if (!!input.isInternalExceptions) {
+            isInternal = { OR: [{ isInternal: input.isInternal }] };
+            for (const exception of input.isInternalExceptions) {
+                if (['createdByOrganization', 'createdByUser', 'organization', 'parent', 'project', 'user'].includes(exception.relation)) {
+                    isInternal.OR.push({ [exception.relation]: { id: exception.id } });
+                }
+            }
+        } else {
+            isInternal = { isInternal: input.isInternal };
+        }
         return {
-            ...(input.excludeIds ? { NOT: { id: { in: input.excludeIds } } } : {}),
-            ...(input.isComplete ? { isComplete: input.isComplete } : { isComplete: true }),
-            ...(input.isInternal ? { isInternal: input.isInternal } : { isInternal: false }),
-            ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            ...(input.minComplexity ? { complexity: { gte: input.minComplexity } } : {}),
-            ...(input.maxComplexity ? { complexity: { lte: input.maxComplexity } } : {}),
-            ...(input.minSimplicity ? { simplicity: { gte: input.minSimplicity } } : {}),
-            ...(input.maxSimplicity ? { simplicity: { lte: input.maxSimplicity } } : {}),
-            ...(input.maxTimesCompleted ? { timesCompleted: { lte: input.maxTimesCompleted } } : {}),
-            ...(input.minScore ? { score: { gte: input.minScore } } : {}),
-            ...(input.minStars ? { stars: { gte: input.minStars } } : {}),
-            ...(input.minTimesCompleted ? { timesCompleted: { gte: input.minTimesCompleted } } : {}),
-            ...(input.minViews ? { views: { gte: input.minViews } } : {}),
-            ...(input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
-            ...(input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
-            ...(input.userId ? { userId: input.userId } : {}),
-            ...(input.organizationId ? { organizationId: input.organizationId } : {}),
-            ...(input.projectId ? { projectId: input.projectId } : {}),
-            ...(input.parentId ? { parentId: input.parentId } : {}),
-            ...(input.reportId ? { reports: { some: { id: input.reportId } } } : {}),
-            ...(input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
+            ...(input.excludeIds !== undefined ? { NOT: { id: { in: input.excludeIds } } } : {}),
+            ...(input.excludeIds !== undefined ? { NOT: { id: { in: input.excludeIds } } } : {}),
+            ...isComplete,
+            ...isInternal,
+            ...(input.isInternal !== undefined ? { isInternal: input.isInternal } : {}),
+            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            ...(input.minComplexity !== undefined ? { complexity: { gte: input.minComplexity } } : {}),
+            ...(input.maxComplexity !== undefined ? { complexity: { lte: input.maxComplexity } } : {}),
+            ...(input.minSimplicity !== undefined ? { simplicity: { gte: input.minSimplicity } } : {}),
+            ...(input.maxSimplicity !== undefined ? { simplicity: { lte: input.maxSimplicity } } : {}),
+            ...(input.maxTimesCompleted !== undefined ? { timesCompleted: { lte: input.maxTimesCompleted } } : {}),
+            ...(input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
+            ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
+            ...(input.minTimesCompleted !== undefined ? { timesCompleted: { gte: input.minTimesCompleted } } : {}),
+            ...(input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
+            ...(input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            ...(input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
+            ...(input.userId !== undefined ? { userId: input.userId } : {}),
+            ...(input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
+            ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
+            ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
+            ...(input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
+            ...(input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
         }
     },
 })

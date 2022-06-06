@@ -29,6 +29,7 @@ export function BaseSearchPage({
     popupButtonTooltip = "Couldn't find what you were looking for? Try creating your own!",
     onPopupButtonClick,
     session,
+    where,
 }: BaseSearchPageProps) {
     const [, setLocation] = useLocation();
 
@@ -116,6 +117,7 @@ export function BaseSearchPage({
                 onScrolledFar={handleScrolledFar}
                 session={session}
                 zIndex={200}
+                where={where}
             />
             {popupButtonContainer}
         </Box >

@@ -21,6 +21,7 @@ export interface BaseSearchPageProps {
     popupButtonTooltip?: string; // Tooltip for the popup button
     onPopupButtonClick?: (ev: MouseEvent<any>) => void; // Called when the popup button is clicked
     session: Session;
+    where?: any; // Additional query variables
 }
 
 export interface SearchPageBaseProps {
