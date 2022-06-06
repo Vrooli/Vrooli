@@ -29,6 +29,7 @@ export const ResourceListHorizontal = ({
     const { palette } = useTheme();
 
     const onAdd = useCallback((newResource: NewObject<Resource>) => {
+        console.log('ON ADD', newResource);
         if (!list) return;
         if (handleUpdate) {
             handleUpdate({
@@ -140,7 +141,7 @@ export const ResourceListHorizontal = ({
                 }}
             >
                 <Stack direction="row" spacing={2} p={2} sx={{
-                    overflowX: 'scroll',
+                    overflowX: 'auto',
                     "&::-webkit-scrollbar": {
                         width: 5,
                     },
@@ -167,25 +168,15 @@ export const ResourceListHorizontal = ({
                         />
                     ))}
                     {
-                        (loading) && new Array(5).fill(0).map((_, i) => (
-                            <Box
-                                sx={{
-                                    ...cardRoot,
-                                    ...noSelect,
-                                    padding: 1,
-                                    width: '120px',
-                                    minWidth: '120px',
-                                    position: 'relative',
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                } as CSSProperties}
-                            >
-                                <CircularProgress sx={{
-                                    color: palette.mode === 'light' ? palette.secondary.light : 'white',
-                                }} />
-                            </Box>
-                        ))
+                        loading && (
+                            <CircularProgress sx={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                color: palette.mode === 'light' ? palette.secondary.light : 'white',
+                            }} />
+                        )
                     }
                     {/* Add resource button */}
                     {canEdit ? <Tooltip placement="top" title="Add resource">
@@ -197,6 +188,8 @@ export const ResourceListHorizontal = ({
                                 background: "#cad2e0",
                                 width: '120px',
                                 minWidth: '120px',
+                                height: '120px',
+                                minHeight: '120px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',

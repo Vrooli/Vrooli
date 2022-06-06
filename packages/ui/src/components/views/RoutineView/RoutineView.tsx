@@ -318,13 +318,15 @@ export const RoutineView = ({
     });
 
     const resourceList = useMemo(() => {
+        console.log('calculating resource list start', routine?.resourceLists)
         if (!routine ||
             !Array.isArray(routine.resourceLists) ||
             routine.resourceLists.length < 1 ||
             routine.resourceLists[0].resources.length < 1) return null;
+        console.log('got list', routine.resourceLists[0])
         return <ResourceListHorizontal
             title={'Resources'}
-            list={(routine as any).resourceLists[0]}
+            list={routine.resourceLists[0]}
             canEdit={false}
             handleUpdate={() => { }} // Intentionally blank
             loading={loading}

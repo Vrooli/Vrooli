@@ -122,6 +122,8 @@ export const ResourceCard = ({
                     padding: 1,
                     width: '120px',
                     minWidth: '120px',
+                    minHeight: '120px',
+                    height: '120px',
                     position: 'relative'
                 } as any}
             >
@@ -166,7 +168,16 @@ export const ResourceCard = ({
                     </IconButton>
                 </Box>
                 {/* Content */}
-                <Stack direction="column" justifyContent="center" alignItems="center" sx={{ overflow: 'overlay' }}>
+                <Stack
+                    direction="column"
+                    justifyContent="center"
+                    alignItems="center"
+                    sx={{
+                        height: '100%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                    }}
+                >
                     <Icon sx={{ fill: 'white' }} />
                     <Typography
                         gutterBottom

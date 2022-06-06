@@ -136,7 +136,7 @@ export const ResourceDialog = ({
                     onError: () => { formik.setSubmitting(false) },
                 })
             } else {
-                onCreated(input as NewObject<Resource>);
+                onCreated(data as NewObject<Resource>);
                 formik.resetForm();
                 onClose();
             }
