@@ -252,7 +252,7 @@ export const resolvers = {
             // Query projects
             let projects = (await readManyHelper(
                 context.req.userId,
-                { ...input, take, sortBy: ProjectSortBy.StarsDesc },
+                { ...input, take, sortBy: ProjectSortBy.StarsDesc, isComplete: true, },
                 projectSelect,
                 pModel,
                 { ...starsQuery },
@@ -261,10 +261,10 @@ export const resolvers = {
             // Query routines
             let routines = (await readManyHelper(
                 context.req.userId,
-                { ...input, take, sortBy: RoutineSortBy.StarsDesc },
+                { ...input, take, sortBy: RoutineSortBy.StarsDesc, isComplete: true, isInternal: false },
                 routineSelect,
                 rModel,
-                { ...starsQuery, isInternal: false },
+                { ...starsQuery },
                 false
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[]
             // Query standards
@@ -315,7 +315,7 @@ export const resolvers = {
             // Query courses
             const courses = (await readManyHelper(
                 context.req.userId,
-                { take, sortBy: ProjectSortBy.VotesDesc, tags: ['learn'] },
+                { take, sortBy: ProjectSortBy.VotesDesc, tags: ['Learn'], isComplete: true, },
                 projectSelect,
                 pModel,
                 { ...starsQuery },
@@ -324,7 +324,7 @@ export const resolvers = {
             // Query tutorials
             const tutorials = (await readManyHelper(
                 context.req.userId,
-                { take, sortBy: RoutineSortBy.VotesDesc, tags: ['learn'] },
+                { take, sortBy: RoutineSortBy.VotesDesc, tags: ['Learn'], isComplete: true, isInternal: false },
                 routineSelect,
                 rModel,
                 { ...starsQuery },
@@ -358,7 +358,7 @@ export const resolvers = {
             // Query processes
             const processes = (await readManyHelper(
                 context.req.userId,
-                { take, sortBy: RoutineSortBy.VotesDesc, tags: ['research'] },
+                { take, sortBy: RoutineSortBy.VotesDesc, tags: ['Research'], isComplete: true, isInternal: false },
                 routineSelect,
                 rModel,
                 { ...starsQuery },
@@ -367,7 +367,7 @@ export const resolvers = {
             // Query newlyCompleted
             const newlyCompletedProjects = (await readManyHelper(
                 context.req.userId,
-                { take, isComplete: true, sortBy: ProjectSortBy.DateCompletedAsc },
+                { take, sortBy: ProjectSortBy.DateCompletedAsc, isComplete: true },
                 projectSelect,
                 pModel,
                 { ...starsQuery },
@@ -460,7 +460,7 @@ export const resolvers = {
             // Query for routines you've completed
             const completedRoutines = (await readManyHelper(
                 context.req.userId,
-                { take, isComplete: true, userId: context.req.userId, sortBy: RoutineSortBy.DateCompletedAsc },
+                { take, isComplete: true, isInternal: false, userId: context.req.userId, sortBy: RoutineSortBy.DateCompletedAsc },
                 routineSelect,
                 rModel,
                 {},
@@ -478,7 +478,7 @@ export const resolvers = {
             // Query for routines you're currently working on
             const inProgressRoutines = (await readManyHelper(
                 context.req.userId,
-                { take, isComplete: false, userId: context.req.userId, sortBy: RoutineSortBy.DateCreatedAsc },
+                { take, isComplete: false, isInternal: false, userId: context.req.userId, sortBy: RoutineSortBy.DateCreatedAsc },
                 routineSelect,
                 rModel,
                 {},
@@ -496,7 +496,7 @@ export const resolvers = {
             // Query recently created/updated routines
             const recentRoutines = (await readManyHelper(
                 context.req.userId,
-                { take, userId: context.req.userId, sortBy: RoutineSortBy.DateUpdatedAsc },
+                { take, userId: context.req.userId, sortBy: RoutineSortBy.DateUpdatedAsc, isInternal: false },
                 routineSelect,
                 rModel,
                 {},
