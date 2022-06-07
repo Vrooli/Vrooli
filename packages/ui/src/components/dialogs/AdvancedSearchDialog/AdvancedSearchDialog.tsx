@@ -211,6 +211,7 @@ export const AdvancedSearchDialog = ({
             onClose={handleClose}
             scroll="body"
             sx={{
+                zIndex,
                 '& .MuiDialogContent-root': {
                     background: theme.palette.background.default,
                     color: theme.palette.background.textPrimary,

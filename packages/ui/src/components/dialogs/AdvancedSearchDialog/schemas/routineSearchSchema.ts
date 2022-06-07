@@ -43,10 +43,11 @@ export const routineSearchSchema: FormSchema = {
             spacing: 2,
         },
         {
-
+            title: "Languages",
             totalItems: 1
         },
         {
+            title: "Tags",
             totalItems: 1
         }
     ],

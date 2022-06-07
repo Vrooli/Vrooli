@@ -15,6 +15,24 @@ import { FormSchema } from "forms/types";
         direction: "column",
         spacing: 4,
     },
+    containers: [
+        {
+            totalItems: 1,
+        },
+        {
+            title: "Stars",
+            totalItems: 1,
+            spacing: 2,
+        },
+        {
+            title: "Languages",
+            totalItems: 1
+        },
+        {
+            title: "Tags",
+            totalItems: 1
+        }
+    ],
     fields: [
         {
             fieldName: "isOpenToNewMembers",
@@ -32,7 +50,7 @@ import { FormSchema } from "forms/types";
         },
         {
             fieldName: "minStars",
-            label: "Minimum Stars",
+            label: "Min",
             type: InputType.QuantityBox,
             props: {
                 min: 0,

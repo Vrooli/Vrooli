@@ -19,6 +19,7 @@ import {
 import { getResourceIcon } from '..';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { urlRegex, walletAddressRegex, adaHandleRegex } from '@local/shared';
+import { UsedForDisplay } from 'components/dialogs';
 
 const buttonProps = {
     position: 'absolute',
@@ -59,9 +60,11 @@ export const ResourceCard = ({
 
     const { description, title } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
+        const description = getTranslation(data, 'description', languages, true);
+        const title = getTranslation(data, 'title', languages, true);
         return {
-            description: getTranslation(data, 'description', languages, true),
-            title: getTranslation(data, 'title', languages, true),
+            description: (description && description.length > 0) ? description : data.link,
+            title: (title && title.length > 0) ? title : UsedForDisplay[data.usedFor ?? ResourceUsedFor.Context],
         };
     }, [data, session?.languages]);
 

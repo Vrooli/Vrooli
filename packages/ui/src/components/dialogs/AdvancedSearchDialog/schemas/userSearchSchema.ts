@@ -13,10 +13,21 @@ export const userSearchSchema: FormSchema = {
         direction: "column",
         spacing: 4,
     },
+    containers: [
+        {
+            title: "Stars",
+            totalItems: 1,
+            spacing: 2,
+        },
+        {
+            title: "Languages",
+            totalItems: 1
+        },
+    ],
     fields: [
         {
             fieldName: "minStars",
-            label: "Minimum Stars",
+            label: "Min",
             type: InputType.QuantityBox,
             props: {
                 min: 0,
