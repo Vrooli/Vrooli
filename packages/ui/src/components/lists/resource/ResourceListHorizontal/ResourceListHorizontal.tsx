@@ -140,7 +140,7 @@ export const ResourceListHorizontal = ({
                     border: `1px ${palette.text.primary}`,
                 }}
             >
-                <Stack direction="row" spacing={2} p={2} sx={{
+                <Stack direction="row" spacing={2} p={1} sx={{
                     overflowX: 'auto',
                     "&::-webkit-scrollbar": {
                         width: 5,

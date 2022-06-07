@@ -355,7 +355,7 @@ export const BuildView = ({
             routine, 
             changedRoutine, 
             ['tags', 'nodes.data.routines.routine'], 
-            ['nodes', 'nodeLinks', 'node.data.routines']
+            ['nodes', 'nodeLinks', 'node.data.routines', 'translations']
         )
         // If routine belongs to an organization, add organizationId to input
         if (routine?.owner?.__typename === 'Organization') {

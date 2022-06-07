@@ -30,8 +30,8 @@ export const EndNode = ({
         </Typography>
     ) : null, [labelVisible, label, scale]);
 
-    const outerCircleSize = useMemo(() => `${NodeWidth.End * scale}px`, [scale]);
-    const innerCircleSize = useMemo(() => `${NodeWidth.End * scale / 1.5}px`, [scale]);
+    const outerCircleSize = useMemo(() => `max(${NodeWidth.End * scale}px, 48px)`, [scale]);
+    const innerCircleSize = useMemo(() => `max(${NodeWidth.End * scale / 1.5}px, 32px)`, [scale]);
     const fontSize = useMemo(() => `min(${NodeWidth.End * scale / 5}px, 2em)`, [scale]);
 
     // Right click context menu

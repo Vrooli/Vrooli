@@ -178,7 +178,7 @@ export const BuildBottomContainer = ({
     return (
         <Box p={1} sx={{
             alignItems: 'center',
-            background: palette.primary.light,
+            background: palette.primary.dark,
             display: 'flex',
             justifyContent: 'center',
             height: '48px',

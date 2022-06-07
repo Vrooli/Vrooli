@@ -77,7 +77,7 @@ export const BaseObjectDialog = ({
             </Slide>
             <Box
                 sx={{
-                    background: palette.background.default,
+                    background: palette.mode === 'light' ? '#c2cadd' : palette.background.default,
                     flex: 'auto',
                     padding: 0,
                     paddingTop: { xs: '56px', sm: '64px' },

@@ -185,6 +185,7 @@ export const ResourceCard = ({
                         component="h3"
                         sx={{
                             ...multiLineEllipsis(3),
+                            textAlign: 'center',
                             lineBreak: Boolean(title) ? 'auto' : 'anywhere', // Line break anywhere only if showing link
                         }}
                     >

@@ -437,6 +437,8 @@ export const NodeGraph = ({
                 width: 'fit-content',
                 minWidth: '100vw',
                 minHeight: '-webkit-fill-available',
+                paddingLeft: 4,
+                paddingRight: 4,
                 // Create grid background pattern on stack, so it scrolls with content
                 '--line-color': palette.mode === 'light' ? `rgba(0 0 0 / .05)` : `rgba(255 255 255 / .05)`,
                 '--line-thickness': `1px`,
