@@ -62,17 +62,17 @@ export const NodeGraph = ({
         timeout: null,
     })
 
-    /**
-     * Add tag to head indicating that this page has custom scaling
-     */
-    useEffect(() => {
-        const meta = document.createElement("meta");
-        meta.name = "viewport";
-        meta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0 user-scalable=0";
-        document.head.appendChild(meta);
-        // Remove the meta element when the component is unmounted
-        return () => { document.head.removeChild(meta); }
-    }, [])
+    // /**
+    //  * Add tag to head indicating that this page has custom scaling
+    //  */
+    // useEffect(() => {
+    //     const meta = document.createElement("meta");
+    //     meta.name = "viewport";
+    //     meta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0 user-scalable=0";
+    //     document.head.appendChild(meta);
+    //     // Remove the meta element when the component is unmounted
+    //     return () => { document.head.removeChild(meta); }
+    // }, [])
 
     /**
      * When a node is being dragged near the edge of the grid, the grid scrolls
