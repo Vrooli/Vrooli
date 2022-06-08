@@ -297,7 +297,7 @@ export const BuildView = ({
             return;
         }
         const input: any = formatForCreate(
-            changedRoutine, 
+            changedRoutine,
             ['nodes', 'nodeLinks', 'nodes.data', 'nodes.data.routines']
         )
         // If nodes have a data create/update, convert to nodeEnd or nodeRoutineList (i.e. deconstruct union)
@@ -352,9 +352,9 @@ export const BuildView = ({
             return;
         }
         const input: any = formatForUpdate(
-            routine, 
-            changedRoutine, 
-            ['tags', 'nodes.data.routines.routine'], 
+            routine,
+            changedRoutine,
+            ['tags', 'nodes.data.routines.routine'],
             ['nodes', 'nodeLinks', 'node.data.routines', 'translations']
         )
         // If routine belongs to an organization, add organizationId to input
@@ -455,14 +455,29 @@ export const BuildView = ({
     }, [changedRoutine, language]);
 
     const revertChanges = useCallback(() => {
-        // If updating routine, revert to original routine
-        if (id) {
-            setChangedRoutine(routine);
-            setIsEditing(false);
+        // Confirm if changes have been made
+        if (JSON.stringify(routine) !== JSON.stringify(changedRoutine)) {
+            PubSub.publish(Pubs.AlertDialog, {
+                message: 'There are unsaved changes. Are you sure you would like to cancel?',
+                buttons: [
+                    {
+                        text: 'Yes', onClick: () => {
+                            // If updating routine, revert to original routine
+                            if (id) {
+                                setChangedRoutine(routine);
+                                setIsEditing(false);
+                            }
+                            // If adding new routine, go back
+                            else window.history.back();
+                        }
+                    },
+                    {
+                        text: "No", onClick: () => {}
+                    },
+                ]
+            });
         }
-        // If adding new routine, go back
-        else window.history.back();
-    }, [id, routine])
+    }, [changedRoutine, id, routine])
 
     /**
      * Calculates the new set of links for an routine when a node is 

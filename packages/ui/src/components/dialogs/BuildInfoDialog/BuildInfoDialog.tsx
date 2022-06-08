@@ -76,6 +76,7 @@ export const BuildInfoDialog = ({
             description: getTranslation(routine, 'description', [language]) ?? '',
             instructions: getTranslation(routine, 'instructions', [language]) ?? '',
             isInternal: routine?.isInternal ?? false,
+            isComplete: routine?.isComplete ?? true,
             title: getTranslation(routine, 'title', [language]) ?? '',
             version: routine?.version ?? '',
         },
@@ -91,6 +92,7 @@ export const BuildInfoDialog = ({
             handleUpdate({
                 ...routine,
                 isInternal: values.isInternal,
+                isComplete: values.isComplete,
                 version: values.version,
                 translations: allTranslations,
             } as any);
@@ -355,7 +357,7 @@ export const BuildInfoDialog = ({
                     </Box>
                     {/* Inputs/Outputs TODO*/}
                     {/* Is internal checkbox */}
-                    <Tooltip placement={'top'} title='Indicates if this routine is shown in search results'>
+                    <Tooltip placement={'top'} title='Indicates if this routine is meant to be a subroutine for only one other routine. If so, it will not appear in search resutls.'>
                         <FormControlLabel
                             disabled={!isEditing}
                             label='Internal'
@@ -366,6 +368,23 @@ export const BuildInfoDialog = ({
                                     name='isInternal'
                                     color='secondary'
                                     checked={formik.values.isInternal}
+                                    onChange={formik.handleChange}
+                                />
+                            }
+                        />
+                    </Tooltip>
+                    {/* Is complete checkbox */}
+                    <Tooltip placement={'top'} title='Indicates if this routine is ready for others to run. If not, it will not show in default search results'>
+                        <FormControlLabel
+                            disabled={!isEditing}
+                            label='Complete'
+                            control={
+                                <Checkbox
+                                    id='routine-info-dialog-is-complete'
+                                    size="small"
+                                    name='isComplete'
+                                    color='secondary'
+                                    checked={formik.values.isComplete}
                                     onChange={formik.handleChange}
                                 />
                             }

@@ -159,7 +159,7 @@ export const OrganizationView = ({
                     placeholder: "Search organization's routines...",
                     noResultsText: "No routines found",
                     searchQuery: routinesQuery,
-                    where: { organizationId: id, isComplete: !canEdit ? true : undefined },
+                    where: { organizationId: id, isComplete: !canEdit ? true : undefined, isInternal: false },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 };
             case TabOptions.Standards:

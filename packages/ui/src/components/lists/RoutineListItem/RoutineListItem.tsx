@@ -1,4 +1,4 @@
-import { ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
+import { Chip, ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { RoutineListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
@@ -75,8 +75,23 @@ export function RoutineListItem({
                             primary={description}
                             sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
                         />}
-                        {/* Tags */}
-                        {Array.isArray(data?.tags) && (data?.tags as any).length > 0 ? <TagList session={session} parentId={data?.id ?? ''} tags={data?.tags ?? []} /> : null}
+                        <Stack direction="row" spacing={1}>
+                            {/* Incomplete chip */}
+                            {
+                                data && !data.isComplete && <Tooltip placement="top" title="Marked as incomplete">
+                                    <Chip
+                                        label="Incomplete"
+                                        size="small"
+                                        sx={{
+                                            backgroundColor: palette.error.main,
+                                            color: palette.error.contrastText,
+                                            width: 'fit-content',
+                                        }} />
+                                </Tooltip>
+                            }
+                            {/* Tags */}
+                            {Array.isArray(data?.tags) && (data?.tags as any).length > 0 ? <TagList session={session} parentId={data?.id ?? ''} tags={data?.tags ?? []} /> : null}
+                        </Stack>
                     </Stack>
                     {
                         canEdit ? null : <StarButton

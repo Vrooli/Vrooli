@@ -175,7 +175,7 @@ export const UserView = ({
                     placeholder: "Search user's routines...",
                     noResultsText: "No routines found",
                     searchQuery: routinesQuery,
-                    where: { userId: id, isComplete: !isOwn ? true : undefined },
+                    where: { userId: id, isComplete: !isOwn ? true : undefined, isInternal: false },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 }
             case TabOptions.Standards:
