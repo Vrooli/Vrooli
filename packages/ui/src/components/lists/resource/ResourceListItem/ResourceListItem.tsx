@@ -9,6 +9,8 @@ import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor,
 import { Resource } from 'types';
 import { getResourceIcon } from '..';
 import {
+    Delete as DeleteIcon,
+    Edit as EditIcon,
     OpenInNew as OpenLinkIcon
 } from '@mui/icons-material';
 import { owns } from 'utils/authentication';
@@ -19,7 +21,7 @@ import { TextLoading } from 'components';
  * @param link String to check
  * @returns ResourceType if type found, or null if not
  */
- const getResourceType = (link: string): ResourceType | null => {
+const getResourceType = (link: string): ResourceType | null => {
     if (urlRegex.test(link)) return ResourceType.Url;
     if (walletAddressRegex.test(link)) return ResourceType.Wallet;
     if (adaHandleRegex.test(link)) return ResourceType.Handle;
@@ -27,15 +29,16 @@ import { TextLoading } from 'components';
 }
 
 export function ResourceListItem({
+    canEdit,
     data,
+    handleDelete,
+    handleEdit,
     index,
     loading,
-    onClick,
     session,
 }: ResourceListItemProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const canEdit = useMemo<boolean>(() => owns(data?.role), [data]);
     const { description, title } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
         return {
@@ -76,6 +79,16 @@ export function ResourceListItem({
         else if (resourceType === ResourceType.Handle) openLink(setLocation, `https://handle.me/${data.link}`);
     }, [data.link, setLocation]);
 
+    const onEdit = useCallback((e) => {
+        e.stopPropagation();
+        handleEdit(index);
+    }, [handleEdit, index]);
+
+    const onDelete = useCallback((e) => {
+        e.stopPropagation();
+        handleDelete(index);
+    }, [handleDelete, index]);
+
     return (
         <Tooltip placement="top" title="Open in new tab">
             <ListItem
@@ -107,7 +120,19 @@ export function ResourceListItem({
                             sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
                         />}
                     </Stack>
-                    <OpenLinkIcon />
+                    {
+                        canEdit && <IconButton onClick={onDelete}>
+                            <DeleteIcon sx={{ fill: palette.background.textPrimary }} />
+                        </IconButton>
+                    }
+                    {
+                        canEdit && <IconButton onClick={onEdit}>
+                            <EditIcon sx={{ fill: palette.background.textPrimary }} />
+                        </IconButton>
+                    }
+                    <IconButton>
+                        <OpenLinkIcon sx={{ fill: palette.background.textPrimary }} />
+                    </IconButton>
                 </ListItemButton>
             </ListItem>
         </Tooltip>

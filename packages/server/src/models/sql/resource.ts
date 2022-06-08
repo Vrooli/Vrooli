@@ -172,7 +172,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
             // If title or description is not provided, try querying for the link's og tags TODO
             const creates = [];
             for (const create of formattedInput.create) {
-                creates.push(this.toDBShape(userId, create as any, isAdd, true));
+                creates.push(this.toDBShape(userId, create as any, true, true));
             }
             formattedInput.create = creates;
         }

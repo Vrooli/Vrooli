@@ -3,8 +3,8 @@
 import { Box, CircularProgress, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { ResourceCard, ResourceListItemContextMenu } from 'components';
 import { ResourceListHorizontalProps } from '../types';
-import { containerShadow, noSelect } from 'styles';
-import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
+import { containerShadow } from 'styles';
+import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { NewObject, Resource } from 'types';
 import {
     Add as AddIcon,

@@ -23,10 +23,12 @@ export interface ResourceListVerticalProps {
 }
 
 export interface ResourceListItemProps {
+    canEdit: boolean;
     data: Resource;
+    handleEdit: (index: number) => void;
+    handleDelete: (index: number) => void;
     index: number;
     loading: boolean;
-    onClick?: (e: any, data: any) => void;
     session: Session;
 }
 
