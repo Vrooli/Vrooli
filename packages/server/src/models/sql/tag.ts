@@ -76,8 +76,8 @@ export const tagSearcher = (): Searcher<TagSearchInput> => ({
     },
     customQueries(input: TagSearchInput): { [x: string]: any } {
         return {
-            ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            ...(input.minStars ? { stars: { gte: input.minStars } } : {}),
+            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
         }
     },
 })
@@ -92,6 +92,7 @@ export const tagVerifier = () => ({
 export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVerifier>) => ({
     async toDBShape(userId: string | null, data: TagCreateInput | TagUpdateInput): Promise<any> {
         return {
+            id: data.id ?? undefined,
             name: data.tag,
             createdByUserId: userId,
             translations: TranslationModel().relationshipBuilder(userId, data, { create: tagTranslationCreate, update: tagTranslationUpdate }, false),

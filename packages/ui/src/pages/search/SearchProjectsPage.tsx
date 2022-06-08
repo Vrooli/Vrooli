@@ -64,6 +64,7 @@ export const SearchProjectsPage = ({
                 popupButtonTooltip="Can't find wha you're looking for? Create it!😎"
                 onPopupButtonClick={handleAddDialogOpen}
                 session={session}
+                where={{ isComplete: true }}
             />
         </>
     )

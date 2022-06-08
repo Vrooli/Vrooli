@@ -34,7 +34,7 @@ Resources provide context to the object they are attached to, such as a  user, o
 **For a routine** - Guide, external service
 `
 
-const UsedForDisplay = {
+export const UsedForDisplay = {
     [ResourceUsedFor.Community]: 'Community',
     [ResourceUsedFor.Context]: 'Context',
     [ResourceUsedFor.Developer]: 'Developer',
@@ -136,7 +136,7 @@ export const ResourceDialog = ({
                     onError: () => { formik.setSubmitting(false) },
                 })
             } else {
-                onCreated(input as NewObject<Resource>);
+                onCreated(data as NewObject<Resource>);
                 formik.resetForm();
                 onClose();
             }

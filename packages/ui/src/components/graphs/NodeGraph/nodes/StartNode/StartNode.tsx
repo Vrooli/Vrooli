@@ -24,7 +24,7 @@ export const StartNode = ({
         </Typography>
     ) : null, [labelVisible, label, scale]);
 
-    const nodeSize = useMemo(() => `${NodeWidth.Start * scale}px`, [scale]);
+    const nodeSize = useMemo(() => `max(${NodeWidth.Start * scale}px, 48px)`, [scale]);
     const fontSize = useMemo(() => `min(${NodeWidth.Start * scale / 5}px, 2em)`, [scale]);
 
     return (

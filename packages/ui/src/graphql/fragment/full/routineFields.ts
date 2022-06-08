@@ -26,9 +26,6 @@ export const routineFields = gql`
             type
             props
             yup
-            tags {
-                ...routineTagFields
-            }
             translations {
                 id
                 language
@@ -52,9 +49,6 @@ export const routineFields = gql`
             type
             props
             yup
-            tags {
-                ...routineTagFields
-            }
             translations {
                 id
                 language

@@ -158,7 +158,7 @@ export const ProjectView = ({
                     placeholder: "Search project's routines...",
                     noResultsText: "No routines found",
                     searchQuery: routinesQuery,
-                    where: { projectId: id },
+                    where: { projectId: id, isComplete: !canEdit ? true : undefined },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 };
             case TabOptions.Standards:
@@ -183,7 +183,7 @@ export const ProjectView = ({
                     searchItemFactory: (a: any, b: any) => null
                 }
         }
-    }, [currTabType, id, setLocation]);
+    }, [canEdit, currTabType, id, setLocation]);
 
     /**
      * Displays name, avatar, bio, and quick links

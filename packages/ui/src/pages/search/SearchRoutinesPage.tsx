@@ -85,6 +85,7 @@ export const SearchRoutinesPage = ({
                 popupButtonTooltip="Can't find what you're looking for? Create it!😎"
                 onPopupButtonClick={openAdd}
                 session={session}
+                where={{ isComplete: true, isInternal: false }}
             />
         </>
     )

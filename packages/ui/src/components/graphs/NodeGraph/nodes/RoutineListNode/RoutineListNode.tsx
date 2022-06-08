@@ -58,7 +58,8 @@ export const RoutineListNode = ({
     zIndex,
 }: RoutineListNodeProps) => {
     const { palette } = useTheme();
-    const [collapseOpen, setCollapseOpen] = useState<boolean>(false);
+    // Default to open if editing and empty
+    const [collapseOpen, setCollapseOpen] = useState<boolean>(isEditing && (node?.data as NodeDataRoutineList)?.routines?.length === 0);
     const handleNodeClick = useCallback((event: any) => {
         if (isLinked && (!canDrag || shouldCollapse(event.target.id))) setCollapseOpen(!collapseOpen);
     }, [canDrag, collapseOpen, isLinked]);
@@ -130,9 +131,10 @@ export const RoutineListNode = ({
         }
     }, [language, node]);
 
-    const nodeSize = useMemo(() => `${NodeWidth.RoutineList * scale}px`, [scale]);
+    const minNodeSize = useMemo(() => `${NodeWidth.RoutineList * scale}px`, [scale]);
+    const maxNodeSize = useMemo(() => `${NodeWidth.RoutineList * scale * 3}px`, [scale]);
     const fontSize = useMemo(() => `min(${NodeWidth.RoutineList * scale / 5}px, 2em)`, [scale]);
-    const addSize = useMemo(() => `${NodeWidth.RoutineList * scale / 8}px`, [scale]);
+    const addSize = useMemo(() => `max(${NodeWidth.RoutineList * scale / 8}px, 48px)`, [scale]);
 
     const confirmDelete = useCallback((event: any) => {
         PubSub.publish(Pubs.AlertDialog, {
@@ -157,7 +159,7 @@ export const RoutineListNode = ({
                         sx={{
                             ...noSelect,
                             ...textShadow,
-                            ...multiLineEllipsis(1),
+                            ...(!collapseOpen ? multiLineEllipsis(1) : multiLineEllipsis(4)),
                             textAlign: 'center',
                             width: '100%',
                             lineBreak: 'anywhere' as any,
@@ -178,6 +180,7 @@ export const RoutineListNode = ({
 
     const optionsCollapse = useMemo(() => (
         <Collapse in={collapseOpen} sx={{
+            ...noSelect,
             background: palette.mode === 'light' ? '#b0bbe7' : '#384164',
         }}>
             <Tooltip placement={'top'} title='Must complete routines in order'>
@@ -288,7 +291,8 @@ export const RoutineListNode = ({
             dragThreshold={DRAG_THRESHOLD}
             sx={{
                 zIndex: 5,
-                width: nodeSize,
+                minWidth: minNodeSize,
+                maxWidth: collapseOpen ? maxNodeSize : minNodeSize,
                 fontSize: fontSize,
                 position: 'relative',
                 display: 'block',
@@ -318,7 +322,8 @@ export const RoutineListNode = ({
                         alignItems: 'center',
                         backgroundColor: palette.mode === 'light' ? palette.primary.dark : palette.secondary.dark,
                         color: palette.mode === 'light' ? palette.primary.contrastText : palette.secondary.contrastText,
-                        padding: '0.1em',
+                        paddingLeft: '0.1em!important',
+                        paddingRight: '0.1em!important',
                         textAlign: 'center',
                         cursor: isEditing ? 'grab' : 'pointer',
                         '&:active': {

@@ -130,7 +130,7 @@ export const nodeVerifier = () => ({
 export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof nodeVerifier>) => ({
     async toDBShape(userId: string | null, data: NodeCreateInput | NodeUpdateInput): Promise<any> {
         let nodeData: { [x: string]: any } = {
-            id: data.id,
+            id: data.id ?? undefined,
             columnIndex: data.columnIndex,
             routineId: data.routineId,
             rowIndex: data.rowIndex,
@@ -424,6 +424,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
             nodeRoutineListCreate.validateSync(create, { abortEarly: false });
             // Convert nested relationships
             formattedInput.create = {
+                id: create.id ?? undefined,
                 isOrdered: create.isOrdered,
                 isOptional: create.isOptional,
                 routines: await this.relationshipBuilderRoutineListNodeItem(userId, create, isAdd)
@@ -453,9 +454,9 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
         if (!userId)
             throw new CustomError(CODE.Unauthorized, 'Must pass valid userId to validateMutations', { code: genErrorCode('0054') });
         // Make sure the user has access to these nodes
-        const createNodeIds = createMany?.map(node => node.id) ?? []; // Nodes can have an ID on create, unlike most other objects
-        const updateNodeIds = updateMany?.map(node => node.where.id) ?? [];
-        const deleteNodeIds = deleteMany ?? [];
+        const createNodeIds: string[] = createMany?.map(node => node.id)?.filter(id => !!id) as string[] ?? []; // Nodes can have an ID on create, unlike most other objects
+        const updateNodeIds: string[] = updateMany?.map(node => node.where.id)?.filter(id => !!id) as string[] ?? [];
+        const deleteNodeIds: string[] = deleteMany?.filter(Boolean) ?? [];
         const allNodeIds = [...createNodeIds, ...updateNodeIds, ...deleteNodeIds];
         if (allNodeIds.length === 0) return;
         const routineId: string | null = await verifier.authorizedCheck(userId, allNodeIds, prisma);

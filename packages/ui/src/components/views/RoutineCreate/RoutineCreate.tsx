@@ -48,6 +48,7 @@ export const RoutineCreate = ({
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
+        console.log('resource list update', updatedList)
         setResourceList(updatedList);
     }, [setResourceList]);
 
@@ -135,6 +136,21 @@ export const RoutineCreate = ({
         },
     });
 
+    /**
+     * On page leave, check if unsaved work. 
+     * If so, prompt for confirmation.
+     */
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (formik.dirty) {
+                e.preventDefault()
+                e.returnValue = ''
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [formik.dirty]);
+
     // Handle languages
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     const [languages, setLanguages] = useState<string[]>([getUserLanguages(session)[0]]);
@@ -203,10 +219,10 @@ export const RoutineCreate = ({
         >
             <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
                 <Grid item xs={12}>
-                    <UserOrganizationSwitch 
-                        session={session} 
-                        selected={organizationFor} 
-                        onChange={onSwitchChange} 
+                    <UserOrganizationSwitch
+                        session={session}
+                        selected={organizationFor}
+                        onChange={onSwitchChange}
                         zIndex={zIndex}
                     />
                 </Grid>

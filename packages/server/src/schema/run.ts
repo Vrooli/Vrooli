@@ -94,6 +94,7 @@ export const typeDef = gql`
     }
 
     input RunCreateInput {
+        id: ID
         routineId: ID!
         title: String!
         version: String!
@@ -113,6 +114,7 @@ export const typeDef = gql`
     }
 
     input RunStepCreateInput {
+        id: ID
         nodeId: ID!
         order: Int!
         step: [Int!]!

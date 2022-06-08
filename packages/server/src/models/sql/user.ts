@@ -81,16 +81,16 @@ export const userSearcher = (): Searcher<UserSearchInput> => ({
     },
     customQueries(input: UserSearchInput): { [x: string]: any } {
         return {
-            ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            ...(input.minStars ? { stars: { gte: input.minStars } } : {}),
-            ...(input.minViews ? { views: { gte: input.minViews } } : {}),
-            ...(input.organizationId ? { organizations: { some: { organizationId: input.organizationId } } } : {}),
-            ...(input.projectId ? { projects: { some: { projectId: input.projectId } } } : {}),
-            ...(input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
-            ...(input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
-            ...(input.routineId ? { routines: { some: { id: input.routineId } } } : {}),
-            ...(input.reportId ? { reports: { some: { id: input.reportId } } } : {}),
-            ...(input.standardId ? { standards: { some: { id: input.standardId } } } : {}),
+            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
+            ...(input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
+            ...(input.organizationId !== undefined ? { organizations: { some: { organizationId: input.organizationId } } } : {}),
+            ...(input.projectId !== undefined ? { projects: { some: { projectId: input.projectId } } } : {}),
+            ...(input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            ...(input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
+            ...(input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
+            ...(input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
+            ...(input.standardId !== undefined ? { standards: { some: { id: input.standardId } } } : {}),
         }
     },
 })

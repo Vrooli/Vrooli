@@ -21,13 +21,21 @@ export const projectSearchSchema: FormSchema = {
             totalItems: 1,
         },
         {
-            totalItems: 2,
+            title: "Stars",
+            totalItems: 1,
             spacing: 2,
         },
         {
+            title: "Score",
+            totalItems: 1,
+            spacing: 2,
+        },
+        {
+            title: "Languages",
             totalItems: 1
         },
         {
+            title: "Tags",
             totalItems: 1
         }
     ],
@@ -48,7 +56,7 @@ export const projectSearchSchema: FormSchema = {
         },
         {
             fieldName: "minStars",
-            label: "Minimum Stars",
+            label: "Min",
             type: InputType.QuantityBox,
             props: {
                 min: 0,
@@ -57,7 +65,7 @@ export const projectSearchSchema: FormSchema = {
         },
         {
             fieldName: "minScore",
-            label: "Minimum Score",
+            label: "Min",
             type: InputType.QuantityBox,
             props: {
                 min: 0,

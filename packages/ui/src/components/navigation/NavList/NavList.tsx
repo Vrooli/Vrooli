@@ -81,7 +81,7 @@ export const NavList = ({
                 classes: { root: classes.navItem },
             })}
             {/* Enter button displayed when not logged in */}
-            {session !== undefined && !session?.roles && (
+            {sessionChecked && session !== undefined && !session?.roles && (
                 <Button
                     className={classes.button}
                     onClick={() => openLink(setLocation, APP_LINKS.Start)}

@@ -165,7 +165,7 @@ export const UserView = ({
                     placeholder: "Search user's projects...",
                     noResultsText: "No projects found",
                     searchQuery: projectsQuery,
-                    where: { userId: id },
+                    where: { userId: id, isComplete: !isOwn ? true : undefined },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Project, newValue.id),
                 }
             case TabOptions.Routines:
@@ -175,7 +175,7 @@ export const UserView = ({
                     placeholder: "Search user's routines...",
                     noResultsText: "No routines found",
                     searchQuery: routinesQuery,
-                    where: { userId: id },
+                    where: { userId: id, isComplete: !isOwn ? true : undefined },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 }
             case TabOptions.Standards:
@@ -199,7 +199,7 @@ export const UserView = ({
                     onSearchSelect: (o: any) => { },
                 }
         }
-    }, [currTabType, id, setLocation]);
+    }, [currTabType, id, isOwn, setLocation]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);

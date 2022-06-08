@@ -85,6 +85,21 @@ export const ReportDialog = ({
         },
     });
 
+    /**
+     * On page leave, check if unsaved work. 
+     * If so, prompt for confirmation.
+     */
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (formik.dirty) {
+                e.preventDefault()
+                e.returnValue = ''
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [formik.dirty]);
+
     const handleClose = () => {
         formik.resetForm();
         onClose();

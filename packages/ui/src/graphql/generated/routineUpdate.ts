@@ -16,20 +16,6 @@ export interface routineUpdate_routineUpdate_inputs_translations {
   description: string | null;
 }
 
-export interface routineUpdate_routineUpdate_inputs_standard_tags_translations {
-  __typename: "TagTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-}
-
-export interface routineUpdate_routineUpdate_inputs_standard_tags {
-  __typename: "Tag";
-  id: string;
-  tag: string;
-  translations: routineUpdate_routineUpdate_inputs_standard_tags_translations[];
-}
-
 export interface routineUpdate_routineUpdate_inputs_standard_translations {
   __typename: "StandardTranslation";
   id: string;
@@ -45,7 +31,6 @@ export interface routineUpdate_routineUpdate_inputs_standard {
   type: string;
   props: string;
   yup: string | null;
-  tags: routineUpdate_routineUpdate_inputs_standard_tags[];
   translations: routineUpdate_routineUpdate_inputs_standard_translations[];
   version: string;
 }
@@ -95,20 +80,6 @@ export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines
   description: string | null;
 }
 
-export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags_translations {
-  __typename: "TagTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-}
-
-export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags {
-  __typename: "Tag";
-  id: string;
-  tag: string;
-  translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags_translations[];
-}
-
 export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations {
   __typename: "StandardTranslation";
   id: string;
@@ -124,7 +95,6 @@ export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines
   type: string;
   props: string;
   yup: string | null;
-  tags: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags[];
   translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations[];
   version: string;
 }
@@ -145,20 +115,6 @@ export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines
   description: string | null;
 }
 
-export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags_translations {
-  __typename: "TagTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-}
-
-export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags {
-  __typename: "Tag";
-  id: string;
-  tag: string;
-  translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags_translations[];
-}
-
 export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations {
   __typename: "StandardTranslation";
   id: string;
@@ -174,7 +130,6 @@ export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines
   type: string;
   props: string;
   yup: string | null;
-  tags: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags[];
   translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations[];
   version: string;
 }
@@ -367,20 +322,6 @@ export interface routineUpdate_routineUpdate_outputs_translations {
   description: string | null;
 }
 
-export interface routineUpdate_routineUpdate_outputs_standard_tags_translations {
-  __typename: "TagTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-}
-
-export interface routineUpdate_routineUpdate_outputs_standard_tags {
-  __typename: "Tag";
-  id: string;
-  tag: string;
-  translations: routineUpdate_routineUpdate_outputs_standard_tags_translations[];
-}
-
 export interface routineUpdate_routineUpdate_outputs_standard_translations {
   __typename: "StandardTranslation";
   id: string;
@@ -396,7 +337,6 @@ export interface routineUpdate_routineUpdate_outputs_standard {
   type: string;
   props: string;
   yup: string | null;
-  tags: routineUpdate_routineUpdate_outputs_standard_tags[];
   translations: routineUpdate_routineUpdate_outputs_standard_translations[];
   version: string;
 }

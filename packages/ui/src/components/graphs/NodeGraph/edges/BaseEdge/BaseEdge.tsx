@@ -84,7 +84,7 @@ export const BaseEdge = ({
     /**
      * Padding ensures that the line is doesn't get cut off
      */
-    const padding = 100;
+    const padding = 50;
     // Store dimensions of edge
     const [dims, setDims] = useState<EdgePositions | null>(null);
 

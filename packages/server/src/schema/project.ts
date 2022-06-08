@@ -25,6 +25,7 @@ export const typeDef = gql`
     }
 
     input ProjectCreateInput {
+        id: ID
         createdByOrganizationId: ID
         createdByUserId: ID
         isComplete: Boolean
@@ -80,6 +81,7 @@ export const typeDef = gql`
     }
 
     input ProjectTranslationCreateInput {
+        id: ID
         language: String!
         description: String
         name: String!
@@ -102,6 +104,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         isComplete: Boolean
+        isCompleteExceptions: [BooleanSearchException!]
         languages: [String!]
         minScore: Int
         minStars: Int

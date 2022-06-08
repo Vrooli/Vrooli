@@ -107,7 +107,7 @@ export const RoutineSubnode = ({
                 display: 'block',
                 marginBottom: '8px',
                 borderRadius: '12px',
-                overflow: 'overlay',
+                overflow: 'hidden',
                 backgroundColor: palette.background.paper,
                 color: palette.background.textPrimary,
             }}
@@ -117,8 +117,8 @@ export const RoutineSubnode = ({
                 sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    backgroundColor: canEdit ? 
-                        (palette.mode === 'light' ? palette.primary.dark : palette.secondary.dark) : 
+                    backgroundColor: canEdit ?
+                        (palette.mode === 'light' ? palette.primary.dark : palette.secondary.dark) :
                         '#667899',
                     color: palette.mode === 'light' ? palette.primary.contrastText : palette.secondary.contrastText,
                     padding: '0.1em',
@@ -133,7 +133,7 @@ export const RoutineSubnode = ({
                 {labelObject}
                 {isEditing ? <DeleteIcon onClick={deleteSubnode} onTouchStart={deleteSubnode} /> : null}
             </Container>
-            <Stack direction="row" justifyContent="space-between" borderRadius={0}>
+            <Stack direction="row" justifyContent="space-between" borderRadius={0} sx={{ ...noSelect }}>
                 <Tooltip placement={'top'} title='Routine can be skipped'>
                     <FormControlLabel
                         disabled={!isEditing}

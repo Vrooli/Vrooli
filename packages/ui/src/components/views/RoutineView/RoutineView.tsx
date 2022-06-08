@@ -112,27 +112,51 @@ export const RoutineView = ({
                     type: NodeType.Start,
                     columnIndex: 0,
                     rowIndex: 0,
+                } as Node;
+                const routineListNode: Node = {
+                    id: uuidv4(),
+                    type: NodeType.RoutineList,
+                    columnIndex: 1,
+                    rowIndex: 0,
+                    data: {
+                        id: uuidv4(),
+                        isOptional: false,
+                        isOrdered: false,
+                        routines: [],
+                    } as any,
+                    translations: [{
+                        language,
+                        title: 'Subroutine 1',
+                    }] as any
                 } as Node
                 const endNode: Node = {
                     id: uuidv4(),
                     type: NodeType.End,
-                    columnIndex: 1,
+                    columnIndex: 2,
                     rowIndex: 0,
                 } as Node
-                const link: NodeLink = {
+                const link1: NodeLink = {
                     id: uuidv4(),
                     fromId: startNode.id,
+                    toId: routineListNode.id,
+                } as NodeLink
+                const link2: NodeLink = {
+                    id: uuidv4(),
+                    fromId: routineListNode.id,
                     toId: endNode.id,
                 } as NodeLink
                 setRoutine({
-                    nodes: [startNode, endNode],
-                    nodeLinks: [link],
+                    inputs: [],
+                    outputs: [],
+                    nodes: [startNode, routineListNode, endNode],
+                    nodeLinks: [link1, link2],
                     translations: [{
                         language,
                         title: 'New Routine',
                         instructions: 'Enter instructions here',
+                        description: '',
                     }]
-                } as Routine)
+                } as any)
             }
             setIsBuildOpen(true);
         }
@@ -277,7 +301,7 @@ export const RoutineView = ({
     const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {
         if (!routine) return null;
         const schemas: { [fieldName: string]: FieldData } = {};
-        for (let i = 0; i < routine.inputs.length; i++) {
+        for (let i = 0; i < routine.inputs?.length; i++) {
             const currSchema = standardToFieldData(routine.inputs[i].standard, `inputs-${i}`);
             if (currSchema) {
                 schemas[currSchema.fieldName] = currSchema;
@@ -294,13 +318,15 @@ export const RoutineView = ({
     });
 
     const resourceList = useMemo(() => {
+        console.log('calculating resource list start', routine?.resourceLists)
         if (!routine ||
             !Array.isArray(routine.resourceLists) ||
             routine.resourceLists.length < 1 ||
             routine.resourceLists[0].resources.length < 1) return null;
+        console.log('got list', routine.resourceLists[0])
         return <ResourceListHorizontal
             title={'Resources'}
-            list={(routine as any).resourceLists[0]}
+            list={routine.resourceLists[0]}
             canEdit={false}
             handleUpdate={() => { }} // Intentionally blank
             loading={loading}
@@ -400,9 +426,9 @@ export const RoutineView = ({
             alignItems: 'center',
             justifyContent: 'center',
             margin: 'auto',
-            // xs: 100vh - navbar (64px) - bottom nav (56px)
+            // xs: 100vh - navbar (64px) - bottom nav (56px) - iOS nav bar
             // md: 100vh - navbar (80px)
-            minHeight: { xs: 'calc(100vh - 64px - 56px)', md: 'calc(100vh - 80px)' },
+            minHeight: { xs: 'calc(100vh - 64px - 56px - env(safe-area-inset-bottom))', md: 'calc(100vh - 80px)' },
         }}>
             {/* Chooses which run to use */}
             <RunPickerDialog

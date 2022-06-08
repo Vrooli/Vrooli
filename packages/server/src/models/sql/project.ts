@@ -144,19 +144,31 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
         })
     },
     customQueries(input: ProjectSearchInput): { [x: string]: any } {
+        // isComplete routines may be set to true or false generally, and also set exceptions
+        let isComplete: any;
+        if (!!input.isCompleteExceptions) {
+            isComplete = { OR: [{ isComplete: input.isComplete }] };
+            for (const exception of input.isCompleteExceptions) {
+                if (['createdByOrganization', 'createdByUser', 'organization', 'project', 'user'].includes(exception.relation)) {
+                    isComplete.OR.push({ [exception.relation]: { id: exception.id } });
+                }
+            }
+        } else {
+            isComplete = { isComplete: input.isComplete };
+        }
         return {
-            ...(input.isComplete ? { isComplete: true } : {}),
-            ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            ...(input.minScore ? { score: { gte: input.minScore } } : {}),
-            ...(input.minStars ? { stars: { gte: input.minStars } } : {}),
-            ...(input.minViews ? { views: { gte: input.minViews } } : {}),
-            ...(input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
-            ...(input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
-            ...(input.userId ? { userId: input.userId } : {}),
-            ...(input.organizationId ? { organizationId: input.organizationId } : {}),
-            ...(input.parentId ? { parentId: input.parentId } : {}),
-            ...(input.reportId ? { reports: { some: { id: input.reportId } } } : {}),
-            ...(input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
+            ...isComplete,
+            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            ...(input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
+            ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
+            ...(input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
+            ...(input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            ...(input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
+            ...(input.userId !== undefined ? { userId: input.userId } : {}),
+            ...(input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
+            ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
+            ...(input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
+            ...(input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
         }
     },
 })
@@ -169,7 +181,7 @@ export const projectMutater = (prisma: PrismaType) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ProjectCreateInput, ProjectUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId) 
+        if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0073') });
         // Collect organizationIds from each object, and check if the user is an admin/owner of every organization
         const organizationIds: (string | null | undefined)[] = [];
@@ -231,6 +243,7 @@ export const projectMutater = (prisma: PrismaType) => ({
          * Helper function for creating create/update Prisma value
          */
         const createData = async (input: ProjectCreateInput | ProjectUpdateInput): Promise<{ [x: string]: any }> => ({
+            id: input.id ?? undefined,
             handle: (input as ProjectUpdateInput).handle ?? null,
             isComplete: input.isComplete,
             completedAt: input.isComplete ? new Date().toISOString() : null,
@@ -278,7 +291,7 @@ export const projectMutater = (prisma: PrismaType) => ({
                 let data = await createData(input.data);
                 // Find object
                 let object = await prisma.project.findFirst({ where: input.where })
-                if (!object) 
+                if (!object)
                     throw new CustomError(CODE.NotFound, 'Project not found', { code: genErrorCode('0078') });
                 // Associate with either organization or user. This will remove the association with the other.
                 if (input.data.organizationId) {

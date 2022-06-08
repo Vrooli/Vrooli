@@ -179,26 +179,26 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
     },
     customQueries(input: StandardSearchInput): { [x: string]: any } {
         return {
-            ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            ...(input.minScore ? { score: { gte: input.minScore } } : {}),
-            ...(input.minStars ? { stars: { gte: input.minStars } } : {}),
-            ...(input.minViews ? { views: { gte: input.minViews } } : {}),
-            ...(input.userId ? { createdByUserId: input.userId } : {}),
-            ...(input.organizationId ? { createdByOrganizationId: input.organizationId } : {}),
-            ...(input.projectId ? {
+            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            ...(input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
+            ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
+            ...(input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
+            ...(input.userId !== undefined ? { createdByUserId: input.userId } : {}),
+            ...(input.organizationId !== undefined ? { createdByOrganizationId: input.organizationId } : {}),
+            ...(input.projectId !== undefined ? {
                 OR: [
                     { createdByUser: { projects: { some: { id: input.projectId } } } },
                     { createdByOrganization: { projects: { some: { id: input.projectId } } } },
                 ]
             } : {}),
-            ...(input.reportId ? { reports: { some: { id: input.reportId } } } : {}),
-            ...(input.routineId ? {
+            ...(input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
+            ...(input.routineId !== undefined ? {
                 OR: [
                     { routineInputs: { some: { routineId: input.routineId } } },
                     { routineOutputs: { some: { routineId: input.routineId } } },
                 ]
             } : {}),
-            ...(input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
+            ...(input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
         }
     },
 })
@@ -278,6 +278,7 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
             translations.jsonVariables = sortify(translations.jsonVariables);
         }
         return {
+            id: data.id ?? undefined,
             name: await standardQuerier(prisma).generateName(userId ?? '', data),
             default: data.default,
             type: data.type,

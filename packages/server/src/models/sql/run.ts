@@ -55,10 +55,10 @@ export const runSearcher = (): Searcher<RunSearchInput> => ({
     },
     customQueries(input: RunSearchInput): { [x: string]: any } {
         return {
-            ...(input.routineId ? { routines: { some: { id: input.routineId } } } : {}),
-            ...(input.completedTimeFrame ? timeFrameToPrisma('timeCompleted', input.completedTimeFrame) : {}),
-            ...(input.startedTimeFrame ? timeFrameToPrisma('timeStarted', input.startedTimeFrame) : {}),
-            ...(input.status ? { status: input.status } : {}),
+            ...(input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
+            ...(input.completedTimeFrame !== undefined ? timeFrameToPrisma('timeCompleted', input.completedTimeFrame) : {}),
+            ...(input.startedTimeFrame !== undefined ? timeFrameToPrisma('timeStarted', input.startedTimeFrame) : {}),
+            ...(input.status !== undefined ? { status: input.status } : {}),
         }
     },
 })
@@ -76,6 +76,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
     async toDBShapeAdd(userId: string, data: RunCreateInput): Promise<any> {
         // TODO - when scheduling added, don't assume that it is being started right away
         return {
+            id: data.id ?? undefined,
             timeStarted: new Date(),
             routineId: data.routineId,
             status: RunStatus.InProgress,

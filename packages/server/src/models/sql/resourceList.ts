@@ -42,7 +42,7 @@ export const resourceListSearcher = (): Searcher<ResourceListSearchInput> => ({
     },
     customQueries(input: ResourceListSearchInput): { [x: string]: any } {
         return {
-            ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
         }
     },
 })

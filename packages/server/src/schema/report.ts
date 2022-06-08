@@ -25,6 +25,7 @@ export const typeDef = gql`
     }
 
     input ReportCreateInput {
+        id: ID
         createdFor: ReportFor!
         createdForId: ID!
         details: String

@@ -56,6 +56,7 @@ export const formatForCreate = <T>(obj: Partial<T>, treatLikeCreates: string[] =
         else if (Array.isArray(value)) {
             // Loop through changed values and determine which are connections and adds
             for (let i = 0; i < value.length; i++) {
+                console.log('in array loop', key, treatLikeCreates, treatLikeCreates.includes(key), value[i]);
                 const curr = value[i];
                 // Find the changed value at this index
                 const changedValue = _.isObject(curr) ? formatForCreate(curr, childTreatLikeCreates) : curr;
@@ -81,8 +82,8 @@ export const formatForCreate = <T>(obj: Partial<T>, treatLikeCreates: string[] =
             const curr: any = value;
             // Find the changed value
             const changedValue = formatForCreate(curr, childTreatLikeCreates);
-            // Check if create (i.e does not contain an id)
-            if (changedValue && curr.id === undefined) {
+            // Check if create (i.e does not contain an id, or is in the treatLikeCreates array)
+            if (changedValue && (curr.id === undefined || treatLikeCreates.includes(key))) {
                 changed[`${key}Create`] = changedValue;
             }
             // Check if connection (i.e. is an object with only an id)

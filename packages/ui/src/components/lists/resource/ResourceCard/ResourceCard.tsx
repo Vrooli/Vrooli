@@ -19,6 +19,7 @@ import {
 import { getResourceIcon } from '..';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { urlRegex, walletAddressRegex, adaHandleRegex } from '@local/shared';
+import { UsedForDisplay } from 'components/dialogs';
 
 const buttonProps = {
     position: 'absolute',
@@ -59,9 +60,11 @@ export const ResourceCard = ({
 
     const { description, title } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
+        const description = getTranslation(data, 'description', languages, true);
+        const title = getTranslation(data, 'title', languages, true);
         return {
-            description: getTranslation(data, 'description', languages, true),
-            title: getTranslation(data, 'title', languages, true),
+            description: (description && description.length > 0) ? description : data.link,
+            title: (title && title.length > 0) ? title : UsedForDisplay[data.usedFor ?? ResourceUsedFor.Context],
         };
     }, [data, session?.languages]);
 
@@ -122,6 +125,8 @@ export const ResourceCard = ({
                     padding: 1,
                     width: '120px',
                     minWidth: '120px',
+                    minHeight: '120px',
+                    height: '120px',
                     position: 'relative'
                 } as any}
             >
@@ -166,7 +171,16 @@ export const ResourceCard = ({
                     </IconButton>
                 </Box>
                 {/* Content */}
-                <Stack direction="column" justifyContent="center" alignItems="center" sx={{ overflow: 'overlay' }}>
+                <Stack
+                    direction="column"
+                    justifyContent="center"
+                    alignItems="center"
+                    sx={{
+                        height: '100%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                    }}
+                >
                     <Icon sx={{ fill: 'white' }} />
                     <Typography
                         gutterBottom
@@ -174,6 +188,7 @@ export const ResourceCard = ({
                         component="h3"
                         sx={{
                             ...multiLineEllipsis(3),
+                            textAlign: 'center',
                             lineBreak: Boolean(title) ? 'auto' : 'anywhere', // Line break anywhere only if showing link
                         }}
                     >

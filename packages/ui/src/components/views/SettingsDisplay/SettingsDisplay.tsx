@@ -131,6 +131,21 @@ export const SettingsDisplay = ({
         },
     });
 
+    /**
+     * On page leave, check if unsaved work. 
+     * If so, prompt for confirmation.
+     */
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (formik.dirty) {
+                e.preventDefault()
+                e.returnValue = ''
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [formik.dirty]);
+
     const actions: DialogActionItem[] = useMemo(() => [
         ['Save', SaveIcon, !formik.touched || formik.isSubmitting, false, () => {
             formik.submitForm();

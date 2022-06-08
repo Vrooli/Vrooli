@@ -15,7 +15,7 @@ import {
     Add as CreateIcon,
     Close as CloseIcon
 } from '@mui/icons-material';
-import { Routine } from 'types';
+import { IsCompleteInput, IsInternalInput, Routine } from 'types';
 import { SearchList } from 'components/lists';
 import { routineQuery, routinesQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
@@ -115,6 +115,35 @@ export const SubroutineSelectOrCreateDialog = ({
         </Box>
     ), [onClose, palette.primary.contrastText, palette.primary.dark])
 
+    /**
+     * Query conditions change depending on a few factors
+     */
+    const where = useMemo(() => {
+        const validId: boolean = uuidValidate(routineId);
+        // Ignore current routine
+        const excludeIds = validId ? { excludeIds: [routineId] } : {};
+        // Don't include incomplete/internal routines, unless they're your own
+        const incomplete: IsCompleteInput = { isComplete: true, isCompleteExceptions: [] };
+        const internal: IsInternalInput = { isInternal: false, isInternalExceptions: [] };
+        if (validId) {
+            const except = {
+                id: routineId,
+                relation: 'parent',
+            }
+            incomplete.isCompleteExceptions.push(except);
+            internal.isInternalExceptions.push(except);
+        }
+        if (session.userId) {
+            const except = {
+                id: session.userId,
+                relation: 'user',
+            }
+            incomplete.isCompleteExceptions.push(except);
+            internal.isInternalExceptions.push(except);
+        }
+        return { ...excludeIds, ...incomplete, ...internal };
+    }, [routineId, session.userId]);
+
     return (
         <Dialog
             open={isOpen}
@@ -122,9 +151,9 @@ export const SubroutineSelectOrCreateDialog = ({
             scroll="body"
             sx={{
                 zIndex,
-                '& .MuiDialogContent-root': { 
-                    overflow: 'visible', 
-                    background: palette.background.default ,
+                '& .MuiDialogContent-root': {
+                    overflow: 'visible',
+                    background: palette.background.default,
                 },
                 '& .MuiDialog-paper': { overflow: 'visible' }
             }}
@@ -134,13 +163,13 @@ export const SubroutineSelectOrCreateDialog = ({
                 onAction={handleCreateClose}
                 open={isCreateOpen}
                 title={"Create Routine"}
-                zIndex={zIndex+1}
+                zIndex={zIndex + 1}
             >
                 <RoutineCreate
                     onCancel={handleCreateClose}
                     onCreated={handleCreated}
                     session={session}
-                    zIndex={zIndex+1}
+                    zIndex={zIndex + 1}
                 />
             </BaseObjectDialog>
             {titleBar}
@@ -155,7 +184,7 @@ export const SubroutineSelectOrCreateDialog = ({
                         searchPlaceholder={'Select existing subroutine...'}
                         session={session}
                         take={20}
-                        where={uuidValidate(routineId) ? { excludeIds: [routineId] } : undefined}
+                        where={where}
                         zIndex={zIndex}
                     />
                     <Button

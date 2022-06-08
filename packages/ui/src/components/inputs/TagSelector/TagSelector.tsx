@@ -15,7 +15,7 @@ export const TagSelector = ({
     placeholder = 'Enter tags, followed by commas...',
     onTagAdd,
     onTagRemove,
-    onTagsClear
+    onTagsClear,
 }: TagSelectorProps) => {
     const { palette } = useTheme();
     const [inputValue, setInputValue] = useState<string>('');
@@ -86,7 +86,6 @@ export const TagSelector = ({
     return (
         <Autocomplete
             id="tags-input"
-            disablePortal
             disabled={disabled}
             fullWidth
             multiple
