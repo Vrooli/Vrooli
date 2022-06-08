@@ -320,6 +320,7 @@ export const SubroutineInfoDialog = ({
                                 selected={organizationFor}
                                 onChange={onSwitchChange}
                                 zIndex={zIndex}
+                                disabled={!canEdit}
                             />
                         </Grid>
                         <Grid item xs={12}>

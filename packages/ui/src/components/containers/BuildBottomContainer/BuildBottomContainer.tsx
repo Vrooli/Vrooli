@@ -155,14 +155,14 @@ export const BuildBottomContainer = ({
                     </Tooltip> */}
                     {runState === BuildRunState.Running ? (
                         <Tooltip title="Pause Routine" placement="top">
-                            <IconButton aria-label="pause-routine" size='large'>
-                                <PauseIcon sx={{ fill: '#e4efee', transform: 'scale(2)', marginBottom: 'auto' }} />
+                            <IconButton aria-label="pause-routine" size='large' sx={{ padding: 0, width: '48px', height: '48px' }}>
+                                <PauseIcon sx={{ fill: '#e4efee', marginBottom: 'auto', width: '48px', height: '48px' }} />
                             </IconButton>
                         </Tooltip>
                     ) : (
                         <Tooltip title="Run Routine" placement="top">
-                            <IconButton aria-label="run-routine" size='large' onClick={runRoutine}>
-                                <RunIcon sx={{ fill: '#e4efee', transform: 'scale(2)', marginBottom: 'auto' }} />
+                            <IconButton aria-label="run-routine" size='large' onClick={runRoutine} sx={{ padding: 0, width: '48px', height: '48px' }}>
+                                <RunIcon sx={{ fill: '#e4efee', marginBottom: 'auto', width: '48px', height: '48px' }} />
                             </IconButton>
                         </Tooltip>
                     )}
@@ -176,16 +176,18 @@ export const BuildBottomContainer = ({
     }, [canCancelMutate, canSubmitMutate, handleAdd, handleCancelAdd, handleCancelUpdate, handleUpdate, isAdding, isEditing, loading, runRoutine, runState]);
 
     return (
-        <Box p={1} sx={{
-            alignItems: 'top',
+        <Box sx={{
+            alignItems: 'center',
             background: palette.primary.dark,
             display: 'flex',
             justifyContent: 'center',
             bottom: 0,
+            paddingTop: 1,
+            paddingLeft: 4,
+            paddingRight: 4,
             paddingBottom: 'calc(8px + env(safe-area-inset-bottom))',
             // safe-area-inset-bottom is the iOS navigation bar
-            height: 'calc(56px + env(safe-area-inset-bottom))',
-            border: '1px solid red',
+            height: 'calc(64px + env(safe-area-inset-bottom))',
         }}>
             {/* Chooses which run to use */}
             <RunPickerDialog

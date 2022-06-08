@@ -22,6 +22,7 @@ export function UserOrganizationSwitch({
     zIndex,
     ...props
 }: UserOrganizationSwitchProps) {
+    console.log('UserOrganizationSwitch', disabled);
     const { palette } = useTheme();
     const languages = useMemo(() => getUserLanguages(session), [session])
 
