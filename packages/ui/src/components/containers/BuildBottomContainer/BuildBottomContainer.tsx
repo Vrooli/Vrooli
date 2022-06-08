@@ -156,13 +156,13 @@ export const BuildBottomContainer = ({
                     {runState === BuildRunState.Running ? (
                         <Tooltip title="Pause Routine" placement="top">
                             <IconButton aria-label="pause-routine" size='large'>
-                                <PauseIcon sx={{ fill: '#e4efee', transform: 'scale(2)' }} />
+                                <PauseIcon sx={{ fill: '#e4efee', transform: 'scale(2)', marginBottom: 'auto' }} />
                             </IconButton>
                         </Tooltip>
                     ) : (
                         <Tooltip title="Run Routine" placement="top">
                             <IconButton aria-label="run-routine" size='large' onClick={runRoutine}>
-                                <RunIcon sx={{ fill: '#e4efee', transform: 'scale(2)' }} />
+                                <RunIcon sx={{ fill: '#e4efee', transform: 'scale(2)', marginBottom: 'auto' }} />
                             </IconButton>
                         </Tooltip>
                     )}
@@ -177,11 +177,15 @@ export const BuildBottomContainer = ({
 
     return (
         <Box p={1} sx={{
-            alignItems: 'center',
+            alignItems: 'top',
             background: palette.primary.dark,
             display: 'flex',
             justifyContent: 'center',
-            height: '48px',
+            bottom: 0,
+            paddingBottom: 'calc(8px + env(safe-area-inset-bottom))',
+            // safe-area-inset-bottom is the iOS navigation bar
+            height: 'calc(56px + env(safe-area-inset-bottom))',
+            border: '1px solid red',
         }}>
             {/* Chooses which run to use */}
             <RunPickerDialog

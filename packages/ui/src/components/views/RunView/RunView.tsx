@@ -663,6 +663,9 @@ export const RunView = ({
                 <Box sx={{
                     position: 'fixed',
                     bottom: '0',
+                    paddingBottom: 'env(safe-area-inset-bottom)',
+                    // safe-area-inset-bottom is the iOS navigation bar
+                    height: 'calc(56px + env(safe-area-inset-bottom))',
                     width: '-webkit-fill-available',
                     zIndex: 4,
                     background: palette.primary.dark,
@@ -691,7 +694,7 @@ export const RunView = ({
                                     width: 'min(48vw, 250px)',
                                 }}
                             >
-                                <Box sx={{ display: { xs: 'none', sm: 'block' }}}>
+                                <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
                                     Previous
                                 </Box>
                             </Button>}
@@ -708,7 +711,7 @@ export const RunView = ({
                                 disabled={!subroutineComplete}
                                 sx={{ width: 'min(48vw, 250px)' }}
                             >
-                                <Box sx={{ display: { xs: 'none', sm: 'block' }}}>
+                                <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
                                     Next
                                 </Box>
                             </Button>)}
@@ -718,7 +721,7 @@ export const RunView = ({
                                 onClick={toComplete}
                                 sx={{ width: 'min(48vw, 250px)' }}
                             >
-                                <Box sx={{ display: { xs: 'none', sm: 'block' }}}>
+                                <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
                                     Complete
                                 </Box>
                             </Button>)}

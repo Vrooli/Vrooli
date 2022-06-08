@@ -57,8 +57,8 @@ export function BaseSearchPage({
                         height: '48px',
                         borderRadius: 3,
                         position: 'fixed',
-                        bottom: '5em',
-                        transform: popupButton ? 'translateY(0)' : 'translateY(10em)',
+                        bottom: 'calc(5em + env(safe-area-inset-bottom))',
+                        transform: popupButton ? 'translateY(0)' : 'translateY(calc(10em + env(safe-area-inset-bottom)))',
                         transition: 'transform 1s ease-in-out',
                     }}
                 >
@@ -102,7 +102,13 @@ export function BaseSearchPage({
             <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
                 <Typography component="h2" variant="h4">{title}</Typography>
                 {showAddButton ? <Tooltip title="Add new" placement="top">
-                    <IconButton size="large" onClick={onAddClick} sx={{ padding: 1 }}>
+                    <IconButton
+                        size="large"
+                        onClick={onAddClick}
+                        sx={{
+                            padding: 1,
+                        }}
+                    >
                         <AddIcon color="secondary" sx={{ width: '1.5em', height: '1.5em' }} />
                     </IconButton>
                 </Tooltip> : null}

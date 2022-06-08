@@ -9,9 +9,10 @@ const useStyles = makeStyles((theme: Theme) => ({
         background: theme.palette.primary.dark,
         position: 'fixed',
         zIndex: 5,
-        // Increase bottom on standalone apps 
-        // TODO!!!
-        bottom: '0',
+        bottom: 0,
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        // safe-area-inset-bottom is the iOS navigation bar
+        height: 'calc(56px + env(safe-area-inset-bottom))',
         width: '100%',
     },
     icon: {

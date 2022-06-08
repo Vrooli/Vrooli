@@ -426,9 +426,9 @@ export const RoutineView = ({
             alignItems: 'center',
             justifyContent: 'center',
             margin: 'auto',
-            // xs: 100vh - navbar (64px) - bottom nav (56px)
+            // xs: 100vh - navbar (64px) - bottom nav (56px) - iOS nav bar
             // md: 100vh - navbar (80px)
-            minHeight: { xs: 'calc(100vh - 64px - 56px)', md: 'calc(100vh - 80px)' },
+            minHeight: { xs: 'calc(100vh - 64px - 56px - env(safe-area-inset-bottom))', md: 'calc(100vh - 80px)' },
         }}>
             {/* Chooses which run to use */}
             <RunPickerDialog

@@ -412,9 +412,9 @@ export const NodeGraph = ({
             minWidth: '100%',
             // Graph fills remaining space that is not taken up by other elements. 
             // These are: routine title (64px), other top build icons (48px),
-            // build bottom (48px). This makes the size: 
-            // 100vh - (64 + 48 + 48) = calc(100vh - 216px).
-            height: 'calc(100vh - 160px)',
+            // build bottom (48px), and iOS nav bar. This makes the size: 
+            // 100vh - (64 + 48 + 48) = calc(100vh - 160px).
+            height: 'calc(100vh - 160px - env(safe-area-inset-bottom))',
             overflowX: 'auto',
             overflowY: 'auto',
             margin: 0,
