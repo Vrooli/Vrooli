@@ -2,7 +2,7 @@ import { CODE, DeleteOneType, MemberRole, standardsCreate, standardsUpdate, stan
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count } from "../../schema/types";
-import { addCreatorField, addJoinTablesHelper, createHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, updateHelper, ValidateMutationsInput } from "./base";
+import { addCreatorField, addJoinTablesHelper, createHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, PartialPrismaSelect, relationshipToPrisma, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, updateHelper, ValidateMutationsInput } from "./base";
 import { validateProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -16,55 +16,12 @@ import { randomString } from "../../auth/walletAuth";
 import { sortify } from "../../utils/objectTools";
 import { ResourceListModel } from "./resourceList";
 
-const tagSelect = {
-    __typename: 'Tag',
-    id: true,
-    created_at: true,
-    tag: true,
-    stars: true,
-    isStarred: true,
-    translations: {
-        id: true,
-        language: true,
-        description: true,
-    }
-}
-const standardSelect = {
-    __typename: 'Standard',
-    id: true,
-    created_at: true,
-    updated_at: true,
-    default: true,
-    name: true,
-    score: true,
-    stars: true,
-    type: true,
-    props: true,
-    yup: true,
-    version: true,
-    views: true,
-    creator: {
-        Organization: {
-            id: true,
-        },
-        User: {
-            id: true,
-        },
-    },
-    isFile: true,
-    tags: tagSelect,
-    translations: {
-        id: true,
-        description: true,
-        language: true,
-    },
-}
-
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
+const calculatedFields = ['isUpvoted', 'isStarred', 'role'];
 export const standardFormatter = (): FormatConverter<Standard> => ({
     relationshipMap: {
         '__typename': GraphQLModelType.Standard,
@@ -81,7 +38,6 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
         'tags': GraphQLModelType.Tag,
     },
     removeCalculatedFields: (partial) => {
-        const calculatedFields = ['isUpvoted', 'isStarred', 'role'];
         return _.omit(partial, calculatedFields);
     },
     constructUnions: (data) => {
@@ -102,7 +58,7 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
         prisma: PrismaType,
         userId: string | null, // Of the user making the request
         objects: RecursivePartial<any>[],
-        partial: PartialInfo,
+        partial: PartialGraphQLInfo,
     ): Promise<RecursivePartial<Standard>[]> {
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
@@ -325,9 +281,11 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
         });
         // Shape
         if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
-            const create = formattedInput.create[0];
+            const create = await this.toDBShapeAdd(userId, formattedInput.create[0]);
             // Create standard
-            const standard = await createHelper(userId, create, standardSelect, StandardModel(prisma));
+            const standard = await prisma.standard.create({
+                data: create,
+            })
             return standard?.id ?? null;
         }
         if (Array.isArray(formattedInput.connect) && formattedInput.connect.length > 0) {
@@ -337,10 +295,13 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
             return null;
         }
         if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
-            const update = formattedInput.update[0];
+            const update = await this.toDBShapeUpdate(userId, formattedInput.update[0]);
             // Update standard
-            const standard = await updateHelper(userId, update.data, standardSelect, StandardModel(prisma));
-            return standard?.id ?? null;
+            const standard = await prisma.standard.update({
+                where: { id: update.id },
+                data: update,
+            })
+            return standard.id;
         }
         if (Array.isArray(formattedInput.delete) && formattedInput.delete.length > 0) {
             const deleteId = formattedInput.delete[0].id;
@@ -389,8 +350,9 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
         if (memberData.some(member => !member))
             throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0095') })
     },
-    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<StandardCreateInput, StandardUpdateInput>): Promise<CUDResult<Standard>> {
+    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<StandardCreateInput, StandardUpdateInput>): Promise<CUDResult<Standard>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
+        const select = selectHelper(partialInfo);
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
         if (createMany) {
@@ -412,9 +374,9 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
                     };
                 }
                 // Create object
-                const currCreated = await prisma.standard.create({ data, ...selectHelper(partial) });
+                const currCreated = await prisma.standard.create({ data, ...select });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partial);
+                const converted = modelToGraphQL(currCreated, partialInfo);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -442,10 +404,10 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
                 const currUpdated = await prisma.standard.update({
                     where: input.where,
                     data: await this.toDBShapeUpdate(userId, input.data),
-                    ...selectHelper(partial)
+                    ...select
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partial);
+                const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }

@@ -206,7 +206,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
             await this.authorizedUpdateOrDelete(userId as string, updateMany.map(u => u.where.id), prisma);
         }
     },
-    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<ResourceCreateInput, ResourceUpdateInput>): Promise<CUDResult<Resource>> {
+    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<ResourceCreateInput, ResourceUpdateInput>): Promise<CUDResult<Resource>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -217,9 +217,9 @@ export const resourceMutater = (prisma: PrismaType) => ({
                 // Call createData helper function
                 const data = await this.toDBShape(userId, input, true, false);
                 // Create object
-                const currCreated = await prisma.resource.create({ data, ...selectHelper(partial) });
+                const currCreated = await prisma.resource.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partial);
+                const converted = modelToGraphQL(currCreated, partialInfo);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -242,10 +242,10 @@ export const resourceMutater = (prisma: PrismaType) => ({
                 const currUpdated = await prisma.resource.update({
                     where: input.where,
                     data: await this.toDBShape(userId, input.data, false, false),
-                    ...selectHelper(partial)
+                    ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partial);
+                const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }

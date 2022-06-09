@@ -2,7 +2,7 @@ import { CODE, runsCreate, runsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, LogType, Run, RunCancelInput, RunCompleteInput, RunCreateInput, RunSearchInput, RunSortBy, RunStatus, RunUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, InfoType, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialSelect, ValidateMutationsInput } from "./base";
+import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
 import _ from "lodash";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
@@ -118,7 +118,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
     /**
      * Performs adds, updates, and deletes of runs. First validates that every action is allowed.
      */
-    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<RunCreateInput, RunUpdateInput>): Promise<CUDResult<Run>> {
+    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<RunCreateInput, RunUpdateInput>): Promise<CUDResult<Run>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         if (!userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0175') });
         // Perform mutations
@@ -129,9 +129,9 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
                 // Call createData helper function
                 const data = await this.toDBShapeAdd(userId, input);
                 // Create object
-                const currCreated = await prisma.run.create({ data, ...selectHelper(partial) });
+                const currCreated = await prisma.run.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partial);
+                const converted = modelToGraphQL(currCreated, partialInfo);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -163,10 +163,10 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
                 const currUpdated = await prisma.run.update({
                     where: input.where,
                     data: await this.toDBShapeUpdate(userId, input.data),
-                    ...selectHelper(partial)
+                    ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partial);
+                const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }
@@ -201,9 +201,9 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
      * to get around this, but I'm not sure if that would be a good idea. Most of the time, I imagine users
      * will just be looking at the routine instead of using it.
      */
-    async complete(userId: string, input: RunCompleteInput, info: InfoType): Promise<Run> {
+    async complete(userId: string, input: RunCompleteInput, info: GraphQLInfo): Promise<Run> {
         // Convert info to partial
-        const partial = toPartialSelect(info, runFormatter().relationshipMap);
+        const partial = toPartialGraphQLInfo(info, runFormatter().relationshipMap);
         if (partial === undefined) throw new CustomError(CODE.ErrorUnknown, 'Invalid query.', { code: genErrorCode('0179') });
         let run: run | null;
         // Check if run is being created or updated
@@ -222,7 +222,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
             run = await prisma.run.update({
                 where: { id: input.id },
                 data: {
-                    completedComplexity: input.completedComplexity,
+                    completedComplexity: input.completedComplexity ?? undefined,
                     pickups: input.pickups ?? undefined,
                     timeCompleted: new Date(),
                     timeElapsed: input.timeElapsed ?? undefined,
@@ -267,9 +267,9 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
     /**
      * Cancels a run
      */
-    async cancel(userId: string, input: RunCancelInput, info: InfoType): Promise<Run> {
+    async cancel(userId: string, input: RunCancelInput, info: GraphQLInfo): Promise<Run> {
         // Convert info to partial
-        const partial = toPartialSelect(info, runFormatter().relationshipMap);
+        const partial = toPartialGraphQLInfo(info, runFormatter().relationshipMap);
         if (partial === undefined) throw new CustomError(CODE.ErrorUnknown, 'Invalid query.', { code: genErrorCode('0181') });
         // Find in database
         let object = await prisma.run.findFirst({

@@ -1,6 +1,6 @@
 import { PrismaType, RecursivePartial } from "../../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor } from "../../schema/types";
-import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, PartialInfo } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, PartialGraphQLInfo } from "./base";
 import { CustomError } from "../../error";
 import { CODE, MemberRole, organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@local/shared";
 import { organization_users } from "@prisma/client";
@@ -18,6 +18,7 @@ import _ from "lodash";
 //==============================================================
 
 const joinMapper = { starredBy: 'user', tags: 'tag' };
+const calculatedFields = ['isStarred', 'role'];
 export const organizationFormatter = (): FormatConverter<Organization> => ({
     relationshipMap: {
         '__typename': GraphQLModelType.Organization,
@@ -34,7 +35,6 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         'tags': GraphQLModelType.Tag,
     },
     removeCalculatedFields: (partial) => {
-        const calculatedFields = ['isStarred', 'role'];
         return _.omit(partial, calculatedFields);
     },
     addJoinTables: (partial) => {
@@ -47,7 +47,7 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         prisma: PrismaType,
         userId: string | null, // Of the user making the request
         objects: RecursivePartial<any>[],
-        partial: PartialInfo,
+        partial: PartialGraphQLInfo,
     ): Promise<RecursivePartial<Organization>[]> {
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
@@ -216,7 +216,7 @@ export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typ
     /**
      * Performs adds, updates, and deletes of organizations. First validates that every action is allowed.
      */
-    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<OrganizationCreateInput, OrganizationUpdateInput>): Promise<CUDResult<Organization>> {
+    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<OrganizationCreateInput, OrganizationUpdateInput>): Promise<CUDResult<Organization>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -226,9 +226,9 @@ export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typ
                 // Call createData helper function
                 const data = await this.toDBShape(userId, input);
                 // Create object
-                const currCreated = await prisma.organization.create({ data, ...selectHelper(partial) });
+                const currCreated = await prisma.organization.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partial);
+                const converted = modelToGraphQL(currCreated, partialInfo);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -251,10 +251,10 @@ export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typ
                 const currUpdated = await prisma.organization.update({
                     where: input.where,
                     data: await this.toDBShape(userId, input.data),
-                    ...selectHelper(partial)
+                    ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partial);
+                const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }

@@ -1,7 +1,7 @@
 import { PrismaType, RecursivePartial } from "types";
 import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success, Tag, TagCreateInput, TagHidden, User, UserDeleteInput } from "../../schema/types";
 import { sendResetPasswordLink, sendVerificationLink } from "../../worker/email/queue";
-import { addJoinTablesHelper, addSupplementalFields, FormatConverter, GraphQLModelType, InfoType, modelToGraphQL, padSelect, PartialInfo, readOneHelper, removeJoinTablesHelper, selectHelper, toPartialSelect } from "./base";
+import { addJoinTablesHelper, addSupplementalFields, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, padSelect, PartialGraphQLInfo, readOneHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo } from "./base";
 import { user } from "@prisma/client";
 import { CODE, profileUpdateSchema, ROLES, userTranslationCreate, userTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
@@ -37,6 +37,7 @@ const tagSelect = {
 }
 
 const joinMapper = { hiddenTags: 'tag', roles: 'role', starredBy: 'user' };
+const calculatedFields = ['starredTags', 'hiddenTags'];
 export const profileFormatter = (): FormatConverter<User> => ({
     relationshipMap: {
         '__typename': GraphQLModelType.Profile,
@@ -60,7 +61,6 @@ export const profileFormatter = (): FormatConverter<User> => ({
         'votes': GraphQLModelType.Vote,
     },
     removeCalculatedFields: (partial) => {
-        const calculatedFields = ['starredTags', 'hiddenTags'];
         return _.omit(partial, calculatedFields);
     },
     addJoinTables: (partial) => {
@@ -323,9 +323,9 @@ const porter = (prisma: PrismaType) => ({
 const profileQuerier = (prisma: PrismaType) => ({
     async findProfile(
         userId: string,
-        info: InfoType,
+        info: GraphQLInfo,
     ): Promise<RecursivePartial<Profile> | null> {
-        const partial = toPartialSelect(info, profileFormatter().relationshipMap);
+        const partial = toPartialGraphQLInfo(info, profileFormatter().relationshipMap);
         if (!partial)
             throw new CustomError(CODE.InternalError, 'Could not convert info to partial select.', { code: genErrorCode('0190') });
         // Query profile data and tags
@@ -346,7 +346,7 @@ const profileQuerier = (prisma: PrismaType) => ({
      */
     async myTags(
         userId: string,
-        partial: PartialInfo,
+        partial: PartialGraphQLInfo,
     ): Promise<{ starredTags: Tag[], hiddenTags: TagHidden[] }> {
         let starredTags: Tag[] = [];
         let hiddenTags: any[] = [];
@@ -362,9 +362,9 @@ const profileQuerier = (prisma: PrismaType) => ({
                 select: { tag: padSelect(tagSelect) }
             })).map((star: any) => star.tag)
             // Format for GraphQL
-            const formatted: any[] = data.map(d => modelToGraphQL(d, partial.starredTags as PartialInfo));
+            const formatted: any[] = data.map(d => modelToGraphQL(d, partial.starredTags as PartialGraphQLInfo));
             // Return with supplementalfields added
-            starredTags = await (TagModel(prisma) as any).addSupplementalFields(prisma, userId, formatted, partial.starredTags as PartialInfo) as Tag[];
+            starredTags = await (TagModel(prisma) as any).addSupplementalFields(prisma, userId, formatted, partial.starredTags as PartialGraphQLInfo) as Tag[];
         }
         if (partial.hiddenTags) {
             // Query hidden tags
@@ -377,10 +377,10 @@ const profileQuerier = (prisma: PrismaType) => ({
                 }
             }));
             // Format for GraphQL
-            const formatted: any[] = data.map(d => modelToGraphQL(d, partial.hiddenTags as PartialInfo));
+            const formatted: any[] = data.map(d => modelToGraphQL(d, partial.hiddenTags as PartialGraphQLInfo));
             // Call addsupplementalFields on tags of hidden data
-            const tags = await (TagModel(prisma) as any).addSupplementalFields(prisma, userId, formatted.map(f => f.tag), (partial as any).hiddenTags.tag as PartialInfo) as Tag[];
-            // const tags = (await addSupplementalFields(prisma, userId, formatted.map(f => f.tag), partial.hiddenTags as PartialInfo)) as Tag[];
+            const tags = await (TagModel(prisma) as any).addSupplementalFields(prisma, userId, formatted.map(f => f.tag), (partial as any).hiddenTags.tag as PartialGraphQLInfo) as Tag[];
+            // const tags = (await addSupplementalFields(prisma, userId, formatted.map(f => f.tag), partial.hiddenTags as PartialGraphQLInfo)) as Tag[];
             hiddenTags = data.map((d: any) => ({
                 id: d.id,
                 isBlur: d.isBlur,
@@ -395,7 +395,7 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
     async updateProfile(
         userId: string,
         input: ProfileUpdateInput,
-        info: InfoType,
+        info: GraphQLInfo,
     ): Promise<RecursivePartial<Profile>> {
         profileUpdateSchema.validateSync(input, { abortEarly: false });
         await WalletModel(prisma).verifyHandle(GraphQLModelType.User, userId, input.handle);
@@ -404,7 +404,7 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
         TranslationModel().profanityCheck([input]);
         TranslationModel().validateLineBreaks(input, ['bio'], CODE.LineBreaksBio)
         // Convert info to partial select
-        const partial = toPartialSelect(info, formatter.relationshipMap);
+        const partial = toPartialGraphQLInfo(info, formatter.relationshipMap);
         if (!partial)
             throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0067') });
         // Handle starred tags
@@ -482,7 +482,7 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
     async updateEmails(
         userId: string,
         input: ProfileEmailUpdateInput,
-        info: InfoType,
+        info: GraphQLInfo,
     ): Promise<RecursivePartial<Profile>> {
         // Check for correct password
         let user = await prisma.user.findUnique({ where: { id: userId } });
@@ -491,7 +491,7 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
         if (!validater.validatePassword(input.currentPassword, user))
             throw new CustomError(CODE.BadCredentials, 'Incorrect password', { code: genErrorCode('0069') });
         // Convert input to partial select
-        const partial = toPartialSelect(info, formatter.relationshipMap);
+        const partial = toPartialGraphQLInfo(info, formatter.relationshipMap);
         if (!partial)
             throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0070') });
         // Create user data

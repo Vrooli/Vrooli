@@ -36,27 +36,3 @@ export type RecursivePartial<T> = {
     ? RecursivePartial<T[P]>
     : T[P]
 };
-
-/**
- * Type that defines a state between a GraphQL to Prisma type conversion, where: 
- * - Calculated/virtual fields are not yet handled
- * - Unions are not yet handled
- * - Join tables are not yet handled
- * The function using this type should be able to make the conversion
- * NOTE: "select" padding is handled later, so no need to handle it here
- * @param T GraphQL object type being converted
- */
-export type PartialSelectConvert<T> = any;
-// export type PartialSelectConvert<T> = T extends Date | string | number | boolean | null
-//     ? boolean
-//     : {
-//         [P in keyof T]?: T[P] extends Date | string | number | boolean | null
-//         ? boolean
-//         : T[P] extends Array<T>
-//         ? { [x: string]: boolean } // Prevent infinite recursion
-//         : T[P] extends Array<any>
-//         ? PartialSelectConvert<T[P][number]>
-//         : T[P] extends T
-//         ? { [x: string]: boolean } // Prevent infinite recursion
-//         : PartialSelectConvert<T[P]>
-//     };

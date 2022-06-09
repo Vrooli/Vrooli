@@ -88,7 +88,7 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
             tagHiddensUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
         }
     },
-    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<TagHiddenCreateInput, TagHiddenUpdateInput>): Promise<CUDResult<TagHidden>> {
+    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<TagHiddenCreateInput, TagHiddenUpdateInput>): Promise<CUDResult<TagHidden>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -98,9 +98,9 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
                 // Call createData helper function
                 const data = await this.toDBShapeAdd(userId ?? '', input, false);
                 // Create object
-                const currCreated = await prisma.user_tag_hidden.create({ data, ...selectHelper(partial) });
+                const currCreated = await prisma.user_tag_hidden.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partial);
+                const converted = modelToGraphQL(currCreated, partialInfo);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -117,10 +117,10 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
                 const currUpdated = await prisma.user_tag_hidden.update({
                     where: input.where,
                     data: await this.toDBShapeUpdate(userId ?? '', input.data),
-                    ...selectHelper(partial)
+                    ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partial);
+                const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }

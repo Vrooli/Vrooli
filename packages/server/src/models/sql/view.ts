@@ -2,7 +2,7 @@ import { CODE, MemberRole, ViewFor } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, LogType, User } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { deconstructUnion, FormatConverter, GraphQLModelType, PaginatedSearchResult, PartialInfo, readManyHelper } from "./base";
+import { deconstructUnion, FormatConverter, GraphQLModelType, PartialGraphQLInfo, readManyHelper } from "./base";
 import _ from "lodash";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
@@ -59,7 +59,7 @@ export const viewFormatter = (): FormatConverter<View> => ({
         prisma: PrismaType,
         userId: string | null, // Of the user making the request
         objects: RecursivePartial<any>[],
-        partial: PartialInfo,
+        partial: PartialGraphQLInfo,
     ): Promise<RecursivePartial<View>[]> {
         // Query for data that view is applied to
         if (_.isObject(partial.to)) {

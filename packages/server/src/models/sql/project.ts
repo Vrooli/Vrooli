@@ -2,7 +2,7 @@ import { CODE, MemberRole, projectsCreate, projectsUpdate, projectTranslationCre
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor } from "../../schema/types";
-import { addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -19,6 +19,7 @@ import { ViewModel } from "./view";
 //==============================================================
 
 const joinMapper = { tags: 'tag', users: 'user', organizations: 'organization', starredBy: 'user' };
+const calculatedFields = ['isUpvoted', 'isStarred', 'role'];
 export const projectFormatter = (): FormatConverter<Project> => ({
     relationshipMap: {
         '__typename': GraphQLModelType.Project,
@@ -41,7 +42,6 @@ export const projectFormatter = (): FormatConverter<Project> => ({
         'wallets': GraphQLModelType.Wallet,
     },
     removeCalculatedFields: (partial) => {
-        const calculatedFields = ['isUpvoted', 'isStarred', 'role'];
         return _.omit(partial, calculatedFields);
     },
     constructUnions: (data) => {
@@ -64,7 +64,7 @@ export const projectFormatter = (): FormatConverter<Project> => ({
         prisma: PrismaType,
         userId: string | null, // Of the user making the request
         objects: RecursivePartial<any>[],
-        partial: PartialInfo,
+        partial: PartialGraphQLInfo,
     ): Promise<RecursivePartial<Project>[]> {
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
@@ -237,7 +237,7 @@ export const projectMutater = (prisma: PrismaType) => ({
     /**
      * Performs adds, updates, and deletes of projects. First validates that every action is allowed.
      */
-    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<ProjectCreateInput, ProjectUpdateInput>): Promise<CUDResult<Project>> {
+    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<ProjectCreateInput, ProjectUpdateInput>): Promise<CUDResult<Project>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         /**
          * Helper function for creating create/update Prisma value
@@ -276,10 +276,10 @@ export const projectMutater = (prisma: PrismaType) => ({
                 // Create object
                 const currCreated = await prisma.project.create({
                     data,
-                    ...selectHelper(partial)
+                    ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partial);
+                const converted = modelToGraphQL(currCreated, partialInfo);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -311,10 +311,10 @@ export const projectMutater = (prisma: PrismaType) => ({
                 const currUpdated = await prisma.project.update({
                     where: input.where,
                     data,
-                    ...selectHelper(partial)
+                    ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partial);
+                const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }

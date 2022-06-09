@@ -111,7 +111,7 @@ export const stepVerifier = () => ({
     /**
      * Performs adds, updates, and deletes of runs. First validates that every action is allowed.
      */
-    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<RunStepCreateInput, RunStepUpdateInput>): Promise<CUDResult<RunStep>> {
+    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<RunStepCreateInput, RunStepUpdateInput>): Promise<CUDResult<RunStep>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         if (!userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0177') });
         // Perform mutations
@@ -122,9 +122,9 @@ export const stepVerifier = () => ({
                 // Call createData helper function
                 const data = await this.toDBShapeAdd(userId, input);
                 // Create object
-                const currCreated = await prisma.run_step.create({ data, ...selectHelper(partial) });
+                const currCreated = await prisma.run_step.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partial);
+                const converted = modelToGraphQL(currCreated, partialInfo);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -141,10 +141,10 @@ export const stepVerifier = () => ({
                 const currUpdated = await prisma.run_step.update({
                     where: input.where,
                     data: await this.toDBShapeUpdate(userId, input.data),
-                    ...selectHelper(partial)
+                    ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partial);
+                const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }

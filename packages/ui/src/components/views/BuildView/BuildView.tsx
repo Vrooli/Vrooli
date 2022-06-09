@@ -355,7 +355,7 @@ export const BuildView = ({
             routine,
             changedRoutine,
             ['tags', 'nodes.data.routines.routine'],
-            ['nodes', 'nodeLinks', 'node.data.routines', 'translations']
+            ['nodes', 'nodeLinks', 'nodes.data.routines', 'nodes.nodeRoutineList.routines.routine.translations', 'translations']
         )
         // If routine belongs to an organization, add organizationId to input
         if (routine?.owner?.__typename === 'Organization') {
@@ -392,9 +392,18 @@ export const BuildView = ({
             mutation: routineUpdate,
             input,
             successMessage: () => 'Routine updated.',
-            onSuccess: ({ data }) => { onChange(data.routineUpdate); },
+            onSuccess: ({ data }) => { 
+                // Update main routine object
+                onChange(data.routineUpdate); 
+                // Remove indication of editing from URL
+                const params = parseSearchParams(window.location.search);
+                if (params.edit) delete params.edit;
+                setLocation(stringifySearchParams(params), { replace: true });
+                // Turn off editing mode
+                setIsEditing(false);
+            },
         })
-    }, [changedRoutine, onChange, routine, routineUpdate])
+    }, [changedRoutine, onChange, routine, routineUpdate, setLocation])
 
     /**
      * If closing with unsaved changes, prompt user to save

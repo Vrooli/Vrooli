@@ -1,8 +1,8 @@
 import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeRoutineListItem, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemCreateInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialSelect, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, deleteOneHelper, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
-import { CODE, inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, MemberRole, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routinesUpdate, routineTranslationCreate, routineTranslationUpdate } from "@local/shared";
+import { CODE, DeleteOneType, inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, MemberRole, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routinesUpdate, routineTranslationCreate, routineTranslationUpdate } from "@local/shared";
 import { hasProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -30,6 +30,7 @@ type NodeWeightData = {
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
 const countMapper = { nodesCount: 'nodes' }
+const calculatedFields = ['inProgressCompletedSteps', 'inProgressCompletedComplexity', 'inProgressVersion', 'isUpvoted', 'isStarred', 'role', 'runs'];
 export const routineFormatter = (): FormatConverter<Routine> => ({
     relationshipMap: {
         '__typename': GraphQLModelType.Routine,
@@ -54,7 +55,6 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         'tags': GraphQLModelType.Tag,
     },
     removeCalculatedFields: (partial) => {
-        const calculatedFields = ['inProgressCompletedSteps', 'inProgressCompletedComplexity', 'inProgressVersion', 'isUpvoted', 'isStarred', 'role', 'runs'];
         return _.omit(partial, calculatedFields);
     },
     constructUnions: (data) => {
@@ -83,7 +83,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         prisma: PrismaType,
         userId: string | null, // Of the user making the request
         objects: RecursivePartial<any>[],
-        partial: PartialInfo,
+        partial: PartialGraphQLInfo,
     ): Promise<RecursivePartial<Routine>[]> {
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
@@ -133,7 +133,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
                 // Find requested fields of runs. Also add routineId, so we 
                 // can associate runs with their routine
                 const runPartial = {
-                    ...toPartialSelect(partial.runs, runFormatter().relationshipMap),
+                    ...toPartialGraphQLInfo(partial.runs, runFormatter().relationshipMap),
                     routineId: true
                 }
                 if (runPartial === undefined) {
@@ -292,9 +292,9 @@ export const calculateShortestLongestWeightedPath = (nodes: { [id: string]: Node
             const newVisitedEdges = visitedEdges.concat([edge]);
             // Recurse on the next node 
             const [shortest, longest] = getShortLong(
-                edge.fromId, 
-                newVisitedEdges, 
-                currShortest + weight.simplicity + weight.optionalInputs, 
+                edge.fromId,
+                newVisitedEdges,
+                currShortest + weight.simplicity + weight.optionalInputs,
                 currLongest + weight.complexity + weight.allInputs);
             // If shortest is not -1, add to edgeShorts
             if (shortest !== -1) edgeShorts.push(shortest);
@@ -417,8 +417,8 @@ export const routineMutater = (prisma: PrismaType) => ({
         // Convert compexity/simplicity to a map for easy lookup
         let subroutineWeightDataDict: { [routineId: string]: NodeWeightData } = {};
         for (const sub of subroutineWeightData) {
-            subroutineWeightDataDict[sub.id] = { 
-                complexity: sub.complexity, 
+            subroutineWeightDataDict[sub.id] = {
+                complexity: sub.complexity,
                 simplicity: sub.simplicity,
                 optionalInputs: sub.inputs.filter(input => !input.isRequired).length,
                 allInputs: sub.inputs.length,
@@ -596,39 +596,61 @@ export const routineMutater = (prisma: PrismaType) => ({
         } : undefined;
     },
     /**
-     * Add, update, or remove a routine relationship from a routine list
+     * Add, update, or remove a one-to-one routine relationship. 
+     * Due to some unknown Prisma bug, it won't let us create/update a routine directly
+     * in the main mutation query like most other relationship builders. Instead, we 
+     * must do this separately, and return the routine's ID.
      */
     async relationshipBuilder(
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
-        relationshipName: string = 'routines',
-    ): Promise<{ [x: string]: any } | undefined> {
+    ): Promise<string | null> {
+        // Convert input to Prisma shape
         const fieldExcludes = ['node', 'user', 'userId', 'organization', 'organizationId', 'createdByUser', 'createdByUserId', 'createdByOrganization', 'createdByOrganizationId'];
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, fieldExcludes })
+        let formattedInput: any = relationshipToPrisma({ data: input, relationshipName: 'routine', isAdd, fieldExcludes })
+        console.log('routine relationship builder formattedInput', JSON.stringify(formattedInput), '\n\n');
         // Validate
         const { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         await this.validateMutations({
             userId,
             createMany: createMany as RoutineCreateInput[],
             updateMany: updateMany as { where: { id: string }, data: RoutineUpdateInput }[],
-            deleteMany: deleteMany?.map(d => d.id)
+            deleteMany: deleteMany?.map((d: any) => d.id)
         });
         // Shape
-        if (Array.isArray(formattedInput.create)) {
-            formattedInput.create = formattedInput.create.map(async (data) => await this.toDBShape(userId, data as any, true));
+        if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
+            const create = await this.toDBShape(userId, formattedInput.create[0], true);
+            // Create routine
+            const routine = await prisma.routine.create({
+                data: create,
+            })
+            return routine?.id ?? null;
         }
-        if (Array.isArray(formattedInput.update)) {
-            const updates = [];
-            for (const update of formattedInput.update) {
-                updates.push({
-                    where: update.where,
-                    data: await this.toDBShape(userId, update.data as any, false),
-                })
-            }
-            formattedInput.update = updates;
+        if (Array.isArray(formattedInput.connect) && formattedInput.connect.length > 0) {
+            return formattedInput.connect[0].id;
         }
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+        if (Array.isArray(formattedInput.disconnect) && formattedInput.disconnect.length > 0) {
+            return null;
+        }
+        if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
+            const update = await this.toDBShape(userId, formattedInput.update[0].data, false);
+            console.log('routien relationship builder update object', JSON.stringify(update), '\n\n');
+            // Update routine
+            const routine = await prisma.routine.update({
+                where: { id: update.id },
+                data: update
+            })
+            console.log('routien after updatehelper calllllll', JSON.stringify(routine), '\n\n');
+            return routine?.id ?? null;
+        }
+        if (Array.isArray(formattedInput.delete) && formattedInput.delete.length > 0) {
+            const deleteId = formattedInput.delete[0].id;
+            // Delete routine
+            await deleteOneHelper(userId, { id: deleteId, objectType: DeleteOneType.Routine }, RoutineModel(prisma));
+            return deleteId;
+        }
+        return null;
     },
     /**
      * Validate adds, updates, and deletes
@@ -690,7 +712,7 @@ export const routineMutater = (prisma: PrismaType) => ({
     /**
      * Performs adds, updates, and deletes of routines. First validates that every action is allowed.
      */
-    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<RoutineCreateInput, RoutineUpdateInput>): Promise<CUDResult<Routine>> {
+    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<RoutineCreateInput, RoutineUpdateInput>): Promise<CUDResult<Routine>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -714,9 +736,9 @@ export const routineMutater = (prisma: PrismaType) => ({
                     };
                 }
                 // Create object
-                const currCreated = await prisma.routine.create({ data, ...selectHelper(partial) });
+                const currCreated = await prisma.routine.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partial);
+                const converted = modelToGraphQL(currCreated, partialInfo);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -748,10 +770,10 @@ export const routineMutater = (prisma: PrismaType) => ({
                 const currUpdated = await prisma.routine.update({
                     where: input.where,
                     data,
-                    ...selectHelper(partial)
+                    ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partial);
+                const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }

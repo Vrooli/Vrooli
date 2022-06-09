@@ -138,7 +138,7 @@ export const nodeRoutineListItemCreate = yup.object().shape({
 });
 export const nodeRoutineListItemUpdate: any = yup.object().shape({
     id: id.required(),
-    index: index.required(),
+    index: index.notRequired().default(undefined),
     isOptional: isOptional.notRequired().default(undefined),
     routineConnect: id.notRequired().default(undefined), // Create/update/delete of subroutines must be done in a separate request
     routineDisconnect: id.notRequired().default(undefined),

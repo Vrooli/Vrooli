@@ -1,5 +1,5 @@
 import { Count, Node, NodeCreateInput, NodeUpdateInput } from "../../schema/types";
-import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType } from "./base";
+import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, PartialPrismaSelect, toPartialPrismaSelect, PartialGraphQLInfo } from "./base";
 import { CustomError } from "../../error";
 import { CODE, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeTranslationCreate, nodeTranslationUpdate, nodeUpdate, whilesCreate, whilesUpdate, whensCreate, whensUpdate, nodeRoutineListItemTranslationCreate, nodeRoutineListItemTranslationUpdate, loopsCreate, loopsUpdate, nodesCreate, nodesUpdate } from "@local/shared";
 import { PrismaType } from "types";
@@ -366,15 +366,11 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
             nodeRoutineListItemsCreate.validateSync(formattedInput.create, { abortEarly: false });
             let result = [];
             for (const data of formattedInput.create) {
-                // Routines are a one-to-one relationship, so we have to get rid of the array
-                let routineRel = await routineModel.relationshipBuilder(userId, data, isAdd, 'routine')
-                // For now, routines are created before the node, so we only support connecting
-                if (routineRel?.connect) routineRel.connect = routineRel.connect[0];
                 result.push({
                     id: data.id ?? undefined,
                     index: data.index,
                     isOptional: data.isOptional,
-                    routine: routineRel,
+                    routineId: await routineModel.relationshipBuilder(userId, data, isAdd),
                     translations: TranslationModel().relationshipBuilder(userId, data, { create: nodeRoutineListItemTranslationCreate, update: nodeRoutineListItemTranslationUpdate }, false),
                 })
             }
@@ -386,17 +382,13 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
             nodeRoutineListItemsUpdate.validateSync(formattedInput.update.map(u => u.data), { abortEarly: false });
             let result = [];
             for (const data of formattedInput.update) {
-                // Routines are a one-to-one relationship, so we have to get rid of the array
-                let routineRel = await routineModel.relationshipBuilder(userId, data, false, 'routine')
-                // For now, only routine updates supported
-                if (routineRel?.update) routineRel.update = routineRel.update[0];
                 result.push({
                     where: data.where,
                     data: {
                         index: data.data.index,
                         isOptional: data.data.isOptional,
-                        routine: routineRel,
-                        translations: TranslationModel().relationshipBuilder(userId, data, { create: nodeRoutineListItemTranslationCreate, update: nodeRoutineListItemTranslationUpdate }, false),
+                        routineId: await routineModel.relationshipBuilder(userId, data.data, isAdd),
+                        translations: TranslationModel().relationshipBuilder(userId, data.data, { create: nodeRoutineListItemTranslationCreate, update: nodeRoutineListItemTranslationUpdate }, false),
                     }
                 })
             }
@@ -474,7 +466,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
     /**
      * Performs adds, updates, and deletes of nodes. First validates that every action is allowed.
      */
-    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<NodeCreateInput, NodeUpdateInput>): Promise<CUDResult<Node>> {
+    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<NodeCreateInput, NodeUpdateInput>): Promise<CUDResult<Node>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -484,10 +476,10 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
                 // Create object
                 const currCreated = await prisma.node.create({
                     data: await this.toDBShape(userId, input),
-                    ...selectHelper(partial)
+                    ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partial);
+                const converted = modelToGraphQL(currCreated, partialInfo);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -499,10 +491,10 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
                 const currUpdated = await prisma.node.update({
                     where: input.where,
                     data: await this.toDBShape(userId, input.data),
-                    ...selectHelper(partial)
+                    ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partial);
+                const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }

@@ -2,7 +2,7 @@ import { CODE, commentCreate, commentsCreate, CommentSortBy, commentsUpdate, com
 import { CustomError } from "../../error";
 import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentUpdateInput, Count } from "../../schema/types";
 import { PrismaType } from "types";
-import { addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeCreatorField, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, GraphQLModelType } from "./base";
+import { addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeCreatorField, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, GraphQLModelType, PartialGraphQLInfo, PartialPrismaSelect } from "./base";
 import { organizationVerifier } from "./organization";
 import pkg from '@prisma/client';
 import { TranslationModel } from "./translation";
@@ -15,6 +15,7 @@ const { MemberRole } = pkg;
 //==============================================================
 
 const joinMapper = { starredBy: 'user' };
+const calculatedFields = ['isStarred', 'isUpvoted'];
 export const commentFormatter = (): FormatConverter<Comment> => ({
     relationshipMap: {
         '__typename': GraphQLModelType.Comment,
@@ -28,7 +29,6 @@ export const commentFormatter = (): FormatConverter<Comment> => ({
         'votes': GraphQLModelType.Vote,
     },
     removeCalculatedFields: (partial) => {
-        const calculatedFields = ['isStarred', 'isUpvoted'];
         return _.omit(partial, calculatedFields);
     },
     constructUnions: (data) => {
@@ -142,7 +142,7 @@ export const commentMutater = (prisma: PrismaType) => ({
     /**
      * Performs adds, updates, and deletes of organizations. First validates that every action is allowed.
      */
-    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<CommentCreateInput, CommentUpdateInput>): Promise<CUDResult<Comment>> {
+    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<CommentCreateInput, CommentUpdateInput>): Promise<CUDResult<Comment>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -156,10 +156,10 @@ export const commentMutater = (prisma: PrismaType) => ({
                         userId,
                         [forMapper[input.createdFor]]: input.forId,
                     },
-                    ...selectHelper(partial)
+                    ...selectHelper(partialInfo)
                 })
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partial);
+                const converted = modelToGraphQL(currCreated, partialInfo);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -177,10 +177,10 @@ export const commentMutater = (prisma: PrismaType) => ({
                     data: {
                         translations: TranslationModel().relationshipBuilder(userId, input.data, { create: commentTranslationCreate, update: commentTranslationUpdate }, false),
                     },
-                    ...selectHelper(partial)
+                    ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partial);
+                const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }
