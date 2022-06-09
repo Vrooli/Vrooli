@@ -43,10 +43,12 @@ export const runSearcher = (): Searcher<RunSearchInput> => ({
             OR: [
                 {
                     routine: {
-                        OR: [
-                            { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },
-                            { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
-                        ]
+                        translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } },
+                    }
+                },
+                {
+                    routine: {
+                        translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } },
                     }
                 },
                 { title: { ...insensitive } }

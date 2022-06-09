@@ -233,23 +233,24 @@ export type FindHandlesInput = {
   organizationId?: InputMaybe<Scalars['ID']>;
 };
 
-export type ForYouPageInput = {
-  take?: InputMaybe<Scalars['Int']>;
-};
-
-export type ForYouPageResult = {
-  __typename?: 'ForYouPageResult';
-  activeRuns: Array<Run>;
-  completedRuns: Array<Run>;
-  recentlyStarred: Array<Star>;
-  recentlyViewed: Array<View>;
-};
-
 export type Handle = {
   __typename?: 'Handle';
   handle: Scalars['String'];
   id: Scalars['ID'];
   wallet: Wallet;
+};
+
+export type HistoryPageInput = {
+  searchString: Scalars['String'];
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type HistoryPageResult = {
+  __typename?: 'HistoryPageResult';
+  activeRuns: Array<Run>;
+  completedRuns: Array<Run>;
+  recentlyStarred: Array<Star>;
+  recentlyViewed: Array<View>;
 };
 
 export type HomePageInput = {
@@ -1412,7 +1413,7 @@ export type Query = {
   commentsCount: Scalars['Int'];
   developPage: DevelopPageResult;
   findHandles: Array<Scalars['String']>;
-  forYouPage: ForYouPageResult;
+  historyPage: HistoryPageResult;
   homePage: HomePageResult;
   learnPage: LearnPageResult;
   logs: LogSearchResult;
@@ -1475,8 +1476,8 @@ export type QueryFindHandlesArgs = {
 };
 
 
-export type QueryForYouPageArgs = {
-  input: ForYouPageInput;
+export type QueryHistoryPageArgs = {
+  input: HistoryPageInput;
 };
 
 
@@ -2801,6 +2802,27 @@ export type View = {
   lastViewed: Scalars['Date'];
   title: Scalars['String'];
   to: ProjectOrOrganizationOrRoutineOrStandardOrUser;
+};
+
+export type ViewEdge = {
+  __typename?: 'ViewEdge';
+  cursor: Scalars['String'];
+  node: View;
+};
+
+export type ViewSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  lastViewedTimeFrame?: InputMaybe<TimeFrame>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<ViewSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type ViewSearchResult = {
+  __typename?: 'ViewSearchResult';
+  edges: Array<ViewEdge>;
+  pageInfo: PageInfo;
 };
 
 export enum ViewSortBy {

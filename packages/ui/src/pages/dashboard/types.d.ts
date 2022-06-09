@@ -4,7 +4,7 @@ export interface HomePageProps {
     session: Session;
 }
 
-export interface ForYouPageProps {
+export interface HistoryPageProps {
     session: Session;
 }
 

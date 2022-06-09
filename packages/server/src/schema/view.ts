@@ -14,7 +14,25 @@ export const typeDef = gql`
         title: String!
         to: ProjectOrOrganizationOrRoutineOrStandardOrUser!
     }
- 
+
+    input ViewSearchInput {
+        after: String
+        lastViewedTimeFrame: TimeFrame
+        ids: [ID!]
+        searchString: String
+        sortBy: ViewSortBy
+        take: Int
+    }
+
+    type ViewSearchResult {
+        pageInfo: PageInfo!
+        edges: [ViewEdge!]!
+    }
+
+    type ViewEdge {
+        cursor: String!
+        node: View!
+    }
 `
 
 export const resolvers = {

@@ -338,7 +338,8 @@ export interface FindHandlesInput {
   organizationId?: string | null;
 }
 
-export interface ForYouPageInput {
+export interface HistoryPageInput {
+  searchString: string;
   take?: number | null;
 }
 

@@ -3,7 +3,7 @@
  */
 import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from "graphql";
-import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, OrganizationSortBy, ProjectSortBy, ResearchPageResult, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, ForYouPageInput, ForYouPageResult, StatisticsPageInput, StatisticsPageResult, Project, Routine, RunStatus, RunSortBy, ViewSortBy } from './types';
+import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, OrganizationSortBy, ProjectSortBy, ResearchPageResult, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, HistoryPageInput, HistoryPageResult, StatisticsPageInput, StatisticsPageResult, Project, Routine, RunStatus, RunSortBy, ViewSortBy } from './types';
 import { CODE } from '@local/shared';
 import { IWrap } from '../types';
 import { Context } from '../context';
@@ -157,11 +157,12 @@ export const typeDef = gql`
         users: [User!]!
     }
 
-    input ForYouPageInput {
+    input HistoryPageInput {
+        searchString: String!
         take: Int
     }
 
-    type ForYouPageResult {
+    type HistoryPageResult {
         activeRuns: [Run!]!
         completedRuns: [Run!]!
         recentlyViewed: [View!]!
@@ -210,7 +211,7 @@ export const typeDef = gql`
  
     type Query {
         homePage(input: HomePageInput!): HomePageResult!
-        forYouPage(input: ForYouPageInput!): ForYouPageResult!
+        historyPage(input: HistoryPageInput!): HistoryPageResult!
         learnPage: LearnPageResult!
         researchPage: ResearchPageResult!
         developPage: DevelopPageResult!
@@ -547,13 +548,12 @@ export const resolvers = {
             }
         },
         /**
-         * Queries data shown on For You page 
+         * Queries data shown on History page 
          */
-        forYouPage: async (_parent: undefined, { input }: IWrap<ForYouPageInput>, context: Context, info: GraphQLResolveInfo): Promise<ForYouPageResult> => {
+        historyPage: async (_parent: undefined, { input }: IWrap<HistoryPageInput>, context: Context, info: GraphQLResolveInfo): Promise<HistoryPageResult> => {
             // If not signed in, shouldn't be able to see this page
             if (!context.req.userId) throw new CustomError(CODE.Unauthorized, 'Must be signed in to see this page');
             await rateLimit({ context, info, max: 5000 });
-            const take = 5;
             // Initialize models
             const runModel = RunModel(context.prisma);
             const starModel = StarModel(context.prisma);
@@ -561,7 +561,7 @@ export const resolvers = {
             // Query for incomplete runs
             const activeRuns = (await readManyHelper(
                 context.req.userId,
-                { take, status: RunStatus.InProgress, sortBy: RunSortBy.DateUpdatedDesc },
+                { ...input, status: RunStatus.InProgress, sortBy: RunSortBy.DateUpdatedDesc },
                 runSelect,
                 runModel,
                 { userId: context.req.userId },
@@ -570,7 +570,7 @@ export const resolvers = {
             // Query for complete runs
             const completedRuns = (await readManyHelper(
                 context.req.userId,
-                { take, status: RunStatus.Completed, sortBy: RunSortBy.DateUpdatedDesc },
+                { ...input, status: RunStatus.Completed, sortBy: RunSortBy.DateUpdatedDesc },
                 runSelect,
                 runModel,
                 { userId: context.req.userId },
@@ -579,7 +579,7 @@ export const resolvers = {
             // Query recently viewed objects (of any type)
             const recentlyViewed = (await readManyHelper(
                 context.req.userId,
-                { take, sortBy: ViewSortBy.LastViewedDesc },
+                { ...input, sortBy: ViewSortBy.LastViewedDesc },
                 viewSelect,
                 viewModel,
                 { byId: context.req.userId },
@@ -588,7 +588,7 @@ export const resolvers = {
             // Query recently starred objects (of any type). Make sure to ignore tags
             const recentlyStarred = (await readManyHelper(
                 context.req.userId,
-                { take, sortBy: UserSortBy.DateCreatedDesc },
+                { ...input, sortBy: UserSortBy.DateCreatedDesc },
                 starSelect,
                 starModel,
                 { byId: context.req.userId, tagId: null },

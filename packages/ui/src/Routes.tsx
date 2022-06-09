@@ -16,7 +16,7 @@ import { Box, CircularProgress } from '@mui/material';
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
 const {
     HomePage,
-    ForYouPage,
+    HistoryPage,
     LearnPage,
     ResearchPage,
     DevelopPage,
@@ -71,10 +71,10 @@ export const AllRoutes = (props: CommonProps) => {
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={LINKS.ForYou}>
+                <Route path={LINKS.History}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('For You')} restrictedToRoles={[ROLES.Actor]} {...props}>
-                            <ForYouPage session={props.session} />
+                        <Page title={title('History')} restrictedToRoles={[ROLES.Actor]} {...props}>
+                            <HistoryPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>

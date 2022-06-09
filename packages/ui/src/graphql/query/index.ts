@@ -1,6 +1,6 @@
 export * from './developPage';
 export * from './findHandles';
-export * from './forYouPage';
+export * from './historyPage';
 export * from './homePage';
 export * from './learnPage';
 export * from './logs';

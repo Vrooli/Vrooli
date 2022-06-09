@@ -1,8 +1,8 @@
 import { CODE, MemberRole, ViewFor } from "@local/shared";
 import { CustomError } from "../../error";
-import { Count, LogType, User } from "../../schema/types";
+import { Count, LogType, User, ViewSearchInput, ViewSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { deconstructUnion, FormatConverter, GraphQLModelType, PartialGraphQLInfo, readManyHelper } from "./base";
+import { deconstructUnion, FormatConverter, GraphQLModelType, PartialGraphQLInfo, readManyHelper, Searcher, timeFrameToPrisma } from "./base";
 import _ from "lodash";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
@@ -121,6 +121,27 @@ export interface ViewInput {
     title: string;
     viewFor: ViewFor;
 }
+
+export const viewSearcher = (): Searcher<ViewSearchInput> => ({
+    defaultSort: ViewSortBy.LastViewedDesc,
+    getSortQuery: (sortBy: string): any => {
+        return {
+            [ViewSortBy.LastViewedAsc]: { lastViewed: 'asc' },
+            [ViewSortBy.LastViewedDesc]: { lastViewed: 'desc' },
+        }[sortBy]
+    },
+    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
+        const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
+        return ({
+            title: { ...insensitive }
+        })
+    },
+    customQueries(input: ViewSearchInput): { [x: string]: any } {
+        return {
+            ...(input.lastViewedTimeFrame !== undefined ? timeFrameToPrisma('lastViewed', input.lastViewedTimeFrame) : {}),
+        }
+    },
+})
 
 /**
  * Marks objects as viewed. If view exists, updates last viewed time.
@@ -329,11 +350,13 @@ const viewer = (prisma: PrismaType) => ({
 export function ViewModel(prisma: PrismaType) {
     const prismaObject = prisma.view;
     const format = viewFormatter();
+    const search = viewSearcher();
 
     return {
         prisma,
         prismaObject,
         ...format,
+        ...search,
         ...viewer(prisma),
     }
 }

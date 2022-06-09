@@ -81,8 +81,8 @@ const createNewPopupOptions: ListMenuItemData<string>[] = [
 ]
 
 const tabOptions = [
-    ['Popular', APP_LINKS.Home],
-    ['For You', APP_LINKS.ForYou],
+    ['For You', APP_LINKS.Home],
+    ['History', APP_LINKS.History],
 ];
 
 const examplesData: [string, string][] = [
@@ -133,8 +133,8 @@ const shortcuts: ShortcutItem[] = [
         link: `${APP_LINKS.Develop}`,
     },
     {
-        label: 'View for you page',
-        link: `${APP_LINKS.ForYou}`,
+        label: 'View history page',
+        link: `${APP_LINKS.History}`,
     },
     {
         label: 'Search organizations',
@@ -212,11 +212,11 @@ export const HomePage = ({
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
     const { data, refetch, loading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
     useEffect(() => { refetch() }, [refetch, searchString]);
-    const showForYou = useMemo(() => Array.isArray(session?.roles) && session.roles.length > 0, [session]);
+    const showHistoryTab = useMemo(() => Array.isArray(session?.roles) && session.roles.length > 0, [session]);
 
     // Handle tabs
     const tabIndex = useMemo(() => {
-        if (window.location.pathname === APP_LINKS.ForYou) return 1;
+        if (window.location.pathname === APP_LINKS.History) return 1;
         return 0;
     }, []);
     const handleTabChange = (_e, newIndex) => {
@@ -392,7 +392,7 @@ export const HomePage = ({
             paddingTop: { xs: '64px', md: '80px' },
         }}>
             {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}
-            {showForYou && (
+            {showHistoryTab && (
                 <Box display="flex" justifyContent="center" width="100%">
                     <Tabs
                         value={tabIndex}
