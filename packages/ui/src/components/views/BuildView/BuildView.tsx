@@ -351,10 +351,14 @@ export const BuildView = ({
             PubSub.publish(Pubs.Snack, { message: 'Cannot update: Invalid routine data', severity: 'error' });
             return;
         }
+        console.log('buildview before formatforupdate', 
+            (routine as any).nodes.find(node => node.id === '01234569-7890-1234-5678-901234567891').data.routines[0].routine, 
+            (changedRoutine as any).nodes.find(node => node.id === '01234569-7890-1234-5678-901234567891').data.routines[0].routine,
+        );
         const input: any = formatForUpdate(
             routine,
             changedRoutine,
-            ['tags', 'nodes.data.routines.routine'],
+            ['tags', 'nodes.data.routines.routine', 'nodes.data.routines.routine.inputs.standard', 'nodes.data.routines.routine.outputs.standard'],
             ['nodes', 'nodeLinks', 'nodes.data.routines', 'nodes.nodeRoutineList.routines.routine.translations', 'translations']
         )
         // If routine belongs to an organization, add organizationId to input

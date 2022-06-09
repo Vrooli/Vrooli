@@ -29,6 +29,14 @@ export function convertToDot(obj, parent = [], keyValue = {}) {
 }
 
 /**
+ * Removes the first level of all strings in a dot notation array 
+ * (e.g. ['parent.child.property', 'parent'] => ['child.property'])
+ * @param notationArray Array of dot notation strings 
+ * @returns Array of strings with the first level removed
+ */
+export const removeFirstLevel = (notationArray: string[]) => notationArray.map(s => s.split('.').slice(1).join('.')).filter(s => s.length > 0);
+
+/**
  * Formats an object to prepare for a create mutation. Each relationship field is converted into
  * either a connection or create, depending on the existence of an id.
  * @param obj - The object being created
@@ -37,7 +45,7 @@ export function convertToDot(obj, parent = [], keyValue = {}) {
 export const formatForCreate = <T>(obj: Partial<T>, treatLikeCreates: string[] = []): Partial<T> => {
     let changed = {};
     // Create child treatLike arrays
-    const childTreatLikeCreates = treatLikeCreates.map(s => s.split('.').slice(1).join('.')).filter(s => s.length > 0);
+    const childTreatLikeCreates = removeFirstLevel(treatLikeCreates);
     // Helper method to add to arrays which might not exist
     const addToChangedArray = (key, value) => {
         if (Array.isArray(changed[key])) {
@@ -123,12 +131,12 @@ export const formatForUpdate = <S, T>(
     treatLikeConnects: string[] = [],
     treatLikeDeletes: string[] = [],
     treatLikeCreates: string[] = []
-): Partial<T> => {
+): Partial<T> | undefined => {
     // Create return object
     let changed = {};
     // Create child treatLike arrays
-    const childTreatLikeConnects = treatLikeConnects.map(s => s.split('.').slice(1).join('.')).filter(s => s.length > 0);
-    const childTreatLikeDeletes = treatLikeDeletes.map(s => s.split('.').slice(1).join('.')).filter(s => s.length > 0);
+    const childTreatLikeConnects = removeFirstLevel(treatLikeConnects);
+    const childTreatLikeDeletes = removeFirstLevel(treatLikeDeletes);
     // Helper method to add to arrays which might not exist
     const addToChangedArray = (key: string, value) => {
         if (Array.isArray(changed[key])) {
@@ -148,6 +156,7 @@ export const formatForUpdate = <S, T>(
         }
         // If the value is identical to the original value (and not an id), skip it
         else if (key !== 'id' && original && _.isEqual(value, original[key])) continue;
+        if (key === 'standard') console.log('values not identical', key, value, original);
         // If the value is an array
         else if (Array.isArray(value)) {
             // Loop through changed values and determine which are connections, creates, and updates
@@ -212,6 +221,8 @@ export const formatForUpdate = <S, T>(
             let originalValue = original ? original[key] : undefined;
             // Find the changed value
             const changedValue = formatForUpdate(originalValue, curr, childTreatLikeConnects, childTreatLikeDeletes);
+            // If undefined, skip it
+            if (changedValue === undefined) continue;
             // Check if disconnect
             if (!changedValue && originalValue) {
                 changed[`${key}Disconnect`] = curr.id;
@@ -239,5 +250,8 @@ export const formatForUpdate = <S, T>(
         // If the value is a primitive, add it to the changed object
         else changed[key] = value;
     }
+    // If changed is empty, return undefined
+    if (Object.keys(changed).length === 0) return undefined;
+    // Otherwise, return the changed object
     return changed;
 }

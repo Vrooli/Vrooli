@@ -167,7 +167,13 @@ export const RoutineView = ({
         }), { replace: true });
         setIsBuildOpen(true);
     }, [routine?.id, setLocation]);
-    const stopBuild = useCallback(() => { setIsBuildOpen(false) }, []);
+    const stopBuild = useCallback(() => { 
+        // If was building a new routine, navigate to last page (since this one will just be a blank view)
+        if (!routine?.id) {
+            window.history.back();
+        }
+        else setIsBuildOpen(false) 
+    }, [routine?.id]);
 
 
     const [isRunOpen, setIsRunOpen] = useState(false)
