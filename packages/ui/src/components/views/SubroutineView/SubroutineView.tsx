@@ -96,6 +96,8 @@ export const SubroutineView = ({
         if (input) {
             navigator.clipboard.writeText(input);
             PubSub.publish(Pubs.Snack, { message: 'Copied to clipboard.', severity: 'success' });
+        } else {
+            PubSub.publish(Pubs.Snack, { message: 'Input is empty.', severity: 'error' });
         }
     }, [previewFormik]);
 
@@ -208,14 +210,14 @@ export const SubroutineView = ({
                                     borderRadius: 1,
                                 }}>
                                     {/* Label, help button, and copy iput icon */}
-                                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                                        <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>{field.label ?? `Input ${i + 1}`}</Typography>
-                                        {field.description && <HelpButton markdown={field.description} />}
+                                    <Stack direction="row" spacing={0} sx={{ alignItems: 'center' }}>
                                         <Tooltip title="Copy to clipboard">
                                             <IconButton onClick={() => copyInput(field.fieldName)}>
                                                 <CopyIcon />
                                             </IconButton>
                                         </Tooltip>
+                                        <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>{field.label ?? `Input ${i + 1}`}</Typography>
+                                        {field.description && <HelpButton markdown={field.description} />}
                                     </Stack>
                                     {
                                         generateInputComponent({
