@@ -2,6 +2,15 @@ import { InputType } from "@local/shared";
 import { FieldData } from "forms/types";
 import { Standard } from "types";
 
+export interface StandardToFieldDataProps {
+    description?: string | null;
+    fieldName: string;
+    name: Standard['name'];
+    props: Standard['props'];
+    type: Standard['type'];
+    yup: Standard['yup'] | null | undefined;
+}
+
 /**
  * Converts Standard object to a FieldData shape. 
  * This can be used to generate input objects
@@ -9,32 +18,30 @@ import { Standard } from "types";
  * @param fieldName Name of the field
  * @returns FieldData shape
  */
-export const standardToFieldData = (
-    standard: {
-        props: Standard['props'];
-        name: Standard['name'];
-        type: Standard['type'];
-        yup: Standard['yup'];
-    } | null | undefined,
-    fieldName: string
-): FieldData | null => {
-    // Check props
-    if (!standard) return null;
+export const standardToFieldData = ({
+    description,
+    fieldName,
+    name,
+    props,
+    type,
+    yup,
+} : StandardToFieldDataProps): FieldData | null => {
     // Props are stored as JSON, so they must be parsed
-    let props: any;
-    let yup: any | undefined = undefined;
+    let parsedProps: any;
+    let parsedYup: any | undefined = undefined;
     try {
-        props = JSON.parse(standard.props);
-        if (standard.yup) yup = JSON.parse(standard.yup);
+        parsedProps = JSON.parse(props);
+        if (yup) yup = JSON.parse(yup);
     } catch (error) {
         console.error('Error parsing props/yup', error);
         return null;
     }
     return {
+        description: description ?? undefined,
         fieldName,
-        label: standard.name,
-        type: standard.type as InputType,
-        props,
-        yup,
+        label: name,
+        type: type as InputType,
+        props: parsedProps,
+        yup: parsedYup,
     }
 }

@@ -7,12 +7,13 @@ import { routineQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     AccountTree as GraphIcon,
+    ContentCopy as CopyIcon,
     DoneAll as MarkAsCompleteIcon,
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
     PlayCircle as StartIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, BuildView, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition } from "components";
+import { BaseObjectActionDialog, BuildView, HelpButton, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
 import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, Pubs, standardToFieldData, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
 import { Node, NodeLink, Routine, Run } from "types";
@@ -167,12 +168,12 @@ export const RoutineView = ({
         }), { replace: true });
         setIsBuildOpen(true);
     }, [routine?.id, setLocation]);
-    const stopBuild = useCallback(() => { 
+    const stopBuild = useCallback(() => {
         // If was building a new routine, navigate to last page (since this one will just be a blank view)
         if (!routine?.id) {
             window.history.back();
         }
-        else setIsBuildOpen(false) 
+        else setIsBuildOpen(false)
     }, [routine?.id]);
 
 
@@ -308,20 +309,42 @@ export const RoutineView = ({
         if (!routine) return null;
         const schemas: { [fieldName: string]: FieldData } = {};
         for (let i = 0; i < routine.inputs?.length; i++) {
-            const currSchema = standardToFieldData(routine.inputs[i].standard, `inputs-${i}`);
+            const currSchema = standardToFieldData({
+                description: getTranslation(routine.inputs[i], 'description', getUserLanguages(session), false) ?? getTranslation(routine.inputs[i].standard, 'description', getUserLanguages(session), false),
+                fieldName: `inputs-${i}`,
+                props: routine.inputs[i].standard?.props ?? '',
+                name: routine.inputs[i].name ?? routine.inputs[i].standard?.name ?? '',
+                type: routine.inputs[i].standard?.type ?? '',
+                yup: routine.inputs[i].standard?.yup ?? null,
+            });
             if (currSchema) {
                 schemas[currSchema.fieldName] = currSchema;
             }
         }
         return schemas;
-    }, [routine]);
+    }, [routine, session]);
     const previewFormik = useFormik({
-        initialValues: {
-            ...formValueMap,
-        },
+        initialValues: Object.entries(formValueMap ?? {}).reduce((acc, [key, value]) => {
+            acc[key] = value.props.defaultValue ?? '';
+            return acc;
+        }, {}),
         enableReinitialize: true,
         onSubmit: () => { },
     });
+
+    /**
+     * Copy current value of input to clipboard
+     * @param fieldName Name of input
+     */
+    const copyInput = useCallback((fieldName: string) => {
+        const input = previewFormik.values[fieldName];
+        if (input) {
+            navigator.clipboard.writeText(input);
+            PubSub.publish(Pubs.Snack, { message: 'Copied to clipboard.', severity: 'success' });
+        } else {
+            PubSub.publish(Pubs.Snack, { message: 'Input is empty.', severity: 'error' });
+        }
+    }, [previewFormik]);
 
     const resourceList = useMemo(() => {
         console.log('calculating resource list start', routine?.resourceLists)
@@ -391,7 +414,16 @@ export const RoutineView = ({
                                         padding: 1,
                                         borderRadius: 1,
                                     }}>
-                                        <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>{field.label ?? `Input ${i + 1}`}</Typography>
+                                        {/* Label, help button, and copy iput icon */}
+                                        <Stack direction="row" spacing={0} sx={{ alignItems: 'center' }}>
+                                            <Tooltip title="Copy to clipboard">
+                                                <IconButton onClick={() => copyInput(field.fieldName)}>
+                                                    <CopyIcon />
+                                                </IconButton>
+                                            </Tooltip>
+                                            <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>{field.label ?? `Input ${i + 1}`}</Typography>
+                                            {field.description && <HelpButton markdown={field.description} />}
+                                        </Stack>
                                         {
                                             generateInputComponent({
                                                 data: field,
@@ -424,7 +456,7 @@ export const RoutineView = ({
                 {actions}
             </>
         )
-    }, [loading, resourceList, description, palette.background.textPrimary, palette.background.textSecondary, instructions, formValueMap, routine, actions, previewFormik, session, zIndex]);
+    }, [loading, resourceList, description, palette.background.textPrimary, palette.background.textSecondary, instructions, previewFormik, formValueMap, routine, actions, session, zIndex, copyInput]);
 
     return (
         <Box sx={{

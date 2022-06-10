@@ -9,6 +9,7 @@ export const UserViewPage = ({
         <Box sx={{
             minHeight: '100vh',
             paddingTop: { xs: '64px', md: '80px' },
+            paddingBottom: 'env(safe-area-inset-bottom)',
         }}>
             <UserView session={session} zIndex={200} />
         </Box>

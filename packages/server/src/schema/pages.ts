@@ -244,7 +244,7 @@ export const resolvers = {
             // Query organizations
             let organizations = (await readManyHelper(
                 context.req.userId,
-                { ...input, take, sortBy: OrganizationSortBy.StarsDesc },
+                { take, ...input, sortBy: OrganizationSortBy.StarsDesc },
                 organizationSelect,
                 oModel,
                 { ...starsQuery },
@@ -253,7 +253,7 @@ export const resolvers = {
             // Query projects
             let projects = (await readManyHelper(
                 context.req.userId,
-                { ...input, take, sortBy: ProjectSortBy.StarsDesc, isComplete: true, },
+                { take, ...input, sortBy: ProjectSortBy.StarsDesc, isComplete: true, },
                 projectSelect,
                 pModel,
                 { ...starsQuery },
@@ -262,7 +262,7 @@ export const resolvers = {
             // Query routines
             let routines = (await readManyHelper(
                 context.req.userId,
-                { ...input, take, sortBy: RoutineSortBy.StarsDesc, isComplete: true, isInternal: false },
+                { take, ...input, sortBy: RoutineSortBy.StarsDesc, isComplete: true, isInternal: false },
                 routineSelect,
                 rModel,
                 { ...starsQuery },
@@ -271,7 +271,7 @@ export const resolvers = {
             // Query standards
             let standards = (await readManyHelper(
                 context.req.userId,
-                { ...input, take, sortBy: StandardSortBy.StarsDesc },
+                { take, ...input, sortBy: StandardSortBy.StarsDesc },
                 standardSelect,
                 sModel,
                 { ...starsQuery },
@@ -280,7 +280,7 @@ export const resolvers = {
             // Query users
             let users = (await readManyHelper(
                 context.req.userId,
-                { ...input, take, sortBy: UserSortBy.StarsDesc },
+                { take, ...input, sortBy: UserSortBy.StarsDesc },
                 userSelect,
                 uModel,
                 { ...starsQuery },
@@ -554,6 +554,7 @@ export const resolvers = {
             // If not signed in, shouldn't be able to see this page
             if (!context.req.userId) throw new CustomError(CODE.Unauthorized, 'Must be signed in to see this page');
             await rateLimit({ context, info, max: 5000 });
+            const take = 5;
             // Initialize models
             const runModel = RunModel(context.prisma);
             const starModel = StarModel(context.prisma);
@@ -561,7 +562,7 @@ export const resolvers = {
             // Query for incomplete runs
             const activeRuns = (await readManyHelper(
                 context.req.userId,
-                { ...input, status: RunStatus.InProgress, sortBy: RunSortBy.DateUpdatedDesc },
+                { take, ...input, status: RunStatus.InProgress, sortBy: RunSortBy.DateUpdatedDesc },
                 runSelect,
                 runModel,
                 { userId: context.req.userId },
@@ -570,7 +571,7 @@ export const resolvers = {
             // Query for complete runs
             const completedRuns = (await readManyHelper(
                 context.req.userId,
-                { ...input, status: RunStatus.Completed, sortBy: RunSortBy.DateUpdatedDesc },
+                { take, ...input, status: RunStatus.Completed, sortBy: RunSortBy.DateUpdatedDesc },
                 runSelect,
                 runModel,
                 { userId: context.req.userId },
@@ -579,7 +580,7 @@ export const resolvers = {
             // Query recently viewed objects (of any type)
             const recentlyViewed = (await readManyHelper(
                 context.req.userId,
-                { ...input, sortBy: ViewSortBy.LastViewedDesc },
+                { take, ...input, sortBy: ViewSortBy.LastViewedDesc },
                 viewSelect,
                 viewModel,
                 { byId: context.req.userId },
@@ -588,7 +589,7 @@ export const resolvers = {
             // Query recently starred objects (of any type). Make sure to ignore tags
             const recentlyStarred = (await readManyHelper(
                 context.req.userId,
-                { ...input, sortBy: UserSortBy.DateCreatedDesc },
+                { take, ...input, sortBy: UserSortBy.DateCreatedDesc },
                 starSelect,
                 starModel,
                 { byId: context.req.userId, tagId: null },

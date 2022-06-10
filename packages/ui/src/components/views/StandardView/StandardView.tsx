@@ -44,7 +44,21 @@ export const StandardView = ({
     const [changedStandard, setChangedStandard] = useState<Standard | null>(null); // Standard may change if it is starred/upvoted/etc.
     const canEdit = useMemo<boolean>(() => owns(standard?.role), [standard]);
 
-    const schema = useMemo<FieldData | null>(() => standardToFieldData(standard, 'preview'), [standard]);
+    const availableLanguages = useMemo<string[]>(() => (standard?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [standard?.translations]);
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+    useEffect(() => {
+        if (availableLanguages.length === 0) return;
+        setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
+    }, [availableLanguages, setLanguage, session]);
+
+    const schema = useMemo<FieldData | null>(() => (standardToFieldData({
+        fieldName: 'preview',
+        description: getTranslation(standard, 'description', [language]),
+        props: standard?.props ?? '',
+        name: standard?.name ?? '',
+        type: standard?.type ?? '',
+        yup: standard?.yup ?? null,
+    })), [language, standard]);
     const previewFormik = useFormik({
         initialValues: {
             preview: JSON.stringify((schema as FieldDataJSON)?.props?.format),
@@ -56,13 +70,6 @@ export const StandardView = ({
     useEffect(() => {
         if (standard) { setChangedStandard(standard) }
     }, [standard]);
-
-    const availableLanguages = useMemo<string[]>(() => (standard?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [standard?.translations]);
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    useEffect(() => {
-        if (availableLanguages.length === 0) return;
-        setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
-    }, [availableLanguages, setLanguage, session]);
 
     const { description, name } = useMemo(() => {
         return {

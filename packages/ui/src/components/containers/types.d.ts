@@ -1,5 +1,11 @@
-import { BuildRunState } from "utils";
-import { Routine, Session } from "types";
+import { BuildRunState, ObjectType } from "utils";
+import { Comment, Routine, Session } from "types";
+
+export interface CommentContainerProps {
+    objectID: string;
+    objectType: ObjectType;
+    onCommentSubmit: (newComment: Comment) => void;
+}
 
 export interface TitleContainerProps {
     children: JSX.Element | JSX.Element[];

@@ -1,6 +1,12 @@
-import { OrganizationSortBy, ProjectSortBy, RoutineSortBy, StandardSortBy, UserSortBy } from "@local/shared";
-import { organizationSearchSchema, projectSearchSchema, routineSearchSchema, standardSearchSchema, userSearchSchema } from "components/dialogs/AdvancedSearchDialog/schemas";
+import { CommentSortBy, OrganizationSortBy, ProjectSortBy, RoutineSortBy, StandardSortBy, UserSortBy } from "@local/shared";
+import { commentSearchSchema, organizationSearchSchema, projectSearchSchema, routineSearchSchema, standardSearchSchema, userSearchSchema } from "components/dialogs/AdvancedSearchDialog/schemas";
 import { ObjectType } from "utils/navigation";
+
+export const commentSearchInfo = {
+    advancedSearchSchema: commentSearchSchema,
+    defaultSortBy: CommentSortBy.VotesDesc,
+    sortByOptions: CommentSortBy,
+}
 
 export const organizationSearchInfo = {
     advancedSearchSchema: organizationSearchSchema,
@@ -33,6 +39,7 @@ export const userSearchInfo = {
 }
 
 export const objectToSearchInfo = {
+    [ObjectType.Comment]: commentSearchInfo,
     [ObjectType.Organization]: organizationSearchInfo,
     [ObjectType.Project]: projectSearchInfo,
     [ObjectType.Routine]: routineSearchInfo,

@@ -7,6 +7,7 @@ import { SetLocation } from "types";
 import { Pubs } from "utils/consts";
 
 export enum ObjectType {
+    Comment = 'Comment',
     Organization = 'Organization',
     Project = 'Project',
     Routine = 'Routine',
@@ -14,7 +15,7 @@ export enum ObjectType {
     User = 'User',
 }
 
-const linkMap: { [key in ObjectType]: [string, string] } = {
+const linkMap: { [key in ObjectType]?: [string, string] } = {
     [ObjectType.Organization]: [APP_LINKS.SearchOrganizations, APP_LINKS.Organization],
     [ObjectType.Project]: [APP_LINKS.SearchProjects, APP_LINKS.Project],
     [ObjectType.Routine]: [APP_LINKS.SearchRoutines, APP_LINKS.Routine],
@@ -29,7 +30,7 @@ const linkMap: { [key in ObjectType]: [string, string] } = {
  */
 export const openSearchPage = (objectType: ObjectType, setLocation: SetLocation) => {
     const linkBases = linkMap[objectType];
-    setLocation(linkBases[0]);
+    if (linkBases) setLocation(linkBases[0]);
 }
 
 /**

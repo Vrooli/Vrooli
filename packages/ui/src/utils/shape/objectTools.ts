@@ -156,7 +156,6 @@ export const formatForUpdate = <S, T>(
         }
         // If the value is identical to the original value (and not an id), skip it
         else if (key !== 'id' && original && _.isEqual(value, original[key])) continue;
-        if (key === 'standard') console.log('values not identical', key, value, original);
         // If the value is an array
         else if (Array.isArray(value)) {
             // Loop through changed values and determine which are connections, creates, and updates

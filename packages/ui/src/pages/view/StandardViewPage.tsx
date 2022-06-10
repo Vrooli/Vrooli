@@ -45,6 +45,7 @@ export const StandardViewPage = ({
         <Box sx={{
             minHeight: '100vh',
             paddingTop: { xs: '64px', md: '80px' },
+            paddingBottom: 'env(safe-area-inset-bottom)',
         }}>
             {/* Add dialog */}
             <BaseObjectDialog
