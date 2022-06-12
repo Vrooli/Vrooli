@@ -15,7 +15,7 @@ const { MemberRole } = pkg;
 //==============================================================
 
 const joinMapper = { starredBy: 'user' };
-const calculatedFields = ['isStarred', 'isUpvoted'];
+const calculatedFields = ['isStarred', 'isUpvoted', 'role'];
 export const commentFormatter = (): FormatConverter<Comment> => ({
     relationshipMap: {
         '__typename': GraphQLModelType.Comment,

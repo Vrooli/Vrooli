@@ -1,10 +1,13 @@
 import { BuildRunState, ObjectType } from "utils";
-import { Comment, Routine, Session } from "types";
+import { Routine, Session } from "types";
 
 export interface CommentContainerProps {
-    objectID: string;
+    language: string;
+    objectId: string;
     objectType: ObjectType;
-    onCommentSubmit: (newComment: Comment) => void;
+    sxs?: {
+        root: any;
+    }
 }
 
 export interface TitleContainerProps {

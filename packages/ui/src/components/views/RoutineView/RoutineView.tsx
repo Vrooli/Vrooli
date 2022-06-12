@@ -29,6 +29,7 @@ import { owns } from "utils/authentication";
 import { useFormik } from "formik";
 import { FieldData } from "forms/types";
 import { generateInputComponent } from "forms/generators";
+import { CommentContainer } from "components/containers";
 
 export const RoutineView = ({
     partialData,
@@ -260,7 +261,7 @@ export const RoutineView = ({
             options.push(routine?.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
         }
         options.push(
-            BaseObjectAction.Donate, 
+            BaseObjectAction.Donate,
             BaseObjectAction.Share,
             BaseObjectAction.Fork,
             BaseObjectAction.Copy,
@@ -518,15 +519,7 @@ export const RoutineView = ({
     }, [loading, resourceList, description, palette.background.textPrimary, palette.background.textSecondary, instructions, previewFormik, formValueMap, routine, actions, session, zIndex, copyInput]);
 
     return (
-        <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: 'auto',
-            // xs: 100vh - navbar (64px) - bottom nav (56px) - iOS nav bar
-            // md: 100vh - navbar (80px)
-            minHeight: { xs: 'calc(100vh - 64px - 56px - env(safe-area-inset-bottom))', md: 'calc(100vh - 80px)' },
-        }}>
+        <>
             {/* Chooses which run to use */}
             <RunPickerDialog
                 anchorEl={selectRunAnchor}
@@ -587,103 +580,122 @@ export const RoutineView = ({
                 session={session}
                 zIndex={zIndex + 1}
             />
-            {/* Main container */}
-            <Box sx={{
-                background: palette.background.paper,
-                overflowY: 'auto',
-                width: 'min(100%, 600px)',
-                borderRadius: { xs: '8px 8px 0 0', sm: '8px' },
-                overflow: 'overlay',
-                boxShadow: { xs: 'none', sm: (containerShadow as any).boxShadow },
-                // Add bottom margin so that the bottom navbar doesn't cover the bottom of the page
-                marginBottom: { xs: '48px', md: '0' },
+            <Stack direction="column" spacing={5} sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: 'auto',
+                // xs: 100vh - navbar (64px) - bottom nav (56px) - iOS nav bar
+                // md: 100vh - navbar (80px)
+                minHeight: { xs: 'calc(100vh - 64px - 56px - env(safe-area-inset-bottom))', md: 'calc(100vh - 80px)' },
             }}>
-                {/* Heading container */}
-                <Stack direction="column" spacing={1} sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 2,
-                    marginBottom: 1,
-                    background: palette.primary.main,
-                    color: palette.primary.contrastText,
+                {/* Main container */}
+                <Box sx={{
+                    background: palette.background.paper,
+                    overflowY: 'auto',
+                    width: 'min(100%, 700px)',
+                    borderRadius: { xs: '8px 8px 0 0', sm: '8px' },
+                    overflow: 'overlay',
+                    boxShadow: { xs: 'none', sm: (containerShadow as any).boxShadow },
                 }}>
-                    {/* Show star button and ellipsis next to title */}
-                    <Stack direction="row" spacing={1} alignItems="center">
-                        {loading ?
-                            <LinearProgress color="inherit" sx={{
-                                borderRadius: 1,
-                                width: '50vw',
-                                height: 8,
-                                marginTop: '12px !important',
-                                marginBottom: '12px !important',
-                                maxWidth: '300px',
-                            }} /> :
-                            <Typography variant="h5" sx={{ textAlign: 'center' }}>{title}</Typography>}
-
-                        <Tooltip title="More options">
-                            <IconButton
-                                aria-label="More"
-                                size="small"
-                                onClick={openMoreMenu}
-                                sx={{
-                                    display: 'block',
-                                    marginLeft: 'auto',
-                                    marginRight: 1,
-                                }}
-                            >
-                                <EllipsisIcon sx={{ fill: palette.primary.contrastText }} />
-                            </IconButton>
-                        </Tooltip>
-                    </Stack>
-                    <Stack direction="row" spacing={1} sx={{
+                    {/* Heading container */}
+                    <Stack direction="column" spacing={1} sx={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        padding: 2,
+                        marginBottom: 1,
+                        background: palette.primary.main,
+                        color: palette.primary.contrastText,
                     }}>
-                        <StarButton
-                            session={session}
-                            objectId={routine?.id ?? ''}
-                            showStars={false}
-                            starFor={StarFor.Routine}
-                            isStar={routine?.isStarred ?? false}
-                            stars={routine?.stars ?? 0}
-                            onChange={(isStar: boolean) => { routine && setRoutine({ ...routine, isStarred: isStar }) }}
-                            tooltipPlacement="bottom"
-                        />
-                        {ownedBy && (
-                            <LinkButton
-                                onClick={toOwner}
-                                text={ownedBy}
+                        {/* Show star button and ellipsis next to title */}
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            {loading ?
+                                <LinearProgress color="inherit" sx={{
+                                    borderRadius: 1,
+                                    width: '50vw',
+                                    height: 8,
+                                    marginTop: '12px !important',
+                                    marginBottom: '12px !important',
+                                    maxWidth: '300px',
+                                }} /> :
+                                <Typography variant="h5" sx={{ textAlign: 'center' }}>{title}</Typography>}
+
+                            <Tooltip title="More options">
+                                <IconButton
+                                    aria-label="More"
+                                    size="small"
+                                    onClick={openMoreMenu}
+                                    sx={{
+                                        display: 'block',
+                                        marginLeft: 'auto',
+                                        marginRight: 1,
+                                    }}
+                                >
+                                    <EllipsisIcon sx={{ fill: palette.primary.contrastText }} />
+                                </IconButton>
+                            </Tooltip>
+                        </Stack>
+                        <Stack direction="row" spacing={1} sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}>
+                            <StarButton
+                                session={session}
+                                objectId={routine?.id ?? ''}
+                                showStars={false}
+                                starFor={StarFor.Routine}
+                                isStar={routine?.isStarred ?? false}
+                                stars={routine?.stars ?? 0}
+                                onChange={(isStar: boolean) => { routine && setRoutine({ ...routine, isStarred: isStar }) }}
+                                tooltipPlacement="bottom"
                             />
-                        )}
-                        <Typography variant="body1"> - {routine?.version}</Typography>
-                        <SelectLanguageDialog
-                            availableLanguages={availableLanguages}
-                            canDropdownOpen={availableLanguages.length > 1}
-                            currentLanguage={language}
-                            handleCurrent={setLanguage}
-                            session={session}
-                            zIndex={zIndex}
-                        />
-                        {canEdit && <Tooltip title="Edit routine">
-                            <IconButton
-                                aria-label="Edit routine"
-                                size="small"
-                                onClick={onEdit}
-                            >
-                                <EditIcon sx={{ fill: TERTIARY_COLOR }} />
-                            </IconButton>
-                        </Tooltip>}
+                            {ownedBy && (
+                                <LinkButton
+                                    onClick={toOwner}
+                                    text={ownedBy}
+                                />
+                            )}
+                            <Typography variant="body1"> - {routine?.version}</Typography>
+                            <SelectLanguageDialog
+                                availableLanguages={availableLanguages}
+                                canDropdownOpen={availableLanguages.length > 1}
+                                currentLanguage={language}
+                                handleCurrent={setLanguage}
+                                session={session}
+                                zIndex={zIndex}
+                            />
+                            {canEdit && <Tooltip title="Edit routine">
+                                <IconButton
+                                    aria-label="Edit routine"
+                                    size="small"
+                                    onClick={onEdit}
+                                >
+                                    <EditIcon sx={{ fill: TERTIARY_COLOR }} />
+                                </IconButton>
+                            </Tooltip>}
+                        </Stack>
                     </Stack>
-                </Stack>
-                {/* Body container */}
-                <Box sx={{
-                    padding: 2,
-                }}>
-                    {body}
+                    {/* Body container */}
+                    <Box sx={{
+                        padding: 2,
+                    }}>
+                        {body}
+                    </Box>
                 </Box>
-            </Box>
-        </Box >
+                {/* Comments Container */}
+                <CommentContainer
+                    language={language}
+                    objectId={id ?? ''}
+                    objectType={ObjectType.Routine}
+                    sxs={{
+                        root: {
+                            paddingBottom: 'env(safe-area-inset-bottom)',
+                        }
+                    }}
+                />
+            </Stack>
+        </>
     )
 }

@@ -13,6 +13,17 @@ export enum CommentFor {
   Standard = "Standard",
 }
 
+export enum CommentSortBy {
+  DateCreatedAsc = "DateCreatedAsc",
+  DateCreatedDesc = "DateCreatedDesc",
+  DateUpdatedAsc = "DateUpdatedAsc",
+  DateUpdatedDesc = "DateUpdatedDesc",
+  StarsAsc = "StarsAsc",
+  StarsDesc = "StarsDesc",
+  VotesAsc = "VotesAsc",
+  VotesDesc = "VotesDesc",
+}
+
 export enum CopyType {
   Node = "Node",
   Organization = "Organization",
@@ -270,6 +281,24 @@ export interface CommentCreateInput {
   createdFor: CommentFor;
   forId: string;
   translationsCreate?: CommentTranslationCreateInput[] | null;
+}
+
+export interface CommentSearchInput {
+  after?: string | null;
+  createdTimeFrame?: TimeFrame | null;
+  ids?: string[] | null;
+  languages?: string[] | null;
+  minScore?: number | null;
+  minStars?: number | null;
+  organizationId?: string | null;
+  projectId?: string | null;
+  routineId?: string | null;
+  searchString?: string | null;
+  sortBy?: CommentSortBy | null;
+  standardId?: string | null;
+  take?: number | null;
+  updatedTimeFrame?: TimeFrame | null;
+  userId?: string | null;
 }
 
 export interface CommentTranslationCreateInput {

@@ -13,6 +13,7 @@ import { tag_tag } from 'graphql/generated/tag';
 import { user_user } from 'graphql/generated/user';
 import { RoutineStepType } from 'utils';
 import { FetchResult } from "@apollo/client";
+import { comment_comment } from 'graphql/generated/comment';
 
 // Top-level props that can be passed into any routed component
 export type SessionChecked = boolean;
@@ -28,7 +29,7 @@ export interface CommonProps {
 }
 
 // Rename auto-generated query objects
-export type Comment = any; //TODO
+export type Comment = comment_comment;
 export type Email = profile_profile_emails;
 export type Handle = findHandles_findHandles;
 export type ListOrganization = homePage_homePage_organizations;
