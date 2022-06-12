@@ -1,6 +1,6 @@
 import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeRoutineListItem, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemCreateInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, deleteOneHelper, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, FormatConverter, GraphQLInfo, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { CODE, DeleteOneType, inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, MemberRole, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routinesUpdate, routineTranslationCreate, routineTranslationUpdate } from "@local/shared";
 import { hasProfanity } from "../../utils/censor";
@@ -16,6 +16,7 @@ import { ResourceListModel } from "./resourceList";
 import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
 import { runFormatter } from "./run";
+import { v4 as uuidv4 } from 'uuid';
 
 type NodeWeightData = {
     simplicity: number,
@@ -789,6 +790,405 @@ export const routineMutater = (prisma: PrismaType) => ({
             deleted: deleteMany ? deleted : undefined,
         };
     },
+    /**
+     * Duplicates a routine, along with its nodes and edges. 
+     * If a fork, then the parent is set as the original routine. 
+     * If a copy, there is no parent.
+     */
+    async duplicate({ userId, objectId, isFork, createCount = 0 }: DuplicateInput): Promise<DuplicateResult<Routine>> {
+        let newCreateCount = createCount;
+        // Find routine, with fields we want to copy.
+        // I hope I discover a better way to do this.
+        // Notable fields not being copied are completedAt and isComplete (since the copy will default to not complete),
+        // score and views and other stats (since the copy will default to 0),
+        // createdByUserId and createdByOrganizationId and projectId (since the copy will default to your own),
+        // parentId (since the original will be the parent of the copy),
+        // version (since the copy will default to 1.0.0),
+        const routine = await prisma.routine.findFirst({
+            where: { id: objectId },
+            select: {
+                id: true,
+                complexity: true,
+                isAutomatable: true,
+                isInternal: true,
+                simplicity: true,
+                userId: true,
+                organizationId: true,
+                nodes: {
+                    select: {
+                        id: true,
+                        columnIndex: true,
+                        rowIndex: true,
+                        type: true,
+                        nodeEnd: {
+                            select: {
+                                wasSuccessful: true
+                            }
+                        },
+                        loop: {
+                            select: {
+                                loops: true,
+                                maxLoops: true,
+                                operation: true,
+                                whiles: {
+                                    select: {
+                                        condition: true,
+                                        translations: {
+                                            select: {
+                                                description: true,
+                                                title: true,
+                                                language: true,
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        nodeRoutineList: {
+                            select: {
+                                isOrdered: true,
+                                isOptional: true,
+                                routines: {
+                                    select: {
+                                        id: true,
+                                        index: true,
+                                        isOptional: true,
+                                        routine: {
+                                            select: {
+                                                id: true,
+                                                isInternal: true,
+                                            }
+                                        },
+                                        translations: {
+                                            select: {
+                                                description: true,
+                                                title: true,
+                                                language: true,
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        translations: {
+                            select: {
+                                description: true,
+                                title: true,
+                                language: true,
+                            }
+                        }
+                    }
+                },
+                nodeLinks: {
+                    select: {
+                        fromId: true,
+                        toId: true,
+                        operation: true,
+                        whens: {
+                            select: {
+                                condition: true,
+                                translations: {
+                                    select: {
+                                        description: true,
+                                        title: true,
+                                        language: true,
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                resourceLists: {
+                    select: {
+                        index: true,
+                        usedFor: true,
+                        resources: {
+                            select: {
+                                index: true,
+                                link: true,
+                                usedFor: true,
+                                translations: {
+                                    select: {
+                                        description: true,
+                                        title: true,
+                                        language: true,
+                                    }
+                                }
+                            }
+                        },
+                        translations: {
+                            select: {
+                                description: true,
+                                title: true,
+                                language: true,
+                            }
+                        }
+                    }
+                },
+                inputs: {
+                    select: {
+                        isRequired: true,
+                        name: true,
+                        standardId: true,
+                        translations: {
+                            select: {
+                                description: true,
+                                language: true,
+                            }
+                        }
+                    }
+                },
+                outputs: {
+                    select: {
+                        name: true,
+                        standardId: true,
+                        translations: {
+                            select: {
+                                description: true,
+                                language: true,
+                            }
+                        }
+                    }
+                },
+                tags: {
+                    select: {
+                        id: true,
+                    }
+                },
+                translations: {
+                    select: {
+                        description: true,
+                        instructions: true,
+                        title: true,
+                        language: true,
+                    }
+                }
+            }
+        });
+        console.log('found routine in duplicate', JSON.stringify(routine), '\n\n')
+        // If routine didn't exist
+        if (!routine) {
+            throw new CustomError(CODE.NotFound, 'Routine not found', { code: genErrorCode('0225') });
+        }
+        // If routine is marked as internal and it doesn't belong to you
+        else if (routine.isInternal && routine.userId !== userId) {
+            const memberData = await OrganizationModel(prisma).isOwnerOrAdmin(userId, [routine.organizationId]);
+            if (!memberData.some(member => member))
+                throw new CustomError(CODE.Unauthorized, 'Not authorized to copy', { code: genErrorCode('0226') })
+        }
+        // Initialize new routine object
+        const newRoutine: any = routine;
+        // For every node in the routine (and every edge which references it), change the ID 
+        // to a new random ID.
+        for (const node of newRoutine.nodes) {
+            const oldId = node.id;
+            // Update ID
+            node.id = uuidv4();
+            // Update reference to node in nodeLinks
+            for (const nodeLink of node.nodeLinks) {
+                if (nodeLink.fromId === oldId) {
+                    nodeLink.fromId = node.id;
+                }
+                if (nodeLink.toId === oldId) {
+                    nodeLink.toId = node.id;
+                }
+            }
+        }
+        // If copying subroutines, call this function for each subroutine
+        if (createCount < 100 && routine.nodes && routine.nodes.length > 0) {
+            const newSubroutineIds: string[] = [];
+            // Find the IDs of all isInternal subroutines
+            const oldSubroutineIds: string[] = [];
+            for (const node of routine.nodes) {
+                if (node.nodeRoutineList?.routines && node.nodeRoutineList?.routines.length > 0) {
+                    for (const subroutine of node.nodeRoutineList.routines) {
+                        if (subroutine.routine?.id && subroutine.routine?.isInternal) {
+                            oldSubroutineIds.push(subroutine.routine.id);
+                        }
+                    }
+                }
+            }
+            // Copy each subroutine
+            for (const subroutineId of oldSubroutineIds) {
+                const { object: copiedSubroutine, numCreated } = await this.duplicate({ userId, objectId: subroutineId, isFork: false, createCount: newCreateCount });
+                newSubroutineIds.push(copiedSubroutine.id ?? '');
+                newCreateCount += numCreated;
+                if (newCreateCount >= 100) {
+                    break;
+                }
+            }
+            // Change the IDs of all subroutines to the new IDs
+            for (const node of newRoutine.nodes) {
+                if (node.nodeRoutineList?.routines && node.nodeRoutineList?.routines.length > 0) {
+                    for (const subroutine of node.nodeRoutineList.routines) {
+                        if (subroutine.routine?.id && newSubroutineIds.includes(subroutine.routine.id)) {
+                            subroutine.routine.id = newSubroutineIds.find(id => id === subroutine.routine.id);
+                        }
+                    }
+                }
+            }
+        }
+        console.log('new routine but not actually', JSON.stringify(newRoutine), '\n\n')
+        // Create the new routine
+        const createdRoutine = await prisma.routine.create({
+            data: {
+                // Give ownership to user copying routine
+                createdByUserId: userId,
+                userId: userId,
+                // Set parentId to original routine's id
+                parentId: isFork ? routine.id : null,
+                // Copy the rest of the fields
+                complexity: newRoutine.complexity,
+                isAutomatable: newRoutine.isAutomatable,
+                isInternal: newRoutine.isInternal,
+                simplicity: newRoutine.simplicity,
+                nodes: newRoutine.nodes ? {
+                    create: newRoutine.nodes.map((node: any) => ({
+                        id: node.id,
+                        columnIndex: node.columnIndex,
+                        rowIndex: node.rowIndex,
+                        type: node.type,
+                        nodeEnd: node.nodeEnd ? {
+                            create: {
+                                wasSuccessful: node.nodeEnd.wasSuccessful
+                            }
+                        } : null,
+                        loop: node.loop ? {
+                            create: {
+                                loops: node.loop.loops,
+                                maxLoops: node.loop.maxLoops,
+                                operation: node.loop.operation,
+                                whiles: node.loop.whiles ? {
+                                    create: node.loop.whiles.map((whileNode: any) => ({
+                                        condition: whileNode.condition,
+                                        translations: whileNode.translations ? {
+                                            create: whileNode.translations.map((translation: any) => ({
+                                                description: translation.description,
+                                                title: translation.title,
+                                                language: translation.language
+                                            }))
+                                        } : null
+                                    }))
+                                } : null
+                            }
+                        } : null,
+                        nodeRoutineList: node.nodeRoutineList ? {
+                            create: node.nodeRoutineList.map((nodeRoutineList: any) => ({
+                                isOrdered: nodeRoutineList.isOrdered,
+                                isOptional: nodeRoutineList.isOptional,
+                                routines: nodeRoutineList.routines ? {
+                                    create: nodeRoutineList.routines.map((routine: any) => ({
+                                        index: routine.index,
+                                        routineId: routine.routineId,
+                                        translations: routine.translations ? {
+                                            create: routine.translations.map((translation: any) => ({
+                                                description: translation.description,
+                                                title: translation.title,
+                                                language: translation.language
+                                            }))
+                                        } : null
+                                    }))
+                                } : null
+                            }))
+                        } : null,
+
+                    }))
+                } : undefined,
+                nodeLinks: newRoutine.nodeLinks ? {
+                    create: newRoutine.nodeLinks.map((nodeLink: any) => ({
+                        fromId: nodeLink.fromId,
+                        toId: nodeLink.toId,
+                        operation: nodeLink.operation,
+                        whens: nodeLink.whens ? {
+                            create: nodeLink.whens.map((when: any) => ({
+                                condition: when.condition,
+                                translations: when.translations ? {
+                                    create: when.translations.map((translation: any) => ({
+                                        description: translation.description,
+                                        title: translation.title,
+                                        language: translation.language
+                                    }))
+                                } : null
+                            }))
+                        } : null,
+                        translations: nodeLink.translations ? {
+                            create: nodeLink.translations.map((translation: any) => ({
+                                description: translation.description,
+                                title: translation.title,
+                                language: translation.language
+                            }))
+                        } : null
+                    }))
+                } : undefined,
+                resourceLists: newRoutine.resourceLists ? {
+                    create: newRoutine.resourceLists.map((resourceList: any) => ({
+                        index: resourceList.index,
+                        usedFor: resourceList.usedFor,
+                        resources: resourceList.resources ? {
+                            create: resourceList.resources.map((resource: any) => ({
+                                index: resource.index,
+                                link: resource.link,
+                                usedFor: resource.usedFor,
+                                translations: resource.translations ? {
+                                    create: resource.translations.map((translation: any) => ({
+                                        description: translation.description,
+                                        title: translation.title,
+                                        language: translation.language
+                                    }))
+                                } : null
+                            }))
+                        } : null
+                    }))
+                } : undefined,
+                inputs: newRoutine.inputs ? {
+                    create: newRoutine.inputs.map((input: any) => ({
+                        isRequired: input.isRequired,
+                        name: input.name,
+                        standardId: input.standardId,
+                        translations: input.translations ? {
+                            create: input.translations.map((translation: any) => ({
+                                description: translation.description,
+                                title: translation.title,
+                                language: translation.language
+                            }))
+                        } : null
+                    }))
+                } : undefined,
+                outputs: newRoutine.outputs ? {
+                    create: newRoutine.outputs.map((output: any) => ({
+                        name: output.name,
+                        standardId: output.standardId,
+                        translations: output.translations ? {
+                            create: output.translations.map((translation: any) => ({
+                                description: translation.description,
+                                title: translation.title,
+                                language: translation.language
+                            }))
+                        } : null
+                    }))
+                } : undefined,
+                tags: newRoutine.tags ? {
+                    connect: newRoutine.tags.map((tag: any) => ({
+                        id: tag.id
+                    }))
+                } : undefined,
+                translations: newRoutine.translations ? {
+                    create: newRoutine.translations.map((translation: any) => ({
+                        description: translation.description,
+                        instructions: translation.instructions,
+                        // Add "Copy" to title
+                        title: `${translation.title} (Copy)`,
+                        language: translation.language
+                    }))
+                } : undefined,
+            }
+        });
+        console.log('created routine in routine duplicate', JSON.stringify(createdRoutine), '\n\n');
+        return {
+            object: createdRoutine as any,
+            numCreated: newCreateCount + 1
+        }
+    }
 })
 
 //==============================================================

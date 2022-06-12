@@ -48,6 +48,14 @@ export enum CommentSortBy {
     DateUpdatedAsc = "DateUpdatedAsc",
 }
 
+export enum CopyType {
+    Node = "Node",
+    Organization = "Organization",
+    Project = "Project",
+    Routine = "Routine",
+    Standard = "Standard",
+}
+
 export enum DeleteOneType {
     Comment = "Comment",
     Email = "Email",
@@ -59,6 +67,13 @@ export enum DeleteOneType {
     Standard = "Standard",
     Wallet = "Wallet",
 } 
+
+export enum ForkType {
+    Organization = "Organization",
+    Project = "Project",
+    Routine = "Routine",
+    Standard = "Standard",
+}
 
 export enum OrganizationSortBy {
     StarsDesc = "StarsDesc",

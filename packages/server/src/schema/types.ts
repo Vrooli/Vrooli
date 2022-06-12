@@ -134,6 +134,28 @@ export type CommentedOn = Project | Routine | Standard;
 
 export type Contributor = Organization | User;
 
+export type CopyInput = {
+  id: Scalars['ID'];
+  objectType: CopyType;
+};
+
+export type CopyResult = {
+  __typename?: 'CopyResult';
+  node?: Maybe<Node>;
+  organization?: Maybe<Organization>;
+  project?: Maybe<Project>;
+  routine?: Maybe<Routine>;
+  standard?: Maybe<Standard>;
+};
+
+export enum CopyType {
+  Node = 'Node',
+  Organization = 'Organization',
+  Project = 'Project',
+  Routine = 'Routine',
+  Standard = 'Standard'
+}
+
 export type Count = {
   __typename?: 'Count';
   count?: Maybe<Scalars['Int']>;
@@ -232,6 +254,26 @@ export type FindByIdOrHandleInput = {
 export type FindHandlesInput = {
   organizationId?: InputMaybe<Scalars['ID']>;
 };
+
+export type ForkInput = {
+  id: Scalars['ID'];
+  objectType: ForkType;
+};
+
+export type ForkResult = {
+  __typename?: 'ForkResult';
+  organization?: Maybe<Organization>;
+  project?: Maybe<Project>;
+  routine?: Maybe<Routine>;
+  standard?: Maybe<Standard>;
+};
+
+export enum ForkType {
+  Organization = 'Organization',
+  Project = 'Project',
+  Routine = 'Routine',
+  Standard = 'Standard'
+}
 
 export type Handle = {
   __typename?: 'Handle';
@@ -377,9 +419,11 @@ export enum LogSortBy {
 }
 
 export enum LogType {
+  Copy = 'Copy',
   Create = 'Create',
   Delete = 'Delete',
   Downvote = 'Downvote',
+  Fork = 'Fork',
   OrganizationAddMember = 'OrganizationAddMember',
   OrganizationJoin = 'OrganizationJoin',
   OrganizationLeave = 'OrganizationLeave',
@@ -488,6 +532,7 @@ export type Mutation = {
   __typename?: 'Mutation';
   commentCreate: Comment;
   commentUpdate: Comment;
+  copy: CopyResult;
   deleteOne: Success;
   emailCreate: Email;
   emailLogIn: Session;
@@ -497,6 +542,7 @@ export type Mutation = {
   emailUpdate: Email;
   exportData: Scalars['String'];
   feedbackCreate: Success;
+  fork: ForkResult;
   guestLogIn: Session;
   logDeleteMany: Count;
   logOut: Success;
@@ -555,6 +601,11 @@ export type MutationCommentUpdateArgs = {
 };
 
 
+export type MutationCopyArgs = {
+  input: CopyInput;
+};
+
+
 export type MutationDeleteOneArgs = {
   input: DeleteOneInput;
 };
@@ -592,6 +643,11 @@ export type MutationEmailUpdateArgs = {
 
 export type MutationFeedbackCreateArgs = {
   input: FeedbackInput;
+};
+
+
+export type MutationForkArgs = {
+  input: ForkInput;
 };
 
 

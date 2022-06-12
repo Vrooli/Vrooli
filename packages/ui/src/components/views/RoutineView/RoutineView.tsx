@@ -260,7 +260,12 @@ export const RoutineView = ({
             options.push(routine?.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
             options.push(BaseObjectAction.Fork);
         }
-        options.push(BaseObjectAction.Donate, BaseObjectAction.Share)
+        options.push(
+            BaseObjectAction.Donate, 
+            BaseObjectAction.Share,
+            BaseObjectAction.Fork,
+            BaseObjectAction.Copy,
+        )
         if (session?.id) {
             options.push(BaseObjectAction.Report);
         }
@@ -269,6 +274,63 @@ export const RoutineView = ({
         }
         return options;
     }, [routine, canEdit, session]);
+
+    const handleMoreActionComplete = useCallback((action: BaseObjectAction, data: any) => {
+        switch (action) {
+            case BaseObjectAction.Edit:
+                //TODO
+                break;
+            case BaseObjectAction.Stats:
+                //TODO
+                break;
+            case BaseObjectAction.Upvote:
+                if (data.vote.success) {
+                    setRoutine({
+                        ...routine,
+                        isUpvoted: true,
+                    } as any)
+                }
+                break;
+            case BaseObjectAction.Downvote:
+                if (data.vote.success) {
+                    setRoutine({
+                        ...routine,
+                        isUpvoted: false,
+                    } as any)
+                }
+                break;
+            case BaseObjectAction.Star:
+                if (data.star.success) {
+                    setRoutine({
+                        ...routine,
+                        isStarred: true,
+                    } as any)
+                }
+                break;
+            case BaseObjectAction.Unstar:
+                if (data.star.success) {
+                    setRoutine({
+                        ...routine,
+                        isStarred: false,
+                    } as any)
+                }
+                break;
+            case BaseObjectAction.Fork:
+                setLocation(`${APP_LINKS.Routine}/${data.fork.routine.id}`);
+                break;
+            case BaseObjectAction.Donate:
+                //TODO
+                break;
+            case BaseObjectAction.Share:
+                //TODO
+                break;
+            case BaseObjectAction.Copy:
+                setLocation(`${APP_LINKS.Routine}/${data.copy.routine.id}`);
+                break;
+            default:
+                break;
+        }
+    }, [routine, setLocation]);
 
     /**
      * If routine has nodes (i.e. is not just this page), display "View Graph" and "Start" (or "Continue") buttons. 
@@ -347,12 +409,10 @@ export const RoutineView = ({
     }, [previewFormik]);
 
     const resourceList = useMemo(() => {
-        console.log('calculating resource list start', routine?.resourceLists)
         if (!routine ||
             !Array.isArray(routine.resourceLists) ||
             routine.resourceLists.length < 1 ||
             routine.resourceLists[0].resources.length < 1) return null;
-        console.log('got list', routine.resourceLists[0])
         return <ResourceListHorizontal
             title={'Resources'}
             list={routine.resourceLists[0]}
@@ -516,7 +576,7 @@ export const RoutineView = ({
             </Dialog>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
-                handleActionComplete={() => { }} //TODO
+                handleActionComplete={handleMoreActionComplete}
                 handleEdit={onEdit}
                 objectId={id ?? ''}
                 objectName={title ?? ''}

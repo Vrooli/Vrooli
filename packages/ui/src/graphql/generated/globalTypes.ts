@@ -13,6 +13,14 @@ export enum CommentFor {
   Standard = "Standard",
 }
 
+export enum CopyType {
+  Node = "Node",
+  Organization = "Organization",
+  Project = "Project",
+  Routine = "Routine",
+  Standard = "Standard",
+}
+
 export enum DeleteOneType {
   Comment = "Comment",
   Email = "Email",
@@ -25,15 +33,24 @@ export enum DeleteOneType {
   Wallet = "Wallet",
 }
 
+export enum ForkType {
+  Organization = "Organization",
+  Project = "Project",
+  Routine = "Routine",
+  Standard = "Standard",
+}
+
 export enum LogSortBy {
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
 }
 
 export enum LogType {
+  Copy = "Copy",
   Create = "Create",
   Delete = "Delete",
   Downvote = "Downvote",
+  Fork = "Fork",
   OrganizationAddMember = "OrganizationAddMember",
   OrganizationJoin = "OrganizationJoin",
   OrganizationLeave = "OrganizationLeave",
@@ -274,6 +291,11 @@ export interface CommentUpdateInput {
   translationsUpdate?: CommentTranslationUpdateInput[] | null;
 }
 
+export interface CopyInput {
+  id: string;
+  objectType: CopyType;
+}
+
 export interface DeleteManyInput {
   ids: string[];
 }
@@ -336,6 +358,11 @@ export interface FindByIdOrHandleInput {
 
 export interface FindHandlesInput {
   organizationId?: string | null;
+}
+
+export interface ForkInput {
+  id: string;
+  objectType: ForkType;
 }
 
 export interface HistoryPageInput {

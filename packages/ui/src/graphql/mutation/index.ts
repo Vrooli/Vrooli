@@ -1,5 +1,6 @@
 export * from './commentCreate';
 export * from './commentUpdate';
+export * from './copy';
 export * from './deleteOne';
 export * from './emailCreate';
 export * from './emailLogIn';
@@ -9,6 +10,7 @@ export * from './emailSignUp';
 export * from './emailUpdate';
 export * from './exportData'
 export * from './feedbackCreate';
+export * from './fork';
 export * from './guestLogIn';
 export * from './logOut';
 export * from './nodeCreate';
@@ -27,9 +29,9 @@ export * from './resourceUpdate';
 export * from './runCancel';
 export * from './runComplete';
 export * from './routineCreate';
+export * from './routineUpdate';
 export * from './runUpdate';
 export * from './runCreate';
-export * from './routineUpdate';
 export * from './sendVerificationEmail';
 export * from './standardCreate';
 export * from './standardUpdate';

@@ -1,5 +1,5 @@
 // Components for providing basic functionality to model objects
-import { Count, DeleteManyInput, DeleteOneInput, FindByIdOrHandleInput, PageInfo, Success, TimeFrame } from '../../schema/types';
+import { CopyInput, CopyType, Count, DeleteManyInput, DeleteOneInput, FindByIdOrHandleInput, ForkInput, PageInfo, Success, TimeFrame } from '../../schema/types';
 import { PrismaType, RecursivePartial } from '../../types';
 import { GraphQLResolveInfo } from 'graphql';
 import pkg from 'lodash';
@@ -19,7 +19,7 @@ import { starFormatter } from './star';
 import { voteFormatter } from './vote';
 import { emailFormatter } from './email';
 import { CustomError } from '../../error';
-import { CODE, ViewFor } from '@local/shared';
+import { CODE, ForkType, ViewFor } from '@local/shared';
 import { profileFormatter } from './profile';
 import { memberFormatter } from './member';
 import { resolveGraphQLInfo } from '../../utils';
@@ -40,7 +40,9 @@ const { isObject } = pkg;
 
 export enum GraphQLModelType {
     Comment = 'Comment',
+    Copy = 'Copy',
     Email = 'Email',
+    Fork = 'Fork',
     Handle = 'Handle',
     InputItem = 'InputItem',
     Member = 'Member',
@@ -78,6 +80,7 @@ export enum GraphQLModelType {
 export interface ModelBusinessLayer<GraphQLModel, SearchInput> extends FormatConverter<GraphQLModel>, Partial<Searcher<SearchInput>> {
     prisma: PrismaType,
     cud?({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<any, any>): Promise<CUDResult<GraphQLModel>>
+    duplicate?({ userId, objectId, isFork, createCount }: DuplicateInput): Promise<DuplicateResult<GraphQLModel>>
 }
 
 /**
@@ -230,6 +233,30 @@ export interface CUDResult<GraphQLObject> {
     created?: RecursivePartial<GraphQLObject>[],
     updated?: RecursivePartial<GraphQLObject>[],
     deleted?: Count, // Number of deleted organizations
+}
+
+export interface DuplicateInput {
+    /**
+     * The userId of the user making the copy
+     */
+    userId: string,
+    /**
+     * The id of the object to copy.
+     */
+    objectId: string,
+    /**
+     * Whether the copy is a fork or a copy
+     */
+    isFork: boolean,
+    /**
+     * Number of child objects already created. Can be used to limit size of copy.
+     */
+    createCount: number,
+}
+
+export interface DuplicateResult<GraphQLObject> {
+    object: RecursivePartial<GraphQLObject>,
+    numCreated: number
 }
 
 //======================================================================================================================
@@ -618,7 +645,7 @@ export const selectHelper = (partial: PartialGraphQLInfo | PartialPrismaSelect):
  * @param partialInfo PartialGraphQLInfo object
  * @returns Valid GraphQL object
  */
- export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partialInfo: PartialGraphQLInfo): GraphQLModel {
+export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partialInfo: PartialGraphQLInfo): GraphQLModel {
     // First convert data to usable shape
     const type: string | undefined = partialInfo?.__typename;
     if (type !== undefined && type in FormatterMap) {
@@ -1539,4 +1566,91 @@ export async function deleteManyHelper(
         Log.collection.insertMany(logs).catch(error => logger.log(LogLevel.error, 'Failed creating "Delete" logs', { code: genErrorCode('0197'), error }));
     }
     return deleted
+}
+
+/**
+ * Helper function for copying an object in a single line
+ * @param userId ID of user making the request
+ * @param input GraphQL delete one input object
+ * @param info GraphQL info object
+ * @param model Business layer model
+ * @returns GraphQL Success response object
+ */
+export async function copyHelper(
+    userId: string | null,
+    input: CopyInput,
+    info: GraphQLInfo | PartialGraphQLInfo,
+    model: ModelBusinessLayer<any, any>,
+): Promise<any> {
+    if (!userId)
+        throw new CustomError(CODE.Unauthorized, 'Must be logged in to copy object', { code: genErrorCode('0229') });
+    if (!model.duplicate)
+        throw new CustomError(CODE.InternalError, 'Model does not support copy', { code: genErrorCode('0230') });
+    // Partially convert info
+    let partialInfo = toPartialGraphQLInfo(info, ({
+        '__typename': GraphQLModelType.Copy,
+        'node': GraphQLModelType.Node,
+        'organization': GraphQLModelType.Organization,
+        'project': GraphQLModelType.Project,
+        'routine': GraphQLModelType.Routine,
+        'standard': GraphQLModelType.Standard,
+    }));
+    if (!partialInfo)
+        throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0231') });
+    const { object } = await model.duplicate({ userId, objectId: input.id, isFork: false, createCount: 0 });
+    // If not a node, log for stats
+    if (input.objectType !== CopyType.Node) {
+        // No need to await this, since it is not needed for the response
+        Log.collection.insertOne({
+            timestamp: Date.now(),
+            userId: userId,
+            action: LogType.Copy,
+            object1Type: input.objectType,
+            object1Id: input.id,
+        }).catch(error => logger.log(LogLevel.error, 'Failed creating "Copy" log', { code: genErrorCode('0232'), error }));
+    }
+    const fullObject = await readOneHelper(userId, { id: object.id }, (partialInfo as any)[input.objectType.toLowerCase()], model);
+    return fullObject;
+}
+
+/**
+ * Helper function for forking an object in a single line
+ * @param userId ID of user making the request
+ * @param input GraphQL delete one input object
+ * @param info GraphQL info object
+ * @param model Business layer model
+ * @returns GraphQL Success response object
+ */
+export async function forkHelper(
+    userId: string | null,
+    input: ForkInput,
+    info: GraphQLInfo | PartialGraphQLInfo,
+    model: ModelBusinessLayer<any, any>,
+): Promise<any> {
+    if (!userId)
+        throw new CustomError(CODE.Unauthorized, 'Must be logged in to fork object', { code: genErrorCode('0233') });
+    if (!model.duplicate)
+        throw new CustomError(CODE.InternalError, 'Model does not support fork', { code: genErrorCode('0234') });
+    // Partially convert info
+    let partialInfo = toPartialGraphQLInfo(info, ({
+        '__typename': GraphQLModelType.Fork,
+        'organization': GraphQLModelType.Organization,
+        'project': GraphQLModelType.Project,
+        'routine': GraphQLModelType.Routine,
+        'standard': GraphQLModelType.Standard,
+    }));
+    if (!partialInfo)
+        throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0235') });
+    const { object } = await model.duplicate({ userId, objectId: input.id, isFork: false, createCount: 0 });
+    // Log for stats
+    // No need to await this, since it is not needed for the response
+    Log.collection.insertOne({
+        timestamp: Date.now(),
+        userId: userId,
+        action: LogType.Fork,
+        object1Type: input.objectType,
+        object1Id: input.id,
+    }).catch(error => logger.log(LogLevel.error, 'Failed creating "Fork" log', { code: genErrorCode('0236'), error }));
+    const fullObject = await readOneHelper(userId, { id: object.id }, (partialInfo as any)[input.objectType.toLowerCase()], model);
+    return fullObject;
 }
