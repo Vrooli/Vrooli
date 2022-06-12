@@ -513,6 +513,35 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
         });
         return modelToGraphQL(user, partial);
     },
+    //TODO write this function, and make a similar one for organizations and projects
+    // /**
+    //  * Anonymizes or deletes objects belonging to a user (yourself)
+    //  * @param userId The user ID
+    //  * @param input The data to anonymize/delete
+    //  */
+    // async clearUserData(userId: string, input: UserClearDataInput): Promise<Success> {
+    //     // Comments
+    //     // Organizations
+    //     if (input.organization) {
+    //         if (input.organization.anonymizeIds) {
+
+    //         }
+    //         if (input.organization.deleteIds) {
+
+    //         }
+    //         if (input.organization.anonymizeAll) {
+
+    //         }
+    //         if (input.organization.deleteAll) {
+
+    //         }
+    //     }
+    //     // Projects
+    //     // Routines
+    //     // Runs (can only be deleted, not anonymized)
+    //     // Standards
+    //     // Tags (can only be anonymized, not deleted)
+    // },
     async deleteProfile(userId: string, input: UserDeleteInput): Promise<Success> {
         // Check for correct password
         let user = await prisma.user.findUnique({ where: { id: userId } });
@@ -520,6 +549,8 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
             throw new CustomError(CODE.InternalError, 'User not found', { code: genErrorCode('0071') });
         if (!validater.validatePassword(input.password, user))
             throw new CustomError(CODE.BadCredentials, 'Incorrect password', { code: genErrorCode('0072') });
+        // Delete user. User's created objects are deleted separately, with explicit confirmation 
+        // given by the user. This is to minimize the chance of deleting objects which other users rely on.
         await prisma.user.delete({
             where: { id: userId }
         })

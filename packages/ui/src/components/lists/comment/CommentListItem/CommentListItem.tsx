@@ -1,10 +1,9 @@
 import { ListItem, ListItemText, Stack, useTheme } from '@mui/material';
 import { CommentListItemProps } from '../types';
 import { useCallback, useMemo } from 'react';
-import { VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
-import { TextLoading, UpvoteDownvote } from '../..';
-import { getOwnedByString, getTranslation, toOwnedBy } from 'utils';
+import { TextLoading } from '../..';
+import { getCreatedByString, getTranslation, toCreatedBy } from 'utils';
 import { owns } from 'utils/authentication';
 import { LinkButton } from 'components/inputs';
 
@@ -24,12 +23,12 @@ export function CommentListItem({
         };
     }, [data, session]);
 
-    const ownedBy = useMemo<string | null>(() => getOwnedByString(data, session?.languages ?? navigator.languages), [data, session?.languages]);
-    const toOwner = useCallback(() => { toOwnedBy(data, setLocation) }, [data, setLocation]);
+    const ownedBy = useMemo<string | null>(() => getCreatedByString(data, session?.languages ?? navigator.languages), [data, session?.languages]);
+    const toOwner = useCallback(() => { toCreatedBy(data, setLocation) }, [data, setLocation]);
 
     return (
         <ListItem
-            id={`comment-${data.id}`}
+            id={`comment-${data?.id}`}
             disablePadding
             sx={{
                 display: 'flex',
