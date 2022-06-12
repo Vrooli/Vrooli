@@ -258,7 +258,6 @@ export const RoutineView = ({
         if (session && !canEdit) {
             options.push(routine?.isUpvoted ? BaseObjectAction.Downvote : BaseObjectAction.Upvote);
             options.push(routine?.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
-            options.push(BaseObjectAction.Fork);
         }
         options.push(
             BaseObjectAction.Donate, 

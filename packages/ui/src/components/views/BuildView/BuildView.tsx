@@ -1,5 +1,5 @@
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, DeleteDialog, EditableLabel, UnlinkedNodesDialog, BuildInfoDialog, HelpButton } from 'components';
+import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, EditableLabel, UnlinkedNodesDialog, BuildInfoDialog, HelpButton } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
@@ -8,7 +8,7 @@ import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, Status, 
 import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine } from 'types';
 import isEqual from 'lodash/isEqual';
 import { useLocation } from 'wouter';
-import { APP_LINKS, DeleteOneType } from '@local/shared';
+import { APP_LINKS } from '@local/shared';
 import { NodeType } from 'graphql/generated/globalTypes';
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
@@ -115,14 +115,6 @@ export const BuildView = ({
     // Move node dialog for context menu (mainly for accessibility)
     const [moveNode, setMoveNode] = useState<string | null>(null);
     const closeMoveNodeDialog = useCallback(() => { setMoveNode(null); }, []);
-
-    // Handle delete
-    const [deleteOpen, setDeleteOpen] = useState(false);
-    const openDelete = useCallback(() => setDeleteOpen(true), []);
-    const handleDeleteClose = useCallback((wasDeleted: boolean) => {
-        if (wasDeleted) setLocation(APP_LINKS.Home);
-        else setDeleteOpen(false);
-    }, [setLocation])
 
     /**
      * Calculates:
@@ -919,22 +911,27 @@ export const BuildView = ({
         }
     }, [setAddSubroutineNode, setEditSubroutineNode, handleNodeDelete, handleSubroutineDelete, handleSubroutineOpen, handleNodeDrop, handleAddAfter, handleAddBefore, setMoveNode]);
 
-    const handleRoutineAction = useCallback((action: BaseObjectAction) => {
+    const handleRoutineAction = useCallback((action: BaseObjectAction, data: any) => {
         switch (action) {
             case BaseObjectAction.Copy:
-                //TODO
+                setLocation(`${APP_LINKS.Routine}/${data.copy.routine.id}`);
                 break;
             case BaseObjectAction.Delete:
-                openDelete();
+                setLocation(APP_LINKS.Home);
                 break;
             case BaseObjectAction.Downvote:
-                //TODO
+                if (data.vote.success) {
+                    onChange({
+                        ...routine,
+                        isUpvoted: false,
+                    } as any)
+                }
                 break;
             case BaseObjectAction.Edit:
                 //TODO
                 break;
             case BaseObjectAction.Fork:
-                //TODO
+                setLocation(`${APP_LINKS.Routine}/${data.fork.routine.id}`);
                 break;
             case BaseObjectAction.Report:
                 //TODO
@@ -943,13 +940,23 @@ export const BuildView = ({
                 //TODO
                 break;
             case BaseObjectAction.Star:
-                //TODO
+                if (data.star.success) {
+                    onChange({
+                        ...routine,
+                        isStarred: true,
+                    } as any)
+                }
                 break;
             case BaseObjectAction.Stats:
                 //TODO
                 break;
             case BaseObjectAction.Unstar:
-                //TODO
+                if (data.star.success) {
+                    onChange({
+                        ...routine,
+                        isStarred: false,
+                    } as any)
+                }
                 break;
             case BaseObjectAction.Update:
                 updateRoutine();
@@ -958,10 +965,15 @@ export const BuildView = ({
                 setChangedRoutine(routine);
                 break;
             case BaseObjectAction.Upvote:
-                //TODO
+                if (data.vote.success) {
+                    onChange({
+                        ...routine,
+                        isUpvoted: true,
+                    } as any)
+                }
                 break;
         }
-    }, [routine, updateRoutine, openDelete]);
+    }, [setLocation, updateRoutine, routine, onChange]);
 
     // Open/close unlinked nodes drawer
     const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);
@@ -983,15 +995,6 @@ export const BuildView = ({
             height: '100%',
             width: '100%',
         }}>
-            {/* Delete routine confirmation dialog */}
-            <DeleteDialog
-                isOpen={deleteOpen}
-                objectId={routine?.id ?? ''}
-                objectType={DeleteOneType.Routine}
-                objectName={getTranslation(changedRoutine, 'title', [language]) ?? ''}
-                handleClose={handleDeleteClose}
-                zIndex={zIndex + 3}
-            />
             {/* Popup for adding new subroutines */}
             {addSubroutineNode && <SubroutineSelectOrCreateDialog
                 handleAdd={handleRoutineListItemAdd}

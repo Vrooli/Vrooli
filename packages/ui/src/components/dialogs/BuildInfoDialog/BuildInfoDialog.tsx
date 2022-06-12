@@ -5,10 +5,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     Close as CloseIcon,
+    FileCopy as CopyIcon,
     Delete as DeleteIcon,
+    ForkRight as ForkIcon,
     Info as InfoIcon,
     QueryStats as StatsIcon,
-    ForkRight as ForkIcon,
+    StarOutline as StarIcon,
+    Star as UnstarIcon,
+    ThumbDown as DownvoteIcon,
+    ThumbUp as UpvoteIcon,
 } from '@mui/icons-material';
 import {
     Box,
@@ -26,15 +31,22 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
+import { copy } from 'graphql/generated/copy';
+import { fork } from 'graphql/generated/fork';
+import { star } from 'graphql/generated/star';
+import { vote } from 'graphql/generated/vote';
 import { BaseObjectAction, BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import { EditableLabel, LanguageInput, LinkButton, MarkdownInput, ResourceListHorizontal } from 'components';
+import { DeleteDialog, EditableLabel, LanguageInput, LinkButton, MarkdownInput, ResourceListHorizontal } from 'components';
 import { AllLanguages, getLanguageSubtag, getOwnedByString, getTranslation, Pubs, toOwnedBy, updateArray } from 'utils';
 import { useLocation } from 'wouter';
 import { useFormik } from 'formik';
-import { routineUpdateForm as validationSchema } from '@local/shared';
+import { APP_LINKS, CopyType, DeleteOneType, ForkType, MemberRole, routineUpdateForm as validationSchema, StarFor, VoteFor } from '@local/shared';
 import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
 import { NewObject, Routine } from 'types';
+import { useMutation } from '@apollo/client';
+import { mutationWrapper } from 'graphql/utils';
+import { copyMutation, forkMutation, starMutation, voteMutation } from 'graphql/mutation';
 
 export const BuildInfoDialog = ({
     handleAction,
@@ -204,24 +216,131 @@ export const BuildInfoDialog = ({
     const actions = useMemo(() => {
         // [value, label, icon, secondaryLabel]
         const results: [BaseObjectAction, string, any, string | null][] = [];
-        // If editing, show "Update", "Cancel", and "Delete" buttons
-        if (isEditing) {
+        // If signed in, not editing, and not your own routine, show vote/star options
+        if (session && !isEditing && ![MemberRole.Owner, MemberRole.Admin].includes(routine?.role ?? '' as any)) {
+            results.push(routine?.isUpvoted ? 
+                [BaseObjectAction.Downvote, 'Downvote', DownvoteIcon, null] : 
+                [BaseObjectAction.Upvote, 'Upvote', UpvoteIcon, null]
+            );
+            results.push(routine?.isStarred ? 
+                [BaseObjectAction.Unstar, 'Unstar', UnstarIcon, null] : 
+                [BaseObjectAction.Star, 'Star', StarIcon, null]
+            );
+        }
+        // If not editing, show "Stats" and "Fork" buttons
+        if (!isEditing) {
+            results.push(
+                [BaseObjectAction.Stats, 'Stats', StatsIcon, 'Coming Soon'],
+                [BaseObjectAction.Copy, 'Copy', CopyIcon, null],
+                [BaseObjectAction.Fork, 'Fork', ForkIcon, null],
+            )
+        }
+        // Only show "Delete" when editing an existing routine
+        if (isEditing && Boolean(routine?.id)) {
             results.push(
                 [BaseObjectAction.Delete, 'Delete', DeleteIcon, null],
             )
         }
-        // If not editing, show "Stats" and "Fork" buttons
-        else {
-            results.push(
-                [BaseObjectAction.Stats, 'Stats', StatsIcon, 'Coming Soon'],
-                [BaseObjectAction.Fork, 'Fork', ForkIcon, 'Coming Soon'],
-            )
-        }
         return results;
-    }, [isEditing]);
+    }, [isEditing, routine?.id, routine?.isStarred, routine?.isUpvoted, routine?.role, session]);
+
+    // Handle delete
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const openDelete = useCallback(() => setDeleteOpen(true), []);
+    const handleDeleteClose = useCallback((wasDeleted: boolean) => {
+        if (wasDeleted) setLocation(APP_LINKS.Home);
+        else setDeleteOpen(false);
+    }, [setLocation])
+
+    // Mutations
+    const [copy] = useMutation<copy>(copyMutation);
+    const [fork] = useMutation<fork>(forkMutation);
+    const [star] = useMutation<star>(starMutation);
+    const [vote] = useMutation<vote>(voteMutation);
+
+    const handleCopy = useCallback(() => {
+        if (!routine?.id) return;
+        mutationWrapper({
+            mutation: copy,
+            input: { id: routine.id, objectType: CopyType.Routine },
+            onSuccess: ({ data }) => {
+                PubSub.publish(Pubs.Snack, { message: `${getTranslation(routine, 'title', [language], true)} copied.`, severity: 'success' });
+                handleAction(BaseObjectAction.Copy, data);
+            },
+        })
+    }, [copy, handleAction, language, routine]);
+
+    const handleFork = useCallback(() => {
+        if (!routine?.id) return;
+        mutationWrapper({
+            mutation: fork,
+            input: { id: routine.id, objectType: ForkType.Routine },
+            onSuccess: ({ data }) => {
+                PubSub.publish(Pubs.Snack, { message: `${getTranslation(routine, 'title', [language], true)} forked.`, severity: 'success' });
+                handleAction(BaseObjectAction.Fork, data);
+            }
+        })
+    }, [fork, handleAction, language, routine]);
+
+    const handleStar = useCallback((isStar: boolean) => {
+        if (!routine?.id) return;
+        mutationWrapper({
+            mutation: star,
+            input: { isStar, forId: routine.id, starFor: StarFor.Routine },
+            onSuccess: ({ data }) => {
+                handleAction(isStar ? BaseObjectAction.Star : BaseObjectAction.Unstar, data);
+            }
+        })
+    }, [handleAction, routine?.id, star]);
+
+    const handleVote = useCallback((isUpvote: boolean | null) => {
+        if (!routine?.id) return;
+        mutationWrapper({
+            mutation: vote,
+            input: { isUpvote, forId: routine.id, voteFor: VoteFor.Routine },
+            onSuccess: ({ data }) => {
+                handleAction(isUpvote ? BaseObjectAction.Upvote : BaseObjectAction.Downvote, data);
+            }
+        })
+    }, [handleAction, routine?.id, vote]);
+
+    const onSelect = useCallback((action: BaseObjectAction) => {
+        switch (action) {
+            case BaseObjectAction.Copy:
+                handleCopy();
+                break;
+            case BaseObjectAction.Delete:
+                openDelete();
+                break;
+            case BaseObjectAction.Downvote:
+                handleVote(false);
+                break;
+            case BaseObjectAction.Fork:
+                handleFork();
+                break;
+            case BaseObjectAction.Star:
+                handleStar(true);
+                break;
+            case BaseObjectAction.Unstar:
+                handleStar(false);
+                break;
+            case BaseObjectAction.Upvote:
+                handleVote(true);
+                break;
+        }
+    }, [handleCopy, handleFork, handleStar, handleVote, openDelete]);
 
     return (
         <>
+            {/* Delete routine confirmation dialog */}
+            <DeleteDialog
+                isOpen={deleteOpen}
+                objectId={routine?.id ?? ''}
+                objectType={DeleteOneType.Routine}
+                objectName={getTranslation(routine, 'title', [language], false) ?? ''}
+                handleClose={handleDeleteClose}
+                zIndex={zIndex + 3}
+            />
             <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
                 <InfoIcon sx={sxs?.icon} />
             </IconButton>
@@ -397,7 +516,7 @@ export const BuildInfoDialog = ({
                         <ListItem
                             key={value}
                             button
-                            onClick={() => handleAction(value)}
+                            onClick={() => onSelect(value)}
                         >
                             <ListItemIcon>
                                 <Icon />

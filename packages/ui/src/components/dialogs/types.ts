@@ -198,7 +198,7 @@ export interface LinkDialogProps {
 }
 
 export interface BuildInfoDialogProps {
-    handleAction: (action: BaseObjectAction) => any;
+    handleAction: (action: BaseObjectAction, data: any) => any;
     handleLanguageChange: (newLanguage: string) => any;
     handleUpdate: (routine: Routine) => any;
     isEditing: boolean;

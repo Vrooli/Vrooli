@@ -985,7 +985,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             // Update ID
             node.id = uuidv4();
             // Update reference to node in nodeLinks
-            for (const nodeLink of node.nodeLinks) {
+            for (const nodeLink of newRoutine.nodeLinks) {
                 if (nodeLink.fromId === oldId) {
                     nodeLink.fromId = node.id;
                 }
@@ -1033,10 +1033,10 @@ export const routineMutater = (prisma: PrismaType) => ({
         const createdRoutine = await prisma.routine.create({
             data: {
                 // Give ownership to user copying routine
-                createdByUserId: userId,
-                userId: userId,
+                createdByUser: { connect: { id: userId } },
+                user: { connect: { id: userId } },
                 // Set parentId to original routine's id
-                parentId: isFork ? routine.id : null,
+                parent: isFork ? { connect: { id: routine.id } } : undefined,
                 // Copy the rest of the fields
                 complexity: newRoutine.complexity,
                 isAutomatable: newRoutine.isAutomatable,
@@ -1052,7 +1052,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                             create: {
                                 wasSuccessful: node.nodeEnd.wasSuccessful
                             }
-                        } : null,
+                        } : undefined,
                         loop: node.loop ? {
                             create: {
                                 loops: node.loop.loops,
@@ -1067,37 +1067,44 @@ export const routineMutater = (prisma: PrismaType) => ({
                                                 title: translation.title,
                                                 language: translation.language
                                             }))
-                                        } : null
+                                        } : undefined
                                     }))
-                                } : null
+                                } : undefined
                             }
-                        } : null,
+                        } : undefined,
                         nodeRoutineList: node.nodeRoutineList ? {
-                            create: node.nodeRoutineList.map((nodeRoutineList: any) => ({
-                                isOrdered: nodeRoutineList.isOrdered,
-                                isOptional: nodeRoutineList.isOptional,
-                                routines: nodeRoutineList.routines ? {
-                                    create: nodeRoutineList.routines.map((routine: any) => ({
+                            create: {
+                                isOrdered: node.nodeRoutineList.isOrdered,
+                                isOptional: node.nodeRoutineList.isOptional,
+                                routines: node.nodeRoutineList.routines ? {
+                                    create: [...node.nodeRoutineList.routines.map((routine: any) => {
+                                        console.log('in the bad code', JSON.stringify(routine), '\n\n'); return ({
                                         index: routine.index,
-                                        routineId: routine.routineId,
+                                        routine: { connect: { id: routine.routine.id } },
                                         translations: routine.translations ? {
                                             create: routine.translations.map((translation: any) => ({
                                                 description: translation.description,
                                                 title: translation.title,
                                                 language: translation.language
                                             }))
-                                        } : null
-                                    }))
-                                } : null
+                                        } : undefined
+                                    })})]
+                                } : undefined
+                            }
+                        } : undefined,
+                        translations: node.translations ? {
+                            create: node.translations.map((translation: any) => ({
+                                description: translation.description,
+                                title: translation.title,
+                                language: translation.language
                             }))
-                        } : null,
-
+                        } : undefined,
                     }))
                 } : undefined,
                 nodeLinks: newRoutine.nodeLinks ? {
                     create: newRoutine.nodeLinks.map((nodeLink: any) => ({
-                        fromId: nodeLink.fromId,
-                        toId: nodeLink.toId,
+                        from: { connect: { id: nodeLink.fromId } },
+                        to: { connect: { id: nodeLink.toId } },
                         operation: nodeLink.operation,
                         whens: nodeLink.whens ? {
                             create: nodeLink.whens.map((when: any) => ({
@@ -1108,16 +1115,16 @@ export const routineMutater = (prisma: PrismaType) => ({
                                         title: translation.title,
                                         language: translation.language
                                     }))
-                                } : null
+                                } : undefined
                             }))
-                        } : null,
+                        } : undefined,
                         translations: nodeLink.translations ? {
                             create: nodeLink.translations.map((translation: any) => ({
                                 description: translation.description,
                                 title: translation.title,
                                 language: translation.language
                             }))
-                        } : null
+                        } : undefined
                     }))
                 } : undefined,
                 resourceLists: newRoutine.resourceLists ? {
@@ -1144,14 +1151,14 @@ export const routineMutater = (prisma: PrismaType) => ({
                     create: newRoutine.inputs.map((input: any) => ({
                         isRequired: input.isRequired,
                         name: input.name,
-                        standardId: input.standardId,
+                        standard: { connect: { id: input.standardId } },
                         translations: input.translations ? {
                             create: input.translations.map((translation: any) => ({
                                 description: translation.description,
                                 title: translation.title,
                                 language: translation.language
                             }))
-                        } : null
+                        } : undefined
                     }))
                 } : undefined,
                 outputs: newRoutine.outputs ? {
