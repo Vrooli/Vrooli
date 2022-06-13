@@ -286,7 +286,6 @@ export interface CommentCreateInput {
 export interface CommentSearchInput {
   after?: string | null;
   createdTimeFrame?: TimeFrame | null;
-  ids?: string[] | null;
   languages?: string[] | null;
   minScore?: number | null;
   minStars?: number | null;

@@ -1,19 +1,14 @@
 import { gql } from 'graphql-tag';
-import { commentFields } from 'graphql/fragment';
+import { threadFields } from 'graphql/fragment';
 
 export const commentsQuery = gql`
-    ${commentFields}
+    ${threadFields}
     query comments($input: CommentSearchInput!) {
         comments(input: $input) {
-            pageInfo {
-                endCursor
-                hasNextPage
-            }
-            edges {
-                cursor
-                node {
-                    ...commentFields
-                }
+            endCursor
+            totalThreads
+            threads {
+                ...threadFields
             }
         }
     }

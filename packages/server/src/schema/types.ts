@@ -57,12 +57,6 @@ export type CommentCreateInput = {
   translationsCreate?: InputMaybe<Array<CommentTranslationCreateInput>>;
 };
 
-export type CommentEdge = {
-  __typename?: 'CommentEdge';
-  cursor: Scalars['String'];
-  node: Comment;
-};
-
 export enum CommentFor {
   Project = 'Project',
   Routine = 'Routine',
@@ -72,7 +66,6 @@ export enum CommentFor {
 export type CommentSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
-  ids?: InputMaybe<Array<Scalars['ID']>>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
@@ -89,8 +82,9 @@ export type CommentSearchInput = {
 
 export type CommentSearchResult = {
   __typename?: 'CommentSearchResult';
-  edges: Array<CommentEdge>;
-  pageInfo: PageInfo;
+  endCursor?: Maybe<Scalars['String']>;
+  threads?: Maybe<Array<CommentThread>>;
+  totalThreads?: Maybe<Scalars['Int']>;
 };
 
 export enum CommentSortBy {
@@ -103,6 +97,14 @@ export enum CommentSortBy {
   VotesAsc = 'VotesAsc',
   VotesDesc = 'VotesDesc'
 }
+
+export type CommentThread = {
+  __typename?: 'CommentThread';
+  childThreads: Array<CommentThread>;
+  comment: Comment;
+  endCursor?: Maybe<Scalars['String']>;
+  totalInThread?: Maybe<Scalars['Int']>;
+};
 
 export type CommentTranslation = {
   __typename?: 'CommentTranslation';
