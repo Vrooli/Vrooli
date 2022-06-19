@@ -1,13 +1,14 @@
-import { CODE, commentCreate, commentsCreate, CommentSortBy, commentsUpdate, commentTranslationCreate, commentTranslationUpdate, commentUpdate } from "@local/shared";
+import { CODE, commentsCreate, CommentSortBy, commentsUpdate, commentTranslationCreate, commentTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, Count } from "../../schema/types";
-import { PrismaType } from "types";
-import { addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeCreatorField, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, GraphQLModelType, PartialGraphQLInfo, PartialPrismaSelect, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, PaginatedSearchResult, addSupplementalFields } from "./base";
-import { organizationVerifier } from "./organization";
-import pkg, { prisma } from '@prisma/client';
+import { PrismaType, RecursivePartial } from "types";
+import { addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, GraphQLModelType, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields } from "./base";
+import { OrganizationModel, organizationVerifier } from "./organization";
+import pkg from '@prisma/client';
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
 import _ from "lodash";
+import { StarModel } from "./star";
 const { MemberRole } = pkg;
 
 //==============================================================
@@ -36,14 +37,22 @@ export const commentFormatter = (): FormatConverter<Comment> => ({
         return _.omit(partial, calculatedFields);
     },
     constructUnions: (data) => {
-        let { project, routine, standard, ...modified } = addCreatorField(data);
-        if (project) modified.commentedOn = modified.project;
-        else if (routine) modified.commentedOn = modified.routine;
-        else if (standard) modified.commentedOn = modified.standard;
+        console.log('comment construct unions start', JSON.stringify(data), '\n\n')
+        let { organization, project, routine, standard, user, ...modified } = data;
+        console.log('comment after addcreatorfields', JSON.stringify(modified), '\n\n')
+        if (organization) modified.creator = organization;
+        else if (user) modified.creator = user;
+        if (project) modified.commentedOn = project;
+        else if (routine) modified.commentedOn = routine;
+        else if (standard) modified.commentedOn = standard;
+        console.log('comment after construct unions', JSON.stringify(modified), '\n\n')
         return modified;
     },
     deconstructUnions: (partial) => {
-        let modified = removeCreatorField(partial);
+        let modified = deconstructUnion(partial, 'creator', [
+            [GraphQLModelType.User, 'user'],
+            [GraphQLModelType.Organization, 'organization'],
+        ]);
         modified = deconstructUnion(modified, 'commentedOn', [
             [GraphQLModelType.Project, 'project'],
             [GraphQLModelType.Routine, 'routine'],
@@ -56,6 +65,29 @@ export const commentFormatter = (): FormatConverter<Comment> => ({
     },
     removeJoinTables: (data) => {
         return removeJoinTablesHelper(data, joinMapper);
+    },
+    async addSupplementalFields(
+        prisma: PrismaType,
+        userId: string | null, // Of the user making the request
+        objects: RecursivePartial<any>[],
+        partial: PartialGraphQLInfo,
+    ): Promise<RecursivePartial<Comment>[]> {
+        // Get all of the ids
+        const ids = objects.map(x => x.id) as string[];
+        // Query for isStarred
+        if (partial.isStarred) {
+            const isStarredArray = userId
+                ? await StarModel(prisma).getIsStarreds(userId, ids, GraphQLModelType.Comment)
+                : Array(ids.length).fill(false);
+            objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
+        }
+        if (partial.role) {
+            const roles = userId
+                ? await OrganizationModel(prisma).getRoles(userId, ids)
+                : Array(ids.length).fill(null);
+            objects = objects.map((x, i) => ({ ...x, role: roles[i] })) as any;
+        }
+        return objects as RecursivePartial<Comment>[];
     },
 })
 
@@ -95,7 +127,7 @@ export const commentQuerier = (prisma: PrismaType) => ({
     /**
      * Custom search query for querying comment threads
      */
-     async searchThreads(
+    async searchThreads(
         userId: string | null,
         input: { ids: string[], take: number, sortBy: CommentSortBy },
         info: GraphQLInfo | PartialGraphQLInfo,
@@ -143,15 +175,15 @@ export const commentQuerier = (prisma: PrismaType) => ({
             // Find end cursor of nested threads
             const endCursor = nestedThreads.length > 0 ? nestedThreads[nestedThreads.length - 1].id : undefined;
             // For nested threads, recursively call this function
-            const childThreads = nestLimit > 0 ? await this.searchThreads(userId, { 
-                ids: nestedThreads.map(n => n.id), 
-                take: input.take ?? 10, 
-                sortBy: input.sortBy 
+            const childThreads = nestLimit > 0 ? await this.searchThreads(userId, {
+                ids: nestedThreads.map(n => n.id),
+                take: input.take ?? 10,
+                sortBy: input.sortBy
             }, info, nestLimit - 1) : [];
             // Add thread to result
             threads.push({
                 childThreads,
-                comment: result as any, //TODO need addsupplementalfields somewhere. Ideally one for all comments in all nest levels
+                comment: result as any,
                 endCursor,
                 totalInThread,
             });
@@ -215,10 +247,46 @@ export const commentQuerier = (prisma: PrismaType) => ({
             take: input.take ?? 10,
             sortBy: input.sortBy ?? commentSearcher().defaultSort,
         }, info, nestLimit) : [];
+        // Find every comment in "childThreads", and put into 1D array. This uses a helper function to handle recursion
+        const flattenThreads = (threads: CommentThread[]) => {
+            const result: Comment[] = [];
+            for (const thread of threads) {
+                result.push(thread.comment);
+                result.push(...flattenThreads(thread.childThreads));
+            }
+            return result;
+        }
+        let comments: any = flattenThreads(childThreads);
+        console.log('flatten result', JSON.stringify(comments), '\n\n')
+        // Shape comments and add supplemental fields
+        comments = comments.map((c: any) => modelToGraphQL(c, partialInfo as PartialGraphQLInfo));
+        comments = await addSupplementalFields(prisma, userId, comments, partialInfo);
+        console.log('comments with supplemental fields added', JSON.stringify(comments), '\n\n')
+        // Put comments back into "threads" object, using another helper function. 
+        // Comments can be matched by their ID
+        const shapeThreads = (threads: CommentThread[]) => {
+            const result: CommentThread[] = [];
+            for (const thread of threads) {
+                // Find current-level comment
+                const comment = comments.find((c: any) => c.id === thread.comment.id);
+                // Recurse
+                const children = shapeThreads(thread.childThreads);
+                // Add thread to result
+                result.push({
+                    comment,
+                    childThreads: children,
+                    endCursor: thread.endCursor,
+                    totalInThread: thread.totalInThread,
+                });
+            }
+            return result;
+        }
+        const threads = shapeThreads(childThreads);
+        console.log('threads with comments', JSON.stringify(threads), '\n\n')
         // Return result
         return {
             totalThreads: totalInThread,
-            threads: childThreads,
+            threads,
             endCursor,
         }
     }

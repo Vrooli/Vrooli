@@ -1,7 +1,7 @@
 /**
  * Contains new comment input, and list of Reddit-style comments.
  */
-import { Box, Button, CircularProgress, Stack, Typography, useTheme } from '@mui/material';
+import { Box, Button, CircularProgress, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { CommentContainerProps } from '../types';
 import { containerShadow } from 'styles';
 import { commentCreateForm as validationSchema } from '@local/shared';
@@ -14,9 +14,11 @@ import { mutationWrapper } from 'graphql/utils';
 import { objectToSearchInfo, ObjectType, parseSearchParams, Pubs, stringifySearchParams, useReactSearch } from 'utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TimeFrame } from 'graphql/generated/globalTypes';
-import { comments, commentsVariables } from 'graphql/generated/comments';
+import { comments, commentsVariables, comments_comments } from 'graphql/generated/comments';
 import { useLocation } from 'wouter';
 import { commentsQuery } from 'graphql/query';
+import { CommentThread } from 'types';
+import { CommentList } from 'components/lists/comment';
 
 const { advancedSearchSchema, defaultSortBy, sortByOptions } = objectToSearchInfo[ObjectType.Comment];
 
@@ -24,6 +26,7 @@ export function CommentContainer({
     language,
     objectId,
     objectType,
+    session,
     sxs,
 }: CommentContainerProps) {
     const { palette } = useTheme();
@@ -89,7 +92,7 @@ export function CommentContainer({
             }
         } as any)
     });
-    const [allData, setAllData] = useState<Comment[]>([]);
+    const [allData, setAllData] = useState<CommentThread[]>([]);
 
     // On search filters/sort change, reset the page
     useEffect(() => {
@@ -114,11 +117,9 @@ export function CommentContainer({
     /**
      * Helper method for converting fetched data to an array of object data
      */
-     const parseData = useCallback((data: any) => {
+    const parseData = useCallback((data: comments | undefined): CommentThread[] => {
         if (!data) return [];
-        const queryData: any = Object.values(data)[0];
-        if (!queryData || !queryData.edges) return [];
-        return queryData.edges.map((edge, index) => edge.node);
+        return data.comments.threads ?? [];
     }, []);
 
     // Handle advanced search
@@ -167,6 +168,24 @@ export function CommentContainer({
         }
     }, [pageData, parseData, handleAdvancedSearchDialogClose]);
 
+    useEffect(() => {
+        console.log('ALL COMMENTS DATA', allData);
+    }, [allData]);
+
+    /**
+     * When new comment is created, add it to the list of comments
+     */
+    const onCommentAdd = useCallback((comment: Comment) => {
+        // Make comment first, so you can see it without having to scroll to the bottom
+        setAllData(curr => [{
+            __typename: 'CommentThread',
+            comment: comment as any,
+            childThreads: [],
+            endCursor: null,
+            totalInThread: 0,
+        }, ...curr]);
+    }, []);
+
     const [addMutation, { loading: loadingAdd }] = useMutation<commentCreate>(commentCreateMutation);
     const formik = useFormik({
         initialValues: {
@@ -186,13 +205,26 @@ export function CommentContainer({
                 },
                 successCondition: (response) => response.data.commentCreate !== null,
                 onSuccess: (response) => {
-                    PubSub.publish(Pubs.Snack, { message: 'Report submitted.' });
+                    PubSub.publish(Pubs.Snack, { message: 'Comment created.', severity: 'success' });
                     formik.resetForm();
+                    onCommentAdd(response.data.commentCreate);
                 },
                 onError: () => { formik.setSubmitting(false) },
             })
         },
     });
+
+    /**
+     * Handle add comment click
+     */
+    const handleAddComment = useCallback((event: any) => {
+        // Make sure submit does not propagate past the form
+        event.preventDefault();
+        // Make sure form is valid
+        if (!formik.isValid) return;
+        // Submit form
+        formik.submitForm();
+    }, [formik]);
 
     return (
         <Box
@@ -206,30 +238,44 @@ export function CommentContainer({
             }}
         >
             {/* Add comment */}
-            <Box sx={{ margin: 2 }}>
-                <Typography component="h3" variant="h6" textAlign="left">Add comment</Typography>
-                <MarkdownInput
-                    id="add-comment"
-                    placeholder="Please be nice to each other."
-                    value={formik.values.comment}
-                    minRows={3}
-                    onChange={(newText: string) => formik.setFieldValue('comment', newText)}
-                    error={formik.touched.comment && Boolean(formik.errors.comment)}
-                    helperText={formik.touched.comment ? formik.errors.comment as string : null}
-                />
-                <Box sx={{
-                    marginTop: 1,
-                    display: 'flex',
-                    flexDirection: 'row-reverse',
-                }}>
-                    <Button type="submit" color="secondary" disabled={loadingAdd}>
-                        {loadingAdd ? <CircularProgress size={24} /> : 'Add'}
-                    </Button>
+            <form>
+                <Box sx={{ margin: 2 }}>
+                    <Typography component="h3" variant="h6" textAlign="left">Add comment</Typography>
+                    <MarkdownInput
+                        id="add-comment"
+                        placeholder="Please be nice to each other."
+                        value={formik.values.comment}
+                        minRows={3}
+                        onChange={(newText: string) => formik.setFieldValue('comment', newText)}
+                        error={formik.touched.comment && Boolean(formik.errors.comment)}
+                        helperText={formik.touched.comment ? formik.errors.comment as string : null}
+                    />
+                    <Box sx={{
+                        marginTop: 1,
+                        display: 'flex',
+                        flexDirection: 'row-reverse',
+                    }}>
+                        <Tooltip title={formik.errors.comment ? formik.errors.comment as string : ''}>
+                            <Button
+                                color="secondary"
+                                disabled={loadingAdd || formik.isSubmitting || !formik.isValid}
+                                onClick={handleAddComment}
+                            >
+                                {loadingAdd ? <CircularProgress size={24} /> : 'Add'}
+                            </Button>
+                        </Tooltip>
+                    </Box>
                 </Box>
-            </Box>
+            </form>
             {/* Comments list */}
             <Stack direction="column">
-
+                {allData.map((thread, index) => (
+                    <CommentList
+                        key={index}
+                        data={thread}
+                        session={session}
+                    />
+                ))}
             </Stack>
         </Box>
     );

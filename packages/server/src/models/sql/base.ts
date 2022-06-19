@@ -585,6 +585,10 @@ export const toPartialGraphQLInfo = (info: GraphQLInfo | PartialGraphQLInfo, rel
     if (select.hasOwnProperty('pageInfo') && select.hasOwnProperty('edges')) {
         select = select.edges.node;
     }
+    // If fields are in the shape of a comment thread search query, convert to a Prisma select object
+    else if (select.hasOwnProperty('endCursor') && select.hasOwnProperty('totalThreads') && select.hasOwnProperty('threads')) {
+        select = select.threads.comment
+    }
     // Inject __typename fields
     select = injectTypenames(select, relationshipMap);
     return select;

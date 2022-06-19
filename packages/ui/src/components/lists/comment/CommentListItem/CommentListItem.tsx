@@ -51,6 +51,12 @@ export function CommentListItem({
                         <LinkButton
                             onClick={toOwner}
                             text={ownedBy}
+                            sxs={{
+                                text: {
+                                    color: palette.background.textPrimary,
+                                    fontWeight: 'bold',
+                                }
+                            }}
                         />
                     )}
                     {/* Time posted */}

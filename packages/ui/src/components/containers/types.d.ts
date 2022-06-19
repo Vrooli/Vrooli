@@ -5,6 +5,7 @@ export interface CommentContainerProps {
     language: string;
     objectId: string;
     objectType: ObjectType;
+    session: Session;
     sxs?: {
         root: any;
     }

@@ -689,6 +689,7 @@ export const RoutineView = ({
                     language={language}
                     objectId={id ?? ''}
                     objectType={ObjectType.Routine}
+                    session={session}
                     sxs={{
                         root: {
                             paddingBottom: 'env(safe-area-inset-bottom)',
