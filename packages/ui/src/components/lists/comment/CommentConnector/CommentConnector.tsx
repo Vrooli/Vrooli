@@ -31,49 +31,62 @@ export const CommentConnector = ({
         }
     }, [objectType]);
 
+    // Profile image
+    const profileImage = useMemo(() => (
+        <Box
+            width="48px"
+            minWidth="48px"
+            height="48px"
+            minHeight="48px"
+            borderRadius='100%'
+            bgcolor={profileColors[0]}
+            justifyContent='center'
+            alignItems='center'
+            sx={{
+                display: 'flex',
+            }}
+        >
+            <ProfileIcon sx={{
+                fill: profileColors[1],
+                width: '80%',
+                height: '80%',
+            }} />
+        </Box>
+    ), [ProfileIcon, profileColors]);
+
+    // If open, profile image on top of collapsible line
+    if (isOpen) {
+        return (
+            <Stack direction="column">
+                {/* Profile image */}
+                {profileImage}
+                {/* Collapsible, vertical line */}
+                {
+                    isOpen && <Box
+                        width="5px"
+                        height="100%"
+                        borderRadius='100px'
+                        bgcolor={profileColors[0]}
+                        sx={{
+                            marginLeft: 'auto',
+                            marginRight: 'auto',
+                            marginTop: 1,
+                            marginBottom: 1,
+                            cursor: 'pointer',
+                            '&:hover': {
+                                brightness: palette.mode === 'light' ? 1.05 : 0.95,
+                            },
+                        }}
+                        onClick={onToggle}
+                    />
+                }
+            </Stack>
+        );
+    }
+    // If closed, OpenIcon to the left of profile image
     return (
-        // Profile image on top of collapsible line
-        <Stack direction="column">
-            {/* Profile image */}
-            <Box
-                width="48px"
-                minWidth="48px"
-                height="48px"
-                minHeight="48px"
-                borderRadius='100%'
-                bgcolor={profileColors[0]}
-                justifyContent='center'
-                alignItems='center'
-                sx={{
-                    display: 'flex',
-                }}
-            >
-                <ProfileIcon sx={{
-                    fill: profileColors[1],
-                    width: '80%',
-                    height: '80%',
-                }} />
-            </Box>
-            {/* Collapsible, vertical line if open */}
-            {isOpen && <Box
-                width="5px"
-                height="100%"
-                borderRadius='100px'
-                bgcolor={profileColors[0]}
-                sx={{
-                    marginLeft: 'auto',
-                    marginRight: 'auto',
-                    marginTop: 1,
-                    marginBottom: 1,
-                    cursor: 'pointer',
-                    '&:hover': {
-                        brightness: palette.mode === 'light' ? 1.05 : 0.95,
-                    },
-                }}
-                onClick={onToggle}
-            />}
-            {/* OpenIcon if closed */}
-            {!isOpen && <IconButton
+        <Stack direction="row">
+            <IconButton
                 onClick={onToggle}
                 sx={{
                     width: '48px',
@@ -81,7 +94,8 @@ export const CommentConnector = ({
                 }}
             >
                 <OpenIcon />
-            </IconButton>}
+            </IconButton>
+            {profileImage}
         </Stack>
     )
 }

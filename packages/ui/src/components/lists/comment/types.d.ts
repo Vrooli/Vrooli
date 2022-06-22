@@ -14,6 +14,7 @@ export interface CommentListProps {
 
 export interface CommentListItemProps {
     data: Comment | null;
+    isOpen: boolean;
     loading: boolean;
     session: Session;
 }

@@ -34,6 +34,7 @@ const organizationSelect = {
     stars: true,
     isOpenToNewMembers: true,
     isStarred: true,
+    role: true,
     reportsCount: true,
     translations: {
         id: true,
@@ -53,6 +54,7 @@ const projectSelect = {
     isComplete: true,
     isStarred: true,
     isUpvoted: true,
+    role: true,
     reportsCount: true,
     translations: {
         id: true,
@@ -74,6 +76,7 @@ const routineSelect = {
     isComplete: true,
     isStarred: true,
     isUpvoted: true,
+    role: true,
     reportsCount: true,
     translations: {
         id: true,
@@ -105,6 +108,7 @@ const standardSelect = {
     score: true,
     isStarred: true,
     isUpvoted: true,
+    role: true,
     reportsCount: true,
     translations: {
         id: true,

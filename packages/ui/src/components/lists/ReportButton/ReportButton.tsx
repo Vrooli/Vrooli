@@ -6,8 +6,7 @@ import { multiLineEllipsis } from 'styles';
 
 export const ReportButton = ({
     reportsCount = 0,
-    objectId,
-    objectType,
+    object,
     tooltipPlacement = "left",
 }: ReportButtonProps) => {
 

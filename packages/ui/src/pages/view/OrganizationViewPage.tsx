@@ -45,7 +45,7 @@ export const OrganizationViewPage = ({
         <Box sx={{
             minHeight: '100vh',
             paddingTop: { xs: '64px', md: '80px' },
-            paddingBottom: 'env(safe-area-inset-bottom)',
+            paddingBottom: 'calc(56px + env(safe-area-inset-bottom))',
         }}>
             {/* Add dialog */}
             <BaseObjectDialog

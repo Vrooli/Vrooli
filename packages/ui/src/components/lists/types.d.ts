@@ -4,8 +4,7 @@ import { ObjectType } from 'utils';
 
 export interface CommentButtonProps {
     commentsCount: number | null; // Defaults to 0
-    objectId: string;
-    objectType: ObjectType['Organization'] | ObjectType['Project'] | ObjectType['Routine'] | ObjectType['Standard'];
+    object: { id: string, handle?: string | null, __typename: string } | null;
     tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 }
 
@@ -61,8 +60,7 @@ export interface DateRangeMenuProps {
 
 export interface ReportButtonProps {
     reportsCount: number | null; // Defaults to 0
-    objectId: string;
-    objectType: ObjectType;
+    object: { id: string, __typename: string } | null;
     tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 }
 
@@ -129,6 +127,7 @@ export interface TagListProps {
 }
 
 export interface UpvoteDownvoteProps {
+    direction?: 'row' | 'column';
     session: Session;
     score?: number; // Net score - can be negative
     isUpvoted?: boolean | null; // If not passed, then there is neither an upvote nor a downvote

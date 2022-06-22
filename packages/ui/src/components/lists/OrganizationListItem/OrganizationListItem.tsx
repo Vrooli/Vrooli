@@ -5,7 +5,7 @@ import { useCallback, useMemo } from 'react';
 import { APP_LINKS, StarFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { ReportButton, StarButton, TagList, TextLoading } from '..';
-import { getTranslation, listItemColor, ObjectType, placeholderColor } from 'utils';
+import { getTranslation, listItemColor, placeholderColor } from 'utils';
 import { Apartment as ApartmentIcon } from '@mui/icons-material';
 
 export function OrganizationListItem({
@@ -17,6 +17,7 @@ export function OrganizationListItem({
     onClick,
     tooltip,
 }: OrganizationListItemProps) {
+    console.log('organizationlistitem', hideRole, data)
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
@@ -84,16 +85,24 @@ export function OrganizationListItem({
                         {/* Name/Title and role */}
                         {loading ? <TextLoading /> :
                             (
-                                <Stack direction="row" spacing={1}>
+                                <Stack direction="row" spacing={1} sx={{
+                                    overflow: 'auto',
+                                }}>
                                     <ListItemText
                                         primary={name}
-                                        sx={{ ...multiLineEllipsis(1) }}
-                                    />
-                                    {!hideRole && data?.role && <ListItemText
-                                        primary={data.role}
                                         sx={{ 
                                             ...multiLineEllipsis(1),
+                                            lineBreak: 'anywhere',
+                                        }}
+                                    />
+                                    {!hideRole && data?.role && <ListItemText
+                                        primary={`(${data.role})`}
+                                        sx={{ 
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            width: '100%',
                                             color: '#f2a7a7',
+                                            flex: 200,
                                         }}
                                     />}
                                 </Stack>
@@ -118,8 +127,7 @@ export function OrganizationListItem({
                         />
                         {(data?.reportsCount ?? 0) > 0 && <ReportButton
                             reportsCount={data?.reportsCount ?? 0}
-                            objectId={data?.id ?? ''}
-                            objectType={ObjectType.Organization}
+                            object={data}
                         />}
                     </Stack>
                 </ListItemButton>

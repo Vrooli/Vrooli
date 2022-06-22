@@ -5,11 +5,11 @@ import { useCallback, useMemo } from 'react';
 import { APP_LINKS, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { CommentButton, ReportButton, StarButton, TagList, TextLoading, UpvoteDownvote } from 'components';
-import { getTranslation, listItemColor, ObjectType } from 'utils';
-import { owns } from 'utils/authentication';
+import { getTranslation, listItemColor } from 'utils';
 
 export function ProjectListItem({
     data,
+    hideRole,
     index,
     loading,
     session,
@@ -18,7 +18,6 @@ export function ProjectListItem({
 }: ProjectListItemProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const canEdit = useMemo<boolean>(() => owns(data?.role), [data]);
 
     const { description, name } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
@@ -71,10 +70,32 @@ export function ProjectListItem({
                             display: 'grid',
                         }}
                     >
-                        {loading ? <TextLoading /> : <ListItemText
-                            primary={name}
-                            sx={{ ...multiLineEllipsis(1) }}
-                        />}
+                        {/* Name/Title and role */}
+                        {loading ? <TextLoading /> :
+                            (
+                                <Stack direction="row" spacing={1} sx={{
+                                    overflow: 'auto',
+                                }}>
+                                    <ListItemText
+                                        primary={name}
+                                        sx={{ 
+                                            ...multiLineEllipsis(1),
+                                            lineBreak: 'anywhere',
+                                        }}
+                                    />
+                                    {!hideRole && data?.role && <ListItemText
+                                        primary={`(${data.role})`}
+                                        sx={{ 
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            width: '100%',
+                                            color: '#f2a7a7',
+                                            flex: 200,
+                                        }}
+                                    />}
+                                </Stack>
+                            )
+                        }
                         {loading ? <TextLoading /> : <ListItemText
                             primary={description}
                             sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
@@ -93,13 +114,11 @@ export function ProjectListItem({
                         />
                         <CommentButton
                             commentsCount={data?.commentsCount ?? 0}
-                            objectId={data?.id ?? ''}
-                            objectType={ObjectType.Project}
+                            object={data}
                         />
                         {(data?.reportsCount ?? 0) > 0 && <ReportButton
                             reportsCount={data?.reportsCount ?? 0}
-                            objectId={data?.id ?? ''}
-                            objectType={ObjectType.Project}
+                            object={data}
                         />}
                     </Stack>
                 </ListItemButton>

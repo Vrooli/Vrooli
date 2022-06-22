@@ -228,6 +228,7 @@ export function CommentContainer({
 
     return (
         <Box
+            id="comments"
             sx={{
                 ...containerShadow,
                 borderRadius: '8px',
@@ -268,7 +269,7 @@ export function CommentContainer({
                 </Box>
             </form>
             {/* Comments list */}
-            <Stack direction="column">
+            <Stack direction="column" spacing={2}>
                 {allData.map((thread, index) => (
                     <CommentList
                         key={index}

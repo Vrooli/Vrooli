@@ -2,7 +2,7 @@ import { ListItem, ListItemText, Stack, Typography, useTheme } from '@mui/materi
 import { CommentListItemProps } from '../types';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'wouter';
-import { TextLoading } from '../..';
+import { TextLoading, UpvoteDownvote } from '../..';
 import { displayDate, getCreatedByString, getTranslation, ObjectType, toCreatedBy } from 'utils';
 import { owns } from 'utils/authentication';
 import { LinkButton } from 'components/inputs';
@@ -17,15 +17,16 @@ import { useMutation } from '@apollo/client';
 import { starMutation } from 'graphql/mutation';
 import { star } from 'graphql/generated/star';
 import { mutationWrapper } from 'graphql/utils';
+import { VoteFor } from '@local/shared';
 
 export function CommentListItem({
     data,
+    isOpen,
     loading,
     session,
 }: CommentListItemProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const canEdit = useMemo<boolean>(() => owns(data?.role), [data]);
     const { text } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
         return {
@@ -50,7 +51,7 @@ export function CommentListItem({
         mutationWrapper({
             mutation: starMutate,
             input: { isStar: !changedData?.isStarred, starFor: ObjectType.Comment, forId: data?.id ?? '' },
-            onSuccess: (response) => { 
+            onSuccess: (response) => {
                 const isStarred = response.data.star;
                 setChangedData({ ...changedData, isStarred, score: isStarred ? (data?.score ?? 0) + 1 : (data?.score ?? 0) - 1 })
             },
@@ -80,39 +81,68 @@ export function CommentListItem({
             >
                 {/* Username and time posted */}
                 <Stack direction="row" spacing={1}>
-                    {/* Username */}
-                    {ownedBy && (
-                        <LinkButton
-                            onClick={toOwner}
-                            text={ownedBy}
-                            sxs={{
-                                text: {
-                                    color: palette.background.textPrimary,
-                                    fontWeight: 'bold',
-                                }
-                            }}
-                        />
-                    )}
+                    {/* Username and role */}
+                    {
+                        ownedBy && (
+                            <Stack direction="row" spacing={1} sx={{
+                                overflow: 'auto',
+                            }}>
+                                <LinkButton
+                                    onClick={toOwner}
+                                    text={ownedBy}
+                                    sxs={{
+                                        text: {
+                                            color: palette.background.textPrimary,
+                                            fontWeight: 'bold',
+                                        }
+                                    }}
+                                />
+                                {data?.role && <ListItemText
+                                    primary={`(${data.role})`}
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        color: '#f2a7a7',
+                                    }}
+                                />}
+                                {data?.creator?.id && data.creator.id === session?.id && <ListItemText
+                                    primary={`(You)`}
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        color: '#f2a7a7',
+                                    }}
+                                />}
+                            </Stack>
+                        )
+                    }
                     {/* Time posted */}
-                    <Typography variant="body2">
-                        {displayDate(data?.created_at, false)}
-                    </Typography>
+                    <ListItemText
+                        primary={displayDate(data?.created_at, false)}
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                        }}
+                    />
                 </Stack>
                 {/* Text */}
-                {loading ? <TextLoading /> : <ListItemText
+                {isOpen && (loading ? <TextLoading /> : <ListItemText
                     primary={text}
-                />}
+                />)}
                 {/* Text buttons for reply, share, report, star, etc. */}
-                {/* TODO */}
+                {isOpen && <Stack direction="row" spacing={1}>
+                    <UpvoteDownvote
+                        direction="row"
+                        session={session}
+                        objectId={data?.id ?? ''}
+                        voteFor={VoteFor.Comment}
+                        isUpvoted={data?.isUpvoted}
+                        score={data?.score}
+                        onChange={() => { }}
+                    />
+                    {/* TODO */}
+                </Stack>}
             </Stack>
-            {/* <UpvoteDownvote
-                session={session}
-                objectId={data?.id ?? ''}
-                voteFor={objectType as VoteFor}
-                isUpvoted={data?.isUpvoted}
-                score={data?.score}
-                onChange={onVote}
-            /> */}
         </ListItem>
     )
 }

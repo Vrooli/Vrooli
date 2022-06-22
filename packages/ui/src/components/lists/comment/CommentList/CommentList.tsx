@@ -43,6 +43,7 @@ export const CommentList = ({
                 {/* Comment */}
                 <CommentListItem
                     data={data.comment}
+                    isOpen={isOpen}
                     loading={false}
                     session={session}
                 />
