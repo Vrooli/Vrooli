@@ -4,8 +4,8 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { APP_LINKS, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
-import { StarButton, TagList, TextLoading, UpvoteDownvote } from 'components';
-import { getTranslation, listItemColor } from 'utils';
+import { CommentButton, ReportButton, StarButton, TagList, TextLoading, UpvoteDownvote } from 'components';
+import { getTranslation, listItemColor, ObjectType } from 'utils';
 import { owns } from 'utils/authentication';
 
 export function ProjectListItem({
@@ -82,16 +82,26 @@ export function ProjectListItem({
                         {/* Tags */}
                         {Array.isArray(data?.tags) && (data?.tags as any).length > 0 ? <TagList session={session} parentId={data?.id ?? ''} tags={data?.tags ?? []} /> : null}
                     </Stack>
-                    {
-                        canEdit ? null : <StarButton
+                    {/* Star/Comment/Report */}
+                    <Stack direction="column" spacing={1}>
+                        <StarButton
                             session={session}
                             objectId={data?.id ?? ''}
                             starFor={StarFor.Project}
                             isStar={data?.isStarred}
                             stars={data?.stars}
-                            onChange={(isStar: boolean) => { }}
                         />
-                    }
+                        <CommentButton
+                            commentsCount={data?.commentsCount ?? 0}
+                            objectId={data?.id ?? ''}
+                            objectType={ObjectType.Project}
+                        />
+                        {(data?.reportsCount ?? 0) > 0 && <ReportButton
+                            reportsCount={data?.reportsCount ?? 0}
+                            objectId={data?.id ?? ''}
+                            objectType={ObjectType.Project}
+                        />}
+                    </Stack>
                 </ListItemButton>
             </ListItem>
         </Tooltip>

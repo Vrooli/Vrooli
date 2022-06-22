@@ -15,11 +15,13 @@ export const listStandardFields = gql`
     }
     fragment listStandardFields on Standard {
         id
+        commentsCount
         score
         stars
         isUpvoted
         isStarred
         name
+        reportsCount
         role
         tags {
             ...listStandardTagFields

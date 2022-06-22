@@ -1,6 +1,6 @@
 import { PrismaType, RecursivePartial } from "../../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor } from "../../schema/types";
-import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, PartialGraphQLInfo } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, PartialGraphQLInfo, addCountFieldsHelper, removeCountFieldsHelper } from "./base";
 import { CustomError } from "../../error";
 import { CODE, MemberRole, organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@local/shared";
 import { organization_users } from "@prisma/client";
@@ -18,6 +18,7 @@ import _ from "lodash";
 //==============================================================
 
 const joinMapper = { starredBy: 'user', tags: 'tag' };
+const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
 const calculatedFields = ['isStarred', 'role'];
 export const organizationFormatter = (): FormatConverter<Organization> => ({
     relationshipMap: {
@@ -42,6 +43,12 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
     },
     removeJoinTables: (data) => {
         return removeJoinTablesHelper(data, joinMapper);
+    },
+    addCountFields: (partial) => {
+        return addCountFieldsHelper(partial, countMapper);
+    },
+    removeCountFields: (data) => {
+        return removeCountFieldsHelper(data, countMapper);
     },
     async addSupplementalFields(
         prisma: PrismaType,

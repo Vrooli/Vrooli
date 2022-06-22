@@ -29,10 +29,12 @@ const tagSelect = {
 const organizationSelect = {
     __typename: GraphQLModelType.Organization,
     id: true,
+    commentsCount: true,
     handle: true,
     stars: true,
     isOpenToNewMembers: true,
     isStarred: true,
+    reportsCount: true,
     translations: {
         id: true,
         language: true,
@@ -43,6 +45,7 @@ const organizationSelect = {
 const projectSelect = {
     __typename: GraphQLModelType.Project,
     id: true,
+    commentsCount: true,
     completedAt: true,
     handle: true,
     stars: true,
@@ -50,6 +53,7 @@ const projectSelect = {
     isComplete: true,
     isStarred: true,
     isUpvoted: true,
+    reportsCount: true,
     translations: {
         id: true,
         language: true,
@@ -60,6 +64,7 @@ const projectSelect = {
 const routineSelect = {
     __typename: GraphQLModelType.Routine,
     id: true,
+    commentsCount: true,
     created_at: true,
     completedAt: true,
     complexity: true,
@@ -69,6 +74,7 @@ const routineSelect = {
     isComplete: true,
     isStarred: true,
     isUpvoted: true,
+    reportsCount: true,
     translations: {
         id: true,
         language: true,
@@ -93,11 +99,13 @@ const runSelect = {
 const standardSelect = {
     __typename: GraphQLModelType.Standard,
     id: true,
+    commentsCount: true,
     name: true,
     stars: true,
     score: true,
     isStarred: true,
     isUpvoted: true,
+    reportsCount: true,
     translations: {
         id: true,
         description: true,
@@ -110,6 +118,7 @@ const userSelect = {
     id: true,
     name: true,
     handle: true,
+    reportsCount: true,
     stars: true,
     isStarred: true,
 }

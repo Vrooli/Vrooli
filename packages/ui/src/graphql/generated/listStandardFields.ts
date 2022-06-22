@@ -36,11 +36,13 @@ export interface listStandardFields_translations {
 export interface listStandardFields {
   __typename: "Standard";
   id: string;
+  commentsCount: number;
   score: number;
   stars: number;
   isUpvoted: boolean | null;
   isStarred: boolean;
   name: string;
+  reportsCount: number;
   role: MemberRole | null;
   tags: listStandardFields_tags[];
   translations: listStandardFields_translations[];

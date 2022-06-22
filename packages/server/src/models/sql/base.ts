@@ -405,7 +405,7 @@ export const addCountFieldsHelper = (obj: any, map: CountMap | undefined): any =
     if (!map) return obj;
     // Create result object
     let result: any = {};
-    // Iterate over join map
+    // Iterate over count map
     for (const [key, value] of Object.entries(map)) {
         if (obj[key]) {
             if (!obj._count) obj._count = {};

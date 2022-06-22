@@ -2,7 +2,7 @@ import { CODE, commentsCreate, CommentSortBy, commentsUpdate, commentTranslation
 import { CustomError } from "../../error";
 import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, Count } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, GraphQLModelType, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields } from "./base";
+import { addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, GraphQLModelType, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper } from "./base";
 import { OrganizationModel, organizationVerifier } from "./organization";
 import pkg from '@prisma/client';
 import { TranslationModel } from "./translation";
@@ -16,6 +16,7 @@ const { MemberRole } = pkg;
 //==============================================================
 
 const joinMapper = { starredBy: 'user' };
+const countMapper = { reportsCount: 'reports' };
 const calculatedFields = ['isStarred', 'isUpvoted', 'role'];
 export const commentFormatter = (): FormatConverter<Comment> => ({
     relationshipMap: {
@@ -37,15 +38,12 @@ export const commentFormatter = (): FormatConverter<Comment> => ({
         return _.omit(partial, calculatedFields);
     },
     constructUnions: (data) => {
-        console.log('comment construct unions start', JSON.stringify(data), '\n\n')
         let { organization, project, routine, standard, user, ...modified } = data;
-        console.log('comment after addcreatorfields', JSON.stringify(modified), '\n\n')
         if (organization) modified.creator = organization;
         else if (user) modified.creator = user;
         if (project) modified.commentedOn = project;
         else if (routine) modified.commentedOn = routine;
         else if (standard) modified.commentedOn = standard;
-        console.log('comment after construct unions', JSON.stringify(modified), '\n\n')
         return modified;
     },
     deconstructUnions: (partial) => {
@@ -65,6 +63,12 @@ export const commentFormatter = (): FormatConverter<Comment> => ({
     },
     removeJoinTables: (data) => {
         return removeJoinTablesHelper(data, joinMapper);
+    },
+    addCountFields: (partial) => {
+        return addCountFieldsHelper(partial, countMapper);
+    },
+    removeCountFields: (data) => {
+        return removeCountFieldsHelper(data, countMapper);
     },
     async addSupplementalFields(
         prisma: PrismaType,
@@ -257,11 +261,9 @@ export const commentQuerier = (prisma: PrismaType) => ({
             return result;
         }
         let comments: any = flattenThreads(childThreads);
-        console.log('flatten result', JSON.stringify(comments), '\n\n')
         // Shape comments and add supplemental fields
         comments = comments.map((c: any) => modelToGraphQL(c, partialInfo as PartialGraphQLInfo));
         comments = await addSupplementalFields(prisma, userId, comments, partialInfo);
-        console.log('comments with supplemental fields added', JSON.stringify(comments), '\n\n')
         // Put comments back into "threads" object, using another helper function. 
         // Comments can be matched by their ID
         const shapeThreads = (threads: CommentThread[]) => {
@@ -282,7 +284,6 @@ export const commentQuerier = (prisma: PrismaType) => ({
             return result;
         }
         const threads = shapeThreads(childThreads);
-        console.log('threads with comments', JSON.stringify(threads), '\n\n')
         // Return result
         return {
             totalThreads: totalInThread,

@@ -2,7 +2,7 @@ import { CODE, DeleteOneType, MemberRole, standardsCreate, standardsUpdate, stan
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count } from "../../schema/types";
-import { addCreatorField, addJoinTablesHelper, createHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, PartialPrismaSelect, relationshipToPrisma, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, updateHelper, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, createHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, PartialPrismaSelect, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, updateHelper, ValidateMutationsInput } from "./base";
 import { validateProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -21,6 +21,7 @@ import { ResourceListModel } from "./resourceList";
 //==============================================================
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
+const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
 const calculatedFields = ['isUpvoted', 'isStarred', 'role'];
 export const standardFormatter = (): FormatConverter<Standard> => ({
     relationshipMap: {
@@ -53,6 +54,12 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
     },
     removeJoinTables: (data) => {
         return removeJoinTablesHelper(data, joinMapper)
+    },
+    addCountFields: (partial) => {
+        return addCountFieldsHelper(partial, countMapper);
+    },
+    removeCountFields: (data) => {
+        return removeCountFieldsHelper(data, countMapper);
     },
     async addSupplementalFields(
         prisma: PrismaType,

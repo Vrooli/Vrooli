@@ -1,5 +1,5 @@
 import { User, UserSortBy, UserSearchInput, ResourceListUsedFor, } from "../../schema/types";
-import { addJoinTablesHelper, FormatConverter, GraphQLModelType, PartialGraphQLInfo, removeJoinTablesHelper, Searcher } from "./base";
+import { addCountFieldsHelper, addJoinTablesHelper, FormatConverter, GraphQLModelType, PartialGraphQLInfo, removeCountFieldsHelper, removeJoinTablesHelper, Searcher } from "./base";
 import { PrismaType, RecursivePartial } from "../../types";
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
@@ -10,6 +10,7 @@ import _ from "lodash";
 //==============================================================
 
 const joinMapper = { starredBy: 'user' };
+const countMapper = { reportsCount: 'reports' };
 const calculatedFields = ['isStarred'];
 export const userFormatter = (): FormatConverter<User> => ({
     relationshipMap: {
@@ -29,6 +30,12 @@ export const userFormatter = (): FormatConverter<User> => ({
     },
     removeJoinTables: (data) => {
         return removeJoinTablesHelper(data, joinMapper);
+    },
+    addCountFields: (partial) => {
+        return addCountFieldsHelper(partial, countMapper);
+    },
+    removeCountFields: (data) => {
+        return removeCountFieldsHelper(data, countMapper);
     },
     async addSupplementalFields(
         prisma: PrismaType,
@@ -72,7 +79,7 @@ export const userSearcher = (): Searcher<UserSearchInput> => ({
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
         return ({
             OR: [
-                { translations: { some: { language: languages ? { in: languages } : undefined, bio: {...insensitive} } } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },
                 { name: { ...insensitive } },
                 { handle: { ...insensitive } },
             ]

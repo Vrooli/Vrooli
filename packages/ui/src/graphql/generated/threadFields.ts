@@ -79,7 +79,7 @@ export interface threadFields_childThreads_childThreads_comment {
   id: string;
   created_at: any;
   updated_at: any;
-  score: number | null;
+  score: number;
   isUpvoted: boolean | null;
   role: MemberRole | null;
   isStarred: boolean;
@@ -165,7 +165,7 @@ export interface threadFields_childThreads_comment {
   id: string;
   created_at: any;
   updated_at: any;
-  score: number | null;
+  score: number;
   isUpvoted: boolean | null;
   role: MemberRole | null;
   isStarred: boolean;
@@ -252,7 +252,7 @@ export interface threadFields_comment {
   id: string;
   created_at: any;
   updated_at: any;
-  score: number | null;
+  score: number;
   isUpvoted: boolean | null;
   role: MemberRole | null;
   isStarred: boolean;

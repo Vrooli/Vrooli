@@ -42,11 +42,13 @@ export interface standards_standards_edges_node_translations {
 export interface standards_standards_edges_node {
   __typename: "Standard";
   id: string;
+  commentsCount: number;
   score: number;
   stars: number;
   isUpvoted: boolean | null;
   isStarred: boolean;
   name: string;
+  reportsCount: number;
   role: MemberRole | null;
   tags: standards_standards_edges_node_tags[];
   translations: standards_standards_edges_node_translations[];

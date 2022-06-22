@@ -100,7 +100,7 @@ export function listToAutocomplete(
 /**
  * Maps __typename to the corresponding ListItem component.
  */
-export const listItemMap: { [x: string] : (props: ObjectListItemProps<any>) => JSX.Element } = {
+export const listItemMap: { [x: string]: (props: ObjectListItemProps<any>) => JSX.Element } = {
     'Organization': (props) => <OrganizationListItem {...props} />,
     'Project': (props) => <ProjectListItem {...props} />,
     'Routine': (props) => <RoutineListItem {...props} />,
@@ -116,6 +116,10 @@ export interface ListToListItemProps {
      * List of dummy items types to display while loading
      */
     dummyItems?: string[];
+    /**
+     * If role (admin, owner, etc.) should be hiden in list itmes
+     */
+    hideRoles?: boolean,
     /**
      * The list of item data
      */
@@ -149,6 +153,7 @@ export interface ListToListItemProps {
 export function listToListItems({
     dummyItems,
     keyPrefix,
+    hideRoles,
     items,
     loading,
     onClick,
@@ -162,8 +167,9 @@ export function listToListItems({
         for (let i = 0; i < dummyItems.length; i++) {
             if (dummyItems[i] in listItemMap) {
                 const CurrItem = listItemMap[dummyItems[i]];
-                listItems.push(<CurrItem 
-                    key={`${keyPrefix}-${i}`} 
+                listItems.push(<CurrItem
+                    key={`${keyPrefix}-${i}`}
+                    hideRole={hideRoles}
                     data={null}
                     index={i}
                     loading={true}

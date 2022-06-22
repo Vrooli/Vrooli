@@ -2,7 +2,7 @@ import { CODE, MemberRole, projectsCreate, projectsUpdate, projectTranslationCre
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor } from "../../schema/types";
-import { addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -19,6 +19,7 @@ import { ViewModel } from "./view";
 //==============================================================
 
 const joinMapper = { tags: 'tag', users: 'user', organizations: 'organization', starredBy: 'user' };
+const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
 const calculatedFields = ['isUpvoted', 'isStarred', 'role'];
 export const projectFormatter = (): FormatConverter<Project> => ({
     relationshipMap: {
@@ -59,6 +60,12 @@ export const projectFormatter = (): FormatConverter<Project> => ({
     },
     removeJoinTables: (data) => {
         return removeJoinTablesHelper(data, joinMapper);
+    },
+    addCountFields: (partial) => {
+        return addCountFieldsHelper(partial, countMapper);
+    },
+    removeCountFields: (data) => {
+        return removeCountFieldsHelper(data, countMapper);
     },
     async addSupplementalFields(
         prisma: PrismaType,

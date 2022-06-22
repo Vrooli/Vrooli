@@ -37,10 +37,11 @@ export type Comment = {
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   reports: Array<Report>;
+  reportsCount: Scalars['Int'];
   role?: Maybe<MemberRole>;
-  score?: Maybe<Scalars['Int']>;
+  score: Scalars['Int'];
   starredBy?: Maybe<Array<User>>;
-  stars?: Maybe<Scalars['Int']>;
+  stars: Scalars['Int'];
   translations: Array<CommentTranslation>;
   updated_at: Scalars['Date'];
 };
@@ -1095,6 +1096,7 @@ export type NodeUpdateInput = {
 export type Organization = {
   __typename?: 'Organization';
   comments: Array<Comment>;
+  commentsCount: Scalars['Int'];
   created_at: Scalars['Date'];
   handle?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
@@ -1104,6 +1106,7 @@ export type Organization = {
   members: Array<Member>;
   projects: Array<Project>;
   reports: Array<Report>;
+  reportsCount: Scalars['Int'];
   resourceLists: Array<ResourceList>;
   role?: Maybe<MemberRole>;
   routines: Array<Routine>;
@@ -1323,6 +1326,7 @@ export type ProfileUpdateInput = {
 export type Project = {
   __typename?: 'Project';
   comments: Array<Comment>;
+  commentsCount: Scalars['Int'];
   completedAt?: Maybe<Scalars['Date']>;
   created_at: Scalars['Date'];
   creator?: Maybe<Contributor>;
@@ -1336,6 +1340,7 @@ export type Project = {
   owner?: Maybe<Contributor>;
   parent?: Maybe<Project>;
   reports: Array<Report>;
+  reportsCount: Scalars['Int'];
   resourceLists?: Maybe<Array<ResourceList>>;
   role?: Maybe<MemberRole>;
   routines: Array<Routine>;
@@ -2056,6 +2061,7 @@ export type Role = {
 export type Routine = {
   __typename?: 'Routine';
   comments: Array<Comment>;
+  commentsCount: Scalars['Int'];
   completedAt?: Maybe<Scalars['Date']>;
   complexity: Scalars['Int'];
   created_at: Scalars['Date'];
@@ -2078,6 +2084,7 @@ export type Routine = {
   parent?: Maybe<Routine>;
   project?: Maybe<Project>;
   reports: Array<Report>;
+  reportsCount: Scalars['Int'];
   resourceLists: Array<ResourceList>;
   role?: Maybe<MemberRole>;
   runs: Array<Run>;
@@ -2386,6 +2393,7 @@ export type Session = {
 export type Standard = {
   __typename?: 'Standard';
   comments: Array<Comment>;
+  commentsCount: Scalars['Int'];
   created_at: Scalars['Date'];
   creator?: Maybe<Contributor>;
   default?: Maybe<Scalars['String']>;
@@ -2396,6 +2404,7 @@ export type Standard = {
   name: Scalars['String'];
   props: Scalars['String'];
   reports: Array<Report>;
+  reportsCount: Scalars['Int'];
   resourceLists: Array<ResourceList>;
   role?: Maybe<MemberRole>;
   routineInputs: Array<Routine>;
@@ -2769,6 +2778,7 @@ export type User = {
   projects: Array<Project>;
   projectsCreated: Array<Project>;
   reports: Array<Report>;
+  reportsCount: Scalars['Int'];
   resourceLists: Array<ResourceList>;
   routines: Array<Routine>;
   routinesCreated: Array<Routine>;

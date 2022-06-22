@@ -45,7 +45,6 @@ export const CommentList = ({
                     data={data.comment}
                     loading={false}
                     session={session}
-                    onVote={() => {}} //TODO
                 />
                 {/* Child comments */}
                 {children}

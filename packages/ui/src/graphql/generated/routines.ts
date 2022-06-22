@@ -43,6 +43,7 @@ export interface routines_routines_edges_node_translations {
 export interface routines_routines_edges_node {
   __typename: "Routine";
   id: string;
+  commentsCount: number;
   completedAt: any | null;
   complexity: number;
   created_at: any;
@@ -51,6 +52,7 @@ export interface routines_routines_edges_node {
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
+  reportsCount: number;
   role: MemberRole | null;
   score: number;
   simplicity: number;

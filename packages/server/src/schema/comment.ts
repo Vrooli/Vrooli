@@ -49,9 +49,10 @@ export const typeDef = gql`
         isStarred: Boolean!
         isUpvoted: Boolean
         reports: [Report!]!
+        reportsCount: Int!
         role: MemberRole
-        score: Int
-        stars: Int
+        score: Int!
+        stars: Int!
         starredBy: [User!]
         translations: [CommentTranslation!]!
     }

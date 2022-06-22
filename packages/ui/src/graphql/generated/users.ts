@@ -22,6 +22,7 @@ export interface users_users_edges_node {
   name: string;
   stars: number;
   isStarred: boolean;
+  reportsCount: number;
 }
 
 export interface users_users_edges {

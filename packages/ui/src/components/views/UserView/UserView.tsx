@@ -444,6 +444,7 @@ export const UserView = ({
                             <SearchList
                                 canSearch={uuidValidate(id)}
                                 handleAdd={toAddNew}
+                                hideRoles={true}
                                 itemKeyPrefix={itemKeyPrefix}
                                 noResultsText={noResultsText}
                                 objectType={objectType}

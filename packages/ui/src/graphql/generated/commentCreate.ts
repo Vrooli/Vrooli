@@ -79,7 +79,7 @@ export interface commentCreate_commentCreate {
   id: string;
   created_at: any;
   updated_at: any;
-  score: number | null;
+  score: number;
   isUpvoted: boolean | null;
   role: MemberRole | null;
   isStarred: boolean;

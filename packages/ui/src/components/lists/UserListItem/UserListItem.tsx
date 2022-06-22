@@ -4,8 +4,8 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { APP_LINKS, StarFor } from '@local/shared';
 import { useLocation } from 'wouter';
-import { StarButton } from '..';
-import { getTranslation, listItemColor, placeholderColor } from 'utils';
+import { ReportButton, StarButton } from '..';
+import { getTranslation, listItemColor, ObjectType, placeholderColor } from 'utils';
 import { Person as PersonIcon } from '@mui/icons-material';
 import { TextLoading } from '../TextLoading/TextLoading';
 
@@ -85,16 +85,21 @@ export const UserListItem = ({
                             sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
                         />}
                     </Stack>
-                    {
-                        !isOwn && <StarButton
-                            isStar={data?.isStarred}
-                            objectId={data?.id ?? ''}
-                            onChange={(isStar: boolean) => { }}
+                    {/* Star/Comment/Report */}
+                    <Stack direction="column" spacing={1}>
+                        {!isOwn && <StarButton
                             session={session}
+                            objectId={data?.id ?? ''}
                             starFor={StarFor.User}
+                            isStar={data?.isStarred}
                             stars={data?.stars}
-                        />
-                    }
+                        />}
+                        {(data?.reportsCount ?? 0) > 0 && <ReportButton
+                            reportsCount={data?.reportsCount ?? 0}
+                            objectId={data?.id ?? ''}
+                            objectType={ObjectType.User}
+                        />}
+                    </Stack>
                 </ListItemButton>
             </ListItem>
         </Tooltip>

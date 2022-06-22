@@ -30,7 +30,7 @@ type NodeWeightData = {
 //==============================================================
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
-const countMapper = { nodesCount: 'nodes' }
+const countMapper = { commentsCount: 'comments', nodesCount: 'nodes', reportsCount: 'reports' };
 const calculatedFields = ['inProgressCompletedSteps', 'inProgressCompletedComplexity', 'inProgressVersion', 'isUpvoted', 'isStarred', 'role', 'runs'];
 export const routineFormatter = (): FormatConverter<Routine> => ({
     relationshipMap: {

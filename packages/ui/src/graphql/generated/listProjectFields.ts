@@ -37,12 +37,14 @@ export interface listProjectFields_translations {
 export interface listProjectFields {
   __typename: "Project";
   id: string;
+  commentsCount: number;
   handle: string | null;
   role: MemberRole | null;
   score: number;
   stars: number;
   isUpvoted: boolean | null;
   isStarred: boolean;
+  reportsCount: number;
   tags: listProjectFields_tags[];
   translations: listProjectFields_translations[];
 }
