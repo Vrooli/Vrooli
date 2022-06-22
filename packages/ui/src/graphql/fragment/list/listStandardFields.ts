@@ -31,5 +31,6 @@ export const listStandardFields = gql`
             language
             description
         }
+        type
     }
 `

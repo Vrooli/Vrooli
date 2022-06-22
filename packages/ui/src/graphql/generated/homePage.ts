@@ -172,6 +172,7 @@ export interface homePage_homePage_standards {
   role: MemberRole | null;
   tags: homePage_homePage_standards_tags[];
   translations: homePage_homePage_standards_translations[];
+  type: string;
 }
 
 export interface homePage_homePage_users {

@@ -52,6 +52,7 @@ export interface standards_standards_edges_node {
   role: MemberRole | null;
   tags: standards_standards_edges_node_tags[];
   translations: standards_standards_edges_node_translations[];
+  type: string;
 }
 
 export interface standards_standards_edges {

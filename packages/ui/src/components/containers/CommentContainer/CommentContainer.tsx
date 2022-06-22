@@ -14,7 +14,7 @@ import { mutationWrapper } from 'graphql/utils';
 import { objectToSearchInfo, ObjectType, parseSearchParams, Pubs, stringifySearchParams, useReactSearch } from 'utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TimeFrame } from 'graphql/generated/globalTypes';
-import { comments, commentsVariables, comments_comments } from 'graphql/generated/comments';
+import { comments, commentsVariables } from 'graphql/generated/comments';
 import { useLocation } from 'wouter';
 import { commentsQuery } from 'graphql/query';
 import { CommentThread } from 'types';
@@ -28,6 +28,7 @@ export function CommentContainer({
     objectType,
     session,
     sxs,
+    zIndex,
 }: CommentContainerProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -274,7 +275,9 @@ export function CommentContainer({
                     <CommentList
                         key={index}
                         data={thread}
+                        language={language}
                         session={session}
+                        zIndex={zIndex}
                     />
                 ))}
             </Stack>

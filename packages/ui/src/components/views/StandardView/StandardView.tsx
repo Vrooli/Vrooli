@@ -239,15 +239,16 @@ export const StandardView = ({
                 // md: 100vh - navbar (80px)
                 minHeight: { xs: 'calc(100vh - 64px - 56px - env(safe-area-inset-bottom))', md: 'calc(100vh - 80px)' },
                 marginBottom: 8,
+                width: '100%',
             }}>
                 {/* Main container */}
                 <Box sx={{
                     background: palette.background.paper,
                     overflowY: 'auto',
-                    width: 'min(100%, 600px)',
                     borderRadius: { xs: '8px 8px 0 0', sm: '8px' },
                     overflow: 'overlay',
                     boxShadow: { xs: 'none', sm: (containerShadow as any).boxShadow },
+                    width: 'min(100%, 600px)',
                 }}>
                     {/* Heading container */}
                     <Stack direction="column" spacing={1} sx={{
@@ -341,6 +342,10 @@ export const StandardView = ({
                     objectId={id ?? ''}
                     objectType={ObjectType.Standard}
                     session={session}
+                    sxs={{
+                        root: { width: 'min(100%, 600px)' }
+                    }}
+                    zIndex={zIndex}
                 />
             </Stack>
         </Box >

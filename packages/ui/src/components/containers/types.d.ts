@@ -9,6 +9,7 @@ export interface CommentContainerProps {
     sxs?: {
         root: any;
     }
+    zIndex: number;
 }
 
 export interface TitleContainerProps {

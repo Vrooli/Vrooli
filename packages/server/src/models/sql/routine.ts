@@ -111,12 +111,32 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         }
         // Query for role
         if (partial.role) {
+            let organizationIds: string[] = [];
+            // Collect owner data
+            let ownerData: any = objects.map(x => x.owner).filter(x => x);
+            // If no owner data was found, then owner data was not queried. In this case, query for owner data.
+            if (ownerData.length === 0) {
+                const ownerDataUnformatted = await prisma.routine.findMany({
+                    where: { id: { in: ids } },
+                    select: {
+                        id: true,
+                        user: { select: { id: true } },
+                        organization: { select: { id: true } },
+                    },
+                });
+                organizationIds = ownerDataUnformatted.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
+                // Inject owner data into "objects"
+                objects = objects.map((x, i) => { 
+                    const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
+                    return ({ ...x, owner: unformatted?.user || unformatted?.organization })
+                });            } else {
+                organizationIds = objects
+                    .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
+                    .map(x => x.owner.id)
+                    .filter(x => Boolean(x)) as string[];
+            }
             // If owned by user, set role to owner if userId matches
             // If owned by organization, set role user's role in organization
-            const organizationIds = objects
-                .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
-                .map(x => x.owner.id)
-                .filter(x => Boolean(x)) as string[];
             const roles = userId
                 ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
                 : [];
@@ -1079,16 +1099,17 @@ export const routineMutater = (prisma: PrismaType) => ({
                                 routines: node.nodeRoutineList.routines ? {
                                     create: [...node.nodeRoutineList.routines.map((routine: any) => {
                                         console.log('in the bad code', JSON.stringify(routine), '\n\n'); return ({
-                                        index: routine.index,
-                                        routine: { connect: { id: routine.routine.id } },
-                                        translations: routine.translations ? {
-                                            create: routine.translations.map((translation: any) => ({
-                                                description: translation.description,
-                                                title: translation.title,
-                                                language: translation.language
-                                            }))
-                                        } : undefined
-                                    })})]
+                                            index: routine.index,
+                                            routine: { connect: { id: routine.routine.id } },
+                                            translations: routine.translations ? {
+                                                create: routine.translations.map((translation: any) => ({
+                                                    description: translation.description,
+                                                    title: translation.title,
+                                                    language: translation.language
+                                                }))
+                                            } : undefined
+                                        })
+                                    })]
                                 } : undefined
                             }
                         } : undefined,

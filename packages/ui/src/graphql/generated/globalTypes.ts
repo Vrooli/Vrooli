@@ -280,6 +280,7 @@ export interface CommentCreateInput {
   id?: string | null;
   createdFor: CommentFor;
   forId: string;
+  parentId?: string | null;
   translationsCreate?: CommentTranslationCreateInput[] | null;
 }
 
@@ -1162,6 +1163,7 @@ export interface StandardSearchInput {
   sortBy?: StandardSortBy | null;
   tags?: string[] | null;
   take?: number | null;
+  type?: string | null;
   updatedTimeFrame?: TimeFrame | null;
   userId?: string | null;
 }

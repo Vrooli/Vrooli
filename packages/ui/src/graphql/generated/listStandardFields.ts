@@ -46,4 +46,5 @@ export interface listStandardFields {
   role: MemberRole | null;
   tags: listStandardFields_tags[];
   translations: listStandardFields_translations[];
+  type: string;
 }

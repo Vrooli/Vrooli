@@ -116,6 +116,7 @@ const standardSelect = {
         language: true,
     },
     tags: tagSelect,
+    type: true,
 }
 const userSelect = {
     __typename: GraphQLModelType.User,
@@ -284,7 +285,7 @@ export const resolvers = {
             // Query standards
             let standards = (await readManyHelper(
                 context.req.userId,
-                { take, ...input, sortBy: StandardSortBy.StarsDesc },
+                { take, ...input, sortBy: StandardSortBy.StarsDesc, type: 'JSON' },
                 standardSelect,
                 sModel,
                 { ...starsQuery },

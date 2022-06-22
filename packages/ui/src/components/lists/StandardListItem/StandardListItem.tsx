@@ -16,6 +16,7 @@ export function StandardListItem({
     onClick,
     tooltip = 'View details',
 }: StandardListItemProps) {
+    console.log('standard list item', hideRole, data)
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 

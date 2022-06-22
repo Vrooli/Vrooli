@@ -57,6 +57,8 @@ export const StarButton = ({
             spacing={1}
             sx={{
                 marginRight: 0,
+                marginTop: 'auto !important',
+                marginBottom: 'auto !important',
             }}
         >
             <Tooltip placement={tooltipPlacement} title={tooltip}>

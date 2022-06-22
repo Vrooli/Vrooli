@@ -55,6 +55,7 @@ export type CommentCreateInput = {
   createdFor: CommentFor;
   forId: Scalars['ID'];
   id?: InputMaybe<Scalars['ID']>;
+  parentId?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<CommentTranslationCreateInput>>;
 };
 
@@ -2464,6 +2465,7 @@ export type StandardSearchInput = {
   sortBy?: InputMaybe<StandardSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  type?: InputMaybe<Scalars['String']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
 };

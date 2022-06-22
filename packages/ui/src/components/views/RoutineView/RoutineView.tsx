@@ -691,6 +691,7 @@ export const RoutineView = ({
                     objectId={id ?? ''}
                     objectType={ObjectType.Routine}
                     session={session}
+                    zIndex={zIndex}
                 />
             </Stack>
         </>

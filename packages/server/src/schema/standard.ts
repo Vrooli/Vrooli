@@ -113,6 +113,7 @@ export const typeDef = gql`
         sortBy: StandardSortBy
         tags: [String!]
         take: Int
+        type: String
         updatedTimeFrame: TimeFrame
         userId: ID
     }

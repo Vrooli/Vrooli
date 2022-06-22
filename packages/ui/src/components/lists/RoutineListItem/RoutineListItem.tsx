@@ -16,6 +16,7 @@ export function RoutineListItem({
     onClick,
     tooltip = 'View details',
 }: RoutineListItemProps) {
+    console.log('routine list item', hideRole, data)
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 

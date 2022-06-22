@@ -98,12 +98,33 @@ export const projectFormatter = (): FormatConverter<Project> => ({
         }
         // Query for role
         if (partial.role) {
+            let organizationIds: string[] = [];
+            // Collect owner data
+            let ownerData: any = objects.map(x => x.owner).filter(x => x);
+            // If no owner data was found, then owner data was not queried. In this case, query for owner data.
+            if (ownerData.length === 0) {
+                const ownerDataUnformatted = await prisma.project.findMany({
+                    where: { id: { in: ids } },
+                    select: {
+                        id: true,
+                        user: { select: { id: true } },
+                        organization: { select: { id: true } },
+                    },
+                });
+                organizationIds = ownerDataUnformatted.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
+                // Inject owner data into "objects"
+                objects = objects.map((x, i) => { 
+                    const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
+                    return ({ ...x, owner: unformatted?.user || unformatted?.organization })
+                });
+            } else {
+                organizationIds = objects
+                    .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
+                    .map(x => x.owner.id)
+                    .filter(x => Boolean(x)) as string[];
+            }
             // If owned by user, set role to owner if userId matches
             // If owned by organization, set role user's role in organization
-            const organizationIds = objects
-                .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
-                .map(x => x.owner.id)
-                .filter(x => Boolean(x)) as string[];
             const roles = userId
                 ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
                 : [];
@@ -112,7 +133,7 @@ export const projectFormatter = (): FormatConverter<Project> => ({
                 if (orgRoleIndex >= 0) {
                     return { ...x, role: roles[orgRoleIndex] };
                 }
-                return { ...x, role: Boolean(userId) && x.owner?.id === userId ? MemberRole.Owner : undefined };
+                return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
             }) as any;
         }
         // Convert Prisma objects to GraphQL objects

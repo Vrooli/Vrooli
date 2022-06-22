@@ -1,5 +1,6 @@
 import { Stack } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { Comment } from "types";
 import { CommentConnector } from "../CommentConnector/CommentConnector";
 import { CommentListItem } from "../CommentListItem/CommentListItem";
 import { CommentListProps } from "../types";
@@ -11,24 +12,47 @@ import { CommentListProps } from "../types";
  */
 export const CommentList = ({
     data,
-    session
+    language,
+    session,
+    zIndex,
 }: CommentListProps) => {
     // open state
     const [isOpen, setIsOpen] = useState(true);
+
+    const [childData, setChildData] = useState(data?.childThreads ?? []);
+    useMemo(() => {
+        setChildData(data?.childThreads ?? []);
+    }, [data]);
+    const addComment = useCallback((comment: Comment) => {
+        // Make comment first, so you can see it without having to scroll to the bottom
+        setChildData(curr => [{
+            __typename: 'CommentThread',
+            comment: comment as any,
+            childThreads: [],
+            endCursor: null,
+            totalInThread: 0,
+        }, ...curr]);
+    }, []);
+    const removeComment = useCallback((comment: Comment) => {
+        setChildData(curr => [...curr.filter(c => c.comment.id !== comment.id)]);
+    }, []);
+
     // list of comment items
     const children = useMemo(() => {
         if (!data) return [];
-        return data.childThreads.map((child, index) => {
+        return childData.map((child, index) => {
             return <CommentList
                 key={`thread-${data.comment.id}-${index}`}
                 data={{
                     ...child,
                     childThreads: [],
                 }}
+                language={language}
                 session={session}
+                zIndex={zIndex}
             />;
         });
-    }, [data, session]);
+    }, [childData, data, language, session, zIndex]);
 
     return data ? (
         <Stack direction="row" spacing={1} pl={2} pr={2}>
@@ -39,16 +63,24 @@ export const CommentList = ({
                 onToggle={() => setIsOpen(!isOpen)}
             />
             {/* Comment and child comments */}
-            <Stack direction="column" spacing={1}>
+            <Stack direction="column" spacing={1} sx={{ width: '100%' }}>
                 {/* Comment */}
                 <CommentListItem
                     data={data.comment}
+                    handleCommentAdd={addComment}
+                    handleCommentRemove={removeComment}
                     isOpen={isOpen}
+                    language={language}
                     loading={false}
+                    objectId={data.comment.commentedOn.id}
+                    objectType={data.comment.commentedOn.__typename}
                     session={session}
+                    zIndex={zIndex}
                 />
                 {/* Child comments */}
                 {children}
+                {/* "Show More" button */}
+                {/* TODO */}
             </Stack>
         </Stack>
     ) : null
