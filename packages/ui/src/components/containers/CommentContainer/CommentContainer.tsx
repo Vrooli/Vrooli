@@ -17,8 +17,8 @@ import { TimeFrame } from 'graphql/generated/globalTypes';
 import { comments, commentsVariables } from 'graphql/generated/comments';
 import { useLocation } from 'wouter';
 import { commentsQuery } from 'graphql/query';
-import { CommentThread } from 'types';
-import { CommentList } from 'components/lists/comment';
+import { CommentThread as ThreadType } from 'types';
+import { CommentThread } from 'components/lists/comment';
 
 const { advancedSearchSchema, defaultSortBy, sortByOptions } = objectToSearchInfo[ObjectType.Comment];
 
@@ -93,7 +93,7 @@ export function CommentContainer({
             }
         } as any)
     });
-    const [allData, setAllData] = useState<CommentThread[]>([]);
+    const [allData, setAllData] = useState<ThreadType[]>([]);
 
     // On search filters/sort change, reset the page
     useEffect(() => {
@@ -118,7 +118,7 @@ export function CommentContainer({
     /**
      * Helper method for converting fetched data to an array of object data
      */
-    const parseData = useCallback((data: comments | undefined): CommentThread[] => {
+    const parseData = useCallback((data: comments | undefined): ThreadType[] => {
         if (!data) return [];
         return data.comments.threads ?? [];
     }, []);
@@ -272,7 +272,7 @@ export function CommentContainer({
             {/* Comments list */}
             <Stack direction="column" spacing={2}>
                 {allData.map((thread, index) => (
-                    <CommentList
+                    <CommentThread
                         key={index}
                         data={thread}
                         language={language}

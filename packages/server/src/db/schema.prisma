@@ -20,7 +20,7 @@ model comment {
   stars          Int                   @default(0)
   score          Int                   @default(0)
   organization   organization?         @relation(fields: [organizationId], references: [id])
-  parent         comment?              @relation("comment_parent", fields: [parentId], references: [id])
+  parent         comment?              @relation("comment_parent", fields: [parentId], references: [id], onDelete: Cascade)
   project        project?              @relation(fields: [projectId], references: [id], onDelete: SetNull)
   routine        routine?              @relation(fields: [routineId], references: [id], onDelete: SetNull)
   standard       standard?             @relation(fields: [standardId], references: [id], onDelete: SetNull)
@@ -596,8 +596,8 @@ model star {
   tagId          String?       @db.Uuid
   userId         String?       @db.Uuid
   by             user          @relation("star_by", fields: [byId], references: [id])
-  comment        comment?      @relation("star_comment", fields: [commentId], references: [id])
-  organization   organization? @relation("star_organization", fields: [organizationId], references: [id])
+  comment        comment?      @relation("star_comment", fields: [commentId], references: [id], onDelete: Cascade)
+  organization   organization? @relation("star_organization", fields: [organizationId], references: [id], onDelete: Cascade)
   project        project?      @relation("star_project", fields: [projectId], references: [id], onDelete: Cascade)
   routine        routine?      @relation("star_routine", fields: [routineId], references: [id], onDelete: Cascade)
   standard       standard?     @relation("star_standard", fields: [standardId], references: [id], onDelete: Cascade)

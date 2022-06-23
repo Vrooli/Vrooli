@@ -140,10 +140,35 @@ const viewSelect = {
         User: userSelect,
     }
 }
+const commentSelect = {
+    __typename: GraphQLModelType.Comment,
+    id: true,
+    created_at: true,
+    updated_at: true,
+    score: true,
+    isUpvoted: true,
+    role: true,
+    isStarred: true,
+    commentedOn: {
+        Project: projectSelect,
+        Routine: routineSelect,
+        Standard: standardSelect,
+    },
+    creator: {
+        Organization: organizationSelect,
+        User: userSelect,
+    },
+    translations: {
+        id: true,
+        language: true,
+        text: true,
+    }
+}
 const starSelect = {
     __typename: GraphQLModelType.Star,
     id: true,
     to: {
+        Comment: commentSelect,
         Organization: organizationSelect,
         Project: projectSelect,
         Routine: routineSelect,
@@ -601,6 +626,7 @@ export const resolvers = {
                 false
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(viewSelect, viewModel.relationshipMap) as PartialGraphQLInfo)) as any[];
             // Query recently starred objects (of any type). Make sure to ignore tags
+            console.log('before recently starred')
             const recentlyStarred = (await readManyHelper(
                 context.req.userId,
                 { take, ...input, sortBy: UserSortBy.DateCreatedDesc },
@@ -609,6 +635,7 @@ export const resolvers = {
                 { byId: context.req.userId, tagId: null },
                 false
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(starSelect, starModel.relationshipMap) as PartialGraphQLInfo)) as any[];
+            console.log('after recently starred', JSON.stringify(recentlyStarred), '\n\n')
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [activeRuns, completedRuns, recentlyViewed, recentlyStarred],
@@ -617,6 +644,7 @@ export const resolvers = {
                 context.req.userId,
                 context.prisma,
             )
+            console.log('withSupplemental', JSON.stringify(withSupplemental), '\n\n')
             // Return results
             return {
                 activeRuns: withSupplemental['ar'],

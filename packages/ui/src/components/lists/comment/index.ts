@@ -1,3 +1,3 @@
 export * from './CommentConnector/CommentConnector';
-export * from './CommentList/CommentList';
-export * from './CommentListItem/CommentListItem';
+export * from './CommentThread/CommentThread';
+export * from './CommentThreadItem/CommentThreadItem';

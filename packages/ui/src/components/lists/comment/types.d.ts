@@ -7,14 +7,14 @@ export interface CommentConnectorProps {
     onToggle: () => void;
 }
 
-export interface CommentListProps {
+export interface CommentThreadProps {
     data: CommentThread | null;
     language: string;
     session: Session;
     zIndex: number;
 }
 
-export interface CommentListItemProps {
+export interface CommentThreadItemProps {
     data: Comment | null;
     handleCommentAdd: (comment: Comment) => void;
     handleCommentRemove: (comment: Comment) => void;

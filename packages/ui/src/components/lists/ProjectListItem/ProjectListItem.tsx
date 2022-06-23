@@ -90,7 +90,7 @@ export function ProjectListItem({
                                             display: 'flex',
                                             alignItems: 'center',
                                             width: '100%',
-                                            color: '#f2a7a7',
+                                            color: palette.mode === 'light' ? '#fa4f4f' : '#f2a7a7',
                                             flex: 200,
                                         }}
                                     />}

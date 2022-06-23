@@ -16,9 +16,9 @@ export const resolveCommentedOn = (obj: any): GraphQLModelType => {
     }
     // Only a Standard has a type field
     if (obj.hasOwnProperty('type')) return GraphQLModelType.Standard;
-    // Only a Project has a name field
-    if (obj.hasOwnProperty('isComplete')) return GraphQLModelType.Project;
-    return GraphQLModelType.Routine;
+    // Only a routine has a complexity field
+    if (obj.hasOwnProperty('complexity')) return GraphQLModelType.Routine;
+    return GraphQLModelType.Project;
 }
 
 export const resolveNodeData = (obj: any): GraphQLModelType => {

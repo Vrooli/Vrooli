@@ -1,5 +1,5 @@
 import { Box, Button, CircularProgress, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
-import { CommentListItemProps } from '../types';
+import { CommentThreadItemProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
 import { useLocation } from 'wouter';
 import { StarButton, TextLoading, UpvoteDownvote } from '../..';
@@ -22,7 +22,7 @@ import { owns } from 'utils/authentication';
 import { deleteOne } from 'graphql/generated/deleteOne';
 import { ReportDialog } from 'components/dialogs';
 
-export function CommentListItem({
+export function CommentThreadItem({
     data,
     handleCommentAdd,
     handleCommentRemove,
@@ -33,7 +33,7 @@ export function CommentListItem({
     objectType,
     session,
     zIndex,
-}: CommentListItemProps) {
+}: CommentThreadItemProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { text } = useMemo(() => {
@@ -184,7 +184,7 @@ export function CommentListItem({
                                         sx={{
                                             display: 'flex',
                                             alignItems: 'center',
-                                            color: '#f2a7a7',
+                                            color: palette.mode === 'light' ? '#fa4f4f' : '#f2a7a7',
                                         }}
                                     />}
                                     {data?.creator?.id && data.creator.id === session?.id && <ListItemText
@@ -192,7 +192,7 @@ export function CommentListItem({
                                         sx={{
                                             display: 'flex',
                                             alignItems: 'center',
-                                            color: '#f2a7a7',
+                                            color: palette.mode === 'light' ? '#fa4f4f' : '#f2a7a7',
                                         }}
                                     />}
                                 </Stack>

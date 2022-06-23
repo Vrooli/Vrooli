@@ -2,20 +2,20 @@ import { Stack } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { Comment } from "types";
 import { CommentConnector } from "../CommentConnector/CommentConnector";
-import { CommentListItem } from "../CommentListItem/CommentListItem";
-import { CommentListProps } from "../types";
+import { CommentThreadItem } from "../CommentThreadItem/CommentThreadItem";
+import { CommentThreadProps } from "../types";
 
 /**
  * Comment and its list of child comments (which can have their own children and so on). 
  * Each level  contains a list of comment items, then a "Show more" text button.
  * To the left of this is a CommentConnector item, which is a collapsible line.
  */
-export const CommentList = ({
+export const CommentThread = ({
     data,
     language,
     session,
     zIndex,
-}: CommentListProps) => {
+}: CommentThreadProps) => {
     // open state
     const [isOpen, setIsOpen] = useState(true);
 
@@ -41,7 +41,7 @@ export const CommentList = ({
     const children = useMemo(() => {
         if (!data) return [];
         return childData.map((child, index) => {
-            return <CommentList
+            return <CommentThread
                 key={`thread-${data.comment.id}-${index}`}
                 data={{
                     ...child,
@@ -65,7 +65,7 @@ export const CommentList = ({
             {/* Comment and child comments */}
             <Stack direction="column" spacing={1} sx={{ width: '100%' }}>
                 {/* Comment */}
-                <CommentListItem
+                <CommentThreadItem
                     data={data.comment}
                     handleCommentAdd={addComment}
                     handleCommentRemove={removeComment}
