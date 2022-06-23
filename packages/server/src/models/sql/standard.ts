@@ -97,7 +97,6 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
             let ownerData: any = objects.map(x => x.owner).filter(x => x);
             // If no owner data was found, then owner data was not queried. In this case, query for owner data.
             if (ownerData.length === 0) {
-                console.log('standard role search: ids', ids);
                 const ownerDataUnformatted = await prisma.standard.findMany({
                     where: { id: { in: ids } },
                     select: {
@@ -106,7 +105,6 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
                         createdByOrganization: { select: { id: true } },
                     },
                 });
-                console.log('passed', JSON.stringify(ownerDataUnformatted), '\n\n');
                 organizationIds = ownerDataUnformatted.map(x => x.createdByOrganization?.id).filter(x => Boolean(x)) as string[];
                 // Inject owner data into "objects"
                 objects = objects.map((x, i) => { 

@@ -626,7 +626,6 @@ export const resolvers = {
                 false
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(viewSelect, viewModel.relationshipMap) as PartialGraphQLInfo)) as any[];
             // Query recently starred objects (of any type). Make sure to ignore tags
-            console.log('before recently starred')
             const recentlyStarred = (await readManyHelper(
                 context.req.userId,
                 { take, ...input, sortBy: UserSortBy.DateCreatedDesc },
@@ -635,7 +634,6 @@ export const resolvers = {
                 { byId: context.req.userId, tagId: null },
                 false
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(starSelect, starModel.relationshipMap) as PartialGraphQLInfo)) as any[];
-            console.log('after recently starred', JSON.stringify(recentlyStarred), '\n\n')
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [activeRuns, completedRuns, recentlyViewed, recentlyStarred],
@@ -644,7 +642,6 @@ export const resolvers = {
                 context.req.userId,
                 context.prisma,
             )
-            console.log('withSupplemental', JSON.stringify(withSupplemental), '\n\n')
             // Return results
             return {
                 activeRuns: withSupplemental['ar'],

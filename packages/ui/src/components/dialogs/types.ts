@@ -295,6 +295,8 @@ export interface AdvancedSearchDialogProps {
 export interface RunPickerDialogProps {
     anchorEl: HTMLElement | null;
     handleClose: () => any;
+    onAdd: (run: Run) => any;
+    onDelete: (run: Run) => any;
     onSelect: (run: Run | null) => any;
     routine?: Routine | null;
     session: Session;

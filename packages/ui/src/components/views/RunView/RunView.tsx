@@ -17,7 +17,7 @@ import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { validate as uuidValidate } from 'uuid';
 import { DecisionStep, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, RoutineListStep, RoutineStep, RunStep, SubroutineStep } from "types";
-import { stringifySearchParams } from "utils/navigation/urlTools";
+import { parseSearchParams, stringifySearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
 import { runComplete } from "graphql/generated/runComplete";
 import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
@@ -51,6 +51,7 @@ export const RunView = ({
      * @param newParams The new step params, as an array
      */
     const setStepParams = useCallback((newParams: number[]) => {
+        console.log('setting step params:(', newParams);
         setLocation(stringifySearchParams({
             ...params,
             step: newParams,
@@ -246,18 +247,33 @@ export const RunView = ({
     useEffect(() => {
         // If no steps, redirect to first step
         if (stepParams.length === 0) {
+            console.log('setting step params because no steps')
             setStepParams([1]);
             return;
         }
         // Current step is the last step in steps list
         const currStep = findStep(stepParams);
+        console.log('CURRENT STEP HERE', currStep);
+        // If current step was not found
         if (!currStep) {
-            // TODO might need to fetch subroutines multiple times to get to current step, so this shouldn't be an error
+            // Check if this is because the routine list has no steps (i.e. it is empty)
+            //TODO
+            // Check if this is because the subroutine data hasn't been fetched yet
+            //TODO
+            // Otherwise, this is an error
+            PubSub.publish(Pubs.Snack, { message: 'Error: Step not found', severity: 'error' });
             return;
         }
         // If current step is a list, then redirect to first step in list
         if (currStep.type === RoutineStepType.RoutineList) {
+            // But first, make sure the list is not empty
+            // If it is, skip to the next step
+            if ((currStep as RoutineListStep).steps.length === 0) {
+                //TODO
+                // asdfasfd
+            }
             const newStepList = [...stepParams, 1];
+            console.log('setting step params because current step is a list', newStepList)
             setStepParams(newStepList);
             return;
         }
@@ -340,6 +356,7 @@ export const RunView = ({
     }, [languages, subroutineData, stepList]);
 
     const { instructions, title } = useMemo(() => {
+        console.log('calculating title', stepParams, stepParams.slice(0, -1), findStep(stepParams.slice(0, -1)))
         const languages = session?.languages ?? navigator.languages;
         // Find step above current step
         const currStepParent = findStep(stepParams.slice(0, -1));
@@ -453,6 +470,18 @@ export const RunView = ({
         setStepParams(nextStep);
     }, [completedComplexity, findStep, getStepComplexity, logRunUpdate, nextStep, progress, run, setProgress, setStepParams, stepParams, testMode, timeElapsed]);
 
+    /**
+     * Clears run-specific search params from URL
+     */
+    const clearSearchParams = useCallback(() => {
+        console.log('clearing search params...')
+        const params = parseSearchParams(window.location.search);
+        delete params.run;
+        delete params.step;
+        console.log('params after clearing', stringifySearchParams(params))
+        setLocation(`${window.location.pathname}${stringifySearchParams(params)}`, { replace: true });
+    }, [setLocation]);
+
     const [logRunComplete] = useMutation<runComplete>(runCompleteMutation);
     /**
      * Mark routine as complete and navigate
@@ -461,6 +490,7 @@ export const RunView = ({
         // Don't actually do it if in test mode
         if (testMode || !run) {
             PubSub.publish(Pubs.Celebration);
+            clearSearchParams();
             handleClose();
             return;
         }
@@ -486,10 +516,11 @@ export const RunView = ({
             successMessage: () => 'Routine completed!🎉',
             onSuccess: () => {
                 PubSub.publish(Pubs.Celebration);
-                handleClose()
+                clearSearchParams();
+                handleClose();
             },
         })
-    }, [testMode, run, timeElapsed, logRunComplete, routine, session, handleClose, currentStep]);
+    }, [testMode, run, timeElapsed, logRunComplete, routine, session, clearSearchParams, handleClose, currentStep]);
 
     /**
      * Stores current progress, both for overall routine and the current subroutine
@@ -522,8 +553,9 @@ export const RunView = ({
      */
     const toFinishNotComplete = useCallback(() => {
         saveProgress();
+        clearSearchParams();
         handleClose();
-    }, [handleClose, saveProgress]);
+    }, [clearSearchParams, handleClose, saveProgress]);
 
     /**
      * Find the step array of a given nodeId
@@ -611,7 +643,7 @@ export const RunView = ({
                         <IconButton
                             edge="end"
                             aria-label="close"
-                            onClick={handleClose}
+                            onClick={toFinishNotComplete}
                             color="inherit"
                         >
                             <CloseIcon sx={{
@@ -655,7 +687,7 @@ export const RunView = ({
                     justifyContent: 'center',
                     margin: 'auto',
                     overflowY: 'auto',
-                    minHeight: '86vh',
+                    minHeight: '87vh',
                 }}>
                     {childView}
                 </Box>

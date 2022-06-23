@@ -169,10 +169,6 @@ export function CommentContainer({
         }
     }, [pageData, parseData, handleAdvancedSearchDialogClose]);
 
-    useEffect(() => {
-        console.log('ALL COMMENTS DATA', allData);
-    }, [allData]);
-
     /**
      * When new comment is created, add it to the list of comments
      */

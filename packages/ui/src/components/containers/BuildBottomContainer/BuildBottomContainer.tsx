@@ -21,6 +21,8 @@ export const BuildBottomContainer = ({
     handleCancelUpdate,
     handleAdd,
     handleUpdate,
+    handleRunDelete,
+    handleRunAdd,
     handleScaleChange,
     hasPrevious,
     hasNext,
@@ -193,6 +195,8 @@ export const BuildBottomContainer = ({
             <RunPickerDialog
                 anchorEl={selectRunAnchor}
                 handleClose={handleSelectRunClose}
+                onAdd={handleRunAdd}
+                onDelete={handleRunDelete}
                 onSelect={handleRunSelect}
                 routine={routine}
                 session={session}

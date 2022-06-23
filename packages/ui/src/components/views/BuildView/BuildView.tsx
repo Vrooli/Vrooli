@@ -5,7 +5,7 @@ import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, Status, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR } from 'utils';
-import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine } from 'types';
+import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
 import isEqual from 'lodash/isEqual';
 import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
@@ -278,6 +278,22 @@ export const BuildView = ({
     }, [changedRoutine]);
 
     const handleScaleChange = (newScale: number) => { setScale(newScale) };
+
+    const handleRunDelete = useCallback((run: Run) => {
+        if (!changedRoutine) return;
+        setChangedRoutine({
+            ...changedRoutine,
+            runs: changedRoutine.runs.filter(r => r.id !== run.id),
+        });
+    }, [changedRoutine]);
+
+    const handleRunAdd = useCallback((run: Run) => {
+        if (!changedRoutine) return;
+        setChangedRoutine({
+            ...changedRoutine,
+            runs: [run, ...changedRoutine.runs],
+        });
+    }, [changedRoutine]);
 
     const startEditing = useCallback(() => setIsEditing(true), []);
 
@@ -1228,6 +1244,8 @@ export const BuildView = ({
                     handleAdd={createRoutine}
                     handleUpdate={updateRoutine}
                     handleScaleChange={handleScaleChange}
+                    handleRunDelete={handleRunDelete}
+                    handleRunAdd={handleRunAdd}
                     hasNext={false}
                     hasPrevious={false}
                     isAdding={!uuidValidate(id)}

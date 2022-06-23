@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { DeleteOneInput, Success } from './types';
 import { IWrap } from 'types';
-import { CommentModel, deleteOneHelper, EmailModel, ModelBusinessLayer, NodeModel, OrganizationModel, ProjectModel, ReportModel, RoutineModel, StandardModel, WalletModel } from '../models';
+import { CommentModel, deleteOneHelper, EmailModel, ModelBusinessLayer, NodeModel, OrganizationModel, ProjectModel, ReportModel, RoutineModel, RunModel, StandardModel, WalletModel } from '../models';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
@@ -18,6 +18,7 @@ export const typeDef = gql`
         Project
         Report
         Routine
+        Run
         Standard
         Wallet
     }   
@@ -60,6 +61,9 @@ export const resolvers = {
                     break;
                 case DeleteOneType.Routine:
                     model = RoutineModel(context.prisma);
+                    break;
+                case DeleteOneType.Run:
+                    model = RunModel(context.prisma);
                     break;
                 case DeleteOneType.Standard:
                     model = StandardModel(context.prisma);

@@ -24,10 +24,8 @@ export const ResourceListVertical = ({
     session,
     zIndex,
 }: ResourceListVerticalProps) => {
-    console.log('ResourceListVertical', canEdit);
 
     const onAdd = useCallback((newResource: NewObject<Resource>) => {
-        console.log('ON ADD', newResource);
         if (!list) return;
         if (handleUpdate) {
             handleUpdate({

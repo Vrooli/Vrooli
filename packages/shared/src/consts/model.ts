@@ -64,6 +64,7 @@ export enum DeleteOneType {
     Project = "Project",
     Report = "Report",
     Routine = "Routine",
+    Run = "Run",
     Standard = "Standard",
     Wallet = "Wallet",
 } 

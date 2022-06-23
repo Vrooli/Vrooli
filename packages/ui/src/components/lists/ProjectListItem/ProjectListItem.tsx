@@ -16,7 +16,6 @@ export function ProjectListItem({
     onClick,
     tooltip = 'View details',
 }: ProjectListItemProps) {
-    console.log('project list item', hideRole, data)
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 

@@ -181,6 +181,7 @@ export const RoutineView = ({
     const [isRunOpen, setIsRunOpen] = useState(false)
     const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
     const handleRunSelect = useCallback((run: Run | null) => {
+        console.log('handlerunselectttt', run, window.location.search)
         // If run is null, it means the routine will be opened without a run
         if (!run) {
             setLocation(stringifySearchParams({
@@ -199,7 +200,24 @@ export const RoutineView = ({
     }, [setLocation]);
     const handleSelectRunClose = useCallback(() => setSelectRunAnchor(null), []);
 
+    const handleRunDelete = useCallback((run: Run) => {
+        if (!routine) return;
+        setRoutine({
+            ...routine,
+            runs: routine.runs.filter(r => r.id !== run.id),
+        });
+    }, [routine]);
+
+    const handleRunAdd = useCallback((run: Run) => {
+        if (!routine) return;
+        setRoutine({
+            ...routine,
+            runs: [run, ...routine.runs],
+        });
+    }, [routine]);
+
     const runRoutine = useCallback((e: any) => {
+        console.log('in run routine callback')
         // Validate routine before trying to run
         if (!routine || !uuidValidate(routine.id)) {
             PubSub.publish(Pubs.Snack, { message: 'Error loading routine.', severity: 'error' });
@@ -220,7 +238,7 @@ export const RoutineView = ({
             setSelectRunAnchor(e.currentTarget);
         }
     }, [handleRunSelect, routine, runId]);
-    const stopRoutine = () => { setIsRunOpen(false) };
+    const stopRoutine = () => { console.log('closing isrunopen'); setIsRunOpen(false) };
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal routine page
@@ -524,6 +542,8 @@ export const RoutineView = ({
             <RunPickerDialog
                 anchorEl={selectRunAnchor}
                 handleClose={handleSelectRunClose}
+                onAdd={handleRunAdd}
+                onDelete={handleRunDelete}
                 onSelect={handleRunSelect}
                 routine={routine}
                 session={session}

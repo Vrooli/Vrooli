@@ -29,7 +29,6 @@ export const ResourceListHorizontal = ({
     const { palette } = useTheme();
 
     const onAdd = useCallback((newResource: NewObject<Resource>) => {
-        console.log('ON ADD', newResource);
         if (!list) return;
         if (handleUpdate) {
             handleUpdate({

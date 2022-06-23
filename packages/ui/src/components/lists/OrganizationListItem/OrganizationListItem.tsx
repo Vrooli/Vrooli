@@ -17,7 +17,6 @@ export function OrganizationListItem({
     onClick,
     tooltip,
 }: OrganizationListItemProps) {
-    console.log('organizationlistitem', hideRole, data)
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);

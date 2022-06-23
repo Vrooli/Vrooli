@@ -630,7 +630,6 @@ export const routineMutater = (prisma: PrismaType) => ({
         // Convert input to Prisma shape
         const fieldExcludes = ['node', 'user', 'userId', 'organization', 'organizationId', 'createdByUser', 'createdByUserId', 'createdByOrganization', 'createdByOrganizationId'];
         let formattedInput: any = relationshipToPrisma({ data: input, relationshipName: 'routine', isAdd, fieldExcludes })
-        console.log('routine relationship builder formattedInput', JSON.stringify(formattedInput), '\n\n');
         // Validate
         const { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         await this.validateMutations({
@@ -656,13 +655,11 @@ export const routineMutater = (prisma: PrismaType) => ({
         }
         if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
             const update = await this.toDBShape(userId, formattedInput.update[0].data, false);
-            console.log('routien relationship builder update object', JSON.stringify(update), '\n\n');
             // Update routine
             const routine = await prisma.routine.update({
                 where: { id: update.id },
                 data: update
             })
-            console.log('routien after updatehelper calllllll', JSON.stringify(routine), '\n\n');
             return routine?.id ?? null;
         }
         if (Array.isArray(formattedInput.delete) && formattedInput.delete.length > 0) {
@@ -985,7 +982,6 @@ export const routineMutater = (prisma: PrismaType) => ({
                 }
             }
         });
-        console.log('found routine in duplicate', JSON.stringify(routine), '\n\n')
         // If routine didn't exist
         if (!routine) {
             throw new CustomError(CODE.NotFound, 'Routine not found', { code: genErrorCode('0225') });
@@ -1048,7 +1044,6 @@ export const routineMutater = (prisma: PrismaType) => ({
                 }
             }
         }
-        console.log('new routine but not actually', JSON.stringify(newRoutine), '\n\n')
         // Create the new routine
         const createdRoutine = await prisma.routine.create({
             data: {
@@ -1098,7 +1093,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                                 isOptional: node.nodeRoutineList.isOptional,
                                 routines: node.nodeRoutineList.routines ? {
                                     create: [...node.nodeRoutineList.routines.map((routine: any) => {
-                                        console.log('in the bad code', JSON.stringify(routine), '\n\n'); return ({
+                                        return ({
                                             index: routine.index,
                                             routine: { connect: { id: routine.routine.id } },
                                             translations: routine.translations ? {
@@ -1211,7 +1206,6 @@ export const routineMutater = (prisma: PrismaType) => ({
                 } : undefined,
             }
         });
-        console.log('created routine in routine duplicate', JSON.stringify(createdRoutine), '\n\n');
         return {
             object: createdRoutine as any,
             numCreated: newCreateCount + 1
