@@ -15,6 +15,3 @@ ALTER TABLE "star" ADD CONSTRAINT "star_commentId_fkey" FOREIGN KEY ("commentId"
 
 -- AddForeignKey
 ALTER TABLE "star" ADD CONSTRAINT "star_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- Delete stars where comment, project, routine, and standard are all null
-DELETE FROM star WHERE commentId IS NULL AND projectId IS NULL AND routineId IS NULL AND standardId IS NULL;

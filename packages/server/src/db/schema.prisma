@@ -519,7 +519,7 @@ model run_step {
   order         Int
   pickups       Int           @default(1)
   runId         String        @db.Uuid
-  nodeId        String        @db.Uuid
+  nodeId        String?        @db.Uuid
   subroutineId  String?       @db.Uuid
   timeStarted   DateTime?     @db.Timestamptz(6)
   timeElapsed   Int?
@@ -527,7 +527,7 @@ model run_step {
   step          Int[]
   status        RunStepStatus @default(InProgress)
   title         String        @db.VarChar(128)
-  node          node          @relation("run_step_node", fields: [nodeId], references: [id], onDelete: SetNull)
+  node          node?          @relation("run_step_node", fields: [nodeId], references: [id], onDelete: SetNull)
   run           run           @relation("run_step_run", fields: [runId], references: [id], onDelete: Cascade)
   subroutine    routine?      @relation("run_step_subroutine", fields: [subroutineId], references: [id])
 }

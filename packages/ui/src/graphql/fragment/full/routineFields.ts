@@ -204,6 +204,7 @@ export const routineFields = gql`
         timeCompleted
         title
         status
+        step
         node {
             id
         }

@@ -42,8 +42,8 @@ export const DecisionView = ({
     }, [decisions, handleDecisionSelect]);
 
     return (
-        <Stack direction="column" spacing={4}>
-            <Typography variant="h4">What would you like to do next?</Typography>
+        <Stack direction="column" spacing={4} p={2}>
+            <Typography variant="h4" sx={{ textAlign: 'center' }}>What would you like to do next?</Typography>
             {/* Each decision as its own ListItem, with title and description */}
             {decisions.map((decision, index) => {
                 const languages = getUserLanguages(session);

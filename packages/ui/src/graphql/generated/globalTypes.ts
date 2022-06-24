@@ -40,6 +40,7 @@ export enum DeleteOneType {
   Project = "Project",
   Report = "Report",
   Routine = "Routine",
+  Run = "Run",
   Standard = "Standard",
   Wallet = "Wallet",
 }
@@ -1067,6 +1068,7 @@ export interface RunCompleteInput {
   title: string;
   finalStepUpdate?: RunStepUpdateInput | null;
   version: string;
+  wasSuccessful?: boolean | null;
 }
 
 export interface RunCountInput {
@@ -1099,7 +1101,8 @@ export interface RunSearchInput {
 
 export interface RunStepCreateInput {
   id?: string | null;
-  nodeId: string;
+  nodeId?: string | null;
+  subroutineId?: string | null;
   order: number;
   step: number[];
   title: string;

@@ -58,6 +58,7 @@ export const typeDef = gql`
         step: [Int!]!
         run: Run!
         node: Node
+        subroutine: Routine
     }
 
     input RunSearchInput {
@@ -115,7 +116,8 @@ export const typeDef = gql`
 
     input RunStepCreateInput {
         id: ID
-        nodeId: ID!
+        nodeId: ID
+        subroutineId: ID
         order: Int!
         step: [Int!]!
         title: String!
@@ -137,6 +139,7 @@ export const typeDef = gql`
         title: String! # Title of routine, so run name stays consistent even if routine updates/deletes
         finalStepUpdate: RunStepUpdateInput
         version: String! # Version of routine which was ran
+        wasSuccessful: Boolean
     }
 
     input RunCancelInput {

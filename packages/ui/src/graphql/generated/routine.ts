@@ -437,6 +437,7 @@ export interface routine_routine_runs_steps {
   timeCompleted: any | null;
   title: string;
   status: RunStepStatus;
+  step: number[];
   node: routine_routine_runs_steps_node | null;
 }
 

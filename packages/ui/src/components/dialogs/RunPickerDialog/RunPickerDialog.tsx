@@ -12,21 +12,13 @@ import {
     Close as CloseIcon,
     Delete as DeleteIcon,
 } from "@mui/icons-material";
-import { parseSearchParams, Pubs } from "utils";
+import { getRunPercentComplete, parseSearchParams, Pubs } from "utils";
 import { useMutation } from "@apollo/client";
 import { runCreate } from "graphql/generated/runCreate";
 import { deleteOneMutation, runCreateMutation } from "graphql/mutation";
 import { Run } from "types";
 import { deleteOne } from "graphql/generated/deleteOne";
 import { DeleteOneType } from "@local/shared";
-
-/**
- * Calculates the percentage of the run that has been completed.
- */
-const getPercentComplete = (completedComplexity: number, totalComplexity: number) => {
-    if (totalComplexity === 0) return 0;
-    return Math.round(completedComplexity as number / totalComplexity * 100);
-}
 
 export const RunPickerDialog = ({
     anchorEl,
@@ -100,18 +92,19 @@ export const RunPickerDialog = ({
         // If not logged in, open routine without creating a new run
         if (!session.id) {
             onSelect(null);
+            handleClose(); 
         }
         // If routine has no runs, create a new one.
         else if (routine && routine.runs?.length === 0) {
             createNewRun();
         }
-    }, [open, routine, createNewRun, onSelect, session.id]);
+    }, [open, routine, createNewRun, onSelect, session.id, handleClose]);
 
     const runOptions: ListMenuItemData<Run>[] = useMemo(() => {
         if (!routine || !routine.runs) return [];
         const runs = routine.runs;
         return runs.map((run) => ({
-            label: `Started: ${displayDate(run.timeStarted)} (${getPercentComplete(run.completedComplexity as number, routine.complexity)}%)`,
+            label: `Started: ${displayDate(run.timeStarted)} (${getRunPercentComplete(run.completedComplexity, routine.complexity)}%)`,
             value: run as Run,
         }));
     }, [routine]);
@@ -123,7 +116,7 @@ export const RunPickerDialog = ({
         // If run has some progress, show confirmation dialog
         if (run.completedComplexity > 0) {
             PubSub.publish(Pubs.AlertDialog, {
-                message: `Are you sure you want to delete this run from ${displayDate(run.timeStarted)} with ${getPercentComplete(run.completedComplexity as number, routine.complexity)}% completed?`,
+                message: `Are you sure you want to delete this run from ${displayDate(run.timeStarted)} with ${getRunPercentComplete(run.completedComplexity, routine.complexity)}% completed?`,
                 buttons: [
                     {
                         text: 'Yes', onClick: () => {

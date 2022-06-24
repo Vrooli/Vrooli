@@ -610,6 +610,7 @@ export interface fork_fork_routine_runs_steps {
   timeCompleted: any | null;
   title: string;
   status: RunStepStatus;
+  step: number[];
   node: fork_fork_routine_runs_steps_node | null;
 }
 

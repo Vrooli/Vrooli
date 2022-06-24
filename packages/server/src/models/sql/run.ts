@@ -241,7 +241,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
                     timeElapsed: input.timeElapsed ?? undefined,
                     pickups: input.pickups ?? undefined,
                     routineId: input.id,
-                    status: RunStatus.Completed,
+                    status: input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed,
                     title: input.title,
                     userId,
                     version: input.version,

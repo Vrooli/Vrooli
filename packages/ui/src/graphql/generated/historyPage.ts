@@ -300,8 +300,87 @@ export interface historyPage_historyPage_recentlyViewed {
   to: historyPage_historyPage_recentlyViewed_to;
 }
 
+export interface historyPage_historyPage_recentlyStarred_to_Tag {
+  __typename: "Tag";
+}
+
+export interface historyPage_historyPage_recentlyStarred_to_Comment_commentedOn_Project_translations {
+  __typename: "ProjectTranslation";
+  id: string;
+  language: string;
+  name: string;
+}
+
+export interface historyPage_historyPage_recentlyStarred_to_Comment_commentedOn_Project {
+  __typename: "Project";
+  id: string;
+  handle: string | null;
+  translations: historyPage_historyPage_recentlyStarred_to_Comment_commentedOn_Project_translations[];
+}
+
+export interface historyPage_historyPage_recentlyStarred_to_Comment_commentedOn_Routine_translations {
+  __typename: "RoutineTranslation";
+  id: string;
+  language: string;
+  title: string;
+}
+
+export interface historyPage_historyPage_recentlyStarred_to_Comment_commentedOn_Routine {
+  __typename: "Routine";
+  id: string;
+  translations: historyPage_historyPage_recentlyStarred_to_Comment_commentedOn_Routine_translations[];
+}
+
+export interface historyPage_historyPage_recentlyStarred_to_Comment_commentedOn_Standard {
+  __typename: "Standard";
+  id: string;
+  name: string;
+}
+
+export type historyPage_historyPage_recentlyStarred_to_Comment_commentedOn = historyPage_historyPage_recentlyStarred_to_Comment_commentedOn_Project | historyPage_historyPage_recentlyStarred_to_Comment_commentedOn_Routine | historyPage_historyPage_recentlyStarred_to_Comment_commentedOn_Standard;
+
+export interface historyPage_historyPage_recentlyStarred_to_Comment_creator_Organization_translations {
+  __typename: "OrganizationTranslation";
+  id: string;
+  language: string;
+  name: string;
+}
+
+export interface historyPage_historyPage_recentlyStarred_to_Comment_creator_Organization {
+  __typename: "Organization";
+  id: string;
+  handle: string | null;
+  translations: historyPage_historyPage_recentlyStarred_to_Comment_creator_Organization_translations[];
+}
+
+export interface historyPage_historyPage_recentlyStarred_to_Comment_creator_User {
+  __typename: "User";
+  id: string;
+  name: string;
+  handle: string | null;
+}
+
+export type historyPage_historyPage_recentlyStarred_to_Comment_creator = historyPage_historyPage_recentlyStarred_to_Comment_creator_Organization | historyPage_historyPage_recentlyStarred_to_Comment_creator_User;
+
+export interface historyPage_historyPage_recentlyStarred_to_Comment_translations {
+  __typename: "CommentTranslation";
+  id: string;
+  language: string;
+  text: string;
+}
+
 export interface historyPage_historyPage_recentlyStarred_to_Comment {
-  __typename: "Comment" | "Tag";
+  __typename: "Comment";
+  id: string;
+  created_at: any;
+  updated_at: any;
+  score: number;
+  isUpvoted: boolean | null;
+  role: MemberRole | null;
+  isStarred: boolean;
+  commentedOn: historyPage_historyPage_recentlyStarred_to_Comment_commentedOn;
+  creator: historyPage_historyPage_recentlyStarred_to_Comment_creator | null;
+  translations: historyPage_historyPage_recentlyStarred_to_Comment_translations[];
 }
 
 export interface historyPage_historyPage_recentlyStarred_to_Organization_tags_translations {
@@ -469,7 +548,7 @@ export interface historyPage_historyPage_recentlyStarred_to_User {
   isStarred: boolean;
 }
 
-export type historyPage_historyPage_recentlyStarred_to = historyPage_historyPage_recentlyStarred_to_Comment | historyPage_historyPage_recentlyStarred_to_Organization | historyPage_historyPage_recentlyStarred_to_Project | historyPage_historyPage_recentlyStarred_to_Routine | historyPage_historyPage_recentlyStarred_to_Standard | historyPage_historyPage_recentlyStarred_to_User;
+export type historyPage_historyPage_recentlyStarred_to = historyPage_historyPage_recentlyStarred_to_Tag | historyPage_historyPage_recentlyStarred_to_Comment | historyPage_historyPage_recentlyStarred_to_Organization | historyPage_historyPage_recentlyStarred_to_Project | historyPage_historyPage_recentlyStarred_to_Routine | historyPage_historyPage_recentlyStarred_to_Standard | historyPage_historyPage_recentlyStarred_to_User;
 
 export interface historyPage_historyPage_recentlyStarred {
   __typename: "Star";

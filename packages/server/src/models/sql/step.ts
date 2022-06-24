@@ -16,6 +16,7 @@ export const stepFormatter = (): FormatConverter<RunStep> => ({
         '__typename': GraphQLModelType.RunStep,
         'run': GraphQLModelType.Run,
         'node': GraphQLModelType.Node,
+        'subroutine': GraphQLModelType.Routine,
     },
 })
 
@@ -32,6 +33,7 @@ export const stepVerifier = () => ({
     async toDBShapeAdd(userId: string, data: RunStepCreateInput): Promise<any> {
         return {
             nodeId: data.nodeId,
+            subroutineId: data.subroutineId,
             order: data.order,
             status: RunStepStatus.InProgress,
             step: data.step,

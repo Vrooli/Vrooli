@@ -248,7 +248,6 @@ export interface RunStepsDialogProps {
      * Out of 100
      */
     percentComplete: number;
-    routineId: string | null | undefined;
     stepList: RoutineStep | null;
     sxs?: { icon: any };
     zIndex: number;

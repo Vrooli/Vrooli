@@ -2273,6 +2273,7 @@ export type RunCompleteInput = {
   timeElapsed?: InputMaybe<Scalars['Int']>;
   title: Scalars['String'];
   version: Scalars['String'];
+  wasSuccessful?: InputMaybe<Scalars['Boolean']>;
 };
 
 export type RunCountInput = {
@@ -2343,6 +2344,7 @@ export type RunStep = {
   run: Run;
   status: RunStepStatus;
   step: Array<Scalars['Int']>;
+  subroutine?: Maybe<Routine>;
   timeCompleted?: Maybe<Scalars['Date']>;
   timeElapsed?: Maybe<Scalars['Int']>;
   timeStarted?: Maybe<Scalars['Date']>;
@@ -2351,9 +2353,10 @@ export type RunStep = {
 
 export type RunStepCreateInput = {
   id?: InputMaybe<Scalars['ID']>;
-  nodeId: Scalars['ID'];
+  nodeId?: InputMaybe<Scalars['ID']>;
   order: Scalars['Int'];
   step: Array<Scalars['Int']>;
+  subroutineId?: InputMaybe<Scalars['ID']>;
   title: Scalars['String'];
 };
 

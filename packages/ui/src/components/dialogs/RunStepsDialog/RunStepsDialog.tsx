@@ -19,12 +19,9 @@ import {
     useTheme,
 } from '@mui/material';
 import { RunStepsDialogProps } from '../types';
-import { routine, routineVariables } from "graphql/generated/routine";
-import { useLazyQuery } from '@apollo/client';
-import { routineQuery } from 'graphql/query';
 import { TreeItem, treeItemClasses, TreeView } from '@mui/lab';
 import { RoutineStep } from 'types';
-import { parseSearchParams, RoutineStepType, stringifySearchParams } from 'utils';
+import { locationArraysMatch, parseSearchParams, routineHasSubroutines, RoutineStepType, stringifySearchParams } from 'utils';
 import { useLocation } from 'wouter';
 
 function MinusSquare(props) {
@@ -115,7 +112,6 @@ export const RunStepsDialog = ({
     handleStepParamsUpdate,
     history,
     percentComplete,
-    routineId,
     stepList,
     sxs,
     zIndex,
@@ -126,9 +122,6 @@ export const RunStepsDialog = ({
     const toggleOpen = useCallback(() => setIsOpen(!isOpen), [isOpen]);
     const closeDialog = () => { setIsOpen(false) };
 
-    // Query for loading a subroutine's graph
-    const [getSubroutine, { data: subroutineData, loading: subroutineLoading }] = useLazyQuery<routine, routineVariables>(routineQuery);
-
     /**
      * Checks if a routine is complete. If it is a subroutine,
      * recursively checks all subroutine steps.
@@ -136,13 +129,24 @@ export const RunStepsDialog = ({
      * @param location Array indicating step location
      */
     const isComplete = useCallback((step: RoutineStep, location: number[]) => {
-        // Check if the step has substeps
-        if (step.type === RoutineStepType.Subroutine) {
-            //TODO
-            return false;
+        switch (step.type) {
+            // If RoutineList, check all child steps
+            case RoutineStepType.RoutineList:
+                return step.steps.every((childStep, index) => isComplete(childStep, [...location, index + 1 ]));
+            // If Subroutine, check if subroutine is loaded
+            case RoutineStepType.Subroutine:
+                // Not loaded if subroutine has its own subroutines (since it would be converted to a RoutineList
+                // if it was loaded)
+                if (routineHasSubroutines(step.routine)) {
+                    // We can't know if it is complete until it is loaded
+                    return false;
+                }
+                // If simple routine (complexity = 1)
+                return history.some(h => locationArraysMatch(h, location));
+            // If decision
+            case RoutineStepType.Decision:
+                return history.some(h => locationArraysMatch(h, location));
         }
-        // Otherwise, check the history for the step
-        return Boolean(history.find(h => h.length === location.length && h.every((val, index) => val === location[index])));
     }, [history]);
 
     /**
@@ -153,6 +157,7 @@ export const RunStepsDialog = ({
         const realLocation = location.slice(1);
         // Determine if step is complete
         const completed = isComplete(step, realLocation);
+        console.log('boop', completed, step.type)
         const locationLabel = location.join('.');
         const realLocationLabel = realLocation.join('.');
         const toLocation = () => {
@@ -162,6 +167,7 @@ export const RunStepsDialog = ({
                 step: realLocation
             }), { replace: true });
             handleStepParamsUpdate(realLocation);
+            closeDialog();
         }
         switch (step.type) {
             // A decision step never has children
@@ -185,7 +191,7 @@ export const RunStepsDialog = ({
                 // Don't wrap in a tree item if location is one element long (i.e. the root)
                 if (location.length === 1) return stepItems.map((substep, i) => getTreeItem(substep, [...location, i + 1]))
                 return (
-                    <StyledTreeItem nodeId={locationLabel} label={`${realLocationLabel}. ${step.title}`}>
+                    <StyledTreeItem nodeId={locationLabel} label={`${realLocationLabel}. ${step.title}`} isComplete={completed}>
                         {stepItems.map((substep, i) => getTreeItem(substep, [...location, i + 1]))}
                     </StyledTreeItem>
                 )
@@ -250,7 +256,14 @@ export const RunStepsDialog = ({
                     defaultCollapseIcon={<MinusSquare />}
                     defaultExpandIcon={<PlusSquare />}
                     defaultEndIcon={<CloseSquare />}
-                    sx={{ height: 240, flexGrow: 1, maxWidth: 400, overflowY: 'auto' }}
+                    sx={{ 
+                        height: 240, 
+                        flexGrow: 1, 
+                        maxWidth: 400, 
+                        overflowY: 'auto',
+                        // Add padding to bottom to account for iOS navbar (safe-area-inset-bottom not working for some reason)
+                        paddingBottom: '80px',
+                    }}
                 >
                     {stepList && getTreeItem(stepList)}
                 </TreeView>
