@@ -83,14 +83,14 @@ export const RunPickerDialog = ({
             input: { id: run.id, objectType: DeleteOneType.Run },
             onSuccess: (response) => {
                 if (response?.data?.deleteOne?.success) {
-                    PubSub.publish(Pubs.Snack, { message: `${run.title} deleted.` });
+                    PubSub.publish(Pubs.Snack, { message: `${displayDate(run.timeStarted)} deleted.` });
                     onDelete(run);
                 } else {
-                    PubSub.publish(Pubs.Snack, { message: `Error deleting ${run.title}.`, severity: 'error' });
+                    PubSub.publish(Pubs.Snack, { message: `Error deleting ${displayDate(run.timeStarted)}.`, severity: 'error' });
                 }
             },
             onError: () => {
-                PubSub.publish(Pubs.Snack, { message: `Failed to delete ${run.title}.` });
+                PubSub.publish(Pubs.Snack, { message: `Failed to delete ${displayDate(run.timeStarted)}.` });
             }
         })
     }, [deleteOne, onDelete])
@@ -123,7 +123,7 @@ export const RunPickerDialog = ({
         // If run has some progress, show confirmation dialog
         if (run.completedComplexity > 0) {
             PubSub.publish(Pubs.AlertDialog, {
-                message: `Are you sure you want to delete this run with ${getPercentComplete(run.completedComplexity as number, routine.complexity)}% completed?`,
+                message: `Are you sure you want to delete this run from ${displayDate(run.timeStarted)} with ${getPercentComplete(run.completedComplexity as number, routine.complexity)}% completed?`,
                 buttons: [
                     {
                         text: 'Yes', onClick: () => {

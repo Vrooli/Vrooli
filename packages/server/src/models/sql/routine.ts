@@ -126,10 +126,11 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
                 });
                 organizationIds = ownerDataUnformatted.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
                 // Inject owner data into "objects"
-                objects = objects.map((x, i) => { 
+                objects = objects.map((x, i) => {
                     const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
                     return ({ ...x, owner: unformatted?.user || unformatted?.organization })
-                });            } else {
+                });
+            } else {
                 organizationIds = objects
                     .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
                     .map(x => x.owner.id)
@@ -279,6 +280,13 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
  * @returns [shortestPath, longestPath] The shortest and longest weighted distance
  */
 export const calculateShortestLongestWeightedPath = (nodes: { [id: string]: NodeWeightData }, edges: { fromId: string, toId: string }[]): [number, number] => {
+    // First, check that all edges point to valid nodes. 
+    // If this isn't the case, this algorithm could run into an error
+    for (const edge of edges) {
+        if (!nodes[edge.toId] || !nodes[edge.fromId]) {
+            throw new CustomError(CODE.InvalidArgs, 'Could not calculate complexity/simplicity: not all edges map to existing nodes', { code: genErrorCode('0237'), failedEdge: edge })
+        }
+    }
     // If no nodes or edges, return 1
     if (Object.keys(nodes).length === 0 || edges.length === 0) return [1, 1];
     // Create a dictionary of edges, where the key is a node ID and the value is an array of edges that END at that node
@@ -356,7 +364,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             existingRoutine = await prisma.routine.findUnique({
                 where: { id: (data as RoutineUpdateInput).id },
                 select: {
-                    nodeLinks: { select: { fromId: true, toId: true } },
+                    nodeLinks: { select: { id: true, fromId: true, toId: true } },
                     nodes: {
                         select: {
                             id: true, // Needed to associate with links
@@ -766,6 +774,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             for (const input of updateMany) {
                 // Call createData helper function
                 let data = await this.toDBShape(userId, input.data, false);
+                console.log('going to update routine start', JSON.stringify(data), '\n\n')
                 // Find object
                 let object = await prisma.routine.findFirst({ where: input.where })
                 if (!object)
@@ -784,6 +793,9 @@ export const routineMutater = (prisma: PrismaType) => ({
                         organization: { disconnect: true },
                     };
                 }
+                // next line tmep
+                // delete data.nodeLinks.delete
+                console.log('with temp delete', JSON.stringify(data), '\n\n')
                 // Update object
                 const currUpdated = await prisma.routine.update({
                     where: input.where,

@@ -102,67 +102,64 @@ export const RoutineView = ({
         })
     }, [routine, runComplete, setLocation, title]);
 
-    const [isBuildOpen, setIsBuildOpen] = useState(false);
-    // If buildId is in the URL, open the build
+    const [isBuildOpen, setIsBuildOpen] = useState<boolean>(Boolean(parseSearchParams(window.location.search)?.build));
+    /**
+     * If routine ID is not valid, create default routine data
+     */
     useEffect(() => {
-        const searchParams = parseSearchParams(window.location.search);
-        if (searchParams.build) {
-            // If build is not an id, populate routine with default start data
-            if (!uuidValidate(searchParams.build ? `${searchParams.build}` : '')) {
-                const startNode: Node = {
+        if (!id || !uuidValidate(id)) {
+            const startNode: Node = {
+                id: uuidv4(),
+                type: NodeType.Start,
+                columnIndex: 0,
+                rowIndex: 0,
+            } as Node;
+            const routineListNode: Node = {
+                id: uuidv4(),
+                type: NodeType.RoutineList,
+                columnIndex: 1,
+                rowIndex: 0,
+                data: {
                     id: uuidv4(),
-                    type: NodeType.Start,
-                    columnIndex: 0,
-                    rowIndex: 0,
-                } as Node;
-                const routineListNode: Node = {
-                    id: uuidv4(),
-                    type: NodeType.RoutineList,
-                    columnIndex: 1,
-                    rowIndex: 0,
-                    data: {
-                        id: uuidv4(),
-                        isOptional: false,
-                        isOrdered: false,
-                        routines: [],
-                    } as any,
-                    translations: [{
-                        language,
-                        title: 'Subroutine 1',
-                    }] as any
-                } as Node
-                const endNode: Node = {
-                    id: uuidv4(),
-                    type: NodeType.End,
-                    columnIndex: 2,
-                    rowIndex: 0,
-                } as Node
-                const link1: NodeLink = {
-                    id: uuidv4(),
-                    fromId: startNode.id,
-                    toId: routineListNode.id,
-                } as NodeLink
-                const link2: NodeLink = {
-                    id: uuidv4(),
-                    fromId: routineListNode.id,
-                    toId: endNode.id,
-                } as NodeLink
-                setRoutine({
-                    inputs: [],
-                    outputs: [],
-                    nodes: [startNode, routineListNode, endNode],
-                    nodeLinks: [link1, link2],
-                    translations: [{
-                        language,
-                        title: 'New Routine',
-                        instructions: 'Enter instructions here',
-                        description: '',
-                    }]
-                } as any)
-            }
-            setIsBuildOpen(true);
+                    isOptional: false,
+                    isOrdered: false,
+                    routines: [],
+                } as any,
+                translations: [{
+                    language,
+                    title: 'Subroutine 1',
+                }] as any
+            } as Node
+            const endNode: Node = {
+                id: uuidv4(),
+                type: NodeType.End,
+                columnIndex: 2,
+                rowIndex: 0,
+            } as Node
+            const link1: NodeLink = {
+                id: uuidv4(),
+                fromId: startNode.id,
+                toId: routineListNode.id,
+            } as NodeLink
+            const link2: NodeLink = {
+                id: uuidv4(),
+                fromId: routineListNode.id,
+                toId: endNode.id,
+            } as NodeLink
+            setRoutine({
+                inputs: [],
+                outputs: [],
+                nodes: [startNode, routineListNode, endNode],
+                nodeLinks: [link1, link2],
+                translations: [{
+                    language,
+                    title: 'New Routine',
+                    instructions: 'Enter instructions here',
+                    description: '',
+                }]
+            } as any)
         }
-    }, [language]);
+    }, [id, language]);
     const viewGraph = useCallback(() => {
         setLocation(stringifySearchParams({
             build: routine?.id,

@@ -359,10 +359,8 @@ export const BuildView = ({
             PubSub.publish(Pubs.Snack, { message: 'Cannot update: Invalid routine data', severity: 'error' });
             return;
         }
-        console.log('buildview before formatforupdate', 
-            (routine as any).nodes.find(node => node.id === '01234569-7890-1234-5678-901234567891').data.routines[0].routine, 
-            (changedRoutine as any).nodes.find(node => node.id === '01234569-7890-1234-5678-901234567891').data.routines[0].routine,
-        );
+        console.log('buildview before formatforupdate: ROUTINE', routine?.nodes, routine?.nodeLinks);
+        console.log('buildview before formatforupdate: CHANGED ROUTINE', changedRoutine.nodes, changedRoutine.nodeLinks);
         const input: any = formatForUpdate(
             routine,
             changedRoutine,
@@ -404,9 +402,9 @@ export const BuildView = ({
             mutation: routineUpdate,
             input,
             successMessage: () => 'Routine updated.',
-            onSuccess: ({ data }) => { 
+            onSuccess: ({ data }) => {
                 // Update main routine object
-                onChange(data.routineUpdate); 
+                onChange(data.routineUpdate);
                 // Remove indication of editing from URL
                 const params = parseSearchParams(window.location.search);
                 if (params.edit) delete params.edit;
@@ -493,7 +491,7 @@ export const BuildView = ({
                         }
                     },
                     {
-                        text: "No", onClick: () => {}
+                        text: "No", onClick: () => { }
                     },
                 ]
             });
@@ -997,11 +995,76 @@ export const BuildView = ({
 
     /**
      * Cleans up graph by removing empty columns and row gaps within columns.
-     * Also adds end nodes to the end of each unfinished path
+     * Also adds end nodes to the end of each unfinished path. 
+     * Also removes links that don't have both a valid fromId and toId.
      */
     const cleanUpGraph = useCallback(() => {
-        //TODO
-    }, []);
+        if (!changedRoutine) return;
+        const resultRoutine = JSON.parse(JSON.stringify(changedRoutine));
+        console.log('column data', columns, resultRoutine.nodes);
+        // Loop through the columns, and remove gaps in rowIndex
+        for (const column of columns) {
+            // Sort nodes in column by rowIndex
+            const sortedNodes = column.sort((a, b) => (a.rowIndex ?? 0) - (b.rowIndex ?? 0));
+            console.log('sorted nodes', sortedNodes);
+            // If the nodes don't go from 0 to n without any gaps
+            if (sortedNodes.length > 0 && sortedNodes.some((n, i) => (n.rowIndex ?? 0) !== i)) {
+                // Update nodes in resultRoutine with new rowIndexes
+                const newNodes = sortedNodes.map((n, i) => ({
+                    ...n,
+                    rowIndex: i,
+                }));
+                // Replace nodes in resultRoutine
+                resultRoutine.nodes = resultRoutine.nodes.map(oldNode => {
+                    const newNode = newNodes.find(nn => nn.id === oldNode.id);
+                    if (newNode) {
+                        return newNode;
+                    }
+                    return oldNode;
+                });
+            }
+        }
+        // Find every node that does not have a link leaving it, which is also 
+        // not an end node
+        for (const node of resultRoutine.nodes) {
+            // If not an end node
+            if (node.type !== NodeType.End) {
+                // Check if any links have a "fromId" matching this node's ID
+                const leavingLinks = resultRoutine.nodeLinks.filter(link => link.fromId === node.id);
+                // If there are no leaving links, create a new link and end node
+                if (leavingLinks.length === 0) {
+                    // Generate node ID
+                    const newEndNodeId = uuidv4();
+                    // Calculate rowIndex and columnIndex
+                    // Column is 1 after current column
+                    const columnIndex: number = (node.columnIndex ?? 0) + 1;
+                    // Node is 1 after last rowIndex in column
+                    const rowIndex = (columnIndex >= 0 && columnIndex < columns.length) ? columns[columnIndex].length : 0;
+                    const newLink: Partial<NodeLink> = { fromId: node.id, toId: newEndNodeId }
+                    const newEndNode: Partial<Node> = {
+                        id: newEndNodeId,
+                        type: NodeType.End,
+                        rowIndex,
+                        columnIndex,
+                        data: {
+                            wasSuccessful: false,
+                        } as any,
+                    }
+                    // Add link and end node to resultRoutine
+                    resultRoutine.nodeLinks.push(newLink as any);
+                    resultRoutine.nodes.push(newEndNode as any);
+                }
+            }
+        }
+        // Remove links that don't have both a valid fromId and toId
+        resultRoutine.nodeLinks = resultRoutine.nodeLinks.filter(link => {
+            const fromNode = resultRoutine.nodes.find(n => n.id === link.fromId);
+            const toNode = resultRoutine.nodes.find(n => n.id === link.toId);
+            return Boolean(fromNode && toNode);
+        });
+        // Update changedRoutine with resultRoutine
+        setChangedRoutine(resultRoutine);
+    }, [changedRoutine, columns]);
 
     return (
         <Box sx={{
