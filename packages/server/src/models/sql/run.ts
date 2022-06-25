@@ -161,13 +161,14 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
                 })
                 if (!object) throw new CustomError(CODE.ErrorUnknown, 'Run not found.', { code: genErrorCode('0176') });
                 // Update object
-                const temp = await this.toDBShapeUpdate(userId, input.data, object as any)
-                console.log('before run update temp', JSON.stringify(temp), '\n\n')
+                const data = await this.toDBShapeUpdate(userId, input.data, object as any)
+                console.log('before run update temp', JSON.stringify(data), '\n\n')
                 const currUpdated = await prisma.run.update({
                     where: input.where,
-                    data: await this.toDBShapeUpdate(userId, input.data, object as any),
+                    data,
                     ...selectHelper(partialInfo)
                 });
+                // if (data.hasOwnProperty('wasSuccessful')) {
                 // Convert to GraphQL
                 const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array
@@ -227,15 +228,24 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
                 where: { id: input.id },
                 data: {
                     completedComplexity: completedComplexity + (input.completedComplexity ?? 0),
-                    contextSwitches: contextSwitches + (input.finalStepUpdate?.contextSwitches ?? 0),
+                    contextSwitches: contextSwitches + (input.finalStepCreate?.contextSwitches ?? input.finalStepUpdate?.contextSwitches ?? 0),
+                    status: input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed,
                     timeCompleted: new Date(),
-                    timeElapsed: (timeElapsed ?? 0) + (input.finalStepUpdate?.timeElapsed ?? 0),
+                    timeElapsed: (timeElapsed ?? 0) + (input.finalStepCreate?.timeElapsed ?? input.finalStepUpdate?.timeElapsed ?? 0),
                     steps: {
-                        create: {
-                            contextSwitches: input.finalStepUpdate?.contextSwitches ?? 0,
-                            timeElapsed: input.finalStepUpdate?.timeElapsed,
-                            status: input.finalStepUpdate?.status ?? (input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed),
-                        } as any
+                        create: input.finalStepCreate ? {
+                            order: input.finalStepCreate.order ?? 1,
+                            title: input.finalStepCreate.title ?? '',
+                            contextSwitches: input.finalStepCreate.contextSwitches ?? 0,
+                            timeElapsed: input.finalStepCreate.timeElapsed,
+                            status: input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed,
+                        } as any : undefined,
+                        update: input.finalStepUpdate ? {
+                            id: input.finalStepUpdate.id,
+                            contextSwitches: input.finalStepUpdate.contextSwitches ?? 0,
+                            timeElapsed: input.finalStepUpdate.timeElapsed,
+                            status: input.finalStepUpdate.status ?? (input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed),
+                        } as any : undefined,
                     }
                 },
                 ...selectHelper(partial)
@@ -247,19 +257,26 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
                     completedComplexity: input.completedComplexity ?? 0,
                     timeStarted: new Date(),
                     timeCompleted: new Date(),
-                    timeElapsed: input.finalStepUpdate?.timeElapsed ?? 0,
-                    contextSwitches: input.finalStepUpdate?.contextSwitches ?? 0,
+                    timeElapsed: input.finalStepCreate?.timeElapsed ?? input.finalStepUpdate?.timeElapsed ?? 0,
+                    contextSwitches: input.finalStepCreate?.contextSwitches ?? input.finalStepUpdate?.contextSwitches ?? 0,
                     routineId: input.id,
                     status: input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed,
                     title: input.title,
                     userId,
                     version: input.version,
                     steps: {
-                        create: {
-                            contextSwitches: input.finalStepUpdate?.contextSwitches ?? 0,
-                            timeElapsed: input.finalStepUpdate?.timeElapsed,
+                        create: input.finalStepCreate ? {
+                            order: input.finalStepCreate.order ?? 1,
+                            title: input.finalStepCreate.title ?? '',
+                            contextSwitches: input.finalStepCreate.contextSwitches ?? 0,
+                            timeElapsed: input.finalStepCreate.timeElapsed,
+                            status: input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed,
+                        } as any : input.finalStepUpdate ? {
+                            id: input.finalStepUpdate.id,
+                            contextSwitches: input.finalStepUpdate.contextSwitches ?? 0,
+                            timeElapsed: input.finalStepUpdate.timeElapsed,
                             status: input.finalStepUpdate?.status ?? (input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed),
-                        } as any
+                        } : undefined,
                     }
                 },
                 ...selectHelper(partial)

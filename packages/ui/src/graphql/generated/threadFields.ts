@@ -33,6 +33,7 @@ export interface threadFields_childThreads_childThreads_comment_commentedOn_Rout
 export interface threadFields_childThreads_childThreads_comment_commentedOn_Routine {
   __typename: "Routine";
   id: string;
+  complexity: number;
   translations: threadFields_childThreads_childThreads_comment_commentedOn_Routine_translations[];
 }
 
@@ -40,6 +41,7 @@ export interface threadFields_childThreads_childThreads_comment_commentedOn_Stan
   __typename: "Standard";
   id: string;
   name: string;
+  type: string;
 }
 
 export type threadFields_childThreads_childThreads_comment_commentedOn = threadFields_childThreads_childThreads_comment_commentedOn_Project | threadFields_childThreads_childThreads_comment_commentedOn_Routine | threadFields_childThreads_childThreads_comment_commentedOn_Standard;
@@ -119,6 +121,7 @@ export interface threadFields_childThreads_comment_commentedOn_Routine_translati
 export interface threadFields_childThreads_comment_commentedOn_Routine {
   __typename: "Routine";
   id: string;
+  complexity: number;
   translations: threadFields_childThreads_comment_commentedOn_Routine_translations[];
 }
 
@@ -126,6 +129,7 @@ export interface threadFields_childThreads_comment_commentedOn_Standard {
   __typename: "Standard";
   id: string;
   name: string;
+  type: string;
 }
 
 export type threadFields_childThreads_comment_commentedOn = threadFields_childThreads_comment_commentedOn_Project | threadFields_childThreads_comment_commentedOn_Routine | threadFields_childThreads_comment_commentedOn_Standard;
@@ -206,6 +210,7 @@ export interface threadFields_comment_commentedOn_Routine_translations {
 export interface threadFields_comment_commentedOn_Routine {
   __typename: "Routine";
   id: string;
+  complexity: number;
   translations: threadFields_comment_commentedOn_Routine_translations[];
 }
 
@@ -213,6 +218,7 @@ export interface threadFields_comment_commentedOn_Standard {
   __typename: "Standard";
   id: string;
   name: string;
+  type: string;
 }
 
 export type threadFields_comment_commentedOn = threadFields_comment_commentedOn_Project | threadFields_comment_commentedOn_Routine | threadFields_comment_commentedOn_Standard;

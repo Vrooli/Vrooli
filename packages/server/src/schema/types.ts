@@ -2267,6 +2267,7 @@ export type RunCancelInput = {
 export type RunCompleteInput = {
   completedComplexity?: InputMaybe<Scalars['Int']>;
   exists?: InputMaybe<Scalars['Boolean']>;
+  finalStepCreate?: InputMaybe<RunStepCreateInput>;
   finalStepUpdate?: InputMaybe<RunStepUpdateInput>;
   id: Scalars['ID'];
   title: Scalars['String'];

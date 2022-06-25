@@ -21,6 +21,7 @@ export const commentFields = gql`
             }
             ... on Routine {
                 id
+                complexity
                 translations {
                     id
                     language
@@ -30,6 +31,7 @@ export const commentFields = gql`
             ... on Standard {
                 id
                 name
+                type
             }
         }
         creator {

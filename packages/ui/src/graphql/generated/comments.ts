@@ -33,6 +33,7 @@ export interface comments_comments_threads_childThreads_childThreads_comment_com
 export interface comments_comments_threads_childThreads_childThreads_comment_commentedOn_Routine {
   __typename: "Routine";
   id: string;
+  complexity: number;
   translations: comments_comments_threads_childThreads_childThreads_comment_commentedOn_Routine_translations[];
 }
 
@@ -40,6 +41,7 @@ export interface comments_comments_threads_childThreads_childThreads_comment_com
   __typename: "Standard";
   id: string;
   name: string;
+  type: string;
 }
 
 export type comments_comments_threads_childThreads_childThreads_comment_commentedOn = comments_comments_threads_childThreads_childThreads_comment_commentedOn_Project | comments_comments_threads_childThreads_childThreads_comment_commentedOn_Routine | comments_comments_threads_childThreads_childThreads_comment_commentedOn_Standard;
@@ -119,6 +121,7 @@ export interface comments_comments_threads_childThreads_comment_commentedOn_Rout
 export interface comments_comments_threads_childThreads_comment_commentedOn_Routine {
   __typename: "Routine";
   id: string;
+  complexity: number;
   translations: comments_comments_threads_childThreads_comment_commentedOn_Routine_translations[];
 }
 
@@ -126,6 +129,7 @@ export interface comments_comments_threads_childThreads_comment_commentedOn_Stan
   __typename: "Standard";
   id: string;
   name: string;
+  type: string;
 }
 
 export type comments_comments_threads_childThreads_comment_commentedOn = comments_comments_threads_childThreads_comment_commentedOn_Project | comments_comments_threads_childThreads_comment_commentedOn_Routine | comments_comments_threads_childThreads_comment_commentedOn_Standard;
@@ -206,6 +210,7 @@ export interface comments_comments_threads_comment_commentedOn_Routine_translati
 export interface comments_comments_threads_comment_commentedOn_Routine {
   __typename: "Routine";
   id: string;
+  complexity: number;
   translations: comments_comments_threads_comment_commentedOn_Routine_translations[];
 }
 
@@ -213,6 +218,7 @@ export interface comments_comments_threads_comment_commentedOn_Standard {
   __typename: "Standard";
   id: string;
   name: string;
+  type: string;
 }
 
 export type comments_comments_threads_comment_commentedOn = comments_comments_threads_comment_commentedOn_Project | comments_comments_threads_comment_commentedOn_Routine | comments_comments_threads_comment_commentedOn_Standard;

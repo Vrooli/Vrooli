@@ -137,6 +137,7 @@ export const typeDef = gql`
         completedComplexity: Int # Even though the run was completed, the user may not have completed every subroutine
         exists: Boolean # If true, run ID is provided, otherwise routine ID so we can create a run
         title: String! # Title of routine, so run name stays consistent even if routine updates/deletes
+        finalStepCreate: RunStepCreateInput
         finalStepUpdate: RunStepUpdateInput
         version: String! # Version of routine which was ran
         wasSuccessful: Boolean

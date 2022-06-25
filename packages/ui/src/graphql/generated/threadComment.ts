@@ -33,6 +33,7 @@ export interface threadComment_commentedOn_Routine_translations {
 export interface threadComment_commentedOn_Routine {
   __typename: "Routine";
   id: string;
+  complexity: number;
   translations: threadComment_commentedOn_Routine_translations[];
 }
 
@@ -40,6 +41,7 @@ export interface threadComment_commentedOn_Standard {
   __typename: "Standard";
   id: string;
   name: string;
+  type: string;
 }
 
 export type threadComment_commentedOn = threadComment_commentedOn_Project | threadComment_commentedOn_Routine | threadComment_commentedOn_Standard;

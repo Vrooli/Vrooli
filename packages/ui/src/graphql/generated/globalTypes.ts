@@ -1064,6 +1064,7 @@ export interface RunCompleteInput {
   completedComplexity?: number | null;
   exists?: boolean | null;
   title: string;
+  finalStepCreate?: RunStepCreateInput | null;
   finalStepUpdate?: RunStepUpdateInput | null;
   version: string;
   wasSuccessful?: boolean | null;

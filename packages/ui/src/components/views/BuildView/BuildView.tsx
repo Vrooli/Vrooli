@@ -359,8 +359,6 @@ export const BuildView = ({
             PubSub.publish(Pubs.Snack, { message: 'Cannot update: Invalid routine data', severity: 'error' });
             return;
         }
-        console.log('buildview before formatforupdate: ROUTINE', routine?.nodes, routine?.nodeLinks);
-        console.log('buildview before formatforupdate: CHANGED ROUTINE', changedRoutine.nodes, changedRoutine.nodeLinks);
         const input: any = formatForUpdate(
             routine,
             changedRoutine,
@@ -1001,12 +999,10 @@ export const BuildView = ({
     const cleanUpGraph = useCallback(() => {
         if (!changedRoutine) return;
         const resultRoutine = JSON.parse(JSON.stringify(changedRoutine));
-        console.log('column data', columns, resultRoutine.nodes);
         // Loop through the columns, and remove gaps in rowIndex
         for (const column of columns) {
             // Sort nodes in column by rowIndex
             const sortedNodes = column.sort((a, b) => (a.rowIndex ?? 0) - (b.rowIndex ?? 0));
-            console.log('sorted nodes', sortedNodes);
             // If the nodes don't go from 0 to n without any gaps
             if (sortedNodes.length > 0 && sortedNodes.some((n, i) => (n.rowIndex ?? 0) !== i)) {
                 // Update nodes in resultRoutine with new rowIndexes

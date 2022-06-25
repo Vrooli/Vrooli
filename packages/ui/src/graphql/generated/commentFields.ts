@@ -33,6 +33,7 @@ export interface commentFields_commentedOn_Routine_translations {
 export interface commentFields_commentedOn_Routine {
   __typename: "Routine";
   id: string;
+  complexity: number;
   translations: commentFields_commentedOn_Routine_translations[];
 }
 
@@ -40,6 +41,7 @@ export interface commentFields_commentedOn_Standard {
   __typename: "Standard";
   id: string;
   name: string;
+  type: string;
 }
 
 export type commentFields_commentedOn = commentFields_commentedOn_Project | commentFields_commentedOn_Routine | commentFields_commentedOn_Standard;
