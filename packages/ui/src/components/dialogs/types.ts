@@ -242,7 +242,7 @@ export interface CreateNewDialogProps {
 
 export interface RunStepsDialogProps {
     handleLoadSubroutine: (id: string) => any;
-    handleStepParamsUpdate: (step: number[]) => any;
+    handleCurrStepLocationUpdate: (step: number[]) => any;
     history: Array<number>[];
     /**
      * Out of 100

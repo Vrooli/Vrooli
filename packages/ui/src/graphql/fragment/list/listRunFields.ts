@@ -41,7 +41,7 @@ export const listRunFields = gql`
     fragment listRunFields on Run {
         id
         completedComplexity
-        pickups
+        contextSwitches
         timeStarted
         timeElapsed
         timeCompleted

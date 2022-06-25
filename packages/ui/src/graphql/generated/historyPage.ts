@@ -58,7 +58,7 @@ export interface historyPage_historyPage_activeRuns {
   __typename: "Run";
   id: string;
   completedComplexity: number;
-  pickups: number;
+  contextSwitches: number;
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
@@ -116,7 +116,7 @@ export interface historyPage_historyPage_completedRuns {
   __typename: "Run";
   id: string;
   completedComplexity: number;
-  pickups: number;
+  contextSwitches: number;
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;

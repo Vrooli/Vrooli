@@ -2248,8 +2248,8 @@ export type RoutineUpdateInput = {
 export type Run = {
   __typename?: 'Run';
   completedComplexity: Scalars['Int'];
+  contextSwitches: Scalars['Int'];
   id: Scalars['ID'];
-  pickups: Scalars['Int'];
   routine?: Maybe<Routine>;
   status: RunStatus;
   steps: Array<RunStep>;
@@ -2269,8 +2269,6 @@ export type RunCompleteInput = {
   exists?: InputMaybe<Scalars['Boolean']>;
   finalStepUpdate?: InputMaybe<RunStepUpdateInput>;
   id: Scalars['ID'];
-  pickups?: InputMaybe<Scalars['Int']>;
-  timeElapsed?: InputMaybe<Scalars['Int']>;
   title: Scalars['String'];
   version: Scalars['String'];
   wasSuccessful?: InputMaybe<Scalars['Boolean']>;
@@ -2337,10 +2335,10 @@ export enum RunStatus {
 
 export type RunStep = {
   __typename?: 'RunStep';
+  contextSwitches: Scalars['Int'];
   id: Scalars['ID'];
   node?: Maybe<Node>;
   order: Scalars['Int'];
-  pickups: Scalars['Int'];
   run: Run;
   status: RunStepStatus;
   step: Array<Scalars['Int']>;
@@ -2352,11 +2350,13 @@ export type RunStep = {
 };
 
 export type RunStepCreateInput = {
+  contextSwitches?: InputMaybe<Scalars['Int']>;
   id?: InputMaybe<Scalars['ID']>;
   nodeId?: InputMaybe<Scalars['ID']>;
   order: Scalars['Int'];
   step: Array<Scalars['Int']>;
   subroutineId?: InputMaybe<Scalars['ID']>;
+  timeElapsed?: InputMaybe<Scalars['Int']>;
   title: Scalars['String'];
 };
 
@@ -2367,16 +2367,16 @@ export enum RunStepStatus {
 }
 
 export type RunStepUpdateInput = {
+  contextSwitches?: InputMaybe<Scalars['Int']>;
   id: Scalars['ID'];
-  pickups?: InputMaybe<Scalars['Int']>;
   status?: InputMaybe<RunStepStatus>;
   timeElapsed?: InputMaybe<Scalars['Int']>;
 };
 
 export type RunUpdateInput = {
   completedComplexity?: InputMaybe<Scalars['Int']>;
+  contextSwitches?: InputMaybe<Scalars['Int']>;
   id: Scalars['ID'];
-  pickups?: InputMaybe<Scalars['Int']>;
   stepsCreate?: InputMaybe<Array<RunStepCreateInput>>;
   stepsDelete?: InputMaybe<Array<Scalars['ID']>>;
   stepsUpdate?: InputMaybe<Array<RunStepUpdateInput>>;

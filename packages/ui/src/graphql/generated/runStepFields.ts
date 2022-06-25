@@ -18,7 +18,7 @@ export interface runStepFields {
   __typename: "RunStep";
   id: string;
   order: number;
-  pickups: number;
+  contextSwitches: number;
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;

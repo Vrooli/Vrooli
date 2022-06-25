@@ -542,7 +542,7 @@ export interface runCreate_runCreate_steps {
   __typename: "RunStep";
   id: string;
   order: number;
-  pickups: number;
+  contextSwitches: number;
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
@@ -556,7 +556,7 @@ export interface runCreate_runCreate {
   __typename: "Run";
   id: string;
   completedComplexity: number;
-  pickups: number;
+  contextSwitches: number;
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;

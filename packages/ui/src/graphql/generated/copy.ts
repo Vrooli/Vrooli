@@ -718,7 +718,7 @@ export interface copy_copy_routine_runs_steps {
   __typename: "RunStep";
   id: string;
   order: number;
-  pickups: number;
+  contextSwitches: number;
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
@@ -732,7 +732,7 @@ export interface copy_copy_routine_runs {
   __typename: "Run";
   id: string;
   completedComplexity: number;
-  pickups: number;
+  contextSwitches: number;
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;

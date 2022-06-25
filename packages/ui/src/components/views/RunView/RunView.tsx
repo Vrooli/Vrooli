@@ -253,10 +253,7 @@ export const RunView = ({
         setCompletedComplexity(run.completedComplexity);
         // Calculate progress using run.steps
         const existingProgress: number[][] = [];
-        console.log('going to calculate existing progress:', run.steps, stepList);
         for (const step of run.steps) {
-            console.log('in calculating xisting progress step:', step);
-            console.log('current location:', step.step);
             // If location found and is not a duplicate (a duplicate here indicates a mistake with storing run data elsewhere)
             if (step.step && !existingProgress.some((progress) => locationArraysMatch(progress, step.step))) {
                 existingProgress.push(step.step);
@@ -298,16 +295,37 @@ export const RunView = ({
         return runStep;
     }, [run?.steps, currStepLocation]);
 
+    // Track user behavior during step (time elapsed, context switches)
     /**
      * Interval to track time spent on each step.
      */
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
     const [timeElapsed, setTimeElapsed] = useState<number>(0);
+    const [contextSwitches, setContextSwitches] = useState<number>(0);
     useEffect(() => {
         if (!currStepRunData) return;
+        // Start tracking time
         intervalRef.current = setInterval(() => { setTimeElapsed(t => t + 1); }, 1000);
+        // Reset context switches
+        setContextSwitches(currStepRunData.contextSwitches);
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
+        }
+    }, [currStepRunData]);
+
+    /**
+     * On tab change, add to contextSwitches
+     */
+     useEffect(() => {
+        const handleTabChange = (event: any) => {
+            console.log('TAB CHANGGEDDDDDDDDD', currStepRunData);
+            if (currStepRunData) {
+                setContextSwitches(c => c + 1);
+            }
+        }
+        window.addEventListener('focus', handleTabChange);
+        return () => {
+            window.removeEventListener('focus', handleTabChange);
         }
     }, [currStepRunData]);
 
@@ -336,7 +354,7 @@ export const RunView = ({
             // Check if this is because the subroutine data hasn't been fetched yet
             //TODO
             // Otherwise, this is an error
-            PubSub.publish(Pubs.Snack, { message: 'Error: Step not found', severity: 'error' });
+            // PubSub.publish(Pubs.Snack, { message: 'Error: Step not found', severity: 'error' });
             return;
         }
         // If current step is a list, then redirect to first step in list
@@ -354,8 +372,10 @@ export const RunView = ({
         }
         // If current step is a subroutine, then query if not all data is available
         if (subroutineNeedsQuerying(currStep)) {
+            console.log('querying for subroutine data')
             getSubroutine({ variables: { input: { id: (currStep as SubroutineStep).routine.id } } });
         } else {
+            console.log('setting current step', currStep)
             setCurrentStep(currStep);
         }
     }, [currStepLocation, findStep, getSubroutine, params, setCurrStepLocation]);
@@ -438,12 +458,13 @@ export const RunView = ({
         const currStepParent = findStep(currStepLocation.slice(0, -1));
         return {
             instructions: getTranslation(routine, 'instructions', languages, true),
-            title: currStepParent?.title ?? 'Untitled',
+            // Ignore title if it's for the main routine (i.e. step is still loading, probably)
+            title: (currStepParent?.title && currStepLocation.length > 1) ? currStepParent.title : '',
         };
     }, [currStepLocation, findStep, routine, session]);
 
     /**
-     * Calculates previous step params, or null
+     * Calculates previous step location array, or null
      * Examples: [2] => [1], [1] => null, [2, 2] => [2, 1], [2, 1] => [2, num in previous step]
      */
     const previousStep = useMemo<number[] | null>(() => {
@@ -457,7 +478,9 @@ export const RunView = ({
     }, [currStepLocation]);
 
     /**
-     * Calculates next step params, or null
+     * Calculates next step location array, or null. Loops backwards through location array 
+     * until a location can be incremented, then loops forward until a subroutine without any 
+     * of its own subroutines is found.
      * Examples: [2] => [3] OR [2, 1] if at end of list
      */
     const nextStep = useMemo<number[] | null>(() => {
@@ -466,8 +489,7 @@ export const RunView = ({
         // This is because the next step is determined by the decision, not automatically
         if (currentStep?.type === RoutineStepType.Decision) return null;
         // If no current step, default to [1]
-        if (currStepLocation.length === 0) return [1];
-        let result = [...currStepLocation];
+        let result = currStepLocation.length === 0 ? [1] : [...currStepLocation];
         let listStepFound = false;
         // Loop backwards until a RoutineList node in stepParams can be incremented. Remove elements after that
         for (let i = result.length - 1; i >= 0; i--) {
@@ -496,18 +518,33 @@ export const RunView = ({
         let endFound = !Boolean(currNextStep);
         while (!endFound) {
             console.log('not end found loop', currNextStep)
-            // If current step is a decision, we're done
-            if (currNextStep?.type === RoutineStepType.Decision) {
-                endFound = true;
-                break;
+            switch (currNextStep?.type) {
+                // Decisions cannot have any subroutines
+                case RoutineStepType.Decision:
+                    endFound = true;
+                    break;
+                // If current step is a RoutineList, check if there is another step in the list
+                case RoutineStepType.RoutineList:
+                    if ((currNextStep as RoutineListStep).steps.length > 0) {
+                        result.push(1);
+                        currNextStep = findStep(result);
+                        console.log('NEXT STEP BOOP', currNextStep)
+                    }
+                    else endFound = true;
+                    break;
+                // If current step is a subroutine, this is either the end or more data needs to be fetched
+                case RoutineStepType.Subroutine:
+                    if (!routineHasSubroutines((currNextStep as SubroutineStep).routine)) {
+                        endFound = true;
+                    } else {
+                        endFound = true;
+                        //TODO - fetch subroutine data
+                        // result.push(1);
+                        // currNextStep = findStep(result);
+                        // console.log('NEXT STEP BOOP', currNextStep)
+                    }
+                    break;
             }
-            // If current step is a subroutine, see if we need to query more steps
-            //TODO
-            // If subroutine has no nodes, we're done
-            //TODO
-            // If 
-            // temp
-            endFound = true;
         }
         // Return result
         console.log('NEXT STEP RESULT', result)
@@ -537,67 +574,62 @@ export const RunView = ({
         // This has the side effect is not logging decisions. If these should be logged, 
         // then the logic will have to change a bit
         if (!nextStep) return;
-        console.log('TO NEXT', nextStep);//TODO nextstep only gets next node (I think), not the actual subroutine which will be run. This messes up the stepCreate log
+        console.log('TO NEXT', nextStep);
         // Find step data
         const currStep = findStep(currStepLocation);
         // Calculate new progress and percent complete
         let newProgress = Array.isArray(progress) ? [...progress] : [];
-        let newComplexity: number = completedComplexity;
+        let newlyCompletedComplexity: number = (currStep ? getStepComplexity(currStep) : 0);
         const alreadyComplete = newProgress.find(p => locationArraysMatch(p, currStepLocation));
         // If step was not already completed, update progress
         if (!alreadyComplete) {
             newProgress.push(currStepLocation);
-            newComplexity += (currStep ? getStepComplexity(currStep) : 0);
             setProgress(newProgress);
-            setCompletedComplexity(newComplexity);
+            setCompletedComplexity(c => c + newlyCompletedComplexity);
         }
         // Update current step
         setCurrStepLocation(nextStep);
         // If in test mode return
         if (testMode || !run) return
         // Now we can calculate data for the logs
-        // Find next step
-        const nextData = findStep(nextStep);
-        if (nextData?.type === RoutineStepType.RoutineList) {
-            // Find data to update current step
-            const existingCurrStepData = run.steps.find(s => s.node?.id === (currStep as RoutineListStep)?.nodeId)
-            const stepUpdate = existingCurrStepData ? {
-                id: existingCurrStepData.id,
-                status: RunStepStatus.Completed,
-                timeElapsed: (existingCurrStepData.timeElapsed ?? 0) + timeElapsed,
-                pickups: existingCurrStepData.pickups + 1,
-            } : undefined
-            // Make sure next step hasn't been logged already (meaning you've worked on it before)
-            const existingNextStepData = run.steps.find(s => s.node?.id === nextData.nodeId);
-            if (!existingNextStepData) {
-                logRunUpdate({
-                    variables: {
-                        input: {
-                            id: run.id,
-                            completedComplexity: newComplexity,
-                            stepsCreate: [{
-                                order: progress.length,
-                                title: (nextData as RoutineListStep).title,
-                                nodeId: (nextData as RoutineListStep).nodeId,
-                                step: nextStep,
-                            }],
-                            stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
-                        }
-                    }
-                });
+        // Find parent RoutineList step, so we can get the nodeId 
+        const currParentListStep = findStep(currStepLocation.slice(0, currStepLocation.length - 1));
+        console.log('currentsteprundtata', currStep, currStepRunData);
+        console.log('currParentListStep', currParentListStep);
+        // Current step will be updated if it already exists in logged data, or created if not
+        const stepsUpdate = currStepRunData ? [{
+            id: currStepRunData.id,
+            status: RunStepStatus.Completed,
+            timeElapsed: (currStepRunData.timeElapsed ?? 0) + timeElapsed,
+            contextSwitches: currStepRunData.contextSwitches + contextSwitches,
+        }] : undefined
+        const stepsCreate = currStepRunData ? undefined : [{
+            order: newProgress.length,
+            title: currStep?.title ?? '',
+            nodeId: (currParentListStep as RoutineListStep).nodeId,
+            step: currStepLocation,
+            timeElapsed,
+            contextSwitches,
+        }];
+        logRunUpdate({
+            variables: {
+                input: {
+                    id: run.id,
+                    completedComplexity: newlyCompletedComplexity,
+                    stepsCreate,
+                    stepsUpdate,
+                }
             }
-        }
-    }, [completedComplexity, currStepLocation, findStep, logRunUpdate, nextStep, progress, run, setCurrStepLocation, testMode, timeElapsed]);
+        });
+    }, [contextSwitches, currStepLocation, currStepRunData, findStep, logRunUpdate, nextStep, progress, run, setCurrStepLocation, testMode, timeElapsed]);
 
     /**
      * Clears run-specific search params from URL
      */
     const clearSearchParams = useCallback(() => {
-        console.log('clearing search params...')
         const params = parseSearchParams(window.location.search);
         delete params.run;
         delete params.step;
-        console.log('params after clearing', stringifySearchParams(params))
         setLocation(`${window.location.pathname}${stringifySearchParams(params)}`, { replace: true });
     }, [setLocation]);
 
@@ -623,12 +655,11 @@ export const RunView = ({
             handleClose();
             return;
         }
-        // Update logs for current step (time elapsed, pickups, etc.)
-        const currentStepRunData = run.steps.find(s => s.node?.id === (currentStep as RoutineListStep)?.nodeId);
-        const stepUpdate = currentStepRunData ? {
-            id: currentStepRunData.id,
-            timeElapsed: (currentStepRunData.timeElapsed ?? 0) + timeElapsed,
-            pickups: currentStepRunData.pickups + 1,
+        // Update logs for current step (time elapsed, context switches, etc.)
+        const stepUpdate = currStepRunData ? {
+            id: currStepRunData.id,
+            timeElapsed: (currStepRunData.timeElapsed ?? 0) + timeElapsed,
+            contextSwitches: currStepRunData.contextSwitches + contextSwitches,
         } : undefined
         // Log complete
         mutationWrapper({
@@ -636,11 +667,9 @@ export const RunView = ({
             input: {
                 id: run.id,
                 standalone: true,
-                completedComplexity: run.completedComplexity,
-                timeElapsed: (run.timeElapsed ?? 0) + timeElapsed,
+                completedComplexity: (currentStep as SubroutineStep).routine?.complexity ?? 0,
                 title: getTranslation(routine, 'title', getUserLanguages(session), true),
-                pickups: run.pickups + 1,
-                stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
+                finalStepUpdate: stepUpdate,
                 version: routine.version,
                 wasSuccessful: success,
             },
@@ -651,7 +680,7 @@ export const RunView = ({
                 handleClose();
             },
         })
-    }, [testMode, run, timeElapsed, logRunComplete, routine, session, clearSearchParams, handleClose, currentStep]);
+    }, [testMode, run, currStepRunData, timeElapsed, contextSwitches, logRunComplete, currentStep, routine, session, clearSearchParams, handleClose]);
     /**
      * Complete routine after reaching end node.
      */
@@ -675,24 +704,21 @@ export const RunView = ({
         // Dont do this in test mode, or if there's no run data
         if (testMode || !run) return;
         // Find current step in run data
-        const currentStepRunData = run.steps.find(s => s.node?.id === (currentStep as RoutineListStep)?.nodeId);
-        const stepUpdate = currentStepRunData ? {
-            id: currentStepRunData.id,
-            timeElapsed: (currentStepRunData.timeElapsed ?? 0) + timeElapsed,
-            pickups: currentStepRunData.pickups + 1,
+        const stepUpdate = currStepRunData ? {
+            id: currStepRunData.id,
+            timeElapsed: (currStepRunData.timeElapsed ?? 0) + timeElapsed,
+            contextSwitches: currStepRunData.contextSwitches + contextSwitches,
         } : undefined
         // Send data to server
         logRunUpdate({
             variables: {
                 input: {
                     id: run.id,
-                    timeElapsed: (run.timeElapsed ?? 0) + timeElapsed,
-                    pickups: run.pickups + 1,
                     stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
                 }
             }
         });
-    }, [currentStep, logRunUpdate, run, testMode, timeElapsed]);
+    }, [contextSwitches, currStepRunData, logRunUpdate, run, testMode, timeElapsed]);
 
     /**
      * End routine early
@@ -791,7 +817,7 @@ export const RunView = ({
                         {/* Steps explorer drawer */}
                         <RunStepsDialog
                             handleLoadSubroutine={(id: string) => { getSubroutine({ variables: { input: { id } } }); }}
-                            handleStepParamsUpdate={setCurrStepLocation}
+                            handleCurrStepLocationUpdate={setCurrStepLocation}
                             history={progress}
                             percentComplete={progressPercentage}
                             stepList={stepList}

@@ -1063,8 +1063,6 @@ export interface RunCompleteInput {
   id: string;
   completedComplexity?: number | null;
   exists?: boolean | null;
-  pickups?: number | null;
-  timeElapsed?: number | null;
   title: string;
   finalStepUpdate?: RunStepUpdateInput | null;
   version: string;
@@ -1102,15 +1100,17 @@ export interface RunSearchInput {
 export interface RunStepCreateInput {
   id?: string | null;
   nodeId?: string | null;
+  contextSwitches?: number | null;
   subroutineId?: string | null;
   order: number;
   step: number[];
+  timeElapsed?: number | null;
   title: string;
 }
 
 export interface RunStepUpdateInput {
   id: string;
-  pickups?: number | null;
+  contextSwitches?: number | null;
   status?: RunStepStatus | null;
   timeElapsed?: number | null;
 }
@@ -1118,7 +1118,7 @@ export interface RunStepUpdateInput {
 export interface RunUpdateInput {
   id: string;
   completedComplexity?: number | null;
-  pickups?: number | null;
+  contextSwitches?: number | null;
   timeElapsed?: number | null;
   stepsDelete?: string[] | null;
   stepsCreate?: RunStepCreateInput[] | null;

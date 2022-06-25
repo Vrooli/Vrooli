@@ -500,7 +500,7 @@ model run {
   created_at          DateTime   @default(now()) @db.Timestamptz(6)
   updated_at          DateTime   @default(now()) @db.Timestamptz(6)
   completedComplexity Int        @default(0)
-  pickups             Int        @default(1)
+  contextSwitches             Int        @default(0)
   timeStarted         DateTime?  @db.Timestamptz(6)
   timeElapsed         Int?
   timeCompleted       DateTime?  @db.Timestamptz(6)
@@ -517,7 +517,7 @@ model run {
 model run_step {
   id            String        @id @default(uuid()) @db.Uuid
   order         Int
-  pickups       Int           @default(1)
+  contextSwitches Int        @default(0)
   runId         String        @db.Uuid
   nodeId        String?        @db.Uuid
   subroutineId  String?       @db.Uuid

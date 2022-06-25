@@ -35,7 +35,7 @@ export const typeDef = gql`
     type Run {
         id: ID!
         completedComplexity: Int!
-        pickups: Int!
+        contextSwitches: Int!
         timeStarted: Date
         timeElapsed: Int
         timeCompleted: Date
@@ -49,7 +49,7 @@ export const typeDef = gql`
     type RunStep {
         id: ID!
         order: Int!
-        pickups: Int!
+        contextSwitches: Int!
         timeStarted: Date
         timeElapsed: Int
         timeCompleted: Date
@@ -107,7 +107,7 @@ export const typeDef = gql`
     input RunUpdateInput {
         id: ID!
         completedComplexity: Int # Total completed complexity, including what was completed before this update
-        pickups: Int # Total pickups, including what was completed before this update
+        contextSwitches: Int # Total contextSwitches, including what was completed before this update
         timeElapsed: Int # Total time elapsed, including what was completed before this update
         stepsDelete: [ID!]
         stepsCreate: [RunStepCreateInput!]
@@ -117,15 +117,17 @@ export const typeDef = gql`
     input RunStepCreateInput {
         id: ID
         nodeId: ID
+        contextSwitches: Int
         subroutineId: ID
         order: Int!
         step: [Int!]!
+        timeElapsed: Int
         title: String!
     }
 
     input RunStepUpdateInput {
         id: ID!
-        pickups: Int
+        contextSwitches: Int
         status: RunStepStatus
         timeElapsed: Int
     }
@@ -134,8 +136,6 @@ export const typeDef = gql`
         id: ID! # Run ID if "exists" is true, or routine ID if "exists" is false
         completedComplexity: Int # Even though the run was completed, the user may not have completed every subroutine
         exists: Boolean # If true, run ID is provided, otherwise routine ID so we can create a run
-        pickups: Int
-        timeElapsed: Int
         title: String! # Title of routine, so run name stays consistent even if routine updates/deletes
         finalStepUpdate: RunStepUpdateInput
         version: String! # Version of routine which was ran

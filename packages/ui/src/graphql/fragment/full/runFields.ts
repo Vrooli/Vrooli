@@ -270,7 +270,7 @@ export const runFields = gql`
     fragment runStepFields on RunStep {
         id
         order
-        pickups
+        contextSwitches
         timeStarted
         timeElapsed
         timeCompleted
@@ -284,7 +284,7 @@ export const runFields = gql`
     fragment runFields on Run {
         id
         completedComplexity
-        pickups
+        contextSwitches
         timeStarted
         timeElapsed
         timeCompleted

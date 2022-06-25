@@ -33,16 +33,18 @@ export const stepVerifier = () => ({
     async toDBShapeAdd(userId: string, data: RunStepCreateInput): Promise<any> {
         return {
             nodeId: data.nodeId,
+            contextSwitches: data.contextSwitches,
             subroutineId: data.subroutineId,
             order: data.order,
             status: RunStepStatus.InProgress,
             step: data.step,
+            timeElapsed: data.timeElapsed,
             title: data.title,
         }
     },
     async toDBShapeUpdate(userId: string, data: RunStepUpdateInput): Promise<any> {
         return {
-            pickups: data.pickups ?? undefined,
+            contextSwitches: data.contextSwitches ?? undefined,
             status: data.status ?? undefined,
             timeElapsed: data.timeElapsed ?? undefined,
         }

@@ -90,7 +90,7 @@ const runSelect = {
     __typename: GraphQLModelType.Run,
     id: true,
     completedComplexity: true,
-    pickups: true,
+    contextSwitches: true,
     timeStarted: true,
     timeElapsed: true,
     timeCompleted: true,

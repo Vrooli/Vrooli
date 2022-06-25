@@ -109,7 +109,7 @@ const StyledTreeItem = styled((props: any) => {
 
 export const RunStepsDialog = ({
     handleLoadSubroutine,
-    handleStepParamsUpdate,
+    handleCurrStepLocationUpdate,
     history,
     percentComplete,
     stepList,
@@ -132,7 +132,7 @@ export const RunStepsDialog = ({
         switch (step.type) {
             // If RoutineList, check all child steps
             case RoutineStepType.RoutineList:
-                return step.steps.every((childStep, index) => isComplete(childStep, [...location, index + 1 ]));
+                return step.steps.every((childStep, index) => isComplete(childStep, [...location, index + 1]));
             // If Subroutine, check if subroutine is loaded
             case RoutineStepType.Subroutine:
                 // Not loaded if subroutine has its own subroutines (since it would be converted to a RoutineList
@@ -157,18 +157,22 @@ export const RunStepsDialog = ({
         const realLocation = location.slice(1);
         // Determine if step is complete
         const completed = isComplete(step, realLocation);
-        console.log('boop', completed, step.type)
         const locationLabel = location.join('.');
         const realLocationLabel = realLocation.join('.');
+        // Helper function for navigating to step
         const toLocation = () => {
+            // Update URL
             const searchParams = parseSearchParams(window.location.search);
             setLocation(stringifySearchParams({
                 run: searchParams.run,
                 step: realLocation
             }), { replace: true });
-            handleStepParamsUpdate(realLocation);
+            // Update current step location
+            handleCurrStepLocationUpdate(realLocation);
+            // Close dialog
             closeDialog();
         }
+        // Item displayed differently depending on its type
         switch (step.type) {
             // A decision step never has children
             case RoutineStepType.Decision:
@@ -196,13 +200,15 @@ export const RunStepsDialog = ({
                     </StyledTreeItem>
                 )
         }
-    }, [handleLoadSubroutine, handleStepParamsUpdate, isComplete, setLocation]);
+    }, [handleLoadSubroutine, handleCurrStepLocationUpdate, isComplete, setLocation]);
 
     return (
         <>
+            {/* Icon for opening/closing dialog */}
             <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
                 <TreeIcon sx={sxs?.icon} />
             </IconButton>
+            {/* The dialog */}
             <SwipeableDrawer
                 anchor="right"
                 open={isOpen}
@@ -256,10 +262,10 @@ export const RunStepsDialog = ({
                     defaultCollapseIcon={<MinusSquare />}
                     defaultExpandIcon={<PlusSquare />}
                     defaultEndIcon={<CloseSquare />}
-                    sx={{ 
-                        height: 240, 
-                        flexGrow: 1, 
-                        maxWidth: 400, 
+                    sx={{
+                        height: 240,
+                        flexGrow: 1,
+                        maxWidth: 400,
                         overflowY: 'auto',
                         // Add padding to bottom to account for iOS navbar (safe-area-inset-bottom not working for some reason)
                         paddingBottom: '80px',
