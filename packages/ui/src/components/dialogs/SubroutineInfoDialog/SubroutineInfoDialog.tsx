@@ -133,7 +133,7 @@ export const SubroutineInfoDialog = ({
     // Handle update
     const formik = useFormik({
         initialValues: {
-            index: subroutine?.index ?? 1,
+            index: (subroutine?.index ?? 0) + 1,
             description: getTranslation(subroutine?.routine, 'description', [defaultLanguage]) ?? '',
             instructions: getTranslation(subroutine?.routine, 'instructions', [defaultLanguage]) ?? '',
             isComplete: subroutine?.routine?.isComplete ?? true,
@@ -270,6 +270,7 @@ export const SubroutineInfoDialog = ({
                 zIndex,
                 '& .MuiDrawer-paper': {
                     background: palette.background.default,
+                    borderTop: 'none',
                 }
             }}
         >
@@ -320,6 +321,7 @@ export const SubroutineInfoDialog = ({
                                 selected={organizationFor}
                                 onChange={onSwitchChange}
                                 zIndex={zIndex}
+                                disabled={!canEdit}
                             />
                         </Grid>
                         <Grid item xs={12}>

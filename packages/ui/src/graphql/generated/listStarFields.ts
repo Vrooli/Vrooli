@@ -9,8 +9,87 @@ import { MemberRole } from "./globalTypes";
 // GraphQL fragment: listStarFields
 // ====================================================
 
+export interface listStarFields_to_Tag {
+  __typename: "Tag";
+}
+
+export interface listStarFields_to_Comment_commentedOn_Project_translations {
+  __typename: "ProjectTranslation";
+  id: string;
+  language: string;
+  name: string;
+}
+
+export interface listStarFields_to_Comment_commentedOn_Project {
+  __typename: "Project";
+  id: string;
+  handle: string | null;
+  translations: listStarFields_to_Comment_commentedOn_Project_translations[];
+}
+
+export interface listStarFields_to_Comment_commentedOn_Routine_translations {
+  __typename: "RoutineTranslation";
+  id: string;
+  language: string;
+  title: string;
+}
+
+export interface listStarFields_to_Comment_commentedOn_Routine {
+  __typename: "Routine";
+  id: string;
+  translations: listStarFields_to_Comment_commentedOn_Routine_translations[];
+}
+
+export interface listStarFields_to_Comment_commentedOn_Standard {
+  __typename: "Standard";
+  id: string;
+  name: string;
+}
+
+export type listStarFields_to_Comment_commentedOn = listStarFields_to_Comment_commentedOn_Project | listStarFields_to_Comment_commentedOn_Routine | listStarFields_to_Comment_commentedOn_Standard;
+
+export interface listStarFields_to_Comment_creator_Organization_translations {
+  __typename: "OrganizationTranslation";
+  id: string;
+  language: string;
+  name: string;
+}
+
+export interface listStarFields_to_Comment_creator_Organization {
+  __typename: "Organization";
+  id: string;
+  handle: string | null;
+  translations: listStarFields_to_Comment_creator_Organization_translations[];
+}
+
+export interface listStarFields_to_Comment_creator_User {
+  __typename: "User";
+  id: string;
+  name: string;
+  handle: string | null;
+}
+
+export type listStarFields_to_Comment_creator = listStarFields_to_Comment_creator_Organization | listStarFields_to_Comment_creator_User;
+
+export interface listStarFields_to_Comment_translations {
+  __typename: "CommentTranslation";
+  id: string;
+  language: string;
+  text: string;
+}
+
 export interface listStarFields_to_Comment {
-  __typename: "Comment" | "Tag";
+  __typename: "Comment";
+  id: string;
+  created_at: any;
+  updated_at: any;
+  score: number;
+  isUpvoted: boolean | null;
+  role: MemberRole | null;
+  isStarred: boolean;
+  commentedOn: listStarFields_to_Comment_commentedOn;
+  creator: listStarFields_to_Comment_creator | null;
+  translations: listStarFields_to_Comment_translations[];
 }
 
 export interface listStarFields_to_Organization_tags_translations {
@@ -178,7 +257,7 @@ export interface listStarFields_to_User {
   isStarred: boolean;
 }
 
-export type listStarFields_to = listStarFields_to_Comment | listStarFields_to_Organization | listStarFields_to_Project | listStarFields_to_Routine | listStarFields_to_Standard | listStarFields_to_User;
+export type listStarFields_to = listStarFields_to_Tag | listStarFields_to_Comment | listStarFields_to_Organization | listStarFields_to_Project | listStarFields_to_Routine | listStarFields_to_Standard | listStarFields_to_User;
 
 export interface listStarFields {
   __typename: "Star";

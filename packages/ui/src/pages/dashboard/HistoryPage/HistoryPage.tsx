@@ -1,14 +1,16 @@
-import { Box, Stack, Tab, Tabs } from '@mui/material';
+import { Box, Stack, Tab, Tabs, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { forYouPage, forYouPageVariables } from 'graphql/generated/forYouPage';
+import { historyPage, historyPageVariables } from 'graphql/generated/historyPage';
 import { useQuery } from '@apollo/client';
-import { forYouPageQuery } from 'graphql/query';
-import { ListTitleContainer } from 'components';
+import { historyPageQuery } from 'graphql/query';
+import { AutocompleteSearchBar, ListTitleContainer } from 'components';
 import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
-import { ForYouPageProps } from '../types';
-import { listToListItems, openObject } from 'utils';
-import { Organization, Project, Routine, Standard, User } from 'types';
+import { HistoryPageProps } from '../types';
+import { listToAutocomplete, listToListItems, openObject, useReactSearch } from 'utils';
+import { AutocompleteOption, Organization, Project, Routine, Standard, User } from 'types';
+import _ from 'lodash';
+import { centeredDiv } from 'styles';
 
 const activeRoutinesText = `Routines that you've started to execute, and have not finished.`;
 
@@ -19,8 +21,8 @@ const recentText = `Organizations, projects, routines, standards, and users that
 const starredText = `Organizations, projects, routines, standards, and users that you've starred.`;
 
 const tabOptions = [
-    ['Popular', APP_LINKS.Home],
-    ['For You', APP_LINKS.ForYou],
+    ['For You', APP_LINKS.Home],
+    ['History', APP_LINKS.History],
 ];
 
 /**
@@ -30,24 +32,29 @@ const tabOptions = [
  * Otherwise, each list shows popular items. Each list has a "See more" button, 
  * which opens a full search page for that object type.
  */
-export const ForYouPage = ({
+export const HistoryPage = ({
     session
-}: ForYouPageProps) => {
+}: HistoryPageProps) => {
     const [, setLocation] = useLocation();
-    const { data, refetch, loading } = useQuery<forYouPage, forYouPageVariables>(forYouPageQuery, { variables: { input: {} } });
+
+    const [searchString, setSearchString] = useState<string>('');
+    const searchParams = useReactSearch();
+    useEffect(() => {
+        if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
+    }, [searchParams]);
+    const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
+
+    const { data, refetch, loading } = useQuery<historyPage, historyPageVariables>(historyPageQuery, { variables: { input: { searchString } } });
     useEffect(() => { refetch() }, [refetch]);
 
     // Handle tabs
     const tabIndex = useMemo(() => {
-        if (window.location.pathname === APP_LINKS.ForYou) return 1;
+        if (window.location.pathname === APP_LINKS.History) return 1;
         return 0;
     }, []);
     const handleTabChange = (_e, newIndex) => {
         setLocation(tabOptions[newIndex][1], { replace: true });
     };
-
-    const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
-    const closeCreateDialog = useCallback(() => { setCreateDialogOpen(false) }, [setCreateDialogOpen]);
 
     /**
      * Opens page for list item
@@ -60,44 +67,62 @@ export const ForYouPage = ({
 
     const activeRuns = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Run'),
-        items: data?.forYouPage?.activeRuns,
+        items: data?.historyPage?.activeRuns,
         keyPrefix: 'active-runs-list-item',
         loading,
         session,
-    }), [data?.forYouPage?.activeRuns, loading, session])
+    }), [data?.historyPage?.activeRuns, loading, session])
 
     const completedRuns = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Run'),
-        items: data?.forYouPage?.completedRuns,
+        items: data?.historyPage?.completedRuns,
         keyPrefix: 'completed-runs-list-item',
         loading,
         session,
-    }), [data?.forYouPage?.completedRuns, loading, session])
+    }), [data?.historyPage?.completedRuns, loading, session])
 
     const recent = useMemo(() => listToListItems({
         dummyItems: ['Organization', 'Project', 'Routine', 'Standard', 'User'],
-        items: data?.forYouPage?.recentlyViewed,
+        items: data?.historyPage?.recentlyViewed,
         keyPrefix: 'recent-list-item',
         loading,
         onClick: toItemPage,
         session,
-    }), [data?.forYouPage?.recentlyViewed, loading, session, toItemPage])
+    }), [data?.historyPage?.recentlyViewed, loading, session, toItemPage])
 
     const starred = useMemo(() => listToListItems({
         dummyItems: ['Organization', 'Project', 'Routine', 'Standard', 'User'],
-        items: data?.forYouPage?.recentlyStarred,
+        items: data?.historyPage?.recentlyStarred,
         keyPrefix: 'starred-list-item',
         loading,
         onClick: toItemPage,
         session,
-    }), [data?.forYouPage?.recentlyStarred, loading, session, toItemPage])
+    }), [data?.historyPage?.recentlyStarred, loading, session, toItemPage])
+
+    const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
+
+    const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
+        return listToAutocomplete(_.flatten(Object.values(data?.historyPage ?? [])), languages);
+    }, [data?.historyPage, languages]);
+
+    /**
+     * When an autocomplete item is selected, navigate to object
+     */
+    const onInputSelect = useCallback((newValue: AutocompleteOption) => {
+        if (!newValue) return;
+        // Replace current state with search string, so that search is not lost. 
+        if (searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
+        else setLocation(APP_LINKS.Home, { replace: true });
+        // Navigate to item page
+        openObject(newValue, setLocation);
+    }, [searchString, setLocation]);
 
     return (
         <Box id='page' sx={{
             padding: '0.5em',
             paddingTop: { xs: '64px', md: '80px' },
         }}>
-            {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}
+            {/* Navigate between normal home page (shows popular results) and history page (shows personalized results) */}
             <Box display="flex" justifyContent="center" width="100%">
                 <Tabs
                     value={tabIndex}
@@ -128,6 +153,22 @@ export const ForYouPage = ({
             </Box>
             {/* Result feeds (or popular feeds if no search string) */}
             <Stack spacing={10} direction="column">
+                {/* Prompt stack */}
+                <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: '5vh' }}>
+                    <Typography component="h1" variant="h3" textAlign="center">History</Typography>
+                    <AutocompleteSearchBar
+                        id="main-search"
+                        placeholder='Search active/completed runs, stars, and views...'
+                        options={autocompleteOptions}
+                        loading={loading}
+                        value={searchString}
+                        onChange={updateSearch}
+                        onInputChange={onInputSelect}
+                        session={session}
+                        showSecondaryLabel={true}
+                        sx={{ width: 'min(100%, 600px)' }}
+                    />
+                </Stack>
                 {/* Search results */}
                 <ListTitleContainer
                     title={"Active Routines"}

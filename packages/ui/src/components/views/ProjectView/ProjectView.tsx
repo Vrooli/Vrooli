@@ -158,7 +158,7 @@ export const ProjectView = ({
                     placeholder: "Search project's routines...",
                     noResultsText: "No routines found",
                     searchQuery: routinesQuery,
-                    where: { projectId: id, isComplete: !canEdit ? true : undefined },
+                    where: { projectId: id, isComplete: !canEdit ? true : undefined, isInternal: false },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 };
             case TabOptions.Standards:
@@ -392,6 +392,7 @@ export const ProjectView = ({
                             <SearchList
                                 canSearch={uuidValidate(id)}
                                 handleAdd={toAddNew}
+                                hideRoles={true}
                                 itemKeyPrefix={itemKeyPrefix}
                                 noResultsText={noResultsText}
                                 objectType={objectType}

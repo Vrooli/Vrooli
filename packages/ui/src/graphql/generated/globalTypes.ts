@@ -13,6 +13,25 @@ export enum CommentFor {
   Standard = "Standard",
 }
 
+export enum CommentSortBy {
+  DateCreatedAsc = "DateCreatedAsc",
+  DateCreatedDesc = "DateCreatedDesc",
+  DateUpdatedAsc = "DateUpdatedAsc",
+  DateUpdatedDesc = "DateUpdatedDesc",
+  StarsAsc = "StarsAsc",
+  StarsDesc = "StarsDesc",
+  VotesAsc = "VotesAsc",
+  VotesDesc = "VotesDesc",
+}
+
+export enum CopyType {
+  Node = "Node",
+  Organization = "Organization",
+  Project = "Project",
+  Routine = "Routine",
+  Standard = "Standard",
+}
+
 export enum DeleteOneType {
   Comment = "Comment",
   Email = "Email",
@@ -21,8 +40,16 @@ export enum DeleteOneType {
   Project = "Project",
   Report = "Report",
   Routine = "Routine",
+  Run = "Run",
   Standard = "Standard",
   Wallet = "Wallet",
+}
+
+export enum ForkType {
+  Organization = "Organization",
+  Project = "Project",
+  Routine = "Routine",
+  Standard = "Standard",
 }
 
 export enum LogSortBy {
@@ -31,9 +58,11 @@ export enum LogSortBy {
 }
 
 export enum LogType {
+  Copy = "Copy",
   Create = "Create",
   Delete = "Delete",
   Downvote = "Downvote",
+  Fork = "Fork",
   OrganizationAddMember = "OrganizationAddMember",
   OrganizationJoin = "OrganizationJoin",
   OrganizationLeave = "OrganizationLeave",
@@ -252,7 +281,25 @@ export interface CommentCreateInput {
   id?: string | null;
   createdFor: CommentFor;
   forId: string;
+  parentId?: string | null;
   translationsCreate?: CommentTranslationCreateInput[] | null;
+}
+
+export interface CommentSearchInput {
+  after?: string | null;
+  createdTimeFrame?: TimeFrame | null;
+  languages?: string[] | null;
+  minScore?: number | null;
+  minStars?: number | null;
+  organizationId?: string | null;
+  projectId?: string | null;
+  routineId?: string | null;
+  searchString?: string | null;
+  sortBy?: CommentSortBy | null;
+  standardId?: string | null;
+  take?: number | null;
+  updatedTimeFrame?: TimeFrame | null;
+  userId?: string | null;
 }
 
 export interface CommentTranslationCreateInput {
@@ -272,6 +319,11 @@ export interface CommentUpdateInput {
   translationsDelete?: string[] | null;
   translationsCreate?: CommentTranslationCreateInput[] | null;
   translationsUpdate?: CommentTranslationUpdateInput[] | null;
+}
+
+export interface CopyInput {
+  id: string;
+  objectType: CopyType;
 }
 
 export interface DeleteManyInput {
@@ -338,7 +390,13 @@ export interface FindHandlesInput {
   organizationId?: string | null;
 }
 
-export interface ForYouPageInput {
+export interface ForkInput {
+  id: string;
+  objectType: ForkType;
+}
+
+export interface HistoryPageInput {
+  searchString: string;
   take?: number | null;
 }
 
@@ -1005,11 +1063,11 @@ export interface RunCompleteInput {
   id: string;
   completedComplexity?: number | null;
   exists?: boolean | null;
-  pickups?: number | null;
-  timeElapsed?: number | null;
   title: string;
+  finalStepCreate?: RunStepCreateInput | null;
   finalStepUpdate?: RunStepUpdateInput | null;
   version: string;
+  wasSuccessful?: boolean | null;
 }
 
 export interface RunCountInput {
@@ -1042,15 +1100,18 @@ export interface RunSearchInput {
 
 export interface RunStepCreateInput {
   id?: string | null;
-  nodeId: string;
+  nodeId?: string | null;
+  contextSwitches?: number | null;
+  subroutineId?: string | null;
   order: number;
   step: number[];
+  timeElapsed?: number | null;
   title: string;
 }
 
 export interface RunStepUpdateInput {
   id: string;
-  pickups?: number | null;
+  contextSwitches?: number | null;
   status?: RunStepStatus | null;
   timeElapsed?: number | null;
 }
@@ -1058,7 +1119,7 @@ export interface RunStepUpdateInput {
 export interface RunUpdateInput {
   id: string;
   completedComplexity?: number | null;
-  pickups?: number | null;
+  contextSwitches?: number | null;
   timeElapsed?: number | null;
   stepsDelete?: string[] | null;
   stepsCreate?: RunStepCreateInput[] | null;
@@ -1106,6 +1167,7 @@ export interface StandardSearchInput {
   sortBy?: StandardSortBy | null;
   tags?: string[] | null;
   take?: number | null;
+  type?: string | null;
   updatedTimeFrame?: TimeFrame | null;
   userId?: string | null;
 }

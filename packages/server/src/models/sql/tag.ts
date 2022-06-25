@@ -1,6 +1,6 @@
 import { Count, Tag, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, joinRelationshipToPrisma, modelToGraphQL, PartialInfo, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, joinRelationshipToPrisma, modelToGraphQL, PartialGraphQLInfo, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { CODE, tagsCreate, tagsUpdate, tagTranslationCreate, tagTranslationUpdate } from "@local/shared";
 import { validateProfanity } from "../../utils/censor";
@@ -14,13 +14,13 @@ import { genErrorCode } from "../../logger";
 //==============================================================
 
 const joinMapper = { organizations: 'tagged', projects: 'tagged', routines: 'tagged', standards: 'tagged', starredBy: 'user' };
+const calculatedFields = ['isStarred', 'isOwn'];
 export const tagFormatter = (): FormatConverter<Tag> => ({
     relationshipMap: {
         '__typename': GraphQLModelType.Tag,
         'starredBy': GraphQLModelType.User,
     },
     removeCalculatedFields: (partial) => {
-        const calculatedFields = ['isStarred', 'isOwn'];
         const omitted = _.omit(partial, calculatedFields);
         // Add createdByUserId field so we can calculate isOwn
         return { ...omitted, createdByUserId: true }
@@ -35,7 +35,7 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
         prisma: PrismaType,
         userId: string | null, // Of the user making the request
         objects: RecursivePartial<any>[],
-        partial: PartialInfo,
+        partial: PartialGraphQLInfo,
     ): Promise<RecursivePartial<Tag>[]> {
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
@@ -165,7 +165,7 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
             verifier.profanityCheck(updateMany.map(u => u.data));
         }
     },
-    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<TagCreateInput, TagUpdateInput>): Promise<CUDResult<Tag>> {
+    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<TagCreateInput, TagUpdateInput>): Promise<CUDResult<Tag>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -175,9 +175,9 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
                 // Call createData helper function
                 const data = await this.toDBShape(input.anonymous ? null : userId, input);
                 // Create object
-                const currCreated = await prisma.tag.create({ data, ...selectHelper(partial) });
+                const currCreated = await prisma.tag.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partial);
+                const converted = modelToGraphQL(currCreated, partialInfo);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -195,10 +195,10 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
                 const currUpdated = await prisma.tag.update({
                     where: input.where,
                     data: await this.toDBShape(input.data.anonymous ? null : userId, input.data),
-                    ...selectHelper(partial)
+                    ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partial);
+                const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }

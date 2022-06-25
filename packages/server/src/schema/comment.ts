@@ -29,6 +29,7 @@ export const typeDef = gql`
         id: ID
         createdFor: CommentFor!
         forId: ID!
+        parentId: ID
         translationsCreate: [CommentTranslationCreateInput!]
     }
     input CommentUpdateInput {
@@ -49,9 +50,10 @@ export const typeDef = gql`
         isStarred: Boolean!
         isUpvoted: Boolean
         reports: [Report!]!
+        reportsCount: Int!
         role: MemberRole
-        score: Int
-        stars: Int
+        score: Int!
+        stars: Int!
         starredBy: [User!]
         translations: [CommentTranslation!]!
     }
@@ -75,7 +77,6 @@ export const typeDef = gql`
     input CommentSearchInput {
         after: String
         createdTimeFrame: TimeFrame
-        ids: [ID!]
         languages: [String!]
         minScore: Int
         minStars: Int
@@ -90,16 +91,17 @@ export const typeDef = gql`
         userId: ID
     }
 
-    # Return type for search result
-    type CommentSearchResult {
-        pageInfo: PageInfo!
-        edges: [CommentEdge!]!
+    type CommentThread {
+        childThreads: [CommentThread!]!
+        comment: Comment!
+        endCursor: String
+        totalInThread: Int
     }
 
-    # Return type for search result edge
-    type CommentEdge {
-        cursor: String!
-        node: Comment!
+    type CommentSearchResult {
+        endCursor: String
+        threads: [CommentThread!]
+        totalThreads: Int
     }
 
     # Input for count
@@ -133,7 +135,7 @@ export const resolvers = {
         },
         comments: async (_parent: undefined, { input }: IWrap<CommentSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<CommentSearchResult> => {
             await rateLimit({ context, info, max: 1000 });
-            return readManyHelper(context.req.userId, input, info, CommentModel(context.prisma));
+            return CommentModel(context.prisma).searchNested(context.req.userId, input, info);
         },
         commentsCount: async (_parent: undefined, { input }: IWrap<CommentCountInput>, context: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ context, info, max: 1000 });

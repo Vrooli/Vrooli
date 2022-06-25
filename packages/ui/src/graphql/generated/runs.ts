@@ -64,7 +64,7 @@ export interface runs_runs_edges_node {
   __typename: "Run";
   id: string;
   completedComplexity: number;
-  pickups: number;
+  contextSwitches: number;
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;

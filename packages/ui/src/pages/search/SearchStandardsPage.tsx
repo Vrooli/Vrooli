@@ -64,6 +64,7 @@ export const SearchStandardsPage = ({
                 popupButtonTooltip="Can't find what you're looking for? Create it!😎"
                 onPopupButtonClick={handleAddDialogOpen}
                 session={session}
+                where={{ type: 'JSON' }}
             />
         </>
     )

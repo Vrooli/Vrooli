@@ -64,6 +64,7 @@ export const typeDef = gql`
         projectsCreated: [Project!]!
         starredBy: [User!]!
         reports: [Report!]!
+        reportsCount: Int!
         routines: [Routine!]!
         routinesCreated: [Routine!]!
         translations: [UserTranslation!]!

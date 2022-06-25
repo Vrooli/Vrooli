@@ -4,12 +4,12 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { APP_LINKS, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
-import { StarButton, TagList, TextLoading, UpvoteDownvote } from 'components';
+import { CommentButton, ReportButton, StarButton, TagList, TextLoading, UpvoteDownvote } from 'components';
 import { getTranslation, listItemColor } from 'utils';
-import { owns } from 'utils/authentication';
 
 export function ProjectListItem({
     data,
+    hideRole,
     index,
     loading,
     session,
@@ -18,7 +18,6 @@ export function ProjectListItem({
 }: ProjectListItemProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const canEdit = useMemo<boolean>(() => owns(data?.role), [data]);
 
     const { description, name } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
@@ -71,10 +70,32 @@ export function ProjectListItem({
                             display: 'grid',
                         }}
                     >
-                        {loading ? <TextLoading /> : <ListItemText
-                            primary={name}
-                            sx={{ ...multiLineEllipsis(1) }}
-                        />}
+                        {/* Name/Title and role */}
+                        {loading ? <TextLoading /> :
+                            (
+                                <Stack direction="row" spacing={1} sx={{
+                                    overflow: 'auto',
+                                }}>
+                                    <ListItemText
+                                        primary={name}
+                                        sx={{ 
+                                            ...multiLineEllipsis(1),
+                                            lineBreak: 'anywhere',
+                                        }}
+                                    />
+                                    {!hideRole && data?.role && <ListItemText
+                                        primary={`(${data.role})`}
+                                        sx={{ 
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            width: '100%',
+                                            color: palette.mode === 'light' ? '#fa4f4f' : '#f2a7a7',
+                                            flex: 200,
+                                        }}
+                                    />}
+                                </Stack>
+                            )
+                        }
                         {loading ? <TextLoading /> : <ListItemText
                             primary={description}
                             sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
@@ -82,16 +103,24 @@ export function ProjectListItem({
                         {/* Tags */}
                         {Array.isArray(data?.tags) && (data?.tags as any).length > 0 ? <TagList session={session} parentId={data?.id ?? ''} tags={data?.tags ?? []} /> : null}
                     </Stack>
-                    {
-                        canEdit ? null : <StarButton
+                    {/* Star/Comment/Report */}
+                    <Stack direction="column" spacing={1}>
+                        <StarButton
                             session={session}
                             objectId={data?.id ?? ''}
                             starFor={StarFor.Project}
                             isStar={data?.isStarred}
                             stars={data?.stars}
-                            onChange={(isStar: boolean) => { }}
                         />
-                    }
+                        <CommentButton
+                            commentsCount={data?.commentsCount ?? 0}
+                            object={data}
+                        />
+                        {(data?.reportsCount ?? 0) > 0 && <ReportButton
+                            reportsCount={data?.reportsCount ?? 0}
+                            object={data}
+                        />}
+                    </Stack>
                 </ListItemButton>
             </ListItem>
         </Tooltip>

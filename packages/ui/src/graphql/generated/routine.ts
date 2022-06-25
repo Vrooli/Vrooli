@@ -431,12 +431,13 @@ export interface routine_routine_runs_steps {
   __typename: "RunStep";
   id: string;
   order: number;
-  pickups: number;
+  contextSwitches: number;
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
   title: string;
   status: RunStepStatus;
+  step: number[];
   node: routine_routine_runs_steps_node | null;
 }
 
@@ -444,7 +445,7 @@ export interface routine_routine_runs {
   __typename: "Run";
   id: string;
   completedComplexity: number;
-  pickups: number;
+  contextSwitches: number;
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;

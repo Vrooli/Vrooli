@@ -111,7 +111,7 @@ export const walletMutater = (prisma: PrismaType) => ({
                 throw new CustomError(CODE.NotYourWallet, 'At least one of these wallets is not yours', { code: genErrorCode('0123') });
         }
     },
-    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<unknown, WalletUpdateInput>): Promise<CUDResult<Wallet>> {
+    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<unknown, WalletUpdateInput>): Promise<CUDResult<Wallet>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -137,10 +137,10 @@ export const walletMutater = (prisma: PrismaType) => ({
                 object = await prisma.wallet.update({
                     where: input.where,
                     data: input.data,
-                    ...selectHelper(partial)
+                    ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(object, partial);
+                const converted = modelToGraphQL(object, partialInfo);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }

@@ -1,7 +1,7 @@
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { InputOutputListItemProps } from '../types';
 import { inputCreate, InputType, outputCreate } from '@local/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { containerShadow } from 'styles';
 import {
     Delete as DeleteIcon,
@@ -128,13 +128,29 @@ export const InputOutputListItem = ({
         return index >= 0 ? updateArray(item.translations, index, translation) : [...item.translations, translation];
     }, [item.translations]);
 
+    /**
+     * Current schema, either generated from standard or custom 
+     */
+    const generatedSchema = useMemo<FieldData | null>(() => {
+        if (schema) return schema;
+        if (!standard) return null;
+        return standardToFieldData({
+            fieldName: schemaKey,
+            description: getTranslation(item, 'description', [language]) ?? getTranslation(standard, 'description', [language]),
+            props: standard?.props ?? '',
+            name: standard?.name ?? '',
+            type: standard?.type ?? '',
+            yup: standard?.yup ?? null,
+        });
+    }, [schema, standard, schemaKey, item, language]);
+
     const formik = useFormik({
         initialValues: {
             description: getTranslation(item, 'description', [language]) ?? '',
             isRequired: true,
             name: item.name ?? '',
             // Value of generated input component preview
-            [schemaKey]: jsonToString(((standardToFieldData(standard, schemaKey) ?? schema)?.props as any)?.format),
+            [schemaKey]: jsonToString((generatedSchema?.props as any)?.format),
         },
         enableReinitialize: true,
         validationSchema: isInput ? inputCreate : outputCreate,
@@ -300,8 +316,8 @@ export const InputOutputListItem = ({
                         />
                         {
                             isPreviewOn ?
-                                (Boolean(standardToFieldData(standard, schemaKey) ?? schema) && generateInputComponent({
-                                    data: standardToFieldData(standard, schemaKey) ?? schema as FieldData,
+                                (Boolean(generatedSchema) && generateInputComponent({
+                                    data: generatedSchema ?? schema as FieldData,
                                     disabled: true,
                                     formik,
                                     session,
@@ -327,7 +343,7 @@ export const InputOutputListItem = ({
                                         fieldName={schemaKey}
                                         inputType={(standard?.type as InputType) ?? inputType.value}
                                         isEditing={!Boolean(standard)}
-                                        schema={standardToFieldData(standard, schemaKey) ?? schema}
+                                        schema={generatedSchema}
                                         onChange={handleSchemaUpdate}
                                         storageKey={schemaKey}
                                     />

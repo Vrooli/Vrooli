@@ -48,7 +48,6 @@ export const RoutineCreate = ({
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
-        console.log('resource list update', updatedList)
         setResourceList(updatedList);
     }, [setResourceList]);
 

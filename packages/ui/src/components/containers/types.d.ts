@@ -1,5 +1,16 @@
-import { BuildRunState } from "utils";
-import { Routine, Session } from "types";
+import { BuildRunState, ObjectType } from "utils";
+import { Routine, Run, Session } from "types";
+
+export interface CommentContainerProps {
+    language: string;
+    objectId: string;
+    objectType: ObjectType;
+    session: Session;
+    sxs?: {
+        root: any;
+    }
+    zIndex: number;
+}
 
 export interface TitleContainerProps {
     children: JSX.Element | JSX.Element[];
@@ -38,6 +49,8 @@ export interface BuildBottomContainerProps {
     handleAdd: () => void;
     handleUpdate: () => void;
     handleScaleChange: (scale: number) => void;
+    handleRunDelete: (run: Run) => void;
+    handleRunAdd: (run: Run) => void;
     hasNext: boolean;
     hasPrevious: boolean;
     isAdding: boolean;

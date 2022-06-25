@@ -15,12 +15,14 @@ export const listProjectFields = gql`
     }
     fragment listProjectFields on Project {
         id
+        commentsCount
         handle
         role
         score
         stars
         isUpvoted
         isStarred
+        reportsCount
         tags {
             ...listProjectTagFields
         }

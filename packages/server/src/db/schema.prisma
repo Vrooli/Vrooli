@@ -13,20 +13,23 @@ model comment {
   updated_at     DateTime              @default(now()) @db.Timestamptz(6)
   userId         String?               @db.Uuid
   organizationId String?               @db.Uuid
+  parentId       String?               @db.Uuid
   projectId      String?               @db.Uuid
   routineId      String?               @db.Uuid
   standardId     String?               @db.Uuid
   stars          Int                   @default(0)
   score          Int                   @default(0)
   organization   organization?         @relation(fields: [organizationId], references: [id])
-  project        project?              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  routine        routine?              @relation(fields: [routineId], references: [id], onDelete: Cascade)
-  standard       standard?             @relation(fields: [standardId], references: [id], onDelete: Cascade)
+  parent         comment?              @relation("comment_parent", fields: [parentId], references: [id], onDelete: Cascade)
+  project        project?              @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  routine        routine?              @relation(fields: [routineId], references: [id], onDelete: SetNull)
+  standard       standard?             @relation(fields: [standardId], references: [id], onDelete: SetNull)
   user           user?                 @relation(fields: [userId], references: [id])
   translations   comment_translation[]
   reports        report[]
   starredBy      star[]                @relation("star_comment")
   votes          vote[]                @relation("vote_comment")
+  parents        comment[]              @relation("comment_parent")
 }
 
 model comment_translation {
@@ -257,11 +260,11 @@ model project {
   userId                  String?               @db.Uuid
   organizationId          String?               @db.Uuid
   parentId                String?               @db.Uuid
-  createdByOrganization   organization?         @relation("project_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
-  createdByUser           user?                 @relation("project_user_creator", fields: [createdByUserId], references: [id], onDelete: Cascade)
-  organization            organization?         @relation("project_organization_owner", fields: [organizationId], references: [id], onDelete: Cascade)
+  createdByOrganization   organization?         @relation("project_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: SetNull)
+  createdByUser           user?                 @relation("project_user_creator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  organization            organization?         @relation("project_organization_owner", fields: [organizationId], references: [id], onDelete: SetNull)
   parent                  project?              @relation("project_fork", fields: [parentId], references: [id])
-  user                    user?                 @relation("project_user_owner", fields: [userId], references: [id], onDelete: Cascade)
+  user                    user?                 @relation("project_user_owner", fields: [userId], references: [id], onDelete: SetNull)
   comments                comment[]
   forks                   project[]             @relation("project_fork")
   tags                    project_tags[]
@@ -311,7 +314,7 @@ model report {
   tagId          String?       @db.Uuid
   userId         String?       @db.Uuid
   comment        comment?      @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  from           user          @relation("report_from", fields: [fromId], references: [id], onDelete: Cascade)
+  from           user          @relation("report_from", fields: [fromId], references: [id], onDelete: SetNull)
   organization   organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   project        project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   routine        routine?      @relation(fields: [routineId], references: [id], onDelete: Cascade)
@@ -405,12 +408,12 @@ model routine {
   projectId               String?                  @db.Uuid
   userId                  String?                  @db.Uuid
   version                 String                   @default("1.0.0") @db.VarChar(16)
-  createdByOrganization   organization?            @relation("routine_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
-  createdByUser           user?                    @relation("routine_user_creator", fields: [createdByUserId], references: [id], onDelete: Cascade)
-  organization            organization?            @relation("routine_organization_owner", fields: [organizationId], references: [id], onDelete: Cascade)
+  createdByOrganization   organization?            @relation("routine_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: SetNull)
+  createdByUser           user?                    @relation("routine_user_creator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  organization            organization?            @relation("routine_organization_owner", fields: [organizationId], references: [id], onDelete: SetNull)
   parent                  routine?                 @relation("routine_fork", fields: [parentId], references: [id])
-  project                 project?                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user                    user?                    @relation("routine_user_owner", fields: [userId], references: [id], onDelete: Cascade)
+  project                 project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  user                    user?                    @relation("routine_user_owner", fields: [userId], references: [id], onDelete: SetNull)
   comments                comment[]
   nodes                   node[]
   nodeLinks               node_link[]
@@ -448,7 +451,7 @@ model routine_input {
   routineId    String                      @db.Uuid
   standardId   String?                     @db.Uuid
   routine      routine                     @relation(fields: [routineId], references: [id], onDelete: Cascade)
-  standard     standard?                   @relation(fields: [standardId], references: [id], onDelete: Cascade)
+  standard     standard?                   @relation(fields: [standardId], references: [id], onDelete: SetNull)
   translations routine_input_translation[]
 }
 
@@ -468,7 +471,7 @@ model routine_output {
   routineId    String                       @db.Uuid
   standardId   String?                      @db.Uuid
   routine      routine                      @relation(fields: [routineId], references: [id], onDelete: Cascade)
-  standard     standard?                    @relation(fields: [standardId], references: [id], onDelete: Cascade)
+  standard     standard?                    @relation(fields: [standardId], references: [id], onDelete: SetNull)
   translations routine_output_translation[]
 }
 
@@ -497,7 +500,7 @@ model run {
   created_at          DateTime   @default(now()) @db.Timestamptz(6)
   updated_at          DateTime   @default(now()) @db.Timestamptz(6)
   completedComplexity Int        @default(0)
-  pickups             Int        @default(1)
+  contextSwitches             Int        @default(0)
   timeStarted         DateTime?  @db.Timestamptz(6)
   timeElapsed         Int?
   timeCompleted       DateTime?  @db.Timestamptz(6)
@@ -514,9 +517,9 @@ model run {
 model run_step {
   id            String        @id @default(uuid()) @db.Uuid
   order         Int
-  pickups       Int           @default(1)
+  contextSwitches Int        @default(0)
   runId         String        @db.Uuid
-  nodeId        String        @db.Uuid
+  nodeId        String?        @db.Uuid
   subroutineId  String?       @db.Uuid
   timeStarted   DateTime?     @db.Timestamptz(6)
   timeElapsed   Int?
@@ -524,7 +527,7 @@ model run_step {
   step          Int[]
   status        RunStepStatus @default(InProgress)
   title         String        @db.VarChar(128)
-  node          node          @relation("run_step_node", fields: [nodeId], references: [id], onDelete: SetNull)
+  node          node?          @relation("run_step_node", fields: [nodeId], references: [id], onDelete: SetNull)
   run           run           @relation("run_step_run", fields: [runId], references: [id], onDelete: Cascade)
   subroutine    routine?      @relation("run_step_subroutine", fields: [subroutineId], references: [id])
 }
@@ -545,8 +548,8 @@ model standard {
   createdByUserId         String?                @db.Uuid
   createdByOrganizationId String?                @db.Uuid
   isFile                  Boolean                @default(false)
-  createdByOrganization   organization?          @relation(fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
-  createdByUser           user?                  @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  createdByOrganization   organization?          @relation(fields: [createdByOrganizationId], references: [id], onDelete: SetNull)
+  createdByUser           user?                  @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
   comments                comment[]
   reports                 report[]
   resourceLists           resource_list[]
@@ -593,8 +596,8 @@ model star {
   tagId          String?       @db.Uuid
   userId         String?       @db.Uuid
   by             user          @relation("star_by", fields: [byId], references: [id])
-  comment        comment?      @relation("star_comment", fields: [commentId], references: [id])
-  organization   organization? @relation("star_organization", fields: [organizationId], references: [id])
+  comment        comment?      @relation("star_comment", fields: [commentId], references: [id], onDelete: Cascade)
+  organization   organization? @relation("star_organization", fields: [organizationId], references: [id], onDelete: Cascade)
   project        project?      @relation("star_project", fields: [projectId], references: [id], onDelete: Cascade)
   routine        routine?      @relation("star_routine", fields: [routineId], references: [id], onDelete: Cascade)
   standard       standard?     @relation("star_standard", fields: [standardId], references: [id], onDelete: Cascade)
@@ -609,7 +612,7 @@ model tag {
   tag             String              @unique @db.VarChar(128)
   createdByUserId String?             @db.Uuid
   stars           Int                 @default(0)
-  createdByUser   user?               @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  createdByUser   user?               @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
   organizations   organization_tags[]
   projects        project_tags[]
   reports         report[]
@@ -731,7 +734,7 @@ model view {
   project        project?      @relation("view_project", fields: [projectId], references: [id], onDelete: Cascade)
   routine        routine?      @relation("view_routine", fields: [routineId], references: [id], onDelete: Cascade)
   standard       standard?     @relation("view_standard", fields: [standardId], references: [id], onDelete: Cascade)
-  user           user?         @relation("view_user", fields: [userId], references: [id])
+  user           user?         @relation("view_user", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([byId, organizationId, projectId, routineId, standardId, userId])
 }

@@ -198,7 +198,7 @@ export interface LinkDialogProps {
 }
 
 export interface BuildInfoDialogProps {
-    handleAction: (action: BaseObjectAction) => any;
+    handleAction: (action: BaseObjectAction, data: any) => any;
     handleLanguageChange: (newLanguage: string) => any;
     handleUpdate: (routine: Routine) => any;
     isEditing: boolean;
@@ -242,13 +242,12 @@ export interface CreateNewDialogProps {
 
 export interface RunStepsDialogProps {
     handleLoadSubroutine: (id: string) => any;
-    handleStepParamsUpdate: (step: number[]) => any;
+    handleCurrStepLocationUpdate: (step: number[]) => any;
     history: Array<number>[];
     /**
      * Out of 100
      */
     percentComplete: number;
-    routineId: string | null | undefined;
     stepList: RoutineStep | null;
     sxs?: { icon: any };
     zIndex: number;
@@ -295,6 +294,8 @@ export interface AdvancedSearchDialogProps {
 export interface RunPickerDialogProps {
     anchorEl: HTMLElement | null;
     handleClose: () => any;
+    onAdd: (run: Run) => any;
+    onDelete: (run: Run) => any;
     onSelect: (run: Run | null) => any;
     routine?: Routine | null;
     session: Session;

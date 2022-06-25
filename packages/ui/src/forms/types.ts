@@ -161,6 +161,10 @@ export interface QuantityBoxProps extends Omit<QP, 'id' | 'value' | 'handleChang
  */
 export interface FieldDataBase {
     /**
+    * Optional description for further information about the field
+    */
+    description?: string;
+    /**
      * The name of the field, as will be used by formik
      */
     fieldName: string;

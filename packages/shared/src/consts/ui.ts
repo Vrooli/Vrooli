@@ -5,7 +5,7 @@ export const APP_LINKS = {
     Example: '/routine/5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9', // Links to example routine that is designed to showcase the UI. See ID of routine set in init seed file
     FAQ: '/#faq', // FAQ section of home page
     ForgotPassword: '/forgot-password', // Page for sending password reset request emails
-    ForYou: '/for-you', // For you section of home page. Displays saved, upvoted, recently viewed, completed, and upcoming routines
+    History: '/history', // History section of home page. Displays saved, upvoted, recently viewed, completed, and upcoming routines
     Home: '/', // Main dashboard for logged in users
     Learn: '/learn', // Learn dashboard
     Organization: '/organization', // View or update specific organization

@@ -9,7 +9,7 @@ import {
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, BaseStandardInput, LinkButton, ResourceListHorizontal, SelectLanguageDialog, StarButton } from "components";
+import { BaseObjectActionDialog, BaseStandardInput, CommentContainer, LinkButton, ResourceListHorizontal, SelectLanguageDialog, StarButton } from "components";
 import { StandardViewProps } from "../types";
 import { getCreatedByString, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData, TERTIARY_COLOR, toCreatedBy } from "utils";
 import { Standard } from "types";
@@ -44,7 +44,21 @@ export const StandardView = ({
     const [changedStandard, setChangedStandard] = useState<Standard | null>(null); // Standard may change if it is starred/upvoted/etc.
     const canEdit = useMemo<boolean>(() => owns(standard?.role), [standard]);
 
-    const schema = useMemo<FieldData | null>(() => standardToFieldData(standard, 'preview'), [standard]);
+    const availableLanguages = useMemo<string[]>(() => (standard?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [standard?.translations]);
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+    useEffect(() => {
+        if (availableLanguages.length === 0) return;
+        setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
+    }, [availableLanguages, setLanguage, session]);
+
+    const schema = useMemo<FieldData | null>(() => (standardToFieldData({
+        fieldName: 'preview',
+        description: getTranslation(standard, 'description', [language]),
+        props: standard?.props ?? '',
+        name: standard?.name ?? '',
+        type: standard?.type ?? '',
+        yup: standard?.yup ?? null,
+    })), [language, standard]);
     const previewFormik = useFormik({
         initialValues: {
             preview: JSON.stringify((schema as FieldDataJSON)?.props?.format),
@@ -56,13 +70,6 @@ export const StandardView = ({
     useEffect(() => {
         if (standard) { setChangedStandard(standard) }
     }, [standard]);
-
-    const availableLanguages = useMemo<string[]>(() => (standard?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [standard?.translations]);
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    useEffect(() => {
-        if (availableLanguages.length === 0) return;
-        setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
-    }, [availableLanguages, setLanguage, session]);
 
     const { description, name } = useMemo(() => {
         return {
@@ -221,103 +228,126 @@ export const StandardView = ({
                 availableOptions={moreOptions}
                 onClose={closeMoreMenu}
                 session={session}
-                zIndex={zIndex+1}
+                zIndex={zIndex + 1}
             />
-            {/* Main container */}
-            <Box sx={{
-                background: palette.background.paper,
-                overflowY: 'auto',
-                width: 'min(100%, 600px)',
-                borderRadius: { xs: '8px 8px 0 0', sm: '8px' },
-                overflow: 'overlay',
-                boxShadow: { xs: 'none', sm: (containerShadow as any).boxShadow },
+            <Stack direction="column" spacing={5} sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: 'auto',
+                // xs: 100vh - navbar (64px) - bottom nav (56px) - iOS nav bar
+                // md: 100vh - navbar (80px)
+                minHeight: { xs: 'calc(100vh - 64px - 56px - env(safe-area-inset-bottom))', md: 'calc(100vh - 80px)' },
+                marginBottom: 8,
+                width: '100%',
             }}>
-                {/* Heading container */}
-                <Stack direction="column" spacing={1} sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 2,
-                    marginBottom: 1,
-                    background: palette.primary.main,
-                    color: palette.primary.contrastText,
+                {/* Main container */}
+                <Box sx={{
+                    background: palette.background.paper,
+                    overflowY: 'auto',
+                    borderRadius: { xs: '8px 8px 0 0', sm: '8px' },
+                    overflow: 'overlay',
+                    boxShadow: { xs: 'none', sm: (containerShadow as any).boxShadow },
+                    width: 'min(100%, 600px)',
                 }}>
-                    {/* Show star button and ellipsis next to title */}
-                    <Stack direction="row" spacing={1} alignItems="center">
-                        {loading ?
-                            <LinearProgress color="inherit" sx={{
-                                borderRadius: 1,
-                                width: '50vw',
-                                height: 8,
-                                marginTop: '12px !important',
-                                marginBottom: '12px !important',
-                                maxWidth: '300px',
-                            }} /> :
-                            <Typography variant="h5" sx={{ textAlign: 'center' }}>{name}</Typography>}
-
-                        <Tooltip title="More options">
-                            <IconButton
-                                aria-label="More"
-                                size="small"
-                                onClick={openMoreMenu}
-                                sx={{
-                                    display: 'block',
-                                    marginLeft: 'auto',
-                                    marginRight: 1,
-                                }}
-                            >
-                                <EllipsisIcon sx={{ fill: palette.primary.contrastText }} />
-                            </IconButton>
-                        </Tooltip>
-                    </Stack>
-                    <Stack direction="row" spacing={1} sx={{
+                    {/* Heading container */}
+                    <Stack direction="column" spacing={1} sx={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        padding: 2,
+                        marginBottom: 1,
+                        background: palette.primary.main,
+                        color: palette.primary.contrastText,
                     }}>
-                        <StarButton
-                            session={session}
-                            objectId={standard?.id ?? ''}
-                            showStars={false}
-                            starFor={StarFor.Standard}
-                            isStar={changedStandard?.isStarred ?? false}
-                            stars={changedStandard?.stars ?? 0}
-                            onChange={(isStar: boolean) => { changedStandard && setChangedStandard({ ...changedStandard, isStarred: isStar }) }}
-                            tooltipPlacement="bottom"
-                        />
-                        {createdBy && (
-                            <LinkButton
-                                onClick={toCreator}
-                                text={createdBy}
+                        {/* Show star button and ellipsis next to title */}
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            {loading ?
+                                <LinearProgress color="inherit" sx={{
+                                    borderRadius: 1,
+                                    width: '50vw',
+                                    height: 8,
+                                    marginTop: '12px !important',
+                                    marginBottom: '12px !important',
+                                    maxWidth: '300px',
+                                }} /> :
+                                <Typography variant="h5" sx={{ textAlign: 'center' }}>{name}</Typography>}
+
+                            <Tooltip title="More options">
+                                <IconButton
+                                    aria-label="More"
+                                    size="small"
+                                    onClick={openMoreMenu}
+                                    sx={{
+                                        display: 'block',
+                                        marginLeft: 'auto',
+                                        marginRight: 1,
+                                    }}
+                                >
+                                    <EllipsisIcon sx={{ fill: palette.primary.contrastText }} />
+                                </IconButton>
+                            </Tooltip>
+                        </Stack>
+                        <Stack direction="row" spacing={1} sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}>
+                            <StarButton
+                                session={session}
+                                objectId={standard?.id ?? ''}
+                                showStars={false}
+                                starFor={StarFor.Standard}
+                                isStar={changedStandard?.isStarred ?? false}
+                                stars={changedStandard?.stars ?? 0}
+                                onChange={(isStar: boolean) => { changedStandard && setChangedStandard({ ...changedStandard, isStarred: isStar }) }}
+                                tooltipPlacement="bottom"
                             />
-                        )}
-                        <Typography variant="body1"> - {standard?.version}</Typography>
-                        <SelectLanguageDialog
-                            availableLanguages={availableLanguages}
-                            canDropdownOpen={availableLanguages.length > 1}
-                            currentLanguage={language}
-                            handleCurrent={setLanguage}
-                            session={session}
-                            zIndex={zIndex}
-                        />
-                        {canEdit && <Tooltip title="Edit standard">
-                            <IconButton
-                                aria-label="Edit standard"
-                                size="small"
-                                onClick={onEdit}
-                            >
-                                <EditIcon sx={{ fill: TERTIARY_COLOR }} />
-                            </IconButton>
-                        </Tooltip>}
+                            {createdBy && (
+                                <LinkButton
+                                    onClick={toCreator}
+                                    text={createdBy}
+                                />
+                            )}
+                            <Typography variant="body1"> - {standard?.version}</Typography>
+                            <SelectLanguageDialog
+                                availableLanguages={availableLanguages}
+                                canDropdownOpen={availableLanguages.length > 1}
+                                currentLanguage={language}
+                                handleCurrent={setLanguage}
+                                session={session}
+                                zIndex={zIndex}
+                            />
+                            {canEdit && <Tooltip title="Edit standard">
+                                <IconButton
+                                    aria-label="Edit standard"
+                                    size="small"
+                                    onClick={onEdit}
+                                >
+                                    <EditIcon sx={{ fill: TERTIARY_COLOR }} />
+                                </IconButton>
+                            </Tooltip>}
+                        </Stack>
                     </Stack>
-                </Stack>
-                {/* Body container */}
-                <Box sx={{
-                    padding: 2,
-                }}>
-                    {body}
+                    {/* Body container */}
+                    <Box sx={{
+                        padding: 2,
+                    }}>
+                        {body}
+                    </Box>
                 </Box>
-            </Box>
+                {/* Comments Container */}
+                <CommentContainer
+                    language={language}
+                    objectId={id ?? ''}
+                    objectType={ObjectType.Standard}
+                    session={session}
+                    sxs={{
+                        root: { width: 'min(100%, 600px)' }
+                    }}
+                    zIndex={zIndex}
+                />
+            </Stack>
         </Box >
     )
 }

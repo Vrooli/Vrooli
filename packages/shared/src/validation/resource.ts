@@ -16,7 +16,7 @@ const link = yup.string().max(1024).test(
     'link',
     'Must be a URL, Cardano payment address, or ADA Handle',
     (value: string | undefined) => {
-        return value !== undefined && (urlRegex.test(value) || walletAddressRegex.test(value) || adaHandleRegex.test(value))
+        return value !== undefined ? (urlRegex.test(value) || walletAddressRegex.test(value) || adaHandleRegex.test(value)) : true
     }
 )
 const usedFor = yup.string().oneOf(Object.values(ResourceUsedFor))
@@ -41,7 +41,12 @@ export const resourceCreateForm = yup.object().shape({
     title: title.notRequired().default(undefined),
     usedFor: usedFor.notRequired().default(undefined),
 })
-export const resourceUpdateForm = resourceCreateForm;
+export const resourceUpdateForm = yup.object().shape({
+    link: link.notRequired().default(undefined),
+    description: description.notRequired().default(undefined),
+    title: title.notRequired().default(undefined),
+    usedFor: usedFor.notRequired().default(undefined),
+})
 
 export const resourceCreate = yup.object().shape({
     listId: id.required(),

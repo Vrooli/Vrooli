@@ -37,12 +37,14 @@ export interface developPage_developPage_completed_Project_translations {
 export interface developPage_developPage_completed_Project {
   __typename: "Project";
   id: string;
+  commentsCount: number;
   handle: string | null;
   role: MemberRole | null;
   score: number;
   stars: number;
   isUpvoted: boolean | null;
   isStarred: boolean;
+  reportsCount: number;
   tags: developPage_developPage_completed_Project_tags[];
   translations: developPage_developPage_completed_Project_translations[];
 }
@@ -75,6 +77,7 @@ export interface developPage_developPage_completed_Routine_translations {
 export interface developPage_developPage_completed_Routine {
   __typename: "Routine";
   id: string;
+  commentsCount: number;
   completedAt: any | null;
   complexity: number;
   created_at: any;
@@ -83,6 +86,7 @@ export interface developPage_developPage_completed_Routine {
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
+  reportsCount: number;
   role: MemberRole | null;
   score: number;
   simplicity: number;
@@ -122,12 +126,14 @@ export interface developPage_developPage_inProgress_Project_translations {
 export interface developPage_developPage_inProgress_Project {
   __typename: "Project";
   id: string;
+  commentsCount: number;
   handle: string | null;
   role: MemberRole | null;
   score: number;
   stars: number;
   isUpvoted: boolean | null;
   isStarred: boolean;
+  reportsCount: number;
   tags: developPage_developPage_inProgress_Project_tags[];
   translations: developPage_developPage_inProgress_Project_translations[];
 }
@@ -160,6 +166,7 @@ export interface developPage_developPage_inProgress_Routine_translations {
 export interface developPage_developPage_inProgress_Routine {
   __typename: "Routine";
   id: string;
+  commentsCount: number;
   completedAt: any | null;
   complexity: number;
   created_at: any;
@@ -168,6 +175,7 @@ export interface developPage_developPage_inProgress_Routine {
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
+  reportsCount: number;
   role: MemberRole | null;
   score: number;
   simplicity: number;
@@ -207,12 +215,14 @@ export interface developPage_developPage_recent_Project_translations {
 export interface developPage_developPage_recent_Project {
   __typename: "Project";
   id: string;
+  commentsCount: number;
   handle: string | null;
   role: MemberRole | null;
   score: number;
   stars: number;
   isUpvoted: boolean | null;
   isStarred: boolean;
+  reportsCount: number;
   tags: developPage_developPage_recent_Project_tags[];
   translations: developPage_developPage_recent_Project_translations[];
 }
@@ -245,6 +255,7 @@ export interface developPage_developPage_recent_Routine_translations {
 export interface developPage_developPage_recent_Routine {
   __typename: "Routine";
   id: string;
+  commentsCount: number;
   completedAt: any | null;
   complexity: number;
   created_at: any;
@@ -253,6 +264,7 @@ export interface developPage_developPage_recent_Routine {
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
+  reportsCount: number;
   role: MemberRole | null;
   score: number;
   simplicity: number;

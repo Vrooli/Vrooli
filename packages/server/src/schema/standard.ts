@@ -66,8 +66,10 @@ export const typeDef = gql`
         stars: Int!
         views: Int!
         comments: [Comment!]!
+        commentsCount: Int!
         creator: Contributor
         reports: [Report!]!
+        reportsCount: Int!
         resourceLists: [ResourceList!]!
         routineInputs: [Routine!]!
         routineOutputs: [Routine!]!
@@ -111,6 +113,7 @@ export const typeDef = gql`
         sortBy: StandardSortBy
         tags: [String!]
         take: Int
+        type: String
         updatedTimeFrame: TimeFrame
         userId: ID
     }

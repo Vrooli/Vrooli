@@ -4,7 +4,7 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { APP_LINKS, StarFor } from '@local/shared';
 import { useLocation } from 'wouter';
-import { StarButton } from '..';
+import { ReportButton, StarButton } from '..';
 import { getTranslation, listItemColor, placeholderColor } from 'utils';
 import { Person as PersonIcon } from '@mui/icons-material';
 import { TextLoading } from '../TextLoading/TextLoading';
@@ -76,25 +76,51 @@ export const UserListItem = ({
                         }} />
                     </Box>
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
-                        {loading ? <TextLoading /> : <ListItemText
-                            primary={name}
-                            sx={{ ...multiLineEllipsis(1) }}
-                        />}
+                        {/* Name/Title and role */}
+                        {loading ? <TextLoading /> :
+                            (
+                                <Stack direction="row" spacing={1} sx={{
+                                    overflow: 'auto',
+                                }}>
+                                    <ListItemText
+                                        primary={name}
+                                        sx={{
+                                            ...multiLineEllipsis(1),
+                                            lineBreak: 'anywhere',
+                                        }}
+                                    />
+                                    {isOwn && <ListItemText
+                                        primary={`(You)`}
+                                        sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            width: '100%',
+                                            color: palette.mode === 'light' ? '#fa4f4f' : '#f2a7a7',
+                                            flex: 200,
+                                        }}
+                                    />}
+                                </Stack>
+                            )
+                        }
                         {loading ? <TextLoading /> : <ListItemText
                             primary={bio}
                             sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
                         />}
                     </Stack>
-                    {
-                        !isOwn && <StarButton
-                            isStar={data?.isStarred}
-                            objectId={data?.id ?? ''}
-                            onChange={(isStar: boolean) => { }}
+                    {/* Star/Comment/Report */}
+                    <Stack direction="column" spacing={1}>
+                        {!isOwn && <StarButton
                             session={session}
+                            objectId={data?.id ?? ''}
                             starFor={StarFor.User}
+                            isStar={data?.isStarred}
                             stars={data?.stars}
-                        />
-                    }
+                        />}
+                        {(data?.reportsCount ?? 0) > 0 && <ReportButton
+                            reportsCount={data?.reportsCount ?? 0}
+                            object={data}
+                        />}
+                    </Stack>
                 </ListItemButton>
             </ListItem>
         </Tooltip>

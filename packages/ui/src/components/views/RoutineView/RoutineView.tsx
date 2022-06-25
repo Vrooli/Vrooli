@@ -7,12 +7,13 @@ import { routineQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     AccountTree as GraphIcon,
+    ContentCopy as CopyIcon,
     DoneAll as MarkAsCompleteIcon,
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
     PlayCircle as StartIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, BuildView, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition } from "components";
+import { BaseObjectActionDialog, BuildView, HelpButton, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
 import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, Pubs, standardToFieldData, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
 import { Node, NodeLink, Routine, Run } from "types";
@@ -28,6 +29,7 @@ import { owns } from "utils/authentication";
 import { useFormik } from "formik";
 import { FieldData } from "forms/types";
 import { generateInputComponent } from "forms/generators";
+import { CommentContainer } from "components/containers";
 
 export const RoutineView = ({
     partialData,
@@ -100,74 +102,77 @@ export const RoutineView = ({
         })
     }, [routine, runComplete, setLocation, title]);
 
-    const [isBuildOpen, setIsBuildOpen] = useState(false);
-    // If buildId is in the URL, open the build
+    const [isBuildOpen, setIsBuildOpen] = useState<boolean>(Boolean(parseSearchParams(window.location.search)?.build));
+    /**
+     * If routine ID is not valid, create default routine data
+     */
     useEffect(() => {
-        const searchParams = parseSearchParams(window.location.search);
-        if (searchParams.build) {
-            // If build is not an id, populate routine with default start data
-            if (!uuidValidate(searchParams.build ? `${searchParams.build}` : '')) {
-                const startNode: Node = {
+        if (!id || !uuidValidate(id)) {
+            const startNode: Node = {
+                id: uuidv4(),
+                type: NodeType.Start,
+                columnIndex: 0,
+                rowIndex: 0,
+            } as Node;
+            const routineListNode: Node = {
+                id: uuidv4(),
+                type: NodeType.RoutineList,
+                columnIndex: 1,
+                rowIndex: 0,
+                data: {
                     id: uuidv4(),
-                    type: NodeType.Start,
-                    columnIndex: 0,
-                    rowIndex: 0,
-                } as Node;
-                const routineListNode: Node = {
-                    id: uuidv4(),
-                    type: NodeType.RoutineList,
-                    columnIndex: 1,
-                    rowIndex: 0,
-                    data: {
-                        id: uuidv4(),
-                        isOptional: false,
-                        isOrdered: false,
-                        routines: [],
-                    } as any,
-                    translations: [{
-                        language,
-                        title: 'Subroutine 1',
-                    }] as any
-                } as Node
-                const endNode: Node = {
-                    id: uuidv4(),
-                    type: NodeType.End,
-                    columnIndex: 2,
-                    rowIndex: 0,
-                } as Node
-                const link1: NodeLink = {
-                    id: uuidv4(),
-                    fromId: startNode.id,
-                    toId: routineListNode.id,
-                } as NodeLink
-                const link2: NodeLink = {
-                    id: uuidv4(),
-                    fromId: routineListNode.id,
-                    toId: endNode.id,
-                } as NodeLink
-                setRoutine({
-                    inputs: [],
-                    outputs: [],
-                    nodes: [startNode, routineListNode, endNode],
-                    nodeLinks: [link1, link2],
-                    translations: [{
-                        language,
-                        title: 'New Routine',
-                        instructions: 'Enter instructions here',
-                        description: '',
-                    }]
-                } as any)
-            }
-            setIsBuildOpen(true);
+                    isOptional: false,
+                    isOrdered: false,
+                    routines: [],
+                } as any,
+                translations: [{
+                    language,
+                    title: 'Subroutine 1',
+                }] as any
+            } as Node
+            const endNode: Node = {
+                id: uuidv4(),
+                type: NodeType.End,
+                columnIndex: 2,
+                rowIndex: 0,
+            } as Node
+            const link1: NodeLink = {
+                id: uuidv4(),
+                fromId: startNode.id,
+                toId: routineListNode.id,
+            } as NodeLink
+            const link2: NodeLink = {
+                id: uuidv4(),
+                fromId: routineListNode.id,
+                toId: endNode.id,
+            } as NodeLink
+            setRoutine({
+                inputs: [],
+                outputs: [],
+                nodes: [startNode, routineListNode, endNode],
+                nodeLinks: [link1, link2],
+                translations: [{
+                    language,
+                    title: 'New Routine',
+                    instructions: 'Enter instructions here',
+                    description: '',
+                }]
+            } as any)
         }
-    }, [language]);
+    }, [id, language]);
     const viewGraph = useCallback(() => {
         setLocation(stringifySearchParams({
             build: routine?.id,
         }), { replace: true });
         setIsBuildOpen(true);
     }, [routine?.id, setLocation]);
-    const stopBuild = useCallback(() => { setIsBuildOpen(false) }, []);
+    const stopBuild = useCallback(() => {
+        // If was building a new routine, navigate to last page (since this one will just be a blank view)
+        if (!routine?.id) {
+            window.history.back();
+        }
+        else setIsBuildOpen(false)
+    }, [routine?.id]);
 
 
     const [isRunOpen, setIsRunOpen] = useState(false)
@@ -190,6 +195,22 @@ export const RoutineView = ({
         setIsRunOpen(true);
     }, [setLocation]);
     const handleSelectRunClose = useCallback(() => setSelectRunAnchor(null), []);
+
+    const handleRunDelete = useCallback((run: Run) => {
+        if (!routine) return;
+        setRoutine({
+            ...routine,
+            runs: routine.runs.filter(r => r.id !== run.id),
+        });
+    }, [routine]);
+
+    const handleRunAdd = useCallback((run: Run) => {
+        if (!routine) return;
+        setRoutine({
+            ...routine,
+            runs: [run, ...routine.runs],
+        });
+    }, [routine]);
 
     const runRoutine = useCallback((e: any) => {
         // Validate routine before trying to run
@@ -251,9 +272,13 @@ export const RoutineView = ({
         if (session && !canEdit) {
             options.push(routine?.isUpvoted ? BaseObjectAction.Downvote : BaseObjectAction.Upvote);
             options.push(routine?.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
-            options.push(BaseObjectAction.Fork);
         }
-        options.push(BaseObjectAction.Donate, BaseObjectAction.Share)
+        options.push(
+            BaseObjectAction.Donate,
+            BaseObjectAction.Share,
+            BaseObjectAction.Fork,
+            BaseObjectAction.Copy,
+        )
         if (session?.id) {
             options.push(BaseObjectAction.Report);
         }
@@ -262,6 +287,63 @@ export const RoutineView = ({
         }
         return options;
     }, [routine, canEdit, session]);
+
+    const handleMoreActionComplete = useCallback((action: BaseObjectAction, data: any) => {
+        switch (action) {
+            case BaseObjectAction.Edit:
+                //TODO
+                break;
+            case BaseObjectAction.Stats:
+                //TODO
+                break;
+            case BaseObjectAction.Upvote:
+                if (data.vote.success) {
+                    setRoutine({
+                        ...routine,
+                        isUpvoted: true,
+                    } as any)
+                }
+                break;
+            case BaseObjectAction.Downvote:
+                if (data.vote.success) {
+                    setRoutine({
+                        ...routine,
+                        isUpvoted: false,
+                    } as any)
+                }
+                break;
+            case BaseObjectAction.Star:
+                if (data.star.success) {
+                    setRoutine({
+                        ...routine,
+                        isStarred: true,
+                    } as any)
+                }
+                break;
+            case BaseObjectAction.Unstar:
+                if (data.star.success) {
+                    setRoutine({
+                        ...routine,
+                        isStarred: false,
+                    } as any)
+                }
+                break;
+            case BaseObjectAction.Fork:
+                setLocation(`${APP_LINKS.Routine}/${data.fork.routine.id}`);
+                break;
+            case BaseObjectAction.Donate:
+                //TODO
+                break;
+            case BaseObjectAction.Share:
+                //TODO
+                break;
+            case BaseObjectAction.Copy:
+                setLocation(`${APP_LINKS.Routine}/${data.copy.routine.id}`);
+                break;
+            default:
+                break;
+        }
+    }, [routine, setLocation]);
 
     /**
      * If routine has nodes (i.e. is not just this page), display "View Graph" and "Start" (or "Continue") buttons. 
@@ -302,28 +384,48 @@ export const RoutineView = ({
         if (!routine) return null;
         const schemas: { [fieldName: string]: FieldData } = {};
         for (let i = 0; i < routine.inputs?.length; i++) {
-            const currSchema = standardToFieldData(routine.inputs[i].standard, `inputs-${i}`);
+            const currSchema = standardToFieldData({
+                description: getTranslation(routine.inputs[i], 'description', getUserLanguages(session), false) ?? getTranslation(routine.inputs[i].standard, 'description', getUserLanguages(session), false),
+                fieldName: `inputs-${i}`,
+                props: routine.inputs[i].standard?.props ?? '',
+                name: routine.inputs[i].name ?? routine.inputs[i].standard?.name ?? '',
+                type: routine.inputs[i].standard?.type ?? '',
+                yup: routine.inputs[i].standard?.yup ?? null,
+            });
             if (currSchema) {
                 schemas[currSchema.fieldName] = currSchema;
             }
         }
         return schemas;
-    }, [routine]);
+    }, [routine, session]);
     const previewFormik = useFormik({
-        initialValues: {
-            ...formValueMap,
-        },
+        initialValues: Object.entries(formValueMap ?? {}).reduce((acc, [key, value]) => {
+            acc[key] = value.props.defaultValue ?? '';
+            return acc;
+        }, {}),
         enableReinitialize: true,
         onSubmit: () => { },
     });
 
+    /**
+     * Copy current value of input to clipboard
+     * @param fieldName Name of input
+     */
+    const copyInput = useCallback((fieldName: string) => {
+        const input = previewFormik.values[fieldName];
+        if (input) {
+            navigator.clipboard.writeText(input);
+            PubSub.publish(Pubs.Snack, { message: 'Copied to clipboard.', severity: 'success' });
+        } else {
+            PubSub.publish(Pubs.Snack, { message: 'Input is empty.', severity: 'error' });
+        }
+    }, [previewFormik]);
+
     const resourceList = useMemo(() => {
-        console.log('calculating resource list start', routine?.resourceLists)
         if (!routine ||
             !Array.isArray(routine.resourceLists) ||
             routine.resourceLists.length < 1 ||
             routine.resourceLists[0].resources.length < 1) return null;
-        console.log('got list', routine.resourceLists[0])
         return <ResourceListHorizontal
             title={'Resources'}
             list={routine.resourceLists[0]}
@@ -385,7 +487,16 @@ export const RoutineView = ({
                                         padding: 1,
                                         borderRadius: 1,
                                     }}>
-                                        <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>{field.label ?? `Input ${i + 1}`}</Typography>
+                                        {/* Label, help button, and copy iput icon */}
+                                        <Stack direction="row" spacing={0} sx={{ alignItems: 'center' }}>
+                                            <Tooltip title="Copy to clipboard">
+                                                <IconButton onClick={() => copyInput(field.fieldName)}>
+                                                    <CopyIcon />
+                                                </IconButton>
+                                            </Tooltip>
+                                            <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>{field.label ?? `Input ${i + 1}`}</Typography>
+                                            {field.description && <HelpButton markdown={field.description} />}
+                                        </Stack>
                                         {
                                             generateInputComponent({
                                                 data: field,
@@ -418,22 +529,16 @@ export const RoutineView = ({
                 {actions}
             </>
         )
-    }, [loading, resourceList, description, palette.background.textPrimary, palette.background.textSecondary, instructions, formValueMap, routine, actions, previewFormik, session, zIndex]);
+    }, [loading, resourceList, description, palette.background.textPrimary, palette.background.textSecondary, instructions, previewFormik, formValueMap, routine, actions, session, zIndex, copyInput]);
 
     return (
-        <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: 'auto',
-            // xs: 100vh - navbar (64px) - bottom nav (56px) - iOS nav bar
-            // md: 100vh - navbar (80px)
-            minHeight: { xs: 'calc(100vh - 64px - 56px - env(safe-area-inset-bottom))', md: 'calc(100vh - 80px)' },
-        }}>
+        <>
             {/* Chooses which run to use */}
             <RunPickerDialog
                 anchorEl={selectRunAnchor}
                 handleClose={handleSelectRunClose}
+                onAdd={handleRunAdd}
+                onDelete={handleRunDelete}
                 onSelect={handleRunSelect}
                 routine={routine}
                 session={session}
@@ -478,7 +583,7 @@ export const RoutineView = ({
             </Dialog>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
-                handleActionComplete={() => { }} //TODO
+                handleActionComplete={handleMoreActionComplete}
                 handleEdit={onEdit}
                 objectId={id ?? ''}
                 objectName={title ?? ''}
@@ -490,103 +595,120 @@ export const RoutineView = ({
                 session={session}
                 zIndex={zIndex + 1}
             />
-            {/* Main container */}
-            <Box sx={{
-                background: palette.background.paper,
-                overflowY: 'auto',
-                width: 'min(100%, 600px)',
-                borderRadius: { xs: '8px 8px 0 0', sm: '8px' },
-                overflow: 'overlay',
-                boxShadow: { xs: 'none', sm: (containerShadow as any).boxShadow },
-                // Add bottom margin so that the bottom navbar doesn't cover the bottom of the page
-                marginBottom: { xs: '48px', md: '0' },
+            <Stack direction="column" spacing={5} sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: 'auto',
+                // xs: 100vh - navbar (64px) - bottom nav (56px) - iOS nav bar
+                // md: 100vh - navbar (80px)
+                minHeight: { xs: 'calc(100vh - 64px - 56px - env(safe-area-inset-bottom))', md: 'calc(100vh - 80px)' },
+                marginBottom: 8,
             }}>
-                {/* Heading container */}
-                <Stack direction="column" spacing={1} sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 2,
-                    marginBottom: 1,
-                    background: palette.primary.main,
-                    color: palette.primary.contrastText,
+                {/* Main container */}
+                <Box sx={{
+                    background: palette.background.paper,
+                    overflowY: 'auto',
+                    width: 'min(100%, 700px)',
+                    borderRadius: { xs: '8px 8px 0 0', sm: '8px' },
+                    overflow: 'overlay',
+                    boxShadow: { xs: 'none', sm: (containerShadow as any).boxShadow },
                 }}>
-                    {/* Show star button and ellipsis next to title */}
-                    <Stack direction="row" spacing={1} alignItems="center">
-                        {loading ?
-                            <LinearProgress color="inherit" sx={{
-                                borderRadius: 1,
-                                width: '50vw',
-                                height: 8,
-                                marginTop: '12px !important',
-                                marginBottom: '12px !important',
-                                maxWidth: '300px',
-                            }} /> :
-                            <Typography variant="h5" sx={{ textAlign: 'center' }}>{title}</Typography>}
-
-                        <Tooltip title="More options">
-                            <IconButton
-                                aria-label="More"
-                                size="small"
-                                onClick={openMoreMenu}
-                                sx={{
-                                    display: 'block',
-                                    marginLeft: 'auto',
-                                    marginRight: 1,
-                                }}
-                            >
-                                <EllipsisIcon sx={{ fill: palette.primary.contrastText }} />
-                            </IconButton>
-                        </Tooltip>
-                    </Stack>
-                    <Stack direction="row" spacing={1} sx={{
+                    {/* Heading container */}
+                    <Stack direction="column" spacing={1} sx={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        padding: 2,
+                        marginBottom: 1,
+                        background: palette.primary.main,
+                        color: palette.primary.contrastText,
                     }}>
-                        <StarButton
-                            session={session}
-                            objectId={routine?.id ?? ''}
-                            showStars={false}
-                            starFor={StarFor.Routine}
-                            isStar={routine?.isStarred ?? false}
-                            stars={routine?.stars ?? 0}
-                            onChange={(isStar: boolean) => { routine && setRoutine({ ...routine, isStarred: isStar }) }}
-                            tooltipPlacement="bottom"
-                        />
-                        {ownedBy && (
-                            <LinkButton
-                                onClick={toOwner}
-                                text={ownedBy}
+                        {/* Show star button and ellipsis next to title */}
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            {loading ?
+                                <LinearProgress color="inherit" sx={{
+                                    borderRadius: 1,
+                                    width: '50vw',
+                                    height: 8,
+                                    marginTop: '12px !important',
+                                    marginBottom: '12px !important',
+                                    maxWidth: '300px',
+                                }} /> :
+                                <Typography variant="h5" sx={{ textAlign: 'center' }}>{title}</Typography>}
+
+                            <Tooltip title="More options">
+                                <IconButton
+                                    aria-label="More"
+                                    size="small"
+                                    onClick={openMoreMenu}
+                                    sx={{
+                                        display: 'block',
+                                        marginLeft: 'auto',
+                                        marginRight: 1,
+                                    }}
+                                >
+                                    <EllipsisIcon sx={{ fill: palette.primary.contrastText }} />
+                                </IconButton>
+                            </Tooltip>
+                        </Stack>
+                        <Stack direction="row" spacing={1} sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}>
+                            <StarButton
+                                session={session}
+                                objectId={routine?.id ?? ''}
+                                showStars={false}
+                                starFor={StarFor.Routine}
+                                isStar={routine?.isStarred ?? false}
+                                stars={routine?.stars ?? 0}
+                                onChange={(isStar: boolean) => { routine && setRoutine({ ...routine, isStarred: isStar }) }}
+                                tooltipPlacement="bottom"
                             />
-                        )}
-                        <Typography variant="body1"> - {routine?.version}</Typography>
-                        <SelectLanguageDialog
-                            availableLanguages={availableLanguages}
-                            canDropdownOpen={availableLanguages.length > 1}
-                            currentLanguage={language}
-                            handleCurrent={setLanguage}
-                            session={session}
-                            zIndex={zIndex}
-                        />
-                        {canEdit && <Tooltip title="Edit routine">
-                            <IconButton
-                                aria-label="Edit routine"
-                                size="small"
-                                onClick={onEdit}
-                            >
-                                <EditIcon sx={{ fill: TERTIARY_COLOR }} />
-                            </IconButton>
-                        </Tooltip>}
+                            {ownedBy && (
+                                <LinkButton
+                                    onClick={toOwner}
+                                    text={ownedBy}
+                                />
+                            )}
+                            <Typography variant="body1"> - {routine?.version}</Typography>
+                            <SelectLanguageDialog
+                                availableLanguages={availableLanguages}
+                                canDropdownOpen={availableLanguages.length > 1}
+                                currentLanguage={language}
+                                handleCurrent={setLanguage}
+                                session={session}
+                                zIndex={zIndex}
+                            />
+                            {canEdit && <Tooltip title="Edit routine">
+                                <IconButton
+                                    aria-label="Edit routine"
+                                    size="small"
+                                    onClick={onEdit}
+                                >
+                                    <EditIcon sx={{ fill: TERTIARY_COLOR }} />
+                                </IconButton>
+                            </Tooltip>}
+                        </Stack>
                     </Stack>
-                </Stack>
-                {/* Body container */}
-                <Box sx={{
-                    padding: 2,
-                }}>
-                    {body}
+                    {/* Body container */}
+                    <Box sx={{
+                        padding: 2,
+                    }}>
+                        {body}
+                    </Box>
                 </Box>
-            </Box>
-        </Box >
+                {/* Comments Container */}
+                <CommentContainer
+                    language={language}
+                    objectId={id ?? ''}
+                    objectType={ObjectType.Routine}
+                    session={session}
+                    zIndex={zIndex}
+                />
+            </Stack>
+        </>
     )
 }

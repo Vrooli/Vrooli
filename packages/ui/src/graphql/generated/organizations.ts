@@ -43,10 +43,12 @@ export interface organizations_organizations_edges_node_translations {
 export interface organizations_organizations_edges_node {
   __typename: "Organization";
   id: string;
+  commentsCount: number;
   handle: string | null;
   stars: number;
   isOpenToNewMembers: boolean;
   isStarred: boolean;
+  reportsCount: number;
   role: MemberRole | null;
   tags: organizations_organizations_edges_node_tags[];
   translations: organizations_organizations_edges_node_translations[];

@@ -93,6 +93,7 @@ export const typeDef = gql`
         views: Int!
         version: String
         comments: [Comment!]!
+        commentsCount: Int!
         creator: Contributor
         forks: [Routine!]!
         inputs: [InputItem!]!
@@ -105,6 +106,7 @@ export const typeDef = gql`
         parent: Routine
         project: Project
         reports: [Report!]!
+        reportsCount: Int!
         resourceLists: [ResourceList!]!
         runs: [Run!]!
         starredBy: [User!]!

@@ -45,6 +45,7 @@ export const ProjectViewPage = ({
         <Box sx={{
             minHeight: '100vh',
             paddingTop: { xs: '64px', md: '80px' },
+            paddingBottom: 'calc(56px + env(safe-area-inset-bottom))',
         }}>
             {/* Add dialog */}
             <BaseObjectDialog

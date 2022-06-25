@@ -15,6 +15,7 @@ export const listRoutineFields = gql`
     }
     fragment listRoutineFields on Routine {
         id
+        commentsCount
         completedAt
         complexity
         created_at
@@ -23,6 +24,7 @@ export const listRoutineFields = gql`
         isComplete
         isStarred
         isUpvoted
+        reportsCount
         role
         score
         simplicity

@@ -13,6 +13,59 @@ export const listStarFields = gql`
             description
         }
     }
+    fragment listStarCommentFields on Comment {
+        id
+        created_at
+        updated_at
+        score
+        isUpvoted
+        role
+        isStarred
+        commentedOn {
+            ... on Project {
+                id
+                handle
+                translations {
+                    id
+                    language
+                    name
+                }
+            }
+            ... on Routine {
+                id
+                translations {
+                    id
+                    language
+                    title
+                }
+            }
+            ... on Standard {
+                id
+                name
+            }
+        }
+        creator {
+            ... on Organization {
+                id
+                handle
+                translations {
+                    id
+                    language
+                    name
+                }
+            }
+            ... on User {
+                id
+                name
+                handle
+            }
+        }
+        translations {
+            id
+            language
+            text
+        }
+    }
     fragment listStarOrganizationFields on Organization {
         id
         handle
@@ -99,6 +152,9 @@ export const listStarFields = gql`
     fragment listStarFields on Star {
         id
         to {
+            ... on Comment {
+                ...listStarCommentFields
+            }
             ... on Organization {
                 ...listStarOrganizationFields
             }

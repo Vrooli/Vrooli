@@ -2,8 +2,18 @@ import { StarFor, VoteFor } from '@local/shared';
 import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListUser, Session, Tag } from 'types';
 import { ObjectType } from 'utils';
 
+export interface CommentButtonProps {
+    commentsCount: number | null; // Defaults to 0
+    object: { id: string, handle?: string | null, __typename: string } | null;
+    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
+}
+
 export interface ObjectListItemProps<DataType> {
     data: DataType | null;
+    /**
+     * True if role (admin, owner, etc.) should be hidden
+     */
+    hideRole?: boolean;
     /**
      * Index in list
      */
@@ -48,6 +58,12 @@ export interface DateRangeMenuProps {
     onSubmit: (after?: Date | undefined, before?: Date | undefined) => void;
 }
 
+export interface ReportButtonProps {
+    reportsCount: number | null; // Defaults to 0
+    object: { id: string, __typename: string } | null;
+    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
+}
+
 /**
  * Return type for a SearchList generator function
  */
@@ -64,6 +80,10 @@ export interface SearchListGenerator {
 export interface SearchListProps {
     canSearch?: boolean;
     handleAdd?: () => void; // Not shown if not passed
+    /**
+     * True if roles (admin, owner, etc.) should be hidden in list items
+     */
+    hideRoles?: boolean;
     itemKeyPrefix: string;
     searchPlaceholder?: string;
     query: DocumentNode;
@@ -92,7 +112,7 @@ export interface StarButtonProps {
     stars?: number | null; // Defaults to 0
     objectId: string;
     starFor: StarFor;
-    onChange: (isStar: boolean) => void;
+    onChange?: (isStar: boolean) => void;
     tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 }
 
@@ -107,6 +127,7 @@ export interface TagListProps {
 }
 
 export interface UpvoteDownvoteProps {
+    direction?: 'row' | 'column';
     session: Session;
     score?: number; // Net score - can be negative
     isUpvoted?: boolean | null; // If not passed, then there is neither an upvote nor a downvote

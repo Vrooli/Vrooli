@@ -1,7 +1,9 @@
 import { useMutation } from "@apollo/client";
+import { copy } from 'graphql/generated/copy';
+import { fork } from 'graphql/generated/fork';
 import { star } from 'graphql/generated/star';
 import { vote } from 'graphql/generated/vote';
-import { starMutation, voteMutation } from "graphql/mutation";
+import { copyMutation, forkMutation, starMutation, voteMutation } from "graphql/mutation";
 import { useCallback, useMemo, useState } from "react";
 import { ReportFor, StarFor, VoteFor } from "@local/shared";
 import { DeleteDialog, ListMenu, ReportDialog } from "..";
@@ -24,17 +26,18 @@ import {
     SvgIconComponent,
 } from "@mui/icons-material";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
+import { Pubs } from "utils";
 
 /**
  * [label, Icon, iconColor, preview]
  */
 const allOptionsMap: { [key in BaseObjectAction]: [string, SvgIconComponent, string, boolean] } = ({
-    [BaseObjectAction.Copy]: ['Copy', CopyIcon, 'default', true],
+    [BaseObjectAction.Copy]: ['Copy', CopyIcon, 'default', false],
     [BaseObjectAction.Delete]: ['Delete', DeleteIcon, "default", false],
     [BaseObjectAction.Donate]: ['Donate', DonateIcon, "default", true],
     [BaseObjectAction.Downvote]: ['Downvote', DownvoteIcon, "default", false],
     [BaseObjectAction.Edit]: ['Edit', EditIcon, "default", false],
-    [BaseObjectAction.Fork]: ['Fork', ForkIcon, "default", true],
+    [BaseObjectAction.Fork]: ['Fork', ForkIcon, "default", false],
     [BaseObjectAction.Report]: ['Report', ReportIcon, "default", false],
     [BaseObjectAction.Share]: ['Share', ShareIcon, "default", false],
     [BaseObjectAction.Star]: ['Star', StarIcon, "#cbae30", false],
@@ -77,29 +80,57 @@ export const BaseObjectActionDialog = ({
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
     // Mutations
-    //const [copy] = useMutation<copy>(copyMutation);
-    //const [fork] = useMutation<fork>(forkMutation);
+    const [copy] = useMutation<copy>(copyMutation);
+    const [fork] = useMutation<fork>(forkMutation);
     const [star] = useMutation<star>(starMutation);
     const [vote] = useMutation<vote>(voteMutation);
+
+    const handleCopy = useCallback(() => {
+        mutationWrapper({
+            mutation: copy,
+            input: { id: objectId, objectType },
+            onSuccess: ({ data }) => {
+                PubSub.publish(Pubs.Snack, { message: `${objectName} copied.`, severity: 'success' });
+                handleActionComplete(BaseObjectAction.Copy, data);
+            },
+        })
+    }, [copy, handleActionComplete, objectId, objectName, objectType]);
+
+    const handleFork = useCallback(() => {
+        mutationWrapper({
+            mutation: fork,
+            input: { id: objectId, objectType },
+            onSuccess: ({ data }) => {
+                PubSub.publish(Pubs.Snack, { message: `${objectName} forked.`, severity: 'success' });
+                handleActionComplete(BaseObjectAction.Fork, data);
+            }
+        })
+    }, [fork, handleActionComplete, objectId, objectName, objectType]);
 
     const handleStar = useCallback((isStar: boolean, starFor: StarFor) => {
         mutationWrapper({
             mutation: star,
             input: { isStar, starFor, forId: objectId },
+            onSuccess: ({ data }) => {
+                handleActionComplete(isStar ? BaseObjectAction.Star : BaseObjectAction.Unstar, data);
+            }
         })
-    }, [objectId, star]);
+    }, [handleActionComplete, objectId, star]);
 
     const handleVote = useCallback((isUpvote: boolean | null, voteFor: VoteFor) => {
         mutationWrapper({
             mutation: vote,
             input: { isUpvote, voteFor, forId: objectId },
+            onSuccess: ({ data }) => {
+                handleActionComplete(isUpvote ? BaseObjectAction.Upvote : BaseObjectAction.Downvote, data);
+            }
         })
-    }, [objectId, vote]);
+    }, [handleActionComplete, objectId, vote]);
 
     const onSelect = useCallback((action: BaseObjectAction) => {
         switch (action) {
             case BaseObjectAction.Copy:
-                //copy({ variables: { input: { id: objectId } } });
+                handleCopy();
                 break;
             case BaseObjectAction.Delete:
                 openDelete();
@@ -114,7 +145,7 @@ export const BaseObjectActionDialog = ({
                 //edit({ variables: { input: { id: objectId } } });
                 break;
             case BaseObjectAction.Fork:
-                //fork({ variables: { input: { id: objectId } } });
+                handleFork();
                 break;
             case BaseObjectAction.Report:
                 openReport();
@@ -133,7 +164,7 @@ export const BaseObjectActionDialog = ({
                 break;
         }
         onClose();
-    }, [handleStar, handleVote, objectType, onClose, openDelete, openDonate, openReport, openShare]);
+    }, [handleCopy, handleFork, handleStar, handleVote, objectType, onClose, openDelete, openDonate, openReport, openShare]);
 
     const data: ListMenuItemData<BaseObjectAction>[] = useMemo(() => {
         // Convert options to ListMenuItemData

@@ -1,9 +1,8 @@
 import { User, UserSortBy, UserSearchInput, ResourceListUsedFor, } from "../../schema/types";
-import { addJoinTablesHelper, FormatConverter, GraphQLModelType, PartialInfo, removeJoinTablesHelper, Searcher } from "./base";
+import { addCountFieldsHelper, addJoinTablesHelper, FormatConverter, GraphQLModelType, PartialGraphQLInfo, removeCountFieldsHelper, removeJoinTablesHelper, Searcher } from "./base";
 import { PrismaType, RecursivePartial } from "../../types";
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
-import { StarFor, ViewFor } from "@local/shared";
 import _ from "lodash";
 
 //==============================================================
@@ -11,6 +10,8 @@ import _ from "lodash";
 //==============================================================
 
 const joinMapper = { starredBy: 'user' };
+const countMapper = { reportsCount: 'reports' };
+const calculatedFields = ['isStarred'];
 export const userFormatter = (): FormatConverter<User> => ({
     relationshipMap: {
         '__typename': GraphQLModelType.User,
@@ -22,7 +23,6 @@ export const userFormatter = (): FormatConverter<User> => ({
         'routines': GraphQLModelType.Routine,
     },
     removeCalculatedFields: (partial) => {
-        const calculatedFields = ['isStarred'];
         return _.omit(partial, calculatedFields);
     },
     addJoinTables: (partial) => {
@@ -31,11 +31,17 @@ export const userFormatter = (): FormatConverter<User> => ({
     removeJoinTables: (data) => {
         return removeJoinTablesHelper(data, joinMapper);
     },
+    addCountFields: (partial) => {
+        return addCountFieldsHelper(partial, countMapper);
+    },
+    removeCountFields: (data) => {
+        return removeCountFieldsHelper(data, countMapper);
+    },
     async addSupplementalFields(
         prisma: PrismaType,
         userId: string | null, // Of the user making the request
         objects: RecursivePartial<any>[],
-        partial: PartialInfo,
+        partial: PartialGraphQLInfo,
     ): Promise<RecursivePartial<User>[]> {
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
@@ -73,7 +79,7 @@ export const userSearcher = (): Searcher<UserSearchInput> => ({
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
         return ({
             OR: [
-                { translations: { some: { language: languages ? { in: languages } : undefined, bio: {...insensitive} } } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },
                 { name: { ...insensitive } },
                 { handle: { ...insensitive } },
             ]

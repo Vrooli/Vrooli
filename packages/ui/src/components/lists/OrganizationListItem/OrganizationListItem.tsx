@@ -4,13 +4,13 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { APP_LINKS, StarFor } from '@local/shared';
 import { useLocation } from 'wouter';
-import { StarButton, TagList, TextLoading } from '..';
+import { ReportButton, StarButton, TagList, TextLoading } from '..';
 import { getTranslation, listItemColor, placeholderColor } from 'utils';
 import { Apartment as ApartmentIcon } from '@mui/icons-material';
-import { owns } from 'utils/authentication';
 
 export function OrganizationListItem({
     data,
+    hideRole,
     index,
     loading,
     session,
@@ -19,7 +19,6 @@ export function OrganizationListItem({
 }: OrganizationListItemProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const canEdit = useMemo<boolean>(() => owns(data?.role), [data]);
     const profileColors = useMemo(() => placeholderColor(), []);
     const { bio, name } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
@@ -82,11 +81,32 @@ export function OrganizationListItem({
                             display: 'grid',
                         }}
                     >
-                        {/* Name/Title */}
-                        {loading ? <TextLoading /> : <ListItemText
-                            primary={name}
-                            sx={{ ...multiLineEllipsis(1) }}
-                        />}
+                        {/* Name/Title and role */}
+                        {loading ? <TextLoading /> :
+                            (
+                                <Stack direction="row" spacing={1} sx={{
+                                    overflow: 'auto',
+                                }}>
+                                    <ListItemText
+                                        primary={name}
+                                        sx={{ 
+                                            ...multiLineEllipsis(1),
+                                            lineBreak: 'anywhere',
+                                        }}
+                                    />
+                                    {!hideRole && data?.role && <ListItemText
+                                        primary={`(${data.role})`}
+                                        sx={{ 
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            width: '100%',
+                                            color: palette.mode === 'light' ? '#fa4f4f' : '#f2a7a7',
+                                            flex: 200,
+                                        }}
+                                    />}
+                                </Stack>
+                            )
+                        }
                         {/* Bio/Description */}
                         {loading ? <TextLoading /> : <ListItemText
                             primary={bio}
@@ -95,16 +115,20 @@ export function OrganizationListItem({
                         {/* Tags */}
                         {Array.isArray(data?.tags) && (data?.tags as any).length > 0 ? <TagList session={session} parentId={data?.id ?? ''} tags={data?.tags ?? []} /> : null}
                     </Stack>
-                    {
-                        canEdit ? null : <StarButton
+                    {/* Star/Comment/Report */}
+                    <Stack direction="column" spacing={1}>
+                        <StarButton
                             session={session}
                             objectId={data?.id ?? ''}
                             starFor={StarFor.Organization}
                             isStar={data?.isStarred}
                             stars={data?.stars}
-                            onChange={(isStar: boolean) => { }}
                         />
-                    }
+                        {(data?.reportsCount ?? 0) > 0 && <ReportButton
+                            reportsCount={data?.reportsCount ?? 0}
+                            object={data}
+                        />}
+                    </Stack>
                 </ListItemButton>
             </ListItem>
         </Tooltip>

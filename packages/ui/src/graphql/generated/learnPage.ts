@@ -37,12 +37,14 @@ export interface learnPage_learnPage_courses_translations {
 export interface learnPage_learnPage_courses {
   __typename: "Project";
   id: string;
+  commentsCount: number;
   handle: string | null;
   role: MemberRole | null;
   score: number;
   stars: number;
   isUpvoted: boolean | null;
   isStarred: boolean;
+  reportsCount: number;
   tags: learnPage_learnPage_courses_tags[];
   translations: learnPage_learnPage_courses_translations[];
 }
@@ -75,6 +77,7 @@ export interface learnPage_learnPage_tutorials_translations {
 export interface learnPage_learnPage_tutorials {
   __typename: "Routine";
   id: string;
+  commentsCount: number;
   completedAt: any | null;
   complexity: number;
   created_at: any;
@@ -83,6 +86,7 @@ export interface learnPage_learnPage_tutorials {
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
+  reportsCount: number;
   role: MemberRole | null;
   score: number;
   simplicity: number;

@@ -14,4 +14,5 @@ export interface listUserFields {
   name: string;
   stars: number;
   isStarred: boolean;
+  reportsCount: number;
 }

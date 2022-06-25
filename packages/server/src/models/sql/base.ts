@@ -1,5 +1,5 @@
 // Components for providing basic functionality to model objects
-import { Count, DeleteManyInput, DeleteOneInput, FindByIdOrHandleInput, PageInfo, Success, TimeFrame } from '../../schema/types';
+import { CopyInput, CopyType, Count, DeleteManyInput, DeleteOneInput, FindByIdOrHandleInput, ForkInput, PageInfo, Success, TimeFrame } from '../../schema/types';
 import { PrismaType, RecursivePartial } from '../../types';
 import { GraphQLResolveInfo } from 'graphql';
 import pkg from 'lodash';
@@ -19,7 +19,7 @@ import { starFormatter } from './star';
 import { voteFormatter } from './vote';
 import { emailFormatter } from './email';
 import { CustomError } from '../../error';
-import { CODE, ViewFor } from '@local/shared';
+import { CODE, ForkType, ViewFor } from '@local/shared';
 import { profileFormatter } from './profile';
 import { memberFormatter } from './member';
 import { resolveGraphQLInfo } from '../../utils';
@@ -40,7 +40,9 @@ const { isObject } = pkg;
 
 export enum GraphQLModelType {
     Comment = 'Comment',
+    Copy = 'Copy',
     Email = 'Email',
+    Fork = 'Fork',
     Handle = 'Handle',
     InputItem = 'InputItem',
     Member = 'Member',
@@ -77,18 +79,38 @@ export enum GraphQLModelType {
  */
 export interface ModelBusinessLayer<GraphQLModel, SearchInput> extends FormatConverter<GraphQLModel>, Partial<Searcher<SearchInput>> {
     prisma: PrismaType,
-    cud?({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<any, any>): Promise<CUDResult<GraphQLModel>>
+    cud?({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<any, any>): Promise<CUDResult<GraphQLModel>>
+    duplicate?({ userId, objectId, isFork, createCount }: DuplicateInput): Promise<DuplicateResult<GraphQLModel>>
 }
 
 /**
- * Partial conversion between GraphQLResolveInfo and the select shape
- * used by Prisma's connect, disconnect, create, update, and delete methods.
- * Each level contains a __typename field
+ * Shape 1 of 4 for GraphQL to Prisma conversion (i.e. GraphQL data before conversion)
  */
-export interface PartialInfo {
-    [x: string]: GraphQLModelType | undefined | boolean | { [x: string]: PartialInfo };
+export type GraphQLInfo = GraphQLResolveInfo | { [x: string]: any } | null;
+
+/**
+ * Shape 2 of 4 for GraphQL to Prisma converstion. Used by many functions because it is more 
+ * convenient than straight up GraphQL request data. Each level contains a __typename field. 
+ * This type of data is also easier to hard-code in a pinch.
+ */
+export interface PartialGraphQLInfo {
+    [x: string]: GraphQLModelType | undefined | boolean | { [x: string]: PartialGraphQLInfo };
     __typename?: GraphQLModelType;
 }
+
+/**
+ * Shape 3 of 4 for GraphQL to Prisma conversion. Still contains the __typename fields, 
+ * but does not pad objects with a "select" field. Calculated fields, join tables, and other 
+ * data transformations from the GraphqL shape are removed. This is useful when checking 
+ * which fields are requested from a Prisma query.
+ */
+export type PartialPrismaSelect = { [x: string]: any };
+
+/**
+ * Shape 4 of 4 for GraphQL to Prisma conversion. This is the final shape of the requested data 
+ * as it will be sent to the database. It is has __typename fields removed, and objects padded with "select"
+ */
+export type PrismaSelect = { [x: string]: any };
 
 export type RelationshipMap = {
     __typename: GraphQLModelType;
@@ -108,7 +130,7 @@ export type FormatConverter<GraphQLModel> = {
     /**
      * Removes fields which are not in the database
      */
-    removeCalculatedFields?: (partial: { [x: string]: any }) => any;
+    removeCalculatedFields?: (partial: PartialGraphQLInfo | PartialPrismaSelect) => any;
     /**
      * Convert database fields to GraphQL union types
      */
@@ -116,11 +138,11 @@ export type FormatConverter<GraphQLModel> = {
     /**
      * Convert GraphQL unions to database fields
      */
-    deconstructUnions?: (partial: { [x: string]: any }) => any;
+    deconstructUnions?: (partial: PartialGraphQLInfo | PartialPrismaSelect) => any;
     /**
      * Add join tables which are not present in GraphQL object
      */
-    addJoinTables?: (partial: { [x: string]: any }) => any;
+    addJoinTables?: (partial: PartialGraphQLInfo | PartialPrismaSelect) => any;
     /**
      * Remove join tables which are not present in GraphQL object
      */
@@ -128,7 +150,7 @@ export type FormatConverter<GraphQLModel> = {
     /**
      * Add _count fields
      */
-    addCountFields?: (partial: { [x: string]: any }) => any;
+    addCountFields?: (partial: PartialGraphQLInfo | PartialPrismaSelect) => any;
     /**
      * Remove _count fields
      */
@@ -144,7 +166,7 @@ export type FormatConverter<GraphQLModel> = {
         prisma: PrismaType,
         userId: string | null,
         objects: RecursivePartial<any>[],
-        partial: PartialInfo,
+        partial: PartialGraphQLInfo,
     ) => Promise<RecursivePartial<GraphQLModel>[]>;
 }
 
@@ -168,8 +190,6 @@ export type JoinMap = { [key: string]: string };
  * Mapper for associating a model's GraphQL count fields to the relationships they count
  */
 export type CountMap = { [key: string]: string };
-
-export type InfoType = GraphQLResolveInfo | { [x: string]: any } | null;
 
 export type PaginatedSearchResult = {
     pageInfo: PageInfo;
@@ -206,13 +226,37 @@ export interface CUDInput<Create, Update> {
     createMany?: Create[] | null | undefined,
     updateMany?: { where: { id: string }, data: Update }[] | null | undefined,
     deleteMany?: string[] | null | undefined,
-    partial: PartialInfo,
+    partialInfo: PartialGraphQLInfo,
 }
 
 export interface CUDResult<GraphQLObject> {
     created?: RecursivePartial<GraphQLObject>[],
     updated?: RecursivePartial<GraphQLObject>[],
     deleted?: Count, // Number of deleted organizations
+}
+
+export interface DuplicateInput {
+    /**
+     * The userId of the user making the copy
+     */
+    userId: string,
+    /**
+     * The id of the object to copy.
+     */
+    objectId: string,
+    /**
+     * Whether the copy is a fork or a copy
+     */
+    isFork: boolean,
+    /**
+     * Number of child objects already created. Can be used to limit size of copy.
+     */
+    createCount: number,
+}
+
+export interface DuplicateResult<GraphQLObject> {
+    object: RecursivePartial<GraphQLObject>,
+    numCreated: number
 }
 
 //======================================================================================================================
@@ -285,24 +329,39 @@ export const PrismaMap: { [key in GraphQLModelType]?: (prisma: PrismaType) => an
 }
 
 /**
+ * Determines if an object is a relationship object, and not an array of relationship objects.
+ * @param obj - object to check
+ * @returns true if obj is a relationship object, false otherwise
+ */
+const isRelationshipObject = (obj: any): boolean => _.isObject(obj) && Object.prototype.toString.call(obj) !== '[object Date]';
+
+/**
+ * Determines if an object is an array of relationship objects, and not a relationship object.
+ * @param obj - object to check
+ * @returns true if obj is an array of relationship objects, false otherwise
+ */
+const isRelationshipArray = (obj: any): boolean => Array.isArray(obj) && obj.every(e => isRelationshipObject(e));
+
+/**
  * Helper function for adding join tables between 
  * many-to-many relationship parents and children
  * @param obj - GraphQL-shaped object
  * @param map - Mapping of many-to-many relationship names to join table names
  */
-export const addJoinTablesHelper = (partial: PartialInfo, map: JoinMap | undefined): any => {
-    if (!map) return partial;
+export const addJoinTablesHelper = (partialInfo: PartialGraphQLInfo, map: JoinMap | undefined): any => {
+    if (!map) return partialInfo;
     // Create result object
     let result: any = {};
     // Iterate over join map
     for (const [key, value] of Object.entries(map)) {
         // If the key is in the object, pad with the join table name
-        if (partial[key]) {
-            result[key] = { [value]: partial[key] };
+        if (partialInfo[key]) {
+            // Otherwise, pad
+            result[key] = { [value]: partialInfo[key] };
         }
     }
     return {
-        ...partial,
+        ...partialInfo,
         ...result
     }
 }
@@ -346,7 +405,7 @@ export const addCountFieldsHelper = (obj: any, map: CountMap | undefined): any =
     if (!map) return obj;
     // Create result object
     let result: any = {};
-    // Iterate over join map
+    // Iterate over count map
     for (const [key, value] of Object.entries(map)) {
         if (obj[key]) {
             if (!obj._count) obj._count = {};
@@ -449,43 +508,6 @@ export const padSelect = (fields: { [x: string]: any }): { [x: string]: any } =>
 }
 
 /**
- * Removes the "__typename" field recursively from a JSON-serializable object
- * @param obj - JSON-serializable object with possible __typename fields
- * @return obj without __typename fields
- */
-const removeTypenames = (obj: { [x: string]: any }): { [x: string]: any } => {
-    return JSON.parse(JSON.stringify(obj, (k, v) => (k === '__typename') ? undefined : v))
-}
-
-/**
- * Converts a GraphQL info object to a partial Prisma select. 
- * This is then passed into a model-specific converter to handle virtual/calculated fields,
- * unions, and other special cases.
- * and keys that map to typemappers for each possible relationship
- * @param info - GraphQL info object, or result of this function
- * @param relationshipMap - Map of relationship names to typenames
- */
-export const toPartialSelect = (info: InfoType, relationshipMap: RelationshipMap): PartialInfo | undefined => {
-    // Return undefined if info not set
-    if (!info) return undefined;
-    // Find select fields in info object
-    let select;
-    const isGraphQLResolveInfo = info.hasOwnProperty('fieldNodes') && info.hasOwnProperty('returnType');
-    if (isGraphQLResolveInfo) {
-        select = resolveGraphQLInfo(JSON.parse(JSON.stringify(info)));
-    } else {
-        select = info;
-    }
-    // If fields are in the shape of a paginated search query, convert to a Prisma select object
-    if (select.hasOwnProperty('pageInfo') && select.hasOwnProperty('edges')) {
-        select = select.edges.node;
-    }
-    // Inject __typename fields
-    select = injectTypenames(select, relationshipMap);
-    return select;
-}
-
-/**
  * Recursively injects __typename fields into a select object
  * @param select - GraphQL select object, partially converted without typenames
  * and keys that map to typemappers for each possible relationship
@@ -493,7 +515,7 @@ export const toPartialSelect = (info: InfoType, relationshipMap: RelationshipMap
  * @param nestedFields - Array of nested fields accessed since last parent
  * @return select with __typename fields
  */
-const injectTypenames = (select: { [x: string]: any }, parentRelationshipMap: RelationshipMap, nestedFields: string[] = []): PartialInfo => {
+const injectTypenames = (select: { [x: string]: any }, parentRelationshipMap: RelationshipMap, nestedFields: string[] = []): PartialGraphQLInfo => {
     // Create result object
     let result: any = {};
     // Iterate over select object
@@ -534,20 +556,135 @@ const injectTypenames = (select: { [x: string]: any }, parentRelationshipMap: Re
 }
 
 /**
- * Helper function for creating a Prisma select object. 
- * If the select object is in the shape of a paginated search query, 
- * then it will be converted to a prisma select object.
- * @returns select object for Prisma operations
+ * Removes the "__typename" field recursively from a JSON-serializable object
+ * @param obj - JSON-serializable object with possible __typename fields
+ * @return obj without __typename fields
  */
-export const selectHelper = (partial: PartialInfo): any => {
+const removeTypenames = (obj: { [x: string]: any }): { [x: string]: any } => {
+    return JSON.parse(JSON.stringify(obj, (k, v) => (k === '__typename') ? undefined : v))
+}
+
+/**
+ * Converts shapes 1 and 2 in a GraphQL to Prisma conversion to shape 2
+ * @param info - GraphQL info object, or result of this function
+ * @param relationshipMap - Map of relationship names to typenames
+ * @returns Partial Prisma select. This can be passed into the function again without changing the result.
+ */
+export const toPartialGraphQLInfo = (info: GraphQLInfo | PartialGraphQLInfo, relationshipMap: RelationshipMap): PartialGraphQLInfo | undefined => {
+    // Return undefined if info not set
+    if (!info) return undefined;
+    // Find select fields in info object
+    let select;
+    const isGraphQLResolveInfo = info.hasOwnProperty('fieldNodes') && info.hasOwnProperty('returnType');
+    if (isGraphQLResolveInfo) {
+        select = resolveGraphQLInfo(JSON.parse(JSON.stringify(info)));
+    } else {
+        select = info;
+    }
+    // If fields are in the shape of a paginated search query, convert to a Prisma select object
+    if (select.hasOwnProperty('pageInfo') && select.hasOwnProperty('edges')) {
+        select = select.edges.node;
+    }
+    // If fields are in the shape of a comment thread search query, convert to a Prisma select object
+    else if (select.hasOwnProperty('endCursor') && select.hasOwnProperty('totalThreads') && select.hasOwnProperty('threads')) {
+        select = select.threads.comment
+    }
+    // Inject __typename fields
+    select = injectTypenames(select, relationshipMap);
+    return select;
+}
+
+/**
+ * Converts shapes 2 and 3 of a GraphQL to Prisma conversion to shape 3. 
+ * This function is useful when we want to check the shape of the requested data, 
+ * but not actually query the database.
+ * @param partial GraphQL info object, partially converted to Prisma select
+ * @returns Prisma select object with calculated fields, unions and join tables removed, 
+ * and count fields and __typenames added,
+ */
+export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrismaSelect): PartialPrismaSelect => {
+    // Create result object
+    let result: { [x: string]: any } = {};
+    // Loop through each key/value pair in partial
+    for (const [key, value] of Object.entries(partial)) {
+        // If value is an object (and not date), recursively call selectToDB
+        if (isRelationshipObject(value)) {
+            result[key] = toPartialPrismaSelect(value as PartialGraphQLInfo | PartialPrismaSelect);
+        }
+        // Otherwise, add key/value pair to result
+        else {
+            result[key] = value;
+        }
+    }
+    // Handle base case
+    const type: string | undefined = partial?.__typename;
+    if (type !== undefined && type in FormatterMap) {
+        const formatter: FormatConverter<any> = FormatterMap[type as keyof typeof FormatterMap] as FormatConverter<any>;
+        if (formatter.removeCalculatedFields) result = formatter.removeCalculatedFields(result);
+        if (formatter.deconstructUnions) result = formatter.deconstructUnions(result);
+        if (formatter.addJoinTables) result = formatter.addJoinTables(result);
+        if (formatter.addCountFields) result = formatter.addCountFields(result);
+    }
+    return result;
+}
+
+/**
+ * Converts shapes 2 and 3 of the GraphQL to Prisma conversion to shape 4.
+ * @returns Object which can be passed into Prisma select directly
+ */
+export const selectHelper = (partial: PartialGraphQLInfo | PartialPrismaSelect): PrismaSelect | undefined => {
     // Convert partial's special cases (virtual/calculated fields, unions, etc.)
-    let modified = selectToDB(partial);
+    let modified: PartialPrismaSelect = toPartialPrismaSelect(partial);
     if (!_.isObject(modified)) return undefined;
     // Delete __typename fields
     modified = removeTypenames(modified);
     // Pad every relationship with "select"
     modified = padSelect(modified);
     return modified;
+}
+
+/**
+ * Converts shapes 4 of the GraphQL to Prisma conversion to shape 1. Used to format the result of a query.
+ * @param data Prisma object
+ * @param partialInfo PartialGraphQLInfo object
+ * @returns Valid GraphQL object
+ */
+export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partialInfo: PartialGraphQLInfo): GraphQLModel {
+    // First convert data to usable shape
+    const type: string | undefined = partialInfo?.__typename;
+    if (type !== undefined && type in FormatterMap) {
+        const formatter: FormatConverter<any> = FormatterMap[type as keyof typeof FormatterMap] as FormatConverter<any>;
+        if (formatter.constructUnions) data = formatter.constructUnions(data);
+        if (formatter.removeJoinTables) data = formatter.removeJoinTables(data);
+        if (formatter.removeCountFields) data = formatter.removeCountFields(data);
+    }
+    // Remove top-level union from partialInfo, if necessary
+    // If every key starts with a capital letter, it's a union
+    if (Object.keys(partialInfo).every(k => k[0] === k[0].toUpperCase())) {
+        // Find the union type which matches the shape of value
+        let matchingType: string | undefined;
+        for (const unionType of Object.keys(partialInfo)) {
+            if (subsetsMatch(data, partialInfo[unionType])) matchingType = unionType;
+        }
+        if (matchingType) {
+            partialInfo = partialInfo[matchingType] as PartialGraphQLInfo;
+        }
+    }
+    // Then loop through each key/value pair in data and call modelToGraphQL on each array item/object
+    for (const [key, value] of Object.entries(data)) {
+        // If key doesn't exist in partialInfo, check if union
+        if (!_.isObject(partialInfo) || !(key in partialInfo)) continue;
+        // If value is an array, call modelToGraphQL on each element
+        if (Array.isArray(value)) {
+            // Pass each element through modelToGraphQL
+            data[key] = data[key].map((v: any) => modelToGraphQL(v, partialInfo[key] as PartialGraphQLInfo));
+        }
+        // If value is an object (and not date), call modelToGraphQL on it
+        else if (isRelationshipObject(value)) {
+            data[key] = modelToGraphQL(value, (partialInfo as any)[key]);
+        }
+    }
+    return data as any;
 }
 
 /**
@@ -767,24 +904,24 @@ export const joinRelationshipToPrisma = ({
 
 /**
  * Converts a GraphQL union into a Prisma select.
- * All possible union fields which the user wants to select are in the info partial, but they are not separated by type.
+ * All possible union fields which the user wants to select are in partialInfo, but they are not separated by type.
  * This function performs a nested intersection between each union type's avaiable fields, and the fields which were 
  * requested by the user.
- * @param partial - partial select object
+ * @param partialInfo - partialGraphQLInfo object
  * @param unionField - Name of the union field
- * @param relationshipTupes - array of [relationship type (i.e. how it appears in partial), name to convert the field to]
- * @returns partial select object with GraphQL union converted into Prisma relationship selects
+ * @param relationshipTupes - array of [relationship type (i.e. how it appears in partialInfo), name to convert the field to]
+ * @returns partilPrismaSelect object
  */
-export const deconstructUnion = (partial: any, unionField: string, relationshipTuples: [GraphQLModelType, string][]): any => {
-    let { [unionField]: unionData, ...rest } = partial;
+export const deconstructUnion = (partialInfo: PartialGraphQLInfo, unionField: string, relationshipTuples: [GraphQLModelType, string][]): any => {
+    let { [unionField]: unionData, ...rest } = partialInfo;
     // Create result object
     let converted: { [x: string]: any } = {};
-    // If field in partial is not an object, return partial unmodified
-    if (!unionData) return partial;
+    // If field in partialInfo is not an object, return partialInfo unmodified
+    if (!unionData) return partialInfo;
     // Swap keys of union to match their prisma names
     for (const [relType, relName] of relationshipTuples) {
         // If union missing, skip
-        if (!unionData.hasOwnProperty(relType)) continue;
+        if (!_.isObject(unionData) || !(relType in unionData)) continue;
         const currData = unionData[relType];
         converted[relName] = currData;
     }
@@ -849,36 +986,36 @@ const subsetsMatch = (obj: any, query: any): boolean => {
 /**
  * Combines fields from a Prisma object with arbitrarily nested relationships
  * @param data GraphQL-shaped data, where each object contains at least an ID
- * @param partial GraphQL info object, partially converted to Prisma select
+ * @param partialInfo PartialGraphQLInfo object
  * @returns [objectDict, selectFieldsDict], where objectDict is a dictionary of object arrays (sorted by type), 
  * and selectFieldsDict is a dictionary of select fields for each type (unioned if they show up in multiple places)
  */
-const groupIdsByType = (data: { [x: string]: any }, partial: PartialInfo): [{ [x: string]: string[] }, { [x: string]: any }] => {
-    if (!data || !partial) return [{}, {}];
+const groupIdsByType = (data: { [x: string]: any }, partialInfo: PartialGraphQLInfo): [{ [x: string]: string[] }, { [x: string]: any }] => {
+    if (!data || !partialInfo) return [{}, {}];
     let objectIdsDict: { [x: string]: string[] } = {};
     let selectFieldsDict: { [x: string]: { [x: string]: { [x: string]: any } } } = {};
     // Loop through each key/value pair in data
     for (const [key, value] of Object.entries(data)) {
-        let childPartial: PartialInfo = partial[key] as any;
-        if (childPartial)
-            // If every key in childPartial starts with a capital letter, then it is a union.
+        let childPartialInfo: PartialGraphQLInfo = partialInfo[key] as any;
+        if (childPartialInfo)
+            // If every key in childPartialInfo starts with a capital letter, then it is a union.
             // In this case, we must determine which union to use based on the shape of value
-            if (_.isObject(childPartial) && Object.keys(childPartial).every(k => k[0] === k[0].toUpperCase())) {
+            if (_.isObject(childPartialInfo) && Object.keys(childPartialInfo).every(k => k[0] === k[0].toUpperCase())) {
                 // Find the union type which matches the shape of value
                 let matchingType: string | undefined;
-                for (const unionType of Object.keys(childPartial)) {
-                    if (subsetsMatch(value, childPartial[unionType])) matchingType = unionType;
+                for (const unionType of Object.keys(childPartialInfo)) {
+                    if (subsetsMatch(value, childPartialInfo[unionType])) matchingType = unionType;
                 }
                 // If no union type matches, skip
                 if (!matchingType) continue;
                 // If union type, update child partial
-                childPartial = childPartial[matchingType] as PartialInfo;
+                childPartialInfo = childPartialInfo[matchingType] as PartialGraphQLInfo;
             }
         // If value is an array, add each element to the correct key in objectDict
         if (Array.isArray(value)) {
             // Pass each element through groupSupplementsByType
             for (const v of value) {
-                const [childObjectsDict, childSelectFieldsDict] = groupIdsByType(v, childPartial);
+                const [childObjectsDict, childSelectFieldsDict] = groupIdsByType(v, childPartialInfo);
                 for (const [childType, childObjects] of Object.entries(childObjectsDict)) {
                     objectIdsDict[childType] = objectIdsDict[childType] ?? [];
                     objectIdsDict[childType].push(...childObjects);
@@ -889,42 +1026,28 @@ const groupIdsByType = (data: { [x: string]: any }, partial: PartialInfo): [{ [x
         // If value is an object (and not date), add it to the correct key in objectDict
         else if (isRelationshipObject(value)) {
             // Pass value through groupIdsByType
-            const [childObjectIdsDict, childSelectFieldsDict] = groupIdsByType(value, childPartial);
+            const [childObjectIdsDict, childSelectFieldsDict] = groupIdsByType(value, childPartialInfo);
             for (const [childType, childObjects] of Object.entries(childObjectIdsDict)) {
                 objectIdsDict[childType] = objectIdsDict[childType] ?? [];
                 objectIdsDict[childType].push(...childObjects);
             }
             selectFieldsDict = _.merge(selectFieldsDict, childSelectFieldsDict);
         }
-        else if (key === 'id' && partial.__typename) {
+        else if (key === 'id' && partialInfo.__typename) {
             // Add to objectIdsDict
-            const type: string = partial.__typename;
+            const type: string = partialInfo.__typename;
             objectIdsDict[type] = objectIdsDict[type] ?? [];
             objectIdsDict[type].push(value);
         }
     }
     // Add keys to selectFieldsDict
-    const currType = partial?.__typename;
+    const currType = partialInfo?.__typename;
     if (currType) {
-        selectFieldsDict[currType] = _.merge(selectFieldsDict[currType] ?? {}, partial);
+        selectFieldsDict[currType] = _.merge(selectFieldsDict[currType] ?? {}, partialInfo);
     }
     // Return objectDict and selectFieldsDict
     return [objectIdsDict, selectFieldsDict];
 }
-
-/**
- * Determines if an object is a relationship object, and not an array of relationship objects.
- * @param obj - object to check
- * @returns true if obj is a relationship object, false otherwise
- */
-const isRelationshipObject = (obj: any): boolean => _.isObject(obj) && Object.prototype.toString.call(obj) !== '[object Date]';
-
-/**
- * Determines if an object is an array of relationship objects, and not a relationship object.
- * @param obj - object to check
- * @returns true if obj is an array of relationship objects, false otherwise
- */
-const isRelationshipArray = (obj: any): boolean => Array.isArray(obj) && obj.every(e => isRelationshipObject(e));
 
 /**
  * Recombines objects returned from calls to supplementalFields into shape that matches info
@@ -1029,14 +1152,14 @@ const pickObjectById = (data: any, id: string): { [x: string]: any } => {
  * @param prisma Prisma client
  * @param userId Requesting user's ID
  * @param data Array of GraphQL-shaped data, where each object contains at least an ID
- * @param partial GraphQL info object, partially converted to Prisma select
+ * @param partialInfo PartialGraphQLInfo object
  * @returns data array with supplemental fields added to each object
  */
 export const addSupplementalFields = async (
     prisma: PrismaType,
     userId: string | null,
     data: ({ [x: string]: any } | null | undefined)[],
-    partial: PartialInfo | PartialInfo[],
+    partialInfo: PartialGraphQLInfo | PartialGraphQLInfo[],
 ): Promise<{ [x: string]: any }[]> => {
     // Group data IDs and select fields by type. This is needed to reduce the number of times 
     // the database is called, as we can query all objects of the same type at once
@@ -1044,9 +1167,9 @@ export const addSupplementalFields = async (
     let selectFieldsDict: { [x: string]: { [x: string]: any } } = {};
     for (let i = 0; i < data.length; i++) {
         const currData = data[i];
-        const currPartial = Array.isArray(partial) ? partial[i] : partial;
-        if (!currData || !currPartial) continue;
-        const [childObjectIdsDict, childSelectFieldsDict] = groupIdsByType(currData, currPartial);
+        const currPartialInfo = Array.isArray(partialInfo) ? partialInfo[i] : partialInfo;
+        if (!currData || !currPartialInfo) continue;
+        const [childObjectIdsDict, childSelectFieldsDict] = groupIdsByType(currData, currPartialInfo);
         // Merge each array in childObjectIdsDict into objectIdsDict
         for (const [childType, childObjects] of Object.entries(childObjectIdsDict)) {
             objectIdsDict[childType] = objectIdsDict[childType] ?? [];
@@ -1083,7 +1206,7 @@ export const addSupplementalFields = async (
 /**
  * Combines addSupplementalFields calls for multiple object types
  * @param data Array of arrays, where each array is a list of the same object type queried from the database
- * @param partials Array of PartialInfos, in the same order as data arrays
+ * @param partials Array of PartialGraphQLInfo objects, in the same order as data arrays
  * @param keys Keys to associate with each data array
  * @param userId Requesting user's ID
  * @param prisma Prisma client
@@ -1091,7 +1214,7 @@ export const addSupplementalFields = async (
  */
 export const addSupplementalFieldsMultiTypes = async (
     data: { [x: string]: any }[][],
-    partials: PartialInfo[],
+    partialInfos: PartialGraphQLInfo[],
     keys: string[],
     userId: string | null,
     prisma: PrismaType,
@@ -1099,16 +1222,16 @@ export const addSupplementalFieldsMultiTypes = async (
     // Flatten data array
     const combinedData = _.flatten(data);
     // Create an array of partials, that match the data array
-    let combinedPartials: PartialInfo[] = [];
+    let combinedPartialInfo: PartialGraphQLInfo[] = [];
     for (let i = 0; i < data.length; i++) {
-        const currPartial = partials[i];
+        const currPartial = partialInfos[i];
         // Push partial for each data array
         for (let j = 0; j < data[i].length; j++) {
-            combinedPartials.push(currPartial);
+            combinedPartialInfo.push(currPartial);
         }
     }
     // Call addSupplementalFields
-    const combinedResult = await addSupplementalFields(prisma, userId, combinedData, combinedPartials);
+    const combinedResult = await addSupplementalFields(prisma, userId, combinedData, combinedPartialInfo);
     // Convert combinedResult into object with keys equal to objectTypes, and values equal to arrays of those types
     const formatted: { [y: string]: any[] } = {};
     let start = 0;
@@ -1122,81 +1245,6 @@ export const addSupplementalFieldsMultiTypes = async (
 }
 
 /**
- * Shapes GraphQL info object to become a valid Prisma select
- * @param partial GraphQL info object, partially converted to Prisma select
- * @returns Valid Prisma select object
- */
-export const selectToDB = (partial: PartialInfo): { [x: string]: any } => {
-    // Create result object
-    let result: { [x: string]: any } = {};
-    // Loop through each key/value pair in partial
-    for (const [key, value] of Object.entries(partial)) {
-        // If value is an object (and not date), recursively call selectToDB
-        if (isRelationshipObject(value)) {
-            result[key] = selectToDB(value as PartialInfo);
-        }
-        // Otherwise, add key/value pair to result
-        else {
-            result[key] = value;
-        }
-    }
-    // Handle base case
-    const type: string | undefined = partial?.__typename;
-    if (type !== undefined && type in FormatterMap) {
-        const formatter: FormatConverter<any> = FormatterMap[type as keyof typeof FormatterMap] as FormatConverter<any>;
-        if (formatter.removeCalculatedFields) result = formatter.removeCalculatedFields(result);
-        if (formatter.deconstructUnions) result = formatter.deconstructUnions(result);
-        if (formatter.addJoinTables) result = formatter.addJoinTables(result);
-        if (formatter.addCountFields) result = formatter.addCountFields(result);
-    }
-    return result;
-}
-
-/**
- * Shapes Prisma model object to become a valid GraphQL model object
- * @param data Prisma object
- * @param partial GraphQL info object, partially converted to Prisma select
- * @returns Valid GraphQL object
- */
-export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial: PartialInfo): GraphQLModel {
-    // First convert data to usable shape
-    const type: string | undefined = partial?.__typename;
-    if (type !== undefined && type in FormatterMap) {
-        const formatter: FormatConverter<any> = FormatterMap[type as keyof typeof FormatterMap] as FormatConverter<any>;
-        if (formatter.constructUnions) data = formatter.constructUnions(data);
-        if (formatter.removeJoinTables) data = formatter.removeJoinTables(data);
-        if (formatter.removeCountFields) data = formatter.removeCountFields(data);
-    }
-    // Remove top-level union from partial, if necessary
-    // If every key starts with a capital letter, it's a union
-    if (Object.keys(partial).every(k => k[0] === k[0].toUpperCase())) {
-        // Find the union type which matches the shape of value
-        let matchingType: string | undefined;
-        for (const unionType of Object.keys(partial)) {
-            if (subsetsMatch(data, partial[unionType])) matchingType = unionType;
-        }
-        if (matchingType) {
-            partial = partial[matchingType] as PartialInfo;
-        }
-    }
-    // Then loop through each key/value pair in data and call modelToGraphQL on each array item/object
-    for (const [key, value] of Object.entries(data)) {
-        // If key doesn't exist in partial, check if union
-        if (!_.isObject(partial) || !(partial as any)[key]) continue;
-        // If value is an array, call modelToGraphQL on each element
-        if (Array.isArray(value)) {
-            // Pass each element through modelToGraphQL
-            data[key] = data[key].map((v: any) => modelToGraphQL(v, partial[key] as PartialInfo));
-        }
-        // If value is an object (and not date), call modelToGraphQL on it
-        else if (isRelationshipObject(value)) {
-            data[key] = modelToGraphQL(value, (partial as any)[key]);
-        }
-    }
-    return data as any;
-}
-
-/**
  * Helper function for reading one object in a single line
  * @param userId ID of user making the request
  * @param input GraphQL find by ID input object
@@ -1207,35 +1255,35 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
 export async function readOneHelper<GraphQLModel>(
     userId: string | null,
     input: FindByIdOrHandleInput,
-    info: InfoType,
+    info: GraphQLInfo | PartialGraphQLInfo,
     model: ModelBusinessLayer<GraphQLModel, any>,
 ): Promise<RecursivePartial<GraphQLModel>> {
     // Validate input
     if (!input.id && !input.handle)
         throw new CustomError(CODE.InvalidArgs, 'id is required', { code: genErrorCode('0019') });
-    // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
-    let partial = toPartialSelect(info, model.relationshipMap);
-    if (!partial)
+    // Partially convert info
+    let partialInfo = toPartialGraphQLInfo(info, model.relationshipMap);
+    if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0020') });
     // Uses __typename to determine which Prisma object is being queried
-    const objectType: string | undefined = partial.__typename;
+    const objectType: string | undefined = partialInfo.__typename;
     if (objectType === undefined || !(objectType in PrismaMap)) {
         throw new CustomError(CODE.InternalError, `${objectType} missing in PrismaMap`, { code: genErrorCode('0021') });
     }
     // Get the Prisma object
     const prismaObject = (PrismaMap[objectType as keyof typeof PrismaMap] as any)(model.prisma);
     let object = input.id ?
-        await prismaObject.findUnique({ where: { id: input.id }, ...selectHelper(partial) }) :
-        await prismaObject.findFirst({ where: { handle: input.handle }, ...selectHelper(partial) });
+        await prismaObject.findUnique({ where: { id: input.id }, ...selectHelper(partialInfo) }) :
+        await prismaObject.findFirst({ where: { handle: input.handle }, ...selectHelper(partialInfo) });
     if (!object)
         throw new CustomError(CODE.NotFound, `${objectType} not found`, { code: genErrorCode('0022') });
     // Return formatted for GraphQL
-    let formatted = modelToGraphQL(object, partial) as RecursivePartial<GraphQLModel>;
+    let formatted = modelToGraphQL(object, partialInfo) as RecursivePartial<GraphQLModel>;
     // If logged in and object has view count, handle it
     if (userId && objectType in ViewFor) {
         ViewModel(model.prisma).view(userId, { forId: object.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language
     }
-    return (await addSupplementalFields(model.prisma, userId, [formatted], partial))[0] as RecursivePartial<GraphQLModel>;
+    return (await addSupplementalFields(model.prisma, userId, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
 }
 
 /**
@@ -1254,17 +1302,17 @@ export async function readOneHelper<GraphQLModel>(
 export async function readManyHelper<GraphQLModel, SearchInput extends SearchInputBase<any>>(
     userId: string | null,
     input: SearchInput,
-    info: InfoType,
+    info: GraphQLInfo | PartialGraphQLInfo,
     model: ModelBusinessLayer<GraphQLModel, SearchInput>,
     additionalQueries?: { [x: string]: any },
     addSupplemental = true,
 ): Promise<PaginatedSearchResult> {
-    // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
-    let partial = toPartialSelect(info, model.relationshipMap);
-    if (!partial)
+    // Partially convert info type
+    let partialInfo = toPartialGraphQLInfo(info, model.relationshipMap);
+    if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0023') });
     // Uses __typename to determine which Prisma object is being queried
-    const objectType: string | undefined = partial.__typename;
+    const objectType: string | undefined = partialInfo.__typename;
     if (objectType === undefined || !(objectType in PrismaMap))
         throw new CustomError(CODE.InternalError, `${objectType} not found in PrismaMap`, { code: genErrorCode('0024') });
     // Create query for specified ids
@@ -1293,7 +1341,7 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
         cursor: input.after ? {
             id: input.after
         } : undefined,
-        ...selectHelper(partial)
+        ...selectHelper(partialInfo)
     });
     // If there are results
     let paginatedResults: PaginatedSearchResult;
@@ -1332,8 +1380,8 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     if (!addSupplemental) return paginatedResults;
     // Return formatted for GraphQL
     let formattedNodes = paginatedResults.edges.map(({ node }) => node);
-    formattedNodes = formattedNodes.map(n => modelToGraphQL(n, partial as PartialInfo));
-    formattedNodes = await addSupplementalFields(model.prisma, userId, formattedNodes, partial);
+    formattedNodes = formattedNodes.map(n => modelToGraphQL(n, partialInfo as PartialGraphQLInfo));
+    formattedNodes = await addSupplementalFields(model.prisma, userId, formattedNodes, partialInfo);
     return { pageInfo: paginatedResults.pageInfo, edges: paginatedResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })) };
 }
 
@@ -1375,22 +1423,22 @@ export async function countHelper<CountInput extends CountInputBase>(input: Coun
 export async function createHelper<GraphQLModel>(
     userId: string | null,
     input: any,
-    info: InfoType,
+    info: GraphQLInfo | PartialGraphQLInfo,
     model: ModelBusinessLayer<GraphQLModel, any>,
 ): Promise<RecursivePartial<GraphQLModel>> {
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object', { code: genErrorCode('0025') });
     if (!model.cud)
         throw new CustomError(CODE.InternalError, 'Model does not support create', { code: genErrorCode('0026') });
-    // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
-    const partial = toPartialSelect(info, model.relationshipMap);
-    if (!partial)
+    // Partially convert info type
+    const partialInfo = toPartialGraphQLInfo(info, model.relationshipMap);
+    if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0027') });
-    const cudResult = await model.cud({ partial, userId, createMany: [input] });
+    const cudResult = await model.cud({ partialInfo, userId, createMany: [input] });
     const { created } = cudResult;
     if (created && created.length > 0) {
         // If organization, project, routine, or standard, log for stats
-        const objectType = partial.__typename;
+        const objectType = partialInfo.__typename;
         if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {
             const logs = created.map((c: any) => ({
                 timestamp: Date.now(),
@@ -1402,7 +1450,7 @@ export async function createHelper<GraphQLModel>(
             // No need to await this, since it is not needed for the response
             Log.collection.insertMany(logs).catch(error => logger.log(LogLevel.error, 'Failed creating "Create" log', { code: genErrorCode('0194'), error }));
         }
-        return (await addSupplementalFields(model.prisma, userId, created, partial))[0] as any;
+        return (await addSupplementalFields(model.prisma, userId, created, partialInfo))[0] as any;
     }
     throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in createHelper', { code: genErrorCode('0028') });
 }
@@ -1419,23 +1467,23 @@ export async function createHelper<GraphQLModel>(
 export async function updateHelper<GraphQLModel>(
     userId: string | null,
     input: any,
-    info: InfoType,
+    info: GraphQLInfo | PartialGraphQLInfo,
     model: ModelBusinessLayer<GraphQLModel, any>
 ): Promise<RecursivePartial<GraphQLModel>> {
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object', { code: genErrorCode('0029') });
     if (!model.cud)
         throw new CustomError(CODE.InternalError, 'Model does not support update', { code: genErrorCode('0030') });
-    // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
-    let partial = toPartialSelect(info, model.relationshipMap);
-    if (!partial)
+    // Partially convert info type
+    let partialInfo = toPartialGraphQLInfo(info, model.relationshipMap);
+    if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0031') });
     // Shape update input to match prisma update shape (i.e. "where" and "data" fields)
     const shapedInput = { where: { id: input.id }, data: input };
-    const { updated } = await model.cud({ partial, userId, updateMany: [shapedInput] });
+    const { updated } = await model.cud({ partialInfo, userId, updateMany: [shapedInput] });
     if (updated && updated.length > 0) {
         // If organization, project, routine, or standard, log for stats
-        const objectType = partial.__typename;
+        const objectType = partialInfo.__typename;
         if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {
             const logs = updated.map((c: any) => ({
                 timestamp: Date.now(),
@@ -1447,7 +1495,7 @@ export async function updateHelper<GraphQLModel>(
             // No need to await this, since it is not needed for the response
             Log.collection.insertMany(logs).catch(error => logger.log(LogLevel.error, 'Failed creating "Update" log', { code: genErrorCode('0195'), error }));
         }
-        return (await addSupplementalFields(model.prisma, userId, updated, partial))[0] as any;
+        return (await addSupplementalFields(model.prisma, userId, updated, partialInfo))[0] as any;
     }
     throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in updateHelper', { code: genErrorCode('0032') });
 }
@@ -1469,7 +1517,7 @@ export async function deleteOneHelper(
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete object', { code: genErrorCode('0033') });
     if (!model.cud)
         throw new CustomError(CODE.InternalError, 'Model does not support delete', { code: genErrorCode('0034') });
-    const { deleted } = await model.cud({ partial: {}, userId, deleteMany: [input.id] });
+    const { deleted } = await model.cud({ partialInfo: {}, userId, deleteMany: [input.id] });
     if (deleted?.count && deleted.count > 0) {
         // If organization, project, routine, or standard, log for stats
         const objectType = model.relationshipMap.__typename;
@@ -1505,7 +1553,7 @@ export async function deleteManyHelper(
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete objects', { code: genErrorCode('0035') });
     if (!model.cud)
         throw new CustomError(CODE.InternalError, 'Model does not support delete', { code: genErrorCode('0036') });
-    const { deleted } = await model.cud({ partial: {}, userId, deleteMany: input.ids });
+    const { deleted } = await model.cud({ partialInfo: {}, userId, deleteMany: input.ids });
     if (!deleted)
         throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in deleteManyHelper', { code: genErrorCode('0037') });
     // If organization, project, routine, or standard, log for stats
@@ -1522,4 +1570,91 @@ export async function deleteManyHelper(
         Log.collection.insertMany(logs).catch(error => logger.log(LogLevel.error, 'Failed creating "Delete" logs', { code: genErrorCode('0197'), error }));
     }
     return deleted
+}
+
+/**
+ * Helper function for copying an object in a single line
+ * @param userId ID of user making the request
+ * @param input GraphQL delete one input object
+ * @param info GraphQL info object
+ * @param model Business layer model
+ * @returns GraphQL Success response object
+ */
+export async function copyHelper(
+    userId: string | null,
+    input: CopyInput,
+    info: GraphQLInfo | PartialGraphQLInfo,
+    model: ModelBusinessLayer<any, any>,
+): Promise<any> {
+    if (!userId)
+        throw new CustomError(CODE.Unauthorized, 'Must be logged in to copy object', { code: genErrorCode('0229') });
+    if (!model.duplicate)
+        throw new CustomError(CODE.InternalError, 'Model does not support copy', { code: genErrorCode('0230') });
+    // Partially convert info
+    let partialInfo = toPartialGraphQLInfo(info, ({
+        '__typename': GraphQLModelType.Copy,
+        'node': GraphQLModelType.Node,
+        'organization': GraphQLModelType.Organization,
+        'project': GraphQLModelType.Project,
+        'routine': GraphQLModelType.Routine,
+        'standard': GraphQLModelType.Standard,
+    }));
+    if (!partialInfo)
+        throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0231') });
+    const { object } = await model.duplicate({ userId, objectId: input.id, isFork: false, createCount: 0 });
+    // If not a node, log for stats
+    if (input.objectType !== CopyType.Node) {
+        // No need to await this, since it is not needed for the response
+        Log.collection.insertOne({
+            timestamp: Date.now(),
+            userId: userId,
+            action: LogType.Copy,
+            object1Type: input.objectType,
+            object1Id: input.id,
+        }).catch(error => logger.log(LogLevel.error, 'Failed creating "Copy" log', { code: genErrorCode('0232'), error }));
+    }
+    const fullObject = await readOneHelper(userId, { id: object.id }, (partialInfo as any)[input.objectType.toLowerCase()], model);
+    return fullObject;
+}
+
+/**
+ * Helper function for forking an object in a single line
+ * @param userId ID of user making the request
+ * @param input GraphQL delete one input object
+ * @param info GraphQL info object
+ * @param model Business layer model
+ * @returns GraphQL Success response object
+ */
+export async function forkHelper(
+    userId: string | null,
+    input: ForkInput,
+    info: GraphQLInfo | PartialGraphQLInfo,
+    model: ModelBusinessLayer<any, any>,
+): Promise<any> {
+    if (!userId)
+        throw new CustomError(CODE.Unauthorized, 'Must be logged in to fork object', { code: genErrorCode('0233') });
+    if (!model.duplicate)
+        throw new CustomError(CODE.InternalError, 'Model does not support fork', { code: genErrorCode('0234') });
+    // Partially convert info
+    let partialInfo = toPartialGraphQLInfo(info, ({
+        '__typename': GraphQLModelType.Fork,
+        'organization': GraphQLModelType.Organization,
+        'project': GraphQLModelType.Project,
+        'routine': GraphQLModelType.Routine,
+        'standard': GraphQLModelType.Standard,
+    }));
+    if (!partialInfo)
+        throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0235') });
+    const { object } = await model.duplicate({ userId, objectId: input.id, isFork: false, createCount: 0 });
+    // Log for stats
+    // No need to await this, since it is not needed for the response
+    Log.collection.insertOne({
+        timestamp: Date.now(),
+        userId: userId,
+        action: LogType.Fork,
+        object1Type: input.objectType,
+        object1Id: input.id,
+    }).catch(error => logger.log(LogLevel.error, 'Failed creating "Fork" log', { code: genErrorCode('0236'), error }));
+    const fullObject = await readOneHelper(userId, { id: object.id }, (partialInfo as any)[input.objectType.toLowerCase()], model);
+    return fullObject;
 }

@@ -25,6 +25,10 @@ export const commentCreate = yup.object().shape({
     translationsCreate: commentTranslationsCreate.required(),
 })
 
+export const commentCreateForm = yup.object().shape({
+    comment: text.required(),
+})
+
 /**
  * Information required when updating an organization
  */

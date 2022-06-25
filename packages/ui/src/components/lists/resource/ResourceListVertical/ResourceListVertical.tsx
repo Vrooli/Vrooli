@@ -40,15 +40,16 @@ export const ResourceListVertical = ({
         if (handleUpdate) {
             handleUpdate({
                 ...list,
-                resources: updateArray(list.resources, updatedResource.index, updatedResource),
+                resources: updateArray(list.resources, index, updatedResource),
             });
         }
     }, [handleUpdate, list]);
 
     const [deleteMutation] = useMutation<any>(resourceDeleteManyMutation);
-    const onDelete = useCallback((resource: Resource) => {
+    const onDelete = useCallback((index: number) => {
         if (!list) return;
-        if (mutate) {
+        const resource = list.resources[index];
+        if (mutate && resource.id) {
             mutationWrapper({
                 mutation: deleteMutation,
                 input: { ids: [resource.id] },
@@ -85,17 +86,13 @@ export const ResourceListVertical = ({
     }, []);
 
     // Add/update resource dialog
+    const [editingIndex, setEditingIndex] = useState<number>(-1);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const openDialog = useCallback(() => { setIsDialogOpen(true) }, []);
-    const closeDialog = useCallback(() => { setIsDialogOpen(false) }, []);
-    const [editingIndex, setEditingIndex] = useState<number>(-1);
+    const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1) }, []);
     const openUpdateDialog = useCallback((index: number) => {
         setEditingIndex(index);
         setIsDialogOpen(true)
-    }, []);
-    const closeUpdateDialog = useCallback(() => {
-        setEditingIndex(-1);
-        setIsDialogOpen(false)
     }, []);
 
     const dialog = useMemo(() => (
@@ -129,7 +126,10 @@ export const ResourceListVertical = ({
                 {list?.resources?.map((c: Resource, index) => (
                     <ResourceListItem
                         key={`resource-card-${index}`}
+                        canEdit={canEdit}
                         data={c}
+                        handleEdit={() => openUpdateDialog(index)}
+                        handleDelete={onDelete}
                         index={index}
                         loading={loading}
                         session={session}

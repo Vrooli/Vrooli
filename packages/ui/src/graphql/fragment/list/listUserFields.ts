@@ -7,5 +7,6 @@ export const listUserFields = gql`
         name
         stars
         isStarred
+        reportsCount
     }
 `

@@ -37,10 +37,12 @@ export interface listOrganizationFields_translations {
 export interface listOrganizationFields {
   __typename: "Organization";
   id: string;
+  commentsCount: number;
   handle: string | null;
   stars: number;
   isOpenToNewMembers: boolean;
   isStarred: boolean;
+  reportsCount: number;
   role: MemberRole | null;
   tags: listOrganizationFields_tags[];
   translations: listOrganizationFields_translations[];

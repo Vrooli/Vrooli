@@ -1,12 +1,12 @@
 import { gql } from 'graphql-tag';
 import { listRunFields, listStarFields, listViewFields } from 'graphql/fragment';
 
-export const forYouPageQuery = gql`
+export const historyPageQuery = gql`
     ${listRunFields}
     ${listStarFields}
     ${listViewFields}
-    query forYouPage($input: ForYouPageInput!) {
-        forYouPage(input: $input) {
+    query historyPage($input: HistoryPageInput!) {
+        historyPage(input: $input) {
             activeRuns {
                 ...listRunFields
             }

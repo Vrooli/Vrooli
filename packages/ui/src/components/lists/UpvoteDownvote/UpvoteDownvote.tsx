@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { UpvoteDownvoteProps } from '../types';
 
 export const UpvoteDownvote = ({
+    direction = "column",
     session,
     score,
     isUpvoted,
@@ -24,7 +25,7 @@ export const UpvoteDownvote = ({
         // If the score and internal score match, return the score
         if (internalIsUpvoted === isUpvoted) return scoreNum;
         // Otherwise, determine score based on internal state
-        if ((isUpvoted === true && internalIsUpvoted === null) || 
+        if ((isUpvoted === true && internalIsUpvoted === null) ||
             (isUpvoted === null && internalIsUpvoted === false)) return scoreNum - 1;
         if ((isUpvoted === false && internalIsUpvoted === null) ||
             (isUpvoted === null && internalIsUpvoted === true)) return scoreNum + 1;
@@ -72,9 +73,9 @@ export const UpvoteDownvote = ({
     }, [internalIsUpvoted, session.id]);
 
     return (
-        <Stack direction="column">
+        <Stack direction={direction}>
             {/* Upvote arrow */}
-            <Tooltip title="Upvote" placement="left" >
+            <Tooltip title="Upvote" placement={direction === "column" ? "left" : "top"}>
                 <Box
                     display="inline-block"
                     onClick={handleUpvoteClick}
@@ -82,6 +83,7 @@ export const UpvoteDownvote = ({
                     aria-pressed={internalIsUpvoted === true}
                     sx={{
                         cursor: session.id ? 'pointer' : 'default',
+                        display: 'flex',
                         '&:hover': {
                             filter: session.id ? `brightness(120%)` : 'none',
                             transition: 'filter 0.2s',
@@ -94,9 +96,9 @@ export const UpvoteDownvote = ({
                 </Box>
             </Tooltip>
             {/* Score */}
-            <Typography variant="body1" textAlign="center">{internalScore}</Typography>
+            <Typography variant="body1" textAlign="center" sx={{ margin: 'auto' }}>{internalScore}</Typography>
             {/* Downvote arrow */}
-            <Tooltip title="Downvote" placement="left">
+            <Tooltip title="Downvote" placement={direction === "column" ? "left" : "top"}>
                 <Box
                     display="inline-block"
                     onClick={handleDownvoteClick}
@@ -104,6 +106,7 @@ export const UpvoteDownvote = ({
                     aria-pressed={internalIsUpvoted === false}
                     sx={{
                         cursor: session.id ? 'pointer' : 'default',
+                        display: 'flex',
                         '&:hover': {
                             filter: session.id ? `brightness(120%)` : 'none',
                             transition: 'filter 0.2s',

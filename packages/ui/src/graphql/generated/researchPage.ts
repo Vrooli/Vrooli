@@ -37,6 +37,7 @@ export interface researchPage_researchPage_processes_translations {
 export interface researchPage_researchPage_processes {
   __typename: "Routine";
   id: string;
+  commentsCount: number;
   completedAt: any | null;
   complexity: number;
   created_at: any;
@@ -45,6 +46,7 @@ export interface researchPage_researchPage_processes {
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
+  reportsCount: number;
   role: MemberRole | null;
   score: number;
   simplicity: number;
@@ -82,12 +84,14 @@ export interface researchPage_researchPage_newlyCompleted_Project_translations {
 export interface researchPage_researchPage_newlyCompleted_Project {
   __typename: "Project";
   id: string;
+  commentsCount: number;
   handle: string | null;
   role: MemberRole | null;
   score: number;
   stars: number;
   isUpvoted: boolean | null;
   isStarred: boolean;
+  reportsCount: number;
   tags: researchPage_researchPage_newlyCompleted_Project_tags[];
   translations: researchPage_researchPage_newlyCompleted_Project_translations[];
 }
@@ -120,6 +124,7 @@ export interface researchPage_researchPage_newlyCompleted_Routine_translations {
 export interface researchPage_researchPage_newlyCompleted_Routine {
   __typename: "Routine";
   id: string;
+  commentsCount: number;
   completedAt: any | null;
   complexity: number;
   created_at: any;
@@ -128,6 +133,7 @@ export interface researchPage_researchPage_newlyCompleted_Routine {
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
+  reportsCount: number;
   role: MemberRole | null;
   score: number;
   simplicity: number;
@@ -167,12 +173,14 @@ export interface researchPage_researchPage_needVotes_translations {
 export interface researchPage_researchPage_needVotes {
   __typename: "Project";
   id: string;
+  commentsCount: number;
   handle: string | null;
   role: MemberRole | null;
   score: number;
   stars: number;
   isUpvoted: boolean | null;
   isStarred: boolean;
+  reportsCount: number;
   tags: researchPage_researchPage_needVotes_tags[];
   translations: researchPage_researchPage_needVotes_translations[];
 }
@@ -205,12 +213,14 @@ export interface researchPage_researchPage_needInvestments_translations {
 export interface researchPage_researchPage_needInvestments {
   __typename: "Project";
   id: string;
+  commentsCount: number;
   handle: string | null;
   role: MemberRole | null;
   score: number;
   stars: number;
   isUpvoted: boolean | null;
   isStarred: boolean;
+  reportsCount: number;
   tags: researchPage_researchPage_needInvestments_tags[];
   translations: researchPage_researchPage_needInvestments_translations[];
 }
@@ -243,10 +253,12 @@ export interface researchPage_researchPage_needMembers_translations {
 export interface researchPage_researchPage_needMembers {
   __typename: "Organization";
   id: string;
+  commentsCount: number;
   handle: string | null;
   stars: number;
   isOpenToNewMembers: boolean;
   isStarred: boolean;
+  reportsCount: number;
   role: MemberRole | null;
   tags: researchPage_researchPage_needMembers_tags[];
   translations: researchPage_researchPage_needMembers_translations[];

@@ -25,6 +25,21 @@ export const emailVerifier = () => ({
 })
 
 export const emailMutater = (prisma: PrismaType, verifier: ReturnType<typeof emailVerifier>) => ({
+    toDBShapeAdd(userId: string | null, data: EmailCreateInput): any {
+        return {
+            userId,
+            emailAddress: data.emailAddress,
+            receivesAccountUpdates: data.receivesAccountUpdates ?? true,
+            receivesBusinessUpdates: data.receivesBusinessUpdates ?? true,
+        }
+    },
+    toDBShapeUpdate(userId: string | null, data: EmailUpdateInput): any {
+        return {
+            id: data.id,
+            receivesAccountUpdates: data.receivesAccountUpdates ?? undefined,
+            receivesBusinessUpdates: data.receivesBusinessUpdates ?? undefined,
+        }
+    },
     async relationshipBuilder(
         userId: string | null,
         input: { [x: string]: any },
@@ -48,7 +63,7 @@ export const emailMutater = (prisma: PrismaType, verifier: ReturnType<typeof ema
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<EmailCreateInput, EmailUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId) 
+        if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0043') });
         if (createMany) {
             emailsCreate.validateSync(createMany, { abortEarly: false });
@@ -57,7 +72,7 @@ export const emailMutater = (prisma: PrismaType, verifier: ReturnType<typeof ema
             const emails = await prisma.email.findMany({
                 where: { emailAddress: { in: createMany.map(email => email.emailAddress) } },
             });
-            if (emails.length > 0) 
+            if (emails.length > 0)
                 throw new CustomError(CODE.EmailInUse, 'Email address is already in use', { code: genErrorCode('0044') });
         }
         if (updateMany) {
@@ -71,11 +86,11 @@ export const emailMutater = (prisma: PrismaType, verifier: ReturnType<typeof ema
                     ],
                 },
             });
-            if (emails.length !== updateMany.length) 
+            if (emails.length !== updateMany.length)
                 throw new CustomError(CODE.EmailInUse, 'At least one of these emails is not yours', { code: genErrorCode('0045') });
         }
     },
-    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<EmailCreateInput, EmailUpdateInput>): Promise<CUDResult<Email>> {
+    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<EmailCreateInput, EmailUpdateInput>): Promise<CUDResult<Email>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -84,20 +99,17 @@ export const emailMutater = (prisma: PrismaType, verifier: ReturnType<typeof ema
             for (const input of createMany) {
                 // Check for existing email
                 const existing = await prisma.email.findUnique({ where: { emailAddress: input.emailAddress } });
-                if (existing) 
+                if (existing)
                     throw new CustomError(CODE.EmailInUse, 'Email address is already in use', { code: genErrorCode('0046') });
                 // Create object
                 const currCreated = await prisma.email.create({
-                    data: {
-                        userId,
-                        ...input
-                    },
-                    ...selectHelper(partial)
+                    data: this.toDBShapeAdd(userId, input),
+                    ...selectHelper(partialInfo)
                 });
                 // Send verification email
                 await profileValidater().setupVerificationCode(input.emailAddress, prisma);
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partial);
+                const converted = modelToGraphQL(currCreated, partialInfo);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -114,16 +126,16 @@ export const emailMutater = (prisma: PrismaType, verifier: ReturnType<typeof ema
                         ]
                     }
                 })
-                if (!object) 
+                if (!object)
                     throw new CustomError(CODE.NotFound, "Email not found", { code: genErrorCode('0047') });
                 // Update
                 object = await prisma.email.update({
                     where: input.where,
-                    data: input.data,
-                    ...selectHelper(partial)
+                    data: this.toDBShapeUpdate(userId, input.data),
+                    ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(object, partial);
+                const converted = modelToGraphQL(object, partialInfo);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }
@@ -142,7 +154,7 @@ export const emailMutater = (prisma: PrismaType, verifier: ReturnType<typeof ema
                     verified: true,
                 }
             })
-            if (!emails) 
+            if (!emails)
                 throw new CustomError(CODE.NotFound, "Email not found", { code: genErrorCode('0048') });
             // Check if user has at least one verified authentication method, besides the one being deleted
             const numberOfVerifiedEmailDeletes = emails.filter(email => email.verified).length;
@@ -154,7 +166,7 @@ export const emailMutater = (prisma: PrismaType, verifier: ReturnType<typeof ema
             })
             const wontHaveVerifiedEmail = numberOfVerifiedEmailDeletes >= verifiedEmailsCount;
             const wontHaveVerifiedWallet = verifiedWalletsCount <= 0;
-            if (wontHaveVerifiedEmail || wontHaveVerifiedWallet) 
+            if (wontHaveVerifiedEmail || wontHaveVerifiedWallet)
                 throw new CustomError(CODE.InternalError, "Cannot delete all verified authentication methods", { code: genErrorCode('0049') });
             // Delete
             deleted = await prisma.email.deleteMany({

@@ -67,11 +67,13 @@ export const typeDef = gql`
         stars: Int!
         views: Int!
         comments: [Comment!]!
+        commentsCount: Int!
         creator: Contributor
         forks: [Project!]!
         owner: Contributor
         parent: Project
         reports: [Report!]!
+        reportsCount: Int!
         resourceLists: [ResourceList!]
         routines: [Routine!]!
         starredBy: [User!]

@@ -39,6 +39,7 @@ const searchButtonStyle = {
 export function SearchList<DataType, SortBy, Query, QueryVariables extends SearchQueryVariablesInput<SortBy>>({
     canSearch = true,
     handleAdd,
+    hideRoles,
     itemKeyPrefix,
     noResultsText = 'No results',
     searchPlaceholder = 'Search...',
@@ -201,13 +202,14 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     }, [allData, session]);
 
     const listItems = useMemo(() => listToListItems({
-        dummyItems: new Array(5).fill('Routine'), //TODO
+        dummyItems: new Array(5).fill(objectType),
+        hideRoles,
         items: allData,
         keyPrefix: itemKeyPrefix,
         loading,
         onClick: (item) => onObjectSelect(item),
         session: session,
-    }), [allData, itemKeyPrefix, loading, session, onObjectSelect])
+    }), [allData, hideRoles, itemKeyPrefix, loading, objectType, session, onObjectSelect])
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button

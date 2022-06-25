@@ -18,11 +18,12 @@ export interface routineStepFields {
   __typename: "RunStep";
   id: string;
   order: number;
-  pickups: number;
+  contextSwitches: number;
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
   title: string;
   status: RunStepStatus;
+  step: number[];
   node: routineStepFields_node | null;
 }

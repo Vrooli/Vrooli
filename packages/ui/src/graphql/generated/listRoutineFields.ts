@@ -37,6 +37,7 @@ export interface listRoutineFields_translations {
 export interface listRoutineFields {
   __typename: "Routine";
   id: string;
+  commentsCount: number;
   completedAt: any | null;
   complexity: number;
   created_at: any;
@@ -45,6 +46,7 @@ export interface listRoutineFields {
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
+  reportsCount: number;
   role: MemberRole | null;
   score: number;
   simplicity: number;

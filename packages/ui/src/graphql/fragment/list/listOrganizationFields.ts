@@ -15,10 +15,12 @@ export const listOrganizationFields = gql`
     }
     fragment listOrganizationFields on Organization {
         id
+        commentsCount
         handle
         stars
         isOpenToNewMembers
         isStarred
+        reportsCount
         role
         tags {
             ...listOrganizationTagFields

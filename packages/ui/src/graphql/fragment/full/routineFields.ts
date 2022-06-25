@@ -198,12 +198,13 @@ export const routineFields = gql`
     fragment routineStepFields on RunStep {
         id
         order
-        pickups
+        contextSwitches
         timeStarted
         timeElapsed
         timeCompleted
         title
         status
+        step
         node {
             id
         }
@@ -211,7 +212,7 @@ export const routineFields = gql`
     fragment routineRunFields on Run {
         id
         completedComplexity
-        pickups
+        contextSwitches
         timeStarted
         timeElapsed
         timeCompleted

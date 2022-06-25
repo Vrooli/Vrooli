@@ -58,9 +58,11 @@ export const typeDef = gql`
         isViewed: Boolean!
         role: MemberRole
         comments: [Comment!]!
+        commentsCount: Int!
         members: [Member!]!
         projects: [Project!]!
         reports: [Report!]!
+        reportsCount: Int!
         resourceLists: [ResourceList!]!
         routines: [Routine!]!
         routinesCreated: [Routine!]!

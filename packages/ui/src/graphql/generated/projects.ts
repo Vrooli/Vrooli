@@ -43,12 +43,14 @@ export interface projects_projects_edges_node_translations {
 export interface projects_projects_edges_node {
   __typename: "Project";
   id: string;
+  commentsCount: number;
   handle: string | null;
   role: MemberRole | null;
   score: number;
   stars: number;
   isUpvoted: boolean | null;
   isStarred: boolean;
+  reportsCount: number;
   tags: projects_projects_edges_node_tags[];
   translations: projects_projects_edges_node_translations[];
 }

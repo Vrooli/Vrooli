@@ -87,11 +87,10 @@ export const DevelopPage = ({
     }), [developPageData?.developPage?.completed, developPageLoading, session, toItemPage])
 
     return (
-        <Box sx={{
+        <Box id='page' sx={{
             padding: '0.5em',
             paddingTop: { xs: '64px', md: '80px' },
             width: 'min(100%, 700px)',
-            minHeight: '100vh',
             margin: 'auto',
         }}>
             {/* Title and help button */}

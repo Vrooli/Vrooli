@@ -1,8 +1,8 @@
 import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeRoutineListItem, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemCreateInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialSelect, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, FormatConverter, GraphQLInfo, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
-import { CODE, inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, MemberRole, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routinesUpdate, routineTranslationCreate, routineTranslationUpdate } from "@local/shared";
+import { CODE, DeleteOneType, inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, MemberRole, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routinesUpdate, routineTranslationCreate, routineTranslationUpdate } from "@local/shared";
 import { hasProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -16,6 +16,7 @@ import { ResourceListModel } from "./resourceList";
 import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
 import { runFormatter } from "./run";
+import { v4 as uuidv4 } from 'uuid';
 
 type NodeWeightData = {
     simplicity: number,
@@ -29,7 +30,8 @@ type NodeWeightData = {
 //==============================================================
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
-const countMapper = { nodesCount: 'nodes' }
+const countMapper = { commentsCount: 'comments', nodesCount: 'nodes', reportsCount: 'reports' };
+const calculatedFields = ['inProgressCompletedSteps', 'inProgressCompletedComplexity', 'inProgressVersion', 'isUpvoted', 'isStarred', 'role', 'runs'];
 export const routineFormatter = (): FormatConverter<Routine> => ({
     relationshipMap: {
         '__typename': GraphQLModelType.Routine,
@@ -54,7 +56,6 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         'tags': GraphQLModelType.Tag,
     },
     removeCalculatedFields: (partial) => {
-        const calculatedFields = ['inProgressCompletedSteps', 'inProgressCompletedComplexity', 'inProgressVersion', 'isUpvoted', 'isStarred', 'role', 'runs'];
         return _.omit(partial, calculatedFields);
     },
     constructUnions: (data) => {
@@ -83,7 +84,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         prisma: PrismaType,
         userId: string | null, // Of the user making the request
         objects: RecursivePartial<any>[],
-        partial: PartialInfo,
+        partial: PartialGraphQLInfo,
     ): Promise<RecursivePartial<Routine>[]> {
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
@@ -110,12 +111,33 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         }
         // Query for role
         if (partial.role) {
+            let organizationIds: string[] = [];
+            // Collect owner data
+            let ownerData: any = objects.map(x => x.owner).filter(x => x);
+            // If no owner data was found, then owner data was not queried. In this case, query for owner data.
+            if (ownerData.length === 0) {
+                const ownerDataUnformatted = await prisma.routine.findMany({
+                    where: { id: { in: ids } },
+                    select: {
+                        id: true,
+                        user: { select: { id: true } },
+                        organization: { select: { id: true } },
+                    },
+                });
+                organizationIds = ownerDataUnformatted.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
+                // Inject owner data into "objects"
+                objects = objects.map((x, i) => {
+                    const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
+                    return ({ ...x, owner: unformatted?.user || unformatted?.organization })
+                });
+            } else {
+                organizationIds = objects
+                    .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
+                    .map(x => x.owner.id)
+                    .filter(x => Boolean(x)) as string[];
+            }
             // If owned by user, set role to owner if userId matches
             // If owned by organization, set role user's role in organization
-            const organizationIds = objects
-                .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
-                .map(x => x.owner.id)
-                .filter(x => Boolean(x)) as string[];
             const roles = userId
                 ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
                 : [];
@@ -133,7 +155,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
                 // Find requested fields of runs. Also add routineId, so we 
                 // can associate runs with their routine
                 const runPartial = {
-                    ...toPartialSelect(partial.runs, runFormatter().relationshipMap),
+                    ...toPartialGraphQLInfo(partial.runs, runFormatter().relationshipMap),
                     routineId: true
                 }
                 if (runPartial === undefined) {
@@ -258,6 +280,13 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
  * @returns [shortestPath, longestPath] The shortest and longest weighted distance
  */
 export const calculateShortestLongestWeightedPath = (nodes: { [id: string]: NodeWeightData }, edges: { fromId: string, toId: string }[]): [number, number] => {
+    // First, check that all edges point to valid nodes. 
+    // If this isn't the case, this algorithm could run into an error
+    for (const edge of edges) {
+        if (!nodes[edge.toId] || !nodes[edge.fromId]) {
+            throw new CustomError(CODE.InvalidArgs, 'Could not calculate complexity/simplicity: not all edges map to existing nodes', { code: genErrorCode('0237'), failedEdge: edge })
+        }
+    }
     // If no nodes or edges, return 1
     if (Object.keys(nodes).length === 0 || edges.length === 0) return [1, 1];
     // Create a dictionary of edges, where the key is a node ID and the value is an array of edges that END at that node
@@ -292,9 +321,9 @@ export const calculateShortestLongestWeightedPath = (nodes: { [id: string]: Node
             const newVisitedEdges = visitedEdges.concat([edge]);
             // Recurse on the next node 
             const [shortest, longest] = getShortLong(
-                edge.fromId, 
-                newVisitedEdges, 
-                currShortest + weight.simplicity + weight.optionalInputs, 
+                edge.fromId,
+                newVisitedEdges,
+                currShortest + weight.simplicity + weight.optionalInputs,
                 currLongest + weight.complexity + weight.allInputs);
             // If shortest is not -1, add to edgeShorts
             if (shortest !== -1) edgeShorts.push(shortest);
@@ -335,7 +364,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             existingRoutine = await prisma.routine.findUnique({
                 where: { id: (data as RoutineUpdateInput).id },
                 select: {
-                    nodeLinks: { select: { fromId: true, toId: true } },
+                    nodeLinks: { select: { id: true, fromId: true, toId: true } },
                     nodes: {
                         select: {
                             id: true, // Needed to associate with links
@@ -417,8 +446,8 @@ export const routineMutater = (prisma: PrismaType) => ({
         // Convert compexity/simplicity to a map for easy lookup
         let subroutineWeightDataDict: { [routineId: string]: NodeWeightData } = {};
         for (const sub of subroutineWeightData) {
-            subroutineWeightDataDict[sub.id] = { 
-                complexity: sub.complexity, 
+            subroutineWeightDataDict[sub.id] = {
+                complexity: sub.complexity,
                 simplicity: sub.simplicity,
                 optionalInputs: sub.inputs.filter(input => !input.isRequired).length,
                 allInputs: sub.inputs.length,
@@ -596,39 +625,58 @@ export const routineMutater = (prisma: PrismaType) => ({
         } : undefined;
     },
     /**
-     * Add, update, or remove a routine relationship from a routine list
+     * Add, update, or remove a one-to-one routine relationship. 
+     * Due to some unknown Prisma bug, it won't let us create/update a routine directly
+     * in the main mutation query like most other relationship builders. Instead, we 
+     * must do this separately, and return the routine's ID.
      */
     async relationshipBuilder(
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
-        relationshipName: string = 'routines',
-    ): Promise<{ [x: string]: any } | undefined> {
+    ): Promise<string | null> {
+        // Convert input to Prisma shape
         const fieldExcludes = ['node', 'user', 'userId', 'organization', 'organizationId', 'createdByUser', 'createdByUserId', 'createdByOrganization', 'createdByOrganizationId'];
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, fieldExcludes })
+        let formattedInput: any = relationshipToPrisma({ data: input, relationshipName: 'routine', isAdd, fieldExcludes })
         // Validate
         const { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         await this.validateMutations({
             userId,
             createMany: createMany as RoutineCreateInput[],
             updateMany: updateMany as { where: { id: string }, data: RoutineUpdateInput }[],
-            deleteMany: deleteMany?.map(d => d.id)
+            deleteMany: deleteMany?.map((d: any) => d.id)
         });
         // Shape
-        if (Array.isArray(formattedInput.create)) {
-            formattedInput.create = formattedInput.create.map(async (data) => await this.toDBShape(userId, data as any, true));
+        if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
+            const create = await this.toDBShape(userId, formattedInput.create[0], true);
+            // Create routine
+            const routine = await prisma.routine.create({
+                data: create,
+            })
+            return routine?.id ?? null;
         }
-        if (Array.isArray(formattedInput.update)) {
-            const updates = [];
-            for (const update of formattedInput.update) {
-                updates.push({
-                    where: update.where,
-                    data: await this.toDBShape(userId, update.data as any, false),
-                })
-            }
-            formattedInput.update = updates;
+        if (Array.isArray(formattedInput.connect) && formattedInput.connect.length > 0) {
+            return formattedInput.connect[0].id;
         }
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+        if (Array.isArray(formattedInput.disconnect) && formattedInput.disconnect.length > 0) {
+            return null;
+        }
+        if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
+            const update = await this.toDBShape(userId, formattedInput.update[0].data, false);
+            // Update routine
+            const routine = await prisma.routine.update({
+                where: { id: update.id },
+                data: update
+            })
+            return routine?.id ?? null;
+        }
+        if (Array.isArray(formattedInput.delete) && formattedInput.delete.length > 0) {
+            const deleteId = formattedInput.delete[0].id;
+            // Delete routine
+            await deleteOneHelper(userId, { id: deleteId, objectType: DeleteOneType.Routine }, RoutineModel(prisma));
+            return deleteId;
+        }
+        return null;
     },
     /**
      * Validate adds, updates, and deletes
@@ -690,7 +738,7 @@ export const routineMutater = (prisma: PrismaType) => ({
     /**
      * Performs adds, updates, and deletes of routines. First validates that every action is allowed.
      */
-    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<RoutineCreateInput, RoutineUpdateInput>): Promise<CUDResult<Routine>> {
+    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<RoutineCreateInput, RoutineUpdateInput>): Promise<CUDResult<Routine>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -714,9 +762,9 @@ export const routineMutater = (prisma: PrismaType) => ({
                     };
                 }
                 // Create object
-                const currCreated = await prisma.routine.create({ data, ...selectHelper(partial) });
+                const currCreated = await prisma.routine.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partial);
+                const converted = modelToGraphQL(currCreated, partialInfo);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -726,6 +774,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             for (const input of updateMany) {
                 // Call createData helper function
                 let data = await this.toDBShape(userId, input.data, false);
+                console.log('going to update routine start', JSON.stringify(data), '\n\n')
                 // Find object
                 let object = await prisma.routine.findFirst({ where: input.where })
                 if (!object)
@@ -744,14 +793,17 @@ export const routineMutater = (prisma: PrismaType) => ({
                         organization: { disconnect: true },
                     };
                 }
+                // next line tmep
+                // delete data.nodeLinks.delete
+                console.log('with temp delete', JSON.stringify(data), '\n\n')
                 // Update object
                 const currUpdated = await prisma.routine.update({
                     where: input.where,
                     data,
-                    ...selectHelper(partial)
+                    ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partial);
+                const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }
@@ -767,6 +819,410 @@ export const routineMutater = (prisma: PrismaType) => ({
             deleted: deleteMany ? deleted : undefined,
         };
     },
+    /**
+     * Duplicates a routine, along with its nodes and edges. 
+     * If a fork, then the parent is set as the original routine. 
+     * If a copy, there is no parent.
+     */
+    async duplicate({ userId, objectId, isFork, createCount = 0 }: DuplicateInput): Promise<DuplicateResult<Routine>> {
+        let newCreateCount = createCount;
+        // Find routine, with fields we want to copy.
+        // I hope I discover a better way to do this.
+        // Notable fields not being copied are completedAt and isComplete (since the copy will default to not complete),
+        // score and views and other stats (since the copy will default to 0),
+        // createdByUserId and createdByOrganizationId and projectId (since the copy will default to your own),
+        // parentId (since the original will be the parent of the copy),
+        // version (since the copy will default to 1.0.0),
+        const routine = await prisma.routine.findFirst({
+            where: { id: objectId },
+            select: {
+                id: true,
+                complexity: true,
+                isAutomatable: true,
+                isInternal: true,
+                simplicity: true,
+                userId: true,
+                organizationId: true,
+                nodes: {
+                    select: {
+                        id: true,
+                        columnIndex: true,
+                        rowIndex: true,
+                        type: true,
+                        nodeEnd: {
+                            select: {
+                                wasSuccessful: true
+                            }
+                        },
+                        loop: {
+                            select: {
+                                loops: true,
+                                maxLoops: true,
+                                operation: true,
+                                whiles: {
+                                    select: {
+                                        condition: true,
+                                        translations: {
+                                            select: {
+                                                description: true,
+                                                title: true,
+                                                language: true,
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        nodeRoutineList: {
+                            select: {
+                                isOrdered: true,
+                                isOptional: true,
+                                routines: {
+                                    select: {
+                                        id: true,
+                                        index: true,
+                                        isOptional: true,
+                                        routine: {
+                                            select: {
+                                                id: true,
+                                                isInternal: true,
+                                            }
+                                        },
+                                        translations: {
+                                            select: {
+                                                description: true,
+                                                title: true,
+                                                language: true,
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        translations: {
+                            select: {
+                                description: true,
+                                title: true,
+                                language: true,
+                            }
+                        }
+                    }
+                },
+                nodeLinks: {
+                    select: {
+                        fromId: true,
+                        toId: true,
+                        operation: true,
+                        whens: {
+                            select: {
+                                condition: true,
+                                translations: {
+                                    select: {
+                                        description: true,
+                                        title: true,
+                                        language: true,
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                resourceLists: {
+                    select: {
+                        index: true,
+                        usedFor: true,
+                        resources: {
+                            select: {
+                                index: true,
+                                link: true,
+                                usedFor: true,
+                                translations: {
+                                    select: {
+                                        description: true,
+                                        title: true,
+                                        language: true,
+                                    }
+                                }
+                            }
+                        },
+                        translations: {
+                            select: {
+                                description: true,
+                                title: true,
+                                language: true,
+                            }
+                        }
+                    }
+                },
+                inputs: {
+                    select: {
+                        isRequired: true,
+                        name: true,
+                        standardId: true,
+                        translations: {
+                            select: {
+                                description: true,
+                                language: true,
+                            }
+                        }
+                    }
+                },
+                outputs: {
+                    select: {
+                        name: true,
+                        standardId: true,
+                        translations: {
+                            select: {
+                                description: true,
+                                language: true,
+                            }
+                        }
+                    }
+                },
+                tags: {
+                    select: {
+                        id: true,
+                    }
+                },
+                translations: {
+                    select: {
+                        description: true,
+                        instructions: true,
+                        title: true,
+                        language: true,
+                    }
+                }
+            }
+        });
+        // If routine didn't exist
+        if (!routine) {
+            throw new CustomError(CODE.NotFound, 'Routine not found', { code: genErrorCode('0225') });
+        }
+        // If routine is marked as internal and it doesn't belong to you
+        else if (routine.isInternal && routine.userId !== userId) {
+            const memberData = await OrganizationModel(prisma).isOwnerOrAdmin(userId, [routine.organizationId]);
+            if (!memberData.some(member => member))
+                throw new CustomError(CODE.Unauthorized, 'Not authorized to copy', { code: genErrorCode('0226') })
+        }
+        // Initialize new routine object
+        const newRoutine: any = routine;
+        // For every node in the routine (and every edge which references it), change the ID 
+        // to a new random ID.
+        for (const node of newRoutine.nodes) {
+            const oldId = node.id;
+            // Update ID
+            node.id = uuidv4();
+            // Update reference to node in nodeLinks
+            for (const nodeLink of newRoutine.nodeLinks) {
+                if (nodeLink.fromId === oldId) {
+                    nodeLink.fromId = node.id;
+                }
+                if (nodeLink.toId === oldId) {
+                    nodeLink.toId = node.id;
+                }
+            }
+        }
+        // If copying subroutines, call this function for each subroutine
+        if (createCount < 100 && routine.nodes && routine.nodes.length > 0) {
+            const newSubroutineIds: string[] = [];
+            // Find the IDs of all isInternal subroutines
+            const oldSubroutineIds: string[] = [];
+            for (const node of routine.nodes) {
+                if (node.nodeRoutineList?.routines && node.nodeRoutineList?.routines.length > 0) {
+                    for (const subroutine of node.nodeRoutineList.routines) {
+                        if (subroutine.routine?.id && subroutine.routine?.isInternal) {
+                            oldSubroutineIds.push(subroutine.routine.id);
+                        }
+                    }
+                }
+            }
+            // Copy each subroutine
+            for (const subroutineId of oldSubroutineIds) {
+                const { object: copiedSubroutine, numCreated } = await this.duplicate({ userId, objectId: subroutineId, isFork: false, createCount: newCreateCount });
+                newSubroutineIds.push(copiedSubroutine.id ?? '');
+                newCreateCount += numCreated;
+                if (newCreateCount >= 100) {
+                    break;
+                }
+            }
+            // Change the IDs of all subroutines to the new IDs
+            for (const node of newRoutine.nodes) {
+                if (node.nodeRoutineList?.routines && node.nodeRoutineList?.routines.length > 0) {
+                    for (const subroutine of node.nodeRoutineList.routines) {
+                        if (subroutine.routine?.id && newSubroutineIds.includes(subroutine.routine.id)) {
+                            subroutine.routine.id = newSubroutineIds.find(id => id === subroutine.routine.id);
+                        }
+                    }
+                }
+            }
+        }
+        // Create the new routine
+        const createdRoutine = await prisma.routine.create({
+            data: {
+                // Give ownership to user copying routine
+                createdByUser: { connect: { id: userId } },
+                user: { connect: { id: userId } },
+                // Set parentId to original routine's id
+                parent: isFork ? { connect: { id: routine.id } } : undefined,
+                // Copy the rest of the fields
+                complexity: newRoutine.complexity,
+                isAutomatable: newRoutine.isAutomatable,
+                isInternal: newRoutine.isInternal,
+                simplicity: newRoutine.simplicity,
+                nodes: newRoutine.nodes ? {
+                    create: newRoutine.nodes.map((node: any) => ({
+                        id: node.id,
+                        columnIndex: node.columnIndex,
+                        rowIndex: node.rowIndex,
+                        type: node.type,
+                        nodeEnd: node.nodeEnd ? {
+                            create: {
+                                wasSuccessful: node.nodeEnd.wasSuccessful
+                            }
+                        } : undefined,
+                        loop: node.loop ? {
+                            create: {
+                                loops: node.loop.loops,
+                                maxLoops: node.loop.maxLoops,
+                                operation: node.loop.operation,
+                                whiles: node.loop.whiles ? {
+                                    create: node.loop.whiles.map((whileNode: any) => ({
+                                        condition: whileNode.condition,
+                                        translations: whileNode.translations ? {
+                                            create: whileNode.translations.map((translation: any) => ({
+                                                description: translation.description,
+                                                title: translation.title,
+                                                language: translation.language
+                                            }))
+                                        } : undefined
+                                    }))
+                                } : undefined
+                            }
+                        } : undefined,
+                        nodeRoutineList: node.nodeRoutineList ? {
+                            create: {
+                                isOrdered: node.nodeRoutineList.isOrdered,
+                                isOptional: node.nodeRoutineList.isOptional,
+                                routines: node.nodeRoutineList.routines ? {
+                                    create: [...node.nodeRoutineList.routines.map((routine: any) => {
+                                        return ({
+                                            index: routine.index,
+                                            routine: { connect: { id: routine.routine.id } },
+                                            translations: routine.translations ? {
+                                                create: routine.translations.map((translation: any) => ({
+                                                    description: translation.description,
+                                                    title: translation.title,
+                                                    language: translation.language
+                                                }))
+                                            } : undefined
+                                        })
+                                    })]
+                                } : undefined
+                            }
+                        } : undefined,
+                        translations: node.translations ? {
+                            create: node.translations.map((translation: any) => ({
+                                description: translation.description,
+                                title: translation.title,
+                                language: translation.language
+                            }))
+                        } : undefined,
+                    }))
+                } : undefined,
+                nodeLinks: newRoutine.nodeLinks ? {
+                    create: newRoutine.nodeLinks.map((nodeLink: any) => ({
+                        from: { connect: { id: nodeLink.fromId } },
+                        to: { connect: { id: nodeLink.toId } },
+                        operation: nodeLink.operation,
+                        whens: nodeLink.whens ? {
+                            create: nodeLink.whens.map((when: any) => ({
+                                condition: when.condition,
+                                translations: when.translations ? {
+                                    create: when.translations.map((translation: any) => ({
+                                        description: translation.description,
+                                        title: translation.title,
+                                        language: translation.language
+                                    }))
+                                } : undefined
+                            }))
+                        } : undefined,
+                        translations: nodeLink.translations ? {
+                            create: nodeLink.translations.map((translation: any) => ({
+                                description: translation.description,
+                                title: translation.title,
+                                language: translation.language
+                            }))
+                        } : undefined
+                    }))
+                } : undefined,
+                resourceLists: newRoutine.resourceLists ? {
+                    create: newRoutine.resourceLists.map((resourceList: any) => ({
+                        index: resourceList.index,
+                        usedFor: resourceList.usedFor,
+                        resources: resourceList.resources ? {
+                            create: resourceList.resources.map((resource: any) => ({
+                                index: resource.index,
+                                link: resource.link,
+                                usedFor: resource.usedFor,
+                                translations: resource.translations ? {
+                                    create: resource.translations.map((translation: any) => ({
+                                        description: translation.description,
+                                        title: translation.title,
+                                        language: translation.language
+                                    }))
+                                } : null
+                            }))
+                        } : null
+                    }))
+                } : undefined,
+                inputs: newRoutine.inputs ? {
+                    create: newRoutine.inputs.map((input: any) => ({
+                        isRequired: input.isRequired,
+                        name: input.name,
+                        standard: { connect: { id: input.standardId } },
+                        translations: input.translations ? {
+                            create: input.translations.map((translation: any) => ({
+                                description: translation.description,
+                                title: translation.title,
+                                language: translation.language
+                            }))
+                        } : undefined
+                    }))
+                } : undefined,
+                outputs: newRoutine.outputs ? {
+                    create: newRoutine.outputs.map((output: any) => ({
+                        name: output.name,
+                        standardId: output.standardId,
+                        translations: output.translations ? {
+                            create: output.translations.map((translation: any) => ({
+                                description: translation.description,
+                                title: translation.title,
+                                language: translation.language
+                            }))
+                        } : null
+                    }))
+                } : undefined,
+                tags: newRoutine.tags ? {
+                    connect: newRoutine.tags.map((tag: any) => ({
+                        id: tag.id
+                    }))
+                } : undefined,
+                translations: newRoutine.translations ? {
+                    create: newRoutine.translations.map((translation: any) => ({
+                        description: translation.description,
+                        instructions: translation.instructions,
+                        // Add "Copy" to title
+                        title: `${translation.title} (Copy)`,
+                        language: translation.language
+                    }))
+                } : undefined,
+            }
+        });
+        return {
+            object: createdRoutine as any,
+            numCreated: newCreateCount + 1
+        }
+    }
 })
 
 //==============================================================

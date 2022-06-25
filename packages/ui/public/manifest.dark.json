@@ -80,8 +80,8 @@
             "description": "View and search all tasks"
         },
         {
-            "name": "For You",
-            "url": "/for-you",
+            "name": "History",
+            "url": "/history",
             "description": "View your active, completed, and starred routines - and more!"
         },
         {

@@ -2,7 +2,7 @@ import { CODE, MemberRole, projectsCreate, projectsUpdate, projectTranslationCre
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor } from "../../schema/types";
-import { addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -19,6 +19,8 @@ import { ViewModel } from "./view";
 //==============================================================
 
 const joinMapper = { tags: 'tag', users: 'user', organizations: 'organization', starredBy: 'user' };
+const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
+const calculatedFields = ['isUpvoted', 'isStarred', 'role'];
 export const projectFormatter = (): FormatConverter<Project> => ({
     relationshipMap: {
         '__typename': GraphQLModelType.Project,
@@ -41,7 +43,6 @@ export const projectFormatter = (): FormatConverter<Project> => ({
         'wallets': GraphQLModelType.Wallet,
     },
     removeCalculatedFields: (partial) => {
-        const calculatedFields = ['isUpvoted', 'isStarred', 'role'];
         return _.omit(partial, calculatedFields);
     },
     constructUnions: (data) => {
@@ -60,11 +61,17 @@ export const projectFormatter = (): FormatConverter<Project> => ({
     removeJoinTables: (data) => {
         return removeJoinTablesHelper(data, joinMapper);
     },
+    addCountFields: (partial) => {
+        return addCountFieldsHelper(partial, countMapper);
+    },
+    removeCountFields: (data) => {
+        return removeCountFieldsHelper(data, countMapper);
+    },
     async addSupplementalFields(
         prisma: PrismaType,
         userId: string | null, // Of the user making the request
         objects: RecursivePartial<any>[],
-        partial: PartialInfo,
+        partial: PartialGraphQLInfo,
     ): Promise<RecursivePartial<Project>[]> {
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
@@ -91,12 +98,33 @@ export const projectFormatter = (): FormatConverter<Project> => ({
         }
         // Query for role
         if (partial.role) {
+            let organizationIds: string[] = [];
+            // Collect owner data
+            let ownerData: any = objects.map(x => x.owner).filter(x => x);
+            // If no owner data was found, then owner data was not queried. In this case, query for owner data.
+            if (ownerData.length === 0) {
+                const ownerDataUnformatted = await prisma.project.findMany({
+                    where: { id: { in: ids } },
+                    select: {
+                        id: true,
+                        user: { select: { id: true } },
+                        organization: { select: { id: true } },
+                    },
+                });
+                organizationIds = ownerDataUnformatted.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
+                // Inject owner data into "objects"
+                objects = objects.map((x, i) => { 
+                    const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
+                    return ({ ...x, owner: unformatted?.user || unformatted?.organization })
+                });
+            } else {
+                organizationIds = objects
+                    .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
+                    .map(x => x.owner.id)
+                    .filter(x => Boolean(x)) as string[];
+            }
             // If owned by user, set role to owner if userId matches
             // If owned by organization, set role user's role in organization
-            const organizationIds = objects
-                .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
-                .map(x => x.owner.id)
-                .filter(x => Boolean(x)) as string[];
             const roles = userId
                 ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
                 : [];
@@ -105,7 +133,7 @@ export const projectFormatter = (): FormatConverter<Project> => ({
                 if (orgRoleIndex >= 0) {
                     return { ...x, role: roles[orgRoleIndex] };
                 }
-                return { ...x, role: Boolean(userId) && x.owner?.id === userId ? MemberRole.Owner : undefined };
+                return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
             }) as any;
         }
         // Convert Prisma objects to GraphQL objects
@@ -237,7 +265,7 @@ export const projectMutater = (prisma: PrismaType) => ({
     /**
      * Performs adds, updates, and deletes of projects. First validates that every action is allowed.
      */
-    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<ProjectCreateInput, ProjectUpdateInput>): Promise<CUDResult<Project>> {
+    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<ProjectCreateInput, ProjectUpdateInput>): Promise<CUDResult<Project>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         /**
          * Helper function for creating create/update Prisma value
@@ -276,10 +304,10 @@ export const projectMutater = (prisma: PrismaType) => ({
                 // Create object
                 const currCreated = await prisma.project.create({
                     data,
-                    ...selectHelper(partial)
+                    ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partial);
+                const converted = modelToGraphQL(currCreated, partialInfo);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -311,10 +339,10 @@ export const projectMutater = (prisma: PrismaType) => ({
                 const currUpdated = await prisma.project.update({
                     where: input.where,
                     data,
-                    ...selectHelper(partial)
+                    ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partial);
+                const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }

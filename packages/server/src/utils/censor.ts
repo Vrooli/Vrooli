@@ -5,7 +5,8 @@ import { genErrorCode } from '../logger';
 import _ from 'lodash';
 
 const profanity = fs.readFileSync(`${process.env.PROJECT_DIR}/packages/server/src/utils/censorDictionary.txt`).toString().split("\n");
-const profanityRegex = new RegExp(profanity.join('|'), 'gi');
+// Add spacing around words (e.g. "document" contains "cum", but shouldn't be censored)
+const profanityRegex = new RegExp(profanity.map(word => `(?=\\b)${word}(?=\\b)`).join('|'), 'gi');
 
 /**
  * Determines if a string contains any banned words

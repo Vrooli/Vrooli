@@ -1,8 +1,9 @@
 import { Box, CircularProgress, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import {
+    ContentCopy as CopyIcon,
     MoreHoriz as EllipsisIcon,
 } from "@mui/icons-material";
-import { LinkButton, ResourceListHorizontal } from "components";
+import { HelpButton, LinkButton, ResourceListHorizontal } from "components";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo } from "react";
 import { containerShadow } from "styles";
@@ -63,20 +64,42 @@ export const SubroutineView = ({
         if (!data) return null;
         const schemas: { [fieldName: string]: FieldData } = {};
         for (let i = 0; i < data.inputs?.length; i++) {
-            const currSchema = standardToFieldData(data.inputs[i].standard, `inputs-${i}`);
+            const currSchema = standardToFieldData({
+                description: getTranslation(data.inputs[i], 'description', getUserLanguages(session), false) ?? getTranslation(data.inputs[i].standard, 'description', getUserLanguages(session), false),
+                fieldName: `inputs-${i}`,
+                props: data.inputs[i].standard?.props ?? '',
+                name: data.inputs[i].name ?? data.inputs[i].standard?.name ?? '',
+                type: data.inputs[i].standard?.type ?? '',
+                yup: data.inputs[i].standard?.yup ?? null,
+            });
             if (currSchema) {
                 schemas[currSchema.fieldName] = currSchema;
             }
         }
         return schemas;
-    }, [data]);
+    }, [data, session]);
     const previewFormik = useFormik({
-        initialValues: {
-            ...formValueMap,
-        },
+        initialValues: Object.entries(formValueMap ?? {}).reduce((acc, [key, value]) => {
+            acc[key] = value.props.defaultValue ?? '';
+            return acc;
+        }, {}),
         enableReinitialize: true,
         onSubmit: () => { },
     });
+
+    /**
+     * Copy current value of input to clipboard
+     * @param fieldName Name of input
+     */
+    const copyInput = useCallback((fieldName: string) => {
+        const input = previewFormik.values[fieldName];
+        if (input) {
+            navigator.clipboard.writeText(input);
+            PubSub.publish(Pubs.Snack, { message: 'Copied to clipboard.', severity: 'success' });
+        } else {
+            PubSub.publish(Pubs.Snack, { message: 'Input is empty.', severity: 'error' });
+        }
+    }, [previewFormik]);
 
     const resourceList = useMemo(() => {
         if (!data ||
@@ -186,7 +209,16 @@ export const SubroutineView = ({
                                     padding: 1,
                                     borderRadius: 1,
                                 }}>
-                                    <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>{field.label ?? `Input ${i + 1}`}</Typography>
+                                    {/* Label, help button, and copy iput icon */}
+                                    <Stack direction="row" spacing={0} sx={{ alignItems: 'center' }}>
+                                        <Tooltip title="Copy to clipboard">
+                                            <IconButton onClick={() => copyInput(field.fieldName)}>
+                                                <CopyIcon />
+                                            </IconButton>
+                                        </Tooltip>
+                                        <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>{field.label ?? `Input ${i + 1}`}</Typography>
+                                        {field.description && <HelpButton markdown={field.description} />}
+                                    </Stack>
                                     {
                                         generateInputComponent({
                                             data: field,

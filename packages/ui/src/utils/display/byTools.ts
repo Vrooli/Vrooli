@@ -10,7 +10,7 @@ import { getTranslation } from "./translationTools";
  */
 export const getOwnedByString = (
     object: { owner: Project['owner'] | Routine['owner'] } | null | undefined,
-    languages: string[]
+    languages: readonly string[]
 ): string => {
     if (!object || !object.owner) return '';
     // Check if user or organization. Only users have a non-translated name
@@ -29,7 +29,7 @@ export const getOwnedByString = (
  */
 export const getCreatedByString = (
     object: { creator: Standard['creator'] } | null | undefined,
-    languages: string[]
+    languages: readonly string[]
 ): string => {
     if (!object || !object.creator) return '';
     // Check if user or organization. Only users have a non-translated name

@@ -52,6 +52,9 @@ export const DialogActionsContainer = ({
                 <Box sx={{
                     position: fixed ? 'fixed' : 'relative',
                     bottom: fixed ? '0' : 'auto',
+                    paddingBottom: fixed ? 'env(safe-area-inset-bottom)' : '0',
+                    // // safe-area-inset-bottom is the iOS navigation bar
+                    // height: 'calc(56px + env(safe-area-inset-bottom))',
                     width: fixed ? '-webkit-fill-available' : 'auto',
                     zIndex: 4,
                     background: palette.primary.dark,

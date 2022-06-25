@@ -84,7 +84,7 @@ Stores information about individual runs of a routine.
 Can be multiple per routine/user combination.
 
 - `completedComplexity` - Complexity of routine which was already completed. Used to measure progress more accurately than just the number of nodes completed.
-- `pickups` - Measures context switches. 1 means that the routine was executed completely without leaving
+- `contextSwitches` - Measures context switches. 0 means that the routine was executed completely without leaving
 - `timeElapsed` - Time spent working on the run, in seconds
 
 ## run_step

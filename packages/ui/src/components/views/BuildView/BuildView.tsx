@@ -1,14 +1,14 @@
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, DeleteDialog, EditableLabel, UnlinkedNodesDialog, BuildInfoDialog, HelpButton } from 'components';
+import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, EditableLabel, UnlinkedNodesDialog, BuildInfoDialog, HelpButton } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, Status, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR } from 'utils';
-import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine } from 'types';
+import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
 import isEqual from 'lodash/isEqual';
 import { useLocation } from 'wouter';
-import { APP_LINKS, DeleteOneType } from '@local/shared';
+import { APP_LINKS } from '@local/shared';
 import { NodeType } from 'graphql/generated/globalTypes';
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
@@ -115,14 +115,6 @@ export const BuildView = ({
     // Move node dialog for context menu (mainly for accessibility)
     const [moveNode, setMoveNode] = useState<string | null>(null);
     const closeMoveNodeDialog = useCallback(() => { setMoveNode(null); }, []);
-
-    // Handle delete
-    const [deleteOpen, setDeleteOpen] = useState(false);
-    const openDelete = useCallback(() => setDeleteOpen(true), []);
-    const handleDeleteClose = useCallback((wasDeleted: boolean) => {
-        if (wasDeleted) setLocation(APP_LINKS.Home);
-        else setDeleteOpen(false);
-    }, [setLocation])
 
     /**
      * Calculates:
@@ -287,6 +279,22 @@ export const BuildView = ({
 
     const handleScaleChange = (newScale: number) => { setScale(newScale) };
 
+    const handleRunDelete = useCallback((run: Run) => {
+        if (!changedRoutine) return;
+        setChangedRoutine({
+            ...changedRoutine,
+            runs: changedRoutine.runs.filter(r => r.id !== run.id),
+        });
+    }, [changedRoutine]);
+
+    const handleRunAdd = useCallback((run: Run) => {
+        if (!changedRoutine) return;
+        setChangedRoutine({
+            ...changedRoutine,
+            runs: [run, ...changedRoutine.runs],
+        });
+    }, [changedRoutine]);
+
     const startEditing = useCallback(() => setIsEditing(true), []);
 
     /**
@@ -297,7 +305,7 @@ export const BuildView = ({
             return;
         }
         const input: any = formatForCreate(
-            changedRoutine, 
+            changedRoutine,
             ['nodes', 'nodeLinks', 'nodes.data', 'nodes.data.routines']
         )
         // If nodes have a data create/update, convert to nodeEnd or nodeRoutineList (i.e. deconstruct union)
@@ -352,10 +360,10 @@ export const BuildView = ({
             return;
         }
         const input: any = formatForUpdate(
-            routine, 
-            changedRoutine, 
-            ['tags', 'nodes.data.routines.routine'], 
-            ['nodes', 'nodeLinks', 'node.data.routines', 'translations']
+            routine,
+            changedRoutine,
+            ['tags', 'nodes.data.routines.routine', 'nodes.data.routines.routine.inputs.standard', 'nodes.data.routines.routine.outputs.standard'],
+            ['nodes', 'nodeLinks', 'nodes.data.routines', 'nodes.nodeRoutineList.routines.routine.translations', 'translations']
         )
         // If routine belongs to an organization, add organizationId to input
         if (routine?.owner?.__typename === 'Organization') {
@@ -392,9 +400,18 @@ export const BuildView = ({
             mutation: routineUpdate,
             input,
             successMessage: () => 'Routine updated.',
-            onSuccess: ({ data }) => { onChange(data.routineUpdate); },
+            onSuccess: ({ data }) => {
+                // Update main routine object
+                onChange(data.routineUpdate);
+                // Remove indication of editing from URL
+                const params = parseSearchParams(window.location.search);
+                if (params.edit) delete params.edit;
+                setLocation(stringifySearchParams(params), { replace: true });
+                // Turn off editing mode
+                setIsEditing(false);
+            },
         })
-    }, [changedRoutine, onChange, routine, routineUpdate])
+    }, [changedRoutine, onChange, routine, routineUpdate, setLocation])
 
     /**
      * If closing with unsaved changes, prompt user to save
@@ -455,14 +472,29 @@ export const BuildView = ({
     }, [changedRoutine, language]);
 
     const revertChanges = useCallback(() => {
-        // If updating routine, revert to original routine
-        if (id) {
-            setChangedRoutine(routine);
-            setIsEditing(false);
+        // Confirm if changes have been made
+        if (JSON.stringify(routine) !== JSON.stringify(changedRoutine)) {
+            PubSub.publish(Pubs.AlertDialog, {
+                message: 'There are unsaved changes. Are you sure you would like to cancel?',
+                buttons: [
+                    {
+                        text: 'Yes', onClick: () => {
+                            // If updating routine, revert to original routine
+                            if (id) {
+                                setChangedRoutine(routine);
+                                setIsEditing(false);
+                            }
+                            // If adding new routine, go back
+                            else window.history.back();
+                        }
+                    },
+                    {
+                        text: "No", onClick: () => { }
+                    },
+                ]
+            });
         }
-        // If adding new routine, go back
-        else window.history.back();
-    }, [id, routine])
+    }, [changedRoutine, id, routine])
 
     /**
      * Calculates the new set of links for an routine when a node is 
@@ -891,22 +923,27 @@ export const BuildView = ({
         }
     }, [setAddSubroutineNode, setEditSubroutineNode, handleNodeDelete, handleSubroutineDelete, handleSubroutineOpen, handleNodeDrop, handleAddAfter, handleAddBefore, setMoveNode]);
 
-    const handleRoutineAction = useCallback((action: BaseObjectAction) => {
+    const handleRoutineAction = useCallback((action: BaseObjectAction, data: any) => {
         switch (action) {
             case BaseObjectAction.Copy:
-                //TODO
+                setLocation(`${APP_LINKS.Routine}/${data.copy.routine.id}`);
                 break;
             case BaseObjectAction.Delete:
-                openDelete();
+                setLocation(APP_LINKS.Home);
                 break;
             case BaseObjectAction.Downvote:
-                //TODO
+                if (data.vote.success) {
+                    onChange({
+                        ...routine,
+                        isUpvoted: false,
+                    } as any)
+                }
                 break;
             case BaseObjectAction.Edit:
                 //TODO
                 break;
             case BaseObjectAction.Fork:
-                //TODO
+                setLocation(`${APP_LINKS.Routine}/${data.fork.routine.id}`);
                 break;
             case BaseObjectAction.Report:
                 //TODO
@@ -915,13 +952,23 @@ export const BuildView = ({
                 //TODO
                 break;
             case BaseObjectAction.Star:
-                //TODO
+                if (data.star.success) {
+                    onChange({
+                        ...routine,
+                        isStarred: true,
+                    } as any)
+                }
                 break;
             case BaseObjectAction.Stats:
                 //TODO
                 break;
             case BaseObjectAction.Unstar:
-                //TODO
+                if (data.star.success) {
+                    onChange({
+                        ...routine,
+                        isStarred: false,
+                    } as any)
+                }
                 break;
             case BaseObjectAction.Update:
                 updateRoutine();
@@ -930,10 +977,15 @@ export const BuildView = ({
                 setChangedRoutine(routine);
                 break;
             case BaseObjectAction.Upvote:
-                //TODO
+                if (data.vote.success) {
+                    onChange({
+                        ...routine,
+                        isUpvoted: true,
+                    } as any)
+                }
                 break;
         }
-    }, [routine, updateRoutine, openDelete]);
+    }, [setLocation, updateRoutine, routine, onChange]);
 
     // Open/close unlinked nodes drawer
     const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);
@@ -941,11 +993,74 @@ export const BuildView = ({
 
     /**
      * Cleans up graph by removing empty columns and row gaps within columns.
-     * Also adds end nodes to the end of each unfinished path
+     * Also adds end nodes to the end of each unfinished path. 
+     * Also removes links that don't have both a valid fromId and toId.
      */
     const cleanUpGraph = useCallback(() => {
-        //TODO
-    }, []);
+        if (!changedRoutine) return;
+        const resultRoutine = JSON.parse(JSON.stringify(changedRoutine));
+        // Loop through the columns, and remove gaps in rowIndex
+        for (const column of columns) {
+            // Sort nodes in column by rowIndex
+            const sortedNodes = column.sort((a, b) => (a.rowIndex ?? 0) - (b.rowIndex ?? 0));
+            // If the nodes don't go from 0 to n without any gaps
+            if (sortedNodes.length > 0 && sortedNodes.some((n, i) => (n.rowIndex ?? 0) !== i)) {
+                // Update nodes in resultRoutine with new rowIndexes
+                const newNodes = sortedNodes.map((n, i) => ({
+                    ...n,
+                    rowIndex: i,
+                }));
+                // Replace nodes in resultRoutine
+                resultRoutine.nodes = resultRoutine.nodes.map(oldNode => {
+                    const newNode = newNodes.find(nn => nn.id === oldNode.id);
+                    if (newNode) {
+                        return newNode;
+                    }
+                    return oldNode;
+                });
+            }
+        }
+        // Find every node that does not have a link leaving it, which is also 
+        // not an end node
+        for (const node of resultRoutine.nodes) {
+            // If not an end node
+            if (node.type !== NodeType.End) {
+                // Check if any links have a "fromId" matching this node's ID
+                const leavingLinks = resultRoutine.nodeLinks.filter(link => link.fromId === node.id);
+                // If there are no leaving links, create a new link and end node
+                if (leavingLinks.length === 0) {
+                    // Generate node ID
+                    const newEndNodeId = uuidv4();
+                    // Calculate rowIndex and columnIndex
+                    // Column is 1 after current column
+                    const columnIndex: number = (node.columnIndex ?? 0) + 1;
+                    // Node is 1 after last rowIndex in column
+                    const rowIndex = (columnIndex >= 0 && columnIndex < columns.length) ? columns[columnIndex].length : 0;
+                    const newLink: Partial<NodeLink> = { fromId: node.id, toId: newEndNodeId }
+                    const newEndNode: Partial<Node> = {
+                        id: newEndNodeId,
+                        type: NodeType.End,
+                        rowIndex,
+                        columnIndex,
+                        data: {
+                            wasSuccessful: false,
+                        } as any,
+                    }
+                    // Add link and end node to resultRoutine
+                    resultRoutine.nodeLinks.push(newLink as any);
+                    resultRoutine.nodes.push(newEndNode as any);
+                }
+            }
+        }
+        // Remove links that don't have both a valid fromId and toId
+        resultRoutine.nodeLinks = resultRoutine.nodeLinks.filter(link => {
+            const fromNode = resultRoutine.nodes.find(n => n.id === link.fromId);
+            const toNode = resultRoutine.nodes.find(n => n.id === link.toId);
+            return Boolean(fromNode && toNode);
+        });
+        // Update changedRoutine with resultRoutine
+        setChangedRoutine(resultRoutine);
+    }, [changedRoutine, columns]);
 
     return (
         <Box sx={{
@@ -955,15 +1070,6 @@ export const BuildView = ({
             height: '100%',
             width: '100%',
         }}>
-            {/* Delete routine confirmation dialog */}
-            <DeleteDialog
-                isOpen={deleteOpen}
-                objectId={routine?.id ?? ''}
-                objectType={DeleteOneType.Routine}
-                objectName={getTranslation(changedRoutine, 'title', [language]) ?? ''}
-                handleClose={handleDeleteClose}
-                zIndex={zIndex + 3}
-            />
             {/* Popup for adding new subroutines */}
             {addSubroutineNode && <SubroutineSelectOrCreateDialog
                 handleAdd={handleRoutineListItemAdd}
@@ -1197,6 +1303,8 @@ export const BuildView = ({
                     handleAdd={createRoutine}
                     handleUpdate={updateRoutine}
                     handleScaleChange={handleScaleChange}
+                    handleRunDelete={handleRunDelete}
+                    handleRunAdd={handleRunAdd}
                     hasNext={false}
                     hasPrevious={false}
                     isAdding={!uuidValidate(id)}

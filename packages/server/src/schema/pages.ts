@@ -3,11 +3,11 @@
  */
 import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from "graphql";
-import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, LogSearchResult, LogSortBy, OrganizationSortBy, ProjectSortBy, ResearchPageResult, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, ForYouPageInput, ForYouPageResult, StatisticsPageInput, StatisticsPageResult, Project, Routine, Log, Organization, Standard, User, RunStatus, RunSortBy, ViewSortBy } from './types';
+import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, OrganizationSortBy, ProjectSortBy, ResearchPageResult, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, HistoryPageInput, HistoryPageResult, StatisticsPageInput, StatisticsPageResult, Project, Routine, RunStatus, RunSortBy, ViewSortBy } from './types';
 import { CODE } from '@local/shared';
 import { IWrap } from '../types';
 import { Context } from '../context';
-import { addSupplementalFieldsMultiTypes, GraphQLModelType, logSearcher, LogType, modelToGraphQL, OrganizationModel, paginatedMongoSearch, PartialInfo, ProjectModel, readManyHelper, RoutineModel, RunModel, StandardModel, StarModel, toPartialSelect, UserModel, ViewModel } from '../models';
+import { addSupplementalFieldsMultiTypes, GraphQLModelType, modelToGraphQL, OrganizationModel, PartialGraphQLInfo, ProjectModel, readManyHelper, RoutineModel, RunModel, StandardModel, StarModel, toPartialGraphQLInfo, UserModel, ViewModel } from '../models';
 import { CustomError } from '../error';
 import { rateLimit } from '../rateLimit';
 import { resolveProjectOrOrganization, resolveProjectOrOrganizationOrRoutineOrStandardOrUser, resolveProjectOrRoutine } from './resolvers';
@@ -29,10 +29,13 @@ const tagSelect = {
 const organizationSelect = {
     __typename: GraphQLModelType.Organization,
     id: true,
+    commentsCount: true,
     handle: true,
     stars: true,
     isOpenToNewMembers: true,
     isStarred: true,
+    role: true,
+    reportsCount: true,
     translations: {
         id: true,
         language: true,
@@ -43,6 +46,7 @@ const organizationSelect = {
 const projectSelect = {
     __typename: GraphQLModelType.Project,
     id: true,
+    commentsCount: true,
     completedAt: true,
     handle: true,
     stars: true,
@@ -50,6 +54,8 @@ const projectSelect = {
     isComplete: true,
     isStarred: true,
     isUpvoted: true,
+    role: true,
+    reportsCount: true,
     translations: {
         id: true,
         language: true,
@@ -60,6 +66,7 @@ const projectSelect = {
 const routineSelect = {
     __typename: GraphQLModelType.Routine,
     id: true,
+    commentsCount: true,
     created_at: true,
     completedAt: true,
     complexity: true,
@@ -69,6 +76,8 @@ const routineSelect = {
     isComplete: true,
     isStarred: true,
     isUpvoted: true,
+    role: true,
+    reportsCount: true,
     translations: {
         id: true,
         language: true,
@@ -81,7 +90,7 @@ const runSelect = {
     __typename: GraphQLModelType.Run,
     id: true,
     completedComplexity: true,
-    pickups: true,
+    contextSwitches: true,
     timeStarted: true,
     timeElapsed: true,
     timeCompleted: true,
@@ -93,23 +102,28 @@ const runSelect = {
 const standardSelect = {
     __typename: GraphQLModelType.Standard,
     id: true,
+    commentsCount: true,
     name: true,
     stars: true,
     score: true,
     isStarred: true,
     isUpvoted: true,
+    role: true,
+    reportsCount: true,
     translations: {
         id: true,
         description: true,
         language: true,
     },
     tags: tagSelect,
+    type: true,
 }
 const userSelect = {
     __typename: GraphQLModelType.User,
     id: true,
     name: true,
     handle: true,
+    reportsCount: true,
     stars: true,
     isStarred: true,
 }
@@ -126,10 +140,35 @@ const viewSelect = {
         User: userSelect,
     }
 }
+const commentSelect = {
+    __typename: GraphQLModelType.Comment,
+    id: true,
+    created_at: true,
+    updated_at: true,
+    score: true,
+    isUpvoted: true,
+    role: true,
+    isStarred: true,
+    commentedOn: {
+        Project: projectSelect,
+        Routine: routineSelect,
+        Standard: standardSelect,
+    },
+    creator: {
+        Organization: organizationSelect,
+        User: userSelect,
+    },
+    translations: {
+        id: true,
+        language: true,
+        text: true,
+    }
+}
 const starSelect = {
     __typename: GraphQLModelType.Star,
     id: true,
     to: {
+        Comment: commentSelect,
         Organization: organizationSelect,
         Project: projectSelect,
         Routine: routineSelect,
@@ -157,11 +196,12 @@ export const typeDef = gql`
         users: [User!]!
     }
 
-    input ForYouPageInput {
+    input HistoryPageInput {
+        searchString: String!
         take: Int
     }
 
-    type ForYouPageResult {
+    type HistoryPageResult {
         activeRuns: [Run!]!
         completedRuns: [Run!]!
         recentlyViewed: [View!]!
@@ -210,7 +250,7 @@ export const typeDef = gql`
  
     type Query {
         homePage(input: HomePageInput!): HomePageResult!
-        forYouPage(input: ForYouPageInput!): ForYouPageResult!
+        historyPage(input: HistoryPageInput!): HistoryPageResult!
         learnPage: LearnPageResult!
         researchPage: ResearchPageResult!
         developPage: DevelopPageResult!
@@ -243,48 +283,48 @@ export const resolvers = {
             // Query organizations
             let organizations = (await readManyHelper(
                 context.req.userId,
-                { ...input, take, sortBy: OrganizationSortBy.StarsDesc },
+                { take, ...input, sortBy: OrganizationSortBy.StarsDesc },
                 organizationSelect,
                 oModel,
                 { ...starsQuery },
                 false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(organizationSelect, oModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(organizationSelect, oModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Query projects
             let projects = (await readManyHelper(
                 context.req.userId,
-                { ...input, take, sortBy: ProjectSortBy.StarsDesc, isComplete: true, },
+                { take, ...input, sortBy: ProjectSortBy.StarsDesc, isComplete: true, },
                 projectSelect,
                 pModel,
                 { ...starsQuery },
                 false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(projectSelect, pModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(projectSelect, pModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Query routines
             let routines = (await readManyHelper(
                 context.req.userId,
-                { ...input, take, sortBy: RoutineSortBy.StarsDesc, isComplete: true, isInternal: false },
+                { take, ...input, sortBy: RoutineSortBy.StarsDesc, isComplete: true, isInternal: false },
                 routineSelect,
                 rModel,
                 { ...starsQuery },
                 false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(routineSelect, rModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Query standards
             let standards = (await readManyHelper(
                 context.req.userId,
-                { ...input, take, sortBy: StandardSortBy.StarsDesc },
+                { take, ...input, sortBy: StandardSortBy.StarsDesc, type: 'JSON' },
                 standardSelect,
                 sModel,
                 { ...starsQuery },
                 false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(standardSelect, sModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(standardSelect, sModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Query users
             let users = (await readManyHelper(
                 context.req.userId,
-                { ...input, take, sortBy: UserSortBy.StarsDesc },
+                { take, ...input, sortBy: UserSortBy.StarsDesc },
                 userSelect,
                 uModel,
                 { ...starsQuery },
                 false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(userSelect, uModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(userSelect, uModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [organizations, projects, routines, standards, users],
@@ -320,7 +360,7 @@ export const resolvers = {
                 pModel,
                 { ...starsQuery },
                 false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(projectSelect, pModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(projectSelect, pModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Query tutorials
             const tutorials = (await readManyHelper(
                 context.req.userId,
@@ -329,7 +369,7 @@ export const resolvers = {
                 rModel,
                 { ...starsQuery },
                 false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(routineSelect, rModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [courses, tutorials],
@@ -363,7 +403,7 @@ export const resolvers = {
                 rModel,
                 { ...starsQuery },
                 false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(routineSelect, rModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Query newlyCompleted
             const newlyCompletedProjects = (await readManyHelper(
                 context.req.userId,
@@ -372,7 +412,7 @@ export const resolvers = {
                 pModel,
                 { ...starsQuery },
                 false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(projectSelect, pModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(projectSelect, pModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             const newlyCompletedRoutines = (await readManyHelper(
                 context.req.userId,
                 { take, isComplete: true, isInternal: false, sortBy: RoutineSortBy.DateCompletedAsc },
@@ -380,7 +420,7 @@ export const resolvers = {
                 rModel,
                 { ...starsQuery },
                 false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(routineSelect, rModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Query needVotes
             const needVotes = (await readManyHelper(
                 context.req.userId,
@@ -389,7 +429,7 @@ export const resolvers = {
                 pModel,
                 { ...starsQuery },
                 false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(projectSelect, pModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(projectSelect, pModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Query needInvestments
             const needInvestmentsProjects = (await readManyHelper(
                 context.req.userId,
@@ -398,7 +438,7 @@ export const resolvers = {
                 pModel,
                 { ...starsQuery },
                 false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(projectSelect, pModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(projectSelect, pModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             const needInvestmentsOrganizations = (await readManyHelper(
                 context.req.userId,
                 { take, resourceTypes: [ResourceUsedFor.Donation] },
@@ -406,7 +446,7 @@ export const resolvers = {
                 oModel,
                 { ...starsQuery },
                 false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(organizationSelect, oModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(organizationSelect, oModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Query needMembers
             const needMembers = (await readManyHelper(
                 context.req.userId,
@@ -415,7 +455,7 @@ export const resolvers = {
                 oModel,
                 { ...starsQuery },
                 false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(organizationSelect, oModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(organizationSelect, oModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [processes, newlyCompletedProjects, newlyCompletedRoutines, needVotes, needInvestmentsProjects, needInvestmentsOrganizations, needMembers],
@@ -465,7 +505,7 @@ export const resolvers = {
                 rModel,
                 {},
                 false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(routineSelect, rModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Query for projects you've completed
             const completedProjects = (await readManyHelper(
                 context.req.userId,
@@ -474,7 +514,7 @@ export const resolvers = {
                 pModel,
                 {},
                 false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(projectSelect, pModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(projectSelect, pModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Query for routines you're currently working on
             const inProgressRoutines = (await readManyHelper(
                 context.req.userId,
@@ -483,7 +523,7 @@ export const resolvers = {
                 rModel,
                 {},
                 false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(routineSelect, rModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Query for projects you're currently working on
             const inProgressProjects = (await readManyHelper(
                 context.req.userId,
@@ -492,7 +532,7 @@ export const resolvers = {
                 pModel,
                 {},
                 false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(projectSelect, pModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(projectSelect, pModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Query recently created/updated routines
             const recentRoutines = (await readManyHelper(
                 context.req.userId,
@@ -501,7 +541,7 @@ export const resolvers = {
                 rModel,
                 {},
                 false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(routineSelect, rModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Query recently created/updated projects
             const recentProjects = (await readManyHelper(
                 context.req.userId,
@@ -510,7 +550,7 @@ export const resolvers = {
                 pModel,
                 {},
                 false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(projectSelect, pModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(projectSelect, pModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [completedRoutines, completedProjects, inProgressRoutines, inProgressProjects, recentRoutines, recentProjects],
@@ -547,9 +587,9 @@ export const resolvers = {
             }
         },
         /**
-         * Queries data shown on For You page 
+         * Queries data shown on History page 
          */
-        forYouPage: async (_parent: undefined, { input }: IWrap<ForYouPageInput>, context: Context, info: GraphQLResolveInfo): Promise<ForYouPageResult> => {
+        historyPage: async (_parent: undefined, { input }: IWrap<HistoryPageInput>, context: Context, info: GraphQLResolveInfo): Promise<HistoryPageResult> => {
             // If not signed in, shouldn't be able to see this page
             if (!context.req.userId) throw new CustomError(CODE.Unauthorized, 'Must be signed in to see this page');
             await rateLimit({ context, info, max: 5000 });
@@ -561,39 +601,39 @@ export const resolvers = {
             // Query for incomplete runs
             const activeRuns = (await readManyHelper(
                 context.req.userId,
-                { take, status: RunStatus.InProgress, sortBy: RunSortBy.DateUpdatedDesc },
+                { take, ...input, status: RunStatus.InProgress, sortBy: RunSortBy.DateUpdatedDesc },
                 runSelect,
                 runModel,
                 { userId: context.req.userId },
                 false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(runSelect, runModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(runSelect, runModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Query for complete runs
             const completedRuns = (await readManyHelper(
                 context.req.userId,
-                { take, status: RunStatus.Completed, sortBy: RunSortBy.DateUpdatedDesc },
+                { take, ...input, status: RunStatus.Completed, sortBy: RunSortBy.DateUpdatedDesc },
                 runSelect,
                 runModel,
                 { userId: context.req.userId },
                 false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(runSelect, runModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(runSelect, runModel.relationshipMap) as PartialGraphQLInfo)) as any[]
             // Query recently viewed objects (of any type)
             const recentlyViewed = (await readManyHelper(
                 context.req.userId,
-                { take, sortBy: ViewSortBy.LastViewedDesc },
+                { take, ...input, sortBy: ViewSortBy.LastViewedDesc },
                 viewSelect,
                 viewModel,
                 { byId: context.req.userId },
                 false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(viewSelect, viewModel.relationshipMap) as PartialInfo)) as any[];
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(viewSelect, viewModel.relationshipMap) as PartialGraphQLInfo)) as any[];
             // Query recently starred objects (of any type). Make sure to ignore tags
             const recentlyStarred = (await readManyHelper(
                 context.req.userId,
-                { take, sortBy: UserSortBy.DateCreatedDesc },
+                { take, ...input, sortBy: UserSortBy.DateCreatedDesc },
                 starSelect,
                 starModel,
                 { byId: context.req.userId, tagId: null },
                 false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(starSelect, starModel.relationshipMap) as PartialInfo)) as any[];
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(starSelect, starModel.relationshipMap) as PartialGraphQLInfo)) as any[];
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [activeRuns, completedRuns, recentlyViewed, recentlyStarred],

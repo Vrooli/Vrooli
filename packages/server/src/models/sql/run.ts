@@ -2,7 +2,7 @@ import { CODE, runsCreate, runsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, LogType, Run, RunCancelInput, RunCompleteInput, RunCreateInput, RunSearchInput, RunSortBy, RunStatus, RunUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, InfoType, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialSelect, ValidateMutationsInput } from "./base";
+import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
 import _ from "lodash";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
@@ -43,10 +43,12 @@ export const runSearcher = (): Searcher<RunSearchInput> => ({
             OR: [
                 {
                     routine: {
-                        OR: [
-                            { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },
-                            { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
-                        ]
+                        translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } },
+                    }
+                },
+                {
+                    routine: {
+                        translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } },
                     }
                 },
                 { title: { ...insensitive } }
@@ -80,18 +82,18 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
             timeStarted: new Date(),
             routineId: data.routineId,
             status: RunStatus.InProgress,
-            steps: await StepModel(prisma).relationshipBuilder(userId, data, false, 'step'),
+            steps: await StepModel(prisma).relationshipBuilder(userId, data, true, 'step'),
             title: data.title,
             userId,
             version: data.version,
         }
     },
-    async toDBShapeUpdate(userId: string, data: RunUpdateInput): Promise<any> {
+    async toDBShapeUpdate(userId: string, updateData: RunUpdateInput, existingData: Run): Promise<any> {
         return {
-            timeElapsed: data.timeElapsed ?? undefined,
-            completedComplexity: data.completedComplexity ?? undefined,
-            pickups: data.pickups ?? undefined,
-            steps: await StepModel(prisma).relationshipBuilder(userId, data, false),
+            timeElapsed: (existingData.timeElapsed ?? 0) + (updateData.timeElapsed ?? 0),
+            completedComplexity: (existingData.completedComplexity ?? 0) + (updateData.completedComplexity ?? 0),
+            contextSwitches: (existingData.contextSwitches ?? 0) + (updateData.contextSwitches ?? 0),
+            steps: await StepModel(prisma).relationshipBuilder(userId, updateData, false),
         }
     },
     async validateMutations({
@@ -118,7 +120,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
     /**
      * Performs adds, updates, and deletes of runs. First validates that every action is allowed.
      */
-    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<RunCreateInput, RunUpdateInput>): Promise<CUDResult<Run>> {
+    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<RunCreateInput, RunUpdateInput>): Promise<CUDResult<Run>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         if (!userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0175') });
         // Perform mutations
@@ -129,9 +131,9 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
                 // Call createData helper function
                 const data = await this.toDBShapeAdd(userId, input);
                 // Create object
-                const currCreated = await prisma.run.create({ data, ...selectHelper(partial) });
+                const currCreated = await prisma.run.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partial);
+                const converted = modelToGraphQL(currCreated, partialInfo);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -157,16 +159,18 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
                 let object = await prisma.run.findFirst({
                     where: { ...input.where, userId }
                 })
-                const temp = await this.toDBShapeUpdate(userId, input.data);
                 if (!object) throw new CustomError(CODE.ErrorUnknown, 'Run not found.', { code: genErrorCode('0176') });
                 // Update object
+                const data = await this.toDBShapeUpdate(userId, input.data, object as any)
+                console.log('before run update temp', JSON.stringify(data), '\n\n')
                 const currUpdated = await prisma.run.update({
                     where: input.where,
-                    data: await this.toDBShapeUpdate(userId, input.data),
-                    ...selectHelper(partial)
+                    data,
+                    ...selectHelper(partialInfo)
                 });
+                // if (data.hasOwnProperty('wasSuccessful')) {
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partial);
+                const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }
@@ -201,9 +205,9 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
      * to get around this, but I'm not sure if that would be a good idea. Most of the time, I imagine users
      * will just be looking at the routine instead of using it.
      */
-    async complete(userId: string, input: RunCompleteInput, info: InfoType): Promise<Run> {
+    async complete(userId: string, input: RunCompleteInput, info: GraphQLInfo): Promise<Run> {
         // Convert info to partial
-        const partial = toPartialSelect(info, runFormatter().relationshipMap);
+        const partial = toPartialGraphQLInfo(info, runFormatter().relationshipMap);
         if (partial === undefined) throw new CustomError(CODE.ErrorUnknown, 'Invalid query.', { code: genErrorCode('0179') });
         let run: run | null;
         // Check if run is being created or updated
@@ -218,15 +222,31 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
                 }
             })
             if (!run) throw new CustomError(CODE.NotFound, 'Run not found.', { code: genErrorCode('0180') });
+            const { timeElapsed, contextSwitches, completedComplexity } = run;
             // Update object
             run = await prisma.run.update({
                 where: { id: input.id },
                 data: {
-                    completedComplexity: input.completedComplexity,
-                    pickups: input.pickups ?? undefined,
+                    completedComplexity: completedComplexity + (input.completedComplexity ?? 0),
+                    contextSwitches: contextSwitches + (input.finalStepCreate?.contextSwitches ?? input.finalStepUpdate?.contextSwitches ?? 0),
+                    status: input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed,
                     timeCompleted: new Date(),
-                    timeElapsed: input.timeElapsed ?? undefined,
-                    //TODO update final step data
+                    timeElapsed: (timeElapsed ?? 0) + (input.finalStepCreate?.timeElapsed ?? input.finalStepUpdate?.timeElapsed ?? 0),
+                    steps: {
+                        create: input.finalStepCreate ? {
+                            order: input.finalStepCreate.order ?? 1,
+                            title: input.finalStepCreate.title ?? '',
+                            contextSwitches: input.finalStepCreate.contextSwitches ?? 0,
+                            timeElapsed: input.finalStepCreate.timeElapsed,
+                            status: input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed,
+                        } as any : undefined,
+                        update: input.finalStepUpdate ? {
+                            id: input.finalStepUpdate.id,
+                            contextSwitches: input.finalStepUpdate.contextSwitches ?? 0,
+                            timeElapsed: input.finalStepUpdate.timeElapsed,
+                            status: input.finalStepUpdate.status ?? (input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed),
+                        } as any : undefined,
+                    }
                 },
                 ...selectHelper(partial)
             });
@@ -234,15 +254,30 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
             // Create new run
             run = await prisma.run.create({
                 data: {
+                    completedComplexity: input.completedComplexity ?? 0,
                     timeStarted: new Date(),
                     timeCompleted: new Date(),
-                    timeElapsed: input.timeElapsed ?? undefined,
-                    pickups: input.pickups ?? undefined,
+                    timeElapsed: input.finalStepCreate?.timeElapsed ?? input.finalStepUpdate?.timeElapsed ?? 0,
+                    contextSwitches: input.finalStepCreate?.contextSwitches ?? input.finalStepUpdate?.contextSwitches ?? 0,
                     routineId: input.id,
-                    status: RunStatus.Completed,
+                    status: input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed,
                     title: input.title,
                     userId,
                     version: input.version,
+                    steps: {
+                        create: input.finalStepCreate ? {
+                            order: input.finalStepCreate.order ?? 1,
+                            title: input.finalStepCreate.title ?? '',
+                            contextSwitches: input.finalStepCreate.contextSwitches ?? 0,
+                            timeElapsed: input.finalStepCreate.timeElapsed,
+                            status: input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed,
+                        } as any : input.finalStepUpdate ? {
+                            id: input.finalStepUpdate.id,
+                            contextSwitches: input.finalStepUpdate.contextSwitches ?? 0,
+                            timeElapsed: input.finalStepUpdate.timeElapsed,
+                            status: input.finalStepUpdate?.status ?? (input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed),
+                        } : undefined,
+                    }
                 },
                 ...selectHelper(partial)
             });
@@ -267,9 +302,9 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
     /**
      * Cancels a run
      */
-    async cancel(userId: string, input: RunCancelInput, info: InfoType): Promise<Run> {
+    async cancel(userId: string, input: RunCancelInput, info: GraphQLInfo): Promise<Run> {
         // Convert info to partial
-        const partial = toPartialSelect(info, runFormatter().relationshipMap);
+        const partial = toPartialGraphQLInfo(info, runFormatter().relationshipMap);
         if (partial === undefined) throw new CustomError(CODE.ErrorUnknown, 'Invalid query.', { code: genErrorCode('0181') });
         // Find in database
         let object = await prisma.run.findFirst({

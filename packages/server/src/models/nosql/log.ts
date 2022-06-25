@@ -6,9 +6,11 @@ import { LogSearchInput, LogSortBy } from '../../schema/types';
 
 // TODO ✅ = implemented
 export enum LogType {
+    Copy = 'Copy', // Copy on object1Type ✅
     Create = 'Create', // Create on object1Type ✅
     Delete = 'Delete', // Delete on object1Type ✅
     Downvote = 'Downvote', // Downvote on object1Type ✅
+    Fork = 'Fork', // Fork on object1Type ✅
     OrganizationAddMember = 'OrganizationAddMember', // Added member object2Id to organization object1Id
     OrganizationJoin = 'OrganizationJoin', // Joined organization object1Id
     OrganizationLeave = 'OrganizationLeave', // Left organization object1Id

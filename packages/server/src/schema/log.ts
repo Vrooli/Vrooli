@@ -18,9 +18,11 @@ export const typeDef = gql`
     }
 
     enum LogType {
+        Copy
         Create
         Delete
         Downvote
+        Fork
         OrganizationAddMember
         OrganizationJoin
         OrganizationLeave
