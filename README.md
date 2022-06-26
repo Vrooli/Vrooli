@@ -103,7 +103,7 @@ To achieve this grand vision, we must think from first principles. What properti
  - Q2 2022
     - ✅ Routine visualizer improved.
     - ✅ Routines have the ability to reference other routines.
-    - Routines can be created using the template of any existing routine.
+    - ✅ Routines can be created using the template of any existing routine.
     - "Request a Routine" section added.
  - Q3 2022
     - API fully defined for routine metadata. Supports all existing features, plus information required for data storage and automation.
