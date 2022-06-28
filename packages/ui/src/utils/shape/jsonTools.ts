@@ -1,4 +1,4 @@
-import _ from "lodash";
+import { isObject } from "@local/shared";
 
 /**
  * JSON format error object. Used when 
@@ -40,7 +40,7 @@ provide details about those parts of the JSON. Variables follow the format of &l
  * @param obj - object to check
  * @returns true if object, false otherwise
  */
-const isActualObject = (obj: any): boolean => !Array.isArray(obj) && _.isObject(obj) && Object.prototype.toString.call(obj) !== '[object Date]'
+const isActualObject = (obj: any): boolean => !Array.isArray(obj) && isObject(obj) && Object.prototype.toString.call(obj) !== '[object Date]'
 
 /**
  * Checks if a string can be parsed as JSON.

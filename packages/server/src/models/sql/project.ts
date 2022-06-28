@@ -1,4 +1,4 @@
-import { CODE, MemberRole, projectsCreate, projectsUpdate, projectTranslationCreate, projectTranslationUpdate } from "@local/shared";
+import { CODE, MemberRole, omit, projectsCreate, projectsUpdate, projectTranslationCreate, projectTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor } from "../../schema/types";
@@ -7,7 +7,6 @@ import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
-import _ from "lodash";
 import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
 import { WalletModel } from "./wallet";
@@ -43,7 +42,7 @@ export const projectFormatter = (): FormatConverter<Project> => ({
         'wallets': GraphQLModelType.Wallet,
     },
     removeCalculatedFields: (partial) => {
-        return _.omit(partial, calculatedFields);
+        return omit(partial, calculatedFields);
     },
     constructUnions: (data) => {
         let modified = addCreatorField(data);

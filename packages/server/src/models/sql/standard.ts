@@ -1,4 +1,4 @@
-import { CODE, DeleteOneType, MemberRole, standardsCreate, standardsUpdate, standardTranslationCreate, standardTranslationUpdate } from "@local/shared";
+import { CODE, DeleteOneType, MemberRole, omit, standardsCreate, standardsUpdate, standardTranslationCreate, standardTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count } from "../../schema/types";
@@ -8,7 +8,6 @@ import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
-import _ from "lodash";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
@@ -39,7 +38,7 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
         'tags': GraphQLModelType.Tag,
     },
     removeCalculatedFields: (partial) => {
-        return _.omit(partial, calculatedFields);
+        return omit(partial, calculatedFields);
     },
     constructUnions: (data) => {
         let modified = addCreatorField(data);

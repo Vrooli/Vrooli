@@ -1,6 +1,8 @@
-// Functions for manipulating state objects
+/**
+ * Functions for manipulating state objects
+ */
+import { isEqual, isObject } from "@local/shared";
 
-import _ from "lodash";
 
 // Grabs data from an object using dot notation (ex: 'parent.child.property')
 export const valueFromDot = (object, notation) => {
@@ -66,7 +68,7 @@ export const formatForCreate = <T>(obj: Partial<T>, treatLikeCreates: string[] =
             for (let i = 0; i < value.length; i++) {
                 const curr = value[i];
                 // Find the changed value at this index
-                const changedValue = _.isObject(curr) ? formatForCreate(curr, childTreatLikeCreates) : curr;
+                const changedValue = isObject(curr) ? formatForCreate(curr, childTreatLikeCreates) : curr;
                 // Check if create (i.e does not contain an id, or is in the treatLikeCreates array)
                 if (changedValue && (curr.id === undefined || treatLikeCreates.includes(key))) {
                     addToChangedArray(`${key}Create`, changedValue);
@@ -85,7 +87,7 @@ export const formatForCreate = <T>(obj: Partial<T>, treatLikeCreates: string[] =
             }
         }
         // If the value is an object
-        else if (_.isObject(value)) {
+        else if (isObject(value)) {
             const curr: any = value;
             // Find the changed value
             const changedValue = formatForCreate(curr, childTreatLikeCreates);
@@ -154,7 +156,7 @@ export const formatForUpdate = <S, T>(
             addToChangedArray(key, value);
         }
         // If the value is identical to the original value (and not an id), skip it
-        else if (key !== 'id' && original && _.isEqual(value, original[key])) continue;
+        else if (key !== 'id' && original && isEqual(value, original[key])) continue;
         // If the value is an array
         else if (Array.isArray(value)) {
             // Loop through changed values and determine which are connections, creates, and updates
@@ -166,9 +168,9 @@ export const formatForUpdate = <S, T>(
                     originalValue = original[key].find(o => o.id === curr.id);
                 }
                 // If the current value is equal to the original value, skip it
-                if (originalValue && _.isEqual(originalValue, curr)) continue;
+                if (originalValue && isEqual(originalValue, curr)) continue;
                 // Find the changed value at this index
-                const changedValue = _.isObject(curr) ? formatForUpdate(originalValue, curr, childTreatLikeConnects, childTreatLikeDeletes) : curr;
+                const changedValue = isObject(curr) ? formatForUpdate(originalValue, curr, childTreatLikeConnects, childTreatLikeDeletes) : curr;
                 // Check if create (i.e does not contain an id)
                 if (!Boolean(curr.id)) {
                     addToChangedArray(`${key}Create`, changedValue);
@@ -213,7 +215,7 @@ export const formatForUpdate = <S, T>(
             }
         }
         // If the value is an object
-        else if (_.isObject(value)) {
+        else if (isObject(value)) {
             const curr: any = value;
             // Try to find the original value
             let originalValue = original ? original[key] : undefined;

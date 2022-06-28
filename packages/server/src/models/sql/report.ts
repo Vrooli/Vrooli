@@ -1,11 +1,10 @@
-import { CODE, ReportFor, reportsCreate, reportsUpdate } from "@local/shared";
+import { CODE, omit, ReportFor, reportsCreate, reportsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, Report, ReportCreateInput, ReportSearchInput, ReportSortBy, ReportUpdateInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { validateProfanity } from "../../utils/censor";
 import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
-import _ from "lodash";
 
 //==============================================================
 /* #region Custom Components */
@@ -15,7 +14,7 @@ const calculatedFields = ['isOwn'];
 export const reportFormatter = (): FormatConverter<Report> => ({
     relationshipMap: { '__typename': GraphQLModelType.Report },
     removeCalculatedFields: (partial) => {
-        const omitted = _.omit(partial, calculatedFields)
+        const omitted = omit(partial, calculatedFields)
         // Add userId field so we can calculate isOwn
         return { ...omitted, userId: true }
     },

@@ -1,4 +1,3 @@
-import merge from 'lodash/merge';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import * as Root from './root';
 import * as Auth from './auth';
@@ -26,6 +25,8 @@ import * as User from './user';
 import * as View from './view';
 import * as Vote from './vote';
 import * as Wallet from './wallet';
+import pkg from 'lodash';
+const { merge } = pkg;
 
 const models = [
     Root, Auth, Comment, DeleteOne, Duplicate, Email, Feedback, Log, Node,

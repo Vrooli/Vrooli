@@ -1,9 +1,8 @@
-import { CODE, MemberRole, ViewFor } from "@local/shared";
+import { CODE, isObject, MemberRole, ViewFor } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, LogType, User, ViewSearchInput, ViewSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
 import { deconstructUnion, FormatConverter, GraphQLModelType, PartialGraphQLInfo, readManyHelper, Searcher, timeFrameToPrisma } from "./base";
-import _ from "lodash";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { OrganizationModel } from "./organization";
@@ -62,7 +61,7 @@ export const viewFormatter = (): FormatConverter<View> => ({
         partial: PartialGraphQLInfo,
     ): Promise<RecursivePartial<View>[]> {
         // Query for data that view is applied to
-        if (_.isObject(partial.to)) {
+        if (isObject(partial.to)) {
             const toTypes: GraphQLModelType[] = objects.map(o => resolveProjectOrOrganizationOrRoutineOrStandardOrUser(o.to))
             const toIds = objects.map(x => x.to?.id ?? '') as string[];
             // Group ids by types

@@ -9,7 +9,6 @@ import { APP_LINKS } from '@local/shared';
 import { HistoryPageProps } from '../types';
 import { listToAutocomplete, listToListItems, openObject, useReactSearch } from 'utils';
 import { AutocompleteOption, Organization, Project, Routine, Standard, User } from 'types';
-import _ from 'lodash';
 import { centeredDiv } from 'styles';
 
 const activeRoutinesText = `Routines that you've started to execute, and have not finished.`;
@@ -102,7 +101,8 @@ export const HistoryPage = ({
     const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
-        return listToAutocomplete(_.flatten(Object.values(data?.historyPage ?? [])), languages);
+        const flattened = (Object.values(data?.historyPage ?? [])).reduce((acc, curr) => acc.concat(curr), []);
+        return listToAutocomplete(flattened, languages);
     }, [data?.historyPage, languages]);
 
     /**

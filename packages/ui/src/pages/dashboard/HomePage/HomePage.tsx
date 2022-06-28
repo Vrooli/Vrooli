@@ -14,7 +14,6 @@ import {
     Search as SearchIcon,
 } from '@mui/icons-material';
 import { listToAutocomplete, listToListItems, ObjectType, openObject, openSearchPage, useReactSearch } from 'utils';
-import _ from 'lodash';
 import { AutocompleteOption, Organization, Project, Routine, Standard, User } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 
@@ -240,7 +239,8 @@ export const HomePage = ({
             });
         }
         // Group all query results and sort by number of stars
-        const queryItems = listToAutocomplete(_.flatten(Object.values(data?.homePage ?? [])), languages).sort((a: any, b: any) => {
+        const flattened = (Object.values(data?.homePage ?? [])).reduce((acc, curr) => acc.concat(curr), []);
+        const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
             return b.stars - a.stars;
         });
         return [...firstResults, ...queryItems, ...shortcutsItems];
