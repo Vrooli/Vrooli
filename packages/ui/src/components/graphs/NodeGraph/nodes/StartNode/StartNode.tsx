@@ -1,4 +1,4 @@
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Box, Tooltip, Typography, useTheme } from '@mui/material';
 import { CSSProperties, useMemo } from 'react';
 import { StartNodeProps } from '../types';
 import { nodeLabel } from '../styles';
@@ -11,6 +11,7 @@ export const StartNode = ({
     label = 'Start',
     labelVisible = true,
 }: StartNodeProps) => {
+    const { palette } = useTheme();
 
     const labelObject = useMemo(() => labelVisible && scale >= 0.5 ? (
         <Typography
@@ -38,7 +39,7 @@ export const StartNode = ({
                     fontSize: fontSize,
                     position: 'relative',
                     display: 'block',
-                    backgroundColor: '#387e30',
+                    backgroundColor: palette.mode === 'light' ? '#259a17' : '#387e30',
                     color: 'white',
                     borderRadius: '100%',
                     '&:hover': {

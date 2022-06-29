@@ -1,10 +1,10 @@
 import {
     Box,
-    Button,
     Dialog,
     DialogContent,
     IconButton,
     Stack,
+    Tooltip,
     Typography,
     useTheme
 } from '@mui/material';
@@ -174,7 +174,19 @@ export const SubroutineSelectOrCreateDialog = ({
             </BaseObjectDialog>
             {titleBar}
             <DialogContent>
-                <Stack direction="column" spacing={4}>
+                <Stack direction="column" spacing={2}>
+                    <Stack direction="row" alignItems="center" justifyContent="center">
+                        <Typography component="h2" variant="h4">Routines</Typography>
+                        <Tooltip title="Add new" placement="top">
+                            <IconButton
+                                size="large"
+                                onClick={handleCreateOpen}
+                                sx={{ padding: 1 }}
+                            >
+                                <CreateIcon color="secondary" sx={{ width: '1.5em', height: '1.5em' }} />
+                            </IconButton>
+                        </Tooltip>
+                    </Stack>
                     <SearchList
                         itemKeyPrefix='routine-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
@@ -187,11 +199,6 @@ export const SubroutineSelectOrCreateDialog = ({
                         where={where}
                         zIndex={zIndex}
                     />
-                    <Button
-                        fullWidth
-                        onClick={handleCreateOpen}
-                        startIcon={<CreateIcon />}
-                    >Create New</Button>
                 </Stack>
             </DialogContent>
         </Dialog>

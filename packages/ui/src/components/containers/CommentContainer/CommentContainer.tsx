@@ -19,6 +19,7 @@ import { useLocation } from 'wouter';
 import { commentsQuery } from 'graphql/query';
 import { CommentThread as ThreadType } from 'types';
 import { CommentThread } from 'components/lists/comment';
+import { validate as uuidValidate } from 'uuid';
 
 const { advancedSearchSchema, defaultSortBy, sortByOptions } = objectToSearchInfo[ObjectType.Comment];
 
@@ -98,12 +99,12 @@ export function CommentContainer({
     // On search filters/sort change, reset the page
     useEffect(() => {
         after.current = undefined;
-        getPageData();
-    }, [advancedSearchParams, searchString, sortBy, timeFrame, getPageData]);
+        if (uuidValidate(objectId)) getPageData();
+    }, [advancedSearchParams, searchString, sortBy, timeFrame, getPageData, objectId]);
 
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
-        if (!pageData) return;
+        if (!pageData || !uuidValidate(objectId)) return;
         const queryData: any = Object.values(pageData)[0];
         if (!queryData || !queryData.pageInfo) return [];
         if (queryData.pageInfo?.hasNextPage) {
@@ -113,7 +114,7 @@ export function CommentContainer({
                 getPageData();
             }
         }
-    }, [getPageData, pageData]);
+    }, [getPageData, objectId, pageData]);
 
     /**
      * Helper method for converting fetched data to an array of object data

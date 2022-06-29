@@ -68,6 +68,7 @@ export const InputOutputListItem = ({
     session,
     zIndex,
 }: InputOutputListItemProps) => {
+    console.log('inputoutputlistitem', item?.standard);
     const { palette } = useTheme();
 
     // Handle standard select switch
@@ -287,7 +288,8 @@ export const InputOutputListItem = ({
                                 name="description"
                                 label="description"
                                 value={formik.values.description}
-                                rows={3}
+                                multiline
+                                maxRows={3}
                                 onBlur={(e) => { formik.handleBlur(e); formik.handleSubmit() }}
                                 onChange={formik.handleChange}
                                 error={formik.touched.description && Boolean(formik.errors.description)}

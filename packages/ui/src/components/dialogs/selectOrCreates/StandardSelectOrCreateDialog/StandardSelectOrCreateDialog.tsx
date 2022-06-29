@@ -1,10 +1,10 @@
 import {
     Box,
-    Button,
     Dialog,
     DialogContent,
     IconButton,
     Stack,
+    Tooltip,
     Typography,
     useTheme
 } from '@mui/material';
@@ -42,7 +42,7 @@ export const StandardSelectOrCreateDialog = ({
     /**
      * Before closing, remove all URL search params for advanced search
      */
-     const onClose = useCallback(() => {
+    const onClose = useCallback(() => {
         // Find all search fields
         const searchFields = [
             ...standardSearchSchema.fields.map(f => f.fieldName),
@@ -136,18 +136,30 @@ export const StandardSelectOrCreateDialog = ({
                 onAction={handleCreateClose}
                 open={isCreateOpen}
                 title={"Create Standard"}
-                zIndex={zIndex+1}
+                zIndex={zIndex + 1}
             >
                 <StandardCreate
                     onCreated={handleCreated}
                     onCancel={handleCreateClose}
                     session={session}
-                    zIndex={zIndex+1}
+                    zIndex={zIndex + 1}
                 />
             </BaseObjectDialog>
             {titleBar}
             <DialogContent>
-                <Stack direction="column" spacing={4}>
+                <Stack direction="column" spacing={2}>
+                    <Stack direction="row" alignItems="center" justifyContent="center">
+                        <Typography component="h2" variant="h4">Standards</Typography>
+                        <Tooltip title="Add new" placement="top">
+                            <IconButton
+                                size="large"
+                                onClick={handleCreateOpen}
+                                sx={{ padding: 1 }}
+                            >
+                                <CreateIcon color="secondary" sx={{ width: '1.5em', height: '1.5em' }} />
+                            </IconButton>
+                        </Tooltip>
+                    </Stack>
                     <SearchList
                         itemKeyPrefix='standard-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
@@ -159,11 +171,6 @@ export const StandardSelectOrCreateDialog = ({
                         take={20}
                         zIndex={zIndex}
                     />
-                    <Button
-                        fullWidth
-                        onClick={handleCreateOpen}
-                        startIcon={<CreateIcon />}
-                    >Create New</Button>
                 </Stack>
             </DialogContent>
         </Dialog>

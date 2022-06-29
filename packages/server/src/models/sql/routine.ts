@@ -633,7 +633,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
-    ): Promise<string | null> {
+    ): Promise<string | undefined> {
         // Convert input to Prisma shape
         const fieldExcludes = ['node', 'user', 'userId', 'organization', 'organizationId', 'createdByUser', 'createdByUserId', 'createdByOrganization', 'createdByOrganizationId'];
         let formattedInput: any = relationshipToPrisma({ data: input, relationshipName: 'routine', isAdd, fieldExcludes })
@@ -658,7 +658,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             return formattedInput.connect[0].id;
         }
         if (Array.isArray(formattedInput.disconnect) && formattedInput.disconnect.length > 0) {
-            return null;
+            return undefined;
         }
         if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
             const update = await this.toDBShape(userId, formattedInput.update[0].data, false);
@@ -675,7 +675,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             await deleteOneHelper(userId, { id: deleteId, objectType: DeleteOneType.Routine }, RoutineModel(prisma));
             return deleteId;
         }
-        return null;
+        return undefined;
     },
     /**
      * Validate adds, updates, and deletes

@@ -117,7 +117,7 @@ export const SubroutineInfoDialog = ({
     useEffect(() => {
         if (subroutine?.routine?.owner?.__typename === 'Organization') setOrganizationFor(subroutine?.routine.owner as Organization);
         else setOrganizationFor(null);
-        setInputsList(subroutine?.routine?.inputs ?? []);
+        setInputsList(subroutine?.routine?.inputs ?? []); //TODO for morning: since inputs are not found right away, inputoutputlistitem has null standard at first, and overwrites actual standard with default
         setOutputsList(subroutine?.routine?.outputs ?? []);
         setResourceList(subroutine?.routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(subroutine?.routine?.tags ?? []);
@@ -422,7 +422,7 @@ export const SubroutineInfoDialog = ({
                             </Box>
                         </Grid>
                         {
-                            isEditing && <Grid item xs={12}>
+                            canEdit && <Grid item xs={12}>
                                 <TextField
                                     fullWidth
                                     id="version"
@@ -461,7 +461,7 @@ export const SubroutineInfoDialog = ({
                             />
                         </Grid>}
                         {
-                            (isEditing || (resourceList?.resources?.length > 0)) && <Grid item xs={12} mb={2}>
+                            (canEdit || (resourceList?.resources?.length > 0)) && <Grid item xs={12} mb={2}>
                                 <ResourceListHorizontal
                                     title={'Resources'}
                                     list={resourceList}

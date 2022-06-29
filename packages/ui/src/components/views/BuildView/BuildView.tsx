@@ -349,6 +349,8 @@ export const BuildView = ({
      * Mutates routine data
      */
     const updateRoutine = useCallback(() => {
+        console.log('original', routine);
+        console.log('changed', changedRoutine);
         if (!changedRoutine || isEqual(routine, changedRoutine)) {
             PubSub.publish(Pubs.Snack, { message: 'No changes detected', severity: 'error' });
             return;
@@ -755,15 +757,20 @@ export const BuildView = ({
      * @param newIndex The new index of the subroutine
      */
     const handleRoutineListItemReorder = useCallback((nodeId: string, oldIndex: number, newIndex: number) => {
+        console.log('handleroutinelistitemreorder start', nodeId, oldIndex, newIndex);
         // Find routines being swapped
         if (!changedRoutine) return;
         // Node containing routine list data with ID nodeId
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.data?.id === nodeId);
+        console.log('handleroutinelistitemreorder nodeIndex', nodeIndex);
         if (nodeIndex === -1) return;
         const routineList: NodeDataRoutineList = changedRoutine.nodes[nodeIndex].data as NodeDataRoutineList;
         const routines = [...routineList.routines];
+        console.log('handleroutinelistitemreorder routines', routines);
+        // Find subroutines matching old and new index
         const aIndex = routines.findIndex(r => r.index === oldIndex);
         const bIndex = routines.findIndex(r => r.index === newIndex);
+        console.log('handleroutinelistitemreorder aIndex bIndex', aIndex, bIndex);
         if (aIndex === -1 || bIndex === -1) return;
         // Swap the routine indexes
         routines[aIndex] = { ...routines[aIndex], index: newIndex };

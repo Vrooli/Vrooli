@@ -131,10 +131,10 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
     async toDBShape(userId: string | null, data: NodeCreateInput | NodeUpdateInput): Promise<any> {
         let nodeData: { [x: string]: any } = {
             id: data.id ?? undefined,
-            columnIndex: data.columnIndex,
-            routineId: data.routineId,
-            rowIndex: data.rowIndex,
-            type: data.type,
+            columnIndex: data.columnIndex ?? undefined,
+            routineId: data.routineId ?? undefined,
+            rowIndex: data.rowIndex ?? undefined,
+            type: data.type ?? undefined,
             translations: TranslationModel().relationshipBuilder(userId, data, { create: nodeTranslationCreate, update: nodeTranslationUpdate }, false),
         };
         // Create type-specific data, and make sure other types are null
@@ -385,8 +385,8 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
                 result.push({
                     where: data.where,
                     data: {
-                        index: data.data.index,
-                        isOptional: data.data.isOptional,
+                        index: data.data.index ?? undefined,
+                        isOptional: data.data.isOptional ?? undefined,
                         routineId: await routineModel.relationshipBuilder(userId, data.data, isAdd),
                         translations: TranslationModel().relationshipBuilder(userId, data.data, { create: nodeRoutineListItemTranslationCreate, update: nodeRoutineListItemTranslationUpdate }, false),
                     }
