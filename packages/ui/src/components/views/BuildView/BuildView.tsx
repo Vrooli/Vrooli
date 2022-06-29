@@ -6,11 +6,9 @@ import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, Status, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR } from 'utils';
 import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
-import isEqual from 'lodash/isEqual';
 import { useLocation } from 'wouter';
-import { APP_LINKS } from '@local/shared';
+import { APP_LINKS, isEqual, uniqBy } from '@local/shared';
 import { NodeType } from 'graphql/generated/globalTypes';
-import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import { BaseObjectAction } from 'components/dialogs/types';
 import { owns } from 'utils/authentication';
@@ -131,7 +129,7 @@ export const BuildView = ({
         const statuses: [Status, string][] = []; // Holds all status messages, so multiple can be displayed
         // Loop through nodes and add to appropriate array (and also populate nodesById dictionary)
         for (const node of changedRoutine.nodes) {
-            if (!_.isNil(node.columnIndex) && !_.isNil(node.rowIndex)) {
+            if ((node.columnIndex !== null && node.columnIndex !== undefined) && (node.rowIndex !== null && node.rowIndex !== undefined)) {
                 nodesOnGraph.push(node);
             } else {
                 nodesOffGraph.push(node);
@@ -142,7 +140,7 @@ export const BuildView = ({
         // 1. Check that (columnIndex, rowIndex) pairs are all unique
         // First check
         // Remove duplicate values from positions dictionary
-        const uniqueDict = _.uniqBy(nodesOnGraph, (n) => `${n.columnIndex}-${n.rowIndex}`);
+        const uniqueDict = uniqBy(nodesOnGraph, (n) => `${n.columnIndex}-${n.rowIndex}`);
         // Check if length of removed duplicates is equal to the length of the original positions dictionary
         if (uniqueDict.length !== Object.values(nodesOnGraph).length) {
             // Push to status
@@ -205,8 +203,8 @@ export const BuildView = ({
         const goodLinks = changedRoutine.nodeLinks.filter(link => !nodesOffGraph.some(node => node.id === link.fromId || node.id === link.toId));
         // If routine was mutated, update the routine
         const finalNodes = [...nodesOnGraph, ...nodesOffGraph]
-        const haveNodesChanged = !_.isEqual(finalNodes, changedRoutine.nodes);
-        const haveLinksChanged = !_.isEqual(goodLinks, changedRoutine.nodeLinks);
+        const haveNodesChanged = !isEqual(finalNodes, changedRoutine.nodes);
+        const haveLinksChanged = !isEqual(goodLinks, changedRoutine.nodeLinks);
         if (haveNodesChanged || haveLinksChanged) {
             setChangedRoutine({
                 ...changedRoutine,
@@ -219,7 +217,7 @@ export const BuildView = ({
         // Loop through positioned nodes
         for (const node of nodesOnGraph) {
             // Skips nodes without a columnIndex or rowIndex
-            if (_.isNil(node.columnIndex) || _.isNil(node.rowIndex)) continue;
+            if ((node.columnIndex === null || node.columnIndex === undefined) || (node.rowIndex === null || node.rowIndex === undefined)) continue;
             // Add new column(s) if necessary
             while (columns.length <= node.columnIndex) {
                 columns.push([]);
@@ -701,7 +699,7 @@ export const BuildView = ({
         const { columnIndex, rowIndex } = toNode;
         // Move every node starting from the "to" node to the right by one
         const nodesList = changedRoutine.nodes.map(n => {
-            if (!_.isNil(n.columnIndex) && n.columnIndex >= (columnIndex ?? 0)) {
+            if (n.columnIndex !== null && n.columnIndex !== undefined && n.columnIndex >= (columnIndex ?? 0)) {
                 return { ...n, columnIndex: n.columnIndex + 1 };
             }
             return n;

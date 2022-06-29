@@ -1,8 +1,9 @@
 import { CustomError } from '../error';
 import fs from 'fs';
-import { CODE } from '@local/shared';
+import { CODE, isObject } from '@local/shared';
 import { genErrorCode } from '../logger';
-import _ from 'lodash';
+import pkg from 'lodash';
+const { flatten } = pkg;
 
 const profanity = fs.readFileSync(`${process.env.PROJECT_DIR}/packages/server/src/utils/censorDictionary.txt`).toString().split("\n");
 // Add spacing around words (e.g. "document" contains "cum", but shouldn't be censored)
@@ -27,10 +28,10 @@ export const toStringArray = (item: any, fields: string[] | null): string[] | nu
     // Check if item is array
     if (Array.isArray(item)) {
         // Recursively convert each item in the array
-        return _.flatten(item.map(i => toStringArray(i, fields))).filter(i => i !== null) as string[];
+        return flatten(item.map(i => toStringArray(i, fields))).filter(i => i !== null) as string[];
     }
     // Check if item is object (not a Date)
-    else if (_.isObject(item) && Object.prototype.toString.call(item) !== '[object Date]') {
+    else if (isObject(item) && Object.prototype.toString.call(item) !== '[object Date]') {
         const childFields = fields ? fields.map(s => s.split('.').slice(1).join('.')).filter(s => s.length > 0) : null;
         // Filter out fields that are not specified
         const valuesToCheck: any[] = [];
@@ -39,7 +40,7 @@ export const toStringArray = (item: any, fields: string[] | null): string[] | nu
             valuesToCheck.push(value);
         }
         // Recursively convert each value in the object
-        return _.flatten(valuesToCheck.map(i => toStringArray(i, childFields))).filter(i => i !== null) as string[];
+        return flatten(valuesToCheck.map(i => toStringArray(i, childFields))).filter(i => i !== null) as string[];
     }
     // Check if item is string
     else if (typeof item === 'string') {
@@ -56,7 +57,7 @@ export const toStringArray = (item: any, fields: string[] | null): string[] | nu
  */
 export const validateProfanity = (items: any[], fields: string[] | null = null): void => {
     // Convert items to strings. For objects, recursively convert values to strings
-    let strings: string[] = _.flatten(items.map(i => toStringArray(i, fields))).filter(i => i !== null) as string[];
+    let strings: string[] = flatten(items.map(i => toStringArray(i, fields))).filter(i => i !== null) as string[];
     if (hasProfanity(...strings))
         throw new CustomError(CODE.BannedWord, 'Banned word detected', { code: genErrorCode('0042') });
 }

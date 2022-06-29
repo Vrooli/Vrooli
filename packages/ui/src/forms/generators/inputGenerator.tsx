@@ -18,8 +18,7 @@ import { Dropzone, JsonInput, LanguageInput, MarkdownInput, QuantityBox, Selecto
 import { DropzoneProps, QuantityBoxProps, SelectorProps, TagSelectorTag } from 'components/inputs/types'
 import { CheckboxProps, FieldData, JSONProps, MarkdownProps, RadioProps, SliderProps, SwitchProps, TextFieldProps } from 'forms/types'
 import { updateArray } from 'utils'
-import _ from 'lodash'
-import { InputType } from '@local/shared'
+import { InputType, isObject } from '@local/shared'
 import { Session } from 'types'
 
 /**
@@ -151,7 +150,7 @@ export const toLanguageInput = ({
     zIndex,
 }: InputGeneratorProps): React.ReactElement => {
     let languages: string[] = [];
-    if (_.isObject(formik.values) && Array.isArray(formik.values[data.fieldName]) && data.fieldName in formik.values) {
+    if (isObject(formik.values) && Array.isArray(formik.values[data.fieldName]) && data.fieldName in formik.values) {
         languages = formik.values[data.fieldName] as string[];
     }
     const addLanguage = (lang: string) => {

@@ -14,7 +14,6 @@ import {
     Search as SearchIcon,
 } from '@mui/icons-material';
 import { listToAutocomplete, listToListItems, ObjectType, openObject, openSearchPage, useReactSearch } from 'utils';
-import _ from 'lodash';
 import { AutocompleteOption, Organization, Project, Routine, Standard, User } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 
@@ -50,7 +49,7 @@ Automations don't pop into existence. They must be though of, designed, validate
 
 
 ## Who Created Vrooli?
-Vrooli is being developed by Matt Halloran. He is a software developer and decentralization advocate, who believes that a carefully designed collaboration and automation platform can produce a new paradigm in human productivity. You can find his contact links [here](https://matthalloran.info).
+Vrooli is being developed by Matt Halloran. He is a software developer and decentralization advocate, who believes that a carefully designed collaboration and automation platform can produce a new paradigm in human productivity. Here are [his contact links](https://matthalloran.info).
 
 
 ## What can I do?
@@ -240,7 +239,8 @@ export const HomePage = ({
             });
         }
         // Group all query results and sort by number of stars
-        const queryItems = listToAutocomplete(_.flatten(Object.values(data?.homePage ?? [])), languages).sort((a: any, b: any) => {
+        const flattened = (Object.values(data?.homePage ?? [])).reduce((acc, curr) => acc.concat(curr), []);
+        const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
             return b.stars - a.stars;
         });
         return [...firstResults, ...queryItems, ...shortcutsItems];

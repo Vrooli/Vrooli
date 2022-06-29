@@ -3,7 +3,6 @@ import { ResourceList, ResourceListCreateInput, ResourceListUpdateInput, Count, 
 import { PrismaType } from "types";
 import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
-import _ from "lodash";
 import { TranslationModel } from "./translation";
 import { ResourceModel } from "./resource";
 import { genErrorCode } from "../../logger";

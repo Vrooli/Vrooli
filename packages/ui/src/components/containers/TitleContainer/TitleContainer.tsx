@@ -75,7 +75,7 @@ export function TitleContainer({
                                             marginBottom: 'auto',
                                             marginRight: 2,
                                         }}>
-                                            <Typography sx={{ color: palette.secondary.dark }}>{label}</Typography>
+                                            <Typography sx={{ color: palette.mode === 'light' ? palette.secondary.dark : palette.secondary.light }}>{label}</Typography>
                                         </Link>
                                     ))}
                                 </Stack>

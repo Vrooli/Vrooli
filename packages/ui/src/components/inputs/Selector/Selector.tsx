@@ -1,6 +1,5 @@
 import { useCallback, useMemo } from 'react';
 import { Box, Chip, FormControl, InputLabel, MenuItem, Select, Theme, useTheme } from '@mui/material';
-import isArray from 'lodash/isArray';
 import { SelectorProps } from '../types';
 
 export const Selector = ({
@@ -65,7 +64,7 @@ export const Selector = ({
                 multiple={multiple}
                 renderValue={() => {
                     // If nothing is selected, don't display anything
-                    if (!selected || (isArray(selected) && selected.length === 0)) {
+                    if (!selected || (Array.isArray(selected) && selected.length === 0)) {
                         return '';
                     }
                     // If not multiple, just display the selected option

@@ -3,7 +3,7 @@ import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success,
 import { sendResetPasswordLink, sendVerificationLink } from "../../worker/email/queue";
 import { addJoinTablesHelper, addSupplementalFields, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, padSelect, PartialGraphQLInfo, readOneHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo } from "./base";
 import { user } from "@prisma/client";
-import { CODE, profileUpdateSchema, ROLES, userTranslationCreate, userTranslationUpdate } from "@local/shared";
+import { CODE, omit, profileUpdateSchema, ROLES, userTranslationCreate, userTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import bcrypt from 'bcrypt';
 import { hasProfanity } from "../../utils/censor";
@@ -15,7 +15,6 @@ import { WalletModel } from "./wallet";
 import { genErrorCode } from "../../logger";
 import { ResourceListModel } from "./resourceList";
 import { TagHiddenModel } from "./tagHidden";
-import _ from "lodash";
 const { AccountStatus } = pkg;
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
@@ -61,7 +60,7 @@ export const profileFormatter = (): FormatConverter<User> => ({
         'votes': GraphQLModelType.Vote,
     },
     removeCalculatedFields: (partial) => {
-        return _.omit(partial, calculatedFields);
+        return omit(partial, calculatedFields);
     },
     addJoinTables: (partial) => {
         return addJoinTablesHelper(partial, joinMapper);

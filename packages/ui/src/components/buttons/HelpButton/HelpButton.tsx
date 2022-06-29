@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Box, IconButton, Menu, Tooltip, useTheme } from '@mui/material';
 import { HelpOutline as HelpIcon } from "@mui/icons-material";
 import Markdown from 'markdown-to-jsx';
@@ -23,26 +23,6 @@ export const HelpButton = ({
     const closeMenu = () => {
         setAnchorEl(null);
     };
-
-    const menu = useMemo(() => {
-        return (
-            <Box>
-                <Box sx={{
-                    background: palette.primary.dark,
-                    display: 'flex',
-                    flexDirection: 'row-reverse',
-                    paddingRight: '0.5rem',
-                }}>
-                    <IconButton color="inherit" onClick={closeMenu} aria-label="close">
-                        <CloseIcon sx={{ fill: 'white' }} />
-                    </IconButton>
-                </Box>
-                <Box sx={{ padding: 1 }}>
-                    <Markdown>{markdown}</Markdown>
-                </Box>
-            </Box>
-        )
-    }, [markdown, palette.primary.dark])
 
     return (
         <Box
@@ -97,7 +77,21 @@ export const HelpButton = ({
                             },
                         }}
                     >
-                        {menu}
+                        <Box>
+                            <Box sx={{
+                                background: palette.primary.dark,
+                                display: 'flex',
+                                flexDirection: 'row-reverse',
+                                paddingRight: '0.5rem',
+                            }}>
+                                <IconButton color="inherit" onClick={closeMenu} aria-label="close">
+                                    <CloseIcon sx={{ fill: 'white' }} />
+                                </IconButton>
+                            </Box>
+                            <Box sx={{ padding: 1 }}>
+                                <Markdown>{markdown}</Markdown>
+                            </Box>
+                        </Box>
                     </Menu>
                 </IconButton>
             </Tooltip>

@@ -3,7 +3,6 @@ import { CustomError } from "../../error";
 import { LogType, Vote, VoteInput } from "../../schema/types";
 import { PrismaType } from "../../types";
 import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
-import _ from "lodash";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 

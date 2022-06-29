@@ -1,4 +1,3 @@
-import isFunction from 'lodash/isFunction';
 import { Pubs } from "utils";
 import PubSub from 'pubsub-js';
 import { ApolloCache, DefaultContext, MutationFunctionOptions, OperationVariables } from '@apollo/client';
@@ -53,7 +52,7 @@ export const mutationWrapper = ({
         if (successCondition(response)) {
             if (successMessage || successData) PubSub.publish(Pubs.Snack, { message: successMessage && successMessage(response), ...successData });
             if (spinnerDelay) PubSub.publish(Pubs.Loading, false);
-            if (isFunction(onSuccess)) onSuccess(response)
+            if (onSuccess && typeof onSuccess === 'function') onSuccess(response);
         } else {
             if (errorMessage || errorData) {
                 PubSub.publish(Pubs.Snack, { message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
@@ -62,7 +61,7 @@ export const mutationWrapper = ({
                 PubSub.publish(Pubs.Snack, { message: 'Unknown error occurred.', severity: 'error', data: response });
             }
             if (spinnerDelay) PubSub.publish(Pubs.Loading, false);
-            if (isFunction(onError)) onError({ message: 'Unknown error occurred.' });
+            if (onError && typeof onError === 'function') onError({ message: 'Unknown error occurred.' });
         }
     }).catch((response: ApolloError) => {
         if (spinnerDelay) PubSub.publish(Pubs.Loading, false);
@@ -72,6 +71,6 @@ export const mutationWrapper = ({
         else if (showDefaultErrorSnack) {
             PubSub.publish(Pubs.Snack, { message: errorToMessage(response), severity: 'error', data: response });
         }
-        if (isFunction(onError)) onError(response);
+        if (onError && typeof onError === 'function') onError(response);
     })
 }

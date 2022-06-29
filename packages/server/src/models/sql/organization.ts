@@ -2,7 +2,7 @@ import { PrismaType, RecursivePartial } from "../../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor } from "../../schema/types";
 import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, PartialGraphQLInfo, addCountFieldsHelper, removeCountFieldsHelper } from "./base";
 import { CustomError } from "../../error";
-import { CODE, MemberRole, organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@local/shared";
+import { CODE, MemberRole, omit, organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@local/shared";
 import { organization_users } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -11,7 +11,6 @@ import { ResourceListModel } from "./resourceList";
 import { WalletModel } from "./wallet";
 import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
-import _ from "lodash";
 
 //==============================================================
 /* #region Custom Components */
@@ -36,7 +35,7 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         'tags': GraphQLModelType.Tag,
     },
     removeCalculatedFields: (partial) => {
-        return _.omit(partial, calculatedFields);
+        return omit(partial, calculatedFields);
     },
     addJoinTables: (partial) => {
         return addJoinTablesHelper(partial, joinMapper);

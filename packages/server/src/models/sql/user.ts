@@ -3,7 +3,7 @@ import { addCountFieldsHelper, addJoinTablesHelper, FormatConverter, GraphQLMode
 import { PrismaType, RecursivePartial } from "../../types";
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
-import _ from "lodash";
+import { omit } from "@local/shared";
 
 //==============================================================
 /* #region Custom Components */
@@ -23,7 +23,7 @@ export const userFormatter = (): FormatConverter<User> => ({
         'routines': GraphQLModelType.Routine,
     },
     removeCalculatedFields: (partial) => {
-        return _.omit(partial, calculatedFields);
+        return omit(partial, calculatedFields);
     },
     addJoinTables: (partial) => {
         return addJoinTablesHelper(partial, joinMapper);

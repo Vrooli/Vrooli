@@ -38,7 +38,7 @@ export const StartNode = ({
                     fontSize: fontSize,
                     position: 'relative',
                     display: 'block',
-                    backgroundColor: '#6daf72',
+                    backgroundColor: '#387e30',
                     color: 'white',
                     borderRadius: '100%',
                     '&:hover': {

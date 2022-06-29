@@ -1,7 +1,9 @@
 import { Autocomplete, CircularProgress, IconButton, Input, ListItemText, MenuItem, Paper, Typography } from '@mui/material';
 import { AutocompleteSearchBarProps } from '../types';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
-import { Search as SearchIcon } from '@mui/icons-material';
+import {
+    Search as SearchIcon
+} from '@mui/icons-material';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
 import { AutocompleteOption } from 'types';
 
@@ -59,7 +61,6 @@ export function AutocompleteSearchBar({
         <Autocomplete
             disablePortal
             id={id}
-            sx={sx}
             options={options}
             inputValue={internalValue}
             getOptionLabel={(option: AutocompleteOption) => option.label ?? ''}
@@ -134,7 +135,6 @@ export function AutocompleteSearchBar({
                     sx={{ p: '2px 4px', display: 'flex', alignItems: 'center', borderRadius: '10px' }}
                 >
                     <Input
-                        sx={{ ml: 1, flex: 1 }}
                         disableUnderline={true}
                         value={internalValue}
                         onChange={handleChange}
@@ -142,14 +142,38 @@ export function AutocompleteSearchBar({
                         autoFocus={props.autoFocus ?? false}
                         {...params.InputProps}
                         inputProps={params.inputProps}
+                        sx={{ 
+                            ml: 1, 
+                            flex: 1,
+                            // Drop down/up icon
+                            '& .MuiAutocomplete-endAdornment': {
+                                width: '48px',
+                                height: '48px',
+                                top: '0',
+                                position: 'relative',
+                                '& .MuiButtonBase-root': {
+                                    width: '48px',
+                                    height: '48px',
+                                }
+                            }
+                        }}
                     />
-                    <IconButton sx={{ p: '10px' }} aria-label="main-search-icon">
+                    <IconButton sx={{
+                        width: '48px',
+                        height: '48px',
+                    }} aria-label="main-search-icon">
                         <SearchIcon />
                     </IconButton>
                 </Paper>
             )
             }
             noOptionsText={noOptionsText}
+            sx={{
+                ...(sx ?? {}),
+                '& .MuiAutocomplete-inputRoot': {
+                    paddingRight: '0 !important',
+                },
+            }}
         />
     );
 }

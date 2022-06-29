@@ -1,13 +1,12 @@
-import { CODE, commentsCreate, CommentSortBy, commentsUpdate, commentTranslationCreate, commentTranslationUpdate } from "@local/shared";
+import { CODE, commentsCreate, CommentSortBy, commentsUpdate, commentTranslationCreate, commentTranslationUpdate, omit } from "@local/shared";
 import { CustomError } from "../../error";
 import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, Count } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, GraphQLModelType, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, GraphQLModelType, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper } from "./base";
 import { OrganizationModel, organizationVerifier } from "./organization";
 import pkg from '@prisma/client';
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
-import _ from "lodash";
 import { StarModel } from "./star";
 const { MemberRole } = pkg;
 
@@ -35,7 +34,7 @@ export const commentFormatter = (): FormatConverter<Comment> => ({
         'votes': GraphQLModelType.Vote,
     },
     removeCalculatedFields: (partial) => {
-        return _.omit(partial, calculatedFields);
+        return omit(partial, calculatedFields);
     },
     constructUnions: (data) => {
         let { organization, project, routine, standard, user, ...modified } = data;

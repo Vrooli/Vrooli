@@ -2,10 +2,9 @@ import { Count, Tag, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy }
 import { PrismaType, RecursivePartial } from "types";
 import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, joinRelationshipToPrisma, modelToGraphQL, PartialGraphQLInfo, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
-import { CODE, tagsCreate, tagsUpdate, tagTranslationCreate, tagTranslationUpdate } from "@local/shared";
+import { CODE, omit, tagsCreate, tagsUpdate, tagTranslationCreate, tagTranslationUpdate } from "@local/shared";
 import { validateProfanity } from "../../utils/censor";
 import { StarModel } from "./star";
-import _ from "lodash";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
 
@@ -21,7 +20,7 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
         'starredBy': GraphQLModelType.User,
     },
     removeCalculatedFields: (partial) => {
-        const omitted = _.omit(partial, calculatedFields);
+        const omitted = omit(partial, calculatedFields);
         // Add createdByUserId field so we can calculate isOwn
         return { ...omitted, createdByUserId: true }
     },

@@ -1,5 +1,4 @@
 import { GraphQLError, Kind } from 'graphql';
-import isArray from 'lodash/isArray';
 import { genErrorCode, logger, LogLevel } from './logger';
 
 interface Options {
@@ -98,7 +97,7 @@ const determineDepth: any = (node: any, fragments: any, depthSoFar: number, maxD
 
 function seeIfIgnored(node: any, ignore: any) {
     if (!ignore) return false;
-    const ignoreArray = isArray(ignore) ? ignore : [ignore];
+    const ignoreArray = Array.isArray(ignore) ? ignore : [ignore];
     for (let rule of ignoreArray) {
         const fieldName = node.name.value
         switch (rule.constructor) {

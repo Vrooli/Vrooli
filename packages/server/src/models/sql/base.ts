@@ -2,8 +2,6 @@
 import { CopyInput, CopyType, Count, DeleteManyInput, DeleteOneInput, FindByIdOrHandleInput, ForkInput, PageInfo, Success, TimeFrame } from '../../schema/types';
 import { PrismaType, RecursivePartial } from '../../types';
 import { GraphQLResolveInfo } from 'graphql';
-import pkg from 'lodash';
-import _ from 'lodash';
 import { commentFormatter, commentSearcher } from './comment';
 import { nodeFormatter, nodeRoutineListFormatter } from './node';
 import { organizationFormatter, organizationSearcher } from './organization';
@@ -19,7 +17,7 @@ import { starFormatter } from './star';
 import { voteFormatter } from './vote';
 import { emailFormatter } from './email';
 import { CustomError } from '../../error';
-import { CODE, ForkType, ViewFor } from '@local/shared';
+import { CODE, isObject, ViewFor } from '@local/shared';
 import { profileFormatter } from './profile';
 import { memberFormatter } from './member';
 import { resolveGraphQLInfo } from '../../utils';
@@ -31,7 +29,8 @@ import { Log, LogType } from '../../models/nosql';
 import { genErrorCode, logger, LogLevel } from '../../logger';
 import { viewFormatter, ViewModel } from './view';
 import { runFormatter, runSearcher } from './run';
-const { isObject } = pkg;
+import pkg from 'lodash';
+const { difference, flatten, merge } = pkg;
 
 
 //======================================================================================================================
@@ -333,7 +332,7 @@ export const PrismaMap: { [key in GraphQLModelType]?: (prisma: PrismaType) => an
  * @param obj - object to check
  * @returns true if obj is a relationship object, false otherwise
  */
-const isRelationshipObject = (obj: any): boolean => _.isObject(obj) && Object.prototype.toString.call(obj) !== '[object Date]';
+const isRelationshipObject = (obj: any): boolean => isObject(obj) && Object.prototype.toString.call(obj) !== '[object Date]';
 
 /**
  * Determines if an object is an array of relationship objects, and not a relationship object.
@@ -531,7 +530,7 @@ const injectTypenames = (select: { [x: string]: any }, parentRelationshipMap: Re
         // Find nested value in parent relationship map, using nestedFields
         let nestedValue: GraphQLModelType | Partial<RelationshipMap> | undefined = parentRelationshipMap;
         for (const field of nestedFields) {
-            if (!_.isObject(nestedValue)) break;
+            if (!isObject(nestedValue)) break;
             if (field in nestedValue) {
                 nestedValue = (nestedValue as any)[field];
             }
@@ -635,7 +634,7 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
 export const selectHelper = (partial: PartialGraphQLInfo | PartialPrismaSelect): PrismaSelect | undefined => {
     // Convert partial's special cases (virtual/calculated fields, unions, etc.)
     let modified: PartialPrismaSelect = toPartialPrismaSelect(partial);
-    if (!_.isObject(modified)) return undefined;
+    if (!isObject(modified)) return undefined;
     // Delete __typename fields
     modified = removeTypenames(modified);
     // Pad every relationship with "select"
@@ -673,7 +672,7 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
     // Then loop through each key/value pair in data and call modelToGraphQL on each array item/object
     for (const [key, value] of Object.entries(data)) {
         // If key doesn't exist in partialInfo, check if union
-        if (!_.isObject(partialInfo) || !(key in partialInfo)) continue;
+        if (!isObject(partialInfo) || !(key in partialInfo)) continue;
         // If value is an array, call modelToGraphQL on each element
         if (Array.isArray(value)) {
             // Pass each element through modelToGraphQL
@@ -790,7 +789,7 @@ export const relationshipToPrisma = ({
 } => {
     // Determine valid operations, and remove operations that should be excluded
     let ops = isAdd ? [RelationshipTypes.connect, RelationshipTypes.create] : Object.values(RelationshipTypes);
-    ops = _.difference(ops, relExcludes)
+    ops = difference(ops, relExcludes)
     // Create result object
     let converted: { [x: string]: any } = {};
     // Loop through object's keys
@@ -921,7 +920,7 @@ export const deconstructUnion = (partialInfo: PartialGraphQLInfo, unionField: st
     // Swap keys of union to match their prisma names
     for (const [relType, relName] of relationshipTuples) {
         // If union missing, skip
-        if (!_.isObject(unionData) || !(relType in unionData)) continue;
+        if (!isObject(unionData) || !(relType in unionData)) continue;
         const currData = unionData[relType];
         converted[relName] = currData;
     }
@@ -1000,7 +999,7 @@ const groupIdsByType = (data: { [x: string]: any }, partialInfo: PartialGraphQLI
         if (childPartialInfo)
             // If every key in childPartialInfo starts with a capital letter, then it is a union.
             // In this case, we must determine which union to use based on the shape of value
-            if (_.isObject(childPartialInfo) && Object.keys(childPartialInfo).every(k => k[0] === k[0].toUpperCase())) {
+            if (isObject(childPartialInfo) && Object.keys(childPartialInfo).every(k => k[0] === k[0].toUpperCase())) {
                 // Find the union type which matches the shape of value
                 let matchingType: string | undefined;
                 for (const unionType of Object.keys(childPartialInfo)) {
@@ -1020,7 +1019,7 @@ const groupIdsByType = (data: { [x: string]: any }, partialInfo: PartialGraphQLI
                     objectIdsDict[childType] = objectIdsDict[childType] ?? [];
                     objectIdsDict[childType].push(...childObjects);
                 }
-                selectFieldsDict = _.merge(selectFieldsDict, childSelectFieldsDict);
+                selectFieldsDict = merge(selectFieldsDict, childSelectFieldsDict);
             }
         }
         // If value is an object (and not date), add it to the correct key in objectDict
@@ -1031,7 +1030,7 @@ const groupIdsByType = (data: { [x: string]: any }, partialInfo: PartialGraphQLI
                 objectIdsDict[childType] = objectIdsDict[childType] ?? [];
                 objectIdsDict[childType].push(...childObjects);
             }
-            selectFieldsDict = _.merge(selectFieldsDict, childSelectFieldsDict);
+            selectFieldsDict = merge(selectFieldsDict, childSelectFieldsDict);
         }
         else if (key === 'id' && partialInfo.__typename) {
             // Add to objectIdsDict
@@ -1043,7 +1042,7 @@ const groupIdsByType = (data: { [x: string]: any }, partialInfo: PartialGraphQLI
     // Add keys to selectFieldsDict
     const currType = partialInfo?.__typename;
     if (currType) {
-        selectFieldsDict[currType] = _.merge(selectFieldsDict[currType] ?? {}, partialInfo);
+        selectFieldsDict[currType] = merge(selectFieldsDict[currType] ?? {}, partialInfo);
     }
     // Return objectDict and selectFieldsDict
     return [objectIdsDict, selectFieldsDict];
@@ -1071,7 +1070,7 @@ const combineSupplements = (data: { [x: string]: any }, objectsById: { [x: strin
         }
     }
     // Handle base case
-    return _.merge(result, objectsById[data.id])
+    return merge(result, objectsById[data.id])
 }
 
 // TODO might not work if ID appears multiple times in data, where the first
@@ -1176,7 +1175,7 @@ export const addSupplementalFields = async (
             objectIdsDict[childType].push(...childObjects);
         }
         // Merge each object in childSelectFieldsDict into selectFieldsDict
-        selectFieldsDict = _.merge(selectFieldsDict, childSelectFieldsDict);
+        selectFieldsDict = merge(selectFieldsDict, childSelectFieldsDict);
     }
 
     // Dictionary to store objects by ID, instead of type. This is needed to combineSupplements
@@ -1220,7 +1219,7 @@ export const addSupplementalFieldsMultiTypes = async (
     prisma: PrismaType,
 ): Promise<{ [x: string]: any[] }> => {
     // Flatten data array
-    const combinedData = _.flatten(data);
+    const combinedData = flatten(data);
     // Create an array of partials, that match the data array
     let combinedPartialInfo: PartialGraphQLInfo[] = [];
     for (let i = 0; i < data.length; i++) {
