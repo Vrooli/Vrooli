@@ -85,7 +85,7 @@ export const NavList = ({
                 <Button
                     className={classes.button}
                     onClick={() => openLink(setLocation, APP_LINKS.Start)}
-                    sx={{ background: '#5ea956' }}
+                    sx={{ background: '#387e30' }}
                 >
                     Log In
                 </Button>

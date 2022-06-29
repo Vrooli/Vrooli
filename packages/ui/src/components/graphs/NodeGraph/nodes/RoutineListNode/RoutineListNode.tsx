@@ -339,6 +339,7 @@ export const RoutineListNode = ({
                         canExpand && (
                             <IconButton
                                 id={`toggle-expand-icon-button-${node.id}`}
+                                aria-label={collapseOpen ? 'Collapse' : 'Expand'}
                                 color="inherit"
                             >
                                 {collapseOpen ? <ExpandLessIcon id={`toggle-expand-icon-${node.id}`} /> : <ExpandMoreIcon id={`toggle-expand-icon-${node.id}`} />}

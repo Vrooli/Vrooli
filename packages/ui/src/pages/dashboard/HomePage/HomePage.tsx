@@ -49,7 +49,7 @@ Automations don't pop into existence. They must be though of, designed, validate
 
 
 ## Who Created Vrooli?
-Vrooli is being developed by Matt Halloran. He is a software developer and decentralization advocate, who believes that a carefully designed collaboration and automation platform can produce a new paradigm in human productivity. You can find his contact links [here](https://matthalloran.info).
+Vrooli is being developed by Matt Halloran. He is a software developer and decentralization advocate, who believes that a carefully designed collaboration and automation platform can produce a new paradigm in human productivity. Here are [his contact links](https://matthalloran.info).
 
 
 ## What can I do?
