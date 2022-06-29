@@ -117,7 +117,7 @@ export const SubroutineInfoDialog = ({
     useEffect(() => {
         if (subroutine?.routine?.owner?.__typename === 'Organization') setOrganizationFor(subroutine?.routine.owner as Organization);
         else setOrganizationFor(null);
-        setInputsList(subroutine?.routine?.inputs ?? []); //TODO for morning: since inputs are not found right away, inputoutputlistitem has null standard at first, and overwrites actual standard with default
+        setInputsList(subroutine?.routine?.inputs ?? []);
         setOutputsList(subroutine?.routine?.outputs ?? []);
         setResourceList(subroutine?.routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(subroutine?.routine?.tags ?? []);

@@ -77,6 +77,7 @@ export const InputOutputContainer = ({
     session,
     zIndex,
 }: InputOutputContainerProps) => {
+    console.log('inputOutputContainer', list);
     // Store open/close state of each list item
     const [isOpenArray, setIsOpenArray] = useState<boolean[]>([]);
     useEffect(() => {
@@ -119,6 +120,7 @@ export const InputOutputContainer = ({
     }, [list, language, isInput, handleUpdate]);
 
     const onUpdate = useCallback((index: number, updatedItem: RoutineInput | RoutineOutput) => {
+        console.log('inputoutputcontainer onUpdate', index, updatedItem);
         handleUpdate(updateArray(list, index, updatedItem));
     }, [handleUpdate, list]);
 

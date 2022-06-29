@@ -72,7 +72,7 @@ export const InputOutputListItem = ({
     const { palette } = useTheme();
 
     // Handle standard select switch
-    const [standard, setStandard] = useState<ListStandard | null>(null);
+    const [standard, setStandard] = useState<ListStandard | null>(item?.standard ?? null);
     // Handle input type selector
     const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
     const handleInputTypeSelect = useCallback((event: any) => {
@@ -99,6 +99,13 @@ export const InputOutputListItem = ({
     useEffect(() => {
         // Check if standard has changed
         if (item?.standard?.id === standard?.id) return;
+        // TODO handle tags for all handleupdate calls. move to utility function
+        /**
+         * const tagsAdd = tags.length > 0 ? {
+                tagsCreate: tags.filter(t => !t.id).map(t => ({ tag: t.tag })),
+                tagsConnect: tags.filter(t => t.id).map(t => (t.id)),
+            } : {};
+         */
         handleUpdate(index, {
             ...item,
             standard: standard || null,
@@ -278,7 +285,7 @@ export const InputOutputListItem = ({
                             onChange={formik.handleChange}
                             error={formik.touched.name && Boolean(formik.errors.name)}
                             helperText={formik.touched.name && formik.errors.name}
-                        /> : <Typography variant="h6">{formik.values.name}</Typography>}
+                        /> : <Typography variant="h6">{`Name: ${formik.values.name}`}</Typography>}
                     </Grid>
                     <Grid item xs={12}>
                         <Grid item xs={12}>
@@ -294,7 +301,7 @@ export const InputOutputListItem = ({
                                 onChange={formik.handleChange}
                                 error={formik.touched.description && Boolean(formik.errors.description)}
                                 helperText={formik.touched.description && formik.errors.description}
-                            /> : <Typography variant="body2">{formik.values.description}</Typography>}
+                            /> : <Typography variant="body2">{`Description: ${formik.values.description}`}</Typography>}
                         </Grid>
                     </Grid>
                     {/* Select standard */}
