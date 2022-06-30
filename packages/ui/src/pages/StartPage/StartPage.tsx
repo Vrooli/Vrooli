@@ -178,7 +178,12 @@ export const StartPage = ({
         mutationWrapper({
             mutation: guestLogIn,
             onSuccess: () => {
-                PubSub.publish(Pubs.Session, { roles: [{ role: { title: ROLES.Guest } }] })
+                let theme: string = 'light';
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) theme = 'dark';
+                PubSub.publish(Pubs.Session, { 
+                    roles: [{ role: { title: ROLES.Guest } }],
+                    theme,
+                })
                 setLocation(redirect ?? APP_LINKS.Welcome);
             },
         })

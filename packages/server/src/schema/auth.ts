@@ -286,6 +286,7 @@ export const resolvers = {
             // Create session
             const session: RecursivePartial<Session> = {
                 roles: [ROLES.Guest],
+                theme: 'light',
             }
             // Set up session token
             await generateSessionToken(context.res, session);
