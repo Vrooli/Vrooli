@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { organizationCreateForm as validationSchema, ROLES } from '@local/shared';
 import { useFormik } from 'formik';
 import { organizationCreateMutation } from "graphql/mutation";
-import { formatForCreate, getUserLanguages, updateArray, useReactSearch } from "utils";
+import { formatForCreate, getUserLanguages, shapeTagsAdd, updateArray, useReactSearch } from "utils";
 import { OrganizationCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LanguageInput, ResourceListHorizontal, TagSelector } from "components";
@@ -77,10 +77,6 @@ export const OrganizationCreate = ({
         validationSchema,
         onSubmit: (values) => {
             const resourceListAdd = resourceList ? formatForCreate(resourceList) : {};
-            const tagsAdd = tags.length > 0 ? {
-                tagsCreate: tags.filter(t => !t.id).map(t => ({ tag: t.tag })),
-                tagsConnect: tags.filter(t => t.id).map(t => (t.id)),
-            } : {};
             const allTranslations = getTranslationsUpdate(language, {
                 language,
                 bio: values.bio,
@@ -91,7 +87,7 @@ export const OrganizationCreate = ({
                 input: formatForCreate({
                     translations: allTranslations,
                     resourceListsCreate: [resourceListAdd],
-                    ...tagsAdd
+                    ...shapeTagsAdd(tags),
                 }) as any,
                 onSuccess: (response) => { onCreated(response.data.organizationCreate) },
                 onError: () => { formik.setSubmitting(false) },

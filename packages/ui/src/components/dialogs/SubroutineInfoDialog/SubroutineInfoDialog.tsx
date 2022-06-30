@@ -160,6 +160,7 @@ export const SubroutineInfoDialog = ({
                 instructions: values.instructions,
                 title: values.title,
             })
+            console.log('subroutineinfodialog update taggs', tags)
             handleUpdate({
                 ...subroutine,
                 index: Math.max(values.index - 1, 1), // Formik index starts at 1, for user convenience

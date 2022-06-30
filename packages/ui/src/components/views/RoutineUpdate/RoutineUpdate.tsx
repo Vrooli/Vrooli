@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { routineUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, updateArray } from "utils";
+import { formatForUpdate, shapeTagsUpdate, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -131,11 +131,6 @@ export const RoutineUpdate = ({
         onSubmit: (values) => {
             const existingResourceList = Array.isArray(routine?.resourceLists) ? (routine as Routine).resourceLists.find(list => list.usedFor === ResourceListUsedFor.Display) : undefined;
             const resourceListUpdate = existingResourceList ? { resourceListsUpdate: formatForUpdate(existingResourceList, resourceList, [], ['resources']) } : {};
-            const tagsUpdate = tags.length > 0 ? {
-                tagsCreate: tags.filter(t => !t.id && !routine?.tags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
-                tagsConnect: tags.filter(t => t.id && !routine?.tags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
-                tagsDisconnect: routine?.tags?.filter(t => !tags.some(tag => tag.tag === t.tag)).map(t => (t.id)),
-            } : {};
             const ownedBy: { organizationId: string; } | { userId: string; } = organizationFor ? { organizationId: organizationFor.id } : { userId: session?.id ?? '' };
             const allTranslations = getTranslationsUpdate(language, {
                 language,
@@ -143,7 +138,7 @@ export const RoutineUpdate = ({
                 instructions: values.instructions,
                 title: values.title,
             })
-            mutationWrapper({
+            mutationWrapper({ //TODO for morning: updating inputs/outputs can break because standard. If standard is custom, then it should always display as custom (does not do that yet). when updated, should check if standard is custom and treat it different when formatting for update. standardUpdate is currently an invalid API field, since other people may use your standard. Should change so update is valid, just need to check that it is yours and custom. Then make sure that custom standards are hidden from all search results, so no one else uses them.
                 mutation,
                 input: formatForUpdate(routine, {
                     id,
@@ -153,9 +148,12 @@ export const RoutineUpdate = ({
                     inputs: inputsList,
                     outputs: outputsList,
                     ...resourceListUpdate,
-                    ...tagsUpdate,
+                    ...shapeTagsUpdate(routine?.tags, tags),
                     translations: allTranslations,
-                }, ['tags', 'inputs.standard', 'outputs.standard'], ['translations', 'inputs', 'outputs', 'inputs.translations', 'outputs.translations']),
+                },
+                    ['tags', 'inputs.standard', 'outputs.standard'],
+                    ['translations', 'inputs', 'outputs', 'inputs.translations', 'outputs.translations']
+                ),
                 onSuccess: (response) => { onUpdated(response.data.routineUpdate) },
                 onError: () => { formik.setSubmitting(false) },
             })
@@ -224,10 +222,10 @@ export const RoutineUpdate = ({
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12}>
-                <UserOrganizationSwitch 
-                    session={session} 
-                    selected={organizationFor} 
-                    onChange={onSwitchChange} 
+                <UserOrganizationSwitch
+                    session={session}
+                    selected={organizationFor}
+                    onChange={onSwitchChange}
                     zIndex={zIndex}
                 />
             </Grid>
@@ -263,7 +261,8 @@ export const RoutineUpdate = ({
                     name="description"
                     label="description"
                     value={formik.values.description}
-                    rows={3}
+                    multiline
+                    maxRows={3}
                     onBlur={formik.handleBlur}
                     onChange={formik.handleChange}
                     error={formik.touched.description && Boolean(formik.errors.description)}

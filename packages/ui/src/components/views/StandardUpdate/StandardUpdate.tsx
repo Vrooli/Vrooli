@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { standardUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, updateArray } from "utils";
+import { formatForUpdate, shapeTagsUpdate, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -94,11 +94,6 @@ export const StandardUpdate = ({
         onSubmit: (values) => {
             const existingResourceList = Array.isArray(standard?.resourceLists) ? (standard as Standard).resourceLists.find(list => list.usedFor === ResourceListUsedFor.Display) : undefined;
             const resourceListUpdate = existingResourceList ? { resourceListsUpdate: formatForUpdate(existingResourceList, resourceList, [], ['resources']) } : {};
-            const tagsUpdate = tags.length > 0 ? {
-                tagsCreate: tags.filter(t => !t.id && !standard?.tags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
-                tagsConnect: tags.filter(t => t.id && !standard?.tags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
-                tagsDisconnect: standard?.tags?.filter(t => !tags.some(tag => tag.tag === t.tag)).map(t => (t.id)),
-            } : {};
             const allTranslations = getTranslationsUpdate(language, {
                 language,
                 description: values.description,
@@ -108,7 +103,7 @@ export const StandardUpdate = ({
                 input: formatForUpdate(standard, {
                     id,
                     ...resourceListUpdate,
-                    ...tagsUpdate,
+                    ...shapeTagsUpdate(standard?.tags, tags),
                     translations: allTranslations,
                 }, ['tags'], ['translations']),
                 onSuccess: (response) => { onUpdated(response.data.standardUpdate) },

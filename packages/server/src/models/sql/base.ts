@@ -649,25 +649,32 @@ export const selectHelper = (partial: PartialGraphQLInfo | PartialPrismaSelect):
  * @returns Valid GraphQL object
  */
 export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partialInfo: PartialGraphQLInfo): GraphQLModel {
-    // First convert data to usable shape
+    // Remove top-level union from partialInfo, if necessary
+    // If every key starts with a capital letter, it's a union. 
+    // There's a catch-22 here which we must account for. Since "data" has not 
+    // been shaped yet, it won't match the shape of "partialInfo". But we can't do 
+    // this after shaping "data" because we need to know the type of the union. 
+    // To account for this, we call modelToGraphQL on each union, to check which one matches "data"
+    if (Object.keys(partialInfo).every(k => k[0] === k[0].toUpperCase())) {
+        // Find the union type which matches the shape of value. 
+        let matchingType: string | undefined;
+        for (const unionType of Object.keys(partialInfo)) {
+            const unionPartial = partialInfo[unionType];
+            if (!isObject(unionPartial)) continue;
+            const convertedData = modelToGraphQL(data, unionPartial as any);
+            if (subsetsMatch(convertedData, unionPartial)) matchingType = unionType;
+        }
+        if (matchingType) {
+            partialInfo = partialInfo[matchingType] as PartialGraphQLInfo;
+        }
+    }
+    // Convert data to usable shape
     const type: string | undefined = partialInfo?.__typename;
     if (type !== undefined && type in FormatterMap) {
         const formatter: FormatConverter<any> = FormatterMap[type as keyof typeof FormatterMap] as FormatConverter<any>;
         if (formatter.constructUnions) data = formatter.constructUnions(data);
         if (formatter.removeJoinTables) data = formatter.removeJoinTables(data);
         if (formatter.removeCountFields) data = formatter.removeCountFields(data);
-    }
-    // Remove top-level union from partialInfo, if necessary
-    // If every key starts with a capital letter, it's a union
-    if (Object.keys(partialInfo).every(k => k[0] === k[0].toUpperCase())) {
-        // Find the union type which matches the shape of value
-        let matchingType: string | undefined;
-        for (const unionType of Object.keys(partialInfo)) {
-            if (subsetsMatch(data, partialInfo[unionType])) matchingType = unionType;
-        }
-        if (matchingType) {
-            partialInfo = partialInfo[matchingType] as PartialGraphQLInfo;
-        }
     }
     // Then loop through each key/value pair in data and call modelToGraphQL on each array item/object
     for (const [key, value] of Object.entries(data)) {

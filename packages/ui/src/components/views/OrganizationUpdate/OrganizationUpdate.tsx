@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { organizationUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { organizationUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, updateArray } from "utils";
+import { formatForUpdate, shapeTagsUpdate, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -97,12 +97,6 @@ export const OrganizationUpdate = ({
         onSubmit: (values) => {
             const existingResourceList = Array.isArray(organization?.resourceLists) ? (organization as Organization).resourceLists.find(list => list.usedFor === ResourceListUsedFor.Display) : undefined;
             const resourceListUpdate = existingResourceList ? { resourceListsUpdate: formatForUpdate(existingResourceList, resourceList, [], ['resources']) } : {};
-            const tagsUpdate = tags.length > 0 ? {
-                // Create/connect/disconnect new tags
-                tagsCreate: tags.filter(t => !t.id && !organization?.tags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
-                tagsConnect: tags.filter(t => t.id && !organization?.tags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
-                tagsDisconnect: organization?.tags?.filter(t => !tags.some(tag => tag.tag === t.tag)).map(t => (t.id)),
-            } : {};
             const allTranslations = getTranslationsUpdate(language, {
                 language,
                 bio: values.bio,
@@ -113,7 +107,7 @@ export const OrganizationUpdate = ({
                 input: formatForUpdate(organization, {
                     id,
                     ...resourceListUpdate,
-                    ...tagsUpdate,
+                    ...shapeTagsUpdate(organization?.tags, tags),
                     translations: allTranslations,
                 }, ['tags'], ['translations']),
                 onSuccess: (response) => { onUpdated(response.data.organizationUpdate) },

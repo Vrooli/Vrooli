@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, Status, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR } from 'utils';
+import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, Status, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR, shapeTagsAdd, shapeTagsUpdate } from 'utils';
 import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
 import { useLocation } from 'wouter';
 import { APP_LINKS, isEqual, uniqBy } from '@local/shared';
@@ -302,10 +302,27 @@ export const BuildView = ({
         if (!changedRoutine) {
             return;
         }
-        const input: any = formatForCreate(
-            changedRoutine,
-            ['nodes', 'nodeLinks', 'nodes.data', 'nodes.data.routines']
-        )
+        const input: any = formatForCreate({
+            ...changedRoutine,
+            tags: undefined,
+            ...shapeTagsAdd(changedRoutine.tags),
+            nodes: changedRoutine.nodes.map(node => ({
+                ...node,
+                data: node.data ? {
+                    ...node.data,
+                    routines: (node.data as NodeDataRoutineList).routines ? (
+                        (node.data as NodeDataRoutineList).routines.map(routineNode => ({
+                            ...routineNode,
+                            routine: {
+                                ...routineNode.routine,
+                                tags: undefined,
+                                ...shapeTagsAdd(routineNode.routine.tags),
+                            },
+                        }))
+                    ) : undefined,
+                } : undefined,
+            })),
+        }, ['nodes', 'nodeLinks', 'nodes.data', 'nodes.data.routines'])
         // If nodes have a data create/update, convert to nodeEnd or nodeRoutineList (i.e. deconstruct union)
         const relationFields = ['Create', 'Update'];
         for (const iField of relationFields) {
@@ -359,10 +376,65 @@ export const BuildView = ({
             PubSub.publish(Pubs.Snack, { message: 'Cannot update: Invalid routine data', severity: 'error' });
             return;
         }
+        // Helper function for finding existing tags in a subroutine
+        const findSubroutine = (subroutineId: string) => {
+            for (const node of routine?.nodes ?? []) {
+                if ((node.data as NodeDataRoutineList)?.routines) {
+                    for (const routineNode of (node.data as NodeDataRoutineList).routines) {
+                        if (routineNode.routine.id === subroutineId) {
+                            console.log('FOUND ROUTINE', routineNode.routine);
+                            return routineNode.routine;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+        console.log('TEMPPPPPPP', ({
+            ...changedRoutine,
+            tags: undefined,
+            ...shapeTagsUpdate(routine?.tags, changedRoutine.tags),
+            nodes: changedRoutine.nodes.map(node => ({
+                ...node,
+                data: node.data ? {
+                    ...node.data,
+                    routines: (node.data as NodeDataRoutineList).routines ? (
+                        (node.data as NodeDataRoutineList).routines.map(routineNode => ({
+                            ...routineNode,
+                            routine: {
+                                ...routineNode.routine,
+                                tags: undefined,
+                                ...shapeTagsUpdate(findSubroutine(routineNode.routine.id)?.tags, routineNode.routine.tags),
+                            },
+                        }))
+                    ) : undefined,
+                } : undefined,
+            })),
+        }))
         const input: any = formatForUpdate(
             routine,
-            changedRoutine,
-            ['tags', 'nodes.data.routines.routine', 'nodes.data.routines.routine.inputs.standard', 'nodes.data.routines.routine.outputs.standard'],
+            {
+                ...changedRoutine,
+                tags: undefined,
+                ...shapeTagsUpdate(routine?.tags, changedRoutine.tags),
+                nodes: changedRoutine.nodes.map(node => ({
+                    ...node,
+                    data: node.data ? {
+                        ...node.data,
+                        routines: (node.data as NodeDataRoutineList).routines ? (
+                            (node.data as NodeDataRoutineList).routines.map(routineNode => ({
+                                ...routineNode,
+                                routine: {
+                                    ...routineNode.routine,
+                                    tags: undefined,
+                                    ...shapeTagsUpdate(findSubroutine(routineNode.routine.id)?.tags, routineNode.routine.tags),
+                                },
+                            }))
+                        ) : undefined,
+                    } : undefined,
+                })),
+            },
+            ['tags', 'nodes.data.routines.routine', 'nodes.data.routines.routine.tags', 'nodes.data.routines.routine.inputs.standard', 'nodes.data.routines.routine.outputs.standard'],
             ['nodes', 'nodeLinks', 'nodes.data.routines', 'nodes.nodeRoutineList.routines.routine.translations', 'translations']
         )
         // If routine belongs to an organization, add organizationId to input
@@ -851,6 +923,7 @@ export const BuildView = ({
      */
     const handleSubroutineUpdate = useCallback((updatedSubroutine: NodeDataRoutineListItem) => {
         if (!changedRoutine) return;
+        console.log('buildview handlesubroutine update', updatedSubroutine)
         // Update routine
         setChangedRoutine({
             ...changedRoutine,

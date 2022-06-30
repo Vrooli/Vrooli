@@ -99,13 +99,6 @@ export const InputOutputListItem = ({
     useEffect(() => {
         // Check if standard has changed
         if (item?.standard?.id === standard?.id) return;
-        // TODO handle tags for all handleupdate calls. move to utility function
-        /**
-         * const tagsAdd = tags.length > 0 ? {
-                tagsCreate: tags.filter(t => !t.id).map(t => ({ tag: t.tag })),
-                tagsConnect: tags.filter(t => t.id).map(t => (t.id)),
-            } : {};
-         */
         handleUpdate(index, {
             ...item,
             standard: standard || null,

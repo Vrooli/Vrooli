@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { ROLES, routineCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { routineCreateMutation } from "graphql/mutation";
-import { formatForCreate, getUserLanguages, updateArray, useReactSearch } from "utils";
+import { formatForCreate, getUserLanguages, shapeTagsAdd, updateArray, useReactSearch } from "utils";
 import { RoutineCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";
@@ -106,10 +106,6 @@ export const RoutineCreate = ({
         validationSchema,
         onSubmit: (values) => {
             const resourceListAdd = resourceList ? formatForCreate(resourceList) : {};
-            const tagsAdd = tags.length > 0 ? {
-                tagsCreate: tags.filter(t => !t.id).map(t => ({ tag: t.tag })),
-                tagsConnect: tags.filter(t => t.id).map(t => (t.id)),
-            } : {};
             const createdFor = organizationFor ? { createdByOrganizationId: organizationFor.id } : {};
             const allTranslations = getTranslationsUpdate(language, {
                 language,
@@ -117,6 +113,7 @@ export const RoutineCreate = ({
                 instructions: values.instructions,
                 title: values.title,
             })
+            console.log('inuputs list', inputsList);
             mutationWrapper({
                 mutation,
                 input: formatForCreate({
@@ -125,7 +122,7 @@ export const RoutineCreate = ({
                     inputs: inputsList,
                     outputs: outputsList,
                     resourceListsCreate: [resourceListAdd],
-                    ...tagsAdd,
+                    ...shapeTagsAdd(tags),
                     version: values.version,
                     isComplete: values.isComplete,
                 }) as any,
@@ -257,7 +254,8 @@ export const RoutineCreate = ({
                         name="description"
                         label="description"
                         value={formik.values.description}
-                        rows={3}
+                        multiline
+                        maxRows={3}
                         onBlur={formik.handleBlur}
                         onChange={formik.handleChange}
                         error={formik.touched.description && Boolean(formik.errors.description)}

@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { InputType, ROLES, standardCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardCreateMutation } from "graphql/mutation";
-import { formatForCreate, getUserLanguages, updateArray, useReactSearch } from "utils";
+import { formatForCreate, getUserLanguages, shapeTagsAdd, updateArray, useReactSearch } from "utils";
 import { StandardCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";
@@ -146,10 +146,6 @@ export const StandardCreate = ({
         validationSchema,
         onSubmit: (values) => {
             const resourceListAdd = resourceList ? formatForCreate(resourceList) : {};
-            const tagsAdd = tags.length > 0 ? {
-                tagsCreate: tags.filter(t => !t.id).map(t => ({ tag: t.tag })),
-                tagsConnect: tags.filter(t => t.id).map(t => (t.id)),
-            } : {};
             const allTranslations = getTranslationsUpdate(language, {
                 language,
                 description: values.description,
@@ -163,7 +159,7 @@ export const StandardCreate = ({
                     yup: JSON.stringify(schema?.yup),
                     translations: allTranslations,
                     resourceListsCreate: [resourceListAdd],
-                    ...tagsAdd,
+                    ...shapeTagsAdd(tags),
                     type: inputType.value,
                     version: values.version,
                 }) as any,

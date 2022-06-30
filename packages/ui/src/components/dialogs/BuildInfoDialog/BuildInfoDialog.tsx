@@ -442,7 +442,8 @@ export const BuildInfoDialog = ({
                                     name="description"
                                     label="description"
                                     value={formik.values.description}
-                                    rows={3}
+                                    multiline
+                                    maxRows={3}
                                     onBlur={formik.handleBlur}
                                     onChange={formik.handleChange}
                                     error={formik.touched.description && Boolean(formik.errors.description)}
