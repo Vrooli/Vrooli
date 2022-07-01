@@ -33,12 +33,16 @@ export const openSearchPage = (objectType: ObjectType, setLocation: SetLocation)
     if (linkBases) setLocation(linkBases[0]);
 }
 
+export type OpenObjectProps = {
+    object: { id: string, handle?: string | null, __typename: string };
+    setLocation: SetLocation;
+}
 /**
  * Opens any object with an id and __typename
  * @param object Object to open
  * @param setLocation Function to set location in history
  */
-export const openObject = (object: { id: string, handle?: string | null, __typename: string }, setLocation: SetLocation) => {
+export const openObject = (object: OpenObjectProps['object'], setLocation: OpenObjectProps['setLocation']) => {
     // Check if __typename is in objectLinkMap
     if (!objectLinkMap.hasOwnProperty(object.__typename)) {
         PubSub.publish(Pubs.Snack, { message: 'Could not parse object type.', severity: 'error' });

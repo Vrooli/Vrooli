@@ -3,6 +3,7 @@ import { OrganizationListItem, ProjectListItem, RoutineListItem, RunListItem, St
 import { getTranslation, getUserLanguages } from "./translationTools";
 import { ObjectListItemProps } from "components/lists/types";
 import { Theme } from "@mui/material";
+import { OpenObjectProps } from "utils";
 
 /**
  * Gets label for List, either from its 
@@ -135,7 +136,7 @@ export interface ListToListItemProps {
     /**
      * Function to call when a list item is clicked
      */
-    onClick?: (item: ListItem, event: React.MouseEvent<HTMLElement>) => void,
+    onClick?: (item: OpenObjectProps['object'], event: React.MouseEvent<HTMLElement>) => void,
     /**
      * Current session
      */

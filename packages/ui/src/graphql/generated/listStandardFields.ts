@@ -37,14 +37,19 @@ export interface listStandardFields {
   __typename: "Standard";
   id: string;
   commentsCount: number;
+  default: string | null;
   score: number;
   stars: number;
+  isInternal: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
   name: string;
+  props: string;
   reportsCount: number;
   role: MemberRole | null;
   tags: listStandardFields_tags[];
   translations: listStandardFields_translations[];
   type: string;
+  version: string;
+  yup: string | null;
 }

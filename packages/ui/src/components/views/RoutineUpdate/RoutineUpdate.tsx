@@ -147,64 +147,50 @@ export const RoutineUpdate = ({
                     isComplete: values.isComplete,
                     // Handle standard in inputs
                     inputs: inputsList.map(input => {
-                        // Find current input in original routine
-                        const currInput = routine?.inputs.find(i => i.id === input.id);
-                        // If no current input or current input standard data, return original input
-                        if (!currInput || !currInput.standard) return input;
-                        // If current input's standard has an ID and it is different from the original input's standard ID,
-                        // OR the original does not have an ID, set as connect
-                        if (currInput.standard.id && (!input.standard?.id || currInput.standard.id !== input.standard.id)) {
+                        const originalInput = routine?.inputs.find(i => i.id === input.id);
+                        // If current input's standard is not internal, set as connect
+                        if (input.standard && !input.standard?.isInternal) {
                             return {
                                 ...input,
                                 standard: undefined,
                                 standardConnect: {
-                                    ...input.standard,
+                                    id: input.standard.id,
                                 }
                             }
                         }
-                        // Else if the current input's standard has no ID and is different than the original standard,
-                        // set as create (standards are not updated. The database will keep the original standard around)
-                        else if (!currInput.standard.id && JSON.stringify(currInput.standard) !== JSON.stringify(input.standard)) {
+                        // Else if changed, set as create
+                        else if (input.standard && originalInput?.standard && JSON.stringify(input.standard) !== JSON.stringify(originalInput.standard)) {
                             return {
                                 ...input,
                                 standard: undefined,
-                                standardCreate: {
-                                    ...input.standard,
-                                }
+                                standardCreate: input.standard
                             }
                         }
-                        // Otherwise, return original input
+                        // Otherwise, return unchanged
                         return input;
                     }),
                     // Handle standard in outputs
                     outputs: outputsList.map(output => {
-                        // Find current output in original routine
-                        const currOutput = routine?.outputs.find(o => o.id === output.id);
-                        // If no current output or current output standard data, return original output
-                        if (!currOutput || !currOutput.standard) return output;
-                        // If current output's standard has an ID and it is different from the original output's standard ID,
-                        // OR the original does not have an ID, set as connect
-                        if (currOutput.standard.id && (!output.standard?.id || currOutput.standard.id !== output.standard.id)) {
+                        const originalOutput = routine?.outputs.find(o => o.id === output.id);
+                        // If current output's standard is not internal, set as connect
+                        if (output.standard && !output.standard?.isInternal) {
                             return {
                                 ...output,
                                 standard: undefined,
                                 standardConnect: {
-                                    ...output.standard,
+                                    id: output.standard.id,
                                 }
                             }
                         }
-                        // Else if the current output's standard has no ID and is different than the original standard,
-                        // set as create (standards are not updated. The database will keep the original standard around)
-                        else if (!currOutput.standard.id && JSON.stringify(currOutput.standard) !== JSON.stringify(output.standard)) {
+                        // Else if changed, set as create
+                        else if (output.standard && originalOutput?.standard && JSON.stringify(output.standard) !== JSON.stringify(originalOutput.standard)) {
                             return {
                                 ...output,
                                 standard: undefined,
-                                standardCreate: {
-                                    ...output.standard,
-                                }
+                                standardCreate: output.standard
                             }
                         }
-                        // Otherwise, return original output
+                        // Otherwise, return unchanged
                         return output;
                     }),
                     ...resourceListUpdate,

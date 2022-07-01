@@ -54,6 +54,7 @@ export const InputTypeOptions: InputTypeOption[] = [
     },
 ]
 
+//TODO handle language change somehow
 export const InputOutputListItem = ({
     isEditing,
     index,
@@ -68,11 +69,12 @@ export const InputOutputListItem = ({
     session,
     zIndex,
 }: InputOutputListItemProps) => {
-    console.log('inputoutputlistitem', item?.standard);
+    console.log('inputoutputlistitem', isEditing);
     const { palette } = useTheme();
 
     // Handle standard select switch
-    const [standard, setStandard] = useState<ListStandard | null>(item?.standard ?? null);
+    // Should only be set when a non-internal standard is selected
+    const [standard, setStandard] = useState<ListStandard | null>((item?.standard && !item.standard.isInternal) ? item?.standard as ListStandard : null);
     // Handle input type selector
     const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
     const handleInputTypeSelect = useCallback((event: any) => {
@@ -88,9 +90,9 @@ export const InputOutputListItem = ({
     }, [standard]);
     const [schemaKey] = useState(`input-output-schema-${Math.random().toString(36).substring(2, 15)}`);
 
-    const onSwitchChange = useCallback((s: ListStandard | null) => {
+    const onSwitchChange = useCallback((s: Standard | null) => {
         setSchema(null);
-        setStandard(s);
+        setStandard(s as any);
     }, []);
 
     /**
@@ -114,6 +116,7 @@ export const InputOutputListItem = ({
             ...item,
             standard: {
                 default: schema.props?.defaultValue ?? null,
+                isInternal: true,
                 type: schema.type,
                 props: JSON.stringify(schema.props),
                 yup: JSON.stringify(schema.yup),
@@ -302,7 +305,7 @@ export const InputOutputListItem = ({
                         <StandardSelectSwitch
                             disabled={!isEditing}
                             session={session}
-                            selected={standard && !standard.isInternal}
+                            selected={standard}
                             onChange={onSwitchChange}
                             zIndex={zIndex}
                         />
@@ -326,10 +329,10 @@ export const InputOutputListItem = ({
                                     onUpload: () => { },
                                     zIndex,
                                 })) :
-                                // Only editable if non-internal standard not selected
+                                // Only editable if standard not selected and is editing
                                 <Box>
                                     <Selector
-                                        disabled={standard && !standard.isInternal}
+                                        disabled={!isEditing || Boolean(standard)}
                                         fullWidth
                                         options={InputTypeOptions}
                                         selected={standard?.type ? (InputTypeOptions.find(option => option.value === standard.type) ?? InputTypeOptions[0]) : inputType}
@@ -344,7 +347,7 @@ export const InputOutputListItem = ({
                                     <BaseStandardInput
                                         fieldName={schemaKey}
                                         inputType={(standard?.type as InputType) ?? inputType.value}
-                                        isEditing={!standard || standard.isInternal}
+                                        isEditing={isEditing && !Boolean(standard)}
                                         schema={generatedSchema}
                                         onChange={handleSchemaUpdate}
                                         storageKey={schemaKey}

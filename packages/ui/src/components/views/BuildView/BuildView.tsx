@@ -403,69 +403,62 @@ export const BuildView = ({
                         routines: (node.data as NodeDataRoutineList).routines ? (
                             (node.data as NodeDataRoutineList).routines.map(routineNode => {
                                 // Find current routine (not the node) in original routine
-                                const currRoutine = findSubroutine(routineNode.routine.id);
+                                const originalRoutine = findSubroutine(routineNode.routine.id);
                                 return ({
                                     ...routineNode,
                                     routine: {
                                         ...routineNode.routine,
                                         // Handle tags
                                         tags: undefined,
-                                        ...shapeTagsUpdate(currRoutine?.tags, routineNode.routine.tags),
+                                        ...shapeTagsUpdate(originalRoutine?.tags, routineNode.routine.tags),
                                         // Handle standard in inputs
                                         inputs: routineNode.routine.inputs.map(input => {
-                                            // Find current input in original routine
-                                            const currInput = currRoutine?.inputs.find(i => i.id === input.id);
-                                            // If no current input or current input standard data, return original input
-                                            if (!currInput || !currInput.standard) return input;
-                                            // If current input's standard has an ID and it is different from the original input's standard ID,
-                                            // OR the original does not have an ID, set as connect
-                                            if (currInput.standard.id && (!input.standard?.id || currInput.standard.id !== input.standard.id)) {
+                                            const originalInput = originalRoutine?.inputs.find(i => i.id === input.id);
+                                            console.log('original input', originalInput);
+                                            // If current input's standard is not internal, set as connect
+                                            if (input.standard && !input.standard?.isInternal) {
+                                                console.log('input is connect', input)
                                                 return {
                                                     ...input,
                                                     standard: undefined,
                                                     standardConnect: {
-                                                        ...input.standard,
+                                                        id: input.standard.id,
                                                     }
                                                 }
                                             }
-                                            // Else if the current input's standard has no ID and is different than the original standard,
-                                            // set as create (standards are not updated. The database will keep the original standard around)
-                                            else if (!currInput.standard.id && JSON.stringify(currInput.standard) !== JSON.stringify(input.standard)) {
+                                            // Else if changed, set as create
+                                            else if (input.standard && originalInput?.standard && JSON.stringify(input.standard) !== JSON.stringify(originalInput.standard)) {
+                                                console.log('input is create', input)
                                                 return {
                                                     ...input,
                                                     standard: undefined,
-                                                    standardCreate: {
-                                                        ...input.standard,
-                                                    }
+                                                    standardCreate: input.standard //TODO for morning: formatforupdate handles these as arrays, so there's no support for one-to-one relationships. either make this another parameter option, or find a new way
                                                 }
                                             }
-                                            // Otherwise, return original input
+                                            // Otherwise, return unchanged
                                             return input;
                                         }),
                                         // Handle standard in outputs, the same way as inputs
                                         outputs: routineNode.routine.outputs.map(output => {
-                                            const currOutput = currRoutine?.outputs.find(o => o.id === output.id);
-                                            if (!currOutput || !currOutput.standard) return output;
-                                            if (currOutput.standard.id && (!output.standard?.id || currOutput.standard.id !== output.standard.id)) {
+                                            const originalOutput = originalRoutine?.outputs.find(o => o.id === output.id);
+                                            if (output.standard && !output.standard?.isInternal) {
                                                 return {
                                                     ...output,
                                                     standard: undefined,
                                                     standardConnect: {
-                                                        ...output.standard,
+                                                        id: output.standard.id,
                                                     }
                                                 }
                                             }
-                                            if (!currOutput.standard.id && JSON.stringify(currOutput.standard) !== JSON.stringify(output.standard)) {
+                                            else if (output.standard && originalOutput?.standard && JSON.stringify(output.standard) !== JSON.stringify(originalOutput.standard)) {
                                                 return {
                                                     ...output,
                                                     standard: undefined,
-                                                    standardCreate: {
-                                                        ...output.standard,
-                                                    }
+                                                    standardCreate: output.standard
                                                 }
                                             }
                                             return output;
-                                        }),
+                                        })
                                     },
                                 })
                             })

@@ -43,16 +43,21 @@ export interface standards_standards_edges_node {
   __typename: "Standard";
   id: string;
   commentsCount: number;
+  default: string | null;
   score: number;
   stars: number;
+  isInternal: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
   name: string;
+  props: string;
   reportsCount: number;
   role: MemberRole | null;
   tags: standards_standards_edges_node_tags[];
   translations: standards_standards_edges_node_translations[];
   type: string;
+  version: string;
+  yup: string | null;
 }
 
 export interface standards_standards_edges {

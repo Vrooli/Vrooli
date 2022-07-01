@@ -1,7 +1,7 @@
 // Defines common props
 import { findHandles_findHandles } from 'graphql/generated/findHandles';
 import { historyPage_historyPage_activeRuns, historyPage_historyPage_recentlyStarred, historyPage_historyPage_recentlyViewed } from 'graphql/generated/historyPage';
-import { homePage_homePage_organizations, homePage_homePage_projects, homePage_homePage_routines, homePage_homePage_users } from 'graphql/generated/homePage';
+import { homePage_homePage_organizations, homePage_homePage_projects, homePage_homePage_routines, homePage_homePage_standards, homePage_homePage_users } from 'graphql/generated/homePage';
 import { organization_organization } from 'graphql/generated/organization';
 import { profile_profile, profile_profile_emails, profile_profile_resourceLists, profile_profile_wallets } from 'graphql/generated/profile';
 import { project_project } from 'graphql/generated/project';

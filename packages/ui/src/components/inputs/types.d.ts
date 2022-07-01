@@ -270,7 +270,9 @@ export interface SelectorProps extends SelectProps {
 
 export interface StandardSelectSwitchProps extends UseSwitchProps {
     session: Session;
-    selected: Standard | null;
+    selected: {
+        name: Standard['name']
+    } | null;
     onChange: (value: Standard | null) => any;
     disabled?: boolean;
     zIndex: number;

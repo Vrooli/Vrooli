@@ -196,7 +196,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     }, [pageData, parseData, handleAdvancedSearchDialogClose]);
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
-        return listToAutocomplete(allData, getUserLanguages(session)).sort((a: any, b: any) => {
+        return listToAutocomplete(allData as any, getUserLanguages(session)).sort((a: any, b: any) => {
             return b.stars - a.stars;
         });
     }, [allData, session]);
@@ -204,7 +204,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     const listItems = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill(objectType),
         hideRoles,
-        items: allData,
+        items: allData as any,
         keyPrefix: itemKeyPrefix,
         loading,
         onClick: (item) => onObjectSelect(item),
