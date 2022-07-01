@@ -2404,6 +2404,7 @@ export type Standard = {
   creator?: Maybe<Contributor>;
   default?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
+  isInternal: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
@@ -2437,6 +2438,7 @@ export type StandardCreateInput = {
   createdByUserId?: InputMaybe<Scalars['ID']>;
   default?: InputMaybe<Scalars['String']>;
   id?: InputMaybe<Scalars['ID']>;
+  isInternal?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
   props: Scalars['String'];
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;

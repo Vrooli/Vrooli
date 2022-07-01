@@ -10,6 +10,16 @@ import { genErrorCode, logger, LogLevel } from '../../logger';
 const { AccountStatus, MemberRole, NodeType, ResourceUsedFor, ResourceListUsedFor } = pkg;
 
 export async function init(prisma: PrismaType) {
+    // TODO temporary for standard update: internalizes standards that start with 
+    // one of the input types
+    const boops = ['Checkbox ','Dropzone ','JSON ','LanguageInput ','Markdown ','Radio ','Selector ','Slider ','Switch ','TagSelector ','TextField ','QuantityBox '];
+    for (let i = 0; i < boops.length; i++) {
+        const boop = boops[i];
+        await prisma.standard.updateMany({
+            where: { name: { startsWith: boop } },
+            data: { isInternal: true },
+        })
+    }
 
     //==============================================================
     /* #region Initialization */

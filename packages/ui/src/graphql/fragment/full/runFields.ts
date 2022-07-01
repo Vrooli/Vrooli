@@ -22,6 +22,7 @@ export const runFields = gql`
         standard {
             id
             default
+            isInternal
             name
             type
             props
@@ -48,6 +49,7 @@ export const runFields = gql`
         standard {
             id
             default
+            isInternal
             name
             type
             props

@@ -25,6 +25,7 @@ export interface routineInputFields_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;

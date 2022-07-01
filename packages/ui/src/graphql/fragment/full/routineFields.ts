@@ -22,6 +22,7 @@ export const routineFields = gql`
         standard {
             id
             default
+            isInternal
             name
             type
             props
@@ -45,6 +46,7 @@ export const routineFields = gql`
         standard {
             id
             default
+            isInternal
             name
             type
             props

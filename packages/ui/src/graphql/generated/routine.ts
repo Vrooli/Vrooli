@@ -27,6 +27,7 @@ export interface routine_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -91,6 +92,7 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_inp
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -126,6 +128,7 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_out
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -333,6 +336,7 @@ export interface routine_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;

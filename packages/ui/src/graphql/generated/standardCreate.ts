@@ -93,6 +93,7 @@ export type standardCreate_standardCreate_creator = standardCreate_standardCreat
 export interface standardCreate_standardCreate {
   __typename: "Standard";
   id: string;
+  isInternal: boolean;
   name: string;
   role: MemberRole | null;
   type: string;

@@ -93,6 +93,7 @@ export type standardUpdate_standardUpdate_creator = standardUpdate_standardUpdat
 export interface standardUpdate_standardUpdate {
   __typename: "Standard";
   id: string;
+  isInternal: boolean;
   name: string;
   role: MemberRole | null;
   type: string;

@@ -302,7 +302,7 @@ export const InputOutputListItem = ({
                         <StandardSelectSwitch
                             disabled={!isEditing}
                             session={session}
-                            selected={standard}
+                            selected={standard && !standard.isInternal}
                             onChange={onSwitchChange}
                             zIndex={zIndex}
                         />
@@ -326,10 +326,10 @@ export const InputOutputListItem = ({
                                     onUpload: () => { },
                                     zIndex,
                                 })) :
-                                // Only editable if standard not selected
+                                // Only editable if non-internal standard not selected
                                 <Box>
                                     <Selector
-                                        disabled={Boolean(standard)}
+                                        disabled={standard && !standard.isInternal}
                                         fullWidth
                                         options={InputTypeOptions}
                                         selected={standard?.type ? (InputTypeOptions.find(option => option.value === standard.type) ?? InputTypeOptions[0]) : inputType}
@@ -344,7 +344,7 @@ export const InputOutputListItem = ({
                                     <BaseStandardInput
                                         fieldName={schemaKey}
                                         inputType={(standard?.type as InputType) ?? inputType.value}
-                                        isEditing={!Boolean(standard)}
+                                        isEditing={!standard || standard.isInternal}
                                         schema={generatedSchema}
                                         onChange={handleSchemaUpdate}
                                         storageKey={schemaKey}

@@ -548,6 +548,7 @@ model standard {
   createdByUserId         String?                @db.Uuid
   createdByOrganizationId String?                @db.Uuid
   isFile                  Boolean                @default(false)
+  isInternal              Boolean                @default(false)
   createdByOrganization   organization?          @relation(fields: [createdByOrganizationId], references: [id], onDelete: SetNull)
   createdByUser           user?                  @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
   comments                comment[]

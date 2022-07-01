@@ -138,7 +138,15 @@ export const InputOutputContainer = ({
     }, [handleUpdate, list, isOpenArray]);
 
     return (
-        <Box id={`${isInput ? 'input' : 'output'}-container`} sx={{ position: 'relative' }}>
+        <Box
+            id={`${isInput ? 'input' : 'output'}-container`}
+            sx={{
+                position: 'relative',
+                maxWidth: '500px',
+                marginLeft: 'auto',
+                marginRight: 'auto',
+            }}
+        >
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
                 {/* Title */}
                 <Typography component="h2" variant="h5" textAlign="left">{isInput ? 'Inputs' : 'Outputs'}</Typography>

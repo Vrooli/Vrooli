@@ -93,6 +93,7 @@ export type standard_standard_creator = standard_standard_creator_Organization |
 export interface standard_standard {
   __typename: "Standard";
   id: string;
+  isInternal: boolean;
   name: string;
   role: MemberRole | null;
   type: string;

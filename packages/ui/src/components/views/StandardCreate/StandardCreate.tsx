@@ -154,6 +154,7 @@ export const StandardCreate = ({
                 mutation,
                 input: formatForCreate({
                     default: values.default,
+                    isInternal: false,
                     name: values.name,
                     props: JSON.stringify(schema?.props),
                     yup: JSON.stringify(schema?.yup),

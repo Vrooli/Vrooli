@@ -390,27 +390,6 @@ export const BuildView = ({
             }
             return null;
         }
-        console.log('TEMPPPPPPP', ({
-            ...changedRoutine,
-            tags: undefined,
-            ...shapeTagsUpdate(routine?.tags, changedRoutine.tags),
-            nodes: changedRoutine.nodes.map(node => ({
-                ...node,
-                data: node.data ? {
-                    ...node.data,
-                    routines: (node.data as NodeDataRoutineList).routines ? (
-                        (node.data as NodeDataRoutineList).routines.map(routineNode => ({
-                            ...routineNode,
-                            routine: {
-                                ...routineNode.routine,
-                                tags: undefined,
-                                ...shapeTagsUpdate(findSubroutine(routineNode.routine.id)?.tags, routineNode.routine.tags),
-                            },
-                        }))
-                    ) : undefined,
-                } : undefined,
-            })),
-        }))
         const input: any = formatForUpdate(
             routine,
             {
@@ -422,15 +401,85 @@ export const BuildView = ({
                     data: node.data ? {
                         ...node.data,
                         routines: (node.data as NodeDataRoutineList).routines ? (
-                            (node.data as NodeDataRoutineList).routines.map(routineNode => ({
-                                ...routineNode,
-                                routine: {
-                                    ...routineNode.routine,
-                                    tags: undefined,
-                                    ...shapeTagsUpdate(findSubroutine(routineNode.routine.id)?.tags, routineNode.routine.tags),
-                                },
-                            }))
+                            (node.data as NodeDataRoutineList).routines.map(routineNode => {
+                                // Find current routine (not the node) in original routine
+                                const currRoutine = findSubroutine(routineNode.routine.id);
+                                return ({
+                                    ...routineNode,
+                                    routine: {
+                                        ...routineNode.routine,
+                                        // Handle tags
+                                        tags: undefined,
+                                        ...shapeTagsUpdate(currRoutine?.tags, routineNode.routine.tags),
+                                        // Handle standard in inputs
+                                        inputs: routineNode.routine.inputs.map(input => {
+                                            // Find current input in original routine
+                                            const currInput = currRoutine?.inputs.find(i => i.id === input.id);
+                                            // If no current input or current input standard data, return original input
+                                            if (!currInput || !currInput.standard) return input;
+                                            // If current input's standard has an ID and it is different from the original input's standard ID,
+                                            // OR the original does not have an ID, set as connect
+                                            if (currInput.standard.id && (!input.standard?.id || currInput.standard.id !== input.standard.id)) {
+                                                return {
+                                                    ...input,
+                                                    standard: undefined,
+                                                    standardConnect: {
+                                                        ...input.standard,
+                                                    }
+                                                }
+                                            }
+                                            // Else if the current input's standard has no ID and is different than the original standard,
+                                            // set as create (standards are not updated. The database will keep the original standard around)
+                                            else if (!currInput.standard.id && JSON.stringify(currInput.standard) !== JSON.stringify(input.standard)) {
+                                                return {
+                                                    ...input,
+                                                    standard: undefined,
+                                                    standardCreate: {
+                                                        ...input.standard,
+                                                    }
+                                                }
+                                            }
+                                            // Otherwise, return original input
+                                            return input;
+                                        }),
+                                        // Handle standard in outputs, the same way as inputs
+                                        outputs: routineNode.routine.outputs.map(output => {
+                                            const currOutput = currRoutine?.outputs.find(o => o.id === output.id);
+                                            if (!currOutput || !currOutput.standard) return output;
+                                            if (currOutput.standard.id && (!output.standard?.id || currOutput.standard.id !== output.standard.id)) {
+                                                return {
+                                                    ...output,
+                                                    standard: undefined,
+                                                    standardConnect: {
+                                                        ...output.standard,
+                                                    }
+                                                }
+                                            }
+                                            if (!currOutput.standard.id && JSON.stringify(currOutput.standard) !== JSON.stringify(output.standard)) {
+                                                return {
+                                                    ...output,
+                                                    standard: undefined,
+                                                    standardCreate: {
+                                                        ...output.standard,
+                                                    }
+                                                }
+                                            }
+                                            return output;
+                                        }),
+                                    },
+                                })
+                            })
                         ) : undefined,
+                        // routines: (node.data as NodeDataRoutineList).routines ? (
+                        //     (node.data as NodeDataRoutineList).routines.map(routineNode => ({
+                        //         ...routineNode,
+                        //         routine: {
+                        //             ...routineNode.routine,
+                        //             tags: undefined,
+                        //             ...shapeTagsUpdate(findSubroutine(routineNode.routine.id)?.tags, routineNode.routine.tags),
+                        //         },
+                        //     }))
+                        // ) : undefined,
                     } : undefined,
                 })),
             },

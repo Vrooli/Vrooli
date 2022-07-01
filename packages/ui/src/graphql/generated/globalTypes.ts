@@ -1138,6 +1138,7 @@ export interface StandardCountInput {
 export interface StandardCreateInput {
   id?: string | null;
   default?: string | null;
+  isInternal?: boolean | null;
   name?: string | null;
   type: string;
   props: string;

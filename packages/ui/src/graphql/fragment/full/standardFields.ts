@@ -38,6 +38,7 @@ export const standardFields = gql`
     }
     fragment standardFields on Standard {
         id
+        isInternal
         name
         role
         type

@@ -47,6 +47,7 @@ export interface runNodeFields_data_NodeRoutineList_routines_routine_inputs_stan
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -97,6 +98,7 @@ export interface runNodeFields_data_NodeRoutineList_routines_routine_outputs_sta
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;

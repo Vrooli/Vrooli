@@ -200,6 +200,7 @@ export interface fork_fork_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -264,6 +265,7 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_i
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -299,6 +301,7 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_o
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -506,6 +509,7 @@ export interface fork_fork_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -763,6 +767,7 @@ export type fork_fork_standard_creator = fork_fork_standard_creator_Organization
 export interface fork_fork_standard {
   __typename: "Standard";
   id: string;
+  isInternal: boolean;
   name: string;
   role: MemberRole | null;
   type: string;

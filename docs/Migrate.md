@@ -17,11 +17,12 @@ Before you even think about migrating your schema, make sure you have already cr
 ## Non-Initial Migrations
 1. Make sure schema.prisma matches the current database schema.  
 2. Start the project with `docker-compose up -d`, and wait for the server container to finish starting.  
-3. Edit schema.prisma to how you'd like it to look.  
 3. `docker exec -it server sh`   
 4. `cd packages/server`  
-5. `prisma migrate dev --name <ENTER_NAME_FOR_MIGRATTION> --schema src/db/schema.prisma`  
-4. Type `exit` to exit the shell.  
+5. Check the migration status: `prisma migrate status --schema src/db/schema.prisma`. If you get the message "Database schema is up to date!", then you should be good to continue. If not, you may need to mark migrations as applied (assuming they are already applied).
+6. Edit schema.prisma to how you'd like it to look, and save the file  
+7. `prisma migrate dev --name <ENTER_NAME_FOR_MIGRATTION> --schema src/db/schema.prisma`  
+8. Type `exit` to exit the shell.  
 
 
 ## Resolving Migration Issues

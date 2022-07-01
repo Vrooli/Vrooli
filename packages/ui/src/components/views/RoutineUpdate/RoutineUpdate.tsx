@@ -145,14 +145,74 @@ export const RoutineUpdate = ({
                     ...ownedBy,
                     version: values.version,
                     isComplete: values.isComplete,
-                    inputs: inputsList,
-                    outputs: outputsList,
+                    // Handle standard in inputs
+                    inputs: inputsList.map(input => {
+                        // Find current input in original routine
+                        const currInput = routine?.inputs.find(i => i.id === input.id);
+                        // If no current input or current input standard data, return original input
+                        if (!currInput || !currInput.standard) return input;
+                        // If current input's standard has an ID and it is different from the original input's standard ID,
+                        // OR the original does not have an ID, set as connect
+                        if (currInput.standard.id && (!input.standard?.id || currInput.standard.id !== input.standard.id)) {
+                            return {
+                                ...input,
+                                standard: undefined,
+                                standardConnect: {
+                                    ...input.standard,
+                                }
+                            }
+                        }
+                        // Else if the current input's standard has no ID and is different than the original standard,
+                        // set as create (standards are not updated. The database will keep the original standard around)
+                        else if (!currInput.standard.id && JSON.stringify(currInput.standard) !== JSON.stringify(input.standard)) {
+                            return {
+                                ...input,
+                                standard: undefined,
+                                standardCreate: {
+                                    ...input.standard,
+                                }
+                            }
+                        }
+                        // Otherwise, return original input
+                        return input;
+                    }),
+                    // Handle standard in outputs
+                    outputs: outputsList.map(output => {
+                        // Find current output in original routine
+                        const currOutput = routine?.outputs.find(o => o.id === output.id);
+                        // If no current output or current output standard data, return original output
+                        if (!currOutput || !currOutput.standard) return output;
+                        // If current output's standard has an ID and it is different from the original output's standard ID,
+                        // OR the original does not have an ID, set as connect
+                        if (currOutput.standard.id && (!output.standard?.id || currOutput.standard.id !== output.standard.id)) {
+                            return {
+                                ...output,
+                                standard: undefined,
+                                standardConnect: {
+                                    ...output.standard,
+                                }
+                            }
+                        }
+                        // Else if the current output's standard has no ID and is different than the original standard,
+                        // set as create (standards are not updated. The database will keep the original standard around)
+                        else if (!currOutput.standard.id && JSON.stringify(currOutput.standard) !== JSON.stringify(output.standard)) {
+                            return {
+                                ...output,
+                                standard: undefined,
+                                standardCreate: {
+                                    ...output.standard,
+                                }
+                            }
+                        }
+                        // Otherwise, return original output
+                        return output;
+                    }),
                     ...resourceListUpdate,
                     ...shapeTagsUpdate(routine?.tags, tags),
                     translations: allTranslations,
                 },
                     ['tags', 'inputs.standard', 'outputs.standard'],
-                    ['translations', 'inputs', 'outputs', 'inputs.translations', 'outputs.translations']
+                    ['translations', 'inputs', 'outputs', 'inputs.translations', 'outputs.translations'],
                 ),
                 onSuccess: (response) => { onUpdated(response.data.routineUpdate) },
                 onError: () => { formik.setSubmitting(false) },

@@ -41,6 +41,7 @@ export interface runUpdate_runUpdate_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -120,6 +121,7 @@ export interface runUpdate_runUpdate_routine_nodes_data_NodeRoutineList_routines
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -170,6 +172,7 @@ export interface runUpdate_runUpdate_routine_nodes_data_NodeRoutineList_routines
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -392,6 +395,7 @@ export interface runUpdate_runUpdate_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;

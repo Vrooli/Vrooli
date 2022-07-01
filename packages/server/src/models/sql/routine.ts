@@ -533,7 +533,12 @@ export const routineMutater = (prisma: PrismaType) => ({
                 result.push({
                     id: data.id ?? undefined,
                     name: data.name,
-                    standardId: await standardModel.relationshipBuilder(userId, data, isAdd),
+                    standardId: await standardModel.relationshipBuilder(userId, {
+                        ...data,
+                        // If standard was not internal, then it would have been created 
+                        // in its own mutation
+                        isInternal: true,
+                    }, isAdd),
                     translations: TranslationModel().relationshipBuilder(userId, data, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
                 })
             }
@@ -593,7 +598,12 @@ export const routineMutater = (prisma: PrismaType) => ({
                 result.push({
                     id: data.id ?? undefined,
                     name: data.name,
-                    standard: await standardModel.relationshipBuilder(userId, data, isAdd),
+                    standardId: await standardModel.relationshipBuilder(userId, {
+                        ...data,
+                        // If standard was not internal, then it would have been created 
+                        // in its own mutation
+                        isInternal: true,
+                    }, isAdd),
                     translations: TranslationModel().relationshipBuilder(userId, data, { create: outputTranslationCreate, update: outputTranslationUpdate }, false),
                 })
             }
