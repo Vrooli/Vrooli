@@ -25,29 +25,29 @@ export const shapeStandardTranslationsCreate =  (translations: { [x: string]: an
 
 /**
  * Format a standard's translations for update mutation.
- * @param originalTranslations Original translations list
- * @param updatedTranslations Updated translations list
+ * @param original Original translations list
+ * @param updated Updated translations list
  * @returns Formatted translations
  */
 export const shapeStandardTranslationsUpdate = (
-    originalTranslations: { [x: string]: any }[] | null | undefined,
-    updatedTranslations: { [x: string]: any }[] | null | undefined
+    original: { [x: string]: any }[] | null | undefined,
+    updated: { [x: string]: any }[] | null | undefined
 ): {
     translationsCreate?: StandardUpdateInput['translationsCreate'],
     translationsUpdate?: StandardUpdateInput['translationsUpdate'],
     translationsDelete?: StandardUpdateInput['translationsDelete'],
 } => {
-    if (!updatedTranslations) return { };
-    if (!originalTranslations || !Array.isArray(originalTranslations)) {
-        return shapeStandardTranslationsCreate(updatedTranslations);
+    if (!updated) return { };
+    if (!original || !Array.isArray(original)) {
+        return shapeStandardTranslationsCreate(updated);
     }
-    return Array.isArray(updatedTranslations) && updatedTranslations.length > 0 ? {
-        ...(shapeStandardTranslationsCreate(updatedTranslations.filter(t => !originalTranslations.some(o => o.id === t.id)))),
-        translationsUpdate: updatedTranslations.map(t => {
-            const original = originalTranslations.find(o => o.id === t.id);
-            return (original && hasObjectChanged(original, t)) ? formatForUpdate(original, t) : undefined;
+    return Array.isArray(updated) && updated.length > 0 ? {
+        ...(shapeStandardTranslationsCreate(updated.filter(t => !original.some(o => o.id === t.id)))),
+        translationsUpdate: updated.map(t => {
+            const ot = original.find(o => o.id === t.id);
+            return (ot && hasObjectChanged(ot, t)) ? formatForUpdate(ot, t) : undefined;
         }).filter(t => Boolean(t)) as StandardUpdateInput['translationsUpdate'],
-        translationsDelete: originalTranslations.filter(o => !updatedTranslations.some(u => u.id === o.id)).map(o => o.id),
+        translationsDelete: original.filter(o => !updated.some(u => u.id === o.id)).map(o => o.id),
     } : {}
 }
 
@@ -89,18 +89,18 @@ type ShapeStandardUpdateInput = Partial<Standard> & {
 };
 /**
  * Format a standard for update mutation
- * @param originalStandard The original standard's information
- * @param updatedStandard The updated standard's information
+ * @param original The original standard's information
+ * @param updated The updated standard's information
  * @returns Standard shaped for update mutation
  */
-export const shapeStandardUpdate = (originalStandard: ShapeStandardUpdateInput | null | undefined, updatedStandard: ShapeStandardUpdateInput | null | undefined): StandardUpdateInput | undefined => {
-    if (!updatedStandard?.id) return undefined;
-    if (!originalStandard) originalStandard = { id: updatedStandard.id };
+export const shapeStandardUpdate = (original: ShapeStandardUpdateInput | null | undefined, updated: ShapeStandardUpdateInput | null | undefined): StandardUpdateInput | undefined => {
+    if (!updated?.id) return undefined;
+    if (!original) original = { id: updated.id };
     return {
-        id: originalStandard.id,
-        // makingAnonymous: updatedStandard.makingAnonymous, TODO
-        ...shapeStandardTranslationsUpdate(originalStandard.translations, updatedStandard.translations),
-        ...shapeResourceListsUpdate(originalStandard.resourceLists, updatedStandard.resourceLists),
-        ...shapeTagsUpdate(originalStandard.tags ?? [], updatedStandard.tags ?? []),
+        id: original.id,
+        // makingAnonymous: updated.makingAnonymous, TODO
+        ...shapeStandardTranslationsUpdate(original.translations, updated.translations),
+        ...shapeResourceListsUpdate(original.resourceLists, updated.resourceLists),
+        ...shapeTagsUpdate(original.tags ?? [], updated.tags ?? []),
     };
 }
