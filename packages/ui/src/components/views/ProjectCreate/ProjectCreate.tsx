@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { projectCreateForm as validationSchema, ROLES } from '@local/shared';
 import { useFormik } from 'formik';
 import { projectCreateMutation } from "graphql/mutation";
-import { formatForCreate, getUserLanguages, shapeTagsAdd, updateArray, useReactSearch } from "utils";
+import { formatForCreate, getUserLanguages, shapeTagsCreate, updateArray, useReactSearch } from "utils";
 import { ProjectCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";
@@ -94,7 +94,7 @@ export const ProjectCreate = ({
                     ...createdFor,
                     translations: allTranslations,
                     resourceListsCreate: [resourceListAdd],
-                    ...shapeTagsAdd(tags),
+                    ...shapeTagsCreate(tags),
                 }) as any,
                 onSuccess: (response) => { onCreated(response.data.projectCreate) },
                 onError: () => { formik.setSubmitting(false) },

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, Status, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR, shapeTagsAdd, shapeTagsUpdate } from 'utils';
+import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, Status, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR, shapeTagsCreate, shapeTagsUpdate } from 'utils';
 import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
 import { useLocation } from 'wouter';
 import { APP_LINKS, isEqual, uniqBy } from '@local/shared';
@@ -305,7 +305,7 @@ export const BuildView = ({
         const input: any = formatForCreate({
             ...changedRoutine,
             tags: undefined,
-            ...shapeTagsAdd(changedRoutine.tags),
+            ...shapeTagsCreate(changedRoutine.tags),
             nodes: changedRoutine.nodes.map(node => ({
                 ...node,
                 data: node.data ? {
@@ -316,7 +316,7 @@ export const BuildView = ({
                             routine: {
                                 ...routineNode.routine,
                                 tags: undefined,
-                                ...shapeTagsAdd(routineNode.routine.tags),
+                                ...shapeTagsCreate(routineNode.routine.tags),
                             },
                         }))
                     ) : undefined,
