@@ -118,10 +118,10 @@ export const shapeResourcesCreate =  (resources: ShapeResourceCreateInput[] | nu
 }
 
 /**
- * Format a resource list for update mutation.
+ * Format an array of resources for update mutation.
  * @param original Original resource list
  * @param updated Updated resource list
- * @returns Formatted translations
+ * @returns Formatted resource list
  */
  export const shapeResourcesUpdate = (
     original: ShapeResourceUpdateInput[] | null | undefined,

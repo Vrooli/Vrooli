@@ -46,7 +46,8 @@ export const shapeInputTranslationsUpdate = (
             const ot = original.find(o => o.id === t.id);
             return (ot && hasObjectChanged(ot, t)) ? formatForUpdate(ot, t) : undefined;
         }).filter(t => Boolean(t)) as InputItemUpdateInput['translationsUpdate'],
-        translationsDelete: original.filter(o => !updated.some(u => u.id === o.id)).map(o => o.id),
+        translationsDelete: 
+        // translationsDelete: original.filter(o => !updated.some(u => u.id === o.id)).map(o => o.id),
     } : {}
 }
 

@@ -1,4 +1,4 @@
-import { NodeCreateInput, NodeUpdateInput } from "graphql/generated/globalTypes";
+import { NodeCreateInput, NodeUpdateInput, RoutineCreateInput, RoutineUpdateInput } from "graphql/generated/globalTypes";
 import { Node } from "types";
 import { formatForUpdate, hasObjectChanged } from "utils";
 
@@ -52,7 +52,7 @@ export const shapeNodeTranslationsUpdate = (
 }
 
 type ShapeNodeCreateInput = Partial<Node> & {
-
+    id: Node['id'],
 }
 /**
  * Format a node for create mutation.
@@ -73,8 +73,8 @@ export const shapeNodeCreate = (node: ShapeNodeCreateInput | null | undefined): 
     };
 }
 
-type ShapeNodeUpdateInput = Partial<Node> & {
-    id: Node['id'],
+type ShapeNodeUpdateInput = ShapeNodeCreateInput & {
+
 };
 /**
  * Format a node for update mutation
@@ -95,4 +95,51 @@ export const shapeNodeUpdate = (original: ShapeNodeUpdateInput | null | undefine
         ...shapeNodeRoutineListUpdate(original.routineList, updated.routineList),
         ...shapeNodeTranslationsCreate(original.translations, updated.translations),
     };
+}
+
+/**
+ * Format an array nodes for create mutation.
+ * @param nodes The nodes to format
+ * @returns Nodes shaped for create mutation
+ */
+ export const shapeNodesCreate =  (nodes: ShapeNodeCreateInput[] | null | undefined): { 
+    nodesCreate?: RoutineCreateInput['nodesCreate'],
+} => {
+    if (!nodes) return {};
+    const formatted: NodeCreateInput[] = [];
+    for (const node of nodes) {
+        const currShaped = shapeNodeCreate(node);
+        if (currShaped) formatted.push(currShaped);
+    }
+    return formatted.length > 0 ? {
+        nodesCreate: formatted,
+    } : {};
+}
+
+/**
+ * Format an array of nodes for update mutation.
+ * @param original Original nodes list
+ * @param updated Updated nodes list
+ * @returns Formatted nodes
+ */
+ export const shapeNodesUpdate = (
+    original: ShapeNodeUpdateInput[] | null | undefined,
+    updated: ShapeNodeUpdateInput[] | null | undefined
+): {
+    nodesCreate?: RoutineUpdateInput['nodesCreate'],
+    nodesUpdate?: RoutineUpdateInput['nodesUpdate'],
+    nodesDelete?: RoutineUpdateInput['nodesDelete'],
+} => {
+    if (!updated) return { };
+    if (!original || !Array.isArray(original)) {
+        return shapeNodesCreate(updated);
+    }
+    return Array.isArray(updated) && updated.length > 0 ? {
+        ...(shapeNodesCreate(updated.filter(t => !original.some(o => o.id === t.id)))),
+        nodesUpdate: updated.map(t => {
+            const ot = original.find(o => o.id === t.id);
+            return (ot && hasObjectChanged(ot, t)) ? shapeNodeUpdate(ot, t) : undefined;
+        }).filter(t => Boolean(t)) as RoutineUpdateInput['nodesUpdate'],
+        nodesDelete: original.filter(o => !updated.some(u => u.id === o.id)).map(o => o.id).filter(id => id) as string[],
+    } : {}
 }
