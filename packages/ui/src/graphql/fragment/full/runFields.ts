@@ -166,6 +166,7 @@ export const runFields = gql`
         id
         fromId
         toId
+        operation
         whens {
             id
             condition

@@ -1,26 +1,32 @@
 import { StandardCreateInput, StandardUpdateInput } from "graphql/generated/globalTypes";
 import { Standard } from "types";
 import { formatForUpdate, hasObjectChanged, shapeResourceListsCreate, shapeResourceListsUpdate, shapeTagsCreate, shapeTagsUpdate } from "utils";
+import { findCreatedItems, findRemovedItems, findUpdatedItems } from "./shapeTools";
 
+type StandardTranslationCreate = Partial<Standard['translations'][0]> & { 
+    id: string;
+    language: Standard['translations'][0]['language'];
+    jsonVariable: Standard['translations'][0]['jsonVariable'];
+}
 /**
  * Format a standard's translations for create mutation.
  * @param translations Translations to format
  * @returns Formatted translations
  */
-export const shapeStandardTranslationsCreate =  (translations: { [x: string]: any }[] | null | undefined): { translationsCreate?: StandardCreateInput['translationsCreate'] } => {
-    if (!translations) return { };
+export const shapeStandardTranslationsCreate = (
+    translations: StandardTranslationCreate[] | null | undefined
+): StandardCreateInput['translationsCreate'] | undefined => {
+    if (!translations) return undefined;
     const formatted: StandardCreateInput['translationsCreate'] = [];
     for (const translation of translations) {
         formatted.push({
             id: translation.id,
             language: translation.language,
             description: translation.description,
-            jsonVariables: translation.jsonVariables,
+            jsonVariable: translation.jsonVariable,
         });
     }
-    return formatted.length > 0 ? {
-        translationsCreate: formatted,
-    } : {};
+    return formatted.length > 0 ? formatted : undefined;
 }
 
 /**
@@ -30,8 +36,8 @@ export const shapeStandardTranslationsCreate =  (translations: { [x: string]: an
  * @returns Formatted translations
  */
 export const shapeStandardTranslationsUpdate = (
-    original: { [x: string]: any }[] | null | undefined,
-    updated: { [x: string]: any }[] | null | undefined
+    original: StandardTranslationCreate[] | null | undefined,
+    updated: StandardTranslationCreate[] | null | undefined
 ): {
     translationsCreate?: StandardUpdateInput['translationsCreate'],
     translationsUpdate?: StandardUpdateInput['translationsUpdate'],
@@ -39,15 +45,12 @@ export const shapeStandardTranslationsUpdate = (
 } => {
     if (!updated) return { };
     if (!original || !Array.isArray(original)) {
-        return shapeStandardTranslationsCreate(updated);
+        return { translationsCreate: shapeStandardTranslationsCreate(updated) };
     }
     return Array.isArray(updated) && updated.length > 0 ? {
-        ...(shapeStandardTranslationsCreate(updated.filter(t => !original.some(o => o.id === t.id)))),
-        translationsUpdate: updated.map(t => {
-            const ot = original.find(o => o.id === t.id);
-            return (ot && hasObjectChanged(ot, t)) ? formatForUpdate(ot, t) : undefined;
-        }).filter(t => Boolean(t)) as StandardUpdateInput['translationsUpdate'],
-        translationsDelete: original.filter(o => !updated.some(u => u.id === o.id)).map(o => o.id),
+        translationsCreate: findCreatedItems(original, updated, shapeStandardTranslationsCreate),
+        translationsUpdate: findUpdatedItems(original, updated, hasObjectChanged, formatForUpdate) as StandardUpdateInput['translationsUpdate'],
+        translationsDelete: findRemovedItems(original, updated),
     } : {}
 }
 
@@ -62,14 +65,6 @@ type ShapeStandardCreateInput = Partial<Standard> & {
  */
 export const shapeStandardCreate =  (standard: ShapeStandardCreateInput | null | undefined): StandardCreateInput | undefined => {
     if (!standard) return undefined;
-    // const requiredFields = yupFields(standardCreate as any);
-    // console.log('BOOP', requiredFields);
-    // // Check standard for required fields TODO make this work
-    // const hasRequired = yupObjectContainsRequiredFields(standard, requiredFields);
-    // if (!hasRequired) {
-    //     PubSub.publish(Pubs.Snack, { message: 'Missing required fields.', severity: 'error' });
-    //     return undefined;
-    // }
     return {
         default: standard.default,
         isInternal: standard.isInternal,

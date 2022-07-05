@@ -12,13 +12,13 @@ const type = yup.string().oneOf(Object.values(InputType))
 export const standardTranslationCreate = yup.object().shape({
     language: language.required(),
     description: description.notRequired().default(undefined),
-    jsonVariables: stringifiedJson.notRequired().default(undefined),
+    jsonVariable: stringifiedJson.notRequired().default(undefined),
 });
 export const standardTranslationUpdate = yup.object().shape({
     id: id.required(),
     language: language.notRequired().default(undefined),
     description: description.notRequired().default(undefined),
-    jsonVariables: stringifiedJson.notRequired().default(undefined),
+    jsonVariable: stringifiedJson.notRequired().default(undefined),
 });
 export const standardTranslationsCreate = yup.array().of(standardTranslationCreate.required())
 export const standardTranslationsUpdate = yup.array().of(standardTranslationUpdate.required())

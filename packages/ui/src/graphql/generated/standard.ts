@@ -65,6 +65,7 @@ export interface standard_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface standard_standard_creator_Organization_translations {

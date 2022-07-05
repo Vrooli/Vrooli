@@ -1,14 +1,22 @@
 import { InputItemCreateInput, InputItemUpdateInput, RoutineCreateInput, RoutineUpdateInput } from "graphql/generated/globalTypes";
 import { RoutineInput } from "types";
 import { formatForUpdate, hasObjectChanged, shapeStandardCreate, shapeStandardUpdate } from "utils";
+import { findCreatedItems, findRemovedItems, findUpdatedItems } from "./shapeTools";
 
+type InputTranslationCreate = Partial<RoutineInput['translations'][0]> & {
+    id: string;
+    language: RoutineInput['translations'][0]['language'];
+    description: RoutineInput['translations'][0]['description'];
+}
 /**
  * Format an input's translations for create mutation.
  * @param translations Translations to format
  * @returns Formatted translations
  */
-export const shapeInputTranslationsCreate = (translations: { [x: string]: any }[] | null | undefined): { translationsCreate?: InputItemCreateInput['translationsCreate'] } => {
-    if (!translations) return {};
+export const shapeInputTranslationsCreate = (
+    translations: InputTranslationCreate[] | null | undefined
+): InputItemCreateInput['translationsCreate'] | undefined => {
+    if (!translations) return undefined;
     const formatted: InputItemCreateInput['translationsCreate'] = [];
     for (const translation of translations) {
         formatted.push({
@@ -17,9 +25,7 @@ export const shapeInputTranslationsCreate = (translations: { [x: string]: any }[
             description: translation.description,
         });
     }
-    return formatted.length > 0 ? {
-        translationsCreate: formatted,
-    } : {};
+    return formatted.length > 0 ? formatted : undefined;
 }
 
 /**
@@ -29,8 +35,8 @@ export const shapeInputTranslationsCreate = (translations: { [x: string]: any }[
  * @returns Formatted translations
  */
 export const shapeInputTranslationsUpdate = (
-    original: { [x: string]: any }[] | null | undefined,
-    updated: { [x: string]: any }[] | null | undefined
+    original: InputTranslationCreate[] | null | undefined,
+    updated: InputTranslationCreate[] | null | undefined
 ): {
     translationsCreate?: InputItemCreateInput['translationsCreate'],
     translationsUpdate?: InputItemUpdateInput['translationsUpdate'],
@@ -38,16 +44,12 @@ export const shapeInputTranslationsUpdate = (
 } => {
     if (!updated) return {};
     if (!original || !Array.isArray(original)) {
-        return shapeInputTranslationsCreate(updated);
+        return { translationsCreate: shapeInputTranslationsCreate(updated) };
     }
     return Array.isArray(updated) && updated.length > 0 ? {
-        ...(shapeInputTranslationsCreate(updated.filter(t => !original.some(o => o.id === t.id)))),
-        translationsUpdate: updated.map(t => {
-            const ot = original.find(o => o.id === t.id);
-            return (ot && hasObjectChanged(ot, t)) ? formatForUpdate(ot, t) : undefined;
-        }).filter(t => Boolean(t)) as InputItemUpdateInput['translationsUpdate'],
-        translationsDelete: 
-        // translationsDelete: original.filter(o => !updated.some(u => u.id === o.id)).map(o => o.id),
+        translationsCreate: findCreatedItems(original, updated, shapeInputTranslationsCreate),
+        translationsUpdate: findUpdatedItems(original, updated, hasObjectChanged, formatForUpdate) as InputItemUpdateInput['translationsUpdate'],
+        translationsDelete: findRemovedItems(original, updated),
     } : {}
 }
 
@@ -63,10 +65,8 @@ type ShapeInputCreateInput = Partial<RoutineInput> & {
  */
 export const shapeInputsCreate = (
     inputs: ShapeInputCreateInput[] | null | undefined
-): {
-    inputsCreate?: RoutineCreateInput['inputsCreate'],
-} => {
-    if (!inputs) return {};
+): RoutineCreateInput['inputsCreate'] | undefined => {
+    if (!inputs) return undefined;
     const formatted: ShapeInputCreateInput[] = [];
     for (const input of inputs) {
         formatted.push({
@@ -77,9 +77,7 @@ export const shapeInputsCreate = (
             ...shapeStandardCreate(input.standard),
         } as any);
     }
-    return formatted.length > 0 ? {
-        inputsCreate: formatted,
-    } : {};
+    return formatted.length > 0 ? formatted : undefined;
 }
 
 type ShapeInputUpdateInput = ShapeInputCreateInput & {
@@ -101,20 +99,17 @@ export const shapeInputsUpdate = (
 } => {
     if (!updated) return {};
     if (!original || !Array.isArray(original)) {
-        return shapeInputsCreate(updated);
+        return { inputsCreate: shapeInputsCreate(updated) };
     }
     return Array.isArray(updated) && updated.length > 0 ? {
-        ...(shapeInputsCreate(updated.filter(t => !original.some(o => o.id === t.id)))),
-        inputsUpdate: updated.map(t => {
-            const ol = original.find(o => o.id === t.id);
-            return (ol && hasObjectChanged(ol, t)) ? {
-                id: ol.id,
-                isRequired: t.isRequired,
-                name: t.name,
-                ...shapeInputTranslationsUpdate(ol.translations, t.translations),
-                ...shapeStandardUpdate(ol.standard, t.standard),
-            } : undefined;
-        }).filter(t => Boolean(t)) as RoutineUpdateInput['inputsUpdate'],
-        inputsDelete: original.filter(o => !updated.some(u => u.id === o.id)).map(o => o.id),
+        inputsCreate: findCreatedItems(original, updated, shapeInputsCreate),
+        inputsUpdate: findUpdatedItems(original, updated, hasObjectChanged, (o, u) => ({
+            id: o.id,
+            isRequired: u.isRequired,
+            name: u.name,
+            ...shapeInputTranslationsUpdate(o.translations, u.translations),
+            ...shapeStandardUpdate(o.standard, u.standard),
+        })) as RoutineUpdateInput['inputsUpdate'],
+        inputsDelete: findRemovedItems(original, updated),
     } : {}
 }

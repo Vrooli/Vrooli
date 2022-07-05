@@ -306,8 +306,8 @@ export const standardMutater = (
 ) => ({
     async toDBShapeAdd(userId: string | null, data: StandardCreateInput): Promise<any> {
         let translations = TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, true)
-        if (translations?.jsonVariables) {
-            translations.jsonVariables = sortify(translations.jsonVariables);
+        if (translations?.jsonVariable) {
+            translations.jsonVariable = sortify(translations.jsonVariable);
         }
         return {
             id: data.id ?? undefined,
@@ -325,8 +325,8 @@ export const standardMutater = (
     },
     async toDBShapeUpdate(userId: string | null, data: StandardUpdateInput): Promise<any> {
         let translations = TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false)
-        if (translations?.jsonVariables) {
-            translations.jsonVariables = sortify(translations.jsonVariables);
+        if (translations?.jsonVariable) {
+            translations.jsonVariable = sortify(translations.jsonVariable);
         }
         return {
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),

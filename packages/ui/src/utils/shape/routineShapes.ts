@@ -1,14 +1,23 @@
 import { RoutineCreateInput, RoutineUpdateInput } from "graphql/generated/globalTypes";
 import { Routine } from "types";
-import { formatForUpdate, hasObjectChanged, ObjectType, shapeInputsCreate, shapeOutputsCreate, shapeResourceListsCreate, shapeResourceListsUpdate, shapeTagsCreate, shapeTagsUpdate } from "utils";
+import { formatForUpdate, hasObjectChanged, ObjectType, shapeInputsCreate, shapeInputsUpdate, shapeNodeLinksCreate, shapeNodeLinksUpdate, shapeNodesCreate, shapeNodesUpdate, shapeOutputsCreate, shapeOutputsUpdate, shapeResourceListsCreate, shapeResourceListsUpdate, shapeTagsCreate, shapeTagsUpdate } from "utils";
+import { findCreatedItems, findRemovedItems, findUpdatedItems } from "./shapeTools";
 
+type RoutineTranslationCreate = Partial<Routine['translations'][0]> & { 
+    id: string;
+    language: Routine['translations'][0]['language'];
+    instructions: Routine['translations'][0]['instructions'];
+    title: Routine['translations'][0]['title'];
+}
 /**
  * Format a routine's translations for create mutation.
  * @param translations Translations to format
  * @returns Formatted translations
  */
-export const shapeRoutineTranslationsCreate = (translations: { [x: string]: any }[] | null | undefined): { translationsCreate?: RoutineCreateInput['translationsCreate'] } => {
-    if (!translations) return {};
+export const shapeRoutineTranslationsCreate = (
+    translations: RoutineTranslationCreate[] | null | undefined
+): RoutineCreateInput['translationsCreate'] | undefined => {
+    if (!translations) return undefined;
     const formatted: RoutineCreateInput['translationsCreate'] = [];
     for (const translation of translations) {
         formatted.push({
@@ -19,9 +28,7 @@ export const shapeRoutineTranslationsCreate = (translations: { [x: string]: any 
             title: translation.title,
         });
     }
-    return formatted.length > 0 ? {
-        translationsCreate: formatted,
-    } : {};
+    return formatted.length > 0 ? formatted : undefined;
 }
 
 /**
@@ -31,8 +38,8 @@ export const shapeRoutineTranslationsCreate = (translations: { [x: string]: any 
  * @returns Formatted translations
  */
 export const shapeRoutineTranslationsUpdate = (
-    original: { [x: string]: any }[] | null | undefined,
-    updated: { [x: string]: any }[] | null | undefined
+    original: RoutineTranslationCreate[] | null | undefined,
+    updated: RoutineTranslationCreate[] | null | undefined
 ): {
     translationsCreate?: RoutineUpdateInput['translationsCreate'],
     translationsUpdate?: RoutineUpdateInput['translationsUpdate'],
@@ -40,15 +47,12 @@ export const shapeRoutineTranslationsUpdate = (
 } => {
     if (!updated) return {};
     if (!original || !Array.isArray(original)) {
-        return shapeRoutineTranslationsCreate(updated);
+        return { translationsCreate: shapeRoutineTranslationsCreate(updated) };
     }
     return Array.isArray(updated) && updated.length > 0 ? {
-        ...(shapeRoutineTranslationsCreate(updated.filter(t => !original.some(o => o.id === t.id)))),
-        translationsUpdate: updated.map(t => {
-            const ot = original.find(o => o.id === t.id);
-            return (ot && hasObjectChanged(ot, t)) ? formatForUpdate(ot, t) : undefined;
-        }).filter(t => Boolean(t)) as RoutineUpdateInput['translationsUpdate'],
-        translationsDelete: original.filter(o => !updated.some(u => u.id === o.id)).map(o => o.id),
+        translationsCreate: findCreatedItems(original, updated, shapeRoutineTranslationsCreate),
+        translationsUpdate: findUpdatedItems(original, updated, hasObjectChanged, formatForUpdate) as RoutineUpdateInput['translationsUpdate'],
+        translationsDelete: findRemovedItems(original, updated),
     } : {}
 }
 
@@ -102,8 +106,8 @@ export const shapeRoutineUpdate = (original: ShapeRoutineUpdateInput | null | un
         version: updated.version,
         parentId: updated.parent?.id,
         // projectId: updated.p
-        createdByUserId: updated.owner?.__typename === ObjectType.User ? updated.owner.id : undefined,
-        createdByOrganizationId: updated.owner?.__typename === ObjectType.Organization ? updated.owner.id : undefined,
+        userId: updated.owner?.__typename === ObjectType.User ? updated.owner.id : undefined,
+        organizationId: updated.owner?.__typename === ObjectType.Organization ? updated.owner.id : undefined,
         ...shapeNodesUpdate(original.nodes, updated.nodes),
         ...shapeNodeLinksUpdate(original.nodeLinks, updated.nodeLinks),
         ...shapeInputsUpdate(original.inputs, updated.inputs),

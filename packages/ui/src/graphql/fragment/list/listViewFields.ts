@@ -87,6 +87,7 @@ export const listViewFields = gql`
             id
             language
             description
+            jsonVariable
         }
     }
     fragment listViewUserFields on User {

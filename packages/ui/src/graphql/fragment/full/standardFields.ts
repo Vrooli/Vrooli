@@ -57,6 +57,7 @@ export const standardFields = gql`
             id
             language
             description
+            jsonVariable
         }
         creator {
             ... on Organization {

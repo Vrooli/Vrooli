@@ -1013,6 +1013,7 @@ export interface RoutineTranslationCreateInput {
   description?: string | null;
   instructions: string;
   title: string;
+  
 }
 
 export interface RoutineTranslationUpdateInput {
@@ -1177,14 +1178,14 @@ export interface StandardTranslationCreateInput {
   id?: string | null;
   language: string;
   description?: string | null;
-  jsonVariables?: string | null;
+  jsonVariable?: string | null;
 }
 
 export interface StandardTranslationUpdateInput {
   id: string;
   language?: string | null;
   description?: string | null;
-  jsonVariables?: string | null;
+  jsonVariable?: string | null;
 }
 
 export interface StandardUpdateInput {
