@@ -1,6 +1,6 @@
 import { InputItemCreateInput, InputItemTranslationCreateInput, InputItemTranslationUpdateInput, InputItemUpdateInput } from "graphql/generated/globalTypes";
 import { RoutineInput, RoutineInputTranslation } from "types";
-import { formatForUpdate, hasObjectChanged, shapeStandardCreate, shapeStandardUpdate } from "utils";
+import { formatForUpdate, hasObjectChanged, shapeStandardCreate } from "utils";
 import { shapeCreateList, shapeUpdateList, ShapeWrapper } from "./shapeTools";
 
 type InputTranslationCreate = ShapeWrapper<RoutineInputTranslation> &
@@ -12,13 +12,11 @@ type InputTranslationCreate = ShapeWrapper<RoutineInputTranslation> &
  */
 export const shapeInputTranslationsCreate = (
     translations: InputTranslationCreate[] | null | undefined
-): InputItemTranslationCreateInput[] | undefined => {
-    return shapeCreateList(translations, (translation) => ({
-        id: translation.id,
-        language: translation.language,
-        description: translation.description,
-    }))
-}
+): InputItemTranslationCreateInput[] | undefined => shapeCreateList(translations, (translation) => ({
+    id: translation.id,
+    language: translation.language,
+    description: translation.description,
+}))
 
 interface InputTranslationUpdate extends InputTranslationCreate { id: string };
 /**
@@ -43,7 +41,7 @@ export const shapeInputTranslationsUpdate = (
     formatForUpdate as (original: InputItemTranslationCreateInput, updated: InputItemTranslationCreateInput) => InputItemTranslationUpdateInput | undefined,
 )
 
-type InputCreate = ShapeWrapper<RoutineInput> & 
+type InputCreate = ShapeWrapper<RoutineInput> &
     Pick<RoutineInput, 'translations' | 'standard'>;
 /**
  * Format an input list for create mutation.
@@ -52,15 +50,13 @@ type InputCreate = ShapeWrapper<RoutineInput> &
  */
 export const shapeInputsCreate = (
     inputs: InputCreate[] | null | undefined
-): InputItemCreateInput[] | undefined => {
-    return shapeCreateList(inputs, (input) => ({
-        id: input.id,
-        isRequired: input.isRequired,
-        name: input.name,
-        ...shapeInputTranslationsCreate(input.translations),
-        ...shapeStandardCreate(input.standard),
-    }))
-}
+): InputItemCreateInput[] | undefined => shapeCreateList(inputs, (input) => ({
+    id: input.id,
+    isRequired: input.isRequired,
+    name: input.name,
+    ...shapeInputTranslationsCreate(input.translations),
+    ...shapeStandardCreate(input.standard),
+}))
 
 interface InputUpdate extends InputCreate { id: string };
 /**
@@ -82,11 +78,18 @@ export const shapeInputsUpdate = (
     'inputs',
     shapeInputsCreate,
     hasObjectChanged,
-    (o: InputUpdate, u: InputUpdate) => ({
-        id: o.id,
-        isRequired: u.isRequired,
-        name: u.name,
-        ...shapeInputTranslationsUpdate(o.translations, u.translations),
-        ...shapeStandardUpdate(o.standard, u.standard),
-    }),
+    (o: InputUpdate, u: InputUpdate) => {
+        // Connect to standard if it's marked as external. 
+        // Otherwise, set as create. The backend will handle the rest, even if 
+        // you're updating.
+        const shouldConnectToStandard = u.standard && !u.standard.isInternal && u.standard.id;
+        return {
+            id: o.id,
+            isRequired: u.isRequired,
+            name: u.name,
+            standardConnect: shouldConnectToStandard ? u.standard?.id as string : undefined,
+            standardCreate: !shouldConnectToStandard ? shapeStandardCreate(u.standard) : undefined,
+            ...shapeInputTranslationsUpdate(o.translations, u.translations),
+        }
+    },
 );

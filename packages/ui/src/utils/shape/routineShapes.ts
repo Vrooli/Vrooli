@@ -1,7 +1,7 @@
 import { RoutineCreateInput, RoutineTranslationCreateInput, RoutineTranslationUpdateInput, RoutineUpdateInput } from "graphql/generated/globalTypes";
 import { Routine, RoutineTranslation } from "types";
 import { formatForUpdate, hasObjectChanged, ObjectType, shapeInputsCreate, shapeInputsUpdate, shapeNodeLinksCreate, shapeNodeLinksUpdate, shapeNodesCreate, shapeNodesUpdate, shapeOutputsCreate, shapeOutputsUpdate, shapeResourceListsCreate, shapeResourceListsUpdate, shapeTagsCreate, shapeTagsUpdate } from "utils";
-import { shapeCreateList, shapeUpdateList, ShapeWrapper } from "./shapeTools";
+import { shapeCreateList, shapeUpdate, shapeUpdateList, ShapeWrapper } from "./shapeTools";
 
 type RoutineTranslationCreate = ShapeWrapper<RoutineTranslation> &
     Pick<RoutineTranslation, 'language' | 'instructions' | 'title'>;
@@ -80,35 +80,34 @@ interface RoutineUpdate extends RoutineCreate { id: string };
  * @param updated The updated routine's information
  * @returns Routine shaped for update mutation
  */
-export const shapeRoutineUpdate = (original: RoutineUpdate | null | undefined, updated: RoutineUpdate | null | undefined): RoutineUpdateInput | undefined => {
-    if (!updated?.id) return undefined;
-    if (!original) original = { id: updated.id };
-    return {
-        id: original.id,
-        isAutomatable: updated.isAutomatable,
-        isComplete: updated.isComplete,
-        isInternal: updated.isInternal,
-        version: updated.version,
-        parentId: updated.parent?.id,
-        // projectId: updated.p
-        userId: updated.owner?.__typename === ObjectType.User ? updated.owner.id : undefined,
-        organizationId: updated.owner?.__typename === ObjectType.Organization ? updated.owner.id : undefined,
-        ...shapeNodesUpdate(original.nodes, updated.nodes),
-        ...shapeNodeLinksUpdate(original.nodeLinks, updated.nodeLinks),
-        ...shapeInputsUpdate(original.inputs, updated.inputs),
-        ...shapeOutputsUpdate(original.outputs, updated.outputs),
-        ...shapeRoutineTranslationsUpdate(original.translations, updated.translations),
-        ...shapeResourceListsUpdate(original.resourceLists, updated.resourceLists),
-        ...shapeTagsUpdate(original.tags ?? [], updated.tags ?? []),
-    };
-}
+export const shapeRoutineUpdate = (
+    original: RoutineUpdate,
+    updated: RoutineUpdate | null | undefined
+): RoutineUpdateInput | undefined => shapeUpdate(original, updated, (o, u) => ({
+    id: o.id,
+    isAutomatable: u.isAutomatable,
+    isComplete: u.isComplete,
+    isInternal: u.isInternal,
+    version: u.version,
+    parentId: u.parent?.id,
+    // projectId: u.p
+    userId: u.owner?.__typename === ObjectType.User ? u.owner.id : undefined,
+    organizationId: u.owner?.__typename === ObjectType.Organization ? u.owner.id : undefined,
+    ...shapeNodesUpdate(o.nodes, u.nodes),
+    ...shapeNodeLinksUpdate(o.nodeLinks, u.nodeLinks),
+    ...shapeInputsUpdate(o.inputs, u.inputs),
+    ...shapeOutputsUpdate(o.outputs, u.outputs),
+    ...shapeRoutineTranslationsUpdate(o.translations, u.translations),
+    ...shapeResourceListsUpdate(o.resourceLists, u.resourceLists),
+    ...shapeTagsUpdate(o.tags ?? [], u.tags ?? []),
+}))
 
 /**
  * Format an array of routines for create mutation.
  * @param routines The routines to format
  * @returns Routines shaped for create mutation
  */
- export const shapeRoutinesCreate = (
+export const shapeRoutinesCreate = (
     routines: RoutineCreate[] | null | undefined
 ): RoutineCreateInput[] | undefined => {
     return shapeCreateList(routines, shapeRoutineCreate)

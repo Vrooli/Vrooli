@@ -1,7 +1,7 @@
 import { NodeLinkCreateInput, NodeLinkUpdateInput, NodeLinkWhenCreateInput, NodeLinkWhenTranslationCreateInput, NodeLinkWhenTranslationUpdateInput, NodeLinkWhenUpdateInput } from "graphql/generated/globalTypes";
 import { NodeLink, NodeLinkWhen, NodeLinkWhenTranslation } from "types";
 import { formatForUpdate, hasObjectChanged } from "utils";
-import { shapeCreateList, shapeUpdateList, ShapeWrapper } from "./shapeTools";
+import { shapeCreateList, shapeUpdate, shapeUpdateList, ShapeWrapper } from "./shapeTools";
 
 type NodeLinkWhenTranslationCreate = ShapeWrapper<NodeLinkWhenTranslation> &
     Pick<NodeLinkWhenTranslationCreateInput, 'language' | 'title'>;
@@ -12,14 +12,12 @@ type NodeLinkWhenTranslationCreate = ShapeWrapper<NodeLinkWhenTranslation> &
  */
 export const shapeNodeLinkWhenTranslationsCreate = (
     translations: NodeLinkWhenTranslationCreate[] | null | undefined
-): NodeLinkWhenTranslationCreateInput[] | undefined => {
-    return shapeCreateList(translations, (translation) => ({
-        id: translation.id,
-        language: translation.language,
-        description: translation.description,
-        title: translation.title,
-    }))
-}
+): NodeLinkWhenTranslationCreateInput[] | undefined => shapeCreateList(translations, (translation) => ({
+    id: translation.id,
+    language: translation.language,
+    description: translation.description,
+    title: translation.title,
+}))
 
 interface NodeLinkWhenTranslationUpdate extends NodeLinkWhenTranslationCreate { id: string };
 /**
@@ -44,7 +42,7 @@ export const shapeNodeLinkWhenTranslationsUpdate = (
     formatForUpdate as (original: NodeLinkWhenTranslationUpdate, updated: NodeLinkWhenTranslationUpdate) => NodeLinkWhenTranslationUpdateInput | undefined,
 )
 
-type NodeLinkWhenCreate = ShapeWrapper<NodeLinkWhen> & 
+type NodeLinkWhenCreate = ShapeWrapper<NodeLinkWhen> &
     Pick<NodeLinkWhenCreateInput, 'toId'>;
 /**
  * Format a nodeLink when for create mutation.
@@ -68,16 +66,15 @@ interface NodeLinkWhenUpdate extends NodeLinkWhenCreate { id: string };
  * @param updated The updated nodeLink when's information
  * @returns NodeLink when shaped for update mutation
  */
-export const shapeNodeLinkWhenUpdate = (original: NodeLinkWhenUpdate | null | undefined, updated: NodeLinkWhenUpdate | null | undefined): NodeLinkWhenUpdateInput | undefined => {
-    if (!updated?.id) return undefined;
-    if (!original) original = { id: updated.id } as NodeLinkWhenUpdate;
-    return {
-        id: original.id,
-        toId: updated.toId !== original.toId ? updated.toId : undefined,
-        condition: updated.condition !== original.condition ? updated.condition : undefined,
-        ...shapeNodeLinkWhenTranslationsUpdate(original.translations, updated.translations),
-    };
-}
+export const shapeNodeLinkWhenUpdate = (
+    original: NodeLinkWhenUpdate,
+    updated: NodeLinkWhenUpdate | null | undefined
+): NodeLinkWhenUpdateInput | undefined => shapeUpdate(original, updated, (o, u) => ({
+    id: o.id,
+    toId: u.toId !== o.toId ? u.toId : undefined,
+    condition: u.condition !== o.condition ? u.condition : undefined,
+    ...shapeNodeLinkWhenTranslationsUpdate(o.translations, u.translations),
+}))
 
 /**
  * Format an array of nodeLink whens for create mutation.
@@ -86,9 +83,7 @@ export const shapeNodeLinkWhenUpdate = (original: NodeLinkWhenUpdate | null | un
  */
 export const shapeNodeLinkWhensCreate = (
     whens: NodeLinkWhenCreate[] | null | undefined
-): NodeLinkWhenCreateInput[] | undefined => {
-    return shapeCreateList(whens, shapeNodeLinkWhenCreate)
-}
+): NodeLinkWhenCreateInput[] | undefined => shapeCreateList(whens, shapeNodeLinkWhenCreate)
 
 /**
  * Format an array of nodeLink whenss for update mutation.
@@ -112,7 +107,7 @@ export const shapeNodeLinkWhensUpdate = (
     shapeNodeLinkWhenUpdate,
 )
 
-type NodeLinkCreate = ShapeWrapper<NodeLink> & 
+type NodeLinkCreate = ShapeWrapper<NodeLink> &
     Pick<NodeLinkCreateInput, 'fromId' | 'toId'>;
 /**
  * Format a nodeLink for create mutation.
@@ -137,17 +132,16 @@ interface NodeLinkUpdate extends NodeLinkCreate { id: string };
  * @param updated The updated nodeLink's information
  * @returns NodeLink shaped for update mutation
  */
-export const shapeNodeLinkUpdate = (original: NodeLinkUpdate | null | undefined, updated: NodeLinkUpdate | null | undefined): NodeLinkUpdateInput | undefined => {
-    if (!updated?.id) return undefined;
-    if (!original) original = { id: updated.id } as NodeLinkUpdate;
-    return {
-        id: original.id,
-        operation: updated.operation !== original.operation ? updated.operation : undefined,
-        fromId: updated.fromId !== original.fromId ? updated.fromId : undefined,
-        toId: updated.toId !== original.toId ? updated.toId : undefined,
-        ...shapeNodeLinkWhensUpdate(original.whens, updated.whens),
-    };
-}
+export const shapeNodeLinkUpdate = (
+    original: NodeLinkUpdate,
+    updated: NodeLinkUpdate | null | undefined
+): NodeLinkUpdateInput | undefined => shapeUpdate(original, updated, (o, u) => ({
+    id: o.id,
+    operation: u.operation !== o.operation ? u.operation : undefined,
+    fromId: u.fromId !== o.fromId ? u.fromId : undefined,
+    toId: u.toId !== o.toId ? u.toId : undefined,
+    ...shapeNodeLinkWhensUpdate(o.whens, u.whens),
+}))
 
 /**
  * Format an array nodeLinks for create mutation.
@@ -156,9 +150,7 @@ export const shapeNodeLinkUpdate = (original: NodeLinkUpdate | null | undefined,
  */
 export const shapeNodeLinksCreate = (
     nodeLinks: NodeLinkCreate[] | null | undefined
-): NodeLinkCreateInput[] | undefined => {
-    return shapeCreateList(nodeLinks, shapeNodeLinkCreate);
-}
+): NodeLinkCreateInput[] | undefined => shapeCreateList(nodeLinks, shapeNodeLinkCreate)
 
 /**
  * Format an array of nodeLinks for update mutation.

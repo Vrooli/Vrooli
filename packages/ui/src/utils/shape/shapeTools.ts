@@ -108,7 +108,7 @@ type ShapeUpdateList<N extends string, RC, RU> =
  * @param formatForUpdate The function to format an updated object for the update mutation
  * @returns An array of formatted objects
  */
-export const shapeUpdateList = <N extends string, T extends { id: string }, RC extends {}, RU extends { id: string }>(
+export const shapeUpdateList = <N extends string, T extends { id?: string | null }, RC extends {}, RU extends { id: string }>(
     original: T[] | null | undefined,
     updated: T[] | null | undefined,
     relationshipName: N,
@@ -117,11 +117,11 @@ export const shapeUpdateList = <N extends string, T extends { id: string }, RC e
     formatForUpdate: (original: T, updated: T) => RU | undefined
 ): ShapeUpdateList<N, RC, RU> => {
     if (!updated) return {};
-    const filteredUpdated: T[] = updated.filter(updated => Boolean(updated));
+    const filteredUpdated: (T & { id: string })[] = updated.filter(updated => Boolean(updated.id)) as (T & { id: string })[];
     if (!original || !Array.isArray(original)) {
         return { [`${relationshipName}Create`]: shapeCreateList(filteredUpdated) } as ShapeUpdateList<N, RC, RU>;
     }
-    const filteredOriginal: T[] = original.filter(original => Boolean(original));
+    const filteredOriginal: (T & { id: string })[] = original.filter(original => Boolean(original.id)) as (T & { id: string })[];
     if (Array.isArray(updated) && updated.length > 0) {
         return {
             [`${relationshipName}Create`]: findCreatedItems(filteredOriginal, filteredUpdated, shapeCreateList),
@@ -130,4 +130,21 @@ export const shapeUpdateList = <N extends string, T extends { id: string }, RC e
         } as ShapeUpdateList<N, RC, RU>
     }
     return {};
+}
+
+/**
+ * Helper function for formatting an object for an update mutation
+ * @param original The original object
+ * @param updated The updated object
+ * @param formatForUpdate The function to format the updated object for the update mutation
+ */
+export const shapeUpdate = <T extends { id: string }, R extends {}>(
+    original: T,
+    updated: T | null | undefined,
+    formatForUpdate: (original: T, updated: T) => R | undefined
+): R | undefined => {
+    if (!updated?.id) return undefined;
+    const result = formatForUpdate(original, updated);
+    // Only return result if it is not undefined, as has a value BESIDES the id field that is not undefined
+    return (result && Object.entries(result).some(([key, value]) => key !== 'id' && value !== undefined)) ? result : undefined;
 }

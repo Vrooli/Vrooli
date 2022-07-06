@@ -1,7 +1,7 @@
 import { StandardCreateInput, StandardTranslationCreateInput, StandardTranslationUpdateInput, StandardUpdateInput } from "graphql/generated/globalTypes";
 import { Standard, StandardTranslation } from "types";
 import { formatForUpdate, hasObjectChanged, shapeResourceListsCreate, shapeResourceListsUpdate, shapeTagsCreate, shapeTagsUpdate } from "utils";
-import { shapeCreateList, shapeUpdateList, ShapeWrapper } from "./shapeTools";
+import { shapeCreateList, shapeUpdate, shapeUpdateList, ShapeWrapper } from "./shapeTools";
 
 type StandardTranslationCreate = ShapeWrapper<StandardTranslation> &
     Pick<StandardTranslation, 'language' | 'jsonVariable'>;
@@ -44,7 +44,7 @@ export const shapeStandardTranslationsUpdate = (
     formatForUpdate as (original: StandardTranslationUpdate, updated: StandardTranslationUpdate) => StandardTranslationUpdateInput | undefined,
 )
 
-type StandardCreate = ShapeWrapper<Standard> & 
+type StandardCreate = ShapeWrapper<Standard> &
     Pick<Standard, 'props' | 'type'>;
 /**
  * Format a standard for create mutation.
@@ -67,23 +67,20 @@ export const shapeStandardCreate = (standard: StandardCreate | null | undefined)
     };
 }
 
-type StandardUpdate = ShapeWrapper<Standard> & {
-    id: Standard['id'],
-};
+interface StandardUpdate extends StandardCreate { id: string };
 /**
  * Format a standard for update mutation
  * @param original The original standard's information
  * @param updated The updated standard's information
  * @returns Standard shaped for update mutation
  */
-export const shapeStandardUpdate = (original: StandardUpdate | null | undefined, updated: StandardUpdate | null | undefined): StandardUpdateInput | undefined => {
-    if (!updated?.id) return undefined;
-    if (!original) original = { id: updated.id };
-    return {
-        id: original.id,
-        // makingAnonymous: updated.makingAnonymous, TODO
-        ...shapeStandardTranslationsUpdate(original.translations, updated.translations),
-        ...shapeResourceListsUpdate(original.resourceLists, updated.resourceLists),
-        ...shapeTagsUpdate(original.tags ?? [], updated.tags ?? []),
-    };
-}
+export const shapeStandardUpdate = (
+    original: StandardUpdate,
+    updated: StandardUpdate | null | undefined
+): StandardUpdateInput | undefined => shapeUpdate(original, updated, (o, u) => ({
+    id: o.id,
+    // makingAnonymous: updated.makingAnonymous, TODO
+    ...shapeStandardTranslationsUpdate(o.translations, u.translations),
+    ...shapeResourceListsUpdate(o.resourceLists, u.resourceLists),
+    ...shapeTagsUpdate(o.tags ?? [], u.tags ?? []),
+}))

@@ -1,7 +1,7 @@
 import { ResourceCreateInput, ResourceListCreateInput, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput, ResourceListUpdateInput, ResourceListUsedFor, ResourceTranslationCreateInput, ResourceTranslationUpdateInput, ResourceUpdateInput } from "graphql/generated/globalTypes";
 import { Resource, ResourceList, ResourceListTranslation, ResourceTranslation } from "types";
 import { formatForUpdate, hasObjectChanged } from "./objectTools";
-import { shapeCreateList, shapeUpdateList, ShapeWrapper } from "./shapeTools";
+import { shapeCreateList, shapeUpdate, shapeUpdateList, ShapeWrapper } from "./shapeTools";
 
 type ResourceTranslationCreate = ShapeWrapper<ResourceTranslation> &
     Pick<ResourceTranslation, 'language'>;
@@ -12,14 +12,12 @@ type ResourceTranslationCreate = ShapeWrapper<ResourceTranslation> &
  */
 export const shapeResourceTranslationsCreate = (
     translations: ResourceTranslationCreate[] | null | undefined
-): ResourceTranslationCreateInput[] | undefined => {
-    return shapeCreateList(translations, (translation) => ({
-        id: translation.id,
-        language: translation.language,
-        description: translation.description,
-        title: translation.title,
-    }))
-}
+): ResourceTranslationCreateInput[] | undefined => shapeCreateList(translations, (translation) => ({
+    id: translation.id,
+    language: translation.language,
+    description: translation.description,
+    title: translation.title,
+}))
 
 interface ResourceTranslationUpdate extends ResourceTranslationCreate { id: string };
 /**
@@ -44,7 +42,7 @@ export const shapeResourceTranslationsUpdate = (
     formatForUpdate as (original: ResourceTranslationUpdate, updated: ResourceTranslationUpdate) => ResourceTranslationUpdateInput | undefined,
 )
 
-type ResourceCreate = ShapeWrapper<Resource> & 
+type ResourceCreate = ShapeWrapper<Resource> &
     Pick<Resource, 'link' | 'usedFor'> & { listId: string }
 /**
  * Format a resource for create mutation.
@@ -71,20 +69,16 @@ interface ResourceUpdate extends ResourceCreate { id: string };
  * @returns Formatted resource
  */
 export const shapeResourceUpdate = (
-    original: ResourceUpdate | null | undefined,
+    original: ResourceUpdate,
     updated: ResourceUpdate | null | undefined
-): ResourceUpdateInput | undefined => {
-    if (!updated?.id) return undefined;
-    const orig = original ? original : { id: updated.id } as any;
-    return {
-        id: orig.id,
-        index: updated.index !== orig.index ? updated.index : undefined,
-        link: updated.link !== orig.link ? updated.link : undefined,
-        listId: updated.listId !== orig.listId ? updated.listId : undefined,
-        usedFor: updated.usedFor !== orig.usedFor ? updated.usedFor : undefined,
-        ...shapeResourceTranslationsUpdate(orig.translations, updated.translations),
-    }
-}
+): ResourceUpdateInput | undefined => shapeUpdate(original, updated, (o, u) => ({
+    id: o.id,
+    index: u.index !== o.index ? u.index : undefined,
+    link: u.link !== o.link ? u.link : undefined,
+    listId: u.listId !== o.listId ? u.listId : undefined,
+    usedFor: u.usedFor !== o.usedFor ? u.usedFor : undefined,
+    ...shapeResourceTranslationsUpdate(o.translations, u.translations),
+}))
 
 /**
  * Format an array resources (not a resource list object) for create mutation.
@@ -93,9 +87,7 @@ export const shapeResourceUpdate = (
  */
 export const shapeResourcesCreate = (
     resources: ResourceCreate[] | null | undefined
-): ResourceCreateInput[] | undefined => {
-    return shapeCreateList(resources, shapeResourceCreate)
-}
+): ResourceCreateInput[] | undefined => shapeCreateList(resources, shapeResourceCreate)
 
 /**
  * Format an array of resources for update mutation.
@@ -128,13 +120,11 @@ type ResourceListTranslationCreate = ShapeWrapper<ResourceListTranslation> &
  */
 export const shapeResourceListTranslationsCreate = (
     translations: ResourceListTranslationCreate[] | null | undefined
-): ResourceListTranslationCreateInput[] | undefined => {
-    return shapeCreateList(translations, (translation) => ({
-        language: translation.language,
-        description: translation.description,
-        title: translation.title,
-    }))
-}
+): ResourceListTranslationCreateInput[] | undefined => shapeCreateList(translations, (translation) => ({
+    language: translation.language,
+    description: translation.description,
+    title: translation.title,
+}))
 
 interface ResourceListTranslationUpdate extends ResourceListTranslationCreate { id: string };
 /**
@@ -159,7 +149,7 @@ export const shapeResourceListTranslationsUpdate = (
     formatForUpdate as (original: ResourceListTranslationUpdate, updated: ResourceListTranslationUpdate) => ResourceTranslationUpdateInput | undefined,
 )
 
-type ResourceListCreate = ShapeWrapper<ResourceList> & 
+type ResourceListCreate = ShapeWrapper<ResourceList> &
     Pick<ResourceList, 'id' | 'usedFor' | 'resources'>;
 /**
  * Format a resource list for create mutation.
@@ -168,18 +158,16 @@ type ResourceListCreate = ShapeWrapper<ResourceList> &
  */
 export const shapeResourceListsCreate = (
     resourceLists: ResourceListCreate[] | null | undefined
-): ResourceListCreateInput[] | undefined => {
-    return shapeCreateList(resourceLists, (list) => ({
-        id: list.id,
-        index: list.index,
-        usedFor: list.usedFor ?? ResourceListUsedFor.Display,
-        ...shapeResourceListTranslationsCreate(list.translations),
-        ...shapeResourcesCreate(list.resources.map(r => ({
-            ...r,
-            listId: list.id,
-        }))),
-    }))
-}
+): ResourceListCreateInput[] | undefined => shapeCreateList(resourceLists, (list) => ({
+    id: list.id,
+    index: list.index,
+    usedFor: list.usedFor ?? ResourceListUsedFor.Display,
+    ...shapeResourceListTranslationsCreate(list.translations),
+    ...shapeResourcesCreate(list.resources.map(r => ({
+        ...r,
+        listId: list.id,
+    }))),
+}))
 
 interface ResourceListUpdate extends ResourceListCreate { id: string };
 /**

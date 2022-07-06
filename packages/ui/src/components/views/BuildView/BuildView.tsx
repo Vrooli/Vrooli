@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, Status, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR, shapeTagsCreate, shapeTagsUpdate } from 'utils';
+import { deleteArrayIndex, BuildAction, BuildRunState, Status, Pubs, updateArray, getTranslation, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR, shapeRoutineUpdate, shapeRoutineCreate } from 'utils';
 import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
 import { useLocation } from 'wouter';
 import { APP_LINKS, isEqual, uniqBy } from '@local/shared';
@@ -302,57 +302,9 @@ export const BuildView = ({
         if (!changedRoutine) {
             return;
         }
-        const input: any = formatForCreate({
-            ...changedRoutine,
-            tags: undefined,
-            ...shapeTagsCreate(changedRoutine.tags),
-            nodes: changedRoutine.nodes.map(node => ({
-                ...node,
-                data: node.data ? {
-                    ...node.data,
-                    routines: (node.data as NodeDataRoutineList).routines ? (
-                        (node.data as NodeDataRoutineList).routines.map(routineNode => ({
-                            ...routineNode,
-                            routine: {
-                                ...routineNode.routine,
-                                tags: undefined,
-                                ...shapeTagsCreate(routineNode.routine.tags),
-                            },
-                        }))
-                    ) : undefined,
-                } : undefined,
-            })),
-        }, ['nodes', 'nodeLinks', 'nodes.data', 'nodes.data.routines'])
-        // If nodes have a data create/update, convert to nodeEnd or nodeRoutineList (i.e. deconstruct union)
-        const relationFields = ['Create', 'Update'];
-        for (const iField of relationFields) {
-            if (!input.hasOwnProperty(`nodes${iField}`)) continue;
-            input[`nodes${iField}`] = input[`nodes${iField}`].map(node => {
-                // Find full node data
-                const fullNode = changedRoutine.nodes.find(n => n.id === node.id);
-                if (!fullNode) return node;
-                // If end node, convert `data${jField}` to `nodeEnd${jField}`
-                if (fullNode.type === NodeType.End) {
-                    for (const jField of relationFields) {
-                        if (!node.hasOwnProperty(`data${jField}`)) continue;
-                        node[`nodeEnd${jField}`] = node[`data${jField}`];
-                        delete node[`data${jField}`];
-                    }
-                }
-                // If routine list node, convert `data${jField}` to `nodeRoutineList${jField}`
-                if (fullNode.type === NodeType.RoutineList) {
-                    for (const jField of relationFields) {
-                        if (!node.hasOwnProperty(`data${jField}`)) continue;
-                        node[`nodeRoutineList${jField}`] = node[`data${jField}`];
-                        delete node[`data${jField}`];
-                    }
-                }
-                return node;
-            });
-        }
         mutationWrapper({
             mutation: routineCreate,
-            input,
+            input: shapeRoutineCreate(changedRoutine),
             successMessage: () => 'Routine created.',
             onSuccess: ({ data }) => {
                 onChange(data.routineCreate);
@@ -372,147 +324,13 @@ export const BuildView = ({
             PubSub.publish(Pubs.Snack, { message: 'No changes detected', severity: 'error' });
             return;
         }
-        if (!changedRoutine.id) {
+        if (!routine || !changedRoutine.id) {
             PubSub.publish(Pubs.Snack, { message: 'Cannot update: Invalid routine data', severity: 'error' });
             return;
         }
-        // Helper function for finding existing tags in a subroutine
-        const findSubroutine = (subroutineId: string) => {
-            for (const node of routine?.nodes ?? []) {
-                if ((node.data as NodeDataRoutineList)?.routines) {
-                    for (const routineNode of (node.data as NodeDataRoutineList).routines) {
-                        if (routineNode.routine.id === subroutineId) {
-                            console.log('FOUND ROUTINE', routineNode.routine);
-                            return routineNode.routine;
-                        }
-                    }
-                }
-            }
-            return null;
-        }
-        const input: any = formatForUpdate(
-            routine,
-            {
-                ...changedRoutine,
-                tags: undefined,
-                ...shapeTagsUpdate(routine?.tags, changedRoutine.tags),
-                nodes: changedRoutine.nodes.map(node => ({
-                    ...node,
-                    data: node.data ? {
-                        ...node.data,
-                        routines: (node.data as NodeDataRoutineList).routines ? (
-                            (node.data as NodeDataRoutineList).routines.map(routineNode => {
-                                // Find current routine (not the node) in original routine
-                                const originalRoutine = findSubroutine(routineNode.routine.id);
-                                return ({
-                                    ...routineNode,
-                                    routine: {
-                                        ...routineNode.routine,
-                                        // Handle tags
-                                        tags: undefined,
-                                        ...shapeTagsUpdate(originalRoutine?.tags, routineNode.routine.tags),
-                                        // Handle standard in inputs
-                                        inputs: routineNode.routine.inputs.map(input => {
-                                            const originalInput = originalRoutine?.inputs.find(i => i.id === input.id);
-                                            console.log('original input', originalInput);
-                                            // If current input's standard is not internal, set as connect
-                                            if (input.standard && !input.standard?.isInternal) {
-                                                console.log('input is connect', input)
-                                                return {
-                                                    ...input,
-                                                    standard: undefined,
-                                                    standardConnect: {
-                                                        id: input.standard.id,
-                                                    }
-                                                }
-                                            }
-                                            // Else if changed, set as create
-                                            else if (input.standard && originalInput?.standard && JSON.stringify(input.standard) !== JSON.stringify(originalInput.standard)) {
-                                                console.log('input is create', input)
-                                                return {
-                                                    ...input,
-                                                    standard: undefined,
-                                                    standardCreate: input.standard //TODO for morning: formatforupdate handles these as arrays, so there's no support for one-to-one relationships. either make this another parameter option, or find a new way
-                                                }
-                                            }
-                                            // Otherwise, return unchanged
-                                            return input;
-                                        }),
-                                        // Handle standard in outputs, the same way as inputs
-                                        outputs: routineNode.routine.outputs.map(output => {
-                                            const originalOutput = originalRoutine?.outputs.find(o => o.id === output.id);
-                                            if (output.standard && !output.standard?.isInternal) {
-                                                return {
-                                                    ...output,
-                                                    standard: undefined,
-                                                    standardConnect: {
-                                                        id: output.standard.id,
-                                                    }
-                                                }
-                                            }
-                                            else if (output.standard && originalOutput?.standard && JSON.stringify(output.standard) !== JSON.stringify(originalOutput.standard)) {
-                                                return {
-                                                    ...output,
-                                                    standard: undefined,
-                                                    standardCreate: output.standard
-                                                }
-                                            }
-                                            return output;
-                                        })
-                                    },
-                                })
-                            })
-                        ) : undefined,
-                        // routines: (node.data as NodeDataRoutineList).routines ? (
-                        //     (node.data as NodeDataRoutineList).routines.map(routineNode => ({
-                        //         ...routineNode,
-                        //         routine: {
-                        //             ...routineNode.routine,
-                        //             tags: undefined,
-                        //             ...shapeTagsUpdate(findSubroutine(routineNode.routine.id)?.tags, routineNode.routine.tags),
-                        //         },
-                        //     }))
-                        // ) : undefined,
-                    } : undefined,
-                })),
-            },
-            ['tags', 'nodes.data.routines.routine', 'nodes.data.routines.routine.tags', 'nodes.data.routines.routine.inputs.standard', 'nodes.data.routines.routine.outputs.standard'],
-            ['nodes', 'nodeLinks', 'nodes.data.routines', 'nodes.nodeRoutineList.routines.routine.translations', 'translations']
-        )
-        // If routine belongs to an organization, add organizationId to input
-        if (routine?.owner?.__typename === 'Organization') {
-            input.organizationId = routine.owner.id;
-        };
-        // If nodes have a data create/update, convert to nodeEnd or nodeRoutineList (i.e. deconstruct union)
-        const relationFields = ['Create', 'Update'];
-        for (const iField of relationFields) {
-            if (!input.hasOwnProperty(`nodes${iField}`)) continue;
-            input[`nodes${iField}`] = input[`nodes${iField}`].map(node => {
-                // Find full node data
-                const fullNode = changedRoutine.nodes.find(n => n.id === node.id);
-                if (!fullNode) return node;
-                // If end node, convert `data${jField}` to `nodeEnd${jField}`
-                if (fullNode.type === NodeType.End) {
-                    for (const jField of relationFields) {
-                        if (!node.hasOwnProperty(`data${jField}`)) continue;
-                        node[`nodeEnd${jField}`] = node[`data${jField}`];
-                        delete node[`data${jField}`];
-                    }
-                }
-                // If routine list node, convert `data${jField}` to `nodeRoutineList${jField}`
-                if (fullNode.type === NodeType.RoutineList) {
-                    for (const jField of relationFields) {
-                        if (!node.hasOwnProperty(`data${jField}`)) continue;
-                        node[`nodeRoutineList${jField}`] = node[`data${jField}`];
-                        delete node[`data${jField}`];
-                    }
-                }
-                return node;
-            });
-        }
         mutationWrapper({
             mutation: routineUpdate,
-            input,
+            input: shapeRoutineUpdate(routine, changedRoutine),
             successMessage: () => 'Routine updated.',
             onSuccess: ({ data }) => {
                 // Update main routine object
