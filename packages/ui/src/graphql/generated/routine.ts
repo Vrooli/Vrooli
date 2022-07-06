@@ -256,6 +256,7 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_translation
   language: string;
   description: string | null;
   title: string | null;
+  instructions: string;
 }
 
 export interface routine_routine_nodes_data_NodeRoutineList_routines {

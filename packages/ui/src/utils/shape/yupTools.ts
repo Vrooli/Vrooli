@@ -47,7 +47,7 @@ export const yupFields = (schema: YupField, recurseBase = ''): string[] => {
     // Determine if field is required
     const isRequired = recurseBase.length === 0 || Boolean(schema.tests.find(test => test.OPTIONS.name === 'required'));
     // Prepend results with recurseBase + '.', or nothing if no recurseBase
-    const prepend = recurseBase.length > 0 ? recurseBase + (isRequired ? '' : '?' ) + '.' : '';
+    const prepend = recurseBase.length > 0 ? recurseBase + (isRequired ? '' : '?') + '.' : '';
     // If current field is an object, recurse
     if (schema.type === 'object') {
         const required: string[] = [];

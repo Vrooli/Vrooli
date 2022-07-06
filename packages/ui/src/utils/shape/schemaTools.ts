@@ -25,7 +25,7 @@ export const standardToFieldData = ({
     props,
     type,
     yup,
-} : StandardToFieldDataProps): FieldData | null => {
+}: StandardToFieldDataProps): FieldData | null => {
     // Props are stored as JSON, so they must be parsed
     let parsedProps: any;
     let parsedYup: any | undefined = undefined;

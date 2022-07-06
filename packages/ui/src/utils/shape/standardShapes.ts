@@ -1,13 +1,10 @@
-import { StandardCreateInput, StandardUpdateInput } from "graphql/generated/globalTypes";
-import { Standard } from "types";
+import { StandardCreateInput, StandardTranslationCreateInput, StandardTranslationUpdateInput, StandardUpdateInput } from "graphql/generated/globalTypes";
+import { Standard, StandardTranslation } from "types";
 import { formatForUpdate, hasObjectChanged, shapeResourceListsCreate, shapeResourceListsUpdate, shapeTagsCreate, shapeTagsUpdate } from "utils";
-import { findCreatedItems, findRemovedItems, findUpdatedItems } from "./shapeTools";
+import { shapeCreateList, shapeUpdateList, ShapeWrapper } from "./shapeTools";
 
-type StandardTranslationCreate = Partial<Standard['translations'][0]> & { 
-    id: string;
-    language: Standard['translations'][0]['language'];
-    jsonVariable: Standard['translations'][0]['jsonVariable'];
-}
+type StandardTranslationCreate = ShapeWrapper<StandardTranslation> &
+    Pick<StandardTranslation, 'language' | 'jsonVariable'>;
 /**
  * Format a standard's translations for create mutation.
  * @param translations Translations to format
@@ -15,20 +12,16 @@ type StandardTranslationCreate = Partial<Standard['translations'][0]> & {
  */
 export const shapeStandardTranslationsCreate = (
     translations: StandardTranslationCreate[] | null | undefined
-): StandardCreateInput['translationsCreate'] | undefined => {
-    if (!translations) return undefined;
-    const formatted: StandardCreateInput['translationsCreate'] = [];
-    for (const translation of translations) {
-        formatted.push({
-            id: translation.id,
-            language: translation.language,
-            description: translation.description,
-            jsonVariable: translation.jsonVariable,
-        });
-    }
-    return formatted.length > 0 ? formatted : undefined;
+): StandardTranslationCreateInput[] | undefined => {
+    return shapeCreateList(translations, (translation) => ({
+        id: translation.id,
+        language: translation.language,
+        description: translation.description,
+        jsonVariable: translation.jsonVariable,
+    }))
 }
 
+interface StandardTranslationUpdate extends StandardTranslationCreate { id: string };
 /**
  * Format a standard's translations for update mutation.
  * @param original Original translations list
@@ -36,34 +29,29 @@ export const shapeStandardTranslationsCreate = (
  * @returns Formatted translations
  */
 export const shapeStandardTranslationsUpdate = (
-    original: StandardTranslationCreate[] | null | undefined,
-    updated: StandardTranslationCreate[] | null | undefined
+    original: StandardTranslationUpdate[] | null | undefined,
+    updated: StandardTranslationUpdate[] | null | undefined
 ): {
-    translationsCreate?: StandardUpdateInput['translationsCreate'],
-    translationsUpdate?: StandardUpdateInput['translationsUpdate'],
-    translationsDelete?: StandardUpdateInput['translationsDelete'],
-} => {
-    if (!updated) return { };
-    if (!original || !Array.isArray(original)) {
-        return { translationsCreate: shapeStandardTranslationsCreate(updated) };
-    }
-    return Array.isArray(updated) && updated.length > 0 ? {
-        translationsCreate: findCreatedItems(original, updated, shapeStandardTranslationsCreate),
-        translationsUpdate: findUpdatedItems(original, updated, hasObjectChanged, formatForUpdate) as StandardUpdateInput['translationsUpdate'],
-        translationsDelete: findRemovedItems(original, updated),
-    } : {}
-}
+    translationsCreate?: StandardTranslationCreateInput[],
+    translationsUpdate?: StandardTranslationUpdateInput[],
+    translationsDelete?: string[],
+} => shapeUpdateList(
+    original,
+    updated,
+    'translations',
+    shapeStandardTranslationsCreate,
+    hasObjectChanged,
+    formatForUpdate as (original: StandardTranslationUpdate, updated: StandardTranslationUpdate) => StandardTranslationUpdateInput | undefined,
+)
 
-type ShapeStandardCreateInput = Partial<Standard> & {
-    props: Standard['props'],
-    type: Standard['type'],
-}
+type StandardCreate = ShapeWrapper<Standard> & 
+    Pick<Standard, 'props' | 'type'>;
 /**
  * Format a standard for create mutation.
  * @param standard The standard's information
  * @returns Standard shaped for create mutation
  */
-export const shapeStandardCreate =  (standard: ShapeStandardCreateInput | null | undefined): StandardCreateInput | undefined => {
+export const shapeStandardCreate = (standard: StandardCreate | null | undefined): StandardCreateInput | undefined => {
     if (!standard) return undefined;
     return {
         default: standard.default,
@@ -79,7 +67,7 @@ export const shapeStandardCreate =  (standard: ShapeStandardCreateInput | null |
     };
 }
 
-type ShapeStandardUpdateInput = Partial<Standard> & {
+type StandardUpdate = ShapeWrapper<Standard> & {
     id: Standard['id'],
 };
 /**
@@ -88,7 +76,7 @@ type ShapeStandardUpdateInput = Partial<Standard> & {
  * @param updated The updated standard's information
  * @returns Standard shaped for update mutation
  */
-export const shapeStandardUpdate = (original: ShapeStandardUpdateInput | null | undefined, updated: ShapeStandardUpdateInput | null | undefined): StandardUpdateInput | undefined => {
+export const shapeStandardUpdate = (original: StandardUpdate | null | undefined, updated: StandardUpdate | null | undefined): StandardUpdateInput | undefined => {
     if (!updated?.id) return undefined;
     if (!original) original = { id: updated.id };
     return {

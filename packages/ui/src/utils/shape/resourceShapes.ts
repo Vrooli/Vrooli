@@ -1,12 +1,10 @@
-import { ResourceCreateInput, ResourceListCreateInput, ResourceListUpdateInput, ResourceListUsedFor, ResourceUpdateInput } from "graphql/generated/globalTypes";
-import { Resource, ResourceList } from "types";
+import { ResourceCreateInput, ResourceListCreateInput, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput, ResourceListUpdateInput, ResourceListUsedFor, ResourceTranslationCreateInput, ResourceTranslationUpdateInput, ResourceUpdateInput } from "graphql/generated/globalTypes";
+import { Resource, ResourceList, ResourceListTranslation, ResourceTranslation } from "types";
 import { formatForUpdate, hasObjectChanged } from "./objectTools";
-import { findCreatedItems, findRemovedItems, findUpdatedItems } from "./shapeTools";
+import { shapeCreateList, shapeUpdateList, ShapeWrapper } from "./shapeTools";
 
-type ResourceTranslationCreate = Partial<Resource['translations'][0]> & {
-    id: string;
-    language: Resource['translations'][0]['language'];
-}
+type ResourceTranslationCreate = ShapeWrapper<ResourceTranslation> &
+    Pick<ResourceTranslation, 'language'>;
 /**
  * Format a resource's translations for create mutation.
  * @param translations Translations to format
@@ -14,20 +12,16 @@ type ResourceTranslationCreate = Partial<Resource['translations'][0]> & {
  */
 export const shapeResourceTranslationsCreate = (
     translations: ResourceTranslationCreate[] | null | undefined
-): ResourceCreateInput['translationsCreate'] | undefined => {
-    if (!translations) return undefined;
-    const formatted: ResourceCreateInput['translationsCreate'] = [];
-    for (const translation of translations) {
-        formatted.push({
-            id: translation.id,
-            language: translation.language,
-            description: translation.description,
-            title: translation.title,
-        });
-    }
-    return formatted.length > 0 ? formatted : undefined;
+): ResourceTranslationCreateInput[] | undefined => {
+    return shapeCreateList(translations, (translation) => ({
+        id: translation.id,
+        language: translation.language,
+        description: translation.description,
+        title: translation.title,
+    }))
 }
 
+interface ResourceTranslationUpdate extends ResourceTranslationCreate { id: string };
 /**
  * Format a resource's translations for update mutation.
  * @param original Original translations list
@@ -35,35 +29,29 @@ export const shapeResourceTranslationsCreate = (
  * @returns Formatted translations
  */
 export const shapeResourceTranslationsUpdate = (
-    original: ResourceTranslationCreate[] | null | undefined,
-    updated: ResourceTranslationCreate[] | null | undefined
+    original: ResourceTranslationUpdate[] | null | undefined,
+    updated: ResourceTranslationUpdate[] | null | undefined
 ): {
-    translationsCreate?: ResourceUpdateInput['translationsCreate'],
-    translationsUpdate?: ResourceUpdateInput['translationsUpdate'],
-    translationsDelete?: ResourceUpdateInput['translationsDelete'],
-} => {
-    if (!updated) return {};
-    if (!original || !Array.isArray(original)) {
-        return { translationsCreate: shapeResourceTranslationsCreate(updated) };
-    }
-    return Array.isArray(updated) && updated.length > 0 ? {
-        translationsCreate: findCreatedItems(original, updated, shapeResourceTranslationsCreate),
-        translationsUpdate: findUpdatedItems(original, updated, hasObjectChanged, formatForUpdate) as ResourceUpdateInput['translationsUpdate'],
-        translationsDelete: findRemovedItems(original, updated),
-    } : {}
-}
+    translationsCreate?: ResourceTranslationCreateInput[],
+    translationsUpdate?: ResourceTranslationUpdateInput[],
+    translationsDelete?: string[],
+} => shapeUpdateList(
+    original,
+    updated,
+    'translations',
+    shapeResourceTranslationsCreate,
+    hasObjectChanged,
+    formatForUpdate as (original: ResourceTranslationUpdate, updated: ResourceTranslationUpdate) => ResourceTranslationUpdateInput | undefined,
+)
 
-type ShapeResourceCreateInput = Partial<Resource> & {
-    link: Resource['link'],
-    listId: string;
-    usedFor: Resource['usedFor'],
-}
+type ResourceCreate = ShapeWrapper<Resource> & 
+    Pick<Resource, 'link' | 'usedFor'> & { listId: string }
 /**
  * Format a resource for create mutation.
  * @param resource The resource's information
  * @returns Resource shaped for create mutation
  */
-export const shapeResourceCreate = (resource: ShapeResourceCreateInput | null | undefined): ResourceCreateInput | undefined => {
+export const shapeResourceCreate = (resource: ResourceCreate | null | undefined): ResourceCreateInput | undefined => {
     if (!resource) return undefined;
     return {
         id: resource.id,
@@ -75,9 +63,7 @@ export const shapeResourceCreate = (resource: ShapeResourceCreateInput | null | 
     }
 }
 
-type ShapeResourceUpdateInput = ShapeResourceCreateInput & {
-    id: Resource['id'],
-};
+interface ResourceUpdate extends ResourceCreate { id: string };
 /**
  * Format a resource for update mutation.
  * @param original Original resource
@@ -85,8 +71,8 @@ type ShapeResourceUpdateInput = ShapeResourceCreateInput & {
  * @returns Formatted resource
  */
 export const shapeResourceUpdate = (
-    original: ShapeResourceUpdateInput | null | undefined,
-    updated: ShapeResourceUpdateInput | null | undefined
+    original: ResourceUpdate | null | undefined,
+    updated: ResourceUpdate | null | undefined
 ): ResourceUpdateInput | undefined => {
     if (!updated?.id) return undefined;
     const orig = original ? original : { id: updated.id } as any;
@@ -106,15 +92,9 @@ export const shapeResourceUpdate = (
  * @returns Resources shaped for create mutation
  */
 export const shapeResourcesCreate = (
-    resources: ShapeResourceCreateInput[] | null | undefined
-): ResourceListCreateInput['resourcesCreate'] | undefined => {
-    if (!resources) return undefined;
-    const formatted: ResourceListCreateInput['resourcesCreate'] = [];
-    for (const resource of resources) {
-        const currShaped = shapeResourceCreate(resource);
-        if (currShaped) formatted.push(currShaped);
-    }
-    return formatted.length > 0 ? formatted : undefined;
+    resources: ResourceCreate[] | null | undefined
+): ResourceCreateInput[] | undefined => {
+    return shapeCreateList(resources, shapeResourceCreate)
 }
 
 /**
@@ -124,28 +104,23 @@ export const shapeResourcesCreate = (
  * @returns Formatted resource list
  */
 export const shapeResourcesUpdate = (
-    original: ShapeResourceUpdateInput[] | null | undefined,
-    updated: ShapeResourceUpdateInput[] | null | undefined
+    original: ResourceUpdate[] | null | undefined,
+    updated: ResourceUpdate[] | null | undefined
 ): {
-    resourcesCreate?: ResourceListUpdateInput['resourcesCreate'],
-    resourcesUpdate?: ResourceListUpdateInput['resourcesUpdate'],
-    resourcesDelete?: ResourceListUpdateInput['resourcesDelete'],
-} => {
-    if (!updated) return {};
-    if (!original || !Array.isArray(original)) {
-        return { resourcesCreate: shapeResourcesCreate(updated) };
-    }
-    return Array.isArray(updated) && updated.length > 0 ? {
-        resourcesCreate: findCreatedItems(original, updated, shapeResourcesCreate),
-        resourcesUpdate: findUpdatedItems(original, updated, hasObjectChanged, shapeResourceUpdate) as ResourceListUpdateInput['resourcesUpdate'],
-        resourcesDelete: findRemovedItems(original, updated),
-    } : {}
-}
+    resourcesCreate?: ResourceCreateInput[],
+    resourcesUpdate?: ResourceUpdateInput[],
+    resourcesDelete?: string[],
+} => shapeUpdateList(
+    original,
+    updated,
+    'resources',
+    shapeResourcesCreate,
+    hasObjectChanged,
+    shapeResourceUpdate,
+)
 
-type ResourceListTranslationCreate = Partial<ResourceList['translations'][0]> & {
-    id: string;
-    language: ResourceList['translations'][0]['language'];
-}
+type ResourceListTranslationCreate = ShapeWrapper<ResourceListTranslation> &
+    Pick<ResourceListTranslation, 'language'>;
 /**
  * Format a resource list's translations for create mutation.
  * @param translations Translations to format
@@ -153,19 +128,15 @@ type ResourceListTranslationCreate = Partial<ResourceList['translations'][0]> & 
  */
 export const shapeResourceListTranslationsCreate = (
     translations: ResourceListTranslationCreate[] | null | undefined
-): ResourceListCreateInput['translationsCreate'] | undefined => {
-    if (!translations) return undefined;
-    const formatted: ResourceListCreateInput['translationsCreate'] = [];
-    for (const translation of translations) {
-        formatted.push({
-            language: translation.language,
-            description: translation.description,
-            title: translation.title,
-        });
-    }
-    return formatted.length > 0 ? formatted : undefined;
+): ResourceListTranslationCreateInput[] | undefined => {
+    return shapeCreateList(translations, (translation) => ({
+        language: translation.language,
+        description: translation.description,
+        title: translation.title,
+    }))
 }
 
+interface ResourceListTranslationUpdate extends ResourceListTranslationCreate { id: string };
 /**
  * Format a resource list's translations for update mutation.
  * @param original Original translations list
@@ -173,29 +144,23 @@ export const shapeResourceListTranslationsCreate = (
  * @returns Formatted translations
  */
 export const shapeResourceListTranslationsUpdate = (
-    original: ResourceListTranslationCreate[] | null | undefined,
-    updated: ResourceListTranslationCreate[] | null | undefined
+    original: ResourceListTranslationUpdate[] | null | undefined,
+    updated: ResourceListTranslationUpdate[] | null | undefined
 ): {
-    translationsCreate?: ResourceListUpdateInput['translationsCreate'],
-    translationsUpdate?: ResourceListUpdateInput['translationsUpdate'],
-    translationsDelete?: ResourceListUpdateInput['translationsDelete'],
-} => {
-    if (!updated) return {};
-    if (!original || !Array.isArray(original)) {
-        return { translationsCreate: shapeResourceListTranslationsCreate(updated) };
-    }
-    return Array.isArray(updated) && updated.length > 0 ? {
-        translationsCreate: findCreatedItems(original, updated, shapeResourceListTranslationsCreate),
-        translationsUpdate: findUpdatedItems(original, updated, hasObjectChanged, formatForUpdate) as ResourceListUpdateInput['translationsUpdate'],
-        translationsDelete: findRemovedItems(original, updated),
-    } : {}
-}
+    translationsCreate?: ResourceListTranslationCreateInput[],
+    translationsUpdate?: ResourceListTranslationUpdateInput[],
+    translationsDelete?: string[],
+} => shapeUpdateList(
+    original,
+    updated,
+    'translations',
+    shapeResourceListTranslationsCreate,
+    hasObjectChanged,
+    formatForUpdate as (original: ResourceListTranslationUpdate, updated: ResourceListTranslationUpdate) => ResourceTranslationUpdateInput | undefined,
+)
 
-type ResourceListCreate = Partial<ResourceList> & {
-    id: string;
-    usedFor: ResourceList['usedFor'];
-    resources: ResourceList['resources'];
-}
+type ResourceListCreate = ShapeWrapper<ResourceList> & 
+    Pick<ResourceList, 'id' | 'usedFor' | 'resources'>;
 /**
  * Format a resource list for create mutation.
  * @param resourceLists Resource lists to format
@@ -204,23 +169,19 @@ type ResourceListCreate = Partial<ResourceList> & {
 export const shapeResourceListsCreate = (
     resourceLists: ResourceListCreate[] | null | undefined
 ): ResourceListCreateInput[] | undefined => {
-    if (!resourceLists) return undefined;
-    const formatted: ResourceListCreateInput[] = [];
-    for (const list of resourceLists) {
-        formatted.push({
-            id: list.id,
-            index: list.index,
-            usedFor: list.usedFor ?? ResourceListUsedFor.Display,
-            ...shapeResourceListTranslationsCreate(list.translations),
-            ...shapeResourcesCreate(list.resources.map(r => ({
-                ...r,
-                listId: list.id,
-            }))),
-        });
-    }
-    return formatted.length > 0 ? formatted : undefined;
+    return shapeCreateList(resourceLists, (list) => ({
+        id: list.id,
+        index: list.index,
+        usedFor: list.usedFor ?? ResourceListUsedFor.Display,
+        ...shapeResourceListTranslationsCreate(list.translations),
+        ...shapeResourcesCreate(list.resources.map(r => ({
+            ...r,
+            listId: list.id,
+        }))),
+    }))
 }
 
+interface ResourceListUpdate extends ResourceListCreate { id: string };
 /**
  * Format a resource list for update mutation.
  * @param original Original resource lists
@@ -228,32 +189,29 @@ export const shapeResourceListsCreate = (
  * @returns Formatted resource lists
  */
 export const shapeResourceListsUpdate = (
-    original: ResourceListCreate[] | null | undefined,
-    updated: ResourceListCreate[] | null | undefined,
+    original: ResourceListUpdate[] | null | undefined,
+    updated: ResourceListUpdate[] | null | undefined,
 ): {
     resourceListsCreate?: ResourceListCreateInput[],
     resourceListsUpdate?: ResourceListUpdateInput[],
     resourceListsDelete?: string[],
-} => {
-    if (!updated) return {};
-    if (!original || !Array.isArray(original)) {
-        return { resourceListsCreate: shapeResourceListsCreate(updated) };
-    }
-    return Array.isArray(updated) && updated.length > 0 ? {
-        resourceListsCreate: findCreatedItems(original, updated, shapeResourceListsCreate),
-        resourceListsUpdate: findUpdatedItems(original, updated, hasObjectChanged, (o, u) => ({
-            id: o.id,
-            index: u.index !== o.index ? u.index : undefined,
-            usedFor: u.usedFor !== o.usedFor ? u.usedFor : undefined,
-            ...shapeResourceListTranslationsUpdate(o.translations, u.translations),
-            ...shapeResourcesUpdate(o.resources.map(or => ({
-                ...or,
-                listId: o.id,
-            })), u.resources.map(ur => ({
-                ...ur,
-                listId: u.id,
-            }))),
-        })) as ResourceListUpdateInput[],
-        resourceListsDelete: findRemovedItems(original, updated),
-    } : {}
-}
+} => shapeUpdateList(
+    original,
+    updated,
+    'resourceLists',
+    shapeResourceListsCreate,
+    hasObjectChanged,
+    (o, u) => ({
+        id: o.id,
+        index: u.index !== o.index ? u.index : undefined,
+        usedFor: u.usedFor !== o.usedFor ? u.usedFor : undefined,
+        ...shapeResourceListTranslationsUpdate(o.translations, u.translations),
+        ...shapeResourcesUpdate(o.resources.map(or => ({
+            ...or,
+            listId: o.id,
+        })), u.resources.map(ur => ({
+            ...ur,
+            listId: u.id,
+        }))),
+    })
+)

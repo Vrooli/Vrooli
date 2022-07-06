@@ -1,14 +1,10 @@
-import { RoutineCreateInput, RoutineUpdateInput } from "graphql/generated/globalTypes";
-import { Routine } from "types";
+import { RoutineCreateInput, RoutineTranslationCreateInput, RoutineTranslationUpdateInput, RoutineUpdateInput } from "graphql/generated/globalTypes";
+import { Routine, RoutineTranslation } from "types";
 import { formatForUpdate, hasObjectChanged, ObjectType, shapeInputsCreate, shapeInputsUpdate, shapeNodeLinksCreate, shapeNodeLinksUpdate, shapeNodesCreate, shapeNodesUpdate, shapeOutputsCreate, shapeOutputsUpdate, shapeResourceListsCreate, shapeResourceListsUpdate, shapeTagsCreate, shapeTagsUpdate } from "utils";
-import { findCreatedItems, findRemovedItems, findUpdatedItems } from "./shapeTools";
+import { shapeCreateList, shapeUpdateList, ShapeWrapper } from "./shapeTools";
 
-type RoutineTranslationCreate = Partial<Routine['translations'][0]> & { 
-    id: string;
-    language: Routine['translations'][0]['language'];
-    instructions: Routine['translations'][0]['instructions'];
-    title: Routine['translations'][0]['title'];
-}
+type RoutineTranslationCreate = ShapeWrapper<RoutineTranslation> &
+    Pick<RoutineTranslation, 'language' | 'instructions' | 'title'>;
 /**
  * Format a routine's translations for create mutation.
  * @param translations Translations to format
@@ -16,21 +12,17 @@ type RoutineTranslationCreate = Partial<Routine['translations'][0]> & {
  */
 export const shapeRoutineTranslationsCreate = (
     translations: RoutineTranslationCreate[] | null | undefined
-): RoutineCreateInput['translationsCreate'] | undefined => {
-    if (!translations) return undefined;
-    const formatted: RoutineCreateInput['translationsCreate'] = [];
-    for (const translation of translations) {
-        formatted.push({
-            id: translation.id,
-            language: translation.language,
-            description: translation.description,
-            instructions: translation.instructions,
-            title: translation.title,
-        });
-    }
-    return formatted.length > 0 ? formatted : undefined;
+): RoutineTranslationCreateInput[] | undefined => {
+    return shapeCreateList(translations, (translation) => ({
+        id: translation.id,
+        language: translation.language,
+        description: translation.description,
+        instructions: translation.instructions,
+        title: translation.title,
+    }))
 }
 
+interface RoutineTranslationUpdate extends RoutineTranslationCreate { id: string };
 /**
  * Format a routine's translations for update mutation.
  * @param original Original translations list
@@ -38,33 +30,28 @@ export const shapeRoutineTranslationsCreate = (
  * @returns Formatted translations
  */
 export const shapeRoutineTranslationsUpdate = (
-    original: RoutineTranslationCreate[] | null | undefined,
-    updated: RoutineTranslationCreate[] | null | undefined
+    original: RoutineTranslationUpdate[] | null | undefined,
+    updated: RoutineTranslationUpdate[] | null | undefined
 ): {
-    translationsCreate?: RoutineUpdateInput['translationsCreate'],
-    translationsUpdate?: RoutineUpdateInput['translationsUpdate'],
-    translationsDelete?: RoutineUpdateInput['translationsDelete'],
-} => {
-    if (!updated) return {};
-    if (!original || !Array.isArray(original)) {
-        return { translationsCreate: shapeRoutineTranslationsCreate(updated) };
-    }
-    return Array.isArray(updated) && updated.length > 0 ? {
-        translationsCreate: findCreatedItems(original, updated, shapeRoutineTranslationsCreate),
-        translationsUpdate: findUpdatedItems(original, updated, hasObjectChanged, formatForUpdate) as RoutineUpdateInput['translationsUpdate'],
-        translationsDelete: findRemovedItems(original, updated),
-    } : {}
-}
+    translationsCreate?: RoutineTranslationCreateInput[],
+    translationsUpdate?: RoutineTranslationUpdateInput[],
+    translationsDelete?: string[],
+} => shapeUpdateList(
+    original,
+    updated,
+    'translations',
+    shapeRoutineTranslationsCreate,
+    hasObjectChanged,
+    formatForUpdate as (original: RoutineTranslationUpdate, updated: RoutineTranslationUpdate) => RoutineTranslationUpdateInput | undefined,
+)
 
-type ShapeRoutineCreateInput = Partial<Routine> & {
-
-}
+type RoutineCreate = ShapeWrapper<Routine>;
 /**
  * Format a routine for create mutation.
  * @param routine The routine's information
  * @returns Routine shaped for create mutation
  */
-export const shapeRoutineCreate = (routine: ShapeRoutineCreateInput | null | undefined): RoutineCreateInput | undefined => {
+export const shapeRoutineCreate = (routine: RoutineCreate | null | undefined): RoutineCreateInput | undefined => {
     if (!routine) return undefined;
     return {
         id: routine.id,
@@ -86,16 +73,14 @@ export const shapeRoutineCreate = (routine: ShapeRoutineCreateInput | null | und
     };
 }
 
-type ShapeRoutineUpdateInput = Partial<Routine> & {
-    id: Routine['id'],
-};
+interface RoutineUpdate extends RoutineCreate { id: string };
 /**
  * Format a routine for update mutation
  * @param original The original routine's information
  * @param updated The updated routine's information
  * @returns Routine shaped for update mutation
  */
-export const shapeRoutineUpdate = (original: ShapeRoutineUpdateInput | null | undefined, updated: ShapeRoutineUpdateInput | null | undefined): RoutineUpdateInput | undefined => {
+export const shapeRoutineUpdate = (original: RoutineUpdate | null | undefined, updated: RoutineUpdate | null | undefined): RoutineUpdateInput | undefined => {
     if (!updated?.id) return undefined;
     if (!original) original = { id: updated.id };
     return {
@@ -117,3 +102,36 @@ export const shapeRoutineUpdate = (original: ShapeRoutineUpdateInput | null | un
         ...shapeTagsUpdate(original.tags ?? [], updated.tags ?? []),
     };
 }
+
+/**
+ * Format an array of routines for create mutation.
+ * @param routines The routines to format
+ * @returns Routines shaped for create mutation
+ */
+ export const shapeRoutinesCreate = (
+    routines: RoutineCreate[] | null | undefined
+): RoutineCreateInput[] | undefined => {
+    return shapeCreateList(routines, shapeRoutineCreate)
+}
+
+/**
+ * Format an array of routines for update mutation.
+ * @param original Original routines list
+ * @param updated Updated routines list
+ * @returns Formatted routines
+ */
+export const shapeRoutinesUpdate = (
+    original: RoutineUpdate[] | null | undefined,
+    updated: RoutineUpdate[] | null | undefined
+): {
+    routinesCreate?: RoutineCreateInput[],
+    routinesUpdate?: RoutineUpdateInput[],
+    routinesDelete?: string[],
+} => shapeUpdateList(
+    original,
+    updated,
+    'routines',
+    shapeRoutinesCreate,
+    hasObjectChanged,
+    shapeRoutineUpdate,
+)
