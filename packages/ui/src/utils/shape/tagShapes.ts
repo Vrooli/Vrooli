@@ -1,6 +1,6 @@
 import { TagSelectorTag } from "components/inputs/types";
 
-export type ShapeTagsAddResult = {
+export type ShapeTagsCreateResult = {
     tagsCreate?: { tag: string }[];
     tagsConnect?: string[];
 };
@@ -16,7 +16,7 @@ export type ShapeTagsUpdateResult = {
  * @param tags The tags to shape
  * @returns An object shaped for the API
  */
-export const shapeTagsAdd = (tags: TagSelectorTag[]): ShapeTagsAddResult => {
+export const shapeTagsCreate = (tags: TagSelectorTag[]): ShapeTagsCreateResult => {
     return Array.isArray(tags) && tags.length > 0 ? {
         tagsCreate: tags.filter(t => !t.id).map(t => ({ tag: t.tag })),
         tagsConnect: tags.filter(t => t.id).map(t => (t.id)) as string[],
@@ -32,7 +32,7 @@ export const shapeTagsAdd = (tags: TagSelectorTag[]): ShapeTagsAddResult => {
 export const shapeTagsUpdate = (existingTags: TagSelectorTag[] | null | undefined, newTags: TagSelectorTag[]): ShapeTagsUpdateResult => {
     console.log('SHAPE TAGS UPDATE', existingTags, newTags);
     if (!existingTags || !Array.isArray(existingTags)) {
-        return shapeTagsAdd(newTags);
+        return shapeTagsCreate(newTags);
     }
     return Array.isArray(newTags) && newTags.length > 0 ? {
         tagsCreate: newTags.filter(t => !t.id && !existingTags.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),

@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { InputType, ROLES, standardCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardCreateMutation } from "graphql/mutation";
-import { formatForCreate, getUserLanguages, shapeTagsAdd, updateArray, useReactSearch } from "utils";
+import { getUserLanguages, shapeStandardCreate, updateArray, useReactSearch } from "utils";
 import { StandardCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";
@@ -141,29 +141,30 @@ export const StandardCreate = ({
             default: '',
             description: '',
             name: '',
-            version: '',
+            version: '1.0',
         },
         validationSchema,
         onSubmit: (values) => {
-            const resourceListAdd = resourceList ? formatForCreate(resourceList) : {};
+            // Update translations with final values
             const allTranslations = getTranslationsUpdate(language, {
                 language,
                 description: values.description,
             })
+            // Mutate
             mutationWrapper({
                 mutation,
-                input: formatForCreate({
+                input: shapeStandardCreate({
                     default: values.default,
                     isInternal: false,
                     name: values.name,
                     props: JSON.stringify(schema?.props),
                     yup: JSON.stringify(schema?.yup),
                     translations: allTranslations,
-                    resourceListsCreate: [resourceListAdd],
-                    ...shapeTagsAdd(tags),
+                    resourceLists: [resourceList],
+                    tags: tags as any,
                     type: inputType.value,
                     version: values.version,
-                }) as any,
+                }),
                 onSuccess: (response) => {
                     // Remove schema from local state
                     localStorage.removeItem('standard-create-schema');
@@ -297,6 +298,19 @@ export const StandardCreate = ({
                         helperText={formik.touched.description && formik.errors.description}
                     />
                 </Grid>
+                {/* <Grid item xs={12}>
+                    <TextField
+                        fullWidth
+                        id="version"
+                        name="version"
+                        label="version"
+                        value={formik.values.version}
+                        onBlur={formik.handleBlur}
+                        onChange={formik.handleChange}
+                        error={formik.touched.version && Boolean(formik.errors.version)}
+                        helperText={formik.touched.version && formik.errors.version}
+                    />
+                </Grid> */}
                 {/* Standard build/preview */}
                 <Grid item xs={12}>
                     <PreviewSwitch

@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { ROLES, routineCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { routineCreateMutation } from "graphql/mutation";
-import { formatForCreate, getUserLanguages, shapeTagsAdd, updateArray, useReactSearch } from "utils";
+import { formatForCreate, getUserLanguages, shapeTagsCreate, updateArray, useReactSearch } from "utils";
 import { RoutineCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";
@@ -122,7 +122,7 @@ export const RoutineCreate = ({
                     inputs: inputsList,
                     outputs: outputsList,
                     resourceListsCreate: [resourceListAdd],
-                    ...shapeTagsAdd(tags),
+                    ...shapeTagsCreate(tags),
                     version: values.version,
                     isComplete: values.isComplete,
                 }) as any,

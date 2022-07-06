@@ -26,6 +26,7 @@ export const nodeFields = gql`
             id
             language
             description
+            instructions
             title
         }
     }

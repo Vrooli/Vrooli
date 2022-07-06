@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { standardUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, shapeTagsUpdate, updateArray } from "utils";
+import { shapeStandardUpdate, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -92,20 +92,21 @@ export const StandardUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
-            const existingResourceList = Array.isArray(standard?.resourceLists) ? (standard as Standard).resourceLists.find(list => list.usedFor === ResourceListUsedFor.Display) : undefined;
-            const resourceListUpdate = existingResourceList ? { resourceListsUpdate: formatForUpdate(existingResourceList, resourceList, [], ['resources']) } : {};
+            if (!id) return;
+            // Update translations with final values
             const allTranslations = getTranslationsUpdate(language, {
                 language,
                 description: values.description,
             })
+            // Update
             mutationWrapper({
                 mutation,
-                input: formatForUpdate(standard, {
+                input: shapeStandardUpdate(standard, {
                     id,
-                    ...resourceListUpdate,
-                    ...shapeTagsUpdate(standard?.tags, tags),
                     translations: allTranslations,
-                }, ['tags'], ['translations']),
+                    resourceLists: [resourceList],
+                    tags: tags as any,
+                }),
                 onSuccess: (response) => { onUpdated(response.data.standardUpdate) },
                 onError: () => { formik.setSubmitting(false) },
             })

@@ -111,7 +111,7 @@ NOTE: standard name is not translated because it is used as a unique identifier.
 - `isInternal` - Indicates if the standard should appear in searches. Internal standards are not deleted, and have to creator. This make routine duplication easier, and opens the possibility to suggesting popular internal standard structures when users are creating them.
 
 ## standard_translation
-- `jsonVariables` - If standard is a JSON type, then it may contain variables that have labels and helper text
+- `jsonVariable` - If standard is a JSON type, then it may contain variables that have labels and helper text
 
 
 ## star

@@ -104,8 +104,10 @@ const standardSelect = {
     id: true,
     commentsCount: true,
     name: true,
+    props: true,
     stars: true,
     score: true,
+    isInternal: true,
     isStarred: true,
     isUpvoted: true,
     role: true,
@@ -117,6 +119,7 @@ const standardSelect = {
     },
     tags: tagSelect,
     type: true,
+    version: true,
 }
 const userSelect = {
     __typename: GraphQLModelType.User,

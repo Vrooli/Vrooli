@@ -247,6 +247,7 @@ export const standardQuerier = (prisma: PrismaType) => ({
         data: StandardCreateInput & { name: string, version: string },
         userId: string
     ): Promise<{ [x: string]: any } | null> {
+        console.log('findmatchingstandardname', JSON.stringify(data), userId, '\n\n');
         // Find all standards that match the given standard
         const standards = await prisma.standard.findMany({
             where: {
@@ -305,8 +306,8 @@ export const standardMutater = (
 ) => ({
     async toDBShapeAdd(userId: string | null, data: StandardCreateInput): Promise<any> {
         let translations = TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, true)
-        if (translations?.jsonVariables) {
-            translations.jsonVariables = sortify(translations.jsonVariables);
+        if (translations?.jsonVariable) {
+            translations.jsonVariable = sortify(translations.jsonVariable);
         }
         return {
             id: data.id ?? undefined,
@@ -324,8 +325,8 @@ export const standardMutater = (
     },
     async toDBShapeUpdate(userId: string | null, data: StandardUpdateInput): Promise<any> {
         let translations = TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false)
-        if (translations?.jsonVariables) {
-            translations.jsonVariables = sortify(translations.jsonVariables);
+        if (translations?.jsonVariable) {
+            translations.jsonVariable = sortify(translations.jsonVariable);
         }
         return {
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
@@ -369,13 +370,13 @@ export const standardMutater = (
             // Otherwise, perform two unique checks
             // 1. Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
             // 2. Check if standard of same shape already exists with the same creator
-            // If the first check fails, throw error
-            // If the second check fails, then connect the existing standard.
+            // If the first check returns a standard, throw error
+            // If the second check returns a standard, then connect the existing standard.
             else {
                 // First call createData helper function, so we can use the generated name
                 create = await this.toDBShapeAdd(userId, formattedInput.create[0]);
                 const check1 = await querier.findMatchingStandardName(create, userId ?? '');
-                if (!check1) {
+                if (check1) {
                     throw new CustomError(CODE.StandardDuplicateName, 'Standard with this name/version pair already exists.', { code: genErrorCode('0240') });
                 }
                 const check2 = await querier.findMatchingStandardShape(create, userId ?? '', true, false)
@@ -481,12 +482,13 @@ export const standardMutater = (
                 // Otherwise, perform two unique checks
                 // 1. Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
                 // 2. Check if standard of same shape already exists with the same creator
-                // If any checks fail, throw error
+                // If any checks return an existing standard, throw error
                 else {
                     // First call createData helper function, so we can use the generated name
                     data = await this.toDBShapeAdd(userId, input);
                     const check1 = await querier.findMatchingStandardName(data, userId ?? '');
-                    if (!check1) {
+                    if (check1) {
+                        console.log('STANDARD CUD CHECK1 FAILED', JSON.stringify(check1), '\n\n');
                         throw new CustomError(CODE.StandardDuplicateName, 'Standard with this name/version pair already exists.', { code: genErrorCode('0238') });
                     }
                     const check2 = await querier.findMatchingStandardShape(data, userId ?? '', true, false)

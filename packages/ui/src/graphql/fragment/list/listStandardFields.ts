@@ -33,6 +33,7 @@ export const listStandardFields = gql`
             id
             language
             description
+            jsonVariable
         }
         type
         version

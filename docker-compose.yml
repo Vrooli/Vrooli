@@ -18,7 +18,7 @@ services:
             LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
             LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
         ports:
-            - 3000:3000
+            - ${PORT_UI}:3000
         networks:
             - proxy
             - app
@@ -28,7 +28,7 @@ services:
         depends_on: 
                 - redis
                 - db
-        command: /bin/sh -c "chmod +x ./scripts/* && chmod +w ./packages/ui/build/* && ./scripts/ui.sh"
+        command: /bin/sh -c "chmod +x ./scripts/* && ./scripts/ui.sh"
     server:
         build:
             context: .
@@ -62,7 +62,7 @@ services:
             LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
             LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
         ports:
-            - 5329:5329
+            - ${PORT_SERVER}:5329
         networks:
             - proxy
             - app
@@ -87,7 +87,7 @@ services:
             POSTGRES_PASSWORD: "${DB_PASSWORD}"
             PROJECT_DIR: "${PROJECT_DIR}"
         ports:
-            - 5432:5432
+            - ${PORT_DB}:5432
         networks:
            - app       
         volumes:
@@ -101,6 +101,8 @@ services:
           - app   
         volumes:
           - ./data/redis:/srv/app/data/redis:z    
+        ports:
+          - ${PORT_REDIS}:6379
         command: /bin/sh -c "mkdir -p /srv/app/data/redis/appendonlydir && rm -f /srv/app/data/redis/dump.rdb && redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes --dbfilename dump.rdb --dir /srv/app/data/redis/"
     # adminer:
     #     image: adminer

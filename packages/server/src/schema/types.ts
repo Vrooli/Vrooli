@@ -2500,21 +2500,21 @@ export type StandardTranslation = {
   __typename?: 'StandardTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
-  jsonVariables?: Maybe<Scalars['String']>;
+  jsonVariable?: Maybe<Scalars['String']>;
   language: Scalars['String'];
 };
 
 export type StandardTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
   id?: InputMaybe<Scalars['ID']>;
-  jsonVariables?: InputMaybe<Scalars['String']>;
+  jsonVariable?: InputMaybe<Scalars['String']>;
   language: Scalars['String'];
 };
 
 export type StandardTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  jsonVariables?: InputMaybe<Scalars['String']>;
+  jsonVariable?: InputMaybe<Scalars['String']>;
   language?: InputMaybe<Scalars['String']>;
 };
 
