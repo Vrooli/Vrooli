@@ -80,6 +80,7 @@ export interface runRoutineFields_nodeLinks {
   id: string;
   fromId: string;
   toId: string;
+  operation: string | null;
   whens: runRoutineFields_nodeLinks_whens[];
 }
 

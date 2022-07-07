@@ -1,9 +1,9 @@
 import { StandardCreateInput, StandardTranslationCreateInput, StandardTranslationUpdateInput, StandardUpdateInput } from "graphql/generated/globalTypes";
-import { Standard, StandardTranslation } from "types";
+import { ShapeWrapper, Standard, StandardTranslation } from "types";
 import { formatForUpdate, hasObjectChanged, shapeResourceListsCreate, shapeResourceListsUpdate, shapeTagsCreate, shapeTagsUpdate } from "utils";
-import { shapeCreateList, shapeUpdate, shapeUpdateList, ShapeWrapper } from "./shapeTools";
+import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
-type StandardTranslationCreate = ShapeWrapper<StandardTranslation> &
+export type StandardTranslationCreate = ShapeWrapper<StandardTranslation> &
     Pick<StandardTranslation, 'language' | 'jsonVariable'>;
 /**
  * Format a standard's translations for create mutation.
@@ -21,7 +21,7 @@ export const shapeStandardTranslationsCreate = (
     }))
 }
 
-interface StandardTranslationUpdate extends StandardTranslationCreate { id: string };
+export interface StandardTranslationUpdate extends StandardTranslationCreate { id: string };
 /**
  * Format a standard's translations for update mutation.
  * @param original Original translations list
@@ -44,8 +44,8 @@ export const shapeStandardTranslationsUpdate = (
     formatForUpdate as (original: StandardTranslationUpdate, updated: StandardTranslationUpdate) => StandardTranslationUpdateInput | undefined,
 )
 
-type StandardCreate = ShapeWrapper<Standard> &
-    Pick<Standard, 'props' | 'type'>;
+export type StandardCreate = ShapeWrapper<Standard> &
+    Pick<Standard, 'props' | 'type' | 'name'>;
 /**
  * Format a standard for create mutation.
  * @param standard The standard's information
@@ -67,7 +67,7 @@ export const shapeStandardCreate = (standard: StandardCreate | null | undefined)
     };
 }
 
-interface StandardUpdate extends StandardCreate { id: string };
+export interface StandardUpdate extends ShapeWrapper<Standard> { id: string };
 /**
  * Format a standard for update mutation
  * @param original The original standard's information

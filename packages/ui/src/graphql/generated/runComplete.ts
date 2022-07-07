@@ -80,6 +80,7 @@ export interface runComplete_runComplete_routine_nodeLinks {
   id: string;
   fromId: string;
   toId: string;
+  operation: string | null;
   whens: runComplete_runComplete_routine_nodeLinks_whens[];
 }
 

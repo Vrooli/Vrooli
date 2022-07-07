@@ -34,6 +34,7 @@ export interface copy_copy_node_data_NodeRoutineList_routines_routine_translatio
   id: string;
   language: string;
   description: string | null;
+  instructions: string;
   title: string;
 }
 
@@ -308,6 +309,7 @@ export interface copy_copy_routine_inputs_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface copy_copy_routine_inputs_standard {
@@ -352,6 +354,7 @@ export interface copy_copy_routine_nodeLinks {
   id: string;
   fromId: string;
   toId: string;
+  operation: string | null;
   whens: copy_copy_routine_nodeLinks_whens[];
 }
 
@@ -373,6 +376,7 @@ export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_i
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard {
@@ -409,6 +413,7 @@ export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_o
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard {
@@ -617,6 +622,7 @@ export interface copy_copy_routine_outputs_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface copy_copy_routine_outputs_standard {
@@ -853,6 +859,7 @@ export interface copy_copy_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface copy_copy_standard_creator_Organization_translations {

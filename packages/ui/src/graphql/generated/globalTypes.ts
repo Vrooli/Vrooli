@@ -1013,7 +1013,6 @@ export interface RoutineTranslationCreateInput {
   description?: string | null;
   instructions: string;
   title: string;
-  
 }
 
 export interface RoutineTranslationUpdateInput {

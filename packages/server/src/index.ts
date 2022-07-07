@@ -18,12 +18,16 @@ const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
     `https://app.vrooli.com/api`;
 
 const main = async () => {
-    console.info('Starting server...')
+    logger.log(LogLevel.info, 'Starting server...');
 
     // Check for required .env variables
-    if (['JWT_SECRET'].some(name => !process.env[name])) {
-        logger.log(LogLevel.error, '🚨 JWT_SECRET not in environment variables. Stopping server', { code: genErrorCode('0007') });
-        process.exit(1);
+    const requiredEnvs = ['REACT_APP_SERVER_LOCATION', 'JWT_SECRET'];
+    for (const env of requiredEnvs) {
+        if (!process.env[env]) {
+            console.error('uh oh', process.env[env]);
+            logger.log(LogLevel.error, `🚨 ${env} not in environment variables. Stopping server`, { code: genErrorCode('0007') });
+            process.exit(1);
+        }
     }
 
     // Setup databases
@@ -36,14 +40,14 @@ const main = async () => {
             useNewUrlParser: true,
             useUnifiedTopology: true,
         } as mongoose.ConnectOptions);
-        console.info('✅ Connected to MongoDB');
+        logger.log(LogLevel.info, '✅ Connected to MongoDB');
     } catch (error) {
         logger.log(LogLevel.error, '🚨 Failed to connect to MongoDB', { code: genErrorCode('0191'), error });
     }
     // Redis 
     try {
         await initializeRedis();
-        console.info('✅ Connected to Redis');
+        logger.log(LogLevel.info, '✅ Connected to Redis');
     } catch (error) {
         logger.log(LogLevel.error, '🚨 Failed to connect to Redis', { code: genErrorCode('0207'), error });
     }
@@ -115,7 +119,7 @@ const main = async () => {
     // Start cron jobs for calculating site statistics
     initStatsCronJobs();
 
-    console.info(`🚀 Server running at ${SERVER_URL}`)
+    logger.log(LogLevel.info, `🚀 Server running at ${SERVER_URL}`);
 }
 
 main();

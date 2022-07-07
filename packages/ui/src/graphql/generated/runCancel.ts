@@ -80,6 +80,7 @@ export interface runCancel_runCancel_routine_nodeLinks {
   id: string;
   fromId: string;
   toId: string;
+  operation: string | null;
   whens: runCancel_runCancel_routine_nodeLinks_whens[];
 }
 

@@ -1,9 +1,9 @@
 import { NodeCreateInput, NodeEndCreateInput, NodeEndUpdateInput, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListItemTranslationCreateInput, NodeRoutineListItemTranslationUpdateInput, NodeRoutineListItemUpdateInput, NodeRoutineListUpdateInput, NodeTranslationCreateInput, NodeTranslationUpdateInput, NodeUpdateInput } from "graphql/generated/globalTypes";
-import { Node, NodeDataEnd, NodeDataRoutineList, NodeDataRoutineListItem, NodeDataRoutineListItemTranslation, NodeTranslation } from "types";
+import { Node, NodeDataEnd, NodeDataRoutineList, NodeDataRoutineListItem, NodeDataRoutineListItemTranslation, NodeTranslation, ShapeWrapper } from "types";
 import { formatForUpdate, hasObjectChanged, shapeRoutineUpdate } from "utils";
-import { shapeCreateList, shapeUpdate, shapeUpdateList, ShapeWrapper } from "./shapeTools";
+import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
-type NodeEndCreate = ShapeWrapper<NodeDataEnd>;
+export type NodeEndCreate = ShapeWrapper<NodeDataEnd>;
 /**
  * Format a node end for create mutation.
  * @param end The node end's information
@@ -17,7 +17,7 @@ export const shapeNodeEndCreate = (end: NodeEndCreate | null | undefined): NodeE
     };
 }
 
-interface NodeEndUpdate extends NodeEndCreate { id: string };
+export interface NodeEndUpdate extends NodeEndCreate { id: string };
 /**
  * Format a node end for update mutation
  * @param original The original node end's information
@@ -32,7 +32,7 @@ export const shapeNodeEndUpdate = (
     wasSuccessful: u.wasSuccessful !== o.wasSuccessful ? u.wasSuccessful : undefined,
 }))
 
-type NodeRoutineListItemTranslationCreate = ShapeWrapper<NodeDataRoutineListItemTranslation> &
+export type NodeRoutineListItemTranslationCreate = ShapeWrapper<NodeDataRoutineListItemTranslation> &
     Pick<NodeDataRoutineListItemTranslation, 'language'>;
 /**
  * Format a node routine list item's translations for create mutation.
@@ -48,7 +48,7 @@ export const shapeNodeRoutineListItemTranslationsCreate = (
     title: translation.title,
 }))
 
-interface NodeRoutineListItemTranslationUpdate extends NodeRoutineListItemTranslationCreate { id: string };
+export interface NodeRoutineListItemTranslationUpdate extends NodeRoutineListItemTranslationCreate { id: string };
 /**
  * Format a node routine list item translation for update mutation.
  * @param original Original translations list
@@ -71,7 +71,7 @@ export const shapeNodeRoutineListItemTranslationsUpdate = (
     formatForUpdate as (original: NodeRoutineListItemTranslationUpdate, updated: NodeRoutineListItemTranslationUpdate) => NodeRoutineListItemTranslationUpdateInput | undefined,
 )
 
-type NodeRoutineListItemCreate = ShapeWrapper<NodeDataRoutineListItem> &
+export type NodeRoutineListItemCreate = ShapeWrapper<NodeDataRoutineListItem> &
     Pick<NodeDataRoutineListItem, 'index'> & {
         routine: Partial<NodeDataRoutineListItem['routine'] & { id: string }>;
     }
@@ -91,7 +91,7 @@ export const shapeNodeRoutineListItemCreate = (item: NodeRoutineListItemCreate |
     };
 }
 
-interface NodeRoutineListItemUpdate extends NodeRoutineListItemCreate { id: string };
+export interface NodeRoutineListItemUpdate extends NodeRoutineListItemCreate { id: string };
 /**
  * Format a node routine list item for update mutation
  * @param original The original routine list item's information
@@ -140,7 +140,7 @@ export const shapeNodeRoutineListItemsUpdate = (
     shapeNodeRoutineListItemUpdate,
 )
 
-type NodeRoutineListCreate = ShapeWrapper<NodeDataRoutineList>;
+export type NodeRoutineListCreate = ShapeWrapper<NodeDataRoutineList>;
 /**
  * Format a node routine list for create mutation.
  * @param routineList The node routine list's information
@@ -156,7 +156,7 @@ export const shapeNodeRoutineListCreate = (routineList: NodeRoutineListCreate | 
     };
 }
 
-interface NodeRoutineListUpdate extends NodeRoutineListCreate { id: string };
+export interface NodeRoutineListUpdate extends NodeRoutineListCreate { id: string };
 /**
  * Format a node routine list for update mutation
  * @param original The original routine list's information
@@ -189,7 +189,7 @@ export const shapeNodeTranslationsCreate = (
     title: translation.title,
 }))
 
-interface NodeTranslationUpdate extends NodeTranslationCreate { id: string };
+export interface NodeTranslationUpdate extends NodeTranslationCreate { id: string };
 /**
  * Format a node's translations for update mutation.
  * @param original Original translations list
@@ -212,7 +212,7 @@ export const shapeNodeTranslationsUpdate = (
     formatForUpdate as (original: NodeTranslationCreate, updated: NodeTranslationCreate) => NodeTranslationUpdateInput | undefined,
 )
 
-type NodeCreate = ShapeWrapper<Node>;
+export type NodeCreate = ShapeWrapper<Node>;
 /**
  * Format a node for create mutation.
  * @param node The node's information
@@ -232,7 +232,7 @@ export const shapeNodeCreate = (node: NodeCreate | null | undefined): NodeCreate
     };
 }
 
-interface NodeUpdate extends NodeCreate { id: string };
+export interface NodeUpdate extends NodeCreate { id: string };
 /**
  * Format a node for update mutation
  * @param original The original node's information

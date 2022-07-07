@@ -9,7 +9,6 @@ export const Pubs = {
     AlertDialog: "alertDialog",
     Session: "session",
     Snack: "snack",
-    BurgerMenuOpen: "burgerMenuOpen",
     ArrowMenuOpen: "arrowMenuOpen",
     Theme: "theme",
     NodeDrag: "NodeDrag",

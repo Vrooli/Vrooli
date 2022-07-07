@@ -8,9 +8,9 @@ import {
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
-import { getTranslation, jsonToString, standardToFieldData, updateArray } from 'utils';
+import { getTranslation, jsonToString, StandardCreate, standardToFieldData, updateArray } from 'utils';
 import { useFormik } from 'formik';
-import { ListStandard, NewObject, RoutineInput, RoutineOutput, Standard } from 'types';
+import { NewObject, RoutineInput, RoutineOutput, Standard } from 'types';
 import { BaseStandardInput, PreviewSwitch, Selector, StandardSelectSwitch } from 'components';
 import { FieldData } from 'forms/types';
 import { generateInputComponent } from 'forms/generators';
@@ -74,7 +74,7 @@ export const InputOutputListItem = ({
 
     // Handle standard select switch
     // Should only be set when a non-internal standard is selected
-    const [standard, setStandard] = useState<ListStandard | null>((item?.standard && !item.standard.isInternal) ? item?.standard as ListStandard : null);
+    const [standard, setStandard] = useState<StandardCreate | null>((item?.standard && !item.standard.isInternal) ? item?.standard : null);
     // Handle input type selector
     const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
     const handleInputTypeSelect = useCallback((event: any) => {
@@ -100,10 +100,10 @@ export const InputOutputListItem = ({
      */
     useEffect(() => {
         // Check if standard has changed
-        if (item?.standard?.id === standard?.id) return;
+        if (item?.standard?.id === standard?.id || !standard) return;
         handleUpdate(index, {
             ...item,
-            standard: standard || null,
+            standard: standard,
         })
     }, [handleUpdate, index, item, standard]);
     /**
@@ -152,7 +152,7 @@ export const InputOutputListItem = ({
         initialValues: {
             description: getTranslation(item, 'description', [language]) ?? '',
             isRequired: true,
-            name: item.name ?? '',
+            name: getTranslation(item, 'name', [language], false) ?? '',
             // Value of generated input component preview
             [schemaKey]: jsonToString((generatedSchema?.props as any)?.format),
         },

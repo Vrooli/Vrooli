@@ -27,5 +27,6 @@ export interface runNodeLinkFields {
   id: string;
   fromId: string;
   toId: string;
+  operation: string | null;
   whens: runNodeLinkFields_whens[];
 }

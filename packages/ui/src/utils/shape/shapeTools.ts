@@ -1,8 +1,3 @@
-/**
- * Wrapper type for helping convert objects in the shape of a query result, 
- * to a create/update input object.
- */
-export type ShapeWrapper<T> = Partial<Omit<T, '__typename'>> & { __typename?: string };
 
 /**
  * Finds objects which have been created, and returns an array of the created objects, formatted for
@@ -13,7 +8,7 @@ export type ShapeWrapper<T> = Partial<Omit<T, '__typename'>> & { __typename?: st
  * @returns An array of the created objects formatted for the create mutation,
  * or undefined if no objects have been created.
  */
-export const findCreatedItems = <T extends { id: string }, R>(
+export const findCreatedItems = <T extends { id?: string | null }, R>(
     original: T[],
     updated: T[],
     formatForCreate: (items: T[]) => R[] | null | undefined
@@ -36,16 +31,17 @@ export const findCreatedItems = <T extends { id: string }, R>(
  * @returns An array of the updated objects formatted for the update mutation, 
  * or undefined if no objects have been updated.
  */
-export const findUpdatedItems = <T extends { id: string }, R>(
+export const findUpdatedItems = <T extends { id?: string | null }, R>(
     original: T[],
     updated: T[],
-    hasObjectChanged: (original: T, updated: T) => boolean,
-    formatForUpdate: (original: T, updated: T) => R
+    hasObjectChanged: (original: T & { id: string }, updated: T & { id: string }) => boolean,
+    formatForUpdate: (original: T & { id: string }, updated: T & { id: string }) => R
 ): R[] | undefined => {
     const updatedItems: R[] = [];
     for (const updatedItem of updated) {
-        const oi = original.find(item => item.id === updatedItem.id);
-        if (oi && hasObjectChanged(oi, updatedItem)) updatedItems.push(formatForUpdate(oi, updatedItem));
+        if (!updatedItem.id) continue;
+        const oi: T & { id: string } | undefined = original.find(item => item.id && item.id === updatedItem.id) as T & { id: string } | undefined;
+        if (oi && hasObjectChanged(oi, updatedItem as T & { id: string })) updatedItems.push(formatForUpdate(oi, updatedItem as T & { id: string }));
     }
     return updatedItems.length > 0 ? updatedItems : undefined;
 }
@@ -57,9 +53,10 @@ export const findUpdatedItems = <T extends { id: string }, R>(
  * @returns The IDs of items which have been removed from the array, 
  * or undefined if no items have been removed.
  */
-export const findRemovedItems = <T extends { id: string }>(original: T[], updated: T[]): string[] | undefined => {
+export const findRemovedItems = <T extends { id?: string | null }>(original: T[], updated: T[]): string[] | undefined => {
     const removed: string[] = [];
     for (const originalItem of original) {
+        if (!originalItem.id) continue;
         const updatedItem = updated.find(item => item.id === originalItem.id);
         if (!updatedItem) removed.push(originalItem.id);
     }
@@ -109,24 +106,23 @@ type ShapeUpdateList<N extends string, RC, RU> =
  * @returns An array of formatted objects
  */
 export const shapeUpdateList = <N extends string, T extends { id?: string | null }, RC extends {}, RU extends { id: string }>(
-    original: T[] | null | undefined,
+    original: (T & { id: string })[] | null | undefined,
     updated: T[] | null | undefined,
     relationshipName: N,
     shapeCreateList: (items: T[]) => RC[] | undefined,
-    hasObjectChanged: (original: T, updated: T) => boolean,
-    formatForUpdate: (original: T, updated: T) => RU | undefined
+    hasObjectChanged: (original: T & { id: string }, updated: T & { id: string }) => boolean,
+    formatForUpdate: (original: T & { id: string }, updated: T & { id: string }) => RU | undefined
 ): ShapeUpdateList<N, RC, RU> => {
     if (!updated) return {};
-    const filteredUpdated: (T & { id: string })[] = updated.filter(updated => Boolean(updated.id)) as (T & { id: string })[];
+    // If no original items, treat all as created
     if (!original || !Array.isArray(original)) {
-        return { [`${relationshipName}Create`]: shapeCreateList(filteredUpdated) } as ShapeUpdateList<N, RC, RU>;
+        return { [`${relationshipName}Create`]: shapeCreateList(updated ?? []) } as ShapeUpdateList<N, RC, RU>;
     }
-    const filteredOriginal: (T & { id: string })[] = original.filter(original => Boolean(original.id)) as (T & { id: string })[];
     if (Array.isArray(updated) && updated.length > 0) {
         return {
-            [`${relationshipName}Create`]: findCreatedItems(filteredOriginal, filteredUpdated, shapeCreateList),
-            [`${relationshipName}Update`]: findUpdatedItems(filteredOriginal, filteredUpdated, hasObjectChanged, formatForUpdate),
-            [`${relationshipName}Delete`]: findRemovedItems(filteredOriginal, filteredUpdated),
+            [`${relationshipName}Create`]: findCreatedItems(original, updated, shapeCreateList),
+            [`${relationshipName}Update`]: findUpdatedItems(original, updated, hasObjectChanged, formatForUpdate),
+            [`${relationshipName}Delete`]: findRemovedItems(original, updated),
         } as ShapeUpdateList<N, RC, RU>
     }
     return {};

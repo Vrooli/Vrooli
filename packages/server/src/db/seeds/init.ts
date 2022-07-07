@@ -24,7 +24,7 @@ export async function init(prisma: PrismaType) {
     //==============================================================
     /* #region Initialization */
     //==============================================================
-    console.info('🌱 Starting database intial seed...');
+    logger.log(LogLevel.info, '🌱 Starting database intial seed...');
 
     // Check for required .env variables
     if (['ADMIN_WALLET', 'ADMIN_PASSWORD', 'SITE_EMAIL_USERNAME'].some(name => !process.env[name])) {
@@ -162,7 +162,7 @@ export async function init(prisma: PrismaType) {
         }
     })
     if (!vrooli) {
-        console.info('🏗 Creating Vrooli organization');
+        logger.log(LogLevel.info, '🏗 Creating Vrooli organization');
         vrooli = await prisma.organization.create({
             data: {
                 translations: {
@@ -232,7 +232,7 @@ export async function init(prisma: PrismaType) {
         }
     })
     if (!projectEntrepreneur) {
-        console.info('📚 Creating Project Catalyst Guide project');
+        logger.log(LogLevel.info, '📚 Creating Project Catalyst Guide project');
         projectEntrepreneur = await prisma.project.create({
             data: {
                 translations: {
@@ -265,7 +265,7 @@ export async function init(prisma: PrismaType) {
         }
     })
     if (!standardCip0025) {
-        console.info('📚 Creating CIP-0025 standard');
+        logger.log(LogLevel.info, '📚 Creating CIP-0025 standard');
         standardCip0025 = await prisma.standard.create({
             data: {
                 name: "CIP-0025 - NFT Metadata Standard",
@@ -301,7 +301,7 @@ export async function init(prisma: PrismaType) {
         where: { id: mintTokenId }
     })
     if (!mintToken) {
-        console.info('📚 Creating Native Token Minting routine');
+        logger.log(LogLevel.info, '📚 Creating Native Token Minting routine');
         mintToken = await prisma.routine.create({
             data: {
                 id: mintTokenId, // Set ID so we can know ahead of time this routine's URL, and link to it as an example/introductory routine
@@ -358,7 +358,7 @@ export async function init(prisma: PrismaType) {
         where: { id: mintNftId }
     })
     if (!mintNft) {
-        console.info('📚 Creating NFT Minting routine');
+        logger.log(LogLevel.info, '📚 Creating NFT Minting routine');
         mintNft = await prisma.routine.create({
             data: {
                 id: mintNftId, // Set ID so we can know ahead of time this routine's URL, and link to it as an example/introductory routine
@@ -422,7 +422,7 @@ export async function init(prisma: PrismaType) {
         where: { id: frameworkBusinessIdeaId }
     })
     if (!frameworkBusinessIdea) {
-        console.info('📚 Creating Starting New Business Frameworks');
+        logger.log(LogLevel.info, '📚 Creating Starting New Business Frameworks');
         const startId = '01234569-7890-1234-5678-901234567890';
         const explainId = '01234569-7890-1234-5678-901234567891';
         const describeId = '01234569-7890-1234-5678-901234567892';
@@ -1067,6 +1067,6 @@ export async function init(prisma: PrismaType) {
     /* #endregion Create Routines */
     //==============================================================
 
-    console.info(`✅ Database seeding complete.`);
+    logger.log(LogLevel.info, '✅ Database seeding complete.');
 }
 

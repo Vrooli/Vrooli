@@ -21,6 +21,7 @@ export interface routineCreate_routineCreate_inputs_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface routineCreate_routineCreate_inputs_standard {
@@ -65,6 +66,7 @@ export interface routineCreate_routineCreate_nodeLinks {
   id: string;
   fromId: string;
   toId: string;
+  operation: string | null;
   whens: routineCreate_routineCreate_nodeLinks_whens[];
 }
 
@@ -86,6 +88,7 @@ export interface routineCreate_routineCreate_nodes_data_NodeRoutineList_routines
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface routineCreate_routineCreate_nodes_data_NodeRoutineList_routines_routine_inputs_standard {
@@ -122,6 +125,7 @@ export interface routineCreate_routineCreate_nodes_data_NodeRoutineList_routines
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface routineCreate_routineCreate_nodes_data_NodeRoutineList_routines_routine_outputs_standard {
@@ -330,6 +334,7 @@ export interface routineCreate_routineCreate_outputs_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface routineCreate_routineCreate_outputs_standard {

@@ -19,6 +19,7 @@ export interface routineInputFields_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface routineInputFields_standard {

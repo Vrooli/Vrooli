@@ -5,7 +5,7 @@ import { Fragment, useCallback, useEffect, useState } from 'react';
 import {
     Add as AddIcon,
 } from '@mui/icons-material';
-import { updateArray } from 'utils';
+import { InputCreate, OutputCreate, updateArray } from 'utils';
 import { InputOutputListItem } from '../InputOutputListItem/InputOutputListItem';
 import { RoutineInput, RoutineInputList, RoutineOutput } from 'types';
 
@@ -127,7 +127,7 @@ export const InputOutputContainer = ({
         handleUpdate(combined as any);
     }, [list, language, isInput, handleUpdate]);
 
-    const onUpdate = useCallback((index: number, updatedItem: RoutineInput | RoutineOutput) => {
+    const onUpdate = useCallback((index: number, updatedItem: InputCreate | OutputCreate) => {
         console.log('inputoutputcontainer onUpdate', index, updatedItem);
         handleUpdate(updateArray(list, index, updatedItem));
     }, [handleUpdate, list]);

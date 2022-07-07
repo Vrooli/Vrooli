@@ -34,6 +34,7 @@ export interface nodeFields_data_NodeRoutineList_routines_routine_translations {
   id: string;
   language: string;
   description: string | null;
+  instructions: string;
   title: string;
 }
 

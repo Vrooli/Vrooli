@@ -31,6 +31,7 @@ export interface listStandardFields_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface listStandardFields {

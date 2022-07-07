@@ -31,6 +31,7 @@ export const routineFields = gql`
                 id
                 language
                 description
+                jsonVariable
             }
             version
         }
@@ -55,6 +56,7 @@ export const routineFields = gql`
                 id
                 language
                 description
+                jsonVariable
             }
             version
         }
