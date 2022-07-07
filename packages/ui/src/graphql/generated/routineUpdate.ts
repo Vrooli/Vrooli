@@ -21,6 +21,7 @@ export interface routineUpdate_routineUpdate_inputs_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface routineUpdate_routineUpdate_inputs_standard {
@@ -87,6 +88,7 @@ export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard {
@@ -123,6 +125,7 @@ export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard {
@@ -331,6 +334,7 @@ export interface routineUpdate_routineUpdate_outputs_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface routineUpdate_routineUpdate_outputs_standard {

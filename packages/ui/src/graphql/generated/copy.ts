@@ -309,6 +309,7 @@ export interface copy_copy_routine_inputs_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface copy_copy_routine_inputs_standard {
@@ -375,6 +376,7 @@ export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_i
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard {
@@ -411,6 +413,7 @@ export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_o
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard {
@@ -619,6 +622,7 @@ export interface copy_copy_routine_outputs_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface copy_copy_routine_outputs_standard {
