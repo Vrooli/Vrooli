@@ -28,6 +28,7 @@ export interface nodeRoutineFields_translations {
   id: string;
   language: string;
   description: string | null;
+  instructions: string;
   title: string;
 }
 

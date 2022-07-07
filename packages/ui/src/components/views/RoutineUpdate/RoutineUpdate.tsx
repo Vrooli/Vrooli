@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { routineUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, shapeTagsUpdate, updateArray } from "utils";
+import { formatForUpdate, InputCreate, OutputCreate, shapeTagsUpdate, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -20,7 +20,7 @@ import { DialogActionItem } from "components/containers/types";
 import { LanguageInput, MarkdownInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { v4 as uuidv4 } from 'uuid';
-import { NewObject, Organization, ResourceList, Routine, RoutineInputList, RoutineOutputList } from "types";
+import { NewObject, Organization, ResourceList, Routine } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { InputOutputContainer } from "components/lists/inputOutput";
 
@@ -46,14 +46,14 @@ export const RoutineUpdate = ({
     const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
 
     // Handle inputs
-    const [inputsList, setInputsList] = useState<RoutineInputList>([]);
-    const handleInputsUpdate = useCallback((updatedList: RoutineInputList) => {
+    const [inputsList, setInputsList] = useState<InputCreate[]>([]);
+    const handleInputsUpdate = useCallback((updatedList: InputCreate[]) => {
         setInputsList(updatedList);
     }, [setInputsList]);
 
     // Handle outputs
-    const [outputsList, setOutputsList] = useState<RoutineOutputList>([]);
-    const handleOutputsUpdate = useCallback((updatedList: RoutineOutputList) => {
+    const [outputsList, setOutputsList] = useState<OutputCreate[]>([]);
+    const handleOutputsUpdate = useCallback((updatedList: OutputCreate[]) => {
         setOutputsList(updatedList);
     }, [setOutputsList]);
 
@@ -342,7 +342,7 @@ export const RoutineUpdate = ({
             <Grid item xs={12}>
                 <InputOutputContainer
                     isEditing={true}
-                    handleUpdate={handleInputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
+                    handleUpdate={handleInputsUpdate}
                     isInput={true}
                     language={language}
                     list={inputsList}
@@ -353,7 +353,7 @@ export const RoutineUpdate = ({
             <Grid item xs={12}>
                 <InputOutputContainer
                     isEditing={true}
-                    handleUpdate={handleOutputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
+                    handleUpdate={handleOutputsUpdate}
                     isInput={false}
                     language={language}
                     list={outputsList}

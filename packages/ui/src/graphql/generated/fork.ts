@@ -238,6 +238,7 @@ export interface fork_fork_routine_nodeLinks {
   id: string;
   fromId: string;
   toId: string;
+  operation: string | null;
   whens: fork_fork_routine_nodeLinks_whens[];
 }
 
@@ -739,6 +740,7 @@ export interface fork_fork_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface fork_fork_standard_creator_Organization_translations {

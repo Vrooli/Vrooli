@@ -80,6 +80,7 @@ export interface runUpdate_runUpdate_routine_nodeLinks {
   id: string;
   fromId: string;
   toId: string;
+  operation: string | null;
   whens: runUpdate_runUpdate_routine_nodeLinks_whens[];
 }
 

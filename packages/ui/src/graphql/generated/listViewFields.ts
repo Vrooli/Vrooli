@@ -150,6 +150,7 @@ export interface listViewFields_to_Standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface listViewFields_to_Standard {

@@ -65,6 +65,7 @@ export interface routineUpdate_routineUpdate_nodeLinks {
   id: string;
   fromId: string;
   toId: string;
+  operation: string | null;
   whens: routineUpdate_routineUpdate_nodeLinks_whens[];
 }
 

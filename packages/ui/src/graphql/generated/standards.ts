@@ -37,6 +37,7 @@ export interface standards_standards_edges_node_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface standards_standards_edges_node {

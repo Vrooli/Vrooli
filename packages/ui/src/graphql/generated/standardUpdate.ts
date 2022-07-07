@@ -65,6 +65,7 @@ export interface standardUpdate_standardUpdate_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface standardUpdate_standardUpdate_creator_Organization_translations {

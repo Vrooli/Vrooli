@@ -25,12 +25,12 @@ import {
 } from '@mui/material';
 import { useLocation } from 'wouter';
 import { SubroutineInfoDialogProps } from '../types';
-import { getOwnedByString, getTranslation, toOwnedBy, updateArray } from 'utils';
+import { getOwnedByString, getTranslation, InputCreate, OutputCreate, toOwnedBy, updateArray } from 'utils';
 import Markdown from 'markdown-to-jsx';
 import { ResourceListUsedFor, routineUpdateForm as validationSchema } from '@local/shared';
 import { InputOutputContainer, LanguageInput, LinkButton, MarkdownInput, QuantityBox, ResourceListHorizontal, TagList, TagSelector, UserOrganizationSwitch } from 'components';
 import { useFormik } from 'formik';
-import { NewObject, NodeDataRoutineListItem, Organization, ResourceList, Routine, RoutineInputList, RoutineOutputList } from 'types';
+import { NewObject, NodeDataRoutineListItem, Organization, ResourceList, Routine } from 'types';
 import { owns } from 'utils/authentication';
 import { v4 as uuidv4 } from 'uuid';
 import { TagSelectorTag } from 'components/inputs/types';
@@ -60,14 +60,14 @@ export const SubroutineInfoDialog = ({
     const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
 
     // Handle inputs
-    const [inputsList, setInputsList] = useState<RoutineInputList>([]);
-    const handleInputsUpdate = useCallback((updatedList: RoutineInputList) => {
+    const [inputsList, setInputsList] = useState<InputCreate[]>([]);
+    const handleInputsUpdate = useCallback((updatedList: InputCreate[]) => {
         setInputsList(updatedList);
     }, [setInputsList]);
 
     // Handle outputs
-    const [outputsList, setOutputsList] = useState<RoutineOutputList>([]);
-    const handleOutputsUpdate = useCallback((updatedList: RoutineOutputList) => {
+    const [outputsList, setOutputsList] = useState<OutputCreate[]>([]);
+    const handleOutputsUpdate = useCallback((updatedList: OutputCreate[]) => {
         setOutputsList(updatedList);
     }, [setOutputsList]);
 
@@ -441,7 +441,7 @@ export const SubroutineInfoDialog = ({
                         {(canEdit || (inputsList?.length > 0)) && <Grid item xs={12} sm={6}>
                             <InputOutputContainer
                                 isEditing={canEdit}
-                                handleUpdate={handleInputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
+                                handleUpdate={handleInputsUpdate}
                                 isInput={true}
                                 language={language}
                                 list={inputsList}
@@ -453,7 +453,7 @@ export const SubroutineInfoDialog = ({
                         {(canEdit || (outputsList?.length > 0)) && <Grid item xs={12} sm={6}>
                             <InputOutputContainer
                                 isEditing={canEdit}
-                                handleUpdate={handleOutputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
+                                handleUpdate={handleOutputsUpdate}
                                 isInput={false}
                                 language={language}
                                 list={outputsList}

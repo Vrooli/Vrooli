@@ -266,6 +266,7 @@ export interface historyPage_historyPage_recentlyViewed_to_Standard_translations
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface historyPage_historyPage_recentlyViewed_to_Standard {

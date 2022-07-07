@@ -1,10 +1,13 @@
 import { InputItemCreateInput, InputItemTranslationCreateInput, InputItemTranslationUpdateInput, InputItemUpdateInput } from "graphql/generated/globalTypes";
-import { RoutineInput, RoutineInputTranslation } from "types";
-import { formatForUpdate, hasObjectChanged, shapeStandardCreate } from "utils";
-import { shapeCreateList, shapeUpdateList, ShapeWrapper } from "./shapeTools";
+import { RoutineInput, RoutineInputTranslation, ShapeWrapper } from "types";
+import { formatForUpdate, hasObjectChanged, shapeStandardCreate, StandardCreate } from "utils";
+import { shapeCreateList, shapeUpdateList } from "./shapeTools";
 
-type InputTranslationCreate = ShapeWrapper<RoutineInputTranslation> &
-    Pick<InputItemTranslationCreateInput, 'language' | 'description'>;
+export type InputTranslationCreate = Omit<ShapeWrapper<RoutineInputTranslation>, 'language' | 'description'> & {
+    id: string;
+    language: InputItemTranslationCreateInput['language'];
+    description: InputItemTranslationCreateInput['description'];
+}
 /**
  * Format an input's translations for create mutation.
  * @param translations Translations to format
@@ -18,7 +21,7 @@ export const shapeInputTranslationsCreate = (
     description: translation.description,
 }))
 
-interface InputTranslationUpdate extends InputTranslationCreate { id: string };
+export interface InputTranslationUpdate extends InputTranslationCreate { };
 /**
  * Format an input's translations for update mutation.
  * @param original Original translations list
@@ -27,7 +30,7 @@ interface InputTranslationUpdate extends InputTranslationCreate { id: string };
  */
 export const shapeInputTranslationsUpdate = (
     original: InputTranslationUpdate[] | null | undefined,
-    updated: InputTranslationUpdate[] | null | undefined
+    updated: (InputTranslationCreate | InputTranslationUpdate)[] | null | undefined
 ): {
     translationsCreate?: InputItemTranslationCreateInput[],
     translationsUpdate?: InputItemTranslationUpdateInput[],
@@ -41,8 +44,11 @@ export const shapeInputTranslationsUpdate = (
     formatForUpdate as (original: InputItemTranslationCreateInput, updated: InputItemTranslationCreateInput) => InputItemTranslationUpdateInput | undefined,
 )
 
-type InputCreate = ShapeWrapper<RoutineInput> &
-    Pick<RoutineInput, 'translations' | 'standard'>;
+export type InputCreate = Omit<ShapeWrapper<RoutineInput>, 'translations' | 'standard'> & {
+    id: string;
+    translations: InputTranslationCreate[];
+    standard: StandardCreate | null;
+}
 /**
  * Format an input list for create mutation.
  * @param inputs The input list's information
@@ -58,7 +64,7 @@ export const shapeInputsCreate = (
     ...shapeStandardCreate(input.standard),
 }))
 
-interface InputUpdate extends InputCreate { id: string };
+export interface InputUpdate extends InputCreate { };
 /**
  * Format an input list for update mutation.
  * @param original Original input list

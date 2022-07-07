@@ -149,6 +149,7 @@ export const StandardCreate = ({
             const allTranslations = getTranslationsUpdate(language, {
                 language,
                 description: values.description,
+                jsonVariable: null, //TODO
             })
             // Mutate
             mutationWrapper({
@@ -212,6 +213,7 @@ export const StandardCreate = ({
         updateTranslation(language, {
             language,
             description: formik.values.description,
+            jsonVariable: null, //TODO
         })
         // Update formik
         if (language !== newLanguage) updateFormikTranslation(newLanguage);

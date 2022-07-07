@@ -1,10 +1,13 @@
 import { OutputItemCreateInput, OutputItemTranslationCreateInput, OutputItemTranslationUpdateInput, OutputItemUpdateInput } from "graphql/generated/globalTypes";
-import { RoutineOutput, RoutineOutputTranslation } from "types";
-import { formatForUpdate, hasObjectChanged, shapeStandardCreate } from "utils";
-import { shapeCreateList, shapeUpdateList, ShapeWrapper } from "./shapeTools";
+import { RoutineOutput, RoutineOutputTranslation, ShapeWrapper } from "types";
+import { formatForUpdate, hasObjectChanged, shapeStandardCreate, StandardCreate } from "utils";
+import { shapeCreateList, shapeUpdateList } from "./shapeTools";
 
-type OutputTranslationCreate = ShapeWrapper<RoutineOutputTranslation> &
-    Pick<OutputItemTranslationCreateInput, 'language' | 'description'>;
+export type OutputTranslationCreate = Omit<ShapeWrapper<RoutineOutputTranslation>, 'language' | 'description'> & {
+    id: string;
+    language: OutputItemTranslationCreateInput['language'];
+    description: OutputItemTranslationCreateInput['description'];
+}
 /**
  * Format an output's translations for create mutation.
  * @param translations Translations to format
@@ -18,7 +21,7 @@ export const shapeOutputTranslationsCreate = (
     description: translation.description,
 }))
 
-interface OutputTranslationUpdate extends OutputTranslationCreate { id: string };
+export interface OutputTranslationUpdate extends OutputTranslationCreate { };
 /**
  * Format an output's translations for update mutation.
  * @param original Original translations list
@@ -41,8 +44,11 @@ export const shapeOutputTranslationsUpdate = (
     formatForUpdate as (original: OutputTranslationCreate, updated: OutputTranslationCreate) => OutputItemTranslationUpdateInput | undefined,
 )
 
-type OutputCreate = ShapeWrapper<RoutineOutput> &
-    Pick<RoutineOutput, 'translations' | 'standard'>;
+export type OutputCreate = Omit<ShapeWrapper<RoutineOutput>, 'translations' | 'standard'> & {
+    id: string;
+    translations: OutputTranslationCreate[];
+    standard: StandardCreate | null;
+}
 /**
  * Format an output list for create mutation.
  * @param outputs The output list's information
@@ -57,7 +63,7 @@ export const shapeOutputsCreate = (
     ...shapeStandardCreate(output.standard),
 }))
 
-interface OutputUpdate extends OutputCreate { id: string };
+export interface OutputUpdate extends OutputCreate { };
 /**
  * Format an output list for update mutation.
  * @param original Original output list

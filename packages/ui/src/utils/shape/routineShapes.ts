@@ -1,9 +1,9 @@
 import { RoutineCreateInput, RoutineTranslationCreateInput, RoutineTranslationUpdateInput, RoutineUpdateInput } from "graphql/generated/globalTypes";
-import { Routine, RoutineTranslation } from "types";
+import { Routine, RoutineTranslation, ShapeWrapper } from "types";
 import { formatForUpdate, hasObjectChanged, ObjectType, shapeInputsCreate, shapeInputsUpdate, shapeNodeLinksCreate, shapeNodeLinksUpdate, shapeNodesCreate, shapeNodesUpdate, shapeOutputsCreate, shapeOutputsUpdate, shapeResourceListsCreate, shapeResourceListsUpdate, shapeTagsCreate, shapeTagsUpdate } from "utils";
-import { shapeCreateList, shapeUpdate, shapeUpdateList, ShapeWrapper } from "./shapeTools";
+import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
-type RoutineTranslationCreate = ShapeWrapper<RoutineTranslation> &
+export type RoutineTranslationCreate = ShapeWrapper<RoutineTranslation> &
     Pick<RoutineTranslation, 'language' | 'instructions' | 'title'>;
 /**
  * Format a routine's translations for create mutation.
@@ -22,7 +22,7 @@ export const shapeRoutineTranslationsCreate = (
     }))
 }
 
-interface RoutineTranslationUpdate extends RoutineTranslationCreate { id: string };
+export interface RoutineTranslationUpdate extends RoutineTranslationCreate { id: string };
 /**
  * Format a routine's translations for update mutation.
  * @param original Original translations list
@@ -45,7 +45,7 @@ export const shapeRoutineTranslationsUpdate = (
     formatForUpdate as (original: RoutineTranslationUpdate, updated: RoutineTranslationUpdate) => RoutineTranslationUpdateInput | undefined,
 )
 
-type RoutineCreate = ShapeWrapper<Routine>;
+export type RoutineCreate = ShapeWrapper<Routine>;
 /**
  * Format a routine for create mutation.
  * @param routine The routine's information
@@ -73,7 +73,7 @@ export const shapeRoutineCreate = (routine: RoutineCreate | null | undefined): R
     };
 }
 
-interface RoutineUpdate extends RoutineCreate { id: string };
+export interface RoutineUpdate extends RoutineCreate { id: string };
 /**
  * Format a routine for update mutation
  * @param original The original routine's information

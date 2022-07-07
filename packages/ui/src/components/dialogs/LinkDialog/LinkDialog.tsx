@@ -66,6 +66,7 @@ export const LinkDialog = ({
         onClose({
             fromId: fromNode.id,
             toId: toNode.id,
+            operation: null, //TODO
             whens: [], //TODO
         })
     }, [onClose, fromNode, toNode]);

@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { standardUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";
-import { shapeStandardUpdate, updateArray } from "utils";
+import { Pubs, shapeStandardUpdate, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -80,6 +80,7 @@ export const StandardUpdate = ({
             id: t.id,
             language: t.language,
             description: t.description ?? '',
+            jsonVariable: t.jsonVariable ?? null,
         })) ?? []);
     }, [standard]);
 
@@ -92,11 +93,15 @@ export const StandardUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
-            if (!id) return;
+            if (!id || !standard) {
+                PubSub.publish(Pubs.Snack, { message: 'No standard to update', severity: 'error' });
+                return;
+            }
             // Update translations with final values
             const allTranslations = getTranslationsUpdate(language, {
                 language,
                 description: values.description,
+                jsonVariable: null, //TODO
             })
             // Update
             mutationWrapper({
@@ -138,6 +143,7 @@ export const StandardUpdate = ({
         updateTranslation(language, {
             language,
             description: formik.values.description,
+            jsonVariable: null, //TODO
         })
         // Update formik
         if (language !== newLanguage) updateFormikTranslation(newLanguage);

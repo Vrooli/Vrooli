@@ -76,6 +76,12 @@ export type Tag = tag_tag;
 export type User = user_user;
 export type Wallet = profile_profile_wallets;
 
+/**
+ * Wrapper type for helping convert objects in the shape of a query result, 
+ * to a create/update input object.
+ */
+export type ShapeWrapper<T> = Partial<Omit<T, '__typename' | 'commentsCount' | 'isUpvoted' | 'isStarred' | 'reportsCount' | 'role' | 'score' | 'stars'>> & { __typename?: string };
+
 // Common query input groups
 export type IsCompleteInput = {
     isComplete?: boolean;

@@ -65,6 +65,7 @@ export interface routineFields_nodeLinks {
   id: string;
   fromId: string;
   toId: string;
+  operation: string | null;
   whens: routineFields_nodeLinks_whens[];
 }
 

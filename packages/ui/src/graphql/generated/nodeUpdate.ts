@@ -34,6 +34,7 @@ export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine_tra
   id: string;
   language: string;
   description: string | null;
+  instructions: string;
   title: string;
 }
 

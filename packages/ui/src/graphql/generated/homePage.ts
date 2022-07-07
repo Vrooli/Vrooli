@@ -157,6 +157,7 @@ export interface homePage_homePage_standards_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface homePage_homePage_standards {

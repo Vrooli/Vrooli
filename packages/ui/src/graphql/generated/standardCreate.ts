@@ -65,6 +65,7 @@ export interface standardCreate_standardCreate_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface standardCreate_standardCreate_creator_Organization_translations {
