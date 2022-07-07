@@ -15,7 +15,6 @@ import { ApolloError, useMutation } from '@apollo/client';
 import { validateSessionMutation } from 'graphql/mutation';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import { Session } from 'types';
-import hotkeys from 'hotkeys-js';
 import Confetti from 'react-confetti';
 import { CODE } from '@local/shared';
 
@@ -99,19 +98,6 @@ export function App() {
     useEffect(() => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         setLoading(false);
-
-        const handlers = {
-            OPEN_MENU: () => PubSub.publish(Pubs.BurgerMenuOpen, true),
-            TOGGLE_MENU: () => PubSub.publish(Pubs.BurgerMenuOpen, 'toggle'),
-            CLOSE_MENU: () => PubSub.publish(Pubs.BurgerMenuOpen, false),
-            CLOSE_MENU_OR_POPUP: () => {
-                handlers.CLOSE_MENU();
-            }
-        }
-        hotkeys('left', handlers.OPEN_MENU);
-        hotkeys('right', handlers.CLOSE_MENU);
-        hotkeys('m', handlers.TOGGLE_MENU);
-        hotkeys('escape,backspace', handlers.CLOSE_MENU_OR_POPUP);
     }, []);
 
     useEffect(() => {
