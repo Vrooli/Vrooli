@@ -344,5 +344,5 @@ export const initStatsCronJobs = () => {
         logStats(StatTimeInterval.Yearly);
         logStats(StatTimeInterval.AllTime);
     });
-    console.info('✅ Stats cron jobs initialized');
+    logger.log(LogLevel.info, '✅ Stats cron jobs initialized');
 };

@@ -11,6 +11,7 @@ services:
         environment: 
             NODE_ENV: "${NODE_ENV}"
             REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
+            REACT_APP_PORT_SERVER: "${PORT_SERVER}"
             PROJECT_DIR: "${PROJECT_DIR}"
             VIRTUAL_HOST: "${VIRTUAL_HOST}"
             VIRTUAL_PATH: "/"
@@ -42,6 +43,7 @@ services:
             JWT_SECRET: "${JWT_SECRET}"
             PROJECT_DIR: "${PROJECT_DIR}"
             REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
+            REACT_APP_PORT_SERVER: "${PORT_SERVER}"
             REDIS_CONN: "redis:6379"
             DB_CONN: "db:5432"
             DB_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}"

@@ -32,13 +32,14 @@ const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
     let uri: string;
     // If running locally
     if (window.location.host.includes('localhost') || window.location.host.includes('192.168.0.')) {
-        uri = `http://${window.location.hostname}:5329/api/v1`;
+        uri = `http://${window.location.hostname}:${process.env.REACT_APP_PORT_SERVER ?? '5329'}/api/v1`;
     }
     // If running on server
     else {
         uri = `https://app.vrooli.com/api/v1`
     }
     // Define link for handling file uploads
+    console.log('CREATING UPLOAD LINK', uri, process.env.REACT_APP_PORT_SERVER);
     const uploadLink = createUploadLink({
         uri,
         credentials: 'include'
