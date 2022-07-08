@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { routineUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
-import { InputShape, OutputShape, RoutineTranslationShape, shapeTagsUpdate, TagShape, updateArray } from "utils";
+import { InputShape, OutputShape, Pubs, RoutineTranslationShape, shapeRoutineUpdate, TagShape, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -19,7 +19,7 @@ import { DialogActionItem } from "components/containers/types";
 import { LanguageInput, MarkdownInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { v4 as uuid } from 'uuid';
-import { Organization, ResourceList, Routine } from "types";
+import { Organization, ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { routineUpdate, routineUpdateVariables } from "graphql/generated/routineUpdate";
@@ -129,9 +129,10 @@ export const RoutineUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
-            const existingResourceList = Array.isArray(routine?.resourceLists) ? (routine as Routine).resourceLists.find(list => list.usedFor === ResourceListUsedFor.Display) : undefined;
-            const resourceListUpdate = existingResourceList ? { resourceListsUpdate: formatForUpdate(existingResourceList, resourceList, [], ['resources']) } : {};
-            const ownedBy: { organizationId: string; } | { userId: string; } = organizationFor ? { organizationId: organizationFor.id } : { userId: session?.id ?? '' };
+            if (!routine) {
+                PubSub.publish(Pubs.Snack, { message: 'Could not find existing routine data.', severity: 'error' });
+                return;
+            }
             const allTranslations = getTranslationsUpdate(language, {
                 id: uuid(),
                 language,
@@ -139,68 +140,25 @@ export const RoutineUpdate = ({
                 instructions: values.instructions,
                 title: values.title,
             })
-            mutationWrapper({ //TODO for morning: updating inputs/outputs can break because standard. If standard is custom, then it should always display as custom (does not do that yet). when updated, should check if standard is custom and treat it different when formatting for update. standardUpdate is currently an invalid API field, since other people may use your standard. Should change so update is valid, just need to check that it is yours and custom. Then make sure that custom standards are hidden from all search results, so no one else uses them.
+            mutationWrapper({
                 mutation,
-                input: formatForUpdate(routine, {
-                    id,
-                    ...ownedBy,
+                input: shapeRoutineUpdate(routine, {
+                    id: routine.id,
                     version: values.version,
                     isComplete: values.isComplete,
-                    // Handle standard in inputs
-                    inputs: inputsList.map(input => {
-                        const originalInput = routine?.inputs.find(i => i.id === input.id);
-                        // If current input's standard is not internal, set as connect
-                        if (input.standard && !input.standard?.isInternal) {
-                            return {
-                                ...input,
-                                standard: undefined,
-                                standardConnect: {
-                                    id: input.standard.id,
-                                }
-                            }
-                        }
-                        // Else if changed, set as create
-                        else if (input.standard && originalInput?.standard && JSON.stringify(input.standard) !== JSON.stringify(originalInput.standard)) {
-                            return {
-                                ...input,
-                                standard: undefined,
-                                standardCreate: input.standard
-                            }
-                        }
-                        // Otherwise, return unchanged
-                        return input;
-                    }),
-                    // Handle standard in outputs
-                    outputs: outputsList.map(output => {
-                        const originalOutput = routine?.outputs.find(o => o.id === output.id);
-                        // If current output's standard is not internal, set as connect
-                        if (output.standard && !output.standard?.isInternal) {
-                            return {
-                                ...output,
-                                standard: undefined,
-                                standardConnect: {
-                                    id: output.standard.id,
-                                }
-                            }
-                        }
-                        // Else if changed, set as create
-                        else if (output.standard && originalOutput?.standard && JSON.stringify(output.standard) !== JSON.stringify(originalOutput.standard)) {
-                            return {
-                                ...output,
-                                standard: undefined,
-                                standardCreate: output.standard
-                            }
-                        }
-                        // Otherwise, return unchanged
-                        return output;
-                    }),
-                    ...resourceListUpdate,
-                    ...shapeTagsUpdate(routine?.tags, tags),
+                    owner: organizationFor ? {
+                        __typename: 'Organization',
+                        id: organizationFor.id,
+                    } : {
+                        __typename: 'User',
+                        id: session.id ?? '',
+                    },
+                    inputs: inputsList,
+                    outputs: outputsList,
+                    resourceLists: [resourceList],
+                    tags: tags,
                     translations: allTranslations,
-                },
-                    ['tags', 'inputs.standard', 'outputs.standard'],
-                    ['translations', 'inputs', 'outputs', 'inputs.translations', 'outputs.translations'],
-                ),
+                }),
                 onSuccess: (response) => { onUpdated(response.data.routineUpdate) },
                 onError: () => { formik.setSubmitting(false) },
             })

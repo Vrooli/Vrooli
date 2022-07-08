@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { projectCreateForm as validationSchema, ROLES } from '@local/shared';
 import { useFormik } from 'formik';
 import { projectCreateMutation } from "graphql/mutation";
-import { getUserLanguages, ProjectTranslationShape, shapeTagsCreate, TagShape, updateArray, useReactSearch } from "utils";
+import { getUserLanguages, ProjectTranslationShape, shapeProjectCreate, TagShape, updateArray, useReactSearch } from "utils";
 import { ProjectCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";
@@ -80,8 +80,6 @@ export const ProjectCreate = ({
         },
         validationSchema,
         onSubmit: (values) => {
-            const resourceListAdd = resourceList ? formatForCreate(resourceList) : {};
-            const createdFor = organizationFor ? { createdByOrganizationId: organizationFor.id } : {};
             const allTranslations = getTranslationsUpdate(language, {
                 id: uuid(),
                 language,
@@ -90,12 +88,20 @@ export const ProjectCreate = ({
             })
             mutationWrapper({
                 mutation,
-                input: formatForCreate({
-                    ...createdFor,
+                input: shapeProjectCreate({
+                    id: uuid(),
+                    isComplete: false, //TODO: values.isComplete,
+                    owner: organizationFor ? {
+                        __typename: 'Organization',
+                        id: organizationFor.id,
+                    } : {
+                        __typename: 'User',
+                        id: session.id ?? '',
+                    },
+                    resourceLists: [resourceList],
+                    tags: tags,
                     translations: allTranslations,
-                    resourceListsCreate: [resourceListAdd],
-                    ...shapeTagsCreate(tags),
-                }) as any,
+                }),
                 onSuccess: (response) => { onCreated(response.data.projectCreate) },
                 onError: () => { formik.setSubmitting(false) },
             })

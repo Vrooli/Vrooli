@@ -53,7 +53,7 @@ export const shapeOrganizationCreate = (item: OrganizationShape): OrganizationCr
     isOpenToNewMembers: item.isOpenToNewMembers,
     ...shapeOrganizationTranslationsCreate(item.translations),
     ...shapeResourceListsCreate(item.resourceLists),
-    ...shapeTagsCreate(item.tags ?? []),
+    ...shapeTagsCreate(item.tags),
     //TODO handle
 })
 

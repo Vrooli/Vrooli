@@ -8,7 +8,7 @@ import {
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
-import { getTranslation, jsonToString, StandardShape, standardToFieldData, updateArray } from 'utils';
+import { getTranslation, InputTranslationShape, jsonToString, OutputTranslationShape, StandardShape, standardToFieldData, updateArray } from 'utils';
 import { useFormik } from 'formik';
 import { Standard } from 'types';
 import { BaseStandardInput, PreviewSwitch, Selector, StandardSelectSwitch } from 'components';
@@ -75,7 +75,7 @@ export const InputOutputListItem = ({
 
     // Handle standard select switch
     // Should only be set when a non-internal standard is selected
-    const [standard, setStandard] = useState<StandardShape | null>((item?.standard && !item.standard.isInternal) ? item?.standard : null);
+    const [standard, setStandard] = useState<StandardShape & { name: Standard['name'] } | null>((item?.standard && !item.standard.isInternal) ? item?.standard : null);
     // Handle input type selector
     const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
     const handleInputTypeSelect = useCallback((event: any) => {
@@ -125,7 +125,7 @@ export const InputOutputListItem = ({
         })
     }, [handleUpdate, index, item, schema]);
 
-    type Translation = RoutineInputTranslationShape | RoutineOutputTranslationShape;
+    type Translation = InputTranslationShape | OutputTranslationShape;
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
         // Find translation
         const index = item.translations.findIndex(t => language === t.language);

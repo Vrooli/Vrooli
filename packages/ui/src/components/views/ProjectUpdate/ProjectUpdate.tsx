@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { projectUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { projectUpdateMutation } from "graphql/mutation";
-import { ProjectTranslationShape, shapeTagsUpdate, TagShape, updateArray } from "utils";
+import { ProjectTranslationShape, Pubs, shapeProjectUpdate, TagShape, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -18,7 +18,7 @@ import {
 import { DialogActionItem } from "components/containers/types";
 import { LanguageInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { NewObject, Organization, Project, ResourceList } from "types";
+import { Organization, ResourceList } from "types";
 import { v4 as uuid } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 
@@ -100,9 +100,10 @@ export const ProjectUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
-            const existingResourceList = Array.isArray(project?.resourceLists) ? (project as Project).resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) : undefined;
-            const resourceListUpdate = existingResourceList ? { resourceListsUpdate: formatForUpdate(existingResourceList, resourceList, [], ['resources']) } : {};
-            const ownedBy: { organizationId: string; } | { userId: string; } = organizationFor ? { organizationId: organizationFor.id } : { userId: session?.id ?? '' };
+            if (!project) {
+                PubSub.publish(Pubs.Snack, { message: 'Could not find existing project data.', severity: 'error' });
+                return;
+            }
             const allTranslations = getTranslationsUpdate(language, {
                 id: uuid(),
                 language,
@@ -111,13 +112,20 @@ export const ProjectUpdate = ({
             })
             mutationWrapper({
                 mutation,
-                input: formatForUpdate(project, {
-                    id,
-                    ...ownedBy,
-                    ...resourceListUpdate,
-                    ...shapeTagsUpdate(project?.tags, tags),
+                input: shapeProjectUpdate(project, {
+                    id: project.id,
+                    isComplete: project.isComplete, //TODO: values.isComplete,
+                    owner: organizationFor ? {
+                        __typename: 'Organization',
+                        id: organizationFor.id,
+                    } : {
+                        __typename: 'User',
+                        id: session.id ?? '',
+                    },
+                    resourceLists: [resourceList],
+                    tags: tags,
                     translations: allTranslations,
-                }, ['tags'], ['translations']),
+                }),
                 onSuccess: (response) => { onUpdated(response.data.projectUpdate) },
                 onError: () => { formik.setSubmitting(false) },
             })

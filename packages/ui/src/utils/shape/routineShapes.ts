@@ -42,7 +42,7 @@ export const shapeRoutineTranslationsUpdate = (
     translationsDelete?: string[],
 } => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeRoutineTranslationCreate, shapeRoutineTranslationUpdate)
 
-export type RoutineShape = Omit<ShapeWrapper<Routine>, 'complexity' | 'simplicity' | 'inputs' | 'nodeLinks' | 'nodes' | 'outputs' | 'resourceLists' | 'runs' | 'tags'> & {
+export type RoutineShape = Omit<ShapeWrapper<Routine>, 'complexity' | 'simplicity' | 'inputs' | 'nodeLinks' | 'owner' | 'nodes' | 'outputs' | 'resourceLists' | 'runs' | 'tags'> & {
     id: string;
     inputs: InputShape[];
     nodeLinks?: NodeLinkShape[];

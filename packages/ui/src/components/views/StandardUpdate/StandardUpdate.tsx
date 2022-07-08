@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { standardUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";
-import { Pubs, shapeStandardUpdate, TagShape, updateArray } from "utils";
+import { Pubs, shapeStandardUpdate, StandardTranslationShape, TagShape, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -58,7 +58,7 @@ export const StandardUpdate = ({
     }, [setTags]);
 
     // Handle translations
-    type Translation = StandardTranslationsShape;
+    type Translation = StandardTranslationShape;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -93,8 +93,8 @@ export const StandardUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
-            if (!id || !standard) {
-                PubSub.publish(Pubs.Snack, { message: 'No standard to update', severity: 'error' });
+            if (!standard) {
+                PubSub.publish(Pubs.Snack, { message: 'Could not find existing standard data.', severity: 'error' });
                 return;
             }
             // Update translations with final values
@@ -108,10 +108,10 @@ export const StandardUpdate = ({
             mutationWrapper({
                 mutation,
                 input: shapeStandardUpdate(standard, {
-                    id,
+                    id: standard.id,
                     translations: allTranslations,
                     resourceLists: [resourceList],
-                    tags: tags as any,
+                    tags: tags,
                 }),
                 onSuccess: (response) => { onUpdated(response.data.standardUpdate) },
                 onError: () => { formik.setSubmitting(false) },

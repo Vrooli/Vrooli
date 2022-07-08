@@ -50,7 +50,7 @@ export type StandardShape = Omit<ShapeWrapper<Standard>, 'props' | 'type' | 'nam
     creator?: {
         __typename: 'User' | 'Organization';
         id: string;
-    };
+    } | null;
 }
 
 export const shapeStandardCreate = (item: StandardShape): StandardCreateInput => ({
@@ -70,9 +70,11 @@ export const shapeStandardCreate = (item: StandardShape): StandardCreateInput =>
     ...shapeTagsCreate(item.tags ?? []),
 })
 
+export type StandardShapeUpdate = Omit<StandardShape, 'default' | 'isInternal' | 'name' | 'props' | 'yup' | 'type' | 'version' | 'creator'>;
+
 export const shapeStandardUpdate = (
-    original: StandardShape,
-    updated: StandardShape
+    original: StandardShapeUpdate,
+    updated: StandardShapeUpdate
 ): StandardUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
         id: o.id,

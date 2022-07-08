@@ -1348,7 +1348,7 @@ export interface UserTranslationCreateInput {
 
 export interface UserTranslationUpdateInput {
   id: string;
-  language: string;
+  language?: string | null;
   bio?: string | null;
 }
 

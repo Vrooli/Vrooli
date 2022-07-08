@@ -42,7 +42,7 @@ export const shapeProjectTranslationsUpdate = (
 export type ProjectShape = Omit<ShapeWrapper<Project>, 'resourceLists' | 'tags' | 'translations' | 'owner'> & {
     id: string;
     // handle: string | null; TODO
-    resourceLists?: ResourceListShape[];
+    resourceLists?: ResourceListShape[] | null;
     tags?: TagShape[];
     translations: ProjectTranslationShape[];
     parent?: {
@@ -51,7 +51,7 @@ export type ProjectShape = Omit<ShapeWrapper<Project>, 'resourceLists' | 'tags' 
     owner?: {
         __typename: 'User' | 'Organization';
         id: string;
-    };
+    } | null;
 }
 
 export const shapeProjectCreate = (item: ProjectShape): ProjectCreateInput => ({

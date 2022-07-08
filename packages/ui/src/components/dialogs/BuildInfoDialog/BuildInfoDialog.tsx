@@ -170,6 +170,7 @@ export const BuildInfoDialog = ({
     const updateRoutineTitle = useCallback((title: string) => {
         if (!routine) return;
         updateTranslation(language, {
+            id: uuid(),
             language,
             description: formik.values.description,
             instructions: formik.values.instructions,

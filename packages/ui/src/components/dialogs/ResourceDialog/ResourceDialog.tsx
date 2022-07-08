@@ -11,7 +11,7 @@ import {
     Cancel as CancelIcon,
     Close as CloseIcon,
 } from '@mui/icons-material';
-import { getTranslation, getUserLanguages, Pubs, ResourceShape, updateArray } from 'utils';
+import { getTranslation, getUserLanguages, Pubs, ResourceTranslationShape, updateArray } from 'utils';
 import { resourceCreate, resourceCreateVariables } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { resourceUpdate, resourceUpdateVariables } from 'graphql/generated/resourceUpdate';
