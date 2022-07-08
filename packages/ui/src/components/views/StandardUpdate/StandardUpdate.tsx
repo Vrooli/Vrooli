@@ -20,7 +20,8 @@ import { TagSelectorTag } from "components/inputs/types";
 import { DialogActionItem } from "components/containers/types";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { NewObject, ResourceList, Standard } from "types";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuid } from 'uuid';
+import { standardUpdate, standardUpdateVariables } from "graphql/generated/standardUpdate";
 
 export const StandardUpdate = ({
     onCancel,
@@ -40,7 +41,7 @@ export const StandardUpdate = ({
     const standard = useMemo(() => data?.standard, [data]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
@@ -74,7 +75,7 @@ export const StandardUpdate = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
-        setResourceList(standard?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+        setResourceList(standard?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(standard?.tags ?? []);
         setTranslations(standard?.translations?.map(t => ({
             id: t.id,
@@ -85,7 +86,7 @@ export const StandardUpdate = ({
     }, [standard]);
 
     // Handle update
-    const [mutation] = useMutation<standard>(standardUpdateMutation);
+    const [mutation] = useMutation<standardUpdate, standardUpdateVariables>(standardUpdateMutation);
     const formik = useFormik({
         initialValues: {
             description: '',

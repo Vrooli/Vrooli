@@ -1,6 +1,5 @@
 import { Box, Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
-import { standard } from "graphql/generated/standard";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { InputType, ROLES, standardCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
@@ -18,10 +17,11 @@ import { LanguageInput, ResourceListHorizontal, Selector, TagSelector } from "co
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { NewObject, ResourceList, Standard } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuid } from 'uuid';
 import { FieldData } from "forms/types";
 import { BaseStandardInput, PreviewSwitch } from "components/inputs";
 import { generateInputComponent, generateYupSchema } from "forms/generators";
+import { standardCreate, standardCreateVariables } from "graphql/generated/standardCreate";
 
 type InputTypeOption = { label: string, value: InputType }
 /**
@@ -96,7 +96,7 @@ export const StandardCreate = ({
 
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
@@ -135,7 +135,7 @@ export const StandardCreate = ({
     }, [params]);
 
     // Handle create
-    const [mutation] = useMutation<standard>(standardCreateMutation);
+    const [mutation] = useMutation<standardCreate, standardCreateVariables>(standardCreateMutation);
     const formik = useFormik({
         initialValues: {
             default: '',

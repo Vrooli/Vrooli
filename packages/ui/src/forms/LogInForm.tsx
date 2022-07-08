@@ -15,7 +15,7 @@ import { Forms, Pubs, useReactSearch } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import PubSub from 'pubsub-js';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { emailLogIn } from 'graphql/generated/emailLogIn';
+import { emailLogIn, emailLogInVariables } from 'graphql/generated/emailLogIn';
 import { LogInFormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
@@ -34,7 +34,7 @@ export const LogInForm = ({
         verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
     }), [search]);
 
-    const [emailLogIn, { loading }] = useMutation<emailLogIn>(emailLogInMutation);  
+    const [emailLogIn, { loading }] = useMutation<emailLogIn, emailLogInVariables>(emailLogInMutation);  
 
     const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
     const toSignUp = () => onFormChange(Forms.SignUp);

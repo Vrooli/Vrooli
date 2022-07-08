@@ -1,6 +1,5 @@
 import { Autocomplete, Box, Container, Grid, IconButton, Stack, TextField, Typography, useTheme } from "@mui/material"
 import { useLazyQuery, useMutation } from "@apollo/client";
-import { user } from "graphql/generated/user";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
@@ -21,6 +20,7 @@ import { HelpButton } from "components/buttons";
 import { findHandles, findHandlesVariables } from "graphql/generated/findHandles";
 import { findHandlesQuery } from "graphql/query";
 import { NewObject, Profile } from "types";
+import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
 
 const helpText =
     `This page allows you to update your profile, including your name, handle, and bio.
@@ -100,7 +100,7 @@ export const SettingsProfile = ({
     }, [profile, session]);
 
     // Handle update
-    const [mutation] = useMutation<user>(profileUpdateMutation);
+    const [mutation] = useMutation<profileUpdate, profileUpdateVariables>(profileUpdateMutation);
     const formik = useFormik({
         initialValues: {
             bio: '',

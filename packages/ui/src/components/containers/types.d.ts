@@ -1,10 +1,11 @@
-import { BuildRunState, ObjectType } from "utils";
+import { BuildRunState } from "utils";
 import { Routine, Run, Session } from "types";
+import { CommentFor } from "graphql/generated/globalTypes";
 
 export interface CommentContainerProps {
     language: string;
     objectId: string;
-    objectType: ObjectType;
+    objectType: CommentFor;
     session: Session;
     sxs?: {
         root: any;

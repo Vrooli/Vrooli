@@ -15,7 +15,7 @@ import { ResourceListModel } from "./resourceList";
 import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
 import { runFormatter } from "./run";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuid } from 'uuid';
 
 type NodeWeightData = {
     simplicity: number,
@@ -1020,7 +1020,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         for (const node of newRoutine.nodes) {
             const oldId = node.id;
             // Update ID
-            node.id = uuidv4();
+            node.id = uuid();
             // Update reference to node in nodeLinks
             for (const nodeLink of newRoutine.nodeLinks) {
                 if (nodeLink.fromId === oldId) {

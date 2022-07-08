@@ -15,6 +15,10 @@ import { emailCreateMutation, deleteOneMutation, emailUpdateMutation, sendVerifi
 import { useFormik } from 'formik';
 import { EmailListItem } from '../EmailListItem/EmailListItem';
 import { DeleteOneType, emailCreateButton as validationSchema } from '@local/shared';
+import { emailCreate, emailCreateVariables } from 'graphql/generated/emailCreate';
+import { emailUpdate, emailUpdateVariables } from 'graphql/generated/emailUpdate';
+import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
+import { sendVerificationEmail, sendVerificationEmailVariables } from 'graphql/generated/sendVerificationEmail';
 
 export const EmailList = ({
     handleUpdate,
@@ -24,7 +28,7 @@ export const EmailList = ({
     const { palette } = useTheme();
 
     // Handle add
-    const [addMutation, { loading: loadingAdd }] = useMutation<any>(emailCreateMutation);
+    const [addMutation, { loading: loadingAdd }] = useMutation<emailCreate, emailCreateVariables>(emailCreateMutation);
     const formik = useFormik({
         initialValues: {
             email: '',
@@ -50,7 +54,7 @@ export const EmailList = ({
         },
     });
 
-    const [updateMutation, { loading: loadingUpdate }] = useMutation<any>(emailUpdateMutation);
+    const [updateMutation, { loading: loadingUpdate }] = useMutation<emailUpdate, emailUpdateVariables>(emailUpdateMutation);
     const onUpdate = useCallback((index: number, updatedEmail: Email) => {
         if (loadingUpdate) return;
         mutationWrapper({
@@ -66,7 +70,7 @@ export const EmailList = ({
         })
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<any>(deleteOneMutation);
+    const [deleteMutation, { loading: loadingDelete }] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation);
     const onDelete = useCallback((email: Email) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 
@@ -95,7 +99,7 @@ export const EmailList = ({
         });
     }, [deleteMutation, handleUpdate, list, loadingDelete, numVerifiedWallets]);
 
-    const [verifyMutation, { loading: loadingVerifyEmail }] = useMutation<any>(sendVerificationEmailMutation);
+    const [verifyMutation, { loading: loadingVerifyEmail }] = useMutation<sendVerificationEmail, sendVerificationEmailVariables>(sendVerificationEmailMutation);
     const sendVerificationEmail = useCallback((email: Email) => {
         if (loadingVerifyEmail) return;
         mutationWrapper({

@@ -4,7 +4,7 @@ import { BaseObjectDialog } from '..';
 import { UserDialogProps, ObjectDialogAction } from 'components/dialogs/types';
 import { useLocation, useRoute } from 'wouter';
 import { useMutation } from '@apollo/client';
-import { user } from 'graphql/generated/user';
+import { user, userVariables } from 'graphql/generated/user';
 import { profileUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { APP_LINKS } from '@local/shared';
@@ -19,7 +19,7 @@ export const UserDialog = ({
     const [, params] = useRoute(`${APP_LINKS.SearchUsers}/:params*`);
     const [state] = useMemo(() => Boolean(params?.params) ? (params?.params as string).split("/") : [undefined, undefined], [params]);
 
-    const [update] = useMutation<user>(profileUpdateMutation);
+    const [update] = useMutation<user, userVariables>(profileUpdateMutation);
 
     const onAction = useCallback((action: ObjectDialogAction) => {
         switch (action) {

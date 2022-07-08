@@ -15,6 +15,7 @@ import { updateArray } from 'utils';
 import { resourceDeleteManyMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { resourceDeleteMany, resourceDeleteManyVariables } from 'graphql/generated/resourceDeleteMany';
 
 export const ResourceListHorizontal = ({
     title = '📌 Resources',
@@ -48,7 +49,7 @@ export const ResourceListHorizontal = ({
         }
     }, [handleUpdate, list]);
 
-    const [deleteMutation] = useMutation<any>(resourceDeleteManyMutation);
+    const [deleteMutation] = useMutation<resourceDeleteMany, resourceDeleteManyVariables>(resourceDeleteManyMutation);
     const onDelete = useCallback((index: number) => {
         if (!list) return;
         const resource = list.resources[index];

@@ -31,10 +31,10 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { copy } from 'graphql/generated/copy';
-import { fork } from 'graphql/generated/fork';
-import { star } from 'graphql/generated/star';
-import { vote } from 'graphql/generated/vote';
+import { copy, copyVariables } from 'graphql/generated/copy';
+import { fork, forkVariables } from 'graphql/generated/fork';
+import { star, starVariables } from 'graphql/generated/star';
+import { vote, voteVariables } from 'graphql/generated/vote';
 import { BaseObjectAction, BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { DeleteDialog, EditableLabel, LanguageInput, LinkButton, MarkdownInput, ResourceListHorizontal } from 'components';
@@ -253,10 +253,10 @@ export const BuildInfoDialog = ({
     }, [setLocation])
 
     // Mutations
-    const [copy] = useMutation<copy>(copyMutation);
-    const [fork] = useMutation<fork>(forkMutation);
-    const [star] = useMutation<star>(starMutation);
-    const [vote] = useMutation<vote>(voteMutation);
+    const [copy] = useMutation<copy, copyVariables>(copyMutation);
+    const [fork] = useMutation<fork, forkVariables>(forkMutation);
+    const [star] = useMutation<star, starVariables>(starMutation);
+    const [vote] = useMutation<vote, voteVariables>(voteMutation);
 
     const handleCopy = useCallback(() => {
         if (!routine?.id) return;

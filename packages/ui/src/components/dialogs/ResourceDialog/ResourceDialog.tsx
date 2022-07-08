@@ -11,13 +11,14 @@ import {
     Cancel as CancelIcon,
     Close as CloseIcon,
 } from '@mui/icons-material';
-import { formatForCreate, formatForUpdate, getTranslation, getUserLanguages, Pubs, updateArray } from 'utils';
-import { resourceCreate } from 'graphql/generated/resourceCreate';
+import { formatForCreate, formatForUpdate, getTranslation, getUserLanguages, Pubs, ResourceShape, updateArray } from 'utils';
+import { resourceCreate, resourceCreateVariables } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
-import { resourceUpdate } from 'graphql/generated/resourceUpdate';
+import { resourceUpdate, resourceUpdateVariables } from 'graphql/generated/resourceUpdate';
 import { useCallback, useEffect, useState } from 'react';
 import { LanguageInput } from 'components/inputs';
 import { NewObject, Resource } from 'types';
+import { v4 as uuid } from 'uuid';
 
 const helpText =
     `## What are resources?
@@ -67,11 +68,11 @@ export const ResourceDialog = ({
 }: ResourceDialogProps) => {
     const { palette } = useTheme();
 
-    const [addMutation, { loading: addLoading }] = useMutation<resourceCreate>(resourceCreateMutation);
-    const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate>(resourceUpdateMutation);
+    const [addMutation, { loading: addLoading }] = useMutation<resourceCreate, resourceCreateVariables>(resourceCreateMutation);
+    const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate, resourceUpdateVariables>(resourceUpdateMutation);
 
     // Handle translations
-    type Translation = NewObject<Resource['translations'][0]>;
+    type Translation = NewObject<ResourceShape['translations'][0]>;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -109,12 +110,13 @@ export const ResourceDialog = ({
         validationSchema,
         onSubmit: (values) => {
             const allTranslations = getTranslationsUpdate(language, {
+                id: uuid(),
                 language,
                 description: values.description,
                 title: values.title,
             })
             const data = {
-                id: partialData?.id ?? undefined,
+                id: partialData?.id ?? uuid(),
                 index: Math.max(index, 0),
                 listId,
                 link: values.link,
@@ -166,6 +168,7 @@ export const ResourceDialog = ({
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
+            id: uuid(),
             language,
             description: formik.values.description,
             title: formik.values.title,

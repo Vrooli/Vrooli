@@ -31,9 +31,10 @@ import {
 import { emailLogInMutation, guestLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { emailLogIn } from 'graphql/generated/emailLogIn';
+import { emailLogIn, emailLogInVariables } from 'graphql/generated/emailLogIn';
 import { StartPageProps } from 'pages/types';
 import { hasErrorCode } from 'graphql/utils';
+import { guestLogIn } from 'graphql/generated/guestLogIn';
 
 const helpText =
     `Logging in allows you to vote, save favorites, and contribute to the community.
@@ -59,8 +60,8 @@ export const StartPage = ({
         verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
     }), [search]);
 
-    const [emailLogIn] = useMutation<emailLogIn>(emailLogInMutation);
-    const [guestLogIn] = useMutation<any>(guestLogInMutation);
+    const [emailLogIn] = useMutation<emailLogIn, emailLogInVariables>(emailLogInMutation);
+    const [guestLogIn] = useMutation<guestLogIn>(guestLogInMutation);
     // Handles email authentication popup
     const [emailPopupOpen, setEmailPopupOpen] = useState(false);
     const [popupForm, setPopupForm] = useState<Forms>(Forms.LogIn);

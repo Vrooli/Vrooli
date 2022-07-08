@@ -25,14 +25,14 @@ import {
 } from '@mui/material';
 import { useLocation } from 'wouter';
 import { SubroutineInfoDialogProps } from '../types';
-import { getOwnedByString, getTranslation, InputCreate, OutputCreate, toOwnedBy, updateArray } from 'utils';
+import { getOwnedByString, getTranslation, InputShape, OutputShape, toOwnedBy, updateArray } from 'utils';
 import Markdown from 'markdown-to-jsx';
 import { ResourceListUsedFor, routineUpdateForm as validationSchema } from '@local/shared';
 import { InputOutputContainer, LanguageInput, LinkButton, MarkdownInput, QuantityBox, ResourceListHorizontal, TagList, TagSelector, UserOrganizationSwitch } from 'components';
 import { useFormik } from 'formik';
 import { NewObject, NodeDataRoutineListItem, Organization, ResourceList, Routine } from 'types';
 import { owns } from 'utils/authentication';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuid } from 'uuid';
 import { TagSelectorTag } from 'components/inputs/types';
 
 export const SubroutineInfoDialog = ({
@@ -60,19 +60,19 @@ export const SubroutineInfoDialog = ({
     const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
 
     // Handle inputs
-    const [inputsList, setInputsList] = useState<InputCreate[]>([]);
-    const handleInputsUpdate = useCallback((updatedList: InputCreate[]) => {
+    const [inputsList, setInputsList] = useState<InputShape[]>([]);
+    const handleInputsUpdate = useCallback((updatedList: InputShape[]) => {
         setInputsList(updatedList);
     }, [setInputsList]);
 
     // Handle outputs
-    const [outputsList, setOutputsList] = useState<OutputCreate[]>([]);
-    const handleOutputsUpdate = useCallback((updatedList: OutputCreate[]) => {
+    const [outputsList, setOutputsList] = useState<OutputShape[]>([]);
+    const handleOutputsUpdate = useCallback((updatedList: OutputShape[]) => {
         setOutputsList(updatedList);
     }, [setOutputsList]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
@@ -119,7 +119,7 @@ export const SubroutineInfoDialog = ({
         else setOrganizationFor(null);
         setInputsList(subroutine?.routine?.inputs ?? []);
         setOutputsList(subroutine?.routine?.outputs ?? []);
-        setResourceList(subroutine?.routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+        setResourceList(subroutine?.routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(subroutine?.routine?.tags ?? []);
         setTranslations(subroutine?.routine?.translations?.map(t => ({
             id: t.id,

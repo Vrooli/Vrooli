@@ -1,6 +1,6 @@
 import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
-import { project } from "graphql/generated/project";
+import { project, projectVariables } from "graphql/generated/project";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { projectCreateForm as validationSchema, ROLES } from '@local/shared';
 import { useFormik } from 'formik';
@@ -19,7 +19,7 @@ import { DialogActionsContainer } from "components/containers/DialogActionsConta
 import { NewObject, Organization, Project } from "types";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuid } from 'uuid';
 
 export const ProjectCreate = ({
     onCreated,
@@ -34,7 +34,7 @@ export const ProjectCreate = ({
     const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, []);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
@@ -73,7 +73,7 @@ export const ProjectCreate = ({
     }, [params]);
 
     // Handle create
-    const [mutation] = useMutation<project>(projectCreateMutation);
+    const [mutation] = useMutation<project, projectVariables>(projectCreateMutation);
     const formik = useFormik({
         initialValues: {
             description: '',

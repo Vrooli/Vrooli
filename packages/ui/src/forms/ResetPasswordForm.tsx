@@ -10,7 +10,7 @@ import {
 import { APP_LINKS } from '@local/shared';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { useLocation } from 'wouter';
-import { emailResetPassword } from 'graphql/generated/emailResetPassword';
+import { emailResetPassword, emailResetPasswordVariables } from 'graphql/generated/emailResetPassword';
 import { ResetPasswordFormProps } from './types';
 import { formPaper, formSubmit } from './styles';
 import { Pubs } from 'utils';
@@ -21,7 +21,7 @@ export const ResetPasswordForm = ({
     code,
 }: ResetPasswordFormProps) => {
     const [, setLocation] = useLocation();
-    const [emailResetPassword, { loading }] = useMutation<emailResetPassword>(emailResetPasswordMutation);
+    const [emailResetPassword, { loading }] = useMutation<emailResetPassword, emailResetPasswordVariables>(emailResetPasswordMutation);
 
     const formik = useFormik({
         initialValues: {
@@ -30,6 +30,11 @@ export const ResetPasswordForm = ({
         },
         validationSchema: emailResetPasswordSchema,
         onSubmit: (values) => {
+            // Check for valid userId and code
+            if (!userId || !code) {
+                PubSub.publish(Pubs.Snack, { message: 'Invalid reset password URL.', severity: 'error' });
+                return;
+            }
             mutationWrapper({
                 mutation: emailResetPassword,
                 input: { id: userId, code, newPassword: values.newPassword },

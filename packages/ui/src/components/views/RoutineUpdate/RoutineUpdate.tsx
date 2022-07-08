@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { routineUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, InputCreate, OutputCreate, shapeTagsUpdate, updateArray } from "utils";
+import { formatForUpdate, InputShape, OutputShape, shapeTagsUpdate, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -19,10 +19,11 @@ import { TagSelectorTag } from "components/inputs/types";
 import { DialogActionItem } from "components/containers/types";
 import { LanguageInput, MarkdownInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuid } from 'uuid';
 import { NewObject, Organization, ResourceList, Routine } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { InputOutputContainer } from "components/lists/inputOutput";
+import { routineUpdate, routineUpdateVariables } from "graphql/generated/routineUpdate";
 
 export const RoutineUpdate = ({
     onCancel,
@@ -46,19 +47,19 @@ export const RoutineUpdate = ({
     const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
 
     // Handle inputs
-    const [inputsList, setInputsList] = useState<InputCreate[]>([]);
-    const handleInputsUpdate = useCallback((updatedList: InputCreate[]) => {
+    const [inputsList, setInputsList] = useState<InputShape[]>([]);
+    const handleInputsUpdate = useCallback((updatedList: InputShape[]) => {
         setInputsList(updatedList);
     }, [setInputsList]);
 
     // Handle outputs
-    const [outputsList, setOutputsList] = useState<OutputCreate[]>([]);
-    const handleOutputsUpdate = useCallback((updatedList: OutputCreate[]) => {
+    const [outputsList, setOutputsList] = useState<OutputShape[]>([]);
+    const handleOutputsUpdate = useCallback((updatedList: OutputShape[]) => {
         setOutputsList(updatedList);
     }, [setOutputsList]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
@@ -105,7 +106,7 @@ export const RoutineUpdate = ({
         else setOrganizationFor(null);
         setInputsList(routine?.inputs ?? []);
         setOutputsList(routine?.outputs ?? []);
-        setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+        setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(routine?.tags ?? []);
         setTranslations(routine?.translations?.map(t => ({
             id: t.id,
@@ -117,7 +118,7 @@ export const RoutineUpdate = ({
     }, [routine]);
 
     // Handle update
-    const [mutation] = useMutation<routine>(routineUpdateMutation);
+    const [mutation] = useMutation<routineUpdate, routineUpdateVariables>(routineUpdateMutation);
     const formik = useFormik({
         initialValues: {
             description: '',

@@ -18,7 +18,7 @@ import { APP_LINKS } from '@local/shared';
 import PubSub from 'pubsub-js';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { useLocation } from 'wouter';
-import { emailSignUp } from 'graphql/generated/emailSignUp';
+import { emailSignUp, emailSignUpVariables } from 'graphql/generated/emailSignUp';
 import { FormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
@@ -31,7 +31,7 @@ export const SignUpForm = ({
 }: FormProps) => {
     const theme = useTheme();
     const [, setLocation] = useLocation();
-    const [emailSignUp, { loading }] = useMutation<emailSignUp>(emailSignUpMutation);
+    const [emailSignUp, { loading }] = useMutation<emailSignUp, emailSignUpVariables>(emailSignUpMutation);
 
     const formik = useFormik({
         initialValues: {

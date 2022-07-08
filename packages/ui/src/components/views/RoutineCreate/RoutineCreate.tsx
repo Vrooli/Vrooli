@@ -1,6 +1,5 @@
 import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
 import { useMutation } from "@apollo/client";
-import { routine } from "graphql/generated/routine";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { ROLES, routineCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
@@ -18,8 +17,9 @@ import { LanguageInput, MarkdownInput, ResourceListHorizontal, TagSelector, User
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { NewObject, Organization, ResourceList, Routine } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuid } from 'uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
+import { routineCreate, routineCreateVariables } from "graphql/generated/routineCreate";
 
 export const RoutineCreate = ({
     onCreated,
@@ -46,7 +46,7 @@ export const RoutineCreate = ({
     }, [setOutputsList]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
@@ -94,7 +94,7 @@ export const RoutineCreate = ({
     }, [params]);
 
     // Handle create
-    const [mutation] = useMutation<routine>(routineCreateMutation);
+    const [mutation] = useMutation<routineCreate, routineCreateVariables>(routineCreateMutation);
     const formik = useFormik({
         initialValues: {
             description: '',

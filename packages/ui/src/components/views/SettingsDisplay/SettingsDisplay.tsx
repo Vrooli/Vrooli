@@ -1,6 +1,5 @@
 import { Box, Stack, Typography, useTheme } from "@mui/material"
 import { useMutation } from "@apollo/client";
-import { user } from "graphql/generated/user";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { profileUpdateSchema as validationSchema } from '@local/shared';
@@ -19,6 +18,7 @@ import { SettingsDisplayProps } from "../types";
 import { HelpButton, TagSelector } from "components";
 import { TagSelectorTag } from "components/inputs/types";
 import { ThemeSwitch } from "components/inputs";
+import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
 
 const helpText =
     `Display preferences customize the look and feel of Vrooli. More customizations will be available in the near future.`
@@ -82,7 +82,7 @@ export const SettingsDisplay = ({
     }, [profile]);
 
     // Handle update
-    const [mutation] = useMutation<user>(profileUpdateMutation);
+    const [mutation] = useMutation<profileUpdate, profileUpdateVariables>(profileUpdateMutation);
     const formik = useFormik({
         initialValues: {
             theme,

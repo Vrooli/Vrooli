@@ -20,7 +20,7 @@ import { TagSelectorTag } from "components/inputs/types";
 import { LanguageInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { NewObject, Organization, Project, ResourceList } from "types";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuid } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 
 export const ProjectUpdate = ({
@@ -45,7 +45,7 @@ export const ProjectUpdate = ({
     const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
@@ -81,7 +81,7 @@ export const ProjectUpdate = ({
     useEffect(() => {
         if (project?.owner?.__typename === 'Organization') setOrganizationFor(project.owner as Organization);
         else setOrganizationFor(null);
-        setResourceList(project?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+        setResourceList(project?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(project?.tags ?? []);
         setTranslations(project?.translations?.map(t => ({
             id: t.id,
@@ -92,7 +92,7 @@ export const ProjectUpdate = ({
     }, [project]);
 
     // Handle update
-    const [mutation] = useMutation<project>(projectUpdateMutation);
+    const [mutation] = useMutation<project, projectVariables>(projectUpdateMutation);
     const formik = useFormik({
         initialValues: {
             description: '',

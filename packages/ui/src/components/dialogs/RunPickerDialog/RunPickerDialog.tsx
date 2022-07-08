@@ -14,11 +14,12 @@ import {
 } from "@mui/icons-material";
 import { getRunPercentComplete, parseSearchParams, Pubs } from "utils";
 import { useMutation } from "@apollo/client";
-import { runCreate } from "graphql/generated/runCreate";
+import { runCreate, runCreateVariables } from "graphql/generated/runCreate";
 import { deleteOneMutation, runCreateMutation } from "graphql/mutation";
 import { Run } from "types";
-import { deleteOne } from "graphql/generated/deleteOne";
+import { deleteOne, deleteOneVariables } from "graphql/generated/deleteOne";
 import { DeleteOneType } from "@local/shared";
+import { v4 as uuid } from 'uuid';
 
 export const RunPickerDialog = ({
     anchorEl,
@@ -44,7 +45,7 @@ export const RunPickerDialog = ({
         }
     }, [routine, onSelect, handleClose]);
 
-    const [runCreate] = useMutation<runCreate>(runCreateMutation);
+    const [runCreate] = useMutation<runCreate, runCreateVariables>(runCreateMutation);
     const createNewRun = useCallback(() => {
         if (!routine) {
             PubSub.publish(Pubs.Snack, { message: 'Could not read routine data.', severity: 'error' });
@@ -53,9 +54,10 @@ export const RunPickerDialog = ({
         mutationWrapper({
             mutation: runCreate,
             input: {
+                id: uuid(),
                 routineId: routine.id,
-                version: routine.version,
-                title: getTranslation(routine, 'title', getUserLanguages(session)),
+                version: routine.version ?? '',
+                title: getTranslation(routine, 'title', getUserLanguages(session)) ?? 'Unnamed Routine',
             },
             successCondition: (response) => response.data.runCreate !== null,
             onSuccess: (response) => { 
@@ -68,7 +70,7 @@ export const RunPickerDialog = ({
         })
     }, [handleClose, onAdd, onSelect, routine, runCreate, session]);
 
-    const [deleteOne] = useMutation<deleteOne>(deleteOneMutation)
+    const [deleteOne] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation)
     const deleteRun = useCallback((run: Run) => {
         mutationWrapper({
             mutation: deleteOne,

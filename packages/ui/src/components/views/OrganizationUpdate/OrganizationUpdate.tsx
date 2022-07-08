@@ -20,7 +20,7 @@ import { TagSelectorTag } from "components/inputs/types";
 import { LanguageInput, ResourceListHorizontal, TagSelector } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { NewObject, Organization, ResourceList } from "types";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuid } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 
 export const OrganizationUpdate = ({
@@ -41,7 +41,7 @@ export const OrganizationUpdate = ({
     const organization = useMemo(() => data?.organization, [data]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
@@ -75,7 +75,7 @@ export const OrganizationUpdate = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
-        setResourceList(organization?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+        setResourceList(organization?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(organization?.tags ?? []);
         setTranslations(organization?.translations?.map(t => ({
             id: t.id,
@@ -86,7 +86,7 @@ export const OrganizationUpdate = ({
     }, [organization]);
 
     // Handle update
-    const [mutation] = useMutation<organization>(organizationUpdateMutation);
+    const [mutation] = useMutation<organization, organizationVariables>(organizationUpdateMutation);
     const formik = useFormik({
         initialValues: {
             name: '',

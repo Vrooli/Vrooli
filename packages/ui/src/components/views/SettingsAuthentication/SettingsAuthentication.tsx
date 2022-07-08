@@ -1,6 +1,5 @@
 import { Box, Button, Grid, Stack, TextField, Typography, useTheme } from "@mui/material"
 import { useMutation } from "@apollo/client";
-import { user } from "graphql/generated/user";
 import { useCallback, useEffect } from "react";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
@@ -20,6 +19,8 @@ import { HelpButton } from "components/buttons";
 import { EmailList, WalletList } from "components/lists";
 import { Email, Wallet } from "types";
 import { PasswordTextField } from "components";
+import { logOut } from "graphql/generated/logOut";
+import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
 
 const helpText =
     `This page allows you to manage your wallets, emails, and other authentication settings.`;
@@ -45,7 +46,7 @@ export const SettingsAuthentication = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const [logOut] = useMutation<any>(logOutMutation);
+    const [logOut] = useMutation<logOut, any>(logOutMutation);
     const onLogOut = useCallback(() => {
         mutationWrapper({ mutation: logOut })
         PubSub.publish(Pubs.Session, undefined);
@@ -77,7 +78,7 @@ export const SettingsAuthentication = ({
     const numVerifiedWallets = profile?.wallets?.filter((wallet) => wallet.verified)?.length ?? 0;
 
     // Handle update
-    const [mutation] = useMutation<user>(profileUpdateMutation);
+    const [mutation] = useMutation<profileUpdate, profileUpdateVariables>(profileUpdateMutation);
     const formik = useFormik({
         initialValues: {
             currentPassword: '',
