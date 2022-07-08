@@ -12,10 +12,9 @@ import {
     Add as CreateIcon,
     Restore as CancelIcon,
 } from '@mui/icons-material';
-import { TagSelectorTag } from "components/inputs/types";
 import { LanguageInput, ResourceListHorizontal, Selector, TagSelector } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { NewObject, ResourceList, Standard } from "types";
+import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuid } from 'uuid';
 import { FieldData } from "forms/types";
@@ -114,7 +113,7 @@ export const StandardCreate = ({
     }, [setTags]);
 
     // Handle translations
-    type Translation = NewObject<Standard['translations'][0]>;
+    type Translation = StandardTranslationsShape;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -147,6 +146,7 @@ export const StandardCreate = ({
         onSubmit: (values) => {
             // Update translations with final values
             const allTranslations = getTranslationsUpdate(language, {
+                id: uuid(),
                 language,
                 description: values.description,
                 jsonVariable: null, //TODO
@@ -155,6 +155,7 @@ export const StandardCreate = ({
             mutationWrapper({
                 mutation,
                 input: shapeStandardCreate({
+                    id: uuid(),
                     default: values.default,
                     isInternal: false,
                     name: values.name,
@@ -211,6 +212,7 @@ export const StandardCreate = ({
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
+            id: uuid(),
             language,
             description: formik.values.description,
             jsonVariable: null, //TODO

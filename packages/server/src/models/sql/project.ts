@@ -230,6 +230,7 @@ export const projectMutater = (prisma: PrismaType) => ({
             if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
                 throw new CustomError(CODE.MaxProjectsReached, 'Reached the maximum number of projects allowed on this account', { code: genErrorCode('0074') });
             }
+            // TODO handle
         }
         if (updateMany) {
             projectsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });

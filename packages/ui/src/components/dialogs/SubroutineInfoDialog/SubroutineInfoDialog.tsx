@@ -25,15 +25,14 @@ import {
 } from '@mui/material';
 import { useLocation } from 'wouter';
 import { SubroutineInfoDialogProps } from '../types';
-import { getOwnedByString, getTranslation, InputShape, OutputShape, toOwnedBy, updateArray } from 'utils';
+import { getOwnedByString, getTranslation, InputShape, OutputShape, RoutineTranslationShape, TagShape, toOwnedBy, updateArray } from 'utils';
 import Markdown from 'markdown-to-jsx';
 import { ResourceListUsedFor, routineUpdateForm as validationSchema } from '@local/shared';
 import { InputOutputContainer, LanguageInput, LinkButton, MarkdownInput, QuantityBox, ResourceListHorizontal, TagList, TagSelector, UserOrganizationSwitch } from 'components';
 import { useFormik } from 'formik';
-import { NewObject, NodeDataRoutineListItem, Organization, ResourceList, Routine } from 'types';
+import { NodeDataRoutineListItem, Organization, ResourceList } from 'types';
 import { owns } from 'utils/authentication';
 import { v4 as uuid } from 'uuid';
-import { TagSelectorTag } from 'components/inputs/types';
 
 export const SubroutineInfoDialog = ({
     data,
@@ -78,11 +77,11 @@ export const SubroutineInfoDialog = ({
     }, [setResourceList]);
 
     // Handle tags
-    const [tags, setTags] = useState<TagSelectorTag[]>([]);
-    const addTag = useCallback((tag: TagSelectorTag) => {
+    const [tags, setTags] = useState<TagShape[]>([]);
+    const addTag = useCallback((tag: TagShape) => {
         setTags(t => [...t, tag]);
     }, [setTags]);
-    const removeTag = useCallback((tag: TagSelectorTag) => {
+    const removeTag = useCallback((tag: TagShape) => {
         setTags(tags => tags.filter(t => t.tag !== tag.tag));
     }, [setTags]);
     const clearTags = useCallback(() => {
@@ -90,7 +89,7 @@ export const SubroutineInfoDialog = ({
     }, [setTags]);
 
     // Handle translations
-    type Translation = NewObject<Routine['translations'][0]>;
+    type Translation = RoutineTranslationShape;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -155,6 +154,7 @@ export const SubroutineInfoDialog = ({
             } : {};
             const ownedBy: { organizationId: string; } | { userId: string; } = organizationFor ? { organizationId: organizationFor.id } : { userId: session?.id ?? '' };
             const allTranslations = getTranslationsUpdate(language, {
+                id: uuid(),
                 language,
                 description: values.description,
                 instructions: values.instructions,
@@ -207,6 +207,7 @@ export const SubroutineInfoDialog = ({
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
+            id: uuid(),
             language,
             description: formik.values.description,
             instructions: formik.values.instructions,

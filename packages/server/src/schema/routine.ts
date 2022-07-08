@@ -49,7 +49,6 @@ export const typeDef = gql`
         isComplete: Boolean
         isInternal: Boolean
         version: String
-        parentId: ID
         userId: ID
         organizationId: ID
         nodesDelete: [ID!]

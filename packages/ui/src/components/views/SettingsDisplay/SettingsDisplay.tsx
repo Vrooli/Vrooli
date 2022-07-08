@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, Pubs, TERTIARY_COLOR } from "utils";
+import { Pubs, TERTIARY_COLOR } from "utils";
 import {
     Restore as RevertIcon,
     Save as SaveIcon,

@@ -20,7 +20,7 @@ import { Node, NodeLink, Routine, Run } from "types";
 import Markdown from "markdown-to-jsx";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
-import { NodeType, StarFor } from "graphql/generated/globalTypes";
+import { CommentFor, NodeType, StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
 import { validate as uuidValidate, v4 as uuid } from 'uuid';
@@ -704,7 +704,7 @@ export const RoutineView = ({
                 <CommentContainer
                     language={language}
                     objectId={id ?? ''}
-                    objectType={ObjectType.Routine}
+                    objectType={CommentFor.Routine}
                     session={session}
                     zIndex={zIndex}
                 />

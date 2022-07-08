@@ -37,13 +37,11 @@ export const shapeTagTranslationsUpdate = (
 } => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeTagTranslationCreate, shapeTagTranslationUpdate)
 
 export type TagShape = Omit<ShapeWrapper<Tag>, 'tag' | 'translations'> & {
-    id: string;
     tag: string;
-    translations: TagTranslationShape[];
+    translations?: TagTranslationShape[];
 }
 
 export const shapeTagCreate = (item: TagShape): TagCreateInput => ({
-    id: item.id,
     // anonymous?: boolean | null; TODO
     tag: item.tag,
     ...shapeTagTranslationsCreate(item.translations),
@@ -54,9 +52,8 @@ export const shapeTagUpdate = (
     updated: TagShape
 ): TagUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
-        id: o.id,
         // anonymous: TODO
-        // tag: u.tag !== o.tag ? u.tag : undefined, probably shouldn't be able to update tag
+        tag: o.tag,
         ...shapeTagTranslationsUpdate(o.translations, u.translations),
     }))
 

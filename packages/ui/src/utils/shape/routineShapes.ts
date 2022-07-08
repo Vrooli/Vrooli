@@ -106,7 +106,7 @@ export const shapeRoutinesCreate = (items: RoutineShape[] | null | undefined): {
     routinesCreate?: RoutineCreateInput[],
 } => shapeCreateList(items, 'routines', shapeRoutineCreate);
 
-export const shapeResourcesUpdate = (
+export const shapeRoutinesUpdate = (
     o: RoutineShape[] | null | undefined,
     u: RoutineShape[] | null | undefined
 ): {

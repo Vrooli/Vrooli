@@ -17,7 +17,6 @@ export const typeDef = gql`
     }
 
     input TagCreateInput {
-        id: ID!
         anonymous: Boolean
         tag: String!
         translationsCreate: [TagTranslationCreateInput!]

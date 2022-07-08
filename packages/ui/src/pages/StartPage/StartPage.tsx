@@ -61,7 +61,7 @@ export const StartPage = ({
     }), [search]);
 
     const [emailLogIn] = useMutation<emailLogIn, emailLogInVariables>(emailLogInMutation);
-    const [guestLogIn] = useMutation<guestLogIn>(guestLogInMutation);
+    const [guestLogIn] = useMutation<guestLogIn, any>(guestLogInMutation);
     // Handles email authentication popup
     const [emailPopupOpen, setEmailPopupOpen] = useState(false);
     const [popupForm, setPopupForm] = useState<Forms>(Forms.LogIn);

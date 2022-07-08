@@ -28,6 +28,7 @@ export const typeDef = gql`
         id: ID!
         createdByOrganizationId: ID
         createdByUserId: ID
+        handle: String
         isComplete: Boolean
         parentId: ID
         resourceListsCreate: [ResourceListCreateInput!]
@@ -40,7 +41,6 @@ export const typeDef = gql`
         handle: String
         isComplete: Boolean
         organizationId: ID
-        parentId: ID
         userId: ID
         resourceListsDelete: [ID!]
         resourceListsCreate: [ResourceListCreateInput!]

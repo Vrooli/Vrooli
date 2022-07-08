@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, getUserLanguages, Pubs, TERTIARY_COLOR, updateArray } from "utils";
+import { getUserLanguages, Pubs, TERTIARY_COLOR, updateArray } from "utils";
 import {
     Refresh as RefreshIcon,
     Restore as CancelIcon,
@@ -19,8 +19,8 @@ import { LanguageInput } from "components/inputs";
 import { HelpButton } from "components/buttons";
 import { findHandles, findHandlesVariables } from "graphql/generated/findHandles";
 import { findHandlesQuery } from "graphql/query";
-import { NewObject, Profile } from "types";
 import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
+import { v4 as uuid } from 'uuid';
 
 const helpText =
     `This page allows you to update your profile, including your name, handle, and bio.
@@ -63,7 +63,7 @@ export const SettingsProfile = ({
     const [selectedHandle, setSelectedHandle] = useState<string | null>(null);
 
     // Handle translations
-    type Translation = NewObject<Profile['translations'][0]>;
+    type Translation = ProfileTranslationsShape;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -111,6 +111,7 @@ export const SettingsProfile = ({
         onSubmit: (values) => {
             if (!formik.isValid) return;
             const allTranslations = getTranslationsUpdate(language, {
+                id: uuid(),
                 language,
                 bio: values.bio,
             })
@@ -144,6 +145,7 @@ export const SettingsProfile = ({
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
+            id: uuid(),
             language,
             bio: formik.values.bio,
         })

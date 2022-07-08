@@ -24,6 +24,7 @@ export const typeDef = gql`
 
     input OrganizationCreateInput {
         id: ID!
+        handle: String
         isOpenToNewMembers: Boolean
         resourceListsCreate: [ResourceListCreateInput!]
         tagsConnect: [ID!]

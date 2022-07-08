@@ -8,12 +8,13 @@ import {
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
-import { getTranslation, jsonToString, StandardCreate, standardToFieldData, updateArray } from 'utils';
+import { getTranslation, jsonToString, StandardShape, standardToFieldData, updateArray } from 'utils';
 import { useFormik } from 'formik';
-import { NewObject, RoutineInput, RoutineOutput, Standard } from 'types';
+import { Standard } from 'types';
 import { BaseStandardInput, PreviewSwitch, Selector, StandardSelectSwitch } from 'components';
 import { FieldData } from 'forms/types';
 import { generateInputComponent } from 'forms/generators';
+import { v4 as uuid } from 'uuid';
 
 type InputTypeOption = { label: string, value: InputType }
 /**
@@ -74,7 +75,7 @@ export const InputOutputListItem = ({
 
     // Handle standard select switch
     // Should only be set when a non-internal standard is selected
-    const [standard, setStandard] = useState<StandardCreate | null>((item?.standard && !item.standard.isInternal) ? item?.standard : null);
+    const [standard, setStandard] = useState<StandardShape | null>((item?.standard && !item.standard.isInternal) ? item?.standard : null);
     // Handle input type selector
     const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
     const handleInputTypeSelect = useCallback((event: any) => {
@@ -124,7 +125,7 @@ export const InputOutputListItem = ({
         })
     }, [handleUpdate, index, item, schema]);
 
-    type Translation = NewObject<(RoutineInput | RoutineOutput)['translations'][0]>;
+    type Translation = RoutineInputTranslationShape | RoutineOutputTranslationShape;
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
         // Find translation
         const index = item.translations.findIndex(t => language === t.language);
@@ -161,6 +162,7 @@ export const InputOutputListItem = ({
         onSubmit: (values) => {
             // Update translations
             const allTranslations = getTranslationsUpdate(language, {
+                id: uuid(),
                 language,
                 description: values.description,
             })

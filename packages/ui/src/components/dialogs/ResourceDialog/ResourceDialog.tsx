@@ -11,7 +11,7 @@ import {
     Cancel as CancelIcon,
     Close as CloseIcon,
 } from '@mui/icons-material';
-import { formatForCreate, formatForUpdate, getTranslation, getUserLanguages, Pubs, ResourceShape, updateArray } from 'utils';
+import { getTranslation, getUserLanguages, Pubs, ResourceShape, updateArray } from 'utils';
 import { resourceCreate, resourceCreateVariables } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { resourceUpdate, resourceUpdateVariables } from 'graphql/generated/resourceUpdate';
@@ -72,7 +72,7 @@ export const ResourceDialog = ({
     const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate, resourceUpdateVariables>(resourceUpdateMutation);
 
     // Handle translations
-    type Translation = NewObject<ResourceShape['translations'][0]>;
+    type Translation = ResourceTranslationShape;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
