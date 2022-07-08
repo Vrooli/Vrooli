@@ -140,7 +140,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
     },
     toDBShape(userId: string | null, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean, isRelationship: boolean): any {
         return {
-            id: data.id ?? undefined,
+            id: data.id,
             listId: !isRelationship ? data.listId : undefined,
             index: data.index,
             link: data.link,

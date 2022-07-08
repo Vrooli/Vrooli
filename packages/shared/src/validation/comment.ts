@@ -5,6 +5,7 @@ const createdFor = yup.string().oneOf(['Project', 'Routine', 'Standard'])
 const text = yup.string().min(1).max(8192)
 
 export const commentTranslationCreate = yup.object().shape({
+    id: id.required(),
     language: language.required(),
     text: text.required(),
 });
@@ -20,6 +21,7 @@ export const commentTranslationsUpdate = yup.array().of(commentTranslationUpdate
  * Information required when creating a comment
  */
 export const commentCreate = yup.object().shape({
+    id: id.required(),
     createdFor: createdFor.required(),
     forId: id.required(),
     translationsCreate: commentTranslationsCreate.required(),

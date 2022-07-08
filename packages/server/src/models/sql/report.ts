@@ -92,7 +92,7 @@ const forMapper = {
 export const reportMutater = (prisma: PrismaType, verifier: ReturnType<typeof reportVerifier>) => ({
     async toDBShapeAdd(userId: string | null, data: ReportCreateInput): Promise<any> {
         return {
-            id: data.id ?? undefined,
+            id: data.id,
             reason: data.reason,
             details: data.details,
             fromId: userId,

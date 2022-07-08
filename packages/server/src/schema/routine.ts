@@ -25,7 +25,7 @@ export const typeDef = gql`
     }
 
     input RoutineCreateInput {
-        id: ID
+        id: ID!
         isAutomatable: Boolean
         isComplete: Boolean
         isInternal: Boolean
@@ -115,7 +115,7 @@ export const typeDef = gql`
     }
 
     input RoutineTranslationCreateInput {
-        id: ID
+        id: ID!
         language: String!
         description: String
         instructions: String!
@@ -137,7 +137,7 @@ export const typeDef = gql`
     }
 
     input InputItemCreateInput {
-        id: ID
+        id: ID!
         isRequired: Boolean
         name: String
         standardConnect: ID
@@ -166,7 +166,7 @@ export const typeDef = gql`
     }
 
     input InputItemTranslationCreateInput {
-        id: ID
+        id: ID!
         language: String!
         description: String
     }
@@ -182,7 +182,7 @@ export const typeDef = gql`
     }
 
     input OutputItemCreateInput {
-        id: ID
+        id: ID!
         name: String
         standardConnect: ID
         standardCreate: StandardCreateInput
@@ -206,7 +206,7 @@ export const typeDef = gql`
     }
 
     input OutputItemTranslationCreateInput {
-        id: ID
+        id: ID!
         language: String!
         description: String
     }

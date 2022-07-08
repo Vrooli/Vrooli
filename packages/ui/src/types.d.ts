@@ -9,7 +9,7 @@ import { reportCreate_reportCreate } from 'graphql/generated/reportCreate';
 import { resource_resource, resource_resource_translations } from 'graphql/generated/resource';
 import { routine_routine, routine_routine_inputs, routine_routine_inputs_translations, routine_routine_nodeLinks, routine_routine_nodeLinks_whens, routine_routine_nodeLinks_whens_translations, routine_routine_nodes, routine_routine_nodes_data_NodeEnd, routine_routine_nodes_data_NodeLoop, routine_routine_nodes_data_NodeRoutineList, routine_routine_nodes_data_NodeRoutineList_routines, routine_routine_nodes_data_NodeRoutineList_routines_translations, routine_routine_nodes_translations, routine_routine_outputs, routine_routine_outputs_translations, routine_routine_runs, routine_routine_translations } from 'graphql/generated/routine';
 import { standard_standard, standard_standard_translations } from 'graphql/generated/standard';
-import { tag_tag } from 'graphql/generated/tag';
+import { tag_tag, tag_tag_translations } from 'graphql/generated/tag';
 import { user_user } from 'graphql/generated/user';
 import { RoutineStepType } from 'utils';
 import { FetchResult } from "@apollo/client";
@@ -73,6 +73,7 @@ export type RoutineOutputList = RoutineOutput[];
 export type Standard = standard_standard;
 export type StandardTranslation = standard_standard_translations;
 export type Tag = tag_tag;
+export type TagTranslation = tag_tag_translations;
 export type User = user_user;
 export type Wallet = profile_profile_wallets;
 
@@ -80,7 +81,7 @@ export type Wallet = profile_profile_wallets;
  * Wrapper type for helping convert objects in the shape of a query result, 
  * to a create/update input object.
  */
-export type ShapeWrapper<T> = Partial<Omit<T, '__typename' | 'commentsCount' | 'isUpvoted' | 'isStarred' | 'reportsCount' | 'role' | 'score' | 'stars'>> & { __typename?: string };
+export type ShapeWrapper<T> = Partial<Omit<T, '__typename' | 'createdAt' | 'created_at' | 'updatedAt' | 'updated_at' | 'completedAt' | 'completed_at' | 'commentsCount' | 'isUpvoted' | 'isStarred' | 'reportsCount' | 'role' | 'score' | 'stars'>> & { __typename?: string };
 
 // Common query input groups
 export type IsCompleteInput = {

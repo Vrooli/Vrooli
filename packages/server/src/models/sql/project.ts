@@ -270,7 +270,7 @@ export const projectMutater = (prisma: PrismaType) => ({
          * Helper function for creating create/update Prisma value
          */
         const createData = async (input: ProjectCreateInput | ProjectUpdateInput): Promise<{ [x: string]: any }> => ({
-            id: input.id ?? undefined,
+            id: input.id,
             handle: (input as ProjectUpdateInput).handle ?? null,
             isComplete: input.isComplete,
             completedAt: input.isComplete ? new Date().toISOString() : null,

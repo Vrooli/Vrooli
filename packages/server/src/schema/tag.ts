@@ -17,7 +17,7 @@ export const typeDef = gql`
     }
 
     input TagCreateInput {
-        id: ID
+        id: ID!
         anonymous: Boolean
         tag: String!
         translationsCreate: [TagTranslationCreateInput!]
@@ -33,7 +33,7 @@ export const typeDef = gql`
 
     # User's hidden topics
     input TagHiddenCreateInput {
-        id: ID
+        id: ID!
         isBlur: Boolean
         tagCreate: TagCreateInput
         tagConnect: ID
@@ -57,7 +57,7 @@ export const typeDef = gql`
     }
 
     input TagTranslationCreateInput {
-        id: ID
+        id: ID!
         language: String!
         description: String
     }

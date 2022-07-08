@@ -13,6 +13,7 @@ const instructions = yup.string().max(8192)
 const version = yup.string().max(16)
 
 export const inputTranslationCreate = yup.object().shape({
+    id: id.required(),
     language: language.required(),
     description: description.notRequired().default(undefined),
 });
@@ -24,6 +25,7 @@ export const inputTranslationUpdate = yup.object().shape({
 export const inputTranslationsCreate = yup.array().of(inputTranslationCreate.required())
 export const inputTranslationsUpdate = yup.array().of(inputTranslationUpdate.required())
 export const inputCreate = yup.object().shape({
+    id: id.required(),
     isRequired: isRequired.notRequired().default(undefined),
     name: name.required(),
     standardConnect: id.notRequired().default(undefined),
@@ -42,6 +44,7 @@ export const inputsCreate = yup.array().of(inputCreate.required())
 export const inputsUpdate = yup.array().of(inputUpdate.required())
 
 export const outputTranslationCreate = yup.object().shape({
+    id: id.required(),
     language: language.required(),
     description: description.notRequired().default(undefined),
 });
@@ -53,6 +56,7 @@ export const outputTranslationUpdate = yup.object().shape({
 export const outputTranslationsCreate = yup.array().of(outputTranslationCreate.required())
 export const outputTranslationsUpdate = yup.array().of(outputTranslationUpdate.required())
 export const outputCreate = yup.object().shape({
+    id: id.required(),
     name: name.notRequired().default(undefined),
     standardConnect: id.notRequired().default(undefined),
     standardCreate: standardCreate.notRequired().default(undefined),
@@ -73,6 +77,7 @@ export const outputsCreate = yup.array().of(outputCreate.required())
 export const outputsUpdate = yup.array().of(outputUpdate.required())
 
 export const routineTranslationCreate = yup.object().shape({
+    id: id.required(),
     language: language.required(),
     description: description.notRequired().default(undefined),
     instructions: instructions.required(),
@@ -102,6 +107,7 @@ export const routineUpdateForm = routineCreateForm;
  * Information required when creating a routine. 
  */
 export const routineCreate = yup.object().shape({
+    id: id.required(),
     isAutomatable: isAutomatable.notRequired().default(undefined),
     isComplete: isComplete.notRequired().default(undefined),
     isInternal: isInternal.notRequired().default(undefined),

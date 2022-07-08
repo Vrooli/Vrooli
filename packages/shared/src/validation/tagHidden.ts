@@ -5,6 +5,7 @@ import { tagCreate } from './tag';
 const isBlur = yup.boolean();
 
 export const tagHiddenCreate = yup.object().shape({
+    id: id.required(),
     isBlur: isBlur.notRequired().default(undefined),
     tagConnect: id.notRequired().default(undefined),
     tagCreate: tagCreate.notRequired().default(undefined),

@@ -1,42 +1,74 @@
-import { TagSelectorTag } from "components/inputs/types";
+import { TagCreateInput, TagTranslationCreateInput, TagTranslationUpdateInput, TagUpdateInput } from "graphql/generated/globalTypes";
+import { ShapeWrapper, Tag, TagTranslation } from "types";
+import { hasObjectChanged } from "./objectTools";
+import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
-export type ShapeTagsCreateResult = {
-    tagsCreate?: { tag: string }[];
-    tagsConnect?: string[];
-};
-
-export type ShapeTagsUpdateResult = {
-    tagsCreate?: { tag: string }[];
-    tagsConnect?: string[];
-    tagsDisconnect?: string[];
-};
-
-/**
- * Shapes a tag list associated with an object being created
- * @param tags The tags to shape
- * @returns An object shaped for the API
- */
-export const shapeTagsCreate = (tags: TagSelectorTag[]): ShapeTagsCreateResult => {
-    return Array.isArray(tags) && tags.length > 0 ? {
-        tagsCreate: tags.filter(t => !t.id).map(t => ({ tag: t.tag })),
-        tagsConnect: tags.filter(t => t.id).map(t => (t.id)) as string[],
-    } : {};
+export type TagTranslationShape = Omit<ShapeWrapper<TagTranslation>, 'language'> & {
+    id: string;
+    language: TagTranslationCreateInput['language'];
 }
 
-/**
- * Shapes a tag list associated with an object being updated
- * @param existingTags Tags that already exist in the object
- * @param newTags Tags that are being added to the object
- * @returns An object shaped for the API
- */
-export const shapeTagsUpdate = (existingTags: TagSelectorTag[] | null | undefined, newTags: TagSelectorTag[]): ShapeTagsUpdateResult => {
-    console.log('SHAPE TAGS UPDATE', existingTags, newTags);
-    if (!existingTags || !Array.isArray(existingTags)) {
-        return shapeTagsCreate(newTags);
-    }
-    return Array.isArray(newTags) && newTags.length > 0 ? {
-        tagsCreate: newTags.filter(t => !t.id && !existingTags.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
-        tagsConnect: newTags.filter(t => t.id && !existingTags.some(tag => tag.tag === t.tag)).map(t => (t.id)) as string[],
-        tagsDisconnect: existingTags.filter(t => !newTags.some(tag => tag.tag === t.tag)).map(t => (t.id)) as string[],
-    } : {}
+export const shapeTagTranslationCreate = (item: TagTranslationShape): TagTranslationCreateInput => ({
+    id: item.id,
+    language: item.language,
+    description: item.description,
+})
+
+export const shapeTagTranslationUpdate = (
+    original: TagTranslationShape,
+    updated: TagTranslationShape
+): TagTranslationUpdateInput | undefined =>
+    shapeUpdate(original, updated, (o, u) => ({
+        id: u.id,
+        description: u.description !== o.description ? u.description : undefined,
+    }))
+
+export const shapeTagTranslationsCreate = (items: TagTranslationShape[] | null | undefined): {
+    translationsCreate?: TagTranslationCreateInput[],
+} => shapeCreateList(items, 'translations', shapeTagTranslationCreate);
+
+export const shapeTagTranslationsUpdate = (
+    o: TagTranslationShape[] | null | undefined,
+    u: TagTranslationShape[] | null | undefined
+): {
+    translationsCreate?: TagTranslationCreateInput[],
+    translationsUpdate?: TagTranslationUpdateInput[],
+    translationsDelete?: string[],
+} => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeTagTranslationCreate, shapeTagTranslationUpdate)
+
+export type TagShape = Omit<ShapeWrapper<Tag>, 'tag' | 'translations'> & {
+    id: string;
+    tag: string;
+    translations: TagTranslationShape[];
 }
+
+export const shapeTagCreate = (item: TagShape): TagCreateInput => ({
+    id: item.id,
+    // anonymous?: boolean | null; TODO
+    tag: item.tag,
+    ...shapeTagTranslationsCreate(item.translations),
+})
+
+export const shapeTagUpdate = (
+    original: TagShape,
+    updated: TagShape
+): TagUpdateInput | undefined =>
+    shapeUpdate(original, updated, (o, u) => ({
+        id: o.id,
+        // anonymous: TODO
+        // tag: u.tag !== o.tag ? u.tag : undefined, probably shouldn't be able to update tag
+        ...shapeTagTranslationsUpdate(o.translations, u.translations),
+    }))
+
+export const shapeTagsCreate = (items: TagShape[] | null | undefined): {
+    tagsCreate?: TagCreateInput[],
+} => shapeCreateList(items, 'tags', shapeTagCreate);
+
+export const shapeTagsUpdate = (
+    o: TagShape[] | null | undefined,
+    u: TagShape[] | null | undefined
+): {
+    tagsCreate?: TagCreateInput[],
+    tagsUpdate?: TagUpdateInput[],
+    tagsDelete?: string[],
+} => shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate)

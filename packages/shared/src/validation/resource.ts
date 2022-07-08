@@ -22,6 +22,7 @@ const link = yup.string().max(1024).test(
 const usedFor = yup.string().oneOf(Object.values(ResourceUsedFor))
 
 export const resourceTranslationCreate = yup.object().shape({
+    id: id.required(),
     language: language.required(),
     description: description.notRequired().default(undefined),
     title: title.notRequired().default(undefined),
@@ -49,6 +50,7 @@ export const resourceUpdateForm = yup.object().shape({
 })
 
 export const resourceCreate = yup.object().shape({
+    id: id.required(),
     listId: id.required(),
     index: index.notRequired().default(undefined),
     link: link.required(),

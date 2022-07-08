@@ -5,6 +5,7 @@ const anonymous = yup.boolean() // Determines if the user will be credited for t
 const tag = yup.string().min(2).max(128)
 
 export const tagTranslationCreate = yup.object().shape({
+    id: id.required(),
     language: language.required(),
     description: description.required(),
 });
@@ -20,6 +21,7 @@ export const tagTranslationsUpdate = yup.array().of(tagTranslationUpdate.require
  * Information required when creating a tag
  */
 export const tagCreate = yup.object().shape({
+    id: id.required(),
     anonymous: anonymous.notRequired().default(undefined),
     tag: tag.required(),
     translationsCreate: tagTranslationsCreate.notRequired().default(undefined),

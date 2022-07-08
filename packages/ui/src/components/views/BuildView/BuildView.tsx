@@ -294,7 +294,6 @@ export const BuildView = ({
     }, [changedRoutine]);
 
     const startEditing = useCallback(() => setIsEditing(true), []);
-
     /**
      * Creates new routine
      */
@@ -302,6 +301,7 @@ export const BuildView = ({
         if (!changedRoutine) {
             return;
         }
+        console.log('SHAPE CREATE', shapeRoutineCreate(changedRoutine));
         mutationWrapper({
             mutation: routineCreate,
             input: shapeRoutineCreate(changedRoutine),

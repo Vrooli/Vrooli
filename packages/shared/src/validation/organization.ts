@@ -6,6 +6,7 @@ import * as yup from 'yup';
 const isOpenToNewMembers = yup.boolean()
 
 export const organizationTranslationCreate = yup.object().shape({
+    id: id.required(),
     language: language.required(),
     bio: bio.notRequired().default(undefined),
     name: name.required(),
@@ -29,6 +30,7 @@ export const organizationUpdateForm = organizationCreateForm;
  * You are automatically created as an admin
  */
 export const organizationCreate = yup.object().shape({
+    id: id.required(),
     isOpenToNewMembers: isOpenToNewMembers.notRequired().default(undefined),
     // You are automatically added as an admin. IDs you add here will be requested to be added as a member
     membersConnect: idArray.notRequired().default(undefined),

@@ -10,6 +10,7 @@ const stringifiedJsonVariables = yup.string().max(8192);
 const type = yup.string().oneOf(Object.values(InputType))
 
 export const standardTranslationCreate = yup.object().shape({
+    id: id.required(),
     language: language.required(),
     description: description.notRequired().default(undefined),
     jsonVariable: stringifiedJson.notRequired().default(undefined),
@@ -37,6 +38,7 @@ export const standardUpdateForm = yup.object().shape({
  * Information required when creating a standard. 
  */
 export const standardCreate = yup.object().shape({
+    id: id.required(),
     default: standardDefault.notRequired().default(undefined),
     isInternal: yup.boolean().notRequired().default(undefined),
     name: name.notRequired().default(undefined),
