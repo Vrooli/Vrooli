@@ -18,6 +18,7 @@ import { SettingsDisplayProps } from "../types";
 import { HelpButton, TagSelector } from "components";
 import { ThemeSwitch } from "components/inputs";
 import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
+import { v4 as uuid } from 'uuid';
 
 const helpText =
     `Display preferences customize the look and feel of Vrooli. More customizations will be available in the near future.`
@@ -55,11 +56,15 @@ export const SettingsDisplay = ({
 
     // Handle hidden tags
     const [hiddenTags, setHiddenTags] = useState<TagHiddenShape[]>([]);
-    const addHiddenTag = useCallback((tag: TagHiddenShape) => {
-        setHiddenTags(t => [...t, tag]);
+    const addHiddenTag = useCallback((tag: TagShape) => {
+        setHiddenTags(t => [...t, { 
+            id: uuid(),
+            isBlur: true, 
+            tag 
+        }]);
     }, [setHiddenTags]);
-    const removeHiddenTag = useCallback((tag: TagHiddenShape) => {
-        setHiddenTags(tags => tags.filter(t => t.tag !== tag.tag));
+    const removeHiddenTag = useCallback((tag: TagShape) => {
+        setHiddenTags(tags => tags.filter(t => t.tag.tag !== tag.tag));
     }, [setHiddenTags]);
     const clearHiddenTags = useCallback(() => {
         setHiddenTags([]);
@@ -183,7 +188,7 @@ export const SettingsDisplay = ({
             <Box sx={{ margin: 2, marginBottom: 5 }}>
                 <TagSelector
                     session={session}
-                    tags={hiddenTags}
+                    tags={hiddenTags.map(t => t.tag)}
                     placeholder={"Enter topics you'd like to hide from view, followed by commas..."}
                     onTagAdd={addHiddenTag}
                     onTagRemove={removeHiddenTag}

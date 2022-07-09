@@ -84,7 +84,8 @@ export const TagSelector = ({
         return autocompleteData.tags.edges.map(({ node }) => node);
     }, [autocompleteData]);
 
-    //TODO store all queried tag data, and query unknown tag data (e.g. tags set in URL, but you don't know isStarred yet)
+    // //TODO store all queried tag data, and query unknown tag data (e.g. tags set in URL, but you don't know isStarred yet)
+    // const [fullTagData, setFullTagData] = useState<{ [tag: string]: Tag }>({});
 
     return (
         <Autocomplete
@@ -119,16 +120,18 @@ export const TagSelector = ({
             renderOption={(props, option: TagShape) => (
                 <MenuItem
                     {...props}
-                    onClick={() => onInputSelect(option)}
+                    onClick={() => onInputSelect(option as Tag)} //TODO
                 >
                     <ListItemText>{option.tag}</ListItemText>
                     <StarButton
                         session={session}
                         objectId={option.id ?? ''}
                         starFor={StarFor.Tag}
-                        isStar={option.isStarred}
-                        stars={option.stars}
-                        onChange={(isStar: boolean) => {}}
+                        // isStar={option.isStarred} // TODO
+                        // stars={option.stars} //TODO
+                        isStar={false}
+                        stars={0}
+                        onChange={(isStar: boolean) => {}} //TODO
                     />
                 </MenuItem>
             )}

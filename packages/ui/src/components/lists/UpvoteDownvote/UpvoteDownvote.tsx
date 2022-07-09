@@ -40,7 +40,7 @@ export const UpvoteDownvote = ({
         mutationWrapper({
             mutation,
             input: { isUpvote, voteFor, forId: objectId },
-            onSuccess: (response) => { onChange(response.data.vote) },
+            onSuccess: () => { onChange(isUpvote) },
         })
     }, [objectId, voteFor, onChange, mutation]);
 
