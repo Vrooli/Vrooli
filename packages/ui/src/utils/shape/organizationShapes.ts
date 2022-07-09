@@ -33,7 +33,7 @@ export const shapeOrganizationTranslationUpdate = (
         id: u.id,
         name: u.name !== o.name ? u.name : undefined,
         bio: u.bio !== o.bio ? u.bio : undefined,
-    }))
+    }), 'id')
 
 export const shapeOrganizationCreate = (item: OrganizationShape): OrganizationCreateInput => ({
     id: item.id,
@@ -51,9 +51,9 @@ export const shapeOrganizationUpdate = (
     shapeUpdate(original, updated, (o, u) => ({
         id: o.id,
         isOpenToNewMembers: u.isOpenToNewMembers !== o.isOpenToNewMembers ? u.isOpenToNewMembers : undefined,
-        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeOrganizationTranslationCreate, shapeOrganizationTranslationUpdate),
-        ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate),
-        ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate),
+        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeOrganizationTranslationCreate, shapeOrganizationTranslationUpdate, 'id'),
+        ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate, 'id'),
+        ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate, 'tag', true, true),
         // TODO members
         //TODO handl
-    }))
+    }), 'id')

@@ -51,7 +51,7 @@ export const shapeNodeEndUpdate = (
     shapeUpdate(original, updated, (o, u) => ({
         id: o.id,
         wasSuccessful: u.wasSuccessful !== o.wasSuccessful ? u.wasSuccessful : undefined,
-    }))
+    }), 'id')
 
 export const shapeNodeRoutineListItemTranslationCreate = (item: NodeRoutineListItemTranslationShape): NodeRoutineListItemTranslationCreateInput => ({
     id: item.id,
@@ -68,7 +68,7 @@ export const shapeNodeRoutineListItemTranslationUpdate = (
         id: u.id,
         description: u.description !== o.description ? u.description : undefined,
         title: u.title !== o.title ? u.title : undefined,
-    }))
+    }), 'id')
 
 export const shapeNodeRoutineListItemCreate = (item: NodeRoutineListItemShape): NodeRoutineListItemCreateInput => ({
     id: item.id,
@@ -87,8 +87,8 @@ export const shapeNodeRoutineListItemUpdate = (
         index: u.index !== o.index ? u.index : undefined,
         isOptional: u.isOptional !== o.isOptional ? u.isOptional : undefined,
         routineUpdate: shapeRoutineUpdate(o.routine, u.routine),
-        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeNodeRoutineListItemTranslationCreate, shapeNodeRoutineListItemTranslationUpdate)
-    }))
+        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeNodeRoutineListItemTranslationCreate, shapeNodeRoutineListItemTranslationUpdate, 'id'),
+    }), 'id')
 
 export const shapeNodeRoutineListCreate = (item: NodeRoutineListShape): NodeRoutineListCreateInput => ({
     id: item.id,
@@ -105,8 +105,8 @@ export const shapeNodeRoutineListUpdate = (
         id: o.id,
         isOptional: u.isOptional !== o.isOptional ? u.isOptional : undefined,
         isOrdered: u.isOrdered !== o.isOrdered ? u.isOrdered : undefined,
-        ...shapeUpdateList(o, u, 'routines', hasObjectChanged, shapeNodeRoutineListItemCreate, shapeNodeRoutineListItemUpdate)
-    }))
+        ...shapeUpdateList(o, u, 'routines', hasObjectChanged, shapeNodeRoutineListItemCreate, shapeNodeRoutineListItemUpdate, 'id')
+    }), 'id')
 
 export const shapeNodeTranslationCreate = (item: NodeTranslationShape): NodeTranslationCreateInput => ({
     id: item.id,
@@ -123,7 +123,7 @@ export const shapeNodeTranslationUpdate = (
         id: u.id,
         description: u.description !== o.description ? u.description : undefined,
         title: u.title !== o.title ? u.title : undefined,
-    }))
+    }), 'id')
 
 export const shapeNodeCreate = (item: NodeShape): NodeCreateInput => ({
     id: item.id,
@@ -148,5 +148,5 @@ export const shapeNodeUpdate = (
         // ...shapeNodeLoopUpdate(o.loop, u.loop),
         nodeEndUpdate: o.data?.__typename === 'NodeEnd' ? shapeNodeEndUpdate(o.data as NodeEndShape, u.data as NodeEndShape) : undefined,
         nodeRoutineListUpdate: o.data?.__typename === 'NodeRoutineList' ? shapeNodeRoutineListUpdate(o.data as NodeRoutineListShape, u.data as NodeRoutineListShape) : undefined,
-        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeNodeTranslationCreate, shapeNodeTranslationUpdate)
-    }))
+        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeNodeTranslationCreate, shapeNodeTranslationUpdate, 'id')
+    }), 'id')

@@ -43,7 +43,7 @@ export const shapeResourceTranslationUpdate = (
         id: u.id,
         description: u.description !== o.description ? u.description : undefined,
         title: u.title !== o.title ? u.title : undefined,
-    }))
+    }), 'id')
 
 export const shapeResourceCreate = (item: ResourceShape): ResourceCreateInput => ({
     id: item.id,
@@ -64,8 +64,8 @@ export const shapeResourceUpdate = (
         link: u.link !== o.link ? u.link : undefined,
         listId: u.listId !== o.listId ? u.listId : undefined,
         usedFor: u.usedFor !== o.usedFor ? u.usedFor : undefined,
-        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeResourceTranslationCreate, shapeResourceTranslationUpdate),
-    }))
+        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeResourceTranslationCreate, shapeResourceTranslationUpdate, 'id'),
+    }), 'id')
 
 export const shapeResourceListTranslationCreate = (item: ResourceListTranslationShape): ResourceListTranslationCreateInput => ({
     id: item.id,
@@ -82,7 +82,7 @@ export const shapeResourceListTranslationUpdate = (
         id: u.id,
         description: u.description !== o.description ? u.description : undefined,
         title: u.title !== o.title ? u.title : undefined,
-    }))
+    }), 'id')
 
 export const shapeResourceListCreate = (item: ResourceListShape): ResourceListCreateInput => ({
     id: item.id,
@@ -105,7 +105,7 @@ export const shapeResourceListUpdate = (
         id: o.id,
         index: u.index !== o.index ? u.index : undefined,
         usedFor: u.usedFor !== o.usedFor ? u.usedFor : undefined,
-        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeResourceListTranslationCreate, shapeResourceListTranslationUpdate),
+        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeResourceListTranslationCreate, shapeResourceListTranslationUpdate, 'id'),
         ...shapeUpdateList({
             resources: o.resources?.map(r => ({
                 ...r,
@@ -116,5 +116,5 @@ export const shapeResourceListUpdate = (
                 ...r,
                 listId: u.id,
             }))
-        }, 'resources', hasObjectChanged, shapeResourceCreate, shapeResourceUpdate),
-    }))
+        }, 'resources', hasObjectChanged, shapeResourceCreate, shapeResourceUpdate, 'id'),
+    }), 'id')

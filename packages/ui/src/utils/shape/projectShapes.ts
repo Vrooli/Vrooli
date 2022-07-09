@@ -39,7 +39,7 @@ export const shapeProjectTranslationUpdate = (
         id: u.id,
         name: u.name !== o.name ? u.name : undefined,
         description: u.description !== o.description ? u.description : undefined,
-    }))
+    }), 'id')
 
 export const shapeProjectCreate = (item: ProjectShape): ProjectCreateInput => ({
     id: item.id,
@@ -63,7 +63,7 @@ export const shapeProjectUpdate = (
         isComplete: u.isComplete !== o.isComplete ? u.isComplete : undefined,
         userId: u.owner?.__typename === ObjectType.User ? u.owner.id : undefined,
         organizationId: u.owner?.__typename === ObjectType.Organization ? u.owner.id : undefined,
-        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeProjectTranslationCreate, shapeProjectTranslationUpdate),
-        ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate),
-        ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate),
-    }))
+        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeProjectTranslationCreate, shapeProjectTranslationUpdate, 'id'),
+        ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate, 'id'),
+        ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate, 'tag', true),
+    }), 'id')

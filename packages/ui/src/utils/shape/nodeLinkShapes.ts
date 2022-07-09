@@ -29,7 +29,7 @@ export const shapeNodeLinkWhenTranslationUpdate = (
         id: u.id,
         description: u.description !== o.description ? u.description : undefined,
         title: u.title !== o.title ? u.title : undefined,
-    }))
+    }), 'id')
 
 export const shapeNodeLinkWhenCreate = (item: NodeLinkWhenShape): NodeLinkWhenCreateInput => ({
     id: item.id,
@@ -46,8 +46,8 @@ export const shapeNodeLinkWhenUpdate = (
         id: o.id,
         linkId: u.linkId !== o.linkId ? u.linkId : undefined,
         condition: u.condition !== o.condition ? u.condition : undefined,
-        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeNodeLinkWhenTranslationCreate, shapeNodeLinkWhenTranslationUpdate),
-    }))
+        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeNodeLinkWhenTranslationCreate, shapeNodeLinkWhenTranslationUpdate, 'id'),
+    }), 'id')
 
 export type NodeLinkShape = Omit<ShapeWrapper<NodeLink>, 'fromId' | 'toId'> & {
     id: string;
@@ -77,5 +77,5 @@ export const shapeNodeLinkUpdate = (
             whens: o.whens?.map(w => ({ ...w, linkId: o.id })),
         }, {
             whens: u.whens?.map(w => ({ ...w, linkId: u.id })),
-        }, 'whens', hasObjectChanged, shapeNodeLinkWhenCreate, shapeNodeLinkWhenUpdate),
-    }))
+        }, 'whens', hasObjectChanged, shapeNodeLinkWhenCreate, shapeNodeLinkWhenUpdate, 'id'),
+    }), 'id')

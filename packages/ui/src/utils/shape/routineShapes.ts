@@ -1,6 +1,6 @@
 import { RoutineCreateInput, RoutineTranslationCreateInput, RoutineTranslationUpdateInput, RoutineUpdateInput } from "graphql/generated/globalTypes";
 import { Routine, RoutineTranslation, ShapeWrapper } from "types";
-import { hasObjectChanged, InputShape, NodeLinkShape, NodeShape, ObjectType, OutputShape, ResourceListShape, shapeInputCreate, shapeInputUpdate, shapeNodeCreate, shapeNodeUpdate, shapeNodeLinkCreate, shapeOutputCreate, shapeOutputUpdate, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, TagShape } from "utils";
+import { hasObjectChanged, InputShape, NodeLinkShape, NodeShape, ObjectType, OutputShape, ResourceListShape, shapeInputCreate, shapeInputUpdate, shapeNodeCreate, shapeNodeUpdate, shapeNodeLinkCreate, shapeNodeLinkUpdate, shapeOutputCreate, shapeOutputUpdate, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, TagShape } from "utils";
 import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
 export type RoutineTranslationShape = Omit<ShapeWrapper<RoutineTranslation>, 'language' | 'instructions' | 'title'> & {
@@ -13,9 +13,9 @@ export type RoutineTranslationShape = Omit<ShapeWrapper<RoutineTranslation>, 'la
 export type RoutineShape = Omit<ShapeWrapper<Routine>, 'complexity' | 'simplicity' | 'inputs' | 'nodeLinks' | 'owner' | 'nodes' | 'outputs' | 'resourceLists' | 'runs' | 'tags'> & {
     id: string;
     inputs: InputShape[];
-    nodeLinks?: NodeLinkShape[];
-    nodes?: Omit<NodeShape, 'routineId'>[];
-    outputs?: OutputShape[];
+    nodeLinks?: NodeLinkShape[] | null;
+    nodes?: Omit<NodeShape, 'routineId'>[] | null;
+    outputs?: OutputShape[] | null;
     owner?: {
         __typename: 'User' | 'Organization';
         id: string;
@@ -23,8 +23,8 @@ export type RoutineShape = Omit<ShapeWrapper<Routine>, 'complexity' | 'simplicit
     parent?: {
         id: string
     } | null;
-    resourceLists?: ResourceListShape[];
-    tags?: TagShape[];
+    resourceLists?: ResourceListShape[] | null;
+    tags?: TagShape[] | null;
     translations: RoutineTranslationShape[];
 }
 
@@ -45,7 +45,7 @@ export const shapeRoutineTranslationUpdate = (
         description: u.description !== o.description ? u.description : undefined,
         instructions: u.instructions !== o.instructions ? u.instructions : undefined,
         title: u.title !== o.title ? u.title : undefined,
-    }))
+    }), 'id')
 
 export const shapeRoutineCreate = (item: RoutineShape): RoutineCreateInput => ({
     id: item.id,
@@ -71,7 +71,7 @@ export const shapeRoutineCreate = (item: RoutineShape): RoutineCreateInput => ({
 export const shapeRoutineUpdate = (
     original: RoutineShape,
     updated: RoutineShape
-): RoutineUpdateInput | undefined =>
+): RoutineUpdateInput | undefined => 
     shapeUpdate(original, updated, (o, u) => ({
         id: o.id,
         isAutomatable: u.isAutomatable,
@@ -86,11 +86,11 @@ export const shapeRoutineUpdate = (
             nodes: o.nodes?.map(n => ({ ...n, routineId: o.id }))
         }, {
             nodes: u.nodes?.map(n => ({ ...n, routineId: u.id }))
-        }, 'nodes', shapeNodeCreate, shapeNodeUpdate),
-        ...shapeUpdateList(o, u, 'nodeLinks', shapeNodeLinkCreate, shapeNodeLinkUpdate),
-        ...shapeUpdateList(o, u, 'inputs', shapeInputCreate, shapeInputUpdate),
-        ...shapeUpdateList(o, u, 'outputs', shapeOutputCreate, shapeOutputUpdate),
-        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeRoutineTranslationCreate, shapeRoutineTranslationUpdate),
-        ...shapeUpdateList(o, u, 'resourceLists', shapeResourceListCreate, shapeResourceListUpdate),
-        ...shapeUpdateList(o, u, 'tags', shapeTagCreate, shapeTagUpdate),
-    }))
+        }, 'nodes', hasObjectChanged, shapeNodeCreate, shapeNodeUpdate, 'id'),
+        ...shapeUpdateList(o, u, 'nodeLinks', hasObjectChanged, shapeNodeLinkCreate, shapeNodeLinkUpdate, 'id'),
+        ...shapeUpdateList(o, u, 'inputs', hasObjectChanged, shapeInputCreate, shapeInputUpdate, 'id'),
+        ...shapeUpdateList(o, u, 'outputs', hasObjectChanged, shapeOutputCreate, shapeOutputUpdate, 'id'),
+        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeRoutineTranslationCreate, shapeRoutineTranslationUpdate, 'id'),
+        ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate, 'id'),
+        ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate, 'tag', true, true),
+    }), 'id')

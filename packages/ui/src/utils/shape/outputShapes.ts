@@ -28,7 +28,7 @@ export const shapeOutputTranslationUpdate = (
     shapeUpdate(original, updated, (o, u) => ({
         id: u.id,
         description: u.description !== o.description ? u.description : undefined,
-    }))
+    }), 'id')
 
 export const shapeOutputCreate = (item: OutputShape): OutputItemCreateInput => {
     // Connect to standard if it's marked as external. 
@@ -57,6 +57,6 @@ export const shapeOutputUpdate = (
             name: u.name,
             standardConnect: shouldConnectToStandard ? u.standard?.id as string : undefined,
             standardCreate: !shouldConnectToStandard ? shapeStandardCreate(u.standard as StandardShape) : undefined,
-            ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeOutputTranslationCreate, shapeOutputTranslationUpdate),
+            ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeOutputTranslationCreate, shapeOutputTranslationUpdate, 'id'),
         }
-    })
+    }, 'id')

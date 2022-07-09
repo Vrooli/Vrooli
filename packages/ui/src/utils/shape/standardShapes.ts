@@ -1,6 +1,6 @@
 import { StandardCreateInput, StandardTranslationCreateInput, StandardTranslationUpdateInput, StandardUpdateInput } from "graphql/generated/globalTypes";
 import { ShapeWrapper, Standard, StandardTranslation } from "types";
-import { hasObjectChanged, ObjectType, ResourceListShape, shapeResourceListsCreate, shapeResourceListsUpdate, shapeTagsCreate, shapeTagsUpdate, TagShape } from "utils";
+import { hasObjectChanged, ObjectType, ResourceListShape, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, TagShape } from "utils";
 import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
 export type StandardTranslationShape = Omit<ShapeWrapper<StandardTranslation>, 'language' | 'jsonVariable'> & {
@@ -40,20 +40,7 @@ export const shapeStandardTranslationUpdate = (
         id: u.id,
         description: u.description !== o.description ? u.description : undefined,
         jsonVariable: u.jsonVariable !== o.jsonVariable ? u.jsonVariable : undefined,
-    }))
-
-export const shapeStandardTranslationsCreate = (items: StandardTranslationShape[] | null | undefined): {
-    translationsCreate?: StandardTranslationCreateInput[],
-} => shapeCreateList(items, 'translations', shapeStandardTranslationCreate);
-
-export const shapeStandardTranslationsUpdate = (
-    o: StandardTranslationShape[] | null | undefined,
-    u: StandardTranslationShape[] | null | undefined
-): {
-    translationsCreate?: StandardTranslationCreateInput[],
-    translationsUpdate?: StandardTranslationUpdateInput[],
-    translationsDelete?: string[],
-} => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeStandardTranslationCreate, shapeStandardTranslationUpdate)
+    }), 'id')
 
 export const shapeStandardCreate = (item: StandardShape): StandardCreateInput => ({
     id: item.id,
@@ -67,9 +54,9 @@ export const shapeStandardCreate = (item: StandardShape): StandardCreateInput =>
     // parentId: u.parent?.id, TODO
     createdByUserId: item.creator?.__typename === ObjectType.User ? item.creator.id : undefined,
     createdByOrganizationId: item.creator?.__typename === ObjectType.Organization ? item.creator.id : undefined,
-    ...shapeStandardTranslationsCreate(item.translations),
-    ...shapeResourceListsCreate(item.resourceLists),
-    ...shapeTagsCreate(item.tags ?? []),
+    ...shapeCreateList(item, 'translations', shapeStandardTranslationCreate),
+    ...shapeCreateList(item, 'resourceLists', shapeResourceListCreate),
+    ...shapeCreateList(item, 'tags', shapeTagCreate),
 })
 
 export const shapeStandardUpdate = (
@@ -79,7 +66,7 @@ export const shapeStandardUpdate = (
     shapeUpdate(original, updated, (o, u) => ({
         id: o.id,
         // makingAnonymous: updated.makingAnonymous, TODO
-        ...shapeStandardTranslationsUpdate(o.translations, u.translations),
-        ...shapeResourceListsUpdate(o.resourceLists, u.resourceLists),
-        ...shapeTagsUpdate(o.tags, u.tags),
-    }))
+        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeStandardTranslationCreate, shapeStandardTranslationUpdate, 'id'),
+        ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate, 'id'),
+        ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate, 'tag', true, true),
+    }), 'id')

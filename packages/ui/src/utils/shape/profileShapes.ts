@@ -3,7 +3,8 @@ import { Profile, ProfileTranslation, ShapeWrapper, TagHidden } from "types";
 import { hasObjectChanged } from "./objectTools";
 import { ResourceListShape } from "./resourceShapes";
 import { shapeUpdate, shapeUpdateList } from "./shapeTools";
-import { shapeTagCreate, shapeTagsUpdate, TagShape } from "./tagShapes";
+import { shapeTagCreate, shapeTagUpdate, TagShape } from "./tagShapes";
+import { shapeResourceListCreate, shapeResourceListUpdate } from "./resourceShapes";
 
 export type ProfileTranslationShape = Omit<ShapeWrapper<ProfileTranslation>, 'language' | 'bio'> & {
     id: string;
@@ -39,7 +40,7 @@ export const shapeProfileTranslationUpdate = (
     shapeUpdate(original, updated, (o, u) => ({
         id: u.id,
         bio: u.bio !== o.bio ? u.bio : undefined,
-    }))
+    }), 'id')
 
 export const shapeTagHiddenCreate = (item: TagHiddenShape): TagHiddenCreateInput => ({
     id: item.id,
@@ -54,7 +55,7 @@ export const shapeTagHiddenUpdate = (
     shapeUpdate(original, updated, (o, u) => ({
         id: u.id,
         isBlur: u.isBlur !== o.isBlur ? u.isBlur : undefined,
-    }))
+    }), 'id')
 
 export const shapeProfileUpdate = (
     original: ProfileShape,
@@ -65,8 +66,8 @@ export const shapeProfileUpdate = (
         handle: updated.handle !== original.handle ? updated.handle : undefined,
         name: updated.name !== original.name ? updated.name : undefined,
         theme: updated.theme !== original.theme ? updated.theme : undefined,
-        ...shapeUpdateList(o, u, 'hiddenTags', hasObjectChanged, shapeTagHiddenCreate, shapeTagHiddenUpdate),
-        ...shapeUpdateList(o, u, 'starredTags', hasObjectChanged, shapeTagCreate, shapeTagsUpdate),
-        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeProfileTranslationCreate, shapeProfileTranslationUpdate),
-        ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate),
-    }))
+        ...shapeUpdateList(o, u, 'hiddenTags', hasObjectChanged, shapeTagHiddenCreate, shapeTagHiddenUpdate, 'id'),
+        ...shapeUpdateList(o, u, 'starredTags', hasObjectChanged, shapeTagCreate, shapeTagUpdate, 'tag', true, true),
+        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeProfileTranslationCreate, shapeProfileTranslationUpdate, 'id'),
+        ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate, 'id'),
+    }), 'id')
