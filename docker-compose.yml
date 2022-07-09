@@ -80,7 +80,7 @@ services:
             - db
         command: /bin/sh -c "chmod +x ./scripts/* && ./scripts/server.sh"
     db:
-        image: postgres:13
+        image: postgres:13-alpine
         restart: always
         container_name: db
         environment: 
