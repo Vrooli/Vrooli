@@ -1,24 +1,23 @@
 import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
-import { organization } from "graphql/generated/organization";
+import { organization, organizationVariables } from "graphql/generated/organization";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { organizationCreateForm as validationSchema, ROLES } from '@local/shared';
 import { useFormik } from 'formik';
 import { organizationCreateMutation } from "graphql/mutation";
-import { formatForCreate, getUserLanguages, shapeTagsCreate, updateArray, useReactSearch } from "utils";
+import { getUserLanguages, OrganizationTranslationShape, shapeOrganizationCreate, TagShape, updateArray, useReactSearch } from "utils";
 import { OrganizationCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LanguageInput, ResourceListHorizontal, TagSelector } from "components";
-import { TagSelectorTag } from "components/inputs/types";
 import {
     Add as CreateIcon,
     Restore as CancelIcon,
 } from '@mui/icons-material';
 import { DialogActionItem } from "components/containers/types";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { NewObject, Organization, ResourceList } from "types";
+import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuid } from 'uuid';
 
 export const OrganizationCreate = ({
     onCreated,
@@ -29,17 +28,17 @@ export const OrganizationCreate = ({
     const params = useReactSearch(null);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
 
     // Handle tags
-    const [tags, setTags] = useState<TagSelectorTag[]>([]);
-    const addTag = useCallback((tag: TagSelectorTag) => {
+    const [tags, setTags] = useState<TagShape[]>([]);
+    const addTag = useCallback((tag: TagShape) => {
         setTags(t => [...t, tag]);
     }, [setTags]);
-    const removeTag = useCallback((tag: TagSelectorTag) => {
+    const removeTag = useCallback((tag: TagShape) => {
         setTags(tags => tags.filter(t => t.tag !== tag.tag));
     }, [setTags]);
     const clearTags = useCallback(() => {
@@ -47,7 +46,7 @@ export const OrganizationCreate = ({
     }, [setTags]);
 
     // Handle translations
-    type Translation = NewObject<Organization['translations'][0]>;
+    type Translation = OrganizationTranslationShape;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -68,7 +67,7 @@ export const OrganizationCreate = ({
     }, [params]);
 
     // Handle create
-    const [mutation] = useMutation<organization>(organizationCreateMutation);
+    const [mutation] = useMutation<organization, organizationVariables>(organizationCreateMutation);
     const formik = useFormik({
         initialValues: {
             name: '',
@@ -76,19 +75,21 @@ export const OrganizationCreate = ({
         },
         validationSchema,
         onSubmit: (values) => {
-            const resourceListAdd = resourceList ? formatForCreate(resourceList) : {};
             const allTranslations = getTranslationsUpdate(language, {
+                id: uuid(),
                 language,
                 bio: values.bio,
                 name: values.name,
             })
             mutationWrapper({
                 mutation,
-                input: formatForCreate({
+                input: shapeOrganizationCreate({
+                    id: uuid(),
+                    isOpenToNewMembers: true, //TODO
+                    resourceLists: [resourceList],
+                    tags,
                     translations: allTranslations,
-                    resourceListsCreate: [resourceListAdd],
-                    ...shapeTagsCreate(tags),
-                }) as any,
+                }),
                 onSuccess: (response) => { onCreated(response.data.organizationCreate) },
                 onError: () => { formik.setSubmitting(false) },
             })
@@ -131,6 +132,7 @@ export const OrganizationCreate = ({
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
+            id: uuid(),
             language,
             bio: formik.values.bio,
             name: formik.values.name,

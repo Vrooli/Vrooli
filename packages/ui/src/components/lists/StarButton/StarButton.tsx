@@ -8,7 +8,7 @@ import {
 import { multiLineEllipsis } from 'styles';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { useMutation } from '@apollo/client';
-import { star } from 'graphql/generated/star';
+import { star, starVariables } from 'graphql/generated/star';
 import { starMutation } from 'graphql/mutation';
 
 export const StarButton = ({
@@ -33,7 +33,7 @@ export const StarButton = ({
         return starNum;
     }, [internalIsStar, isStar, stars]);
 
-    const [mutation] = useMutation<star>(starMutation);
+    const [mutation] = useMutation<star, starVariables>(starMutation);
     const handleClick = useCallback((event: any) => {
         if (!session.id) return;
         const isStar = !internalIsStar;

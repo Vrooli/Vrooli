@@ -19,10 +19,11 @@ import { validate as uuidValidate } from 'uuid';
 import { DecisionStep, Node, NodeDataEnd, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, RunStep, SubroutineStep } from "types";
 import { parseSearchParams, stringifySearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
-import { runComplete } from "graphql/generated/runComplete";
+import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
 import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils";
 import { runUpdate, runUpdateVariables } from "graphql/generated/runUpdate";
+import { v4 as uuid } from 'uuid';
 
 /**
  * Maximum routine nesting supported
@@ -563,7 +564,7 @@ export const RunView = ({
     }, [previousStep, setCurrStepLocation]);
 
     const [logRunUpdate] = useMutation<runUpdate, runUpdateVariables>(runUpdateMutation);
-    const [logRunComplete] = useMutation<runComplete>(runCompleteMutation);
+    const [logRunComplete] = useMutation<runComplete, runCompleteVariables>(runCompleteMutation);
     /**
      * Navigate to the next subroutine, or complete the routine.
      * Also log progress, time elapsed, and other metrics
@@ -596,6 +597,7 @@ export const RunView = ({
             contextSwitches: currStepRunData.contextSwitches + contextSwitches,
         }] : undefined
         const stepsCreate = currStepRunData ? undefined : [{
+            id: uuid(),
             order: newProgress.length,
             title: currStep?.title ?? '',
             nodeId: (currParentListStep as RoutineListStep).nodeId,
@@ -624,8 +626,8 @@ export const RunView = ({
                     completedComplexity: newlyCompletedComplexity,
                     finalStepCreate: stepsCreate ? stepsCreate[0] : undefined,
                     finalStepUpdate: stepsUpdate ? stepsUpdate[0] : undefined,
-                    title: getTranslation(routine, 'title', getUserLanguages(session), true),
-                    version: routine.version,
+                    title: getTranslation(routine, 'title', getUserLanguages(session), true) ?? 'Unnamed Routine',
+                    version: routine.version ?? '',
                     wasSuccessful: true, //TODO
                 },
                 successMessage: () => 'Routine completed!🎉',
@@ -666,8 +668,8 @@ export const RunView = ({
             input: {
                 id: run.id,
                 exists: true,
-                title: getTranslation(routine, 'title', getUserLanguages(session), true),
-                version: routine.version,
+                title: getTranslation(routine, 'title', getUserLanguages(session), true) ?? 'Unnamed Routine',
+                version: routine.version ?? '',
                 wasSuccessful: success,
             },
             successMessage: () => 'Routine completed!🎉',

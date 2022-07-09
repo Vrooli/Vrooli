@@ -1,8 +1,9 @@
 import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
-import { DeleteOneType, ReportFor } from '@local/shared';
+import { DeleteOneType } from '@local/shared';
 import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
+import { ReportFor } from 'graphql/generated/globalTypes';
 import { ObjectType } from 'utils';
 
 export interface AlertDialogProps extends DialogProps { };
@@ -103,7 +104,7 @@ export interface ReportDialogProps extends DialogProps {
     forId: string;
     onClose: () => any;
     open: boolean;
-    reportFor: keyof typeof ReportFor;
+    reportFor: ReportFor;
     session: Session;
     title?: string;
     zIndex: number;

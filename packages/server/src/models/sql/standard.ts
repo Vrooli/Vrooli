@@ -310,7 +310,7 @@ export const standardMutater = (
             translations.jsonVariable = sortify(translations.jsonVariable);
         }
         return {
-            id: data.id ?? undefined,
+            id: data.id,
             isInternal: data.isInternal ?? false,
             name: await standardQuerier(prisma).generateName(userId ?? '', data),
             default: data.default,

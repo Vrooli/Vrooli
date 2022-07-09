@@ -21,7 +21,7 @@ export const typeDef = gql`
     }
 
     input StandardCreateInput {
-        id: ID
+        id: ID!
         default: String
         isInternal: Boolean
         name: String
@@ -81,7 +81,7 @@ export const typeDef = gql`
     }
 
     input StandardTranslationCreateInput {
-        id: ID
+        id: ID!
         language: String!
         description: String
         jsonVariable: String

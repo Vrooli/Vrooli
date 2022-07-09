@@ -10,6 +10,7 @@ const reason = yup.string().min(1).max(128)
  * Information required when creating a comment
  */
 export const reportCreate = yup.object().shape({
+    id: id.required(),
     createdFor: createdFor.required(),
     createdForId: id.required(),
     details: details.notRequired().default(undefined),

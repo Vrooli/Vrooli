@@ -11,13 +11,14 @@ import {
     Cancel as CancelIcon,
     Close as CloseIcon,
 } from '@mui/icons-material';
-import { formatForCreate, formatForUpdate, getTranslation, getUserLanguages, Pubs, updateArray } from 'utils';
-import { resourceCreate } from 'graphql/generated/resourceCreate';
+import { getTranslation, getUserLanguages, Pubs, ResourceShape, ResourceTranslationShape, shapeResourceCreate, shapeResourceUpdate, updateArray } from 'utils';
+import { resourceCreate, resourceCreateVariables } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
-import { resourceUpdate } from 'graphql/generated/resourceUpdate';
+import { resourceUpdate, resourceUpdateVariables } from 'graphql/generated/resourceUpdate';
 import { useCallback, useEffect, useState } from 'react';
 import { LanguageInput } from 'components/inputs';
 import { NewObject, Resource } from 'types';
+import { v4 as uuid } from 'uuid';
 
 const helpText =
     `## What are resources?
@@ -67,11 +68,11 @@ export const ResourceDialog = ({
 }: ResourceDialogProps) => {
     const { palette } = useTheme();
 
-    const [addMutation, { loading: addLoading }] = useMutation<resourceCreate>(resourceCreateMutation);
-    const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate>(resourceUpdateMutation);
+    const [addMutation, { loading: addLoading }] = useMutation<resourceCreate, resourceCreateVariables>(resourceCreateMutation);
+    const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate, resourceUpdateVariables>(resourceUpdateMutation);
 
     // Handle translations
-    type Translation = NewObject<Resource['translations'][0]>;
+    type Translation = ResourceTranslationShape;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -109,34 +110,52 @@ export const ResourceDialog = ({
         validationSchema,
         onSubmit: (values) => {
             const allTranslations = getTranslationsUpdate(language, {
+                id: uuid(),
                 language,
                 description: values.description,
                 title: values.title,
             })
-            const data = {
-                id: partialData?.id ?? undefined,
+            const input: ResourceShape = {
+                id: partialData?.id ?? uuid(),
                 index: Math.max(index, 0),
                 listId,
                 link: values.link,
                 usedFor: values.usedFor,
                 translations: allTranslations,
             };
-            const input = (index < 0) ? formatForCreate(data) : formatForUpdate(partialData, data, [], ['translations']);
             if (mutate) {
-                mutationWrapper({
-                    mutation: (index < 0) ? addMutation : updateMutation,
-                    input,
-                    successCondition: (response) => response.data.resourceCreate !== null,
-                    onSuccess: (response) => {
-                        PubSub.publish(Pubs.Snack, { message: (index < 0) ? 'Resource created.' : 'Resource updated.' });
-                        (index < 0) ? onCreated(response.data.resourceCreate) : onUpdated(index ?? 0, response.data.resourceUpdate);
-                        formik.resetForm();
-                        onClose();
-                    },
-                    onError: () => { formik.setSubmitting(false) },
-                })
+                const onSuccess = (response) => {
+                    PubSub.publish(Pubs.Snack, { message: (index < 0) ? 'Resource created.' : 'Resource updated.' });
+                    (index < 0) ? onCreated(response.data.resourceCreate) : onUpdated(index ?? 0, response.data.resourceUpdate);
+                    formik.resetForm();
+                    onClose();
+                }
+                // If index is negative, create
+                if (index < 0) {
+                    mutationWrapper({
+                        mutation: addMutation,
+                        input: shapeResourceCreate(input),
+                        successCondition: (response) => response.data.resourceCreate !== null,
+                        onSuccess,
+                        onError: () => { formik.setSubmitting(false) },
+                    })
+                }
+                // Otherwise, update
+                else {
+                    if (!partialData || !partialData.id || !listId) {
+                        PubSub.publish(Pubs.Snack, { message: 'Could not find resource to update.', severity: 'error' });
+                        return;
+                    }
+                    mutationWrapper({
+                        mutation: updateMutation,
+                        input: shapeResourceUpdate({ ...partialData, listId } as ResourceShape, input),
+                        successCondition: (response) => response.data.resourceUpdate !== null,
+                        onSuccess,
+                        onError: () => { formik.setSubmitting(false) },
+                    })
+                }
             } else {
-                onCreated(data as NewObject<Resource>);
+                onCreated(input as NewObject<Resource>);
                 formik.resetForm();
                 onClose();
             }
@@ -166,6 +185,7 @@ export const ResourceDialog = ({
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
+            id: uuid(),
             language,
             description: formik.values.description,
             title: formik.values.title,

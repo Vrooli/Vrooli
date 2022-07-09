@@ -1,6 +1,6 @@
 import { useMutation } from '@apollo/client';
 import { Box, Stack, Tooltip, Typography } from '@mui/material';
-import { vote } from 'graphql/generated/vote';
+import { vote, voteVariables } from 'graphql/generated/vote';
 import { voteMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -32,7 +32,7 @@ export const UpvoteDownvote = ({
         return scoreNum;
     }, [internalIsUpvoted, isUpvoted, score]);
 
-    const [mutation] = useMutation<vote>(voteMutation);
+    const [mutation] = useMutation<vote, voteVariables>(voteMutation);
     const handleVote = useCallback((e: any, isUpvote: boolean | null) => {
         // Prevent propagation of normal click event
         e.stopPropagation();

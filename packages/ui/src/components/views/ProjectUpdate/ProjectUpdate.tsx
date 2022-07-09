@@ -10,17 +10,16 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { projectUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { projectUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, shapeTagsUpdate, updateArray } from "utils";
+import { ProjectTranslationShape, Pubs, shapeProjectUpdate, TagShape, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
 } from '@mui/icons-material';
 import { DialogActionItem } from "components/containers/types";
-import { TagSelectorTag } from "components/inputs/types";
 import { LanguageInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { NewObject, Organization, Project, ResourceList } from "types";
-import { v4 as uuidv4 } from 'uuid';
+import { Organization, ResourceList } from "types";
+import { v4 as uuid } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 
 export const ProjectUpdate = ({
@@ -45,17 +44,17 @@ export const ProjectUpdate = ({
     const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
 
     // Handle tags
-    const [tags, setTags] = useState<TagSelectorTag[]>([]);
-    const addTag = useCallback((tag: TagSelectorTag) => {
+    const [tags, setTags] = useState<TagShape[]>([]);
+    const addTag = useCallback((tag: TagShape) => {
         setTags(t => [...t, tag]);
     }, [setTags]);
-    const removeTag = useCallback((tag: TagSelectorTag) => {
+    const removeTag = useCallback((tag: TagShape) => {
         setTags(tags => tags.filter(t => t.tag !== tag.tag));
     }, [setTags]);
     const clearTags = useCallback(() => {
@@ -63,7 +62,7 @@ export const ProjectUpdate = ({
     }, [setTags]);
 
     // Handle translations
-    type Translation = NewObject<Project['translations'][0]>;
+    type Translation = ProjectTranslationShape;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -81,7 +80,7 @@ export const ProjectUpdate = ({
     useEffect(() => {
         if (project?.owner?.__typename === 'Organization') setOrganizationFor(project.owner as Organization);
         else setOrganizationFor(null);
-        setResourceList(project?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+        setResourceList(project?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(project?.tags ?? []);
         setTranslations(project?.translations?.map(t => ({
             id: t.id,
@@ -92,7 +91,7 @@ export const ProjectUpdate = ({
     }, [project]);
 
     // Handle update
-    const [mutation] = useMutation<project>(projectUpdateMutation);
+    const [mutation] = useMutation<project, projectVariables>(projectUpdateMutation);
     const formik = useFormik({
         initialValues: {
             description: '',
@@ -101,23 +100,32 @@ export const ProjectUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
-            const existingResourceList = Array.isArray(project?.resourceLists) ? (project as Project).resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) : undefined;
-            const resourceListUpdate = existingResourceList ? { resourceListsUpdate: formatForUpdate(existingResourceList, resourceList, [], ['resources']) } : {};
-            const ownedBy: { organizationId: string; } | { userId: string; } = organizationFor ? { organizationId: organizationFor.id } : { userId: session?.id ?? '' };
+            if (!project) {
+                PubSub.publish(Pubs.Snack, { message: 'Could not find existing project data.', severity: 'error' });
+                return;
+            }
             const allTranslations = getTranslationsUpdate(language, {
+                id: uuid(),
                 language,
                 description: values.description,
                 name: values.name,
             })
             mutationWrapper({
                 mutation,
-                input: formatForUpdate(project, {
-                    id,
-                    ...ownedBy,
-                    ...resourceListUpdate,
-                    ...shapeTagsUpdate(project?.tags, tags),
+                input: shapeProjectUpdate(project, {
+                    id: project.id,
+                    isComplete: project.isComplete, //TODO: values.isComplete,
+                    owner: organizationFor ? {
+                        __typename: 'Organization',
+                        id: organizationFor.id,
+                    } : {
+                        __typename: 'User',
+                        id: session.id ?? '',
+                    },
+                    resourceLists: [resourceList],
+                    tags: tags,
                     translations: allTranslations,
-                }, ['tags'], ['translations']),
+                }),
                 onSuccess: (response) => { onUpdated(response.data.projectUpdate) },
                 onError: () => { formik.setSubmitting(false) },
             })
@@ -149,6 +157,7 @@ export const ProjectUpdate = ({
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
+            id: uuid(),
             language,
             description: formik.values.description,
             name: formik.values.name,

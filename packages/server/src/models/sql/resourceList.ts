@@ -59,6 +59,7 @@ export const resourceListSearcher = (): Searcher<ResourceListSearchInput> => ({
 export const resourceListMutater = (prisma: PrismaType) => ({
     async toDBShape(userId: string | null, data: ResourceListCreateInput | ResourceListUpdateInput, isAdd: boolean): Promise<any> {
         return {
+            id: data.id,
             organizationId: data.organizationId ?? undefined,
             projectId: data.projectId ?? undefined,
             routineId: data.routineId ?? undefined,

@@ -278,7 +278,7 @@ export interface BooleanSearchException {
 }
 
 export interface CommentCreateInput {
-  id?: string | null;
+  id: string;
   createdFor: CommentFor;
   forId: string;
   parentId?: string | null;
@@ -303,7 +303,7 @@ export interface CommentSearchInput {
 }
 
 export interface CommentTranslationCreateInput {
-  id?: string | null;
+  id: string;
   language: string;
   text: string;
 }
@@ -406,7 +406,7 @@ export interface HomePageInput {
 }
 
 export interface InputItemCreateInput {
-  id?: string | null;
+  id: string;
   isRequired?: boolean | null;
   name?: string | null;
   standardConnect?: string | null;
@@ -417,7 +417,7 @@ export interface InputItemCreateInput {
 }
 
 export interface InputItemTranslationCreateInput {
-  id?: string | null;
+  id: string;
   language: string;
   description?: string | null;
 }
@@ -454,7 +454,7 @@ export interface LogSearchInput {
 }
 
 export interface LoopCreateInput {
-  id?: string | null;
+  id: string;
   loops?: number | null;
   maxLoops?: number | null;
   operation?: string | null;
@@ -472,14 +472,14 @@ export interface LoopUpdateInput {
 }
 
 export interface LoopWhileCreateInput {
-  id?: string | null;
+  id: string;
   translationsCreate?: LoopWhileTranslationCreateInput[] | null;
   condition: string;
   toId?: string | null;
 }
 
 export interface LoopWhileTranslationCreateInput {
-  id?: string | null;
+  id: string;
   language: string;
   description?: string | null;
   title: string;
@@ -502,7 +502,7 @@ export interface LoopWhileUpdateInput {
 }
 
 export interface NodeCreateInput {
-  id?: string | null;
+  id: string;
   columnIndex?: number | null;
   rowIndex?: number | null;
   type?: NodeType | null;
@@ -514,7 +514,7 @@ export interface NodeCreateInput {
 }
 
 export interface NodeEndCreateInput {
-  id?: string | null;
+  id: string;
   wasSuccessful?: boolean | null;
 }
 
@@ -524,7 +524,7 @@ export interface NodeEndUpdateInput {
 }
 
 export interface NodeLinkCreateInput {
-  id?: string | null;
+  id: string;
   whens?: NodeLinkWhenCreateInput[] | null;
   operation?: string | null;
   fromId: string;
@@ -542,14 +542,14 @@ export interface NodeLinkUpdateInput {
 }
 
 export interface NodeLinkWhenCreateInput {
-  id?: string | null;
-  toId?: string | null;
+  id: string;
+  linkId?: string | null;
   translationsCreate?: NodeLinkWhenTranslationCreateInput[] | null;
   condition: string;
 }
 
 export interface NodeLinkWhenTranslationCreateInput {
-  id?: string | null;
+  id: string;
   language: string;
   description?: string | null;
   title: string;
@@ -564,7 +564,7 @@ export interface NodeLinkWhenTranslationUpdateInput {
 
 export interface NodeLinkWhenUpdateInput {
   id: string;
-  toId?: string | null;
+  linkId?: string | null;
   translationsDelete?: string[] | null;
   translationsCreate?: NodeLinkWhenTranslationCreateInput[] | null;
   translationsUpdate?: NodeLinkWhenTranslationUpdateInput[] | null;
@@ -572,14 +572,14 @@ export interface NodeLinkWhenUpdateInput {
 }
 
 export interface NodeRoutineListCreateInput {
-  id?: string | null;
+  id: string;
   isOrdered?: boolean | null;
   isOptional?: boolean | null;
   routinesCreate?: NodeRoutineListItemCreateInput[] | null;
 }
 
 export interface NodeRoutineListItemCreateInput {
-  id?: string | null;
+  id: string;
   index: number;
   isOptional?: boolean | null;
   routineConnect: string;
@@ -587,7 +587,7 @@ export interface NodeRoutineListItemCreateInput {
 }
 
 export interface NodeRoutineListItemTranslationCreateInput {
-  id?: string | null;
+  id: string;
   language: string;
   description?: string | null;
   title?: string | null;
@@ -620,7 +620,7 @@ export interface NodeRoutineListUpdateInput {
 }
 
 export interface NodeTranslationCreateInput {
-  id?: string | null;
+  id: string;
   language: string;
   title: string;
   description?: string | null;
@@ -655,7 +655,8 @@ export interface OrganizationCountInput {
 }
 
 export interface OrganizationCreateInput {
-  id?: string | null;
+  id: string;
+  handle?: string | null;
   isOpenToNewMembers?: boolean | null;
   resourceListsCreate?: ResourceListCreateInput[] | null;
   tagsConnect?: string[] | null;
@@ -686,7 +687,7 @@ export interface OrganizationSearchInput {
 }
 
 export interface OrganizationTranslationCreateInput {
-  id?: string | null;
+  id: string;
   language: string;
   bio?: string | null;
   name: string;
@@ -717,7 +718,7 @@ export interface OrganizationUpdateInput {
 }
 
 export interface OutputItemCreateInput {
-  id?: string | null;
+  id: string;
   name?: string | null;
   standardConnect?: string | null;
   standardCreate?: StandardCreateInput | null;
@@ -725,7 +726,7 @@ export interface OutputItemCreateInput {
 }
 
 export interface OutputItemTranslationCreateInput {
-  id?: string | null;
+  id: string;
   language: string;
   description?: string | null;
 }
@@ -746,6 +747,14 @@ export interface OutputItemUpdateInput {
   translationsUpdate?: OutputItemTranslationUpdateInput[] | null;
 }
 
+export interface ProfileEmailUpdateInput {
+  emailsCreate?: EmailCreateInput[] | null;
+  emailsUpdate?: EmailUpdateInput[] | null;
+  emailsDelete?: string[] | null;
+  currentPassword: string;
+  newPassword?: string | null;
+}
+
 export interface ProfileUpdateInput {
   handle?: string | null;
   name?: string | null;
@@ -754,8 +763,8 @@ export interface ProfileUpdateInput {
   hiddenTagsCreate?: TagHiddenCreateInput[] | null;
   hiddenTagsUpdate?: TagHiddenUpdateInput[] | null;
   resourceListsDelete?: string[] | null;
-  resourceListsCreate?: ResourceCreateInput[] | null;
-  resourceListsUpdate?: ResourceUpdateInput[] | null;
+  resourceListsCreate?: ResourceListCreateInput[] | null;
+  resourceListsUpdate?: ResourceListUpdateInput[] | null;
   starredTagsConnect?: string[] | null;
   starredTagsDisconnect?: string[] | null;
   starredTagsCreate?: TagCreateInput[] | null;
@@ -770,9 +779,10 @@ export interface ProjectCountInput {
 }
 
 export interface ProjectCreateInput {
-  id?: string | null;
+  id: string;
   createdByOrganizationId?: string | null;
   createdByUserId?: string | null;
+  handle?: string | null;
   isComplete?: boolean | null;
   parentId?: string | null;
   resourceListsCreate?: ResourceListCreateInput[] | null;
@@ -805,7 +815,7 @@ export interface ProjectSearchInput {
 }
 
 export interface ProjectTranslationCreateInput {
-  id?: string | null;
+  id: string;
   language: string;
   description?: string | null;
   name: string;
@@ -823,7 +833,6 @@ export interface ProjectUpdateInput {
   handle?: string | null;
   isComplete?: boolean | null;
   organizationId?: string | null;
-  parentId?: string | null;
   userId?: string | null;
   resourceListsDelete?: string[] | null;
   resourceListsCreate?: ResourceListCreateInput[] | null;
@@ -841,7 +850,7 @@ export interface ReadAssetsInput {
 }
 
 export interface ReportCreateInput {
-  id?: string | null;
+  id: string;
   createdFor: ReportFor;
   createdForId: string;
   details?: string | null;
@@ -862,7 +871,7 @@ export interface ResourceCountInput {
 }
 
 export interface ResourceCreateInput {
-  id?: string | null;
+  id: string;
   listId: string;
   index?: number | null;
   link: string;
@@ -871,7 +880,7 @@ export interface ResourceCreateInput {
 }
 
 export interface ResourceListCreateInput {
-  id?: string | null;
+  id: string;
   index?: number | null;
   usedFor: ResourceListUsedFor;
   organizationId?: string | null;
@@ -883,6 +892,7 @@ export interface ResourceListCreateInput {
 }
 
 export interface ResourceListTranslationCreateInput {
+  id: string;
   language: string;
   description?: string | null;
   title?: string | null;
@@ -925,7 +935,7 @@ export interface ResourceSearchInput {
 }
 
 export interface ResourceTranslationCreateInput {
-  id?: string | null;
+  id: string;
   language: string;
   description?: string | null;
   title?: string | null;
@@ -955,7 +965,7 @@ export interface RoutineCountInput {
 }
 
 export interface RoutineCreateInput {
-  id?: string | null;
+  id: string;
   isAutomatable?: boolean | null;
   isComplete?: boolean | null;
   isInternal?: boolean | null;
@@ -1008,7 +1018,7 @@ export interface RoutineSearchInput {
 }
 
 export interface RoutineTranslationCreateInput {
-  id?: string | null;
+  id: string;
   language: string;
   description?: string | null;
   instructions: string;
@@ -1029,7 +1039,6 @@ export interface RoutineUpdateInput {
   isComplete?: boolean | null;
   isInternal?: boolean | null;
   version?: string | null;
-  parentId?: string | null;
   userId?: string | null;
   organizationId?: string | null;
   nodesDelete?: string[] | null;
@@ -1076,7 +1085,7 @@ export interface RunCountInput {
 }
 
 export interface RunCreateInput {
-  id?: string | null;
+  id: string;
   routineId: string;
   title: string;
   version: string;
@@ -1099,7 +1108,7 @@ export interface RunSearchInput {
 }
 
 export interface RunStepCreateInput {
-  id?: string | null;
+  id: string;
   nodeId?: string | null;
   contextSwitches?: number | null;
   subroutineId?: string | null;
@@ -1136,7 +1145,7 @@ export interface StandardCountInput {
 }
 
 export interface StandardCreateInput {
-  id?: string | null;
+  id: string;
   default?: string | null;
   isInternal?: boolean | null;
   name?: string | null;
@@ -1174,7 +1183,7 @@ export interface StandardSearchInput {
 }
 
 export interface StandardTranslationCreateInput {
-  id?: string | null;
+  id: string;
   language: string;
   description?: string | null;
   jsonVariable?: string | null;
@@ -1252,21 +1261,20 @@ export interface TagCountInput {
 }
 
 export interface TagCreateInput {
-  id?: string | null;
   anonymous?: boolean | null;
   tag: string;
   translationsCreate?: TagTranslationCreateInput[] | null;
 }
 
 export interface TagHiddenCreateInput {
-  id?: string | null;
+  id: string;
   isBlur?: boolean | null;
   tagCreate?: TagCreateInput | null;
   tagConnect?: string | null;
 }
 
 export interface TagHiddenUpdateInput {
-  id?: string | null;
+  id: string;
   isBlur?: boolean | null;
 }
 
@@ -1285,7 +1293,7 @@ export interface TagSearchInput {
 }
 
 export interface TagTranslationCreateInput {
-  id?: string | null;
+  id: string;
   language: string;
   description?: string | null;
 }
@@ -1297,9 +1305,8 @@ export interface TagTranslationUpdateInput {
 }
 
 export interface TagUpdateInput {
-  id: string;
   anonymous?: boolean | null;
-  tag?: string | null;
+  tag: string;
   translationsDelete?: string[] | null;
   translationsCreate?: TagTranslationCreateInput[] | null;
   translationsUpdate?: TagTranslationUpdateInput[] | null;
@@ -1340,14 +1347,14 @@ export interface UserSearchInput {
 }
 
 export interface UserTranslationCreateInput {
-  id?: string | null;
+  id: string;
   language: string;
   bio?: string | null;
 }
 
 export interface UserTranslationUpdateInput {
   id: string;
-  language: string;
+  language?: string | null;
   bio?: string | null;
 }
 

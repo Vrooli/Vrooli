@@ -3,10 +3,11 @@ import { tags, tagsVariables } from 'graphql/generated/tags';
 import { tagsQuery } from 'graphql/query';
 import { useQuery } from '@apollo/client';
 import { StarFor, TagSortBy } from '@local/shared';
-import { TagSelectorProps, TagSelectorTag } from '../types';
+import { TagSelectorProps } from '../types';
 import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from '@mui/material';
 import { StarButton } from 'components';
-import { Pubs } from 'utils';
+import { Pubs, TagShape } from 'utils';
+import { Tag } from 'types';
 
 export const TagSelector = ({
     disabled,
@@ -58,14 +59,14 @@ export const TagSelector = ({
         clearText();
     }, [clearText, inputValue, onTagAdd, tags]);
 
-    const onInputSelect = useCallback((tag: TagSelectorTag) => {
+    const onInputSelect = useCallback((tag: Tag) => {
         setInputValue('');
         // Determine if tag is already selected
         const isSelected = tags.some(t => t.tag === tag.tag);
         if (isSelected) onTagRemove(tag);
         else onTagAdd(tag);
     }, [tags, onTagAdd, onTagRemove]);
-    const onChipDelete = useCallback((tag: TagSelectorTag) => {
+    const onChipDelete = useCallback((tag: TagShape) => {
         onTagRemove(tag);
     }, [onTagRemove]);
     const { data: autocompleteData, refetch: refetchAutocomplete } = useQuery<tags, tagsVariables>(tagsQuery, {
@@ -78,10 +79,12 @@ export const TagSelector = ({
         }
     });
     useEffect(() => { refetchAutocomplete() }, [inputValue, refetchAutocomplete]);
-    const autocompleteOptions: TagSelectorTag[] = useMemo(() => {
+    const autocompleteOptions: TagShape[] = useMemo(() => {
         if (!autocompleteData) return [];
         return autocompleteData.tags.edges.map(({ node }) => node);
     }, [autocompleteData]);
+
+    //TODO store all queried tag data, and query unknown tag data (e.g. tags set in URL, but you don't know isStarred yet)
 
     return (
         <Autocomplete
@@ -91,7 +94,7 @@ export const TagSelector = ({
             multiple
             freeSolo={true}
             options={autocompleteOptions}
-            getOptionLabel={(o: string | TagSelectorTag) => (typeof o === 'string' ? o : o.tag)}
+            getOptionLabel={(o: string | TagShape) => (typeof o === 'string' ? o : o.tag)}
             inputValue={inputValue}
             noOptionsText={'No suggestions'}
             limitTags={3}
@@ -100,7 +103,7 @@ export const TagSelector = ({
             // Filter out what has already been selected
             filterOptions={(options, params) => options.filter(o => !tags.some(t => t.id === o.id))}
             renderTags={(value, getTagProps) =>
-                value.map((option: TagSelectorTag, index) => (
+                value.map((option: TagShape, index) => (
                     <Chip
                         variant="filled"
                         label={option.tag}
@@ -113,7 +116,7 @@ export const TagSelector = ({
                     />
                 )
                 )}
-            renderOption={(props, option: TagSelectorTag) => (
+            renderOption={(props, option: TagShape) => (
                 <MenuItem
                     {...props}
                     onClick={() => onInputSelect(option)}

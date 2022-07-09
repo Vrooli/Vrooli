@@ -25,9 +25,10 @@ export const typeDef = gql`
     }
 
     input ProjectCreateInput {
-        id: ID
+        id: ID!
         createdByOrganizationId: ID
         createdByUserId: ID
+        handle: String
         isComplete: Boolean
         parentId: ID
         resourceListsCreate: [ResourceListCreateInput!]
@@ -40,7 +41,6 @@ export const typeDef = gql`
         handle: String
         isComplete: Boolean
         organizationId: ID
-        parentId: ID
         userId: ID
         resourceListsDelete: [ID!]
         resourceListsCreate: [ResourceListCreateInput!]
@@ -83,7 +83,7 @@ export const typeDef = gql`
     }
 
     input ProjectTranslationCreateInput {
-        id: ID
+        id: ID!
         language: String!
         description: String
         name: String!

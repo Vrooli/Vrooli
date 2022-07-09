@@ -1,11 +1,10 @@
 import { Box, Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
-import { standard } from "graphql/generated/standard";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { InputType, ROLES, standardCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardCreateMutation } from "graphql/mutation";
-import { getUserLanguages, shapeStandardCreate, updateArray, useReactSearch } from "utils";
+import { getUserLanguages, shapeStandardCreate, StandardTranslationShape, TagShape, updateArray, useReactSearch } from "utils";
 import { StandardCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";
@@ -13,15 +12,15 @@ import {
     Add as CreateIcon,
     Restore as CancelIcon,
 } from '@mui/icons-material';
-import { TagSelectorTag } from "components/inputs/types";
 import { LanguageInput, ResourceListHorizontal, Selector, TagSelector } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { NewObject, ResourceList, Standard } from "types";
+import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuid } from 'uuid';
 import { FieldData } from "forms/types";
 import { BaseStandardInput, PreviewSwitch } from "components/inputs";
 import { generateInputComponent, generateYupSchema } from "forms/generators";
+import { standardCreate, standardCreateVariables } from "graphql/generated/standardCreate";
 
 type InputTypeOption = { label: string, value: InputType }
 /**
@@ -96,17 +95,17 @@ export const StandardCreate = ({
 
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
 
     // Handle tags
-    const [tags, setTags] = useState<TagSelectorTag[]>([]);
-    const addTag = useCallback((tag: TagSelectorTag) => {
+    const [tags, setTags] = useState<TagShape[]>([]);
+    const addTag = useCallback((tag: TagShape) => {
         setTags(t => [...t, tag]);
     }, [setTags]);
-    const removeTag = useCallback((tag: TagSelectorTag) => {
+    const removeTag = useCallback((tag: TagShape) => {
         setTags(tags => tags.filter(t => t.tag !== tag.tag));
     }, [setTags]);
     const clearTags = useCallback(() => {
@@ -114,7 +113,7 @@ export const StandardCreate = ({
     }, [setTags]);
 
     // Handle translations
-    type Translation = NewObject<Standard['translations'][0]>;
+    type Translation = StandardTranslationShape;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -135,7 +134,7 @@ export const StandardCreate = ({
     }, [params]);
 
     // Handle create
-    const [mutation] = useMutation<standard>(standardCreateMutation);
+    const [mutation] = useMutation<standardCreate, standardCreateVariables>(standardCreateMutation);
     const formik = useFormik({
         initialValues: {
             default: '',
@@ -147,6 +146,7 @@ export const StandardCreate = ({
         onSubmit: (values) => {
             // Update translations with final values
             const allTranslations = getTranslationsUpdate(language, {
+                id: uuid(),
                 language,
                 description: values.description,
                 jsonVariable: null, //TODO
@@ -155,6 +155,7 @@ export const StandardCreate = ({
             mutationWrapper({
                 mutation,
                 input: shapeStandardCreate({
+                    id: uuid(),
                     default: values.default,
                     isInternal: false,
                     name: values.name,
@@ -211,6 +212,7 @@ export const StandardCreate = ({
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
+            id: uuid(),
             language,
             description: formik.values.description,
             jsonVariable: null, //TODO

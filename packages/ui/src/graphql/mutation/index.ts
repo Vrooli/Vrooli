@@ -17,6 +17,7 @@ export * from './nodeCreate';
 export * from './nodeUpdate';
 export * from './organizationCreate';
 export * from './organizationUpdate';
+export * from './profileEmailUpdate';
 export * from './profileUpdate';
 export * from './projectCreate';
 export * from './projectUpdate';

@@ -31,6 +31,7 @@ export const emailSignUpSchema = yup.object().shape({
 });
 
 export const userTranslationCreate = yup.object().shape({
+    id: id.required(),
     language: language.required(),
     bio: bio.required(),
 });

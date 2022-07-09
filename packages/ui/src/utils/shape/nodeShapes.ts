@@ -1,287 +1,204 @@
 import { NodeCreateInput, NodeEndCreateInput, NodeEndUpdateInput, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListItemTranslationCreateInput, NodeRoutineListItemTranslationUpdateInput, NodeRoutineListItemUpdateInput, NodeRoutineListUpdateInput, NodeTranslationCreateInput, NodeTranslationUpdateInput, NodeUpdateInput } from "graphql/generated/globalTypes";
 import { Node, NodeDataEnd, NodeDataRoutineList, NodeDataRoutineListItem, NodeDataRoutineListItemTranslation, NodeTranslation, ShapeWrapper } from "types";
-import { formatForUpdate, hasObjectChanged, shapeRoutineUpdate } from "utils";
+import { hasObjectChanged, RoutineShape, shapeRoutineUpdate } from "utils";
 import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
-export type NodeEndCreate = ShapeWrapper<NodeDataEnd>;
-/**
- * Format a node end for create mutation.
- * @param end The node end's information
- * @returns Node end shaped for create mutation
- */
-export const shapeNodeEndCreate = (end: NodeEndCreate | null | undefined): NodeEndCreateInput | undefined => {
-    if (!end) return undefined;
-    return {
-        id: end.id,
-        wasSuccessful: end.wasSuccessful,
-    };
+export type NodeEndShape = ShapeWrapper<NodeDataEnd> & {
+    id: string;
 }
 
-export interface NodeEndUpdate extends NodeEndCreate { id: string };
-/**
- * Format a node end for update mutation
- * @param original The original node end's information
- * @param updated The updated node end's information
- * @returns Node end shaped for update mutation
- */
+export type NodeRoutineListItemTranslationShape = Omit<ShapeWrapper<NodeDataRoutineListItemTranslation>, 'language'> & {
+    id: string;
+    language: NodeRoutineListItemTranslationCreateInput['language'];
+}
+
+export type NodeRoutineListItemShape = Omit<ShapeWrapper<NodeDataRoutineListItem>, 'index' | 'routine'> & {
+    id: string;
+    index: NodeRoutineListItemCreateInput['index'];
+    isOptional: NodeRoutineListItemCreateInput['isOptional'];
+    routine: RoutineShape;
+    translations: NodeRoutineListItemTranslationShape[];
+}
+
+export type NodeRoutineListShape = Omit<ShapeWrapper<NodeDataRoutineList>, 'routines'> & {
+    id: string;
+    routines: NodeRoutineListItemShape[];
+}
+
+export type NodeTranslationShape = Omit<ShapeWrapper<NodeTranslation>, 'language' | 'title'> & {
+    id: string;
+    language: NodeTranslationCreateInput['language'];
+    title: NodeTranslationCreateInput['title'];
+}
+
+export type NodeShape = Omit<ShapeWrapper<Node>, 'loop' | 'data' | 'translations'> & {
+    id: string;
+    routineId: string;
+    // loop
+    data?: NodeEndShape | NodeRoutineListShape | null;
+    translations: NodeTranslationShape[];
+}
+
+export const shapeNodeEndCreate = (item: NodeEndShape): NodeEndCreateInput => ({
+    id: item.id,
+    wasSuccessful: item.wasSuccessful,
+})
+
 export const shapeNodeEndUpdate = (
-    original: NodeEndUpdate,
-    updated: NodeEndUpdate | null | undefined
-): NodeEndUpdateInput | undefined => shapeUpdate(original, updated, (o, u) => ({
-    id: o.id,
-    wasSuccessful: u.wasSuccessful !== o.wasSuccessful ? u.wasSuccessful : undefined,
-}))
+    original: NodeEndShape,
+    updated: NodeEndShape
+): NodeEndUpdateInput | undefined =>
+    shapeUpdate(original, updated, (o, u) => ({
+        id: o.id,
+        wasSuccessful: u.wasSuccessful !== o.wasSuccessful ? u.wasSuccessful : undefined,
+    }))
 
-export type NodeRoutineListItemTranslationCreate = ShapeWrapper<NodeDataRoutineListItemTranslation> &
-    Pick<NodeDataRoutineListItemTranslation, 'language'>;
-/**
- * Format a node routine list item's translations for create mutation.
- * @param translations The translation list
- * @returns Translations shaped for create mutation
- */
-export const shapeNodeRoutineListItemTranslationsCreate = (
-    translations: NodeRoutineListItemTranslationCreate[] | null | undefined
-): NodeRoutineListItemTranslationCreateInput[] | undefined => shapeCreateList(translations, (translation) => ({
-    id: translation.id,
-    language: translation.language,
-    description: translation.description,
-    title: translation.title,
-}))
+export const shapeNodeRoutineListItemTranslationCreate = (item: NodeRoutineListItemTranslationShape): NodeRoutineListItemTranslationCreateInput => ({
+    id: item.id,
+    language: item.language,
+    description: item.description,
+    title: item.title,
+})
 
-export interface NodeRoutineListItemTranslationUpdate extends NodeRoutineListItemTranslationCreate { id: string };
-/**
- * Format a node routine list item translation for update mutation.
- * @param original Original translations list
- * @param updated Updated translations list
- * @returns Formatted translations
- */
+export const shapeNodeRoutineListItemTranslationUpdate = (
+    original: NodeRoutineListItemTranslationShape,
+    updated: NodeRoutineListItemTranslationShape
+): NodeRoutineListItemTranslationUpdateInput | undefined =>
+    shapeUpdate(original, updated, (o, u) => ({
+        id: u.id,
+        description: u.description !== o.description ? u.description : undefined,
+        title: u.title !== o.title ? u.title : undefined,
+    }))
+
+export const shapeNodeRoutineListItemTranslationsCreate = (items: NodeRoutineListItemTranslationShape[] | null | undefined): {
+    translationsCreate?: NodeRoutineListItemTranslationCreateInput[],
+} => shapeCreateList(items, 'translations', shapeNodeRoutineListItemTranslationCreate);
+
 export const shapeNodeRoutineListItemTranslationsUpdate = (
-    original: NodeRoutineListItemTranslationUpdate[] | null | undefined,
-    updated: NodeRoutineListItemTranslationUpdate[] | null | undefined
+    o: NodeRoutineListItemTranslationShape[] | null | undefined,
+    u: NodeRoutineListItemTranslationShape[] | null | undefined
 ): {
     translationsCreate?: NodeRoutineListItemTranslationCreateInput[],
     translationsUpdate?: NodeRoutineListItemTranslationUpdateInput[],
     translationsDelete?: string[],
-} => shapeUpdateList(
-    original,
-    updated,
-    'translations',
-    shapeNodeRoutineListItemTranslationsCreate,
-    hasObjectChanged,
-    formatForUpdate as (original: NodeRoutineListItemTranslationUpdate, updated: NodeRoutineListItemTranslationUpdate) => NodeRoutineListItemTranslationUpdateInput | undefined,
-)
+} => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeNodeRoutineListItemTranslationCreate, shapeNodeRoutineListItemTranslationUpdate)
 
-export type NodeRoutineListItemCreate = ShapeWrapper<NodeDataRoutineListItem> &
-    Pick<NodeDataRoutineListItem, 'index'> & {
-        routine: Partial<NodeDataRoutineListItem['routine'] & { id: string }>;
-    }
-/**
- * Format a node routine list item for create mutation.
- * @param item The node routine list item's information
- * @returns Node routine list item shaped for create mutation
- */
-export const shapeNodeRoutineListItemCreate = (item: NodeRoutineListItemCreate | null | undefined): NodeRoutineListItemCreateInput | undefined => {
-    if (!item) return undefined;
-    return {
-        id: item.id,
-        index: item.index,
-        isOptional: item.isOptional,
-        routineConnect: item.routine.id,
-        ...shapeNodeRoutineListItemTranslationsCreate(item.translations),
-    };
-}
+export const shapeNodeRoutineListItemCreate = (item: NodeRoutineListItemShape): NodeRoutineListItemCreateInput => ({
+    id: item.id,
+    index: item.index,
+    isOptional: item.isOptional ?? false,
+    routineConnect: item.routine.id,
+    ...shapeNodeRoutineListItemTranslationsCreate(item.translations),
+})
 
-export interface NodeRoutineListItemUpdate extends NodeRoutineListItemCreate { id: string };
-/**
- * Format a node routine list item for update mutation
- * @param original The original routine list item's information
- * @param updated The updated routine list item's information
- * @returns Node routine list item shaped for update mutation
- */
 export const shapeNodeRoutineListItemUpdate = (
-    original: NodeRoutineListItemUpdate,
-    updated: NodeRoutineListItemUpdate
-): NodeRoutineListItemUpdateInput | undefined => shapeUpdate(original, updated, (o, u) => ({
-    id: o.id,
-    index: u.index !== o.index ? u.index : undefined,
-    isOptional: u.isOptional !== o.isOptional ? u.isOptional : undefined,
-    ...shapeRoutineUpdate(o.routine, u.routine),
-    ...shapeNodeRoutineListItemTranslationsUpdate(o.translations, u.translations),
-}))
+    original: NodeRoutineListItemShape,
+    updated: NodeRoutineListItemShape
+): NodeRoutineListItemUpdateInput | undefined =>
+    shapeUpdate(original, updated, (o, u) => ({
+        id: o.id,
+        index: u.index !== o.index ? u.index : undefined,
+        isOptional: u.isOptional !== o.isOptional ? u.isOptional : undefined,
+        routineUpdate: shapeRoutineUpdate(o.routine, u.routine),
+        ...shapeNodeRoutineListItemTranslationsUpdate(o.translations, u.translations),
+    }))
 
-/**
- * Format an array of node routine list items for create mutation.
- * @param items The items to format
- * @returns Items shaped for create mutation
- */
-export const shapeNodeRoutineListItemsCreate = (
-    items: NodeRoutineListItemCreate[] | null | undefined
-): NodeRoutineListItemCreateInput[] | undefined => shapeCreateList(items, shapeNodeRoutineListItemCreate)
+export const shapeNodeRoutineListItemsCreate = (items: NodeRoutineListItemShape[] | null | undefined): {
+    routinesCreate?: NodeRoutineListItemCreateInput[],
+} => shapeCreateList(items, 'routines', shapeNodeRoutineListItemCreate);
 
-/**
- * Format an array of node routine list items for update mutation.
- * @param original Original items list
- * @param updated Updated items list
- * @returns Formatted items
- */
 export const shapeNodeRoutineListItemsUpdate = (
-    original: NodeRoutineListItemUpdate[] | null | undefined,
-    updated: NodeRoutineListItemUpdate[] | null | undefined
+    o: NodeRoutineListItemShape[] | null | undefined,
+    u: NodeRoutineListItemShape[] | null | undefined
 ): {
     routinesCreate?: NodeRoutineListItemCreateInput[],
     routinesUpdate?: NodeRoutineListItemUpdateInput[],
     routinesDelete?: string[],
-} => shapeUpdateList(
-    original,
-    updated,
-    'routines',
-    shapeNodeRoutineListItemsCreate,
-    hasObjectChanged,
-    shapeNodeRoutineListItemUpdate,
-)
+} => shapeUpdateList(o, u, 'routines', hasObjectChanged, shapeNodeRoutineListItemCreate, shapeNodeRoutineListItemUpdate)
 
-export type NodeRoutineListCreate = ShapeWrapper<NodeDataRoutineList>;
-/**
- * Format a node routine list for create mutation.
- * @param routineList The node routine list's information
- * @returns Node routine list shaped for create mutation
- */
-export const shapeNodeRoutineListCreate = (routineList: NodeRoutineListCreate | null | undefined): NodeRoutineListCreateInput | undefined => {
-    if (!routineList) return undefined;
-    return {
-        id: routineList.id,
-        isOptional: routineList.isOptional,
-        isOrdered: routineList.isOrdered,
-        ...shapeNodeRoutineListItemsCreate(routineList.routines),
-    };
-}
+export const shapeNodeRoutineListCreate = (item: NodeRoutineListShape): NodeRoutineListCreateInput => ({
+    id: item.id,
+    isOptional: item.isOptional,
+    isOrdered: item.isOrdered,
+    ...shapeNodeRoutineListItemsCreate(item.routines),
+})
 
-export interface NodeRoutineListUpdate extends NodeRoutineListCreate { id: string };
-/**
- * Format a node routine list for update mutation
- * @param original The original routine list's information
- * @param updated The updated routine list's information
- * @returns Node routine list shaped for update mutation
- */
 export const shapeNodeRoutineListUpdate = (
-    original: NodeRoutineListUpdate,
-    updated: NodeRoutineListUpdate | null | undefined
-): NodeRoutineListUpdateInput | undefined => shapeUpdate(original, updated, (o, u) => ({
-    id: o.id,
-    isOptional: u.isOptional !== o.isOptional ? u.isOptional : undefined,
-    isOrdered: u.isOrdered !== o.isOrdered ? u.isOrdered : undefined,
-    ...shapeNodeRoutineListItemsUpdate(o.routines, u.routines),
-}))
+    original: NodeRoutineListShape,
+    updated: NodeRoutineListShape
+): NodeRoutineListUpdateInput | undefined =>
+    shapeUpdate(original, updated, (o, u) => ({
+        id: o.id,
+        isOptional: u.isOptional !== o.isOptional ? u.isOptional : undefined,
+        isOrdered: u.isOrdered !== o.isOrdered ? u.isOrdered : undefined,
+        ...shapeNodeRoutineListItemsUpdate(o.routines, u.routines),
+    }))
 
-type NodeTranslationCreate = ShapeWrapper<NodeTranslation> &
-    Pick<NodeTranslationCreateInput, 'language' | 'title'>;
-/**
- * Format a node's translations for create mutation.
- * @param translations Translations to format
- * @returns Formatted translations
- */
-export const shapeNodeTranslationsCreate = (
-    translations: NodeTranslationCreate[] | null | undefined
-): NodeTranslationCreate[] | undefined => shapeCreateList(translations, (translation) => ({
-    id: translation.id,
-    language: translation.language,
-    description: translation.description,
-    title: translation.title,
-}))
+export const shapeNodeTranslationCreate = (item: NodeTranslationShape): NodeTranslationCreateInput => ({
+    id: item.id,
+    language: item.language,
+    description: item.description,
+    title: item.title,
+})
 
-export interface NodeTranslationUpdate extends NodeTranslationCreate { id: string };
-/**
- * Format a node's translations for update mutation.
- * @param original Original translations list
- * @param updated Updated translations list
- * @returns Formatted translations
- */
+export const shapeNodeTranslationUpdate = (
+    original: NodeTranslationShape,
+    updated: NodeTranslationShape
+): NodeTranslationUpdateInput | undefined =>
+    shapeUpdate(original, updated, (o, u) => ({
+        id: u.id,
+        description: u.description !== o.description ? u.description : undefined,
+        title: u.title !== o.title ? u.title : undefined,
+    }))
+
+export const shapeNodeTranslationsCreate = (items: NodeTranslationShape[] | null | undefined): {
+    translationsCreate?: NodeTranslationCreateInput[],
+} => shapeCreateList(items, 'translations', shapeNodeTranslationCreate);
+
 export const shapeNodeTranslationsUpdate = (
-    original: NodeTranslationUpdate[] | null | undefined,
-    updated: NodeTranslationUpdate[] | null | undefined
+    o: NodeTranslationShape[] | null | undefined,
+    u: NodeTranslationShape[] | null | undefined
 ): {
     translationsCreate?: NodeTranslationCreateInput[],
     translationsUpdate?: NodeTranslationUpdateInput[],
     translationsDelete?: string[],
-} => shapeUpdateList(
-    original,
-    updated,
-    'translations',
-    shapeNodeTranslationsCreate,
-    hasObjectChanged,
-    formatForUpdate as (original: NodeTranslationCreate, updated: NodeTranslationCreate) => NodeTranslationUpdateInput | undefined,
-)
+} => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeNodeTranslationCreate, shapeNodeTranslationUpdate)
 
-export type NodeCreate = ShapeWrapper<Node>;
-/**
- * Format a node for create mutation.
- * @param node The node's information
- * @returns Node shaped for create mutation
- */
-export const shapeNodeCreate = (node: NodeCreate | null | undefined): NodeCreateInput | undefined => {
-    if (!node) return undefined;
-    return {
-        id: node.id,
-        columnIndex: node.columnIndex,
-        rowIndex: node.rowIndex,
-        type: node.type,
-        // ...shapeNodeLoopCreate(node.loop),
-        ...shapeNodeEndCreate(node.data?.__typename === 'NodeEnd' ? node.data : undefined),
-        ...shapeNodeRoutineListCreate(node.data?.__typename === 'NodeRoutineList' ? node.data : undefined),
-        ...shapeNodeTranslationsCreate(node.translations),
-    };
-}
+export const shapeNodeCreate = (item: NodeShape): NodeCreateInput => ({
+    id: item.id,
+    columnIndex: item.columnIndex,
+    rowIndex: item.rowIndex,
+    type: item.type,
+    // loopCreate: shapeNodeLoopCreate(node.loop),
+    nodeEndCreate: item.data?.__typename === 'NodeEnd' ? shapeNodeEndCreate(item.data as NodeEndShape) : undefined,
+    nodeRoutineListCreate: item.data?.__typename === 'NodeRoutineList' ? shapeNodeRoutineListCreate(item.data as NodeRoutineListShape) : undefined,
+    ...shapeNodeTranslationsCreate(item.translations),
+})
 
-export interface NodeUpdate extends NodeCreate { id: string };
-/**
- * Format a node for update mutation
- * @param original The original node's information
- * @param updated The updated node's information
- * @returns Node shaped for update mutation
- */
 export const shapeNodeUpdate = (
-    original: NodeUpdate,
-    updated: NodeUpdate | null | undefined
-): NodeUpdateInput | undefined => shapeUpdate(original, updated, (o, u) => ({
-    id: o.id,
-    columnIndex: u.columnIndex !== o.columnIndex ? u.columnIndex : undefined,
-    rowIndex: u.rowIndex !== o.rowIndex ? u.rowIndex : undefined,
-    type: u.type !== o.type ? u.type : undefined,
-    // ...shapeNodeLoopUpdate(o.loop, u.loop),
-    nodeEndUpdate: o.data?.__typename === 'NodeEnd' ? shapeNodeEndUpdate(o.data, u.data) : undefined,
-    nodeRoutineListUpdate: o.data?.__typename === 'NodeRoutineList' ? shapeNodeRoutineListUpdate(o.data, u.data) : undefined,
-    ...shapeNodeTranslationsUpdate(o.translations, u.translations),
-}))
+    original: NodeShape,
+    updated: NodeShape
+): NodeUpdateInput | undefined =>
+    shapeUpdate(original, updated, (o, u) => ({
+        id: o.id,
+        columnIndex: u.columnIndex !== o.columnIndex ? u.columnIndex : undefined,
+        rowIndex: u.rowIndex !== o.rowIndex ? u.rowIndex : undefined,
+        type: u.type !== o.type ? u.type : undefined,
+        // ...shapeNodeLoopUpdate(o.loop, u.loop),
+        nodeEndUpdate: o.data?.__typename === 'NodeEnd' ? shapeNodeEndUpdate(o.data as NodeEndShape, u.data as NodeEndShape) : undefined,
+        nodeRoutineListUpdate: o.data?.__typename === 'NodeRoutineList' ? shapeNodeRoutineListUpdate(o.data as NodeRoutineListShape, u.data as NodeRoutineListShape) : undefined,
+        ...shapeNodeTranslationsUpdate(o.translations, u.translations),
+    }))
 
-/**
- * Format an array of nodes for create mutation.
- * @param nodes The nodes to format
- * @returns Nodes shaped for create mutation
- */
-export const shapeNodesCreate = (
-    nodes: NodeCreate[] | null | undefined
-): NodeCreateInput[] | undefined => {
-    return shapeCreateList(nodes, shapeNodeCreate)
-}
+export const shapeNodesCreate = (items: NodeShape[] | null | undefined): {
+    nodesCreate?: NodeCreateInput[],
+} => shapeCreateList(items, 'nodes', shapeNodeCreate);
 
-/**
- * Format an array of nodes for update mutation.
- * @param original Original nodes list
- * @param updated Updated nodes list
- * @returns Formatted nodes
- */
 export const shapeNodesUpdate = (
-    original: NodeUpdate[] | null | undefined,
-    updated: NodeUpdate[] | null | undefined
+    o: NodeShape[] | null | undefined,
+    u: NodeShape[] | null | undefined
 ): {
     nodesCreate?: NodeCreateInput[],
     nodesUpdate?: NodeUpdateInput[],
     nodesDelete?: string[],
-} => shapeUpdateList(
-    original,
-    updated,
-    'nodes',
-    shapeNodesCreate,
-    hasObjectChanged,
-    shapeNodeUpdate,
-)
+} => shapeUpdateList(o, u, 'nodes', hasObjectChanged, shapeNodeCreate, shapeNodeUpdate)

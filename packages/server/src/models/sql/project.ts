@@ -230,6 +230,7 @@ export const projectMutater = (prisma: PrismaType) => ({
             if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
                 throw new CustomError(CODE.MaxProjectsReached, 'Reached the maximum number of projects allowed on this account', { code: genErrorCode('0074') });
             }
+            // TODO handle
         }
         if (updateMany) {
             projectsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
@@ -270,11 +271,11 @@ export const projectMutater = (prisma: PrismaType) => ({
          * Helper function for creating create/update Prisma value
          */
         const createData = async (input: ProjectCreateInput | ProjectUpdateInput): Promise<{ [x: string]: any }> => ({
-            id: input.id ?? undefined,
+            id: input.id,
             handle: (input as ProjectUpdateInput).handle ?? null,
             isComplete: input.isComplete,
-            completedAt: input.isComplete ? new Date().toISOString() : null,
-            parentId: input.parentId,
+            completedAt: (input.isComplete === true) ? new Date().toISOString() : (input.isComplete === false) ? null : undefined,
+            parentId: (input as ProjectCreateInput)?.parentId ?? undefined,
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, input, true),
             tags: await TagModel(prisma).relationshipBuilder(userId, input, GraphQLModelType.Project),
             translations: TranslationModel().relationshipBuilder(userId, input, { create: projectTranslationCreate, update: projectTranslationUpdate }, false),

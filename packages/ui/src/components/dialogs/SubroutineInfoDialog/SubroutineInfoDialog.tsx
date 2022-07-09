@@ -25,15 +25,14 @@ import {
 } from '@mui/material';
 import { useLocation } from 'wouter';
 import { SubroutineInfoDialogProps } from '../types';
-import { getOwnedByString, getTranslation, InputCreate, OutputCreate, toOwnedBy, updateArray } from 'utils';
+import { getOwnedByString, getTranslation, InputShape, OutputShape, RoutineTranslationShape, TagShape, toOwnedBy, updateArray } from 'utils';
 import Markdown from 'markdown-to-jsx';
 import { ResourceListUsedFor, routineUpdateForm as validationSchema } from '@local/shared';
 import { InputOutputContainer, LanguageInput, LinkButton, MarkdownInput, QuantityBox, ResourceListHorizontal, TagList, TagSelector, UserOrganizationSwitch } from 'components';
 import { useFormik } from 'formik';
-import { NewObject, NodeDataRoutineListItem, Organization, ResourceList, Routine } from 'types';
+import { NodeDataRoutineListItem, Organization, ResourceList } from 'types';
 import { owns } from 'utils/authentication';
-import { v4 as uuidv4 } from 'uuid';
-import { TagSelectorTag } from 'components/inputs/types';
+import { v4 as uuid } from 'uuid';
 
 export const SubroutineInfoDialog = ({
     data,
@@ -60,29 +59,29 @@ export const SubroutineInfoDialog = ({
     const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
 
     // Handle inputs
-    const [inputsList, setInputsList] = useState<InputCreate[]>([]);
-    const handleInputsUpdate = useCallback((updatedList: InputCreate[]) => {
+    const [inputsList, setInputsList] = useState<InputShape[]>([]);
+    const handleInputsUpdate = useCallback((updatedList: InputShape[]) => {
         setInputsList(updatedList);
     }, [setInputsList]);
 
     // Handle outputs
-    const [outputsList, setOutputsList] = useState<OutputCreate[]>([]);
-    const handleOutputsUpdate = useCallback((updatedList: OutputCreate[]) => {
+    const [outputsList, setOutputsList] = useState<OutputShape[]>([]);
+    const handleOutputsUpdate = useCallback((updatedList: OutputShape[]) => {
         setOutputsList(updatedList);
     }, [setOutputsList]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
 
     // Handle tags
-    const [tags, setTags] = useState<TagSelectorTag[]>([]);
-    const addTag = useCallback((tag: TagSelectorTag) => {
+    const [tags, setTags] = useState<TagShape[]>([]);
+    const addTag = useCallback((tag: TagShape) => {
         setTags(t => [...t, tag]);
     }, [setTags]);
-    const removeTag = useCallback((tag: TagSelectorTag) => {
+    const removeTag = useCallback((tag: TagShape) => {
         setTags(tags => tags.filter(t => t.tag !== tag.tag));
     }, [setTags]);
     const clearTags = useCallback(() => {
@@ -90,7 +89,7 @@ export const SubroutineInfoDialog = ({
     }, [setTags]);
 
     // Handle translations
-    type Translation = NewObject<Routine['translations'][0]>;
+    type Translation = RoutineTranslationShape;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -119,7 +118,7 @@ export const SubroutineInfoDialog = ({
         else setOrganizationFor(null);
         setInputsList(subroutine?.routine?.inputs ?? []);
         setOutputsList(subroutine?.routine?.outputs ?? []);
-        setResourceList(subroutine?.routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+        setResourceList(subroutine?.routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(subroutine?.routine?.tags ?? []);
         setTranslations(subroutine?.routine?.translations?.map(t => ({
             id: t.id,
@@ -155,6 +154,7 @@ export const SubroutineInfoDialog = ({
             } : {};
             const ownedBy: { organizationId: string; } | { userId: string; } = organizationFor ? { organizationId: organizationFor.id } : { userId: session?.id ?? '' };
             const allTranslations = getTranslationsUpdate(language, {
+                id: uuid(),
                 language,
                 description: values.description,
                 instructions: values.instructions,
@@ -207,6 +207,7 @@ export const SubroutineInfoDialog = ({
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
+            id: uuid(),
             language,
             description: formik.values.description,
             instructions: formik.values.instructions,

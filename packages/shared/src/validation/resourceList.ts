@@ -7,6 +7,7 @@ const index = yup.number().integer().min(0)
 const usedFor = yup.string().oneOf(Object.values(ResourceListUsedFor))
 
 export const resourceListTranslationCreate = yup.object().shape({
+    id: id.required(),
     language: language.required(),
     description: description.notRequired().default(undefined),
     title: title.notRequired().default(undefined),
@@ -22,6 +23,7 @@ export const resourceListTranslationsUpdate = yup.array().of(resourceListTransla
 
 
 export const resourceListCreate = yup.object().shape({
+    id: id.required(),
     index: index.notRequired().default(undefined),
     organizationId: id.notRequired().default(undefined),
     projectId: id.notRequired().default(undefined),

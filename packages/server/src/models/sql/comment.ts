@@ -390,6 +390,7 @@ export const commentMutater = (prisma: PrismaType) => ({
                 // Create object
                 const currCreated = await prisma.comment.create({
                     data: {
+                        id: input.id,
                         translations: TranslationModel().relationshipBuilder(userId, input, { create: commentTranslationCreate, update: commentTranslationUpdate }, false),
                         userId,
                         [forMapper[input.createdFor]]: input.forId,

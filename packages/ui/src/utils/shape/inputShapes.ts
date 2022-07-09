@@ -1,90 +1,67 @@
 import { InputItemCreateInput, InputItemTranslationCreateInput, InputItemTranslationUpdateInput, InputItemUpdateInput } from "graphql/generated/globalTypes";
 import { RoutineInput, RoutineInputTranslation, ShapeWrapper } from "types";
-import { formatForUpdate, hasObjectChanged, shapeStandardCreate, StandardCreate } from "utils";
-import { shapeCreateList, shapeUpdateList } from "./shapeTools";
+import { hasObjectChanged, shapeStandardCreate, StandardShape } from "utils";
+import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
-export type InputTranslationCreate = Omit<ShapeWrapper<RoutineInputTranslation>, 'language' | 'description'> & {
+export type InputTranslationShape = Omit<ShapeWrapper<RoutineInputTranslation>, 'language' | 'description'> & {
     id: string;
     language: InputItemTranslationCreateInput['language'];
     description: InputItemTranslationCreateInput['description'];
 }
-/**
- * Format an input's translations for create mutation.
- * @param translations Translations to format
- * @returns Formatted translations
- */
-export const shapeInputTranslationsCreate = (
-    translations: InputTranslationCreate[] | null | undefined
-): InputItemTranslationCreateInput[] | undefined => shapeCreateList(translations, (translation) => ({
-    id: translation.id,
-    language: translation.language,
-    description: translation.description,
-}))
 
-export interface InputTranslationUpdate extends InputTranslationCreate { };
-/**
- * Format an input's translations for update mutation.
- * @param original Original translations list
- * @param updated Updated translations list
- * @returns Formatted translations
- */
+export type InputShape = Omit<ShapeWrapper<RoutineInput>, 'translations' | 'standard'> & {
+    id: string;
+    translations: InputTranslationShape[];
+    standard: StandardShape | null;
+}
+
+export const shapeInputTranslationCreate = (item: InputTranslationShape): InputItemTranslationCreateInput => ({
+    id: item.id,
+    language: item.language,
+    description: item.description,
+})
+
+export const shapeInputTranslationUpdate = (
+    original: InputTranslationShape,
+    updated: InputTranslationShape
+): InputItemTranslationUpdateInput | undefined =>
+    shapeUpdate(original, updated, (o, u) => ({
+        id: u.id,
+        description: u.description !== o.description ? u.description : undefined,
+    }))
+
+export const shapeInputTranslationsCreate = (items: InputTranslationShape[] | null | undefined): {
+    translationsCreate?: InputItemTranslationCreateInput[],
+} => shapeCreateList(items, 'translations', shapeInputTranslationCreate);
+
 export const shapeInputTranslationsUpdate = (
-    original: InputTranslationUpdate[] | null | undefined,
-    updated: (InputTranslationCreate | InputTranslationUpdate)[] | null | undefined
+    o: InputTranslationShape[] | null | undefined,
+    u: InputTranslationShape[] | null | undefined
 ): {
     translationsCreate?: InputItemTranslationCreateInput[],
     translationsUpdate?: InputItemTranslationUpdateInput[],
     translationsDelete?: string[],
-} => shapeUpdateList(
-    original,
-    updated,
-    'translations',
-    shapeInputTranslationsCreate,
-    hasObjectChanged,
-    formatForUpdate as (original: InputItemTranslationCreateInput, updated: InputItemTranslationCreateInput) => InputItemTranslationUpdateInput | undefined,
-)
+} => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeInputTranslationCreate, shapeInputTranslationUpdate)
 
-export type InputCreate = Omit<ShapeWrapper<RoutineInput>, 'translations' | 'standard'> & {
-    id: string;
-    translations: InputTranslationCreate[];
-    standard: StandardCreate | null;
+export const shapeInputCreate = (item: InputShape): InputItemCreateInput => {
+    // Connect to standard if it's marked as external. 
+    // Otherwise, set as create. The backend will handle the rest
+    const shouldConnectToStandard = item.standard && !item.standard.isInternal && item.standard.id;
+    return {
+        id: item.id,
+        isRequired: item.isRequired,
+        name: item.name,
+        standardConnect: shouldConnectToStandard ? item.standard?.id as string : undefined,
+        standardCreate: !shouldConnectToStandard ? shapeStandardCreate(item.standard as StandardShape) : undefined,
+        ...shapeInputTranslationsCreate(item.translations),
+    }
 }
-/**
- * Format an input list for create mutation.
- * @param inputs The input list's information
- * @returns Input list shaped for create mutation
- */
-export const shapeInputsCreate = (
-    inputs: InputCreate[] | null | undefined
-): InputItemCreateInput[] | undefined => shapeCreateList(inputs, (input) => ({
-    id: input.id,
-    isRequired: input.isRequired,
-    name: input.name,
-    ...shapeInputTranslationsCreate(input.translations),
-    ...shapeStandardCreate(input.standard),
-}))
 
-export interface InputUpdate extends InputCreate { };
-/**
- * Format an input list for update mutation.
- * @param original Original input list
- * @param updated Updated input list
- * @returns Formatted input list
- */
-export const shapeInputsUpdate = (
-    original: InputUpdate[] | null | undefined,
-    updated: InputUpdate[] | null | undefined,
-): {
-    inputsCreate?: InputItemCreateInput[],
-    inputsUpdate?: InputItemUpdateInput[],
-    inputsDelete?: string[],
-} => shapeUpdateList(
-    original,
-    updated,
-    'inputs',
-    shapeInputsCreate,
-    hasObjectChanged,
-    (o: InputUpdate, u: InputUpdate) => {
+export const shapeInputUpdate = (
+    original: InputShape,
+    updated: InputShape
+): InputItemUpdateInput | undefined =>
+    shapeUpdate(original, updated, (o, u) => {
         // Connect to standard if it's marked as external. 
         // Otherwise, set as create. The backend will handle the rest, even if 
         // you're updating.
@@ -94,8 +71,20 @@ export const shapeInputsUpdate = (
             isRequired: u.isRequired,
             name: u.name,
             standardConnect: shouldConnectToStandard ? u.standard?.id as string : undefined,
-            standardCreate: !shouldConnectToStandard ? shapeStandardCreate(u.standard) : undefined,
+            standardCreate: !shouldConnectToStandard ? shapeStandardCreate(u.standard as StandardShape) : undefined,
             ...shapeInputTranslationsUpdate(o.translations, u.translations),
         }
-    },
-);
+    })
+
+export const shapeInputsCreate = (items: InputShape[] | null | undefined): {
+    itemsCreate?: InputItemCreateInput[],
+} => shapeCreateList(items, 'items', shapeInputCreate);
+
+export const shapeInputsUpdate = (
+    o: InputShape[] | null | undefined,
+    u: InputShape[] | null | undefined
+): {
+    itemsCreate?: InputItemCreateInput[],
+    itemsUpdate?: InputItemUpdateInput[],
+    itemsDelete?: string[],
+} => shapeUpdateList(o, u, 'items', hasObjectChanged, shapeInputCreate, shapeInputUpdate)

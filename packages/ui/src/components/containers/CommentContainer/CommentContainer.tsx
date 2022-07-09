@@ -6,7 +6,7 @@ import { CommentContainerProps } from '../types';
 import { containerShadow } from 'styles';
 import { commentCreateForm as validationSchema } from '@local/shared';
 import { useLazyQuery, useMutation } from '@apollo/client';
-import { commentCreate } from 'graphql/generated/commentCreate';
+import { commentCreate, commentCreateVariables } from 'graphql/generated/commentCreate';
 import { MarkdownInput } from 'components/inputs';
 import { useFormik } from 'formik';
 import { commentCreateMutation } from 'graphql/mutation';
@@ -20,6 +20,7 @@ import { commentsQuery } from 'graphql/query';
 import { CommentThread as ThreadType } from 'types';
 import { CommentThread } from 'components/lists/comment';
 import { validate as uuidValidate } from 'uuid';
+import { v4 as uuid } from 'uuid';
 
 const { advancedSearchSchema, defaultSortBy, sortByOptions } = objectToSearchInfo[ObjectType.Comment];
 
@@ -184,7 +185,7 @@ export function CommentContainer({
         }, ...curr]);
     }, []);
 
-    const [addMutation, { loading: loadingAdd }] = useMutation<commentCreate>(commentCreateMutation);
+    const [addMutation, { loading: loadingAdd }] = useMutation<commentCreate, commentCreateVariables>(commentCreateMutation);
     const formik = useFormik({
         initialValues: {
             comment: '',
@@ -194,9 +195,11 @@ export function CommentContainer({
             mutationWrapper({
                 mutation: addMutation,
                 input: {
+                    id: uuid(),
                     createdFor: objectType,
                     forId: objectId,
                     translationsCreate: [{
+                        id: uuid(),
                         language,
                         text: values.comment,
                     }]

@@ -10,17 +10,17 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { standardUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";
-import { Pubs, shapeStandardUpdate, updateArray } from "utils";
+import { Pubs, shapeStandardUpdate, StandardTranslationShape, TagShape, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
 } from '@mui/icons-material';
 import { LanguageInput, ResourceListHorizontal, TagSelector } from "components";
-import { TagSelectorTag } from "components/inputs/types";
 import { DialogActionItem } from "components/containers/types";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { NewObject, ResourceList, Standard } from "types";
-import { v4 as uuidv4 } from 'uuid';
+import { ResourceList } from "types";
+import { v4 as uuid } from 'uuid';
+import { standardUpdate, standardUpdateVariables } from "graphql/generated/standardUpdate";
 
 export const StandardUpdate = ({
     onCancel,
@@ -40,17 +40,17 @@ export const StandardUpdate = ({
     const standard = useMemo(() => data?.standard, [data]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
 
     // Handle tags
-    const [tags, setTags] = useState<TagSelectorTag[]>([]);
-    const addTag = useCallback((tag: TagSelectorTag) => {
+    const [tags, setTags] = useState<TagShape[]>([]);
+    const addTag = useCallback((tag: TagShape) => {
         setTags(t => [...t, tag]);
     }, [setTags]);
-    const removeTag = useCallback((tag: TagSelectorTag) => {
+    const removeTag = useCallback((tag: TagShape) => {
         setTags(tags => tags.filter(t => t.tag !== tag.tag));
     }, [setTags]);
     const clearTags = useCallback(() => {
@@ -58,7 +58,7 @@ export const StandardUpdate = ({
     }, [setTags]);
 
     // Handle translations
-    type Translation = NewObject<Standard['translations'][0]>;
+    type Translation = StandardTranslationShape;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -74,7 +74,7 @@ export const StandardUpdate = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
-        setResourceList(standard?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+        setResourceList(standard?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(standard?.tags ?? []);
         setTranslations(standard?.translations?.map(t => ({
             id: t.id,
@@ -85,7 +85,7 @@ export const StandardUpdate = ({
     }, [standard]);
 
     // Handle update
-    const [mutation] = useMutation<standard>(standardUpdateMutation);
+    const [mutation] = useMutation<standardUpdate, standardUpdateVariables>(standardUpdateMutation);
     const formik = useFormik({
         initialValues: {
             description: '',
@@ -93,12 +93,13 @@ export const StandardUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
-            if (!id || !standard) {
-                PubSub.publish(Pubs.Snack, { message: 'No standard to update', severity: 'error' });
+            if (!standard) {
+                PubSub.publish(Pubs.Snack, { message: 'Could not find existing standard data.', severity: 'error' });
                 return;
             }
             // Update translations with final values
             const allTranslations = getTranslationsUpdate(language, {
+                id: uuid(),
                 language,
                 description: values.description,
                 jsonVariable: null, //TODO
@@ -107,10 +108,10 @@ export const StandardUpdate = ({
             mutationWrapper({
                 mutation,
                 input: shapeStandardUpdate(standard, {
-                    id,
+                    id: standard.id,
                     translations: allTranslations,
                     resourceLists: [resourceList],
-                    tags: tags as any,
+                    tags: tags,
                 }),
                 onSuccess: (response) => { onUpdated(response.data.standardUpdate) },
                 onError: () => { formik.setSubmitting(false) },
@@ -141,6 +142,7 @@ export const StandardUpdate = ({
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
+            id: uuid(),
             language,
             description: formik.values.description,
             jsonVariable: null, //TODO

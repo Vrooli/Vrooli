@@ -23,7 +23,8 @@ export const typeDef = gql`
     }
 
     input OrganizationCreateInput {
-        id: ID
+        id: ID!
+        handle: String
         isOpenToNewMembers: Boolean
         resourceListsCreate: [ResourceListCreateInput!]
         tagsConnect: [ID!]
@@ -73,7 +74,7 @@ export const typeDef = gql`
     }
 
     input OrganizationTranslationCreateInput {
-        id: ID
+        id: ID!
         language: String!
         bio: String
         name: String!

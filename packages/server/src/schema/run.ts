@@ -95,7 +95,7 @@ export const typeDef = gql`
     }
 
     input RunCreateInput {
-        id: ID
+        id: ID!
         routineId: ID!
         title: String!
         version: String!
@@ -115,7 +115,7 @@ export const typeDef = gql`
     }
 
     input RunStepCreateInput {
-        id: ID
+        id: ID!
         nodeId: ID
         contextSwitches: Int
         subroutineId: ID

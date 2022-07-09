@@ -15,7 +15,8 @@ import { deleteOneMutation, walletUpdateMutation } from 'graphql/mutation';
 import { hasWalletExtension, validateWallet, WalletProvider, walletProviderInfo } from 'utils/authentication/walletIntegration';
 import { WalletListItem } from '../WalletListItem/WalletListItem';
 import { DeleteOneType } from '@local/shared';
-import { deleteOne } from 'graphql/generated/deleteOne';
+import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
+import { walletUpdate, walletUpdateVariables } from 'graphql/generated/walletUpdate';
 
 export const WalletList = ({
     handleUpdate,
@@ -24,7 +25,7 @@ export const WalletList = ({
 }: WalletListProps) => {
     const { palette } = useTheme();
 
-    const [updateMutation, { loading: loadingUpdate }] = useMutation<any>(walletUpdateMutation);
+    const [updateMutation, { loading: loadingUpdate }] = useMutation<walletUpdate, walletUpdateVariables>(walletUpdateMutation);
     const onUpdate = useCallback((index: number, updatedWallet: Wallet) => {
         if (loadingUpdate) return;
         mutationWrapper({
@@ -39,7 +40,7 @@ export const WalletList = ({
         })
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<deleteOne>(deleteOneMutation);
+    const [deleteMutation, { loading: loadingDelete }] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation);
     const onDelete = useCallback((wallet: Wallet) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 

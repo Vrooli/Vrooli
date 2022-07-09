@@ -20,11 +20,11 @@ import { Node, NodeLink, Routine, Run } from "types";
 import Markdown from "markdown-to-jsx";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
-import { NodeType, StarFor } from "graphql/generated/globalTypes";
+import { CommentFor, NodeType, StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
-import { validate as uuidValidate, v4 as uuidv4 } from 'uuid';
-import { runComplete } from "graphql/generated/runComplete";
+import { validate as uuidValidate, v4 as uuid } from 'uuid';
+import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
 import { owns } from "utils/authentication";
 import { useFormik } from "formik";
 import { FieldData } from "forms/types";
@@ -83,7 +83,7 @@ export const RoutineView = ({
     const ownedBy = useMemo<string | null>(() => getOwnedByString(routine, [language]), [routine, language]);
     const toOwner = useCallback(() => { toOwnedBy(routine, setLocation) }, [routine, setLocation]);
 
-    const [runComplete] = useMutation<runComplete>(runCompleteMutation);
+    const [runComplete] = useMutation<runComplete, runCompleteVariables>(runCompleteMutation);
     const markAsComplete = useCallback(() => {
         if (!routine) return;
         mutationWrapper({
@@ -91,7 +91,7 @@ export const RoutineView = ({
             input: {
                 id: routine.id,
                 exists: false,
-                title: title,
+                title: title ?? 'Unnamed Routine',
                 version: routine?.version ?? '',
             },
             successMessage: () => 'Routine completed!🎉',
@@ -109,18 +109,18 @@ export const RoutineView = ({
     useEffect(() => {
         if (!id || !uuidValidate(id)) {
             const startNode: Node = {
-                id: uuidv4(),
+                id: uuid(),
                 type: NodeType.Start,
                 columnIndex: 0,
                 rowIndex: 0,
             } as Node;
             const routineListNode: Node = {
-                id: uuidv4(),
+                id: uuid(),
                 type: NodeType.RoutineList,
                 columnIndex: 1,
                 rowIndex: 0,
                 data: {
-                    id: uuidv4(),
+                    id: uuid(),
                     isOptional: false,
                     isOrdered: false,
                     routines: [],
@@ -131,18 +131,18 @@ export const RoutineView = ({
                 }] as any
             } as Node
             const endNode: Node = {
-                id: uuidv4(),
+                id: uuid(),
                 type: NodeType.End,
                 columnIndex: 2,
                 rowIndex: 0,
             } as Node
             const link1: NodeLink = {
-                id: uuidv4(),
+                id: uuid(),
                 fromId: startNode.id,
                 toId: routineListNode.id,
             } as NodeLink
             const link2: NodeLink = {
-                id: uuidv4(),
+                id: uuid(),
                 fromId: routineListNode.id,
                 toId: endNode.id,
             } as NodeLink
@@ -704,7 +704,7 @@ export const RoutineView = ({
                 <CommentContainer
                     language={language}
                     objectId={id ?? ''}
-                    objectType={ObjectType.Routine}
+                    objectType={CommentFor.Routine}
                     session={session}
                     zIndex={zIndex}
                 />

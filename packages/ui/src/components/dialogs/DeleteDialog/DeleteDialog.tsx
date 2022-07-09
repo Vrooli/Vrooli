@@ -16,7 +16,7 @@ import { mutationWrapper } from 'graphql/utils';
 import { Pubs } from 'utils';
 import { useMutation } from '@apollo/client';
 import { deleteOneMutation } from 'graphql/mutation';
-import { deleteOne } from 'graphql/generated/deleteOne';
+import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
 import { APP_LINKS } from '@local/shared';
 import { useLocation } from 'wouter';
 
@@ -34,7 +34,7 @@ export const DeleteDialog = ({
     // Stores user-inputted name of object to be deleted
     const [nameInput, setNameInput] = useState<string>('');
 
-    const [deleteOne] = useMutation<deleteOne>(deleteOneMutation);
+    const [deleteOne] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation);
     const handleDelete = useCallback(() => {
         mutationWrapper({
             mutation: deleteOne,

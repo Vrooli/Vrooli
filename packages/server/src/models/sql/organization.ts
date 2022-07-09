@@ -173,7 +173,7 @@ export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typ
         }
         return {
             ...members,
-            id: data.id ?? undefined,
+            id: data.id,
             handle: (data as OrganizationUpdateInput).handle ?? null,
             isOpenToNewMembers: data.isOpenToNewMembers,
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
@@ -196,6 +196,7 @@ export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typ
             if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
                 throw new CustomError(CODE.MaxOrganizationsReached, 'Cannot create any more organizations with this account - maximum reached', { code: genErrorCode('0056') });
             }
+            // TODO handle
         }
         if (updateMany) {
             organizationsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });

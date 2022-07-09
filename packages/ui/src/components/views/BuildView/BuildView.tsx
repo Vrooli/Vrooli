@@ -9,7 +9,7 @@ import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink
 import { useLocation } from 'wouter';
 import { APP_LINKS, isEqual, uniqBy } from '@local/shared';
 import { NodeType } from 'graphql/generated/globalTypes';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuid } from 'uuid';
 import { BaseObjectAction } from 'components/dialogs/types';
 import { owns } from 'utils/authentication';
 import { BuildViewProps } from '../types';
@@ -22,8 +22,8 @@ import {
 import { validate as uuidValidate } from 'uuid';
 import { StatusMessageArray } from 'components/buttons/types';
 import { StatusButton } from 'components/buttons';
-import { routineUpdate } from 'graphql/generated/routineUpdate';
-import { routineCreate } from 'graphql/generated/routineCreate';
+import { routineUpdate, routineUpdateVariables } from 'graphql/generated/routineUpdate';
+import { routineCreate, routineCreateVariables } from 'graphql/generated/routineCreate';
 
 //TODO
 const helpText =
@@ -72,8 +72,8 @@ export const BuildView = ({
 
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
     // Routine mutators
-    const [routineCreate] = useMutation<routineCreate>(routineCreateMutation);
-    const [routineUpdate] = useMutation<routineUpdate>(routineUpdateMutation);
+    const [routineCreate] = useMutation<routineCreate, routineCreateVariables>(routineCreateMutation);
+    const [routineUpdate] = useMutation<routineUpdate, routineUpdateVariables>(routineUpdateMutation);
     // The routine's status (valid/invalid/incomplete)
     const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ['Calculating...'] });
     // Determines the size of the nodes and edges
@@ -294,7 +294,6 @@ export const BuildView = ({
     }, [changedRoutine]);
 
     const startEditing = useCallback(() => setIsEditing(true), []);
-
     /**
      * Creates new routine
      */
@@ -302,6 +301,7 @@ export const BuildView = ({
         if (!changedRoutine) {
             return;
         }
+        console.log('SHAPE CREATE', shapeRoutineCreate(changedRoutine));
         mutationWrapper({
             mutation: routineCreate,
             input: shapeRoutineCreate(changedRoutine),
@@ -463,7 +463,7 @@ export const BuildView = ({
      */
     const generateNewNode = useCallback((columnIndex: number | null, rowIndex: number | null) => {
         const newNode: Partial<Node> = {
-            id: uuidv4(),
+            id: uuid(),
             type: NodeType.RoutineList,
             rowIndex,
             columnIndex,
@@ -664,7 +664,7 @@ export const BuildView = ({
         if (nodeIndex === -1) return;
         const routineList: NodeDataRoutineList = changedRoutine.nodes[nodeIndex].data as NodeDataRoutineList;
         let routineItem: NodeDataRoutineListItem = {
-            id: uuidv4(),
+            id: uuid(),
             index: routineList.routines.length,
             isOptional: true,
             routine,
@@ -968,7 +968,7 @@ export const BuildView = ({
                 // If there are no leaving links, create a new link and end node
                 if (leavingLinks.length === 0) {
                     // Generate node ID
-                    const newEndNodeId = uuidv4();
+                    const newEndNodeId = uuid();
                     // Calculate rowIndex and columnIndex
                     // Column is 1 after current column
                     const columnIndex: number = (node.columnIndex ?? 0) + 1;

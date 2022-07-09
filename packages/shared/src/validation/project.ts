@@ -6,6 +6,7 @@ import * as yup from 'yup';
 const isComplete = yup.boolean()
 
 export const projectTranslationCreate = yup.object().shape({
+    id: id.required(),
     language: language.required(),
     description: description.notRequired().default(undefined),
     name: name.required(),
@@ -28,6 +29,7 @@ export const projectUpdateForm = projectCreateForm;
  * Information required when creating a project. 
  */
 export const projectCreate = yup.object().shape({
+    id: id.required(),
     isComplete: isComplete.notRequired().default(undefined),
     parentId: id.notRequired().default(undefined), // If forked, the parent's id
     createdByUserId: id.notRequired().default(undefined), // If associating with yourself, your own id. Cannot associate with another user

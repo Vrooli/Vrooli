@@ -1,14 +1,14 @@
 import { Pubs } from "utils";
 import PubSub from 'pubsub-js';
-import { ApolloCache, DefaultContext, MutationFunctionOptions, OperationVariables } from '@apollo/client';
+import { ApolloCache, DefaultContext, MutationFunctionOptions } from '@apollo/client';
 import { errorToMessage } from './errorParser';
 import { ApolloError, ApolloResponse } from 'types';
 
-interface MutationWrapperProps {
+interface MutationWrapperProps<Operation, OperationVariables extends { input: { [x: string]: any } }> {
     // useMutation function
-    mutation: (options?: MutationFunctionOptions<any, OperationVariables, DefaultContext, ApolloCache<any>> | undefined) => Promise<any>;
+    mutation: (options?: MutationFunctionOptions<Operation, OperationVariables, DefaultContext, ApolloCache<any>> | undefined) => Promise<any>;
     // data to pass into useMutation function
-    input?: Object;
+    input?: OperationVariables['input'];
     // Callback to determine if mutation was a success, using mutation's return data
     successCondition?: (response?: any) => boolean;
     // Message displayed on success
@@ -34,7 +34,7 @@ interface MutationWrapperProps {
  * - Success and error messages
  * - Loading spinner
  */
-export const mutationWrapper = ({ 
+export const mutationWrapper = <Operation, OperationVariables extends { input: any }>({ 
     mutation,
     input,
     successCondition = () => true,
@@ -46,9 +46,9 @@ export const mutationWrapper = ({
     showDefaultErrorSnack = true,
     onError,
     spinnerDelay = 1000,
-}: MutationWrapperProps) => {
+}: MutationWrapperProps<Operation, OperationVariables>) => {
     if (spinnerDelay) PubSub.publish(Pubs.Loading, spinnerDelay);
-    mutation(input ? { variables: { input } } : undefined).then((response: ApolloResponse) => {
+    mutation(input ? { variables: { input } } as OperationVariables['input'] : undefined).then((response: ApolloResponse) => {
         if (successCondition(response)) {
             if (successMessage || successData) PubSub.publish(Pubs.Snack, { message: successMessage && successMessage(response), ...successData });
             if (spinnerDelay) PubSub.publish(Pubs.Loading, false);

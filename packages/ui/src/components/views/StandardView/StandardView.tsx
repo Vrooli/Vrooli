@@ -13,7 +13,7 @@ import { BaseObjectActionDialog, BaseStandardInput, CommentContainer, LinkButton
 import { StandardViewProps } from "../types";
 import { getCreatedByString, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData, TERTIARY_COLOR, toCreatedBy } from "utils";
 import { Standard } from "types";
-import { StarFor } from "graphql/generated/globalTypes";
+import { CommentFor, StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
 import { validate as uuidValidate } from 'uuid';
@@ -340,7 +340,7 @@ export const StandardView = ({
                 <CommentContainer
                     language={language}
                     objectId={id ?? ''}
-                    objectType={ObjectType.Standard}
+                    objectType={CommentFor.Standard}
                     session={session}
                     sxs={{
                         root: { width: 'min(100%, 600px)' }

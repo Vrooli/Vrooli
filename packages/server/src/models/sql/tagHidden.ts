@@ -24,6 +24,7 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
         const tagData = await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.TagHidden, 'tag');
         let tag: any = tagData && Array.isArray(tagData.create) ? tagData.create[0].tag : undefined;
         return {
+            id: data.id,
             userId: isRelationship ? undefined : userId,
             isBlur: data.isBlur ?? false,
             tag,
@@ -52,7 +53,7 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
             let result: any[] = [];
             for (let data of createMany) {
                 // Convert nested relationships
-                result.push(await this.toDBShapeAdd(userId, data, true))
+                result.push(await this.toDBShapeAdd(userId, data as any, true))
             }
             createMany = result;
         }
@@ -62,7 +63,7 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
             let result: any[] = [];
             for (let data of updateMany) {
                 // Convert nested relationships
-                result.push(await this.toDBShapeUpdate(userId, data.data))
+                result.push(await this.toDBShapeUpdate(userId, data.data as TagHiddenUpdateInput))
             }
             updateMany = updateMany.map(u => ({
                 where: u.where,

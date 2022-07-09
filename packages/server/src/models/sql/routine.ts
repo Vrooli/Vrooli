@@ -15,7 +15,7 @@ import { ResourceListModel } from "./resourceList";
 import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
 import { runFormatter } from "./run";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuid } from 'uuid';
 
 type NodeWeightData = {
     simplicity: number,
@@ -485,14 +485,14 @@ export const routineMutater = (prisma: PrismaType) => ({
     async toDBShape(userId: string | null, data: RoutineCreateInput | RoutineUpdateInput, isAdd: boolean): Promise<any> {
         const [simplicity, complexity] = await this.calculateComplexity(data);
         return {
-            id: data.id ?? undefined,
+            id: data.id,
             isAutomatable: data.isAutomatable,
             isComplete: data.isComplete,
-            completedAt: data.isComplete ? new Date().toISOString() : null,
+            completedAt: (data.isComplete === true) ? new Date().toISOString() : (data.isComplete === false) ? null : undefined,
             complexity: complexity,
             simplicity: simplicity,
             isInternal: data.isInternal,
-            parentId: data.parentId,
+            parentId: (data as RoutineCreateInput)?.parentId ?? undefined,
             version: data.version,
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, isAdd),
             tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Routine),
@@ -531,7 +531,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                     throw new CustomError(CODE.BannedWord, 'Name or description includes bad word', { code: genErrorCode('0091') });
                 // Convert nested relationships
                 result.push({
-                    id: data.id ?? undefined,
+                    id: data.id,
                     name: data.name,
                     standardId: await standardModel.relationshipBuilder(userId, {
                         ...data,
@@ -596,7 +596,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             for (let data of createMany) {
                 // Convert nested relationships
                 result.push({
-                    id: data.id ?? undefined,
+                    id: data.id,
                     name: data.name,
                     standardId: await standardModel.relationshipBuilder(userId, {
                         ...data,
@@ -1020,7 +1020,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         for (const node of newRoutine.nodes) {
             const oldId = node.id;
             // Update ID
-            node.id = uuidv4();
+            node.id = uuid();
             // Update reference to node in nodeLinks
             for (const nodeLink of newRoutine.nodeLinks) {
                 if (nodeLink.fromId === oldId) {
