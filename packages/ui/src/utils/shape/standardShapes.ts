@@ -9,6 +9,22 @@ export type StandardTranslationShape = Omit<ShapeWrapper<StandardTranslation>, '
     jsonVariable: StandardTranslationCreateInput['jsonVariable'];
 }
 
+export type StandardShape = Omit<ShapeWrapper<Standard>, 'props' | 'type' | 'name' | 'resourceLists' | 'tags' | 'translations' | 'creator'> & {
+    id: string;
+    props: StandardCreateInput['props'];
+    type: StandardCreateInput['type'];
+    name: StandardCreateInput['name'];
+    resourceLists?: ResourceListShape[];
+    tags?: TagShape[];
+    translations: StandardTranslationShape[];
+    creator?: {
+        __typename: 'User' | 'Organization';
+        id: string;
+    } | null;
+}
+
+export type StandardShapeUpdate = Omit<StandardShape, 'default' | 'isInternal' | 'name' | 'props' | 'yup' | 'type' | 'version' | 'creator'>;
+
 export const shapeStandardTranslationCreate = (item: StandardTranslationShape): StandardTranslationCreateInput => ({
     id: item.id,
     language: item.language,
@@ -39,20 +55,6 @@ export const shapeStandardTranslationsUpdate = (
     translationsDelete?: string[],
 } => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeStandardTranslationCreate, shapeStandardTranslationUpdate)
 
-export type StandardShape = Omit<ShapeWrapper<Standard>, 'props' | 'type' | 'name' | 'resourceLists' | 'tags' | 'translations' | 'creator'> & {
-    id: string;
-    props: StandardCreateInput['props'];
-    type: StandardCreateInput['type'];
-    name: StandardCreateInput['name'];
-    resourceLists?: ResourceListShape[];
-    tags?: TagShape[];
-    translations: StandardTranslationShape[];
-    creator?: {
-        __typename: 'User' | 'Organization';
-        id: string;
-    } | null;
-}
-
 export const shapeStandardCreate = (item: StandardShape): StandardCreateInput => ({
     id: item.id,
     default: item.default,
@@ -69,8 +71,6 @@ export const shapeStandardCreate = (item: StandardShape): StandardCreateInput =>
     ...shapeResourceListsCreate(item.resourceLists),
     ...shapeTagsCreate(item.tags ?? []),
 })
-
-export type StandardShapeUpdate = Omit<StandardShape, 'default' | 'isInternal' | 'name' | 'props' | 'yup' | 'type' | 'version' | 'creator'>;
 
 export const shapeStandardUpdate = (
     original: StandardShapeUpdate,

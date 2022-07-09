@@ -656,6 +656,7 @@ export interface OrganizationCountInput {
 
 export interface OrganizationCreateInput {
   id: string;
+  handle?: string | null;
   isOpenToNewMembers?: boolean | null;
   resourceListsCreate?: ResourceListCreateInput[] | null;
   tagsConnect?: string[] | null;
@@ -746,6 +747,14 @@ export interface OutputItemUpdateInput {
   translationsUpdate?: OutputItemTranslationUpdateInput[] | null;
 }
 
+export interface ProfileEmailUpdateInput {
+  emailsCreate?: EmailCreateInput[] | null;
+  emailsUpdate?: EmailUpdateInput[] | null;
+  emailsDelete?: string[] | null;
+  currentPassword: string;
+  newPassword?: string | null;
+}
+
 export interface ProfileUpdateInput {
   handle?: string | null;
   name?: string | null;
@@ -754,8 +763,8 @@ export interface ProfileUpdateInput {
   hiddenTagsCreate?: TagHiddenCreateInput[] | null;
   hiddenTagsUpdate?: TagHiddenUpdateInput[] | null;
   resourceListsDelete?: string[] | null;
-  resourceListsCreate?: ResourceCreateInput[] | null;
-  resourceListsUpdate?: ResourceUpdateInput[] | null;
+  resourceListsCreate?: ResourceListCreateInput[] | null;
+  resourceListsUpdate?: ResourceListUpdateInput[] | null;
   starredTagsConnect?: string[] | null;
   starredTagsDisconnect?: string[] | null;
   starredTagsCreate?: TagCreateInput[] | null;
@@ -773,6 +782,7 @@ export interface ProjectCreateInput {
   id: string;
   createdByOrganizationId?: string | null;
   createdByUserId?: string | null;
+  handle?: string | null;
   isComplete?: boolean | null;
   parentId?: string | null;
   resourceListsCreate?: ResourceListCreateInput[] | null;
@@ -823,7 +833,6 @@ export interface ProjectUpdateInput {
   handle?: string | null;
   isComplete?: boolean | null;
   organizationId?: string | null;
-  parentId?: string | null;
   userId?: string | null;
   resourceListsDelete?: string[] | null;
   resourceListsCreate?: ResourceListCreateInput[] | null;
@@ -1030,7 +1039,6 @@ export interface RoutineUpdateInput {
   isComplete?: boolean | null;
   isInternal?: boolean | null;
   version?: string | null;
-  parentId?: string | null;
   userId?: string | null;
   organizationId?: string | null;
   nodesDelete?: string[] | null;
@@ -1253,7 +1261,6 @@ export interface TagCountInput {
 }
 
 export interface TagCreateInput {
-  id: string;
   anonymous?: boolean | null;
   tag: string;
   translationsCreate?: TagTranslationCreateInput[] | null;
@@ -1267,7 +1274,7 @@ export interface TagHiddenCreateInput {
 }
 
 export interface TagHiddenUpdateInput {
-  id?: string | null;
+  id: string;
   isBlur?: boolean | null;
 }
 
@@ -1298,9 +1305,8 @@ export interface TagTranslationUpdateInput {
 }
 
 export interface TagUpdateInput {
-  id: string;
   anonymous?: boolean | null;
-  tag?: string | null;
+  tag: string;
   translationsDelete?: string[] | null;
   translationsCreate?: TagTranslationCreateInput[] | null;
   translationsUpdate?: TagTranslationUpdateInput[] | null;

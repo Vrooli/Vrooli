@@ -10,6 +10,24 @@ export type RoutineTranslationShape = Omit<ShapeWrapper<RoutineTranslation>, 'la
     title: RoutineTranslationCreateInput['title'];
 }
 
+export type RoutineShape = Omit<ShapeWrapper<Routine>, 'complexity' | 'simplicity' | 'inputs' | 'nodeLinks' | 'owner' | 'nodes' | 'outputs' | 'resourceLists' | 'runs' | 'tags'> & {
+    id: string;
+    inputs: InputShape[];
+    nodeLinks?: NodeLinkShape[];
+    nodes?: Omit<NodeShape, 'routineId'>[];
+    outputs?: OutputShape[];
+    owner?: {
+        __typename: 'User' | 'Organization';
+        id: string;
+    } | null;
+    parent?: {
+        id: string
+    } | null;
+    resourceLists?: ResourceListShape[];
+    tags?: TagShape[];
+    translations: RoutineTranslationShape[];
+}
+
 export const shapeRoutineTranslationCreate = (item: RoutineTranslationShape): RoutineTranslationCreateInput => ({
     id: item.id,
     language: item.language,
@@ -41,24 +59,6 @@ export const shapeRoutineTranslationsUpdate = (
     translationsUpdate?: RoutineTranslationUpdateInput[],
     translationsDelete?: string[],
 } => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeRoutineTranslationCreate, shapeRoutineTranslationUpdate)
-
-export type RoutineShape = Omit<ShapeWrapper<Routine>, 'complexity' | 'simplicity' | 'inputs' | 'nodeLinks' | 'owner' | 'nodes' | 'outputs' | 'resourceLists' | 'runs' | 'tags'> & {
-    id: string;
-    inputs: InputShape[];
-    nodeLinks?: NodeLinkShape[];
-    nodes?: Omit<NodeShape, 'routineId'>[];
-    outputs?: OutputShape[];
-    owner?: {
-        __typename: 'User' | 'Organization';
-        id: string;
-    } | null;
-    parent?: {
-        id: string
-    } | null;
-    resourceLists?: ResourceListShape[];
-    tags?: TagShape[];
-    translations: RoutineTranslationShape[];
-}
 
 export const shapeRoutineCreate = (item: RoutineShape): RoutineCreateInput => ({
     id: item.id,

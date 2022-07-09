@@ -22,9 +22,8 @@ export const typeDef = gql`
         translationsCreate: [TagTranslationCreateInput!]
     }
     input TagUpdateInput {
-        id: ID!
         anonymous: Boolean
-        tag: String
+        tag: String!
         translationsDelete: [ID!]
         translationsCreate: [TagTranslationCreateInput!]
         translationsUpdate: [TagTranslationUpdateInput!]
@@ -39,7 +38,7 @@ export const typeDef = gql`
     }
 
     input TagHiddenUpdateInput {
-        id: ID
+        id: ID!
         isBlur: Boolean
     }
 
@@ -154,7 +153,7 @@ export const resolvers = {
          */
         tagUpdate: async (_parent: undefined, { input }: IWrap<TagUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>> => {
             await rateLimit({ context, info, max: 500, byAccount: true });
-            return updateHelper(context.req.userId, input, info, TagModel(context.prisma));
+            return updateHelper(context.req.userId, input, info, TagModel(context.prisma), (tag: TagUpdateInput) => ({ tag: tag.tag}));
         },
         /**
          * Delete tags you've created. Other tags must go through a reporting system

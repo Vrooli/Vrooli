@@ -9,6 +9,12 @@ export type InputTranslationShape = Omit<ShapeWrapper<RoutineInputTranslation>, 
     description: InputItemTranslationCreateInput['description'];
 }
 
+export type InputShape = Omit<ShapeWrapper<RoutineInput>, 'translations' | 'standard'> & {
+    id: string;
+    translations: InputTranslationShape[];
+    standard: StandardShape | null;
+}
+
 export const shapeInputTranslationCreate = (item: InputTranslationShape): InputItemTranslationCreateInput => ({
     id: item.id,
     language: item.language,
@@ -36,12 +42,6 @@ export const shapeInputTranslationsUpdate = (
     translationsUpdate?: InputItemTranslationUpdateInput[],
     translationsDelete?: string[],
 } => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeInputTranslationCreate, shapeInputTranslationUpdate)
-
-export type InputShape = Omit<ShapeWrapper<RoutineInput>, 'translations' | 'standard'> & {
-    id: string;
-    translations: InputTranslationShape[];
-    standard: StandardShape | null;
-}
 
 export const shapeInputCreate = (item: InputShape): InputItemCreateInput => {
     // Connect to standard if it's marked as external. 

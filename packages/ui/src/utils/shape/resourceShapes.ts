@@ -8,6 +8,26 @@ export type ResourceTranslationShape = Omit<ShapeWrapper<ResourceTranslation>, '
     language: ResourceTranslationCreateInput['language'];
 }
 
+export type ResourceShape = Omit<ShapeWrapper<Resource>, 'translations' | 'link' | 'usedFor'> & {
+    id: string;
+    link: ResourceCreateInput['link'];
+    listId: string;
+    usedFor: ResourceCreateInput['usedFor'] | null;
+    translations: ResourceTranslationShape[];
+}
+
+export type ResourceListTranslationShape = Omit<ShapeWrapper<ResourceListTranslation>, 'language'> & {
+    id: string;
+    language: ResourceListTranslationCreateInput['language'];
+}
+
+export type ResourceListShape = Omit<ShapeWrapper<ResourceList>, 'usedFor' | 'translations' | 'resources'> & {
+    id: string;
+    usedFor: ResourceListCreateInput['usedFor'] | null;
+    resources: Omit<ResourceShape, 'listId'>[];
+    translations: ResourceListTranslationShape[];
+}
+
 export const shapeResourceTranslationCreate = (item: ResourceTranslationShape): ResourceTranslationCreateInput => ({
     id: item.id,
     language: item.language,
@@ -37,14 +57,6 @@ export const shapeResourceTranslationsUpdate = (
     translationsUpdate?: ResourceTranslationUpdateInput[],
     translationsDelete?: string[],
 } => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeResourceTranslationCreate, shapeResourceTranslationUpdate)
-
-export type ResourceShape = Omit<ShapeWrapper<Resource>, 'translations' | 'link' | 'usedFor'> & {
-    id: string;
-    link: ResourceCreateInput['link'];
-    listId: string;
-    usedFor: ResourceCreateInput['usedFor'] | null;
-    translations: ResourceTranslationShape[];
-}
 
 export const shapeResourceCreate = (item: ResourceShape): ResourceCreateInput => ({
     id: item.id,
@@ -81,11 +93,6 @@ export const shapeResourcesUpdate = (
     resourcesDelete?: string[],
 } => shapeUpdateList(o, u, 'resources', hasObjectChanged, shapeResourceCreate, shapeResourceUpdate)
 
-export type ResourceListTranslationShape = Omit<ShapeWrapper<ResourceListTranslation>, 'language'> & {
-    id: string;
-    language: ResourceListTranslationCreateInput['language'];
-}
-
 export const shapeResourceListTranslationCreate = (item: ResourceListTranslationShape): ResourceListTranslationCreateInput => ({
     id: item.id,
     language: item.language,
@@ -115,13 +122,6 @@ export const shapeResourceListTranslationsUpdate = (
     translationsUpdate?: ResourceListTranslationUpdateInput[],
     translationsDelete?: string[],
 } => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeResourceListTranslationCreate, shapeResourceListTranslationUpdate)
-
-export type ResourceListShape = Omit<ShapeWrapper<ResourceList>, 'usedFor' | 'translations' | 'resources'> & {
-    id: string;
-    usedFor: ResourceListCreateInput['usedFor'] | null;
-    resources: Omit<ResourceShape, 'listId'>[];
-    translations: ResourceListTranslationShape[];
-}
 
 export const shapeResourceListCreate = (item: ResourceListShape): ResourceListCreateInput => ({
     id: item.id,

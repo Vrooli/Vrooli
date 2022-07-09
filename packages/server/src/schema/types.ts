@@ -1128,6 +1128,7 @@ export type OrganizationCountInput = {
 };
 
 export type OrganizationCreateInput = {
+  handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
@@ -1313,9 +1314,9 @@ export type ProfileUpdateInput = {
   hiddenTagsDelete?: InputMaybe<Array<Scalars['ID']>>;
   hiddenTagsUpdate?: InputMaybe<Array<TagHiddenUpdateInput>>;
   name?: InputMaybe<Scalars['String']>;
-  resourceListsCreate?: InputMaybe<Array<ResourceCreateInput>>;
+  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourceListsUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
+  resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
   starredTagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   starredTagsCreate?: InputMaybe<Array<TagCreateInput>>;
   starredTagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -1364,6 +1365,7 @@ export type ProjectCountInput = {
 export type ProjectCreateInput = {
   createdByOrganizationId?: InputMaybe<Scalars['ID']>;
   createdByUserId?: InputMaybe<Scalars['ID']>;
+  handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
   parentId?: InputMaybe<Scalars['ID']>;
@@ -1458,7 +1460,6 @@ export type ProjectUpdateInput = {
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
   organizationId?: InputMaybe<Scalars['ID']>;
-  parentId?: InputMaybe<Scalars['ID']>;
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
   resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
@@ -2232,7 +2233,6 @@ export type RoutineUpdateInput = {
   outputsCreate?: InputMaybe<Array<OutputItemCreateInput>>;
   outputsDelete?: InputMaybe<Array<Scalars['ID']>>;
   outputsUpdate?: InputMaybe<Array<OutputItemUpdateInput>>;
-  parentId?: InputMaybe<Scalars['ID']>;
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
   resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
@@ -2684,7 +2684,6 @@ export type TagCountInput = {
 
 export type TagCreateInput = {
   anonymous?: InputMaybe<Scalars['Boolean']>;
-  id: Scalars['ID'];
   tag: Scalars['String'];
   translationsCreate?: InputMaybe<Array<TagTranslationCreateInput>>;
 };
@@ -2710,7 +2709,7 @@ export type TagHiddenCreateInput = {
 };
 
 export type TagHiddenUpdateInput = {
-  id?: InputMaybe<Scalars['ID']>;
+  id: Scalars['ID'];
   isBlur?: InputMaybe<Scalars['Boolean']>;
 };
 
@@ -2764,8 +2763,7 @@ export type TagTranslationUpdateInput = {
 
 export type TagUpdateInput = {
   anonymous?: InputMaybe<Scalars['Boolean']>;
-  id: Scalars['ID'];
-  tag?: InputMaybe<Scalars['String']>;
+  tag: Scalars['String'];
   translationsCreate?: InputMaybe<Array<TagTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<TagTranslationUpdateInput>>;
@@ -2870,7 +2868,7 @@ export type UserTranslationCreateInput = {
 export type UserTranslationUpdateInput = {
   bio?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  language: Scalars['String'];
+  language?: InputMaybe<Scalars['String']>;
 };
 
 export type View = {

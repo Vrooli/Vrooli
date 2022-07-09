@@ -63,7 +63,7 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
             let result: any[] = [];
             for (let data of updateMany) {
                 // Convert nested relationships
-                result.push(await this.toDBShapeUpdate(userId, data.data))
+                result.push(await this.toDBShapeUpdate(userId, data.data as TagHiddenUpdateInput))
             }
             updateMany = updateMany.map(u => ({
                 where: u.where,

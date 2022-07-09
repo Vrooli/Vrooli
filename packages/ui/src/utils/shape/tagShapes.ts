@@ -1,7 +1,7 @@
 import { TagCreateInput, TagTranslationCreateInput, TagTranslationUpdateInput, TagUpdateInput } from "graphql/generated/globalTypes";
 import { ShapeWrapper, Tag, TagTranslation } from "types";
 import { hasObjectChanged } from "./objectTools";
-import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
+import { findCreatedItems, findRemovedItems, findUpdatedItems, shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
 export type TagTranslationShape = Omit<ShapeWrapper<TagTranslation>, 'language'> & {
     id: string;
@@ -50,12 +50,18 @@ export const shapeTagCreate = (item: TagShape): TagCreateInput => ({
 export const shapeTagUpdate = (
     original: TagShape,
     updated: TagShape
-): TagUpdateInput | undefined =>
-    shapeUpdate(original, updated, (o, u) => ({
+): TagUpdateInput | undefined => {
+    if (!updated?.id) return undefined;
+    let result: TagUpdateInput = {
         // anonymous: TODO
-        tag: o.tag,
-        ...shapeTagTranslationsUpdate(o.translations, u.translations),
-    }))
+        tag: original.tag,
+        ...shapeTagTranslationsUpdate(original.translations, updated.translations),
+    }
+    // Remove every value from the result that is undefined
+    if (result) result = Object.fromEntries(Object.entries(result).filter(([, value]) => value !== undefined)) as TagUpdateInput;
+    // Return result if it is not empty
+    return result && Object.keys(result).length > 0 ? result : undefined;
+}
 
 export const shapeTagsCreate = (items: TagShape[] | null | undefined): {
     tagsCreate?: TagCreateInput[],
@@ -68,4 +74,18 @@ export const shapeTagsUpdate = (
     tagsCreate?: TagCreateInput[],
     tagsUpdate?: TagUpdateInput[],
     tagsDelete?: string[],
-} => shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate)
+} => {
+    if (!u) return {};
+    // If no original items, treat all as created
+    if (!o || !Array.isArray(o)) {
+        return shapeCreateList(u ?? [], 'tags', shapeTagCreate);
+    }
+    if (Array.isArray(u) && u.length > 0) {
+        return {
+            tagsCreate: findCreatedItems(o, u, shapeTagCreate),
+            tagsUpdate: findUpdatedItems(o, u, hasObjectChanged, shapeTagUpdate),
+            tagsDelete: findRemovedItems(o, u),
+        } as any;
+    }
+    return {};
+}

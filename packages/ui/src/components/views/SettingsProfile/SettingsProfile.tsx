@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { getUserLanguages, Pubs, TERTIARY_COLOR, updateArray } from "utils";
+import { getUserLanguages, ProfileTranslationShape, Pubs, shapeProfileUpdate, TERTIARY_COLOR, updateArray } from "utils";
 import {
     Refresh as RefreshIcon,
     Restore as CancelIcon,
@@ -63,7 +63,7 @@ export const SettingsProfile = ({
     const [selectedHandle, setSelectedHandle] = useState<string | null>(null);
 
     // Handle translations
-    type Translation = ProfileTranslationsShape;
+    type Translation = ProfileTranslationShape;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -91,6 +91,7 @@ export const SettingsProfile = ({
         // If no translations found, add default
         if (foundTranslations.length === 0) {
             setTranslations([{
+                id: uuid(),
                 language: getUserLanguages(session)[0],
                 bio: '',
             }]);
@@ -109,6 +110,10 @@ export const SettingsProfile = ({
         enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
+            if (!profile) {
+                PubSub.publish(Pubs.Snack, { message: 'Could not find existing data.', severity: 'error' });
+                return;
+            }
             if (!formik.isValid) return;
             const allTranslations = getTranslationsUpdate(language, {
                 id: uuid(),
@@ -117,11 +122,12 @@ export const SettingsProfile = ({
             })
             mutationWrapper({
                 mutation,
-                input: formatForUpdate(profile, {
+                input: shapeProfileUpdate(profile, {
+                    id: profile.id,
                     name: values.name,
                     handle: selectedHandle,
                     translations: allTranslations,
-                }, [], ['translations']),
+                }),
                 onSuccess: (response) => { onUpdated(response.data.profileUpdate); setLocation(APP_LINKS.Profile, { replace: true }) },
                 onError: () => { formik.setSubmitting(false) },
             })

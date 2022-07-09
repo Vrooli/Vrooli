@@ -216,14 +216,14 @@ export type CountInputBase = {
 export interface ValidateMutationsInput<Create, Update> {
     userId: string | null,
     createMany?: Create[] | null | undefined,
-    updateMany?: { where: { id: string }, data: Update }[] | null | undefined,
+    updateMany?: { where: { [x: string]: any }, data: Update }[] | null | undefined,
     deleteMany?: string[] | null | undefined,
 }
 
 export interface CUDInput<Create, Update> {
     userId: string | null,
     createMany?: Create[] | null | undefined,
-    updateMany?: { where: { id: string }, data: Update }[] | null | undefined,
+    updateMany?: { where: { [x: string]: any }, data: Update }[] | null | undefined,
     deleteMany?: string[] | null | undefined,
     partialInfo: PartialGraphQLInfo,
 }
@@ -1467,14 +1467,15 @@ export async function createHelper<GraphQLModel>(
  * @param input GraphQL update input object
  * @param info GraphQL info object
  * @param model Business layer model
- * @param prisma Prisma client
+ * @param where Function to create where clause for update (defaults to (obj) => ({ id: obj.id }))
  * @returns GraphQL response object
  */
 export async function updateHelper<GraphQLModel>(
     userId: string | null,
     input: any,
     info: GraphQLInfo | PartialGraphQLInfo,
-    model: ModelBusinessLayer<GraphQLModel, any>
+    model: ModelBusinessLayer<GraphQLModel, any>,
+    where: (obj: any) => { [x: string]: any } = (obj) => ({ id: obj.id }),
 ): Promise<RecursivePartial<GraphQLModel>> {
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object', { code: genErrorCode('0029') });
@@ -1485,7 +1486,7 @@ export async function updateHelper<GraphQLModel>(
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0031') });
     // Shape update input to match prisma update shape (i.e. "where" and "data" fields)
-    const shapedInput = { where: { id: input.id }, data: input };
+    const shapedInput = { where: where(input), data: input };
     const { updated } = await model.cud({ partialInfo, userId, updateMany: [shapedInput] });
     if (updated && updated.length > 0) {
         // If organization, project, routine, or standard, log for stats

@@ -7,6 +7,38 @@ export type NodeEndShape = ShapeWrapper<NodeDataEnd> & {
     id: string;
 }
 
+export type NodeRoutineListItemTranslationShape = Omit<ShapeWrapper<NodeDataRoutineListItemTranslation>, 'language'> & {
+    id: string;
+    language: NodeRoutineListItemTranslationCreateInput['language'];
+}
+
+export type NodeRoutineListItemShape = Omit<ShapeWrapper<NodeDataRoutineListItem>, 'index' | 'routine'> & {
+    id: string;
+    index: NodeRoutineListItemCreateInput['index'];
+    isOptional: NodeRoutineListItemCreateInput['isOptional'];
+    routine: RoutineShape;
+    translations: NodeRoutineListItemTranslationShape[];
+}
+
+export type NodeRoutineListShape = Omit<ShapeWrapper<NodeDataRoutineList>, 'routines'> & {
+    id: string;
+    routines: NodeRoutineListItemShape[];
+}
+
+export type NodeTranslationShape = Omit<ShapeWrapper<NodeTranslation>, 'language' | 'title'> & {
+    id: string;
+    language: NodeTranslationCreateInput['language'];
+    title: NodeTranslationCreateInput['title'];
+}
+
+export type NodeShape = Omit<ShapeWrapper<Node>, 'loop' | 'data' | 'translations'> & {
+    id: string;
+    routineId: string;
+    // loop
+    data?: NodeEndShape | NodeRoutineListShape | null;
+    translations: NodeTranslationShape[];
+}
+
 export const shapeNodeEndCreate = (item: NodeEndShape): NodeEndCreateInput => ({
     id: item.id,
     wasSuccessful: item.wasSuccessful,
@@ -20,11 +52,6 @@ export const shapeNodeEndUpdate = (
         id: o.id,
         wasSuccessful: u.wasSuccessful !== o.wasSuccessful ? u.wasSuccessful : undefined,
     }))
-
-export type NodeRoutineListItemTranslationShape = Omit<ShapeWrapper<NodeDataRoutineListItemTranslation>, 'language'> & {
-    id: string;
-    language: NodeRoutineListItemTranslationCreateInput['language'];
-}
 
 export const shapeNodeRoutineListItemTranslationCreate = (item: NodeRoutineListItemTranslationShape): NodeRoutineListItemTranslationCreateInput => ({
     id: item.id,
@@ -55,14 +82,6 @@ export const shapeNodeRoutineListItemTranslationsUpdate = (
     translationsUpdate?: NodeRoutineListItemTranslationUpdateInput[],
     translationsDelete?: string[],
 } => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeNodeRoutineListItemTranslationCreate, shapeNodeRoutineListItemTranslationUpdate)
-
-export type NodeRoutineListItemShape = Omit<ShapeWrapper<NodeDataRoutineListItem>, 'index' | 'routine'> & {
-    id: string;
-    index: NodeRoutineListItemCreateInput['index'];
-    isOptional: NodeRoutineListItemCreateInput['isOptional'];
-    routine: RoutineShape;
-    translations: NodeRoutineListItemTranslationShape[];
-}
 
 export const shapeNodeRoutineListItemCreate = (item: NodeRoutineListItemShape): NodeRoutineListItemCreateInput => ({
     id: item.id,
@@ -97,11 +116,6 @@ export const shapeNodeRoutineListItemsUpdate = (
     routinesDelete?: string[],
 } => shapeUpdateList(o, u, 'routines', hasObjectChanged, shapeNodeRoutineListItemCreate, shapeNodeRoutineListItemUpdate)
 
-export type NodeRoutineListShape = Omit<ShapeWrapper<NodeDataRoutineList>, 'routines'> & {
-    id: string;
-    routines: NodeRoutineListItemShape[];
-}
-
 export const shapeNodeRoutineListCreate = (item: NodeRoutineListShape): NodeRoutineListCreateInput => ({
     id: item.id,
     isOptional: item.isOptional,
@@ -119,12 +133,6 @@ export const shapeNodeRoutineListUpdate = (
         isOrdered: u.isOrdered !== o.isOrdered ? u.isOrdered : undefined,
         ...shapeNodeRoutineListItemsUpdate(o.routines, u.routines),
     }))
-
-export type NodeTranslationShape = Omit<ShapeWrapper<NodeTranslation>, 'language' | 'title'> & {
-    id: string;
-    language: NodeTranslationCreateInput['language'];
-    title: NodeTranslationCreateInput['title'];
-}
 
 export const shapeNodeTranslationCreate = (item: NodeTranslationShape): NodeTranslationCreateInput => ({
     id: item.id,
@@ -155,14 +163,6 @@ export const shapeNodeTranslationsUpdate = (
     translationsUpdate?: NodeTranslationUpdateInput[],
     translationsDelete?: string[],
 } => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeNodeTranslationCreate, shapeNodeTranslationUpdate)
-
-export type NodeShape = Omit<ShapeWrapper<Node>, 'loop' | 'data' | 'translations'> & {
-    id: string;
-    routineId: string;
-    // loop
-    data?: NodeEndShape | NodeRoutineListShape | null;
-    translations: NodeTranslationShape[];
-}
 
 export const shapeNodeCreate = (item: NodeShape): NodeCreateInput => ({
     id: item.id,

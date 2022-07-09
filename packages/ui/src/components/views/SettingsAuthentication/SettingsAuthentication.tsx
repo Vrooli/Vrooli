@@ -4,7 +4,7 @@ import { useCallback, useEffect } from "react";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
-import { profileUpdateMutation } from "graphql/mutation";
+import { profileEmailUpdateMutation } from "graphql/mutation";
 import { Pubs, TERTIARY_COLOR } from "utils";
 import {
     AccountBalanceWallet as WalletIcon,
@@ -20,7 +20,7 @@ import { EmailList, WalletList } from "components/lists";
 import { Email, Wallet } from "types";
 import { PasswordTextField } from "components";
 import { logOut } from "graphql/generated/logOut";
-import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
+import { profileEmailUpdate, profileEmailUpdateVariables } from "graphql/generated/profileEmailUpdate";
 
 const helpText =
     `This page allows you to manage your wallets, emails, and other authentication settings.`;
@@ -78,7 +78,7 @@ export const SettingsAuthentication = ({
     const numVerifiedWallets = profile?.wallets?.filter((wallet) => wallet.verified)?.length ?? 0;
 
     // Handle update
-    const [mutation] = useMutation<profileUpdate, profileUpdateVariables>(profileUpdateMutation);
+    const [mutation] = useMutation<profileEmailUpdate, profileEmailUpdateVariables>(profileEmailUpdateMutation);
     const formik = useFormik({
         initialValues: {
             currentPassword: '',
@@ -88,10 +88,17 @@ export const SettingsAuthentication = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
+            if (!profile) {
+                PubSub.publish(Pubs.Snack, { message: 'Could not find existing data.', severity: 'error' });
+                return;
+            }
             if (!formik.isValid) return;
             mutationWrapper({
                 mutation,
-                input: formatForUpdate(profile, { ...values }),
+                input: {
+                    currentPassword: values.currentPassword,
+                    newPassword: values.newPassword,
+                },
                 onSuccess: (response) => { onUpdated(response.data.profileUpdate) },
                 onError: () => { formik.setSubmitting(false) },
             })

@@ -11,7 +11,7 @@ import {
     Cancel as CancelIcon,
     Close as CloseIcon,
 } from '@mui/icons-material';
-import { getTranslation, getUserLanguages, Pubs, ResourceTranslationShape, updateArray } from 'utils';
+import { getTranslation, getUserLanguages, Pubs, ResourceShape, ResourceTranslationShape, shapeResourceCreate, shapeResourceUpdate, updateArray } from 'utils';
 import { resourceCreate, resourceCreateVariables } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { resourceUpdate, resourceUpdateVariables } from 'graphql/generated/resourceUpdate';
@@ -115,7 +115,7 @@ export const ResourceDialog = ({
                 description: values.description,
                 title: values.title,
             })
-            const data = {
+            const input: ResourceShape = {
                 id: partialData?.id ?? uuid(),
                 index: Math.max(index, 0),
                 listId,
@@ -123,22 +123,39 @@ export const ResourceDialog = ({
                 usedFor: values.usedFor,
                 translations: allTranslations,
             };
-            const input = (index < 0) ? formatForCreate(data) : formatForUpdate(partialData, data, [], ['translations']);
             if (mutate) {
-                mutationWrapper({
-                    mutation: (index < 0) ? addMutation : updateMutation,
-                    input,
-                    successCondition: (response) => response.data.resourceCreate !== null,
-                    onSuccess: (response) => {
-                        PubSub.publish(Pubs.Snack, { message: (index < 0) ? 'Resource created.' : 'Resource updated.' });
-                        (index < 0) ? onCreated(response.data.resourceCreate) : onUpdated(index ?? 0, response.data.resourceUpdate);
-                        formik.resetForm();
-                        onClose();
-                    },
-                    onError: () => { formik.setSubmitting(false) },
-                })
+                const onSuccess = (response) => {
+                    PubSub.publish(Pubs.Snack, { message: (index < 0) ? 'Resource created.' : 'Resource updated.' });
+                    (index < 0) ? onCreated(response.data.resourceCreate) : onUpdated(index ?? 0, response.data.resourceUpdate);
+                    formik.resetForm();
+                    onClose();
+                }
+                // If index is negative, create
+                if (index < 0) {
+                    mutationWrapper({
+                        mutation: addMutation,
+                        input: shapeResourceCreate(input),
+                        successCondition: (response) => response.data.resourceCreate !== null,
+                        onSuccess,
+                        onError: () => { formik.setSubmitting(false) },
+                    })
+                }
+                // Otherwise, update
+                else {
+                    if (!partialData || !partialData.id || !listId) {
+                        PubSub.publish(Pubs.Snack, { message: 'Could not find resource to update.', severity: 'error' });
+                        return;
+                    }
+                    mutationWrapper({
+                        mutation: updateMutation,
+                        input: shapeResourceUpdate({ ...partialData, listId } as ResourceShape, input),
+                        successCondition: (response) => response.data.resourceUpdate !== null,
+                        onSuccess,
+                        onError: () => { formik.setSubmitting(false) },
+                    })
+                }
             } else {
-                onCreated(data as NewObject<Resource>);
+                onCreated(input as NewObject<Resource>);
                 formik.resetForm();
                 onClose();
             }

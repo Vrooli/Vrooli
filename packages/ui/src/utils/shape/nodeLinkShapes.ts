@@ -9,6 +9,11 @@ export type NodeLinkWhenTranslationShape = Omit<ShapeWrapper<NodeLinkWhenTransla
     title: NodeLinkWhenTranslationCreateInput['title'];
 }
 
+export type NodeLinkWhenShape = Omit<ShapeWrapper<NodeLinkWhen>, 'linkId'> & {
+    id: string;
+    linkId: NodeLinkWhenCreateInput['linkId'];
+}
+
 export const shapeNodeLinkWhenTranslationCreate = (item: NodeLinkWhenTranslationShape): NodeLinkWhenTranslationCreateInput => ({
     id: item.id,
     language: item.language,
@@ -38,11 +43,6 @@ export const shapeNodeLinkWhenTranslationsUpdate = (
     translationsUpdate?: NodeLinkWhenTranslationUpdateInput[],
     translationsDelete?: string[],
 } => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeNodeLinkWhenTranslationCreate, shapeNodeLinkWhenTranslationUpdate)
-
-export type NodeLinkWhenShape = Omit<ShapeWrapper<NodeLinkWhen>, 'linkId'> & {
-    id: string;
-    linkId: NodeLinkWhenCreateInput['linkId'];
-}
 
 export const shapeNodeLinkWhenCreate = (item: NodeLinkWhenShape): NodeLinkWhenCreateInput => ({
     id: item.id,

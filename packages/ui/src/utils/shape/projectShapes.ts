@@ -9,6 +9,21 @@ export type ProjectTranslationShape = Omit<ShapeWrapper<ProjectTranslation>, 'la
     name: ProjectTranslationCreateInput['name'];
 }
 
+export type ProjectShape = Omit<ShapeWrapper<Project>, 'resourceLists' | 'tags' | 'translations' | 'owner'> & {
+    id: string;
+    // handle: string | null; TODO
+    resourceLists?: ResourceListShape[] | null;
+    tags?: TagShape[];
+    translations: ProjectTranslationShape[];
+    parent?: {
+        id: string
+    } | null;
+    owner?: {
+        __typename: 'User' | 'Organization';
+        id: string;
+    } | null;
+}
+
 export const shapeProjectTranslationCreate = (item: ProjectTranslationShape): ProjectTranslationCreateInput => ({
     id: item.id,
     language: item.language,
@@ -38,21 +53,6 @@ export const shapeProjectTranslationsUpdate = (
     translationsUpdate?: ProjectTranslationUpdateInput[],
     translationsDelete?: string[],
 } => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeProjectTranslationCreate, shapeProjectTranslationUpdate)
-
-export type ProjectShape = Omit<ShapeWrapper<Project>, 'resourceLists' | 'tags' | 'translations' | 'owner'> & {
-    id: string;
-    // handle: string | null; TODO
-    resourceLists?: ResourceListShape[] | null;
-    tags?: TagShape[];
-    translations: ProjectTranslationShape[];
-    parent?: {
-        id: string
-    } | null;
-    owner?: {
-        __typename: 'User' | 'Organization';
-        id: string;
-    } | null;
-}
 
 export const shapeProjectCreate = (item: ProjectShape): ProjectCreateInput => ({
     id: item.id,

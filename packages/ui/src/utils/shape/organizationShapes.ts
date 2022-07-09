@@ -9,6 +9,15 @@ export type OrganizationTranslationShape = Omit<ShapeWrapper<OrganizationTransla
     name: OrganizationTranslationCreateInput['name'];
 }
 
+export type OrganizationShape = Omit<ShapeWrapper<Organization>, 'handle' | 'isOpenToNewMembers' | 'resourceLists' | 'resourceLists' | 'tags' | 'translations'> & {
+    id: string;
+    // handle: OrganizationCreateInput['handle'];
+    isOpenToNewMembers: OrganizationCreateInput['isOpenToNewMembers'];
+    resourceLists?: ResourceListShape[];
+    tags?: TagShape[];
+    translations: OrganizationTranslationShape[];
+}
+
 export const shapeOrganizationTranslationCreate = (item: OrganizationTranslationShape): OrganizationTranslationCreateInput => ({
     id: item.id,
     language: item.language,
@@ -38,15 +47,6 @@ export const shapeOrganizationTranslationsUpdate = (
     translationsUpdate?: OrganizationTranslationUpdateInput[],
     translationsDelete?: string[],
 } => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeOrganizationTranslationCreate, shapeOrganizationTranslationUpdate)
-
-export type OrganizationShape = Omit<ShapeWrapper<Organization>, 'handle' | 'isOpenToNewMembers' | 'resourceLists' | 'resourceLists' | 'tags' | 'translations'> & {
-    id: string;
-    // handle: OrganizationCreateInput['handle'];
-    isOpenToNewMembers: OrganizationCreateInput['isOpenToNewMembers'];
-    resourceLists?: ResourceListShape[];
-    tags?: TagShape[];
-    translations: OrganizationTranslationShape[];
-}
 
 export const shapeOrganizationCreate = (item: OrganizationShape): OrganizationCreateInput => ({
     id: item.id,
