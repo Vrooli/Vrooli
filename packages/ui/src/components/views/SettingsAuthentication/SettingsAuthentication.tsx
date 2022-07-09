@@ -99,7 +99,7 @@ export const SettingsAuthentication = ({
                     currentPassword: values.currentPassword,
                     newPassword: values.newPassword,
                 },
-                onSuccess: (response) => { onUpdated(response.data.profileUpdate) },
+                onSuccess: (response) => { onUpdated(response.data.profileEmailUpdate) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },

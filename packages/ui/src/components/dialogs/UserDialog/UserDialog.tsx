@@ -41,7 +41,7 @@ export const UserDialog = ({
                     mutation: update,
                     input: {},
                     onSuccess: ({ data }) => {
-                        const id = data?.id;
+                        const id = data?.user?.id;
                         if (id) setLocation(`${APP_LINKS.SearchUsers}/view/${id}`, { replace: true });
                     },
                     onError: (response) => {

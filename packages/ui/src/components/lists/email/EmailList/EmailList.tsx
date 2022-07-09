@@ -46,7 +46,7 @@ export const EmailList = ({
                 },
                 onSuccess: (response) => {
                     PubSub.publish(Pubs.Snack, { message: 'Please check your email to complete verification.' });
-                    handleUpdate([...list, response.data.addEmail]);
+                    handleUpdate([...list, response.data.emailCreate]);
                     formik.resetForm();
                 },
                 onError: () => { formik.setSubmitting(false); },

@@ -1,6 +1,5 @@
 import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
-import { project, projectVariables } from "graphql/generated/project";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { projectCreateForm as validationSchema, ROLES } from '@local/shared';
 import { useFormik } from 'formik';
@@ -19,6 +18,7 @@ import { Organization } from "types";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuid } from 'uuid';
+import { projectCreate, projectCreateVariables } from "graphql/generated/projectCreate";
 
 export const ProjectCreate = ({
     onCreated,
@@ -72,7 +72,7 @@ export const ProjectCreate = ({
     }, [params]);
 
     // Handle create
-    const [mutation] = useMutation<project, projectVariables>(projectCreateMutation);
+    const [mutation] = useMutation<projectCreate, projectCreateVariables>(projectCreateMutation);
     const formik = useFormik({
         initialValues: {
             description: '',

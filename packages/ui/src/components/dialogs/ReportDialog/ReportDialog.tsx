@@ -77,7 +77,7 @@ export const ReportDialog = ({
                     createdForId: forId
                 },
                 successCondition: (response) => response.data.reportCreate !== null,
-                onSuccess: (response) => {
+                onSuccess: () => {
                     PubSub.publish(Pubs.Snack, { message: 'Report submitted.' });
                     formik.resetForm();
                     onClose()

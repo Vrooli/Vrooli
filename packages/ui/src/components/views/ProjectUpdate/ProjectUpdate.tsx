@@ -21,6 +21,7 @@ import { DialogActionsContainer } from "components/containers/DialogActionsConta
 import { Organization, ResourceList } from "types";
 import { v4 as uuid } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
+import { projectUpdate, projectUpdateVariables } from "graphql/generated/projectUpdate";
 
 export const ProjectUpdate = ({
     onCancel,
@@ -91,7 +92,7 @@ export const ProjectUpdate = ({
     }, [project]);
 
     // Handle update
-    const [mutation] = useMutation<project, projectVariables>(projectUpdateMutation);
+    const [mutation] = useMutation<projectUpdate, projectUpdateVariables>(projectUpdateMutation);
     const formik = useFormik({
         initialValues: {
             description: '',

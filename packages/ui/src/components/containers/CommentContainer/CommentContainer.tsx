@@ -17,7 +17,7 @@ import { TimeFrame } from 'graphql/generated/globalTypes';
 import { comments, commentsVariables } from 'graphql/generated/comments';
 import { useLocation } from 'wouter';
 import { commentsQuery } from 'graphql/query';
-import { CommentThread as ThreadType } from 'types';
+import { Comment, CommentThread as ThreadType } from 'types';
 import { CommentThread } from 'components/lists/comment';
 import { validate as uuidValidate } from 'uuid';
 import { v4 as uuid } from 'uuid';
