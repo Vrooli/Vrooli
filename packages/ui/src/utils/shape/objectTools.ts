@@ -45,6 +45,7 @@ export const removeFirstLevel = (notationArray: string[]) => notationArray.map(s
  * @param fields The fields to check for changes
  */
 export function hasObjectChanged(original: any, updated: any, fields: string[] = []): boolean {
+    console.log('hasobjectchanged', original, updated);
     if (!updated) return false;
     if (!original) return true;
     const fieldsToCheck = fields.length > 0 ? fields : Object.keys(original);

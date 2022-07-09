@@ -1,8 +1,8 @@
 import { ProfileUpdateInput, TagHiddenCreateInput, TagHiddenUpdateInput, UserTranslationCreateInput, UserTranslationUpdateInput } from "graphql/generated/globalTypes";
 import { Profile, ProfileTranslation, ShapeWrapper, TagHidden } from "types";
 import { hasObjectChanged } from "./objectTools";
-import { ResourceListShape, shapeResourceListsUpdate } from "./resourceShapes";
-import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
+import { ResourceListShape } from "./resourceShapes";
+import { shapeUpdate, shapeUpdateList } from "./shapeTools";
 import { shapeTagCreate, shapeTagsUpdate, TagShape } from "./tagShapes";
 
 export type ProfileTranslationShape = Omit<ShapeWrapper<ProfileTranslation>, 'language' | 'bio'> & {
@@ -41,19 +41,6 @@ export const shapeProfileTranslationUpdate = (
         bio: u.bio !== o.bio ? u.bio : undefined,
     }))
 
-export const shapeProfileTranslationsCreate = (items: ProfileTranslationShape[] | null | undefined): {
-    translationsCreate?: UserTranslationCreateInput[],
-} => shapeCreateList(items, 'translations', shapeProfileTranslationCreate);
-
-export const shapeProfileTranslationsUpdate = (
-    o: ProfileTranslationShape[] | null | undefined,
-    u: ProfileTranslationShape[] | null | undefined
-): {
-    translationsCreate?: UserTranslationCreateInput[],
-    translationsUpdate?: UserTranslationUpdateInput[],
-    translationsDelete?: string[],
-} => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeProfileTranslationCreate, shapeProfileTranslationUpdate)
-
 export const shapeTagHiddenCreate = (item: TagHiddenShape): TagHiddenCreateInput => ({
     id: item.id,
     isBlur: item.isBlur,
@@ -69,15 +56,6 @@ export const shapeTagHiddenUpdate = (
         isBlur: u.isBlur !== o.isBlur ? u.isBlur : undefined,
     }))
 
-export const shapeTagHiddensUpdate = (
-    o: TagHiddenShape[] | null | undefined,
-    u: TagHiddenShape[] | null | undefined
-): {
-    hiddenTagsCreate?: TagHiddenCreateInput[],
-    hiddenTagsUpdate?: TagHiddenUpdateInput[],
-    hiddenTagsDelete?: string[],
-} => shapeUpdateList(o, u, 'hiddenTags', hasObjectChanged, shapeTagHiddenCreate, shapeTagHiddenUpdate)
-
 export const shapeProfileUpdate = (
     original: ProfileShape,
     updated: ProfileShape
@@ -87,8 +65,8 @@ export const shapeProfileUpdate = (
         handle: updated.handle !== original.handle ? updated.handle : undefined,
         name: updated.name !== original.name ? updated.name : undefined,
         theme: updated.theme !== original.theme ? updated.theme : undefined,
-        ...shapeTagHiddensUpdate(o.hiddenTags, u.hiddenTags),
-        ...shapeTagsUpdate(o.starredTags, u.starredTags), //TODO fields should be starredTags, not tags
-        ...shapeProfileTranslationsUpdate(o.translations, u.translations),
-        ...shapeResourceListsUpdate(o.resourceLists, u.resourceLists),
+        ...shapeUpdateList(o, u, 'hiddenTags', hasObjectChanged, shapeTagHiddenCreate, shapeTagHiddenUpdate),
+        ...shapeUpdateList(o, u, 'starredTags', hasObjectChanged, shapeTagCreate, shapeTagsUpdate),
+        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeProfileTranslationCreate, shapeProfileTranslationUpdate),
+        ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate),
     }))

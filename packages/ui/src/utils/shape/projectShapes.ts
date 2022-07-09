@@ -1,6 +1,6 @@
 import { ProjectCreateInput, ProjectTranslationCreateInput, ProjectTranslationUpdateInput, ProjectUpdateInput } from "graphql/generated/globalTypes";
 import { ShapeWrapper, Project, ProjectTranslation } from "types";
-import { hasObjectChanged, ObjectType, ResourceListShape, shapeResourceListsCreate, shapeResourceListsUpdate, shapeTagsCreate, shapeTagsUpdate, TagShape } from "utils";
+import { hasObjectChanged, ObjectType, ResourceListShape, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, TagShape } from "utils";
 import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
 export type ProjectTranslationShape = Omit<ShapeWrapper<ProjectTranslation>, 'language' | 'name'> & {
@@ -41,19 +41,6 @@ export const shapeProjectTranslationUpdate = (
         description: u.description !== o.description ? u.description : undefined,
     }))
 
-export const shapeProjectTranslationsCreate = (items: ProjectTranslationShape[] | null | undefined): {
-    translationsCreate?: ProjectTranslationCreateInput[],
-} => shapeCreateList(items, 'translations', shapeProjectTranslationCreate);
-
-export const shapeProjectTranslationsUpdate = (
-    o: ProjectTranslationShape[] | null | undefined,
-    u: ProjectTranslationShape[] | null | undefined
-): {
-    translationsCreate?: ProjectTranslationCreateInput[],
-    translationsUpdate?: ProjectTranslationUpdateInput[],
-    translationsDelete?: string[],
-} => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeProjectTranslationCreate, shapeProjectTranslationUpdate)
-
 export const shapeProjectCreate = (item: ProjectShape): ProjectCreateInput => ({
     id: item.id,
     // TODO handle
@@ -61,9 +48,9 @@ export const shapeProjectCreate = (item: ProjectShape): ProjectCreateInput => ({
     parentId: item.parent?.id,
     createdByUserId: item.owner?.__typename === ObjectType.User ? item.owner.id : undefined,
     createdByOrganizationId: item.owner?.__typename === ObjectType.Organization ? item.owner.id : undefined,
-    ...shapeProjectTranslationsCreate(item.translations),
-    ...shapeResourceListsCreate(item.resourceLists),
-    ...shapeTagsCreate(item.tags ?? []),
+    ...shapeCreateList(item, 'translations', shapeProjectTranslationCreate),
+    ...shapeCreateList(item, 'resourceLists', shapeResourceListCreate),
+    ...shapeCreateList(item, 'tags', shapeTagCreate),
 })
 
 export const shapeProjectUpdate = (
@@ -76,7 +63,7 @@ export const shapeProjectUpdate = (
         isComplete: u.isComplete !== o.isComplete ? u.isComplete : undefined,
         userId: u.owner?.__typename === ObjectType.User ? u.owner.id : undefined,
         organizationId: u.owner?.__typename === ObjectType.Organization ? u.owner.id : undefined,
-        ...shapeProjectTranslationsUpdate(o.translations, u.translations),
-        ...shapeResourceListsUpdate(o.resourceLists, u.resourceLists),
-        ...shapeTagsUpdate(o.tags, u.tags),
+        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeProjectTranslationCreate, shapeProjectTranslationUpdate),
+        ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate),
+        ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate),
     }))

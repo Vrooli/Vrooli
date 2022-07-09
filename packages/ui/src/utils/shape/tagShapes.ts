@@ -1,7 +1,7 @@
 import { TagCreateInput, TagTranslationCreateInput, TagTranslationUpdateInput, TagUpdateInput } from "graphql/generated/globalTypes";
 import { ShapeWrapper, Tag, TagTranslation } from "types";
 import { hasObjectChanged } from "./objectTools";
-import { findCreatedItems, findRemovedItems, findUpdatedItems, shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
+import { findCreatedItems, findDeletedItems, findUpdatedItems, shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
 export type TagTranslationShape = Omit<ShapeWrapper<TagTranslation>, 'language'> & {
     id: string;
@@ -23,19 +23,6 @@ export const shapeTagTranslationUpdate = (
         description: u.description !== o.description ? u.description : undefined,
     }))
 
-export const shapeTagTranslationsCreate = (items: TagTranslationShape[] | null | undefined): {
-    translationsCreate?: TagTranslationCreateInput[],
-} => shapeCreateList(items, 'translations', shapeTagTranslationCreate);
-
-export const shapeTagTranslationsUpdate = (
-    o: TagTranslationShape[] | null | undefined,
-    u: TagTranslationShape[] | null | undefined
-): {
-    translationsCreate?: TagTranslationCreateInput[],
-    translationsUpdate?: TagTranslationUpdateInput[],
-    translationsDelete?: string[],
-} => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeTagTranslationCreate, shapeTagTranslationUpdate)
-
 export type TagShape = Omit<ShapeWrapper<Tag>, 'tag' | 'translations'> & {
     tag: string;
     translations?: TagTranslationShape[];
@@ -44,7 +31,7 @@ export type TagShape = Omit<ShapeWrapper<Tag>, 'tag' | 'translations'> & {
 export const shapeTagCreate = (item: TagShape): TagCreateInput => ({
     // anonymous?: boolean | null; TODO
     tag: item.tag,
-    ...shapeTagTranslationsCreate(item.translations),
+    ...shapeCreateList(item, 'translations', shapeTagTranslationCreate),
 })
 
 export const shapeTagUpdate = (
@@ -55,17 +42,13 @@ export const shapeTagUpdate = (
     let result: TagUpdateInput = {
         // anonymous: TODO
         tag: original.tag,
-        ...shapeTagTranslationsUpdate(original.translations, updated.translations),
+        ...shapeUpdateList(original, updated, 'translations', hasObjectChanged, shapeTagTranslationCreate, shapeTagTranslationUpdate),
     }
     // Remove every value from the result that is undefined
     if (result) result = Object.fromEntries(Object.entries(result).filter(([, value]) => value !== undefined)) as TagUpdateInput;
     // Return result if it is not empty
     return result && Object.keys(result).length > 0 ? result : undefined;
 }
-
-export const shapeTagsCreate = (items: TagShape[] | null | undefined): {
-    tagsCreate?: TagCreateInput[],
-} => shapeCreateList(items, 'tags', shapeTagCreate);
 
 export const shapeTagsUpdate = (
     o: TagShape[] | null | undefined,
@@ -84,7 +67,7 @@ export const shapeTagsUpdate = (
         return {
             tagsCreate: findCreatedItems(o, u, shapeTagCreate),
             tagsUpdate: findUpdatedItems(o, u, hasObjectChanged, shapeTagUpdate),
-            tagsDelete: findRemovedItems(o, u),
+            tagsDelete: findDeletedItems(o, u),
         } as any;
     }
     return {};

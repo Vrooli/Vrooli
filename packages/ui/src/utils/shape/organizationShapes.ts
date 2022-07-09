@@ -1,6 +1,6 @@
 import { OrganizationCreateInput, OrganizationTranslationCreateInput, OrganizationTranslationUpdateInput, OrganizationUpdateInput } from "graphql/generated/globalTypes";
 import { ShapeWrapper, Organization, OrganizationTranslation } from "types";
-import { hasObjectChanged, ResourceListShape, shapeResourceListsCreate, shapeResourceListsUpdate, shapeTagsCreate, shapeTagsUpdate, TagShape } from "utils";
+import { hasObjectChanged, ResourceListShape, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, TagShape } from "utils";
 import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
 export type OrganizationTranslationShape = Omit<ShapeWrapper<OrganizationTranslation>, 'language' | 'name'> & {
@@ -35,25 +35,12 @@ export const shapeOrganizationTranslationUpdate = (
         bio: u.bio !== o.bio ? u.bio : undefined,
     }))
 
-export const shapeOrganizationTranslationsCreate = (items: OrganizationTranslationShape[] | null | undefined): {
-    translationsCreate?: OrganizationTranslationCreateInput[],
-} => shapeCreateList(items, 'translations', shapeOrganizationTranslationCreate);
-
-export const shapeOrganizationTranslationsUpdate = (
-    o: OrganizationTranslationShape[] | null | undefined,
-    u: OrganizationTranslationShape[] | null | undefined
-): {
-    translationsCreate?: OrganizationTranslationCreateInput[],
-    translationsUpdate?: OrganizationTranslationUpdateInput[],
-    translationsDelete?: string[],
-} => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeOrganizationTranslationCreate, shapeOrganizationTranslationUpdate)
-
 export const shapeOrganizationCreate = (item: OrganizationShape): OrganizationCreateInput => ({
     id: item.id,
     isOpenToNewMembers: item.isOpenToNewMembers,
-    ...shapeOrganizationTranslationsCreate(item.translations),
-    ...shapeResourceListsCreate(item.resourceLists),
-    ...shapeTagsCreate(item.tags),
+    ...shapeCreateList(item, 'translations', shapeOrganizationTranslationCreate),
+    ...shapeCreateList(item, 'resourceLists', shapeResourceListCreate),
+    ...shapeCreateList(item, 'tags', shapeTagCreate),
     //TODO handle
 })
 
@@ -64,9 +51,9 @@ export const shapeOrganizationUpdate = (
     shapeUpdate(original, updated, (o, u) => ({
         id: o.id,
         isOpenToNewMembers: u.isOpenToNewMembers !== o.isOpenToNewMembers ? u.isOpenToNewMembers : undefined,
-        ...shapeOrganizationTranslationsUpdate(o.translations, u.translations),
-        ...shapeResourceListsUpdate(o.resourceLists, u.resourceLists),
-        ...shapeTagsUpdate(o.tags, u.tags),
+        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeOrganizationTranslationCreate, shapeOrganizationTranslationUpdate),
+        ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate),
+        ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate),
         // TODO members
         //TODO handl
     }))

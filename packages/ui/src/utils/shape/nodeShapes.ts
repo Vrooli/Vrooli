@@ -70,25 +70,12 @@ export const shapeNodeRoutineListItemTranslationUpdate = (
         title: u.title !== o.title ? u.title : undefined,
     }))
 
-export const shapeNodeRoutineListItemTranslationsCreate = (items: NodeRoutineListItemTranslationShape[] | null | undefined): {
-    translationsCreate?: NodeRoutineListItemTranslationCreateInput[],
-} => shapeCreateList(items, 'translations', shapeNodeRoutineListItemTranslationCreate);
-
-export const shapeNodeRoutineListItemTranslationsUpdate = (
-    o: NodeRoutineListItemTranslationShape[] | null | undefined,
-    u: NodeRoutineListItemTranslationShape[] | null | undefined
-): {
-    translationsCreate?: NodeRoutineListItemTranslationCreateInput[],
-    translationsUpdate?: NodeRoutineListItemTranslationUpdateInput[],
-    translationsDelete?: string[],
-} => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeNodeRoutineListItemTranslationCreate, shapeNodeRoutineListItemTranslationUpdate)
-
 export const shapeNodeRoutineListItemCreate = (item: NodeRoutineListItemShape): NodeRoutineListItemCreateInput => ({
     id: item.id,
     index: item.index,
     isOptional: item.isOptional ?? false,
     routineConnect: item.routine.id,
-    ...shapeNodeRoutineListItemTranslationsCreate(item.translations),
+    ...shapeCreateList(item, 'translations', shapeNodeRoutineListItemTranslationCreate),
 })
 
 export const shapeNodeRoutineListItemUpdate = (
@@ -100,27 +87,14 @@ export const shapeNodeRoutineListItemUpdate = (
         index: u.index !== o.index ? u.index : undefined,
         isOptional: u.isOptional !== o.isOptional ? u.isOptional : undefined,
         routineUpdate: shapeRoutineUpdate(o.routine, u.routine),
-        ...shapeNodeRoutineListItemTranslationsUpdate(o.translations, u.translations),
+        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeNodeRoutineListItemTranslationCreate, shapeNodeRoutineListItemTranslationUpdate)
     }))
-
-export const shapeNodeRoutineListItemsCreate = (items: NodeRoutineListItemShape[] | null | undefined): {
-    routinesCreate?: NodeRoutineListItemCreateInput[],
-} => shapeCreateList(items, 'routines', shapeNodeRoutineListItemCreate);
-
-export const shapeNodeRoutineListItemsUpdate = (
-    o: NodeRoutineListItemShape[] | null | undefined,
-    u: NodeRoutineListItemShape[] | null | undefined
-): {
-    routinesCreate?: NodeRoutineListItemCreateInput[],
-    routinesUpdate?: NodeRoutineListItemUpdateInput[],
-    routinesDelete?: string[],
-} => shapeUpdateList(o, u, 'routines', hasObjectChanged, shapeNodeRoutineListItemCreate, shapeNodeRoutineListItemUpdate)
 
 export const shapeNodeRoutineListCreate = (item: NodeRoutineListShape): NodeRoutineListCreateInput => ({
     id: item.id,
     isOptional: item.isOptional,
     isOrdered: item.isOrdered,
-    ...shapeNodeRoutineListItemsCreate(item.routines),
+    ...shapeCreateList(item, 'routines', shapeNodeRoutineListItemCreate)
 })
 
 export const shapeNodeRoutineListUpdate = (
@@ -131,7 +105,7 @@ export const shapeNodeRoutineListUpdate = (
         id: o.id,
         isOptional: u.isOptional !== o.isOptional ? u.isOptional : undefined,
         isOrdered: u.isOrdered !== o.isOrdered ? u.isOrdered : undefined,
-        ...shapeNodeRoutineListItemsUpdate(o.routines, u.routines),
+        ...shapeUpdateList(o, u, 'routines', hasObjectChanged, shapeNodeRoutineListItemCreate, shapeNodeRoutineListItemUpdate)
     }))
 
 export const shapeNodeTranslationCreate = (item: NodeTranslationShape): NodeTranslationCreateInput => ({
@@ -151,19 +125,6 @@ export const shapeNodeTranslationUpdate = (
         title: u.title !== o.title ? u.title : undefined,
     }))
 
-export const shapeNodeTranslationsCreate = (items: NodeTranslationShape[] | null | undefined): {
-    translationsCreate?: NodeTranslationCreateInput[],
-} => shapeCreateList(items, 'translations', shapeNodeTranslationCreate);
-
-export const shapeNodeTranslationsUpdate = (
-    o: NodeTranslationShape[] | null | undefined,
-    u: NodeTranslationShape[] | null | undefined
-): {
-    translationsCreate?: NodeTranslationCreateInput[],
-    translationsUpdate?: NodeTranslationUpdateInput[],
-    translationsDelete?: string[],
-} => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeNodeTranslationCreate, shapeNodeTranslationUpdate)
-
 export const shapeNodeCreate = (item: NodeShape): NodeCreateInput => ({
     id: item.id,
     columnIndex: item.columnIndex,
@@ -172,7 +133,7 @@ export const shapeNodeCreate = (item: NodeShape): NodeCreateInput => ({
     // loopCreate: shapeNodeLoopCreate(node.loop),
     nodeEndCreate: item.data?.__typename === 'NodeEnd' ? shapeNodeEndCreate(item.data as NodeEndShape) : undefined,
     nodeRoutineListCreate: item.data?.__typename === 'NodeRoutineList' ? shapeNodeRoutineListCreate(item.data as NodeRoutineListShape) : undefined,
-    ...shapeNodeTranslationsCreate(item.translations),
+    ...shapeCreateList(item, 'translations', shapeNodeTranslationCreate)
 })
 
 export const shapeNodeUpdate = (
@@ -187,18 +148,5 @@ export const shapeNodeUpdate = (
         // ...shapeNodeLoopUpdate(o.loop, u.loop),
         nodeEndUpdate: o.data?.__typename === 'NodeEnd' ? shapeNodeEndUpdate(o.data as NodeEndShape, u.data as NodeEndShape) : undefined,
         nodeRoutineListUpdate: o.data?.__typename === 'NodeRoutineList' ? shapeNodeRoutineListUpdate(o.data as NodeRoutineListShape, u.data as NodeRoutineListShape) : undefined,
-        ...shapeNodeTranslationsUpdate(o.translations, u.translations),
+        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeNodeTranslationCreate, shapeNodeTranslationUpdate)
     }))
-
-export const shapeNodesCreate = (items: NodeShape[] | null | undefined): {
-    nodesCreate?: NodeCreateInput[],
-} => shapeCreateList(items, 'nodes', shapeNodeCreate);
-
-export const shapeNodesUpdate = (
-    o: NodeShape[] | null | undefined,
-    u: NodeShape[] | null | undefined
-): {
-    nodesCreate?: NodeCreateInput[],
-    nodesUpdate?: NodeUpdateInput[],
-    nodesDelete?: string[],
-} => shapeUpdateList(o, u, 'nodes', hasObjectChanged, shapeNodeCreate, shapeNodeUpdate)

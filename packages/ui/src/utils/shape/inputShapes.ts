@@ -30,19 +30,6 @@ export const shapeInputTranslationUpdate = (
         description: u.description !== o.description ? u.description : undefined,
     }))
 
-export const shapeInputTranslationsCreate = (items: InputTranslationShape[] | null | undefined): {
-    translationsCreate?: InputItemTranslationCreateInput[],
-} => shapeCreateList(items, 'translations', shapeInputTranslationCreate);
-
-export const shapeInputTranslationsUpdate = (
-    o: InputTranslationShape[] | null | undefined,
-    u: InputTranslationShape[] | null | undefined
-): {
-    translationsCreate?: InputItemTranslationCreateInput[],
-    translationsUpdate?: InputItemTranslationUpdateInput[],
-    translationsDelete?: string[],
-} => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeInputTranslationCreate, shapeInputTranslationUpdate)
-
 export const shapeInputCreate = (item: InputShape): InputItemCreateInput => {
     // Connect to standard if it's marked as external. 
     // Otherwise, set as create. The backend will handle the rest
@@ -53,7 +40,7 @@ export const shapeInputCreate = (item: InputShape): InputItemCreateInput => {
         name: item.name,
         standardConnect: shouldConnectToStandard ? item.standard?.id as string : undefined,
         standardCreate: !shouldConnectToStandard ? shapeStandardCreate(item.standard as StandardShape) : undefined,
-        ...shapeInputTranslationsCreate(item.translations),
+        ...shapeCreateList(item, 'translations', shapeInputTranslationCreate),
     }
 }
 
@@ -72,19 +59,6 @@ export const shapeInputUpdate = (
             name: u.name,
             standardConnect: shouldConnectToStandard ? u.standard?.id as string : undefined,
             standardCreate: !shouldConnectToStandard ? shapeStandardCreate(u.standard as StandardShape) : undefined,
-            ...shapeInputTranslationsUpdate(o.translations, u.translations),
+            ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeInputTranslationCreate, shapeInputTranslationUpdate),
         }
     })
-
-export const shapeInputsCreate = (items: InputShape[] | null | undefined): {
-    itemsCreate?: InputItemCreateInput[],
-} => shapeCreateList(items, 'items', shapeInputCreate);
-
-export const shapeInputsUpdate = (
-    o: InputShape[] | null | undefined,
-    u: InputShape[] | null | undefined
-): {
-    itemsCreate?: InputItemCreateInput[],
-    itemsUpdate?: InputItemUpdateInput[],
-    itemsDelete?: string[],
-} => shapeUpdateList(o, u, 'items', hasObjectChanged, shapeInputCreate, shapeInputUpdate)

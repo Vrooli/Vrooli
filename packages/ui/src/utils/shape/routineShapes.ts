@@ -1,6 +1,6 @@
 import { RoutineCreateInput, RoutineTranslationCreateInput, RoutineTranslationUpdateInput, RoutineUpdateInput } from "graphql/generated/globalTypes";
 import { Routine, RoutineTranslation, ShapeWrapper } from "types";
-import { hasObjectChanged, InputShape, NodeLinkShape, NodeShape, ObjectType, OutputShape, ResourceListShape, shapeInputsCreate, shapeInputsUpdate, shapeNodeLinksCreate, shapeNodeLinksUpdate, shapeNodesCreate, shapeNodesUpdate, shapeOutputsCreate, shapeOutputsUpdate, shapeResourceListsCreate, shapeResourceListsUpdate, shapeTagsCreate, shapeTagsUpdate, TagShape } from "utils";
+import { hasObjectChanged, InputShape, NodeLinkShape, NodeShape, ObjectType, OutputShape, ResourceListShape, shapeInputCreate, shapeInputUpdate, shapeNodeCreate, shapeNodeUpdate, shapeNodeLinkCreate, shapeOutputCreate, shapeOutputUpdate, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, TagShape } from "utils";
 import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
 export type RoutineTranslationShape = Omit<ShapeWrapper<RoutineTranslation>, 'language' | 'instructions' | 'title'> & {
@@ -47,19 +47,6 @@ export const shapeRoutineTranslationUpdate = (
         title: u.title !== o.title ? u.title : undefined,
     }))
 
-export const shapeRoutineTranslationsCreate = (items: RoutineTranslationShape[] | null | undefined): {
-    translationsCreate?: RoutineTranslationCreateInput[],
-} => shapeCreateList(items, 'translations', shapeRoutineTranslationCreate);
-
-export const shapeRoutineTranslationsUpdate = (
-    o: RoutineTranslationShape[] | null | undefined,
-    u: RoutineTranslationShape[] | null | undefined
-): {
-    translationsCreate?: RoutineTranslationCreateInput[],
-    translationsUpdate?: RoutineTranslationUpdateInput[],
-    translationsDelete?: string[],
-} => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeRoutineTranslationCreate, shapeRoutineTranslationUpdate)
-
 export const shapeRoutineCreate = (item: RoutineShape): RoutineCreateInput => ({
     id: item.id,
     isAutomatable: item.isAutomatable,
@@ -70,13 +57,15 @@ export const shapeRoutineCreate = (item: RoutineShape): RoutineCreateInput => ({
     // projectId: item.p
     createdByUserId: item.owner?.__typename === ObjectType.User ? item.owner.id : undefined,
     createdByOrganizationId: item.owner?.__typename === ObjectType.Organization ? item.owner.id : undefined,
-    ...shapeNodesCreate(item.nodes?.map(n => ({ ...n, routineId: item.id }))),
-    ...shapeNodeLinksCreate(item.nodeLinks),
-    ...shapeInputsCreate(item.inputs),
-    ...shapeOutputsCreate(item.outputs),
-    ...shapeRoutineTranslationsCreate(item.translations),
-    ...shapeResourceListsCreate(item.resourceLists),
-    ...shapeTagsCreate(item.tags ?? []),
+    ...shapeCreateList({
+        nodes: item.nodes?.map(n => ({ ...n, routineId: item.id }))
+    }, 'nodes', shapeNodeCreate),
+    ...shapeCreateList(item, 'nodeLinks', shapeNodeLinkCreate),
+    ...shapeCreateList(item, 'inputs', shapeInputCreate),
+    ...shapeCreateList(item, 'outputs', shapeOutputCreate),
+    ...shapeCreateList(item, 'translations', shapeRoutineTranslationCreate),
+    ...shapeCreateList(item, 'resourceLists', shapeResourceListCreate),
+    ...shapeCreateList(item, 'tags', shapeTagCreate),
 })
 
 export const shapeRoutineUpdate = (
@@ -93,24 +82,15 @@ export const shapeRoutineUpdate = (
         // projectId: u.p
         userId: u.owner?.__typename === ObjectType.User ? u.owner.id : undefined,
         organizationId: u.owner?.__typename === ObjectType.Organization ? u.owner.id : undefined,
-        ...shapeNodesUpdate(o.nodes?.map(n => ({ ...n, routineId: o.id })), u.nodes?.map(n => ({ ...n, routineId: o.id }))),
-        ...shapeNodeLinksUpdate(o.nodeLinks, u.nodeLinks),
-        ...shapeInputsUpdate(o.inputs, u.inputs),
-        ...shapeOutputsUpdate(o.outputs, u.outputs),
-        ...shapeRoutineTranslationsUpdate(o.translations, u.translations),
-        ...shapeResourceListsUpdate(o.resourceLists, u.resourceLists),
-        ...shapeTagsUpdate(o.tags, u.tags),
+        ...shapeUpdateList({
+            nodes: o.nodes?.map(n => ({ ...n, routineId: o.id }))
+        }, {
+            nodes: u.nodes?.map(n => ({ ...n, routineId: u.id }))
+        }, 'nodes', shapeNodeCreate, shapeNodeUpdate),
+        ...shapeUpdateList(o, u, 'nodeLinks', shapeNodeLinkCreate, shapeNodeLinkUpdate),
+        ...shapeUpdateList(o, u, 'inputs', shapeInputCreate, shapeInputUpdate),
+        ...shapeUpdateList(o, u, 'outputs', shapeOutputCreate, shapeOutputUpdate),
+        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeRoutineTranslationCreate, shapeRoutineTranslationUpdate),
+        ...shapeUpdateList(o, u, 'resourceLists', shapeResourceListCreate, shapeResourceListUpdate),
+        ...shapeUpdateList(o, u, 'tags', shapeTagCreate, shapeTagUpdate),
     }))
-
-export const shapeRoutinesCreate = (items: RoutineShape[] | null | undefined): {
-    routinesCreate?: RoutineCreateInput[],
-} => shapeCreateList(items, 'routines', shapeRoutineCreate);
-
-export const shapeRoutinesUpdate = (
-    o: RoutineShape[] | null | undefined,
-    u: RoutineShape[] | null | undefined
-): {
-    routinesCreate?: RoutineCreateInput[],
-    routinesUpdate?: RoutineUpdateInput[],
-    routinesDelete?: string[],
-} => shapeUpdateList(o, u, 'routines', hasObjectChanged, shapeRoutineCreate, shapeRoutineUpdate)

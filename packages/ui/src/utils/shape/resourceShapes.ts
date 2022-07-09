@@ -45,26 +45,13 @@ export const shapeResourceTranslationUpdate = (
         title: u.title !== o.title ? u.title : undefined,
     }))
 
-export const shapeResourceTranslationsCreate = (items: ResourceTranslationShape[] | null | undefined): {
-    translationsCreate?: ResourceTranslationCreateInput[],
-} => shapeCreateList(items, 'translations', shapeResourceTranslationCreate);
-
-export const shapeResourceTranslationsUpdate = (
-    o: ResourceTranslationShape[] | null | undefined,
-    u: ResourceTranslationShape[] | null | undefined
-): {
-    translationsCreate?: ResourceTranslationCreateInput[],
-    translationsUpdate?: ResourceTranslationUpdateInput[],
-    translationsDelete?: string[],
-} => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeResourceTranslationCreate, shapeResourceTranslationUpdate)
-
 export const shapeResourceCreate = (item: ResourceShape): ResourceCreateInput => ({
     id: item.id,
     listId: item.listId,
     index: item.index,
     link: item.link,
     usedFor: item.usedFor as any,
-    ...shapeResourceTranslationsCreate(item.translations),
+    ...shapeCreateList(item, 'translations', shapeResourceTranslationCreate),
 })
 
 export const shapeResourceUpdate = (
@@ -77,21 +64,8 @@ export const shapeResourceUpdate = (
         link: u.link !== o.link ? u.link : undefined,
         listId: u.listId !== o.listId ? u.listId : undefined,
         usedFor: u.usedFor !== o.usedFor ? u.usedFor : undefined,
-        ...shapeResourceTranslationsUpdate(o.translations, u.translations),
+        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeResourceTranslationCreate, shapeResourceTranslationUpdate),
     }))
-
-export const shapeResourcesCreate = (items: ResourceShape[] | null | undefined): {
-    resourcesCreate?: ResourceCreateInput[],
-} => shapeCreateList(items, 'resources', shapeResourceCreate);
-
-export const shapeResourcesUpdate = (
-    o: ResourceShape[] | null | undefined,
-    u: ResourceShape[] | null | undefined
-): {
-    resourcesCreate?: ResourceCreateInput[],
-    resourcesUpdate?: ResourceUpdateInput[],
-    resourcesDelete?: string[],
-} => shapeUpdateList(o, u, 'resources', hasObjectChanged, shapeResourceCreate, shapeResourceUpdate)
 
 export const shapeResourceListTranslationCreate = (item: ResourceListTranslationShape): ResourceListTranslationCreateInput => ({
     id: item.id,
@@ -110,28 +84,17 @@ export const shapeResourceListTranslationUpdate = (
         title: u.title !== o.title ? u.title : undefined,
     }))
 
-export const shapeResourceListTranslationsCreate = (items: ResourceListTranslationShape[] | null | undefined): {
-    translationsCreate?: ResourceListTranslationCreateInput[],
-} => shapeCreateList(items, 'translations', shapeResourceListTranslationCreate);
-
-export const shapeResourceListTranslationsUpdate = (
-    o: ResourceListTranslationShape[] | null | undefined,
-    u: ResourceListTranslationShape[] | null | undefined
-): {
-    translationsCreate?: ResourceListTranslationCreateInput[],
-    translationsUpdate?: ResourceListTranslationUpdateInput[],
-    translationsDelete?: string[],
-} => shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeResourceListTranslationCreate, shapeResourceListTranslationUpdate)
-
 export const shapeResourceListCreate = (item: ResourceListShape): ResourceListCreateInput => ({
     id: item.id,
     index: item.index,
     usedFor: item.usedFor ?? ResourceListUsedFor.Display,
-    ...shapeResourceListTranslationsCreate(item.translations),
-    ...shapeResourcesCreate(item.resources?.map(r => ({
-        ...r,
-        listId: item.id,
-    }))),
+    ...shapeCreateList(item, 'translations', shapeResourceListTranslationCreate),
+    ...shapeCreateList({
+        resources: item.resources?.map(r => ({
+            ...r,
+            listId: item.id,
+        }))
+    }, 'resources', shapeResourceCreate),
 })
 
 export const shapeResourceListUpdate = (
@@ -142,25 +105,16 @@ export const shapeResourceListUpdate = (
         id: o.id,
         index: u.index !== o.index ? u.index : undefined,
         usedFor: u.usedFor !== o.usedFor ? u.usedFor : undefined,
-        ...shapeResourceListTranslationsUpdate(o.translations, u.translations),
-        ...shapeResourcesUpdate(o.resources?.map(or => ({
-            ...or,
-            listId: o.id,
-        })), u.resources?.map(ur => ({
-            ...ur,
-            listId: u.id,
-        }))),
+        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeResourceListTranslationCreate, shapeResourceListTranslationUpdate),
+        ...shapeUpdateList({
+            resources: o.resources?.map(r => ({
+                ...r,
+                listId: o.id,
+            }))
+        }, {
+            resources: u.resources?.map(r => ({
+                ...r,
+                listId: u.id,
+            }))
+        }, 'resources', hasObjectChanged, shapeResourceCreate, shapeResourceUpdate),
     }))
-
-export const shapeResourceListsCreate = (items: ResourceListShape[] | null | undefined): {
-    resourceListsCreate?: ResourceListCreateInput[],
-} => shapeCreateList(items, 'resourceLists', shapeResourceListCreate);
-
-export const shapeResourceListsUpdate = (
-    o: ResourceListShape[] | null | undefined,
-    u: ResourceListShape[] | null | undefined
-): {
-    resourceListsCreate?: ResourceListCreateInput[],
-    resourceListsUpdate?: ResourceListUpdateInput[],
-    resourceListsDelete?: string[],
-} => shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate)
