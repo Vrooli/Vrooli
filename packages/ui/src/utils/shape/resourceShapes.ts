@@ -24,8 +24,8 @@ export type ResourceListTranslationShape = Omit<ShapeWrapper<ResourceListTransla
 export type ResourceListShape = Omit<ShapeWrapper<ResourceList>, 'usedFor' | 'translations' | 'resources'> & {
     id: string;
     usedFor: ResourceListCreateInput['usedFor'] | null;
-    resources: Omit<ResourceShape, 'listId'>[];
-    translations: ResourceListTranslationShape[];
+    resources: Omit<ResourceShape, 'listId'>[] | null;
+    translations: ResourceListTranslationShape[] | null;
 }
 
 export const shapeResourceTranslationCreate = (item: ResourceTranslationShape): ResourceTranslationCreateInput => ({
@@ -128,7 +128,7 @@ export const shapeResourceListCreate = (item: ResourceListShape): ResourceListCr
     index: item.index,
     usedFor: item.usedFor ?? ResourceListUsedFor.Display,
     ...shapeResourceListTranslationsCreate(item.translations),
-    ...shapeResourcesCreate(item.resources.map(r => ({
+    ...shapeResourcesCreate(item.resources?.map(r => ({
         ...r,
         listId: item.id,
     }))),
@@ -143,10 +143,10 @@ export const shapeResourceListUpdate = (
         index: u.index !== o.index ? u.index : undefined,
         usedFor: u.usedFor !== o.usedFor ? u.usedFor : undefined,
         ...shapeResourceListTranslationsUpdate(o.translations, u.translations),
-        ...shapeResourcesUpdate(o.resources.map(or => ({
+        ...shapeResourcesUpdate(o.resources?.map(or => ({
             ...or,
             listId: o.id,
-        })), u.resources.map(ur => ({
+        })), u.resources?.map(ur => ({
             ...ur,
             listId: u.id,
         }))),

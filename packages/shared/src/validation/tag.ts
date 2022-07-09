@@ -21,7 +21,6 @@ export const tagTranslationsUpdate = yup.array().of(tagTranslationUpdate.require
  * Information required when creating a tag
  */
 export const tagCreate = yup.object().shape({
-    id: id.required(),
     anonymous: anonymous.notRequired().default(undefined),
     tag: tag.required(),
     translationsCreate: tagTranslationsCreate.notRequired().default(undefined),
@@ -31,9 +30,8 @@ export const tagCreate = yup.object().shape({
  * Information required when updating a tag
  */
 export const tagUpdate = yup.object().shape({
-    id: id.required(),
     anonymous: anonymous.notRequired().default(undefined),
-    tag: tag.notRequired().default(undefined),
+    tag: tag.required(),
     translationsDelete: idArray.notRequired().default(undefined),
     translationsCreate: tagTranslationsCreate.notRequired().default(undefined),
     translationsUpdate: tagTranslationsUpdate.notRequired().default(undefined),
