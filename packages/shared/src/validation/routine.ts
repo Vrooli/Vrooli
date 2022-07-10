@@ -1,4 +1,4 @@
-import { description, idArray, id, name, title, language } from './base';
+import { description, idArray, id, name, title, language, tagArray } from './base';
 import { nodeLinksCreate, nodeLinksUpdate, nodesCreate, nodesUpdate } from './node';
 import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 import { standardCreate } from './standard';
@@ -120,7 +120,7 @@ export const routineCreate = yup.object().shape({
     inputsCreate: inputsCreate.notRequired().default(undefined),
     outputsCreate: outputsCreate.notRequired().default(undefined),
     resourceListsCreate: resourceListsCreate.notRequired().default(undefined),
-    tagsConnect: idArray.notRequired().default(undefined),
+    tagsConnect: tagArray.notRequired().default(undefined),
     tagsCreate: tagsCreate.notRequired().default(undefined),
     translationsCreate: routineTranslationsCreate.notRequired().default(undefined),
 }, [['createdByUserId', 'createdByOrganizationId']]) // Makes sure you can't associate with both a user and an organization
@@ -152,8 +152,8 @@ export const routineUpdate = yup.object().shape({
     resourceListsDelete: idArray.notRequired().default(undefined),
     resourceListsCreate: resourceListsCreate.notRequired().default(undefined),
     resourceListsUpdate: resourceListsUpdate.notRequired().default(undefined),
-    tagsConnect: idArray.notRequired().default(undefined),
-    tagsDisconnect: idArray.notRequired().default(undefined),
+    tagsConnect: tagArray.notRequired().default(undefined),
+    tagsDisconnect: tagArray.notRequired().default(undefined),
     tagsCreate: tagsCreate.notRequired().default(undefined),
     translationsDelete: idArray.notRequired().default(undefined),
     translationsCreate: routineTranslationsCreate.notRequired().default(undefined),

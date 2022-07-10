@@ -1,4 +1,4 @@
-import { description, idArray, id, name, language } from './base';
+import { description, idArray, id, name, language, tagArray } from './base';
 import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
@@ -35,7 +35,7 @@ export const projectCreate = yup.object().shape({
     createdByUserId: id.notRequired().default(undefined), // If associating with yourself, your own id. Cannot associate with another user
     createdByOrganizationId: id.notRequired().default(undefined), // If associating with an organization you are an admin of, the organization's id
     resourceListsCreate: resourceListsCreate.notRequired().default(undefined),
-    tagsConnect: idArray.notRequired().default(undefined),
+    tagsConnect: tagArray.notRequired().default(undefined),
     tagsCreate: tagsCreate.notRequired().default(undefined),
     translationsCreate: projectTranslationsCreate.required(),
 }, [['createdByUserId', 'createdByOrganizationId']]) // Makes sure you can't associate with both a user and an organization
@@ -51,8 +51,8 @@ export const projectUpdate = yup.object().shape({
     resourceListsDelete: idArray.notRequired().default(undefined),
     resourceListsCreate: resourceListsCreate.notRequired().default(undefined),
     resourceListsUpdate: resourceListsUpdate.notRequired().default(undefined),
-    tagsConnect: idArray.notRequired().default(undefined),
-    tagsDisconnect: idArray.notRequired().default(undefined),
+    tagsConnect: tagArray.notRequired().default(undefined),
+    tagsDisconnect: tagArray.notRequired().default(undefined),
     tagsCreate: tagsCreate.notRequired().default(undefined),
     translationsDelete: idArray.notRequired().default(undefined),
     translationsCreate: projectTranslationsCreate.notRequired().default(undefined),

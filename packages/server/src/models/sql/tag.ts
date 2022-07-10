@@ -112,26 +112,32 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
         parentType: keyof typeof this.parentMapper,
         relationshipName: string = 'tags',
     ): Promise<{ [x: string]: any } | undefined> {
-        // If any tag creates, check if they're supposed to be connects
-        if (Array.isArray(input[`${relationshipName}Create`])) {
-            // Query for all creating tags
+        console.log('TAG RELATIONSHIP BUILDER START', JSON.stringify(input), '\n\n')
+        // If any tag creates/connects, make sure they exist/not exist
+        const initialCreateTags = Array.isArray(input[`${relationshipName}Create`]) ? input[`${relationshipName}Create`].map((c: any) => c.tag) : [];
+        const initialConnectTags = Array.isArray(input[`${relationshipName}Connect`]) ? input[`${relationshipName}Connect`] : [];
+        const bothInitialTags = [...initialCreateTags, ...initialConnectTags];
+        console.log('bothInitialTags', JSON.stringify(bothInitialTags), '\n\n');
+        if (bothInitialTags.length > 0) {
+            // Query for all of the tags, to determine which ones exist
             const existingTags = await prisma.tag.findMany({
-                where: { tag: { in: input[`${relationshipName}Create`].map((c: any) => c.tag) } },
-                select: { id: true, tag: true }
+                where: { tag: { in: bothInitialTags } },
+                select: { tag: true }
             });
-            // All results should be connects
-            const connectTags = existingTags.map(t => ({ id: t.id }));
-            // All tags that didn't exist are creates
-            const createTags = input[`${relationshipName}Create`].filter((c: any) => !connectTags.some(t => t.id === c.id));
-            input[`${relationshipName}Connect`] = Array.isArray(input[`${relationshipName}Connect`]) ? [...input[`${relationshipName}Connect`], ...connectTags] : createTags;
-            input[`${relationshipName}Create`] = createTags;
+            console.log('existing tags', JSON.stringify(existingTags), '\n\n');
+            // All existing tags are the new connects
+            input[`${relationshipName}Connect`] = existingTags.map((t) => ({ tag: t.tag }));
+            // All new tags are the new creates
+            input[`${relationshipName}Create`] = bothInitialTags.filter((t) => !existingTags.some((et) => et.tag === t)).map((t) => typeof t === 'string' ? ({ tag: t }) : t);
         }
         // Validate create
         if (Array.isArray(input[`${relationshipName}Create`])) {
             const createMany = input[`${relationshipName}Create`];
+            console.log('validating tags create', JSON.stringify(createMany), '\n\n');
             tagsCreate.validateSync(createMany, { abortEarly: false });
             verifier.profanityCheck(createMany);
         }
+        console.log('TAG RELATIONSHIP BUILDER BEFORE TOPRISMA', JSON.stringify(input), '\n\n')
         // Convert input to Prisma shape
         // Updating/deleting tags is not supported. This must be done in its own query.
         let formattedInput = joinRelationshipToPrisma({
@@ -144,7 +150,9 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
             relationshipName,
             isAdd: !Boolean(input.id),
             relExcludes: [RelationshipTypes.update, RelationshipTypes.delete],
+            idField: 'tag',
         })
+        console.log('TAG RELATIONSHIP BUILDER END', JSON.stringify(formattedInput), '\n\n')
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     async validateMutations({

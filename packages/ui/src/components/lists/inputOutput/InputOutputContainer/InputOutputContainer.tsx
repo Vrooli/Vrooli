@@ -8,6 +8,7 @@ import {
 import { InputShape, OutputShape, updateArray } from 'utils';
 import { InputOutputListItem } from '../InputOutputListItem/InputOutputListItem';
 import { RoutineInput, RoutineInputList, RoutineOutput } from 'types';
+import { v4 as uuid } from 'uuid';
 
 const inputHelpText =
     `Inputs specify the information required to complete a routine. 
@@ -107,17 +108,20 @@ export const InputOutputContainer = ({
         setIsOpenArray(newIsOpenArray);
         const newList = [...list];
         console.log('onadd original list', newList)
-        let newItemFormatted = {
+        let newItemFormatted: RoutineInput | RoutineOutput = {
             ...newItem,
+            id: uuid(),
             name: newItem.name || `${isInput ? 'Input' : 'Output'} ${list.length + 1}`,
-            standard: newItem.standard || undefined,
+            standard: newItem.standard || null,
             translations: newItem.translations ? newItem.translations : [{
+                __typename: 'InputItemTranslation',
+                id: uuid(),
                 language,
                 description: ''
             }],
         } as any;
         console.log('onadd formatted item', newItemFormatted)
-        if (isInput && (newItem as RoutineInput).isRequired !== true && (newItem as RoutineInput).isRequired !== false) newItemFormatted.isRequired = true;
+        if (isInput && (newItem as RoutineInput).isRequired !== true && (newItem as RoutineInput).isRequired !== false) (newItemFormatted as RoutineInput).isRequired = true;
         // Add new item to list at index (splice does not work)
         const listStart = newList.slice(0, index);
         const listEnd = newList.slice(index);

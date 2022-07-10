@@ -1,8 +1,7 @@
-import { description, id, idArray, language } from './base';
+import { description, id, idArray, language, tag } from './base';
 import * as yup from 'yup';
 
 const anonymous = yup.boolean() // Determines if the user will be credited for the tag
-const tag = yup.string().min(2).max(128)
 
 export const tagTranslationCreate = yup.object().shape({
     id: id.required(),

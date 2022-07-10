@@ -1,4 +1,4 @@
-import { bio, id, idArray, language, name } from './base';
+import { bio, id, idArray, language, name, tagArray } from './base';
 import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
@@ -35,7 +35,7 @@ export const organizationCreate = yup.object().shape({
     // You are automatically added as an admin. IDs you add here will be requested to be added as a member
     membersConnect: idArray.notRequired().default(undefined),
     resourceListsCreate: resourceListsCreate.notRequired().default(undefined),
-    tagsConnect: idArray.notRequired().default(undefined),
+    tagsConnect: tagArray.notRequired().default(undefined),
     tagsCreate: tagsCreate.notRequired().default(undefined),
     translationsCreate: organizationTranslationsCreate.required(),
 })
@@ -51,8 +51,8 @@ export const organizationUpdate = yup.object().shape({
     resourceListsDelete: idArray.notRequired().default(undefined),
     resourceListsCreate: resourceListsCreate.notRequired().default(undefined),
     resourceListsUpdate: resourceListsUpdate.notRequired().default(undefined),
-    tagsConnect: idArray.notRequired().default(undefined),
-    tagsDisconnect: idArray.notRequired().default(undefined),
+    tagsConnect: tagArray.notRequired().default(undefined),
+    tagsDisconnect: tagArray.notRequired().default(undefined),
     tagsCreate: tagsCreate.notRequired().default(undefined),
     translationsDelete: idArray.notRequired().default(undefined),
     translationsCreate: organizationTranslationsCreate.notRequired().default(undefined),

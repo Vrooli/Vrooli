@@ -39,7 +39,7 @@ export const typeDef = gql`
         inputsCreate: [InputItemCreateInput!]
         outputsCreate: [OutputItemCreateInput!]
         resourceListsCreate: [ResourceListCreateInput!]
-        tagsConnect: [ID!]
+        tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
         translationsCreate: [RoutineTranslationCreateInput!]
     }
@@ -66,7 +66,7 @@ export const typeDef = gql`
         resourceListsDelete: [ID!]
         resourceListsCreate: [ResourceListCreateInput!]
         resourceListsUpdate: [ResourceListUpdateInput!]
-        tagsConnect: [ID!]
+        tagsConnect: [String!]
         tagsDisconnect: [ID!]
         tagsCreate: [TagCreateInput!]
         translationsDelete: [ID!]
