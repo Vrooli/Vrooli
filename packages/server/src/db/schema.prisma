@@ -225,13 +225,13 @@ model organization_translation {
 }
 
 model organization_tags {
-  id       String       @id @default(uuid()) @db.Uuid
-  taggedId String       @db.Uuid
-  tagId    String       @db.Uuid
-  tag      tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  id       String   @id @default(uuid()) @db.Uuid
+  taggedId String   @db.Uuid
+  tagTag   String   @unique @db.VarChar(128)
+  tag      tag      @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
   tagged   organization @relation(fields: [taggedId], references: [id], onDelete: Cascade)
 
-  @@unique([taggedId, tagId], name: "organization_tags_taggedid_tagid_unique")
+  @@unique([taggedId, tagTag], name: "organization_tags_taggedid_tagTag_unique")
 }
 
 model organization_users {
@@ -290,13 +290,13 @@ model project_translation {
 }
 
 model project_tags {
-  id       String  @id @default(uuid()) @db.Uuid
-  taggedId String  @db.Uuid
-  tagId    String  @db.Uuid
-  tag      tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  id       String   @id @default(uuid()) @db.Uuid
+  taggedId String   @db.Uuid
+  tagTag   String   @unique @db.VarChar(128)
+  tag      tag      @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
   tagged   project @relation(fields: [taggedId], references: [id], onDelete: Cascade)
 
-  @@unique([taggedId, tagId], name: "project_tags_taggedid_tagid_unique")
+  @@unique([taggedId, tagTag], name: "project_tags_taggedid_tagTag_unique")
 }
 
 model report {
@@ -486,13 +486,13 @@ model routine_output_translation {
 }
 
 model routine_tags {
-  id       String  @id @default(uuid()) @db.Uuid
-  taggedId String  @db.Uuid
-  tagId    String  @db.Uuid
-  tag      tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  id       String   @id @default(uuid()) @db.Uuid
+  taggedId String   @db.Uuid
+  tagTag   String   @unique @db.VarChar(128)
+  tag      tag      @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
   tagged   routine @relation(fields: [taggedId], references: [id], onDelete: Cascade)
 
-  @@unique([taggedId, tagId], name: "routine_tags_taggedid_tagid_unique")
+  @@unique([taggedId, tagTag], name: "routine_tags_taggedid_tagTag_unique")
 }
 
 model run {
@@ -579,11 +579,11 @@ model standard_translation {
 model standard_tags {
   id       String   @id @default(uuid()) @db.Uuid
   taggedId String   @db.Uuid
-  tagId    String   @db.Uuid
-  tag      tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagTag   String   @unique @db.VarChar(128)
+  tag      tag      @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
   tagged   standard @relation(fields: [taggedId], references: [id], onDelete: Cascade)
 
-  @@unique([taggedId, tagId], name: "standard_tags_taggedid_tagid_unique")
+  @@unique([taggedId, tagTag], name: "standard_tags_taggedid_tagTag_unique")
 }
 
 model star {
