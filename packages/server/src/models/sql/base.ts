@@ -827,8 +827,8 @@ export const relationshipToPrisma = <N extends string>({
 
 export interface JoinRelationshipToPrismaArgs<N extends string> extends RelationshipToPrismaArgs<N> {
     joinFieldName: string, // e.g. organization.tags.tag => 'tag'
-    uniqueFieldName: string, // e.g. organization.tags.tag => 'organization_tags_taggedid_tagid_unique'
-    childIdFieldName: string, // e.g. organization.tags.tag => 'tagId'
+    uniqueFieldName: string, // e.g. organization.tags.tag => 'organization_tags_taggedid_tagTag_unique'
+    childIdFieldName: string, // e.g. organization.tags.tag => 'tagTag'
     parentIdFieldName: string, // e.g. organization.tags.tag => 'taggedId'
     parentId: string | null, // Only needed if not a create
 }
@@ -866,8 +866,10 @@ export const joinRelationshipToPrisma = <N extends string>({
     idField = 'id' as N,
 }: JoinRelationshipToPrismaArgs<N>): { [x: string]: any } => {
     let converted: { [x: string]: any } = {};
+    console.log('joinrelationshiptoprisma', JSON.stringify(data), '\n\n')
     // Call relationshipToPrisma to get join data used for one-to-many relationships
     const normalJoinData = relationshipToPrisma({ data, relationshipName, isAdd, fieldExcludes, relExcludes, softDelete, idField })
+    console.log('normalJoinData', JSON.stringify(normalJoinData), '\n\n')
     // Convert this to support a join table
     if (normalJoinData.hasOwnProperty('connect')) {
         // ex: create: [ { tag: { connect: { id: 'asdf' } } } ] <-- A join table always creates on connects
@@ -877,14 +879,14 @@ export const joinRelationshipToPrisma = <N extends string>({
         }
     }
     if (normalJoinData.hasOwnProperty('disconnect')) {
-        // delete: [ { organization_tags_taggedid_tagid_unique: { tagId: 'asdf', taggedId: 'fdas' } } ] <-- A join table always deletes on disconnects
+        // delete: [ { organization_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } } ] <-- A join table always deletes on disconnects
         for (const id of (normalJoinData?.disconnect ?? [])) {
             const curr = { [uniqueFieldName]: { [childIdFieldName]: id[idField], [parentIdFieldName]: parentId } };
             converted.delete = Array.isArray(converted.delete) ? [...converted.delete, curr] : [curr];
         }
     }
     if (normalJoinData.hasOwnProperty('delete')) {
-        // delete: [ { organization_tags_taggedid_tagid_unique: { tagId: 'asdf', taggedId: 'fdas' } } ]
+        // delete: [ { organization_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } } ]
         for (const id of (normalJoinData?.delete ?? [])) {
             const curr = { [uniqueFieldName]: { [childIdFieldName]: id[idField], [parentIdFieldName]: parentId } };
             converted.delete = Array.isArray(converted.delete) ? [...converted.delete, curr] : [curr];
@@ -899,7 +901,7 @@ export const joinRelationshipToPrisma = <N extends string>({
     }
     if (normalJoinData.hasOwnProperty('update')) {
         // ex: update: [{ 
-        //         where: { organization_tags_taggedid_tagid_unique: { tagId: 'asdf', taggedId: 'fdas' } },
+        //         where: { organization_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } },
         //         data: { tag: { update: { tag: 'fdas', } } }
         //     }]
         for (const data of (normalJoinData?.update ?? [])) {

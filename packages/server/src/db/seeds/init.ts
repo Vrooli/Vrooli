@@ -181,9 +181,9 @@ export async function init(prisma: PrismaType) {
                 },
                 tags: {
                     create: [
-                        { tagId: tagVrooli.id },
-                        { tagId: tagEntrepreneurship.id },
-                        { tagId: tagCardano.id },
+                        { tagTag: tagVrooli.tag },
+                        { tagTag: tagEntrepreneurship.tag },
+                        { tagTag: tagCardano.tag },
                     ]
                 },
                 resourceLists: {

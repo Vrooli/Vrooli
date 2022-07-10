@@ -100,11 +100,11 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
      * Maps type of a tag's parent with the unique field
      */
     parentMapper: {
-        [GraphQLModelType.Organization]: 'organization_tags_taggedid_tagid_unique',
-        [GraphQLModelType.Project]: 'project_tags_taggedid_tagid_unique',
-        [GraphQLModelType.Routine]: 'routine_tags_taggedid_tagid_unique',
-        [GraphQLModelType.Standard]: 'standard_tags_taggedid_tagid_unique',
-        [GraphQLModelType.TagHidden]: 'user_tags_hidden_userid_tagid_unique',
+        [GraphQLModelType.Organization]: 'organization_tags_taggedid_tagTag_unique',
+        [GraphQLModelType.Project]: 'project_tags_taggedid_tagTag_unique',
+        [GraphQLModelType.Routine]: 'routine_tags_taggedid_tagTag_unique',
+        [GraphQLModelType.Standard]: 'standard_tags_taggedid_tagTag_unique',
+        [GraphQLModelType.TagHidden]: 'user_tags_hidden_userid_tagTag_unique',
     },
     async relationshipBuilder(
         userId: string | null,
@@ -137,6 +137,13 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
             tagsCreate.validateSync(createMany, { abortEarly: false });
             verifier.profanityCheck(createMany);
         }
+        // Shape disconnects and deletes
+        if (Array.isArray(input[`${relationshipName}Disconnect`])) {
+            input[`${relationshipName}Disconnect`] = input[`${relationshipName}Disconnect`].map((t: any) => typeof t === 'string' ? ({ tag: t }) : t);
+        }
+        if (Array.isArray(input[`${relationshipName}Delete`])) {
+            input[`${relationshipName}Delete`] = input[`${relationshipName}Delete`].map((t: any) => typeof t === 'string' ? ({ tag: t }) : t);
+        }
         console.log('TAG RELATIONSHIP BUILDER BEFORE TOPRISMA', JSON.stringify(input), '\n\n')
         // Convert input to Prisma shape
         // Updating/deleting tags is not supported. This must be done in its own query.
@@ -144,7 +151,7 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
             data: input,
             joinFieldName: 'tag',
             uniqueFieldName: this.parentMapper[parentType],
-            childIdFieldName: 'tagId',
+            childIdFieldName: 'tagTag',
             parentIdFieldName: 'taggedId',
             parentId: input.id ?? null,
             relationshipName,
