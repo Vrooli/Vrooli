@@ -2,7 +2,6 @@ import { gql } from 'graphql-tag';
 
 export const routineFields = gql`
     fragment routineTagFields on Tag {
-        id
         tag
         translations {
             id

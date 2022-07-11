@@ -18,7 +18,6 @@ export interface developPage_developPage_completed_Project_tags_translations {
 
 export interface developPage_developPage_completed_Project_tags {
   __typename: "Tag";
-  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -58,7 +57,6 @@ export interface developPage_developPage_completed_Routine_tags_translations {
 
 export interface developPage_developPage_completed_Routine_tags {
   __typename: "Tag";
-  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -107,7 +105,6 @@ export interface developPage_developPage_inProgress_Project_tags_translations {
 
 export interface developPage_developPage_inProgress_Project_tags {
   __typename: "Tag";
-  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -147,7 +144,6 @@ export interface developPage_developPage_inProgress_Routine_tags_translations {
 
 export interface developPage_developPage_inProgress_Routine_tags {
   __typename: "Tag";
-  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -196,7 +192,6 @@ export interface developPage_developPage_recent_Project_tags_translations {
 
 export interface developPage_developPage_recent_Project_tags {
   __typename: "Tag";
-  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -236,7 +231,6 @@ export interface developPage_developPage_recent_Routine_tags_translations {
 
 export interface developPage_developPage_recent_Routine_tags {
   __typename: "Tag";
-  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;

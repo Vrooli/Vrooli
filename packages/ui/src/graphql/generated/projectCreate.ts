@@ -55,7 +55,6 @@ export interface projectCreate_projectCreate_tags_translations {
 
 export interface projectCreate_projectCreate_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: projectCreate_projectCreate_tags_translations[];
 }

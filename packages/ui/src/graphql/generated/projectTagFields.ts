@@ -16,7 +16,6 @@ export interface projectTagFields_translations {
 
 export interface projectTagFields {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: projectTagFields_translations[];
 }

@@ -2,7 +2,6 @@ import { gql } from 'graphql-tag';
 
 export const listViewFields = gql`
     fragment listViewTagFields on Tag {
-        id
         created_at
         isStarred
         stars

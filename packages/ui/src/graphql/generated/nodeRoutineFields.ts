@@ -18,7 +18,6 @@ export interface nodeRoutineFields_tags_translations {
 
 export interface nodeRoutineFields_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: nodeRoutineFields_tags_translations[];
 }

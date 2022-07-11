@@ -18,7 +18,7 @@ export const TagList = ({
                 charactersBeforeCutoff -= tag.tag.length;
                 chipResult.push(
                     <Chip
-                        key={tag.id}
+                        key={tag.tag}
                         label={tag.tag}
                         size="small"
                         sx={{

@@ -50,7 +50,6 @@ export interface profileUpdate_profileUpdate_starredTags_translations {
 
 export interface profileUpdate_profileUpdate_starredTags {
   __typename: "Tag";
-  id: string;
   tag: string;
   created_at: any;
   stars: number;
@@ -67,7 +66,6 @@ export interface profileUpdate_profileUpdate_hiddenTags_tag_translations {
 
 export interface profileUpdate_profileUpdate_hiddenTags_tag {
   __typename: "Tag";
-  id: string;
   tag: string;
   created_at: any;
   stars: number;

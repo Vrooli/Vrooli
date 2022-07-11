@@ -101,7 +101,6 @@ export interface listStarFields_to_Organization_tags_translations {
 
 export interface listStarFields_to_Organization_tags {
   __typename: "Tag";
-  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -137,7 +136,6 @@ export interface listStarFields_to_Project_tags_translations {
 
 export interface listStarFields_to_Project_tags {
   __typename: "Tag";
-  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -175,7 +173,6 @@ export interface listStarFields_to_Routine_tags_translations {
 
 export interface listStarFields_to_Routine_tags {
   __typename: "Tag";
-  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -220,7 +217,6 @@ export interface listStarFields_to_Standard_tags_translations {
 
 export interface listStarFields_to_Standard_tags {
   __typename: "Tag";
-  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;

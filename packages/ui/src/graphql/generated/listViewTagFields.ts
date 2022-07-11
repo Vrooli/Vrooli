@@ -16,7 +16,6 @@ export interface listViewTagFields_translations {
 
 export interface listViewTagFields {
   __typename: "Tag";
-  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;

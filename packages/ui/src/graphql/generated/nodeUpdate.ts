@@ -24,7 +24,6 @@ export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine_tag
 
 export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine_tags_translations[];
 }

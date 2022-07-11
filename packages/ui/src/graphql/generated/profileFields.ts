@@ -50,7 +50,6 @@ export interface profileFields_starredTags_translations {
 
 export interface profileFields_starredTags {
   __typename: "Tag";
-  id: string;
   tag: string;
   created_at: any;
   stars: number;
@@ -67,7 +66,6 @@ export interface profileFields_hiddenTags_tag_translations {
 
 export interface profileFields_hiddenTags_tag {
   __typename: "Tag";
-  id: string;
   tag: string;
   created_at: any;
   stars: number;

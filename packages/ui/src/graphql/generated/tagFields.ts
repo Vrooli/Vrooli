@@ -16,7 +16,6 @@ export interface tagFields_translations {
 
 export interface tagFields {
   __typename: "Tag";
-  id: string;
   tag: string;
   created_at: any;
   stars: number;

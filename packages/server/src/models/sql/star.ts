@@ -137,7 +137,7 @@ const starrer = (prisma: PrismaType) => ({
         const starringFor: null | { id: string, stars: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, stars: true } });
         if (!starringFor) 
             throw new CustomError(CODE.ErrorUnknown, 'Could not find object being starred', { code: genErrorCode('0110') });
-        // Check if star already exists on object by this user
+        // Check if star already exists on object by this user TODO fix for tags
         const star = await prisma.star.findFirst({
             where: {
                 byId: userId,

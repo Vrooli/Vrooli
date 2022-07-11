@@ -218,7 +218,6 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routine_tags_
 
 export interface routineFields_nodes_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: routineFields_nodes_data_NodeRoutineList_routines_routine_tags_translations[];
 }
@@ -472,7 +471,6 @@ export interface routineFields_tags_translations {
 
 export interface routineFields_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: routineFields_tags_translations[];
 }

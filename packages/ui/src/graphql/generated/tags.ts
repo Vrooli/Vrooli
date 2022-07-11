@@ -24,7 +24,6 @@ export interface tags_tags_edges_node_translations {
 
 export interface tags_tags_edges_node {
   __typename: "Tag";
-  id: string;
   tag: string;
   created_at: any;
   stars: number;

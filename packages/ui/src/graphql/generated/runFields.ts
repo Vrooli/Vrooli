@@ -25,7 +25,6 @@ export interface runFields_routine_inputs_standard_tags_translations {
 
 export interface runFields_routine_inputs_standard_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: runFields_routine_inputs_standard_tags_translations[];
 }
@@ -106,7 +105,6 @@ export interface runFields_routine_nodes_data_NodeRoutineList_routines_routine_i
 
 export interface runFields_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: runFields_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags_translations[];
 }
@@ -157,7 +155,6 @@ export interface runFields_routine_nodes_data_NodeRoutineList_routines_routine_o
 
 export interface runFields_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: runFields_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags_translations[];
 }
@@ -260,7 +257,6 @@ export interface runFields_routine_nodes_data_NodeRoutineList_routines_routine_t
 
 export interface runFields_routine_nodes_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: runFields_routine_nodes_data_NodeRoutineList_routines_routine_tags_translations[];
 }
@@ -380,7 +376,6 @@ export interface runFields_routine_outputs_standard_tags_translations {
 
 export interface runFields_routine_outputs_standard_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: runFields_routine_outputs_standard_tags_translations[];
 }
@@ -496,7 +491,6 @@ export interface runFields_routine_tags_translations {
 
 export interface runFields_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: runFields_routine_tags_translations[];
 }

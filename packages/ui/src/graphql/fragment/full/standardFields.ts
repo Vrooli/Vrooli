@@ -28,7 +28,6 @@ export const standardFields = gql`
         }
     }
     fragment standardTagFields on Tag {
-        id
         tag
         translations {
             id

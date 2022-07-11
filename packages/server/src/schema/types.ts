@@ -1132,7 +1132,7 @@ export type OrganizationCreateInput = {
   id: Scalars['ID'];
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
-  tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   translationsCreate?: InputMaybe<Array<OrganizationTranslationCreateInput>>;
 };
@@ -1211,9 +1211,9 @@ export type OrganizationUpdateInput = {
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
   resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
-  tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
   translationsCreate?: InputMaybe<Array<OrganizationTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<OrganizationTranslationUpdateInput>>;
@@ -1370,7 +1370,7 @@ export type ProjectCreateInput = {
   isComplete?: InputMaybe<Scalars['Boolean']>;
   parentId?: InputMaybe<Scalars['ID']>;
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
-  tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   translationsCreate?: InputMaybe<Array<ProjectTranslationCreateInput>>;
 };
@@ -1463,9 +1463,9 @@ export type ProjectUpdateInput = {
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
   resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
-  tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
   translationsCreate?: InputMaybe<Array<ProjectTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<ProjectTranslationUpdateInput>>;
@@ -2122,7 +2122,7 @@ export type RoutineCreateInput = {
   parentId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
-  tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   translationsCreate?: InputMaybe<Array<RoutineTranslationCreateInput>>;
   version?: InputMaybe<Scalars['String']>;
@@ -2236,7 +2236,7 @@ export type RoutineUpdateInput = {
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
   resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
-  tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   translationsCreate?: InputMaybe<Array<RoutineTranslationCreateInput>>;
@@ -2443,7 +2443,7 @@ export type StandardCreateInput = {
   name?: InputMaybe<Scalars['String']>;
   props: Scalars['String'];
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
-  tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   translationsCreate?: InputMaybe<Array<StandardTranslationCreateInput>>;
   type: Scalars['String'];
@@ -2525,9 +2525,9 @@ export type StandardUpdateInput = {
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
   resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
-  tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
   translationsCreate?: InputMaybe<Array<StandardTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<StandardTranslationUpdateInput>>;

@@ -462,7 +462,7 @@ export const resolvers = {
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [processes, newlyCompletedProjects, newlyCompletedRoutines, needVotes, needInvestmentsProjects, needInvestmentsOrganizations, needMembers],
-                [routineSelect, projectSelect, routineSelect, projectSelect, projectSelect, organizationSelect] as any,
+                [routineSelect, projectSelect, routineSelect, projectSelect, projectSelect, organizationSelect, organizationSelect] as any,
                 ['p', 'ncp', 'ncr', 'nv', 'nip', 'nio', 'nm'],
                 context.req.userId,
                 context.prisma,

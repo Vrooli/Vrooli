@@ -18,7 +18,6 @@ export interface tagUpdate_tagUpdate_translations {
 
 export interface tagUpdate_tagUpdate {
   __typename: "Tag";
-  id: string;
   tag: string;
   created_at: any;
   stars: number;

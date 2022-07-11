@@ -2,7 +2,6 @@ import { gql } from 'graphql-tag';
 
 export const runFields = gql`
     fragment runTagFields on Tag {
-        id
         tag
         translations {
             id

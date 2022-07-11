@@ -55,7 +55,6 @@ export interface standardFields_tags_translations {
 
 export interface standardFields_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: standardFields_tags_translations[];
 }

@@ -16,7 +16,6 @@ export interface runTagFields_translations {
 
 export interface runTagFields {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: runTagFields_translations[];
 }

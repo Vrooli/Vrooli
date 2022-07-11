@@ -18,7 +18,6 @@ export interface homePage_homePage_organizations_tags_translations {
 
 export interface homePage_homePage_organizations_tags {
   __typename: "Tag";
-  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -57,7 +56,6 @@ export interface homePage_homePage_projects_tags_translations {
 
 export interface homePage_homePage_projects_tags {
   __typename: "Tag";
-  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -97,7 +95,6 @@ export interface homePage_homePage_routines_tags_translations {
 
 export interface homePage_homePage_routines_tags {
   __typename: "Tag";
-  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -144,7 +141,6 @@ export interface homePage_homePage_standards_tags_translations {
 
 export interface homePage_homePage_standards_tags {
   __typename: "Tag";
-  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;

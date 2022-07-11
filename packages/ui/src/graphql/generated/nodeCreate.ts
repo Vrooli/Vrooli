@@ -24,7 +24,6 @@ export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_tag
 
 export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_tags_translations[];
 }

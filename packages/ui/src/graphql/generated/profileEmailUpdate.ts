@@ -50,7 +50,6 @@ export interface profileEmailUpdate_profileEmailUpdate_starredTags_translations 
 
 export interface profileEmailUpdate_profileEmailUpdate_starredTags {
   __typename: "Tag";
-  id: string;
   tag: string;
   created_at: any;
   stars: number;
@@ -67,7 +66,6 @@ export interface profileEmailUpdate_profileEmailUpdate_hiddenTags_tag_translatio
 
 export interface profileEmailUpdate_profileEmailUpdate_hiddenTags_tag {
   __typename: "Tag";
-  id: string;
   tag: string;
   created_at: any;
   stars: number;

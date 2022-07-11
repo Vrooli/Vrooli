@@ -23,7 +23,6 @@ export interface runOutputFields_standard_tags_translations {
 
 export interface runOutputFields_standard_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: runOutputFields_standard_tags_translations[];
 }

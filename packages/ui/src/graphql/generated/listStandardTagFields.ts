@@ -16,7 +16,6 @@ export interface listStandardTagFields_translations {
 
 export interface listStandardTagFields {
   __typename: "Tag";
-  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;

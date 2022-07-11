@@ -24,7 +24,6 @@ export interface runs_runs_edges_node_routine_tags_translations {
 
 export interface runs_runs_edges_node_routine_tags {
   __typename: "Tag";
-  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;

@@ -157,7 +157,6 @@ export interface routineNodeFields_data_NodeRoutineList_routines_routine_tags_tr
 
 export interface routineNodeFields_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: routineNodeFields_data_NodeRoutineList_routines_routine_tags_translations[];
 }

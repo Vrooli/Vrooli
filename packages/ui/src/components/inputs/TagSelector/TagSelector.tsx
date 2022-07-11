@@ -102,7 +102,7 @@ export const TagSelector = ({
             onClose={clearText}
             value={tags}
             // Filter out what has already been selected
-            filterOptions={(options, params) => options.filter(o => !tags.some(t => t.id === o.id))}
+            filterOptions={(options, params) => options.filter(o => !tags.some(t => t.tag === o.tag))}
             renderTags={(value, getTagProps) =>
                 value.map((option: TagShape, index) => (
                     <Chip
@@ -125,7 +125,7 @@ export const TagSelector = ({
                     <ListItemText>{option.tag}</ListItemText>
                     <StarButton
                         session={session}
-                        objectId={option.id ?? ''}
+                        objectId={option.tag ?? ''}
                         starFor={StarFor.Tag}
                         // isStar={option.isStarred} // TODO
                         // stars={option.stars} //TODO

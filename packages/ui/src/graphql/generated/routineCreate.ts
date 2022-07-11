@@ -218,7 +218,6 @@ export interface routineCreate_routineCreate_nodes_data_NodeRoutineList_routines
 
 export interface routineCreate_routineCreate_nodes_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: routineCreate_routineCreate_nodes_data_NodeRoutineList_routines_routine_tags_translations[];
 }
@@ -472,7 +471,6 @@ export interface routineCreate_routineCreate_tags_translations {
 
 export interface routineCreate_routineCreate_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: routineCreate_routineCreate_tags_translations[];
 }

@@ -55,7 +55,6 @@ export interface standardCreate_standardCreate_tags_translations {
 
 export interface standardCreate_standardCreate_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: standardCreate_standardCreate_tags_translations[];
 }

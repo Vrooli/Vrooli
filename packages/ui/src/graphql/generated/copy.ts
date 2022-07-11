@@ -24,7 +24,6 @@ export interface copy_copy_node_data_NodeRoutineList_routines_routine_tags_trans
 
 export interface copy_copy_node_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: copy_copy_node_data_NodeRoutineList_routines_routine_tags_translations[];
 }
@@ -170,7 +169,6 @@ export interface copy_copy_organization_tags_translations {
 
 export interface copy_copy_organization_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: copy_copy_organization_tags_translations[];
 }
@@ -243,7 +241,6 @@ export interface copy_copy_project_tags_translations {
 
 export interface copy_copy_project_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: copy_copy_project_tags_translations[];
 }
@@ -506,7 +503,6 @@ export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_t
 
 export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_tags_translations[];
 }
@@ -760,7 +756,6 @@ export interface copy_copy_routine_tags_translations {
 
 export interface copy_copy_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: copy_copy_routine_tags_translations[];
 }
@@ -849,7 +844,6 @@ export interface copy_copy_standard_tags_translations {
 
 export interface copy_copy_standard_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: copy_copy_standard_tags_translations[];
 }

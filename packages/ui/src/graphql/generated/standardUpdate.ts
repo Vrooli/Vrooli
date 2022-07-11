@@ -55,7 +55,6 @@ export interface standardUpdate_standardUpdate_tags_translations {
 
 export interface standardUpdate_standardUpdate_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: standardUpdate_standardUpdate_tags_translations[];
 }

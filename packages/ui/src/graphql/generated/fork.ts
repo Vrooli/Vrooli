@@ -55,7 +55,6 @@ export interface fork_fork_organization_tags_translations {
 
 export interface fork_fork_organization_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: fork_fork_organization_tags_translations[];
 }
@@ -128,7 +127,6 @@ export interface fork_fork_project_tags_translations {
 
 export interface fork_fork_project_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: fork_fork_project_tags_translations[];
 }
@@ -391,7 +389,6 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_t
 
 export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_tags_translations[];
 }
@@ -645,7 +642,6 @@ export interface fork_fork_routine_tags_translations {
 
 export interface fork_fork_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: fork_fork_routine_tags_translations[];
 }
@@ -734,7 +730,6 @@ export interface fork_fork_standard_tags_translations {
 
 export interface fork_fork_standard_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: fork_fork_standard_tags_translations[];
 }

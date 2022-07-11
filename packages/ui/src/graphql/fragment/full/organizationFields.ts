@@ -28,7 +28,6 @@ export const organizationFields = gql`
         }
     }
     fragment organizationTagFields on Tag {
-        id
         tag
         translations {
             id
