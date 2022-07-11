@@ -866,10 +866,8 @@ export const joinRelationshipToPrisma = <N extends string>({
     idField = 'id' as N,
 }: JoinRelationshipToPrismaArgs<N>): { [x: string]: any } => {
     let converted: { [x: string]: any } = {};
-    console.log('joinrelationshiptoprisma', JSON.stringify(data), '\n\n')
     // Call relationshipToPrisma to get join data used for one-to-many relationships
     const normalJoinData = relationshipToPrisma({ data, relationshipName, isAdd, fieldExcludes, relExcludes, softDelete, idField })
-    console.log('normalJoinData', JSON.stringify(normalJoinData), '\n\n')
     // Convert this to support a join table
     if (normalJoinData.hasOwnProperty('connect')) {
         // ex: create: [ { tag: { connect: { id: 'asdf' } } } ] <-- A join table always creates on connects

@@ -247,7 +247,6 @@ export const standardQuerier = (prisma: PrismaType) => ({
         data: StandardCreateInput & { name: string, version: string },
         userId: string
     ): Promise<{ [x: string]: any } | null> {
-        console.log('findmatchingstandardname', JSON.stringify(data), userId, '\n\n');
         // Find all standards that match the given standard
         const standards = await prisma.standard.findMany({
             where: {
@@ -384,8 +383,8 @@ export const standardMutater = (
                     return check2.id;
                 }
             }
-            // Call createData
-            if (!create) await this.toDBShapeAdd(userId, formattedInput.create[0]);
+            // Shape create data
+            if (!create) create = await this.toDBShapeAdd(userId, formattedInput.create[0]);
             // Create standard
             const standard = await prisma.standard.create({
                 data: create,
@@ -488,7 +487,6 @@ export const standardMutater = (
                     data = await this.toDBShapeAdd(userId, input);
                     const check1 = await querier.findMatchingStandardName(data, userId ?? '');
                     if (check1) {
-                        console.log('STANDARD CUD CHECK1 FAILED', JSON.stringify(check1), '\n\n');
                         throw new CustomError(CODE.StandardDuplicateName, 'Standard with this name/version pair already exists.', { code: genErrorCode('0238') });
                     }
                     const check2 = await querier.findMatchingStandardShape(data, userId ?? '', true, false)

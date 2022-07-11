@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { deleteArrayIndex, BuildAction, BuildRunState, Status, Pubs, updateArray, getTranslation, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR, shapeRoutineUpdate, shapeRoutineCreate } from 'utils';
+import { deleteArrayIndex, BuildAction, BuildRunState, Status, Pubs, updateArray, getTranslation, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape } from 'utils';
 import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
 import { useLocation } from 'wouter';
 import { APP_LINKS, isEqual, uniqBy } from '@local/shared';
@@ -34,6 +34,19 @@ Lorem ipsum dolor sit amet consectetur adipisicing elit.
 ## How does it work?
 Lorem ipsum dolor sit amet consectetur adipisicing elit.
 `
+
+/**
+ * Generates a new link object, but doesn't add it to the routine
+ * @param fromId - The ID of the node the link is coming from
+ * @param toId - The ID of the node the link is going to
+ * @returns The new link object
+ */
+const generateNewLink = (fromId: string, toId: string): NodeLinkShape => ({
+    __typename: 'NodeLink',
+    id: uuid(),
+    fromId,
+    toId,
+})
 
 export const BuildView = ({
     handleClose,
@@ -301,7 +314,6 @@ export const BuildView = ({
         if (!changedRoutine) {
             return;
         }
-        console.log('SHAPE CREATE', shapeRoutineCreate(changedRoutine));
         mutationWrapper({
             mutation: routineCreate,
             input: shapeRoutineCreate(changedRoutine),
@@ -439,17 +451,17 @@ export const BuildView = ({
     const calculateNewLinksList = useCallback((nodeId: string): NodeLink[] => {
         if (!changedRoutine) return [];
         const deletingLinks = changedRoutine.nodeLinks.filter(l => l.fromId === nodeId || l.toId === nodeId);
-        const newLinks: Partial<NodeLink>[] = [];
+        const newLinks: NodeLinkShape[] = [];
         // Find all "from" and "to" nodes in the deleting links
         const fromNodeIds = deletingLinks.map(l => l.fromId).filter(id => id !== nodeId);
         const toNodeIds = deletingLinks.map(l => l.toId).filter(id => id !== nodeId);
         // If there is only one "from" node, create a link between it and every "to" node
         if (fromNodeIds.length === 1) {
-            toNodeIds.forEach(toId => { newLinks.push({ fromId: fromNodeIds[0], toId }) });
+            toNodeIds.forEach(toId => { newLinks.push(generateNewLink(fromNodeIds[0], toId)) });
         }
         // If there is only one "to" node, create a link between it and every "from" node
         else if (toNodeIds.length === 1) {
-            fromNodeIds.forEach(fromId => { newLinks.push({ fromId, toId: toNodeIds[0] }) });
+            fromNodeIds.forEach(fromId => { newLinks.push(generateNewLink(fromId, toNodeIds[0])) });
         }
         // NOTE: Every other case is ambiguous, so we can't auto-create create links
         // Delete old links
@@ -462,18 +474,27 @@ export const BuildView = ({
      * Generates a new node object, but doens't add it to the routine
      */
     const generateNewNode = useCallback((columnIndex: number | null, rowIndex: number | null) => {
-        const newNode: Partial<Node> = {
+        const newNode: Omit<NodeShape, 'routineId'> = {
+            __typename: 'Node',
             id: uuid(),
             type: NodeType.RoutineList,
             rowIndex,
             columnIndex,
             data: {
+                id: uuid(),
+                __typename: 'NodeRoutineList',
                 isOrdered: false,
                 isOptional: false,
                 routines: [],
-            } as any,
+            },
             // Generate unique placeholder title
-            translations: [{ language, title: `Node ${(changedRoutine?.nodes?.length ?? 0) - 1}` }] as Node['translations'],
+            translations: [{
+                __typename: 'NodeTranslation',
+                id: uuid(),
+                language,
+                title: `Node ${(changedRoutine?.nodes?.length ?? 0) - 1}`,
+                description: '',
+            }],
         }
         return newNode;
     }, [language, changedRoutine?.nodes]);
@@ -639,12 +660,12 @@ export const BuildView = ({
             return n;
         });
         // Create new routine list node
-        const newNode: Partial<Node> = generateNewNode(columnIndex, rowIndex);
+        const newNode: Omit<NodeShape, 'routineId'> = generateNewNode(columnIndex, rowIndex);
         // Find every node 
         // Create two new links
-        const newLinks: Partial<NodeLink>[] = [
-            { fromId: link.fromId, toId: newNode.id },
-            { fromId: newNode.id, toId: link.toId },
+        const newLinks: NodeLinkShape[] = [
+            generateNewLink(link.fromId, newNode.id),
+            generateNewLink(newNode.id, link.toId),
         ];
         // Insert new node and links
         const newRoutine = {
@@ -689,20 +710,16 @@ export const BuildView = ({
      * @param newIndex The new index of the subroutine
      */
     const handleRoutineListItemReorder = useCallback((nodeId: string, oldIndex: number, newIndex: number) => {
-        console.log('handleroutinelistitemreorder start', nodeId, oldIndex, newIndex);
         // Find routines being swapped
         if (!changedRoutine) return;
         // Node containing routine list data with ID nodeId
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.data?.id === nodeId);
-        console.log('handleroutinelistitemreorder nodeIndex', nodeIndex);
         if (nodeIndex === -1) return;
         const routineList: NodeDataRoutineList = changedRoutine.nodes[nodeIndex].data as NodeDataRoutineList;
         const routines = [...routineList.routines];
-        console.log('handleroutinelistitemreorder routines', routines);
         // Find subroutines matching old and new index
         const aIndex = routines.findIndex(r => r.index === oldIndex);
         const bIndex = routines.findIndex(r => r.index === newIndex);
-        console.log('handleroutinelistitemreorder aIndex bIndex', aIndex, bIndex);
         if (aIndex === -1 || bIndex === -1) return;
         // Swap the routine indexes
         routines[aIndex] = { ...routines[aIndex], index: newIndex };
@@ -739,8 +756,8 @@ export const BuildView = ({
         }
         // If no links, create link and node
         else {
-            const newNode = generateNewNode(null, null);
-            const newLink = { fromId: nodeId, toId: newNode.id };
+            const newNode: Omit<NodeShape, 'routineId'> = generateNewNode(null, null);
+            const newLink: NodeLinkShape = generateNewLink(nodeId, newNode.id);
             setChangedRoutine({
                 ...changedRoutine,
                 nodes: [...changedRoutine.nodes, newNode as any],
@@ -768,8 +785,8 @@ export const BuildView = ({
         }
         // If no links, create link and node
         else {
-            const newNode = generateNewNode(null, null);
-            const newLink = { fromId: newNode.id, toId: nodeId };
+            const newNode: Omit<NodeShape, 'routineId'> = generateNewNode(null, null);
+            const newLink: NodeLinkShape = generateNewLink(newNode.id, nodeId);
             setChangedRoutine({
                 ...changedRoutine,
                 nodes: [...changedRoutine.nodes, newNode as any],
@@ -783,7 +800,6 @@ export const BuildView = ({
      */
     const handleSubroutineUpdate = useCallback((updatedSubroutine: NodeDataRoutineListItem) => {
         if (!changedRoutine) return;
-        console.log('buildview handlesubroutine update', updatedSubroutine)
         // Update routine
         setChangedRoutine({
             ...changedRoutine,
@@ -974,8 +990,9 @@ export const BuildView = ({
                     const columnIndex: number = (node.columnIndex ?? 0) + 1;
                     // Node is 1 after last rowIndex in column
                     const rowIndex = (columnIndex >= 0 && columnIndex < columns.length) ? columns[columnIndex].length : 0;
-                    const newLink: Partial<NodeLink> = { fromId: node.id, toId: newEndNodeId }
-                    const newEndNode: Partial<Node> = {
+                    const newLink: NodeLinkShape = generateNewLink(node.id, newEndNodeId);
+                    const newEndNode: Omit<NodeShape, 'routineId'> = {
+                        __typename: 'Node',
                         id: newEndNodeId,
                         type: NodeType.End,
                         rowIndex,
@@ -983,6 +1000,7 @@ export const BuildView = ({
                         data: {
                             wasSuccessful: false,
                         } as any,
+                        translations: [],
                     }
                     // Add link and end node to resultRoutine
                     resultRoutine.nodeLinks.push(newLink as any);

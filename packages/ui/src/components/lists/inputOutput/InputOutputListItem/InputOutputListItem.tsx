@@ -70,7 +70,6 @@ export const InputOutputListItem = ({
     session,
     zIndex,
 }: InputOutputListItemProps) => {
-    console.log('inputoutputlistitem', isEditing);
     const { palette } = useTheme();
 
     // Handle standard select switch
@@ -93,7 +92,7 @@ export const InputOutputListItem = ({
 
     const onSwitchChange = useCallback((s: Standard | null) => {
         setSchema(null);
-        setStandard(s as any);
+        setStandard(s);
     }, []);
 
     /**
@@ -116,12 +115,14 @@ export const InputOutputListItem = ({
         handleUpdate(index, {
             ...item,
             standard: {
+                __typename: 'Standard',
+                id: uuid(),
                 default: schema.props?.defaultValue ?? null,
                 isInternal: true,
                 type: schema.type,
                 props: JSON.stringify(schema.props),
                 yup: JSON.stringify(schema.yup),
-            } as Standard
+            },
         })
     }, [handleUpdate, index, item, schema]);
 
@@ -153,7 +154,7 @@ export const InputOutputListItem = ({
         initialValues: {
             description: getTranslation(item, 'description', [language]) ?? '',
             isRequired: true,
-            name: getTranslation(item, 'name', [language], false) ?? '',
+            name: item.name ?? '' as string,
             // Value of generated input component preview
             [schemaKey]: jsonToString((generatedSchema?.props as any)?.format),
         },
@@ -171,7 +172,7 @@ export const InputOutputListItem = ({
                 name: values.name,
                 isRequired: isInput ? values.isRequired : undefined,
                 translations: allTranslations,
-            } as any);
+            });
         },
     });
 
@@ -282,7 +283,7 @@ export const InputOutputListItem = ({
                             onBlur={(e) => { formik.handleBlur(e); formik.handleSubmit() }}
                             onChange={formik.handleChange}
                             error={formik.touched.name && Boolean(formik.errors.name)}
-                            helperText={formik.touched.name && formik.errors.name}
+                            helperText={formik.touched.name ? (formik.errors.name as any) : null}
                         /> : <Typography variant="h6">{`Name: ${formik.values.name}`}</Typography>}
                     </Grid>
                     <Grid item xs={12}>

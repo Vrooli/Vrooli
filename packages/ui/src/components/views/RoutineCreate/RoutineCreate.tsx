@@ -111,7 +111,6 @@ export const RoutineCreate = ({
                 instructions: values.instructions,
                 title: values.title,
             })
-            console.log('inuputs list', inputsList);
             mutationWrapper({
                 mutation,
                 input: shapeRoutineCreate({

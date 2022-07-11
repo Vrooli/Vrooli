@@ -31,6 +31,7 @@ export const shapeInputTranslationUpdate = (
     }), 'id')
 
 export const shapeInputCreate = (item: InputShape): InputItemCreateInput => {
+    console.log('shapeinputcreate', item);
     // Connect to standard if it's marked as external. 
     // Otherwise, set as create. The backend will handle the rest
     const shouldConnectToStandard = item.standard && !item.standard.isInternal && item.standard.id;
@@ -39,7 +40,7 @@ export const shapeInputCreate = (item: InputShape): InputItemCreateInput => {
         isRequired: item.isRequired,
         name: item.name,
         standardConnect: shouldConnectToStandard ? item.standard?.id as string : undefined,
-        standardCreate: !shouldConnectToStandard ? shapeStandardCreate(item.standard as StandardShape) : undefined,
+        standardCreate: item.standard && !shouldConnectToStandard ? shapeStandardCreate(item.standard) : undefined,
         ...shapeCreateList(item, 'translations', shapeInputTranslationCreate),
     }
 }
@@ -58,7 +59,7 @@ export const shapeInputUpdate = (
             isRequired: u.isRequired,
             name: u.name,
             standardConnect: shouldConnectToStandard ? u.standard?.id as string : undefined,
-            standardCreate: !shouldConnectToStandard ? shapeStandardCreate(u.standard as StandardShape) : undefined,
+            standardCreate: u.standard && !shouldConnectToStandard ? shapeStandardCreate(u.standard as StandardShape) : undefined,
             ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeInputTranslationCreate, shapeInputTranslationUpdate, 'id'),
         }
     }, 'id')

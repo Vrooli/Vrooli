@@ -129,7 +129,6 @@ export const resourceMutater = (prisma: PrismaType) => ({
                 }
             }
         })
-        console.log('existing resources', userId, JSON.stringify(existingResources), '\n\n')
         // Check if user is owner of all resources
         const isOwner = (userId: string, data: any) => {
             if (!data.list) return false;

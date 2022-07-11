@@ -161,7 +161,6 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
                 if (!object) throw new CustomError(CODE.ErrorUnknown, 'Run not found.', { code: genErrorCode('0176') });
                 // Update object
                 const data = await this.toDBShapeUpdate(userId, input.data, object as any)
-                console.log('before run update temp', JSON.stringify(data), '\n\n')
                 const currUpdated = await prisma.run.update({
                     where: input.where,
                     data,

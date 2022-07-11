@@ -290,7 +290,6 @@ export const resolvers = {
         routine: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             await rateLimit({ context, info, max: 1000 });
             const routine =  readOneHelper(context.req.userId, input, info, RoutineModel(context.prisma));
-            console.log('got routine', JSON.stringify(routine), '\n\n')
             return routine;
         },
         routines: async (_parent: undefined, { input }: IWrap<RoutineSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<RoutineSearchResult> => {

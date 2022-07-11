@@ -78,7 +78,6 @@ export const InputOutputContainer = ({
     session,
     zIndex,
 }: InputOutputContainerProps) => {
-    console.log('inputOutputContainer', list);
     // Store open/close state of each list item
     const [isOpenArray, setIsOpenArray] = useState<boolean[]>([]);
     useEffect(() => {
@@ -102,12 +101,10 @@ export const InputOutputContainer = ({
     }, [isOpenArray]);
 
     const onAdd = useCallback((index: number, newItem: RoutineInput | RoutineOutput) => {
-        console.log('onadd start', index, newItem);
         const newIsOpenArray = new Array(list.length + 1).fill(false);
         newIsOpenArray[Math.min(index + 1, list.length)] = true;
         setIsOpenArray(newIsOpenArray);
         const newList = [...list];
-        console.log('onadd original list', newList)
         let newItemFormatted: RoutineInput | RoutineOutput = {
             ...newItem,
             id: uuid(),
@@ -120,19 +117,16 @@ export const InputOutputContainer = ({
                 description: ''
             }],
         } as any;
-        console.log('onadd formatted item', newItemFormatted)
         if (isInput && (newItem as RoutineInput).isRequired !== true && (newItem as RoutineInput).isRequired !== false) (newItemFormatted as RoutineInput).isRequired = true;
         // Add new item to list at index (splice does not work)
         const listStart = newList.slice(0, index);
         const listEnd = newList.slice(index);
         const combined = [...listStart, newItemFormatted, ...listEnd];
         // newList.splice(index + 1, 0, newItemFormatted);
-        console.log('onadd new list', combined)
         handleUpdate(combined as any);
     }, [list, language, isInput, handleUpdate]);
 
     const onUpdate = useCallback((index: number, updatedItem: InputShape | OutputShape) => {
-        console.log('inputoutputcontainer onUpdate', index, updatedItem);
         handleUpdate(updateArray(list, index, updatedItem));
     }, [handleUpdate, list]);
 
@@ -162,7 +156,7 @@ export const InputOutputContainer = ({
                 {list.map((item, index) => (
                     <Fragment key={index}>
                         <InputOutputListItem
-                            key={`input-item-${index}`}
+                            key={`input-item-${item.id}`}
                             index={index}
                             isInput={isInput}
                             isOpen={isOpenArray.length > index && isOpenArray[index]}

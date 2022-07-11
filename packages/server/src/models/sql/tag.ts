@@ -112,19 +112,16 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
         parentType: keyof typeof this.parentMapper,
         relationshipName: string = 'tags',
     ): Promise<{ [x: string]: any } | undefined> {
-        console.log('TAG RELATIONSHIP BUILDER START', JSON.stringify(input), '\n\n')
         // If any tag creates/connects, make sure they exist/not exist
         const initialCreateTags = Array.isArray(input[`${relationshipName}Create`]) ? input[`${relationshipName}Create`].map((c: any) => c.tag) : [];
         const initialConnectTags = Array.isArray(input[`${relationshipName}Connect`]) ? input[`${relationshipName}Connect`] : [];
         const bothInitialTags = [...initialCreateTags, ...initialConnectTags];
-        console.log('bothInitialTags', JSON.stringify(bothInitialTags), '\n\n');
         if (bothInitialTags.length > 0) {
             // Query for all of the tags, to determine which ones exist
             const existingTags = await prisma.tag.findMany({
                 where: { tag: { in: bothInitialTags } },
                 select: { tag: true }
             });
-            console.log('existing tags', JSON.stringify(existingTags), '\n\n');
             // All existing tags are the new connects
             input[`${relationshipName}Connect`] = existingTags.map((t) => ({ tag: t.tag }));
             // All new tags are the new creates
@@ -133,7 +130,6 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
         // Validate create
         if (Array.isArray(input[`${relationshipName}Create`])) {
             const createMany = input[`${relationshipName}Create`];
-            console.log('validating tags create', JSON.stringify(createMany), '\n\n');
             tagsCreate.validateSync(createMany, { abortEarly: false });
             verifier.profanityCheck(createMany);
         }
@@ -144,7 +140,6 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
         if (Array.isArray(input[`${relationshipName}Delete`])) {
             input[`${relationshipName}Delete`] = input[`${relationshipName}Delete`].map((t: any) => typeof t === 'string' ? ({ tag: t }) : t);
         }
-        console.log('TAG RELATIONSHIP BUILDER BEFORE TOPRISMA', JSON.stringify(input), '\n\n')
         // Convert input to Prisma shape
         // Updating/deleting tags is not supported. This must be done in its own query.
         let formattedInput = joinRelationshipToPrisma({
@@ -159,7 +154,6 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
             relExcludes: [RelationshipTypes.update, RelationshipTypes.delete],
             idField: 'tag',
         })
-        console.log('TAG RELATIONSHIP BUILDER END', JSON.stringify(formattedInput), '\n\n')
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     async validateMutations({

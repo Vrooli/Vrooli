@@ -783,7 +783,6 @@ export const routineMutater = (prisma: PrismaType) => ({
             for (const input of updateMany) {
                 // Call createData helper function
                 let data = await this.toDBShape(userId, input.data, false);
-                console.log('going to update routine start', JSON.stringify(data), '\n\n')
                 // Find object
                 let object = await prisma.routine.findFirst({ where: input.where })
                 if (!object)
@@ -802,9 +801,6 @@ export const routineMutater = (prisma: PrismaType) => ({
                         organization: { disconnect: true },
                     };
                 }
-                // next line tmep
-                // delete data.nodeLinks.delete
-                console.log('with temp delete', JSON.stringify(data), '\n\n')
                 // Update object
                 const currUpdated = await prisma.routine.update({
                     where: input.where,
