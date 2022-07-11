@@ -34,16 +34,20 @@ ALTER TABLE "routine_tags" ALTER COLUMN "tagTag" SET NOT NULL;
 ALTER TABLE "standard_tags" ALTER COLUMN "tagTag" SET NOT NULL;
 
 -- Apply unique constraint to new column
-CREATE UNIQUE INDEX "organization_tags_tagTag_key" ON "organization_tags"("tagTag");
-CREATE UNIQUE INDEX "project_tags_tagTag_key" ON "project_tags"("tagTag");
-CREATE UNIQUE INDEX "routine_tags_tagTag_key" ON "routine_tags"("tagTag");
-CREATE UNIQUE INDEX "standard_tags_tagTag_key" ON "standard_tags"("tagTag");
+CREATE UNIQUE INDEX "organization_tags_taggedId_tagTag_key" ON "organization_tags"("taggedId", "tagTag");
+CREATE UNIQUE INDEX "project_tags_taggedId_tagTag_key" ON "project_tags"("taggedId", "tagTag");
+CREATE UNIQUE INDEX "routine_tags_taggedId_tagTag_key" ON "routine_tags"("taggedId", "tagTag");
+CREATE UNIQUE INDEX "standard_tags_taggedId_tagTag_key" ON "standard_tags"("taggedId", "tagTag");
 
--- Apply foreign key constraint to new column
-ALTER TABLE "organization_tags" ADD CONSTRAINT "organization_tags_tagTag_fkey" FOREIGN KEY ("tagTag") REFERENCES "tag"("tag") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "project_tags" ADD CONSTRAINT "project_tags_tagTag_fkey" FOREIGN KEY ("tagTag") REFERENCES "tag"("tag") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "routine_tags" ADD CONSTRAINT "routine_tags_tagTag_fkey" FOREIGN KEY ("tagTag") REFERENCES "tag"("tag") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "standard_tags" ADD CONSTRAINT "standard_tags_tagTag_fkey" FOREIGN KEY ("tagTag") REFERENCES "tag"("tag") ON DELETE CASCADE ON UPDATE CASCADE;
+-- Apply foreign key constraints to new column
+ALTER TABLE "organization_tags" ADD CONSTRAINT "organization_tags_taggedId_tagTag_fkey" FOREIGN KEY ("taggedId") REFERENCES "organization"("id") ON DELETE CASCADE;
+ALTER TABLE "organization_tags" ADD CONSTRAINT "organization_tags_tagTag_tagId_fkey" FOREIGN KEY ("tagTag") REFERENCES "tag"("tag") ON DELETE CASCADE;
+ALTER TABLE "project_tags" ADD CONSTRAINT "project_tags_taggedId_tagTag_fkey" FOREIGN KEY ("taggedId") REFERENCES "project"("id") ON DELETE CASCADE;
+ALTER TABLE "project_tags" ADD CONSTRAINT "project_tags_tagTag_tagId_fkey" FOREIGN KEY ("tagTag") REFERENCES "tag"("tag") ON DELETE CASCADE;
+ALTER TABLE "routine_tags" ADD CONSTRAINT "routine_tags_taggedId_tagTag_fkey" FOREIGN KEY ("taggedId") REFERENCES "routine"("id") ON DELETE CASCADE;
+ALTER TABLE "routine_tags" ADD CONSTRAINT "routine_tags_tagTag_tagId_fkey" FOREIGN KEY ("tagTag") REFERENCES "tag"("tag") ON DELETE CASCADE;
+ALTER TABLE "standard_tags" ADD CONSTRAINT "standard_tags_taggedId_tagTag_fkey" FOREIGN KEY ("taggedId") REFERENCES "standard"("id") ON DELETE CASCADE;
+ALTER TABLE "standard_tags" ADD CONSTRAINT "standard_tags_tagTag_tagId_fkey" FOREIGN KEY ("tagTag") REFERENCES "tag"("tag") ON DELETE CASCADE;
 
 -- Drop old foreign key constraint
 ALTER TABLE "organization_tags" DROP CONSTRAINT "organization_tags_tagId_fkey";
