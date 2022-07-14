@@ -9,7 +9,7 @@ import { PubSub } from "utils/pubsub";
  * @returns An array of the created objects formatted for the create mutation,
  * or undefined if no objects have been created.
  */
-export const findCreatedItems = <
+const findCreatedItems = <
     IDField extends string,
     Input extends { [key in IDField]?: string | null },
     Output
@@ -37,7 +37,7 @@ export const findCreatedItems = <
  * @returns An array of the updated objects formatted for the update mutation, 
  * or undefined if no objects have been updated.
  */
-export const findUpdatedItems = <
+const findUpdatedItems = <
     IDField extends string,
     Input extends { [key in IDField]?: string | null },
     Output
@@ -64,7 +64,7 @@ export const findUpdatedItems = <
  * @returns The IDs of items which have been removed from the array, 
  * or undefined if no items have been removed.
  */
-export const findDeletedItems = <
+const findDeletedItems = <
     IDField extends string,
     Input extends { [key in IDField]?: string | null }
 >(
@@ -88,7 +88,7 @@ export const findDeletedItems = <
  * @param the IDs of items which have been added to the array,
  * or undefined if no items have been added.
  */
-export const findConnectedItems = <
+const findConnectedItems = <
     IDField extends string,
     Input extends { [key in IDField]?: string | null }
 >(
@@ -112,7 +112,7 @@ export const findConnectedItems = <
  * @returns The IDs of items which have been disconnected from the parent,
  * or undefined if no items have been disconnected.
  */
-export const findDisconnectedItems = <
+const findDisconnectedItems = <
     IDField extends string,
     Input extends { [key in IDField]?: string | null }
 >(

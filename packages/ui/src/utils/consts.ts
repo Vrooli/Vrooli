@@ -10,11 +10,6 @@ export const Forms = {
 }
 export type Forms = ValueOf<typeof Forms>;
 
-export const DragTypes = {
-    Node: 'node',
-}
-export type DragTypes = ValueOf<typeof DragTypes>;
-
 /**
  * A general status state for an object
  */

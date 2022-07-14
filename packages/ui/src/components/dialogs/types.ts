@@ -6,8 +6,6 @@ import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink
 import { ReportFor } from 'graphql/generated/globalTypes';
 import { ObjectType } from 'utils';
 
-export interface AlertDialogProps extends DialogProps { };
-
 export interface BaseObjectDialogProps extends DialogProps {
     children: JSX.Element | JSX.Element[];
     /**
@@ -26,13 +24,6 @@ export interface DeleteDialogProps {
     objectName: string;
     objectType: DeleteOneType;
     zIndex: number;
-}
-
-export interface FormDialogProps {
-    children: JSX.Element;
-    maxWidth?: string | number;
-    onClose: () => void;
-    title: string;
 }
 
 export interface ListMenuItemData<T> {
@@ -71,11 +62,6 @@ export interface ListMenuProps<T> {
     zIndex: number;
 }
 
-export enum ObjectDialogState {
-    Add = 'Add',
-    Edit = 'Edit',
-    View = 'View',
-}
 export enum ObjectDialogAction {
     Add = 'Add',
     Cancel = 'Cancel',
@@ -234,11 +220,6 @@ export interface UnlinkedNodesDialogProps {
     nodes: Node[];
     open: boolean;
     zIndex: number;
-}
-
-export interface CreateNewDialogProps {
-    handleClose: () => any;
-    isOpen: boolean;
 }
 
 export interface RunStepsDialogProps {

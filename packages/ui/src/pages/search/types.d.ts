@@ -3,10 +3,6 @@ import { MouseEvent } from "react";
 import { Session } from "types";
 import { ObjectType } from "utils";
 
-export interface SearchQueryVariables {
-    input: UserSearchInput;
-}
-
 export interface BaseSearchPageProps {
     itemKeyPrefix: string;
     title?: string | null;
@@ -24,7 +20,7 @@ export interface BaseSearchPageProps {
     where?: any; // Additional query variables
 }
 
-export interface SearchPageBaseProps {
+interface SearchPageBaseProps {
     session: Session;
 }
 

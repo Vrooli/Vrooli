@@ -14,8 +14,3 @@ export const cardRoot: SxProps = {
         transition: 'filter 0.2s',
     },
 }
-
-export const cardContent: SxProps = {
-    padding: 1,
-    position: 'inherit',
-}
