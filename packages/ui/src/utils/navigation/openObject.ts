@@ -4,7 +4,7 @@
 
 import { APP_LINKS } from "@local/shared";
 import { SetLocation } from "types";
-import { Pubs } from "utils/consts";
+import { PubSub } from "utils/pubsub";
 
 export enum ObjectType {
     Comment = 'Comment',
@@ -45,7 +45,7 @@ export type OpenObjectProps = {
 export const openObject = (object: OpenObjectProps['object'], setLocation: OpenObjectProps['setLocation']) => {
     // Check if __typename is in objectLinkMap
     if (!objectLinkMap.hasOwnProperty(object.__typename)) {
-        PubSub.publish(Pubs.Snack, { message: 'Could not parse object type.', severity: 'error' });
+        PubSub.get().publishSnack({ message: 'Could not parse object type.', severity: 'error' });
         return; 
     }
     // Navigate to object page

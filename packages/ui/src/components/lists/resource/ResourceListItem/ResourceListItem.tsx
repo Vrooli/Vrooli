@@ -5,7 +5,7 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { adaHandleRegex, ResourceSortBy, ResourceUsedFor, urlRegex, walletAddressRegex } from '@local/shared';
 import { useLocation } from 'wouter';
-import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, openLink, Pubs, ResourceType } from 'utils';
+import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, openLink, PubSub, ResourceType } from 'utils';
 import { Resource } from 'types';
 import { getResourceIcon } from '..';
 import {
@@ -13,7 +13,6 @@ import {
     Edit as EditIcon,
     OpenInNew as OpenLinkIcon
 } from '@mui/icons-material';
-import { owns } from 'utils/authentication';
 import { TextLoading } from 'components';
 
 /**
@@ -55,20 +54,20 @@ export function ResourceListItem({
         const resourceType = getResourceType(data.link);
         // If null, show error
         if (!resourceType) {
-            PubSub.publish(Pubs.Snack, { message: 'Unable to open link', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Unable to open link', severity: 'error' });
             return;
         }
         // If URL, open in new tab
         if (resourceType === ResourceType.Url) openLink(setLocation, data.link);
         // If wallet address, open dialog to copy to clipboard
         else if (resourceType === ResourceType.Wallet) {
-            PubSub.publish(Pubs.AlertDialog, {
+            PubSub.get().publishAlertDialog({
                 message: `Wallet address: ${data.link}`,
                 buttons: [
                     {
                         text: 'Copy', onClick: () => {
                             navigator.clipboard.writeText(data.link);
-                            PubSub.publish(Pubs.Snack, { message: 'Copied.', severity: 'success' });
+                            PubSub.get().publishSnack({ message: 'Copied.', severity: 'success' });
                         }
                     },
                     { text: 'Close' }

@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { profileEmailUpdateMutation } from "graphql/mutation";
-import { Pubs, TERTIARY_COLOR } from "utils";
+import { PubSub, TERTIARY_COLOR } from "utils";
 import {
     AccountBalanceWallet as WalletIcon,
     Email as EmailIcon,
@@ -49,13 +49,13 @@ export const SettingsAuthentication = ({
     const [logOut] = useMutation<logOut, any>(logOutMutation);
     const onLogOut = useCallback(() => {
         mutationWrapper({ mutation: logOut })
-        PubSub.publish(Pubs.Session, undefined);
+        PubSub.get().publishSession(undefined);
         setLocation(APP_LINKS.Home);
     }, [logOut, setLocation]);
 
     const updateWallets = useCallback((updatedList: Wallet[]) => {
         if (!profile) {
-            PubSub.publish(Pubs.Snack, { mesage: 'Profile not loaded.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Profile not loaded.', severity: 'error' });
             return;
         }
         onUpdated({
@@ -67,7 +67,7 @@ export const SettingsAuthentication = ({
 
     const updateEmails = useCallback((updatedList: Email[]) => {
         if (!profile) {
-            PubSub.publish(Pubs.Snack, { mesage: 'Profile not loaded.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Profile not loaded.', severity: 'error' });
             return;
         }
         onUpdated({
@@ -89,7 +89,7 @@ export const SettingsAuthentication = ({
         validationSchema,
         onSubmit: (values) => {
             if (!profile) {
-                PubSub.publish(Pubs.Snack, { message: 'Could not find existing data.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Could not find existing data.', severity: 'error' });
                 return;
             }
             if (!formik.isValid) return;

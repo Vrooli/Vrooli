@@ -1,4 +1,4 @@
-import { Pubs } from "utils/consts";
+import { PubSub } from "utils/pubsub";
 
 /**
  * Finds objects which have been created, and returns an array of the created objects, formatted for
@@ -247,7 +247,7 @@ export const shapeUpdateList = <
         if (treatLikeConnects) {
             // If treating like connects, there must be an ID in every updated item
             if (!u.every(item => item && item[idField as string])) {
-                PubSub.publish(Pubs.Snack, { message: 'Invalid update: missing ID in update items', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Invalid update: missing ID in update items', severity: 'error' });
                 return {};
             }
             return shapeConnectList(updated as { [key in RelField]: (Input & { [key in IDField]: string })[] }, relationshipField, idField) as ShapeUpdateList<RelField, OutputCreate, OutputUpdate>;

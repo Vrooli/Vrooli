@@ -7,7 +7,7 @@ import { walletInitMutation, walletCompleteMutation } from 'graphql/mutation';
 import { errorToMessage } from 'graphql/utils/errorParser';
 import { initializeApollo } from 'graphql/utils/initialize';
 import { ApolloError } from 'types';
-import { Pubs } from 'utils';
+import { PubSub } from 'utils';
 
 export enum WalletProvider {
     CCVault,
@@ -56,15 +56,15 @@ const connectWallet = async (provider: WalletProvider): Promise<any> => {
 // Initiate handshake to verify wallet with backend
 // Returns hex string of payload, to be signed by wallet
 const walletInit = async (stakingAddress: string): Promise<any> => {
-    PubSub.publish(Pubs.Loading, 500);
+    PubSub.get().publishLoading(500);
     const client = initializeApollo();
     const data = await client.mutate({
         mutation: walletInitMutation,
         variables: { input: { stakingAddress } }
     }).catch((error: ApolloError) => {
-        PubSub.publish(Pubs.Snack, { message: errorToMessage(error), severity: 'error', data: error });
+        PubSub.get().publishSnack({ message: errorToMessage(error), severity: 'error', data: error });
     })
-    PubSub.publish(Pubs.Loading, false);
+    PubSub.get().publishLoading(false);
     return data?.data?.walletInit;
 }
 
@@ -75,15 +75,15 @@ const walletInit = async (stakingAddress: string): Promise<any> => {
  * @returns Session object if successful, null if not
  */
 const walletComplete = async (stakingAddress: string, signedPayload: string): Promise<WalletCompleteResult | null> => {
-    PubSub.publish(Pubs.Loading, 500);
+    PubSub.get().publishLoading(500);
     const client = initializeApollo();
     const data = await client.mutate({
         mutation: walletCompleteMutation,
         variables: { input: { stakingAddress, signedPayload } }
     }).catch((error: ApolloError) => {
-        PubSub.publish(Pubs.Snack, { message: errorToMessage(error), severity: 'error', data: error });
+        PubSub.get().publishSnack({ message: errorToMessage(error), severity: 'error', data: error });
     })
-    PubSub.publish(Pubs.Loading, false);
+    PubSub.get().publishLoading(false);
     return data?.data?.walletComplete;
 }
 
@@ -123,7 +123,7 @@ export const validateWallet = async (provider: WalletProvider): Promise<WalletCo
         result = (await walletComplete(stakingAddresses[0], signedPayload));
     } catch (error: any) {
         console.error('Caught error completing wallet validation', error);
-        PubSub.publish(Pubs.AlertDialog, {
+        PubSub.get().publishAlertDialog({
             message: 'Unknown error occurred. Please check that the extension you chose is connected to a DApp-enabled wallet',
             buttons: [{ text: 'OK' }]
         });

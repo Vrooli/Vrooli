@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { Pubs, shapeProfileUpdate, TagHiddenShape, TagShape, TERTIARY_COLOR } from "utils";
+import { PubSub, shapeProfileUpdate, TagHiddenShape, TagShape, TERTIARY_COLOR } from "utils";
 import {
     Restore as RevertIcon,
     Save as SaveIcon,
@@ -95,14 +95,14 @@ export const SettingsDisplay = ({
         validationSchema,
         onSubmit: (values) => {
             if (!profile) {
-                PubSub.publish(Pubs.Snack, { message: 'Could not find existing data.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Could not find existing data.', severity: 'error' });
                 return;
             }
             if (!formik.isValid) return;
             // If any tags are in both starredTags and hiddenTags, remove them from hidden. Also give warning to user.
             const filteredHiddenTags = hiddenTags.filter(t => !starredTags.some(st => st.tag === t.tag.tag));
             if (filteredHiddenTags.length !== hiddenTags.length) {
-                PubSub.publish(Pubs.Snack, { message: 'Found topics in both favorites and hidden. These have been removed from hidden.', severity: 'warning' });
+                PubSub.get().publishSnack({ message: 'Found topics in both favorites and hidden. These have been removed from hidden.', severity: 'warning' });
             }
             const input = shapeProfileUpdate(profile, {
                 id: profile.id,
@@ -111,14 +111,14 @@ export const SettingsDisplay = ({
                 hiddenTags: filteredHiddenTags,
             })
             if (!input || Object.keys(input).length === 0) {
-                PubSub.publish(Pubs.Snack, { message: 'No changes made.' });
+                PubSub.get().publishSnack({ message: 'No changes made.', severity: 'error' });
                 return;
             }
             mutationWrapper({
                 mutation,
                 input,
                 onSuccess: (response) => {
-                    PubSub.publish(Pubs.Snack, { message: 'Display preferences updated.' });
+                    PubSub.get().publishSnack({ message: 'Display preferences updated.' });
                     onUpdated(response.data.profileUpdate);
                     formik.setSubmitting(false);
                 },

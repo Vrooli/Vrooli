@@ -6,8 +6,7 @@ import {
     Navbar,
     Snack
 } from 'components';
-import PubSub from 'pubsub-js';
-import { Pubs, themes, useReactHash } from 'utils';
+import { PubSub, themes, useReactHash } from 'utils';
 import { AllRoutes } from 'Routes';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider } from '@mui/material';
 import { makeStyles } from '@mui/styles';
@@ -128,7 +127,7 @@ export function App() {
             }
             // If error is something else, notify user
             if (!isInvalidSession) {
-                PubSub.publish(Pubs.Snack, { message: 'Failed to connect to server.', severity: 'error'});
+                PubSub.get().publishSnack({ message: 'Failed to connect to server.', severity: 'error'});
             }
             // If not logged in as guest and failed to log in as user, set empty object
             if (!session) setSession({})
@@ -138,34 +137,34 @@ export function App() {
     useEffect(() => {
         checkSession();
         // Handle loading spinner, which can have a delay
-        let loadingSub = PubSub.subscribe(Pubs.Loading, (_, data) => {
+        let loadingSub = PubSub.get().subscribeLoading((data) => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
             if (Number.isInteger(data)) {
-                timeoutRef.current = setTimeout(() => setLoading(true), Math.abs(data));
+                timeoutRef.current = setTimeout(() => setLoading(true), Math.abs(data as number));
             } else {
                 setLoading(Boolean(data));
             }
         });
         // Handle celebration (confetti). Defaults to 5 seconds long, but duration 
         // can be passed in as a number
-        let celebrationSub = PubSub.subscribe(Pubs.Celebration, (_, data) => {
+        let celebrationSub = PubSub.get().subscribeCelebration((data) => {
             // Start confetti immediately
             setCelebrating(true);
             // Determine duration
             let duration = 5000;
-            if (Number.isInteger(data)) duration = data;
+            if (Number.isInteger(data)) duration = data as number;
             // Stop confetti after duration
             setTimeout(() => setCelebrating(false), duration);
         });
-        let sessionSub = PubSub.subscribe(Pubs.Session, (_, session) => {
+        let sessionSub = PubSub.get().subscribeSession((session) => {
             setSession(s => (session === undefined ? undefined : { ...s, ...session }));
         });
-        let themeSub = PubSub.subscribe(Pubs.Theme, (_, data) => setTheme(themes[data] ?? themes.light));
+        let themeSub = PubSub.get().subscribeTheme((data) => setTheme(themes[data] ?? themes.light));
         return (() => {
-            PubSub.unsubscribe(loadingSub);
-            PubSub.unsubscribe(celebrationSub);
-            PubSub.unsubscribe(sessionSub);
-            PubSub.unsubscribe(themeSub);
+            PubSub.get().unsubscribe(loadingSub);
+            PubSub.get().unsubscribe(celebrationSub);
+            PubSub.get().unsubscribe(sessionSub);
+            PubSub.get().unsubscribe(themeSub);
         })
     }, [checkSession]);
 

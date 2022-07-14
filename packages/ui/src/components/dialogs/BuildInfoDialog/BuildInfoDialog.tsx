@@ -38,7 +38,7 @@ import { vote, voteVariables } from 'graphql/generated/vote';
 import { BaseObjectAction, BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { DeleteDialog, EditableLabel, LanguageInput, LinkButton, MarkdownInput, ResourceListHorizontal } from 'components';
-import { AllLanguages, getLanguageSubtag, getOwnedByString, getTranslation, Pubs, RoutineTranslationShape, toOwnedBy, updateArray } from 'utils';
+import { AllLanguages, getLanguageSubtag, getOwnedByString, getTranslation, PubSub, RoutineTranslationShape, toOwnedBy, updateArray } from 'utils';
 import { useLocation } from 'wouter';
 import { useFormik } from 'formik';
 import { APP_LINKS, CopyType, DeleteOneType, ForkType, MemberRole, routineUpdateForm as validationSchema, StarFor, VoteFor } from '@local/shared';
@@ -193,7 +193,7 @@ export const BuildInfoDialog = ({
             formik.handleSubmit();
             setOpen(false);
         } else {
-            PubSub.publish(Pubs.Snack, { message: 'Please fix errors before closing.', severity: 'Error' });
+            PubSub.get().publishSnack({ message: 'Please fix errors before closing.', severity: 'Error' });
         }
     };
 
@@ -267,7 +267,7 @@ export const BuildInfoDialog = ({
             mutation: copy,
             input: { id: routine.id, objectType: CopyType.Routine },
             onSuccess: ({ data }) => {
-                PubSub.publish(Pubs.Snack, { message: `${getTranslation(routine, 'title', [language], true)} copied.`, severity: 'success' });
+                PubSub.get().publishSnack({ message: `${getTranslation(routine, 'title', [language], true)} copied.`, severity: 'success' });
                 handleAction(BaseObjectAction.Copy, data);
             },
         })
@@ -279,7 +279,7 @@ export const BuildInfoDialog = ({
             mutation: fork,
             input: { id: routine.id, objectType: ForkType.Routine },
             onSuccess: ({ data }) => {
-                PubSub.publish(Pubs.Snack, { message: `${getTranslation(routine, 'title', [language], true)} forked.`, severity: 'success' });
+                PubSub.get().publishSnack({ message: `${getTranslation(routine, 'title', [language], true)} forked.`, severity: 'success' });
                 handleAction(BaseObjectAction.Fork, data);
             }
         })

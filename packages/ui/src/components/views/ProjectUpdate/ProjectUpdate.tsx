@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { projectUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { projectUpdateMutation } from "graphql/mutation";
-import { ProjectTranslationShape, Pubs, shapeProjectUpdate, TagShape, updateArray } from "utils";
+import { ProjectTranslationShape, PubSub, shapeProjectUpdate, TagShape, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -102,7 +102,7 @@ export const ProjectUpdate = ({
         validationSchema,
         onSubmit: (values) => {
             if (!project) {
-                PubSub.publish(Pubs.Snack, { message: 'Could not find existing project data.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Could not find existing project data.', severity: 'error' });
                 return;
             }
             const allTranslations = getTranslationsUpdate(language, {

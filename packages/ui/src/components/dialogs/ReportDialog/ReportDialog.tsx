@@ -12,7 +12,7 @@ import {
     Check as SaveIcon,
     Close as CloseIcon
 } from '@mui/icons-material';
-import { getUserLanguages, Pubs } from 'utils';
+import { getUserLanguages, PubSub } from 'utils';
 import { useEffect, useState } from 'react';
 import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
 import { Selector } from 'components';
@@ -78,7 +78,7 @@ export const ReportDialog = ({
                 },
                 successCondition: (response) => response.data.reportCreate !== null,
                 onSuccess: () => {
-                    PubSub.publish(Pubs.Snack, { message: 'Report submitted.' });
+                    PubSub.get().publishSnack({ message: 'Report submitted.' });
                     formik.resetForm();
                     onClose()
                 },

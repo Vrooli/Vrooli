@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { IconButton, Button, Snackbar, Theme, SnackbarProps } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
-import { Pubs } from 'utils';
-import PubSub from 'pubsub-js';
+import { PubSub } from 'utils';
 import { makeStyles } from '@mui/styles';
 import { ValueOf } from '@local/shared';
 
@@ -13,6 +12,15 @@ export const SnackSeverity = {
 }
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export type SnackSeverity = ValueOf<typeof SnackSeverity>;
+
+export type SnackPub = {
+    message?: string;
+    severity?: SnackSeverity;
+    data?: any;
+    buttonText?: string;
+    buttonClicked?: (event?: any) => any;
+    autoHideDuration?: number;
+}
 
 class SnackState {
     message?: string;
@@ -50,11 +58,11 @@ function Snack() {
     const [state, setState] = useState<SnackState>(new SnackState());
 
     useEffect(() => {
-        let snackSub = PubSub.subscribe(Pubs.Snack, (_, o) => {
+        let snackSub = PubSub.get().subscribeSnack((o) => {
             const severity = o.severity ? o.severity.trim().toLowerCase() : SnackSeverity.Default;
             setState({ ...(new SnackState()), ...o, severity });
         });
-        return () => { PubSub.unsubscribe(snackSub) };
+        return () => { PubSub.get().unsubscribe(snackSub) };
     }, [])
 
     useEffect(() => {

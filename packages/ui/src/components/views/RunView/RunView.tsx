@@ -11,7 +11,7 @@ import {
     DoneAll as CompleteIcon,
 } from '@mui/icons-material';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getRunPercentComplete, getTranslation, getUserLanguages, locationArraysMatch, Pubs, routineHasSubroutines, RoutineStepType, TERTIARY_COLOR, updateArray, useReactSearch } from "utils";
+import { getRunPercentComplete, getTranslation, getUserLanguages, locationArraysMatch, PubSub, routineHasSubroutines, RoutineStepType, TERTIARY_COLOR, updateArray, useReactSearch } from "utils";
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
@@ -351,7 +351,7 @@ export const RunView = ({
             // Check if this is because the subroutine data hasn't been fetched yet
             //TODO
             // Otherwise, this is an error
-            // PubSub.publish(Pubs.Snack, { message: 'Error: Step not found', severity: 'error' });
+            // PubSub.get().publishSnack({ message: 'Error: Step not found', severity: 'error' });
             return;
         }
         // If current step is a list, then redirect to first step in list
@@ -632,7 +632,7 @@ export const RunView = ({
                 },
                 successMessage: () => 'Routine completed!🎉',
                 onSuccess: () => {
-                    PubSub.publish(Pubs.Celebration);
+                    PubSub.get().publishCelebration();
                     clearSearchParams();
                     handleClose();
                 },
@@ -656,7 +656,7 @@ export const RunView = ({
         const success = data?.wasSuccessful ?? true;
         // Don't actually do it if in test mode
         if (testMode || !run) {
-            if (success) PubSub.publish(Pubs.Celebration);
+            if (success) PubSub.get().publishCelebration();
             clearSearchParams();
             handleClose();
             return;
@@ -674,7 +674,7 @@ export const RunView = ({
             },
             successMessage: () => 'Routine completed!🎉',
             onSuccess: () => {
-                PubSub.publish(Pubs.Celebration);
+                PubSub.get().publishCelebration();
                 clearSearchParams();
                 handleClose();
             },

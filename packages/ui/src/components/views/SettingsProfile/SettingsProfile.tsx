@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { getUserLanguages, ProfileTranslationShape, Pubs, shapeProfileUpdate, TERTIARY_COLOR, updateArray } from "utils";
+import { getUserLanguages, ProfileTranslationShape, shapeProfileUpdate, TERTIARY_COLOR, updateArray } from "utils";
 import {
     Refresh as RefreshIcon,
     Restore as CancelIcon,
@@ -21,7 +21,7 @@ import { findHandles, findHandlesVariables } from "graphql/generated/findHandles
 import { findHandlesQuery } from "graphql/query";
 import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
 import { v4 as uuid } from 'uuid';
-import { PubSub } from "pubsub-js";
+import { PubSub } from 'utils'
 
 const helpText =
     `This page allows you to update your profile, including your name, handle, and bio.
@@ -52,7 +52,7 @@ export const SettingsProfile = ({
         if (verifiedWallets.length > 0) {
             findHandles({ variables: { input: {} } }); // Intentionally empty
         } else {
-            PubSub.publish(Pubs.Snack, { message: 'No verified wallets associated with account', severity: 'error' })
+            PubSub.get().publishSnack({ message: 'No verified wallets associated with account', severity: 'error' })
         }
     }, [profile, findHandles]);
     useEffect(() => {
@@ -111,14 +111,16 @@ export const SettingsProfile = ({
         enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
-            const cases = [
-                [profile, 'Could not find existing profile.', 'error'],
-            ]
             if (!profile) {
-                PubSub.publish(Pubs.Snack, { message: 'Could not find existing data.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Could not find existing data.', severity: 'error' });
+                formik.setSubmitting(false);
                 return;
             }
-            if (!formik.isValid) return;
+            if (!formik.isValid) {
+                PubSub.get().publishSnack({ message: 'Please fix errors before submitting.', severity: 'error' });
+                formik.setSubmitting(false);
+                return;
+            }
             const allTranslations = getTranslationsUpdate(language, {
                 id: uuid(),
                 language,
@@ -131,7 +133,8 @@ export const SettingsProfile = ({
                 translations: allTranslations,
             })
             if (!input || Object.keys(input).length === 0) {
-                PubSub.publish(Pubs.Snack, { message: 'No changes made.' });
+                PubSub.get().publishSnack({ message: 'No changes made.' });
+                formik.setSubmitting(false);
                 return;
             }
             mutationWrapper({

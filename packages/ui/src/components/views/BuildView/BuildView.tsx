@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { deleteArrayIndex, BuildAction, BuildRunState, Status, Pubs, updateArray, getTranslation, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape } from 'utils';
+import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getTranslation, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub } from 'utils';
 import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
 import { useLocation } from 'wouter';
 import { APP_LINKS, isEqual, uniqBy } from '@local/shared';
@@ -333,11 +333,11 @@ export const BuildView = ({
         console.log('original', routine);
         console.log('changed', changedRoutine);
         if (!changedRoutine || isEqual(routine, changedRoutine)) {
-            PubSub.publish(Pubs.Snack, { message: 'No changes detected', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'No changes detected', severity: 'error' });
             return;
         }
         if (!routine || !changedRoutine.id) {
-            PubSub.publish(Pubs.Snack, { message: 'Cannot update: Invalid routine data', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: 'error' });
             return;
         }
         mutationWrapper({
@@ -362,7 +362,7 @@ export const BuildView = ({
      */
     const onClose = useCallback(() => {
         if (isEditing && JSON.stringify(routine) !== JSON.stringify(changedRoutine)) {
-            PubSub.publish(Pubs.AlertDialog, {
+            PubSub.get().publishAlertDialog({
                 message: 'There are unsaved changes. Would you like to save before exiting?',
                 buttons: [
                     {
@@ -418,7 +418,7 @@ export const BuildView = ({
     const revertChanges = useCallback(() => {
         // Confirm if changes have been made
         if (JSON.stringify(routine) !== JSON.stringify(changedRoutine)) {
-            PubSub.publish(Pubs.AlertDialog, {
+            PubSub.get().publishAlertDialog({
                 message: 'There are unsaved changes. Are you sure you would like to cancel?',
                 buttons: [
                     {
@@ -585,7 +585,7 @@ export const BuildView = ({
         }
         // If one or the other is null, then there must be an error
         else if (columnIndex === null || rowIndex === null) {
-            PubSub.publish(Pubs.Snack, { message: 'Error: Invalid drop location.', severity: 'errror' });
+            PubSub.get().publishSnack({ message: 'Error: Invalid drop location.', severity: 'errror' });
         }
         // Otherwise, is a drop
         else {
@@ -648,7 +648,7 @@ export const BuildView = ({
         // Find "to" node. New node will be placed in its row and column
         const toNode = changedRoutine.nodes.find(n => n.id === link.toId);
         if (!toNode) {
-            PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'Error' });
+            PubSub.get().publishSnack({ message: 'Error occurred.', severity: 'Error' });
             return;
         }
         const { columnIndex, rowIndex } = toNode;
@@ -838,7 +838,7 @@ export const BuildView = ({
     const handleSubroutineViewFull = useCallback(() => {
         if (!openedSubroutine) return;
         if (!isEqual(routine, changedRoutine)) {
-            PubSub.publish(Pubs.Snack, { message: 'You have unsaved changes. Please save or discard them before navigating to another routine.' });
+            PubSub.get().publishSnack({ message: 'You have unsaved changes. Please save or discard them before navigating to another routine.' });
             return;
         }
         // TODO - buildview should have its own buildview, to recursively open subroutines

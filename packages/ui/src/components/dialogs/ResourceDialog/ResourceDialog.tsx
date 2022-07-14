@@ -11,7 +11,7 @@ import {
     Cancel as CancelIcon,
     Close as CloseIcon,
 } from '@mui/icons-material';
-import { getTranslation, getUserLanguages, Pubs, ResourceShape, ResourceTranslationShape, shapeResourceCreate, shapeResourceUpdate, updateArray } from 'utils';
+import { getTranslation, getUserLanguages, PubSub, ResourceShape, ResourceTranslationShape, shapeResourceCreate, shapeResourceUpdate, updateArray } from 'utils';
 import { resourceCreate, resourceCreateVariables } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { resourceUpdate, resourceUpdateVariables } from 'graphql/generated/resourceUpdate';
@@ -125,7 +125,7 @@ export const ResourceDialog = ({
             };
             if (mutate) {
                 const onSuccess = (response) => {
-                    PubSub.publish(Pubs.Snack, { message: (index < 0) ? 'Resource created.' : 'Resource updated.' });
+                    PubSub.get().publishSnack({ message: (index < 0) ? 'Resource created.' : 'Resource updated.' });
                     (index < 0) ? onCreated(response.data.resourceCreate) : onUpdated(index ?? 0, response.data.resourceUpdate);
                     formik.resetForm();
                     onClose();
@@ -143,7 +143,7 @@ export const ResourceDialog = ({
                 // Otherwise, update
                 else {
                     if (!partialData || !partialData.id || !listId) {
-                        PubSub.publish(Pubs.Snack, { message: 'Could not find resource to update.', severity: 'error' });
+                        PubSub.get().publishSnack({ message: 'Could not find resource to update.', severity: 'error' });
                         return;
                     }
                     mutationWrapper({

@@ -13,9 +13,8 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { Forms, Pubs } from 'utils';
+import { Forms, PubSub } from 'utils';
 import { APP_LINKS } from '@local/shared';
-import PubSub from 'pubsub-js';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { useLocation } from 'wouter';
 import { emailSignUp, emailSignUpVariables } from 'graphql/generated/emailSignUp';
@@ -51,15 +50,15 @@ export const SignUpForm = ({
                     theme: theme.palette.mode ?? 'light',
                 },
                 onSuccess: (response) => {
-                    PubSub.publish(Pubs.Session, response.data.emailSignUp)
-                    PubSub.publish(Pubs.AlertDialog, {
+                    PubSub.get().publishSession(response.data.emailSignUp)
+                    PubSub.get().publishAlertDialog({
                         message: `Welcome to ${BUSINESS_NAME}. Please verify your email within 48 hours.`,
                         buttons: [{ text: 'OK', onClick: () => setLocation(APP_LINKS.Welcome) }]
                     });
                 },
                 onError: (response) => {
                     if (hasErrorCode(response, CODE.EmailInUse)) {
-                        PubSub.publish(Pubs.AlertDialog, {
+                        PubSub.get().publishAlertDialog({
                             message: `${errorToMessage(response)}. Did you forget your password?`,
                             buttons: [
                                 { text: 'Yes', onClick: () => onFormChange(Forms.ForgotPassword) },

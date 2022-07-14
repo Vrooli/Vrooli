@@ -6,7 +6,7 @@ import { StarFor, TagSortBy } from '@local/shared';
 import { TagSelectorProps } from '../types';
 import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from '@mui/material';
 import { StarButton } from 'components';
-import { Pubs, TagShape } from 'utils';
+import { PubSub, TagShape } from 'utils';
 import { Tag } from 'types';
 
 export const TagSelector = ({
@@ -40,17 +40,17 @@ export const TagSelector = ({
         tagLabel = tagLabel.replace(/[,;]/g, '');
         // Check if tag is valid length
         if (tagLabel.length < 2) {
-            PubSub.publish(Pubs.Snack, { message: 'Tag too short.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Tag too short.', severity: 'error' });
             return;
         }
         if (tagLabel.length > 30) {
-            PubSub.publish(Pubs.Snack, { message: 'Tag too long.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Tag too long.', severity: 'error' });
             return;
         }
         // Determine if tag is already selected
         const isSelected = tags.some(t => t.tag === tagLabel);
         if (isSelected) {
-            PubSub.publish(Pubs.Snack, { message: 'Tag already selected.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Tag already selected.', severity: 'error' });
             return;
         }
         // Add tag

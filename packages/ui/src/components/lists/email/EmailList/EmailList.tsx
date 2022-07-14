@@ -10,7 +10,7 @@ import {
 } from '@mui/icons-material';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { Pubs, updateArray } from 'utils';
+import { PubSub, updateArray } from 'utils';
 import { emailCreateMutation, deleteOneMutation, emailUpdateMutation, sendVerificationEmailMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';
 import { EmailListItem } from '../EmailListItem/EmailListItem';
@@ -45,7 +45,7 @@ export const EmailList = ({
                     receivesBusinessUpdates: true,
                 },
                 onSuccess: (response) => {
-                    PubSub.publish(Pubs.Snack, { message: 'Please check your email to complete verification.' });
+                    PubSub.get().publishSnack({ message: 'Please check your email to complete verification.' });
                     handleUpdate([...list, response.data.emailCreate]);
                     formik.resetForm();
                 },
@@ -76,11 +76,11 @@ export const EmailList = ({
         // Make sure that the user has at least one other authentication method 
         // (i.e. one other email or one other wallet)
         if (list.length <= 1 && numVerifiedWallets === 0) {
-            PubSub.publish(Pubs.Snack, { message: 'Cannot delete your only authentication method!', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Cannot delete your only authentication method!', severity: 'error' });
             return;
         }
         // Confirmation dialog
-        PubSub.publish(Pubs.AlertDialog, {
+        PubSub.get().publishAlertDialog({
             message: `Are you sure you want to delete email ${email.emailAddress}?`,
             buttons: [
                 {
@@ -106,7 +106,7 @@ export const EmailList = ({
             mutation: verifyMutation,
             input: { emailAddress: email.emailAddress },
             onSuccess: (response) => {
-                PubSub.publish(Pubs.Snack, { message: 'Please check your email to complete verification.' });
+                PubSub.get().publishSnack({ message: 'Please check your email to complete verification.' });
             },
         })
     }, [loadingVerifyEmail, verifyMutation]);

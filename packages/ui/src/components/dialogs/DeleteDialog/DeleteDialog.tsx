@@ -13,12 +13,12 @@ import { DeleteDialogProps } from '../types';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { useCallback, useState } from 'react';
 import { mutationWrapper } from 'graphql/utils';
-import { Pubs } from 'utils';
 import { useMutation } from '@apollo/client';
 import { deleteOneMutation } from 'graphql/mutation';
 import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
 import { APP_LINKS } from '@local/shared';
 import { useLocation } from 'wouter';
+import { PubSub } from 'utils';
 
 export const DeleteDialog = ({
     handleClose,
@@ -41,15 +41,15 @@ export const DeleteDialog = ({
             input: { id: objectId, objectType },
             onSuccess: (response) => {
                 if (response?.data?.deleteOne?.success) {
-                    PubSub.publish(Pubs.Snack, { message: `${objectName} deleted.` });
+                    PubSub.get().publishSnack({ message: `${objectName} deleted.` });
                     setLocation(APP_LINKS.Home);
                 } else {
-                    PubSub.publish(Pubs.Snack, { message: `Error deleting ${objectName}.`, severity: 'error' });
+                    PubSub.get().publishSnack({ message: `Error deleting ${objectName}.`, severity: 'error' });
                 }
                 handleClose(true);
             },
             onError: () => {
-                PubSub.publish(Pubs.Snack, { message: `Failed to delete ${objectName}.` });
+                PubSub.get().publishSnack({ message: `Failed to delete ${objectName}.` });
                 handleClose(false);
             }
         })

@@ -10,7 +10,7 @@ import {
 } from '@mui/icons-material';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { Pubs, updateArray } from 'utils';
+import { PubSub, updateArray } from 'utils';
 import { deleteOneMutation, walletUpdateMutation } from 'graphql/mutation';
 import { hasWalletExtension, validateWallet, WalletProvider, walletProviderInfo } from 'utils/authentication/walletIntegration';
 import { WalletListItem } from '../WalletListItem/WalletListItem';
@@ -46,11 +46,11 @@ export const WalletList = ({
         // Make sure that the user has at least one other authentication method 
         // (i.e. one other wallet or one other email)
         if (list.length <= 1 && numVerifiedEmails === 0) {
-            PubSub.publish(Pubs.Snack, { message: 'Cannot delete your only authentication method!', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Cannot delete your only authentication method!', severity: 'error' });
             return;
         }
         // Confirmation dialog
-        PubSub.publish(Pubs.AlertDialog, {
+        PubSub.get().publishAlertDialog({
             message: `Are you sure you want to delete wallet ${wallet.name ?? wallet.stakingAddress}?`,
             buttons: [
                 {
@@ -100,7 +100,7 @@ export const WalletList = ({
     const addWallet = useCallback(async (provider: WalletProvider) => {
         // Check if wallet extension installed
         if (!hasWalletExtension(provider)) {
-            PubSub.publish(Pubs.AlertDialog, {
+            PubSub.get().publishAlertDialog({
                 message: 'Wallet provider not found. Please verify that you are using a Chromium browser (e.g. Chrome, Brave), and that the Nami wallet extension is installed.',
                 buttons: [
                     { text: 'Try Again', onClick: () => { addWallet(provider); } },
@@ -115,10 +115,10 @@ export const WalletList = ({
             // Check if wallet is already in list (i.e. user has already added this wallet)
             const existingWallet = list.find(w => w.stakingAddress === walletCompleteResult.wallet?.stakingAddress);
             if (existingWallet) {
-                PubSub.publish(Pubs.Snack, { message: 'Wallet already connected.', severity: 'warning' })
+                PubSub.get().publishSnack({ message: 'Wallet already connected.', severity: 'warning' })
             }
             else {
-                PubSub.publish(Pubs.Snack, { message: 'Wallet verified.', severity: 'success' });
+                PubSub.get().publishSnack({ message: 'Wallet verified.', severity: 'success' });
                 // Update list
                 handleUpdate([...list, walletCompleteResult.wallet]);
             }
@@ -132,7 +132,7 @@ export const WalletList = ({
         if (selectedIndex === null) return;
         // Check if wallet extension installed
         if (!hasWalletExtension(provider)) {
-            PubSub.publish(Pubs.AlertDialog, {
+            PubSub.get().publishAlertDialog({
                 message: 'Wallet provider not found. Please verify that you are using a Chromium browser (e.g. Chrome, Brave), and that the Nami wallet extension is installed.',
                 buttons: [
                     { text: 'Try Again', onClick: () => { verifyWallet(provider); } },
@@ -144,7 +144,7 @@ export const WalletList = ({
         // Validate wallet
         const walletCompleteResult = await validateWallet(provider);
         if (walletCompleteResult) {
-            PubSub.publish(Pubs.Snack, { message: 'Wallet verified.', severity: 'success' })
+            PubSub.get().publishSnack({ message: 'Wallet verified.', severity: 'success' })
             // Update list
             handleUpdate(updateArray(list, selectedIndex, {
                 ...list[selectedIndex],

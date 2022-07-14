@@ -13,33 +13,32 @@ import {
 import {
     Close as CloseIcon,
 } from '@mui/icons-material';
-import { Pubs } from 'utils';
-import PubSub from 'pubsub-js';
 import { noSelect } from 'styles';
+import { PubSub } from 'utils';
 
 interface StateButton {
     text: string;
     onClick?: (() => void);
 }
 
-interface State {
+export interface AlertDialogState {
     title?: string;
     message?: string;
     buttons: StateButton[];
 }
 
-const default_state: State = {
+const default_state: AlertDialogState = {
     buttons: [{ text: 'Ok' }],
 };
 
 const AlertDialog = () => {
     const { palette } = useTheme();
-    const [state, setState] = useState<State>(default_state)
+    const [state, setState] = useState<AlertDialogState>(default_state)
     let open = Boolean(state.title) || Boolean(state.message);
 
     useEffect(() => {
-        let dialogSub = PubSub.subscribe(Pubs.AlertDialog, (_, o) => setState({ ...default_state, ...o }));
-        return () => { PubSub.unsubscribe(dialogSub) };
+        let dialogSub = PubSub.get().subscribeAlertDialog((o) => setState({ ...default_state, ...o }));
+        return () => { PubSub.get().unsubscribe(dialogSub) };
     }, [])
 
     const handleClick = useCallback((event: any, action: ((e?: any) => void) | null | undefined) => {

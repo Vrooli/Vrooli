@@ -8,11 +8,10 @@
  */
 import { useEffect, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Pubs } from 'utils';
-import PubSub from 'pubsub-js';
 import { Button, Grid, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { DropzoneProps } from '../types';
+import { PubSub } from 'utils';
 
 const useStyles = makeStyles((theme: Theme) => ({
     gridPad: {
@@ -75,7 +74,7 @@ export const Dropzone = ({
         maxFiles: maxFiles,
         onDrop: acceptedFiles => {
             if (acceptedFiles.length <= 0) {
-                PubSub.publish(Pubs.Snack, { message: 'Files not accepted', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Files not accepted', severity: 'error' });
                 return;
             }
             setFiles(acceptedFiles.map(file => Object.assign(file, {
@@ -87,7 +86,7 @@ export const Dropzone = ({
     const upload = (e) => {
         e.stopPropagation();
         if (files.length === 0) {
-            PubSub.publish(Pubs.Snack, { message: 'No files selected', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'No files selected', severity: 'error' });
             return;
         }
         onUpload(files);

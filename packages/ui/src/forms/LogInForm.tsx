@@ -11,9 +11,8 @@ import {
     TextField,
     Typography
 } from '@mui/material';
-import { Forms, Pubs, useReactSearch } from 'utils';
+import { Forms, PubSub, useReactSearch } from 'utils';
 import { APP_LINKS } from '@local/shared';
-import PubSub from 'pubsub-js';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { emailLogIn, emailLogInVariables } from 'graphql/generated/emailLogIn';
 import { LogInFormProps } from './types';
@@ -51,14 +50,14 @@ export const LogInForm = ({
                 input: { ...values, verificationCode },
                 successCondition: (response) => response.data.emailLogIn !== null,
                 onSuccess: (response) => { 
-                    if (verificationCode) PubSub.publish(Pubs.Snack, { message: 'Email verified!' });
-                    PubSub.publish(Pubs.Session, response.data.emailLogIn); setLocation(redirect ?? APP_LINKS.Home) 
+                    if (verificationCode) PubSub.get().publishSnack({ message: 'Email verified!' });
+                    PubSub.get().publishSession(response.data.emailLogIn); setLocation(redirect ?? APP_LINKS.Home) 
                 },
                 showDefaultErrorSnack: false,
                 onError: (response) => {
                     // Custom dialog for changing password
                     if (hasErrorCode(response, CODE.MustResetPassword)) {
-                        PubSub.publish(Pubs.AlertDialog, {
+                        PubSub.get().publishAlertDialog({
                             message: 'Before signing in, please follow the link sent to your email to change your password.',
                             buttons: [
                                 { text: 'Ok', onClick: () => { setLocation(redirect ?? APP_LINKS.Home) } },
@@ -67,14 +66,14 @@ export const LogInForm = ({
                     }
                     // Custom snack for invalid email, that has sign up link
                     else if (hasErrorCode(response, CODE.EmailNotFound)) {
-                        PubSub.publish(Pubs.Snack, { 
+                        PubSub.get().publishSnack({ 
                             message: CODE.EmailNotFound.message, 
                             severity: 'error', 
                             buttonText: 'Sign Up',
                             buttonClicked: () => { toSignUp() }
                         });
                     } else {
-                        PubSub.publish(Pubs.Snack, { message: errorToMessage(response), severity: 'error', data: response });
+                        PubSub.get().publishSnack({ message: errorToMessage(response), severity: 'error', data: response });
                     }
                     formik.setSubmitting(false);
                 }

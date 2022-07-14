@@ -16,7 +16,7 @@ import {
 import { BaseObjectActionDialog, ResourceListVertical, SearchList, SelectLanguageDialog, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
-import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, Pubs } from "utils";
+import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, PubSub } from "utils";
 import { ResourceList, User } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
@@ -121,7 +121,7 @@ export const UserView = ({
 
     const shareLink = useCallback(() => {
         navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.Profile}/${id}`);
-        PubSub.publish(Pubs.Snack, { message: 'Copied🎉' })
+        PubSub.get().publishSnack({ message: 'Copied🎉' })
     }, [id]);
 
     const onEdit = useCallback(() => {

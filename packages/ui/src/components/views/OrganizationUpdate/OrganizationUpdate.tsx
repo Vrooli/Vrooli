@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { organizationUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { organizationUpdateMutation } from "graphql/mutation";
-import { OrganizationTranslationShape, Pubs, shapeOrganizationUpdate, TagShape, updateArray } from "utils";
+import { OrganizationTranslationShape, PubSub, shapeOrganizationUpdate, TagShape, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -96,7 +96,7 @@ export const OrganizationUpdate = ({
         validationSchema,
         onSubmit: (values) => {
             if (!organization) {
-                PubSub.publish(Pubs.Snack, { message: 'Could not find existing organization data.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Could not find existing organization data.', severity: 'error' });
                 return;
             }
             const allTranslations = getTranslationsUpdate(language, {

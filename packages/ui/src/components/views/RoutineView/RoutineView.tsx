@@ -15,7 +15,7 @@ import {
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, BuildView, HelpButton, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
-import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, Pubs, standardToFieldData, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
+import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, PubSub, standardToFieldData, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
 import { Node, NodeLink, Routine, Run } from "types";
 import Markdown from "markdown-to-jsx";
 import { runCompleteMutation } from "graphql/mutation";
@@ -96,7 +96,7 @@ export const RoutineView = ({
             },
             successMessage: () => 'Routine completed!🎉',
             onSuccess: () => {
-                PubSub.publish(Pubs.Celebration);
+                PubSub.get().publishCelebration();
                 setLocation(APP_LINKS.Home)
             },
         })
@@ -215,13 +215,13 @@ export const RoutineView = ({
     const runRoutine = useCallback((e: any) => {
         // Validate routine before trying to run
         if (!routine || !uuidValidate(routine.id)) {
-            PubSub.publish(Pubs.Snack, { message: 'Error loading routine.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Error loading routine.', severity: 'error' });
             return;
         }
         // Find first node
         const firstNode = routine?.nodes?.find(node => node.type === NodeType.Start);
         if (!firstNode) {
-            PubSub.publish(Pubs.Snack, { message: 'Routine invalid - cannot run.', severity: 'Error' });
+            PubSub.get().publishSnack({ message: 'Routine invalid - cannot run.', severity: 'Error' });
             return;
         }
         // If run specified use that
@@ -415,9 +415,9 @@ export const RoutineView = ({
         const input = previewFormik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
-            PubSub.publish(Pubs.Snack, { message: 'Copied to clipboard.', severity: 'success' });
+            PubSub.get().publishSnack({ message: 'Copied to clipboard.', severity: 'success' });
         } else {
-            PubSub.publish(Pubs.Snack, { message: 'Input is empty.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Input is empty.', severity: 'error' });
         }
     }, [previewFormik]);
 

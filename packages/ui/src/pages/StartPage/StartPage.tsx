@@ -16,7 +16,7 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { Forms, Pubs, useReactSearch } from 'utils';
+import { Forms, PubSub, useReactSearch } from 'utils';
 import { APP_LINKS, CODE } from '@local/shared';
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { hasWalletExtension, validateWallet, WalletProvider, walletProviderInfo } from 'utils/authentication/walletIntegration';
@@ -92,13 +92,13 @@ export const StartPage = ({
                     mutation: emailLogIn,
                     input: { verificationCode },
                     onSuccess: (response) => {
-                        PubSub.publish(Pubs.Snack, { message: 'Email verified!' });
-                        PubSub.publish(Pubs.Session, response.data.emailLogIn);
+                        PubSub.get().publishSnack({ message: 'Email verified!' });
+                        PubSub.get().publishSession(response.data.emailLogIn);
                         setLocation(redirect ?? APP_LINKS.Home)
                     },
                     onError: (response) => {
                         if (hasErrorCode(response, CODE.MustResetPassword)) {
-                            PubSub.publish(Pubs.AlertDialog, {
+                            PubSub.get().publishAlertDialog({
                                 message: 'Before signing in, please follow the link sent to your email to change your password.',
                                 buttons: [
                                     { text: 'Ok', onClick: () => { setLocation(redirect ?? APP_LINKS.Home) } },
@@ -119,15 +119,15 @@ export const StartPage = ({
     // Wallet provider select popup
     const [providerOpen, setProviderPopupOpen] = useState(false);
     const [walletDialogFor, setWalletDialogFor] = useState<'connect' | 'download'>('connect');
-    const openWalletConnectDialog = useCallback((ev: MouseEvent<HTMLButtonElement>) => {
+    const openWalletConnectDialog = useCallback((ev?: MouseEvent<HTMLButtonElement>) => {
         setWalletDialogFor('connect');
         setProviderPopupOpen(true);
-        ev.preventDefault();
+        ev?.preventDefault();
     }, []);
-    const openWalletDownloadDialog = useCallback((ev: MouseEvent<HTMLButtonElement>) => {
+    const openWalletDownloadDialog = useCallback((ev?: MouseEvent<HTMLButtonElement>) => {
         setWalletDialogFor('download');
         setProviderPopupOpen(true);
-        ev.preventDefault();
+        ev?.preventDefault();
     }, []);
 
     // Opens link to install wallet extension
@@ -154,10 +154,10 @@ export const StartPage = ({
     const walletLogin = useCallback(async (provider: WalletProvider) => {
         // Check if wallet extension installed
         if (!hasWalletExtension(provider)) {
-            PubSub.publish(Pubs.AlertDialog, {
+            PubSub.get().publishAlertDialog({
                 message: 'Wallet provider not found. Please verify that you are using a Chromium browser (e.g. Chrome, Brave), and that the Nami wallet extension is installed.',
                 buttons: [
-                    { text: 'Try Again', onClick: walletLogin },
+                    { text: 'Try Again', onClick: openWalletConnectDialog },
                     { text: 'Install Wallet', onClick: openWalletDownloadDialog },
                     { text: 'Email Login', onClick: toEmailLogIn },
                 ]
@@ -166,14 +166,14 @@ export const StartPage = ({
         }
         // Validate wallet
         const walletCompleteResult = await validateWallet(provider);
-        if (walletCompleteResult) {
-            PubSub.publish(Pubs.Snack, { message: 'Wallet verified.', severity: 'success' })
+        if (walletCompleteResult?.session) {
+            PubSub.get().publishSnack({ message: 'Wallet verified.', severity: 'success' })
             // Set actor role
-            PubSub.publish(Pubs.Session, walletCompleteResult?.session)
+            PubSub.get().publishSession(walletCompleteResult.session)
             // Redirect to main dashboard
             setLocation(walletCompleteResult?.firstLogIn ? APP_LINKS.Welcome : (redirect ?? APP_LINKS.Home));
         }
-    }, [openWalletDownloadDialog, setLocation, redirect, toEmailLogIn])
+    }, [openWalletConnectDialog, openWalletDownloadDialog, toEmailLogIn, setLocation, redirect])
 
     const requestGuestToken = useCallback(() => {
         mutationWrapper({
@@ -181,8 +181,8 @@ export const StartPage = ({
             onSuccess: () => {
                 let theme: string = 'light';
                 if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) theme = 'dark';
-                PubSub.publish(Pubs.Session, { 
-                    roles: [{ role: { title: ROLES.Guest } }],
+                PubSub.get().publishSession({ 
+                    roles: [ROLES.Guest],
                     theme,
                 })
                 setLocation(redirect ?? APP_LINKS.Welcome);

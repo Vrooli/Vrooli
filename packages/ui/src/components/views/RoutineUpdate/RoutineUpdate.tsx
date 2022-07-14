@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { routineUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
-import { InputShape, OutputShape, Pubs, RoutineTranslationShape, shapeRoutineUpdate, TagShape, updateArray } from "utils";
+import { InputShape, OutputShape, PubSub, RoutineTranslationShape, shapeRoutineUpdate, TagShape, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -130,7 +130,7 @@ export const RoutineUpdate = ({
         validationSchema,
         onSubmit: (values) => {
             if (!routine) {
-                PubSub.publish(Pubs.Snack, { message: 'Could not find existing routine data.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Could not find existing routine data.', severity: 'error' });
                 return;
             }
             const allTranslations = getTranslationsUpdate(language, {

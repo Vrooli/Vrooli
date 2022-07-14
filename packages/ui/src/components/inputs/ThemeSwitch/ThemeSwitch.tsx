@@ -6,7 +6,7 @@ import {
     DarkMode as DarkIcon,
     LightMode as LightIcon,
 } from '@mui/icons-material';
-import { Pubs } from 'utils';
+import { PubSub } from 'utils';
 
 export function ThemeSwitch({
     theme,
@@ -15,7 +15,7 @@ export function ThemeSwitch({
 
     const handleChange = useCallback(() => {
         const newTheme = theme === 'light' ? 'dark' : 'light';
-        PubSub.publish(Pubs.Theme, newTheme)
+        PubSub.get().publishTheme(newTheme)
         onChange(newTheme);
     }, [onChange, theme]);
 

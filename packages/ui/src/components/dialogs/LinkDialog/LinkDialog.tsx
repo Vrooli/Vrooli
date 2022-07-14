@@ -19,7 +19,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { LinkDialogProps } from '../types';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { NewObject, Node, NodeLink } from 'types';
-import { getTranslation, Pubs } from 'utils';
+import { getTranslation, PubSub } from 'utils';
 import { NodeType } from 'graphql/generated/globalTypes';
 
 const helpText =
@@ -60,7 +60,7 @@ export const LinkDialog = ({
 
     const addLink = useCallback(() => {
         if (!fromNode || !toNode) {
-            PubSub.publish(Pubs.Snack, { message: 'Please select both from and to nodes', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Please select both from and to nodes', severity: 'error' });
             return;
         }
         onClose({

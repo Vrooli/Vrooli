@@ -26,7 +26,7 @@ import {
     SvgIconComponent,
 } from "@mui/icons-material";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
-import { Pubs } from "utils";
+import { PubSub } from "utils";
 import { CopyType, ForkType } from "graphql/generated/globalTypes";
 
 /**
@@ -90,14 +90,14 @@ export const BaseObjectActionDialog = ({
         // Check if objectType can be converted to CopyType
         const copyType = CopyType[objectType];
         if (!copyType) {
-            PubSub.publish(Pubs.Snack, { message: 'Copy not supported on this object type.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Copy not supported on this object type.', severity: 'error' });
             return;
         }
         mutationWrapper({
             mutation: copy,
             input: { id: objectId, objectType: copyType },
             onSuccess: ({ data }) => {
-                PubSub.publish(Pubs.Snack, { message: `${objectName} copied.`, severity: 'success' });
+                PubSub.get().publishSnack({ message: `${objectName} copied.`, severity: 'success' });
                 handleActionComplete(BaseObjectAction.Copy, data);
             },
         })
@@ -107,14 +107,14 @@ export const BaseObjectActionDialog = ({
         // Check if objectType can be converted to ForkType
         const forkType = ForkType[objectType];
         if (!forkType) {
-            PubSub.publish(Pubs.Snack, { message: 'Fork not supported on this object type.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Fork not supported on this object type.', severity: 'error' });
             return;
         }
         mutationWrapper({
             mutation: fork,
             input: { id: objectId, objectType: forkType },
             onSuccess: ({ data }) => {
-                PubSub.publish(Pubs.Snack, { message: `${objectName} forked.`, severity: 'success' });
+                PubSub.get().publishSnack({ message: `${objectName} forked.`, severity: 'success' });
                 handleActionComplete(BaseObjectAction.Fork, data);
             }
         })

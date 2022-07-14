@@ -11,7 +11,7 @@ import { MarkdownInput } from 'components/inputs';
 import { useFormik } from 'formik';
 import { commentCreateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils';
-import { objectToSearchInfo, ObjectType, parseSearchParams, Pubs, stringifySearchParams, useReactSearch } from 'utils';
+import { objectToSearchInfo, ObjectType, parseSearchParams, PubSub, stringifySearchParams, useReactSearch } from 'utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TimeFrame } from 'graphql/generated/globalTypes';
 import { comments, commentsVariables } from 'graphql/generated/comments';
@@ -206,7 +206,7 @@ export function CommentContainer({
                 },
                 successCondition: (response) => response.data.commentCreate !== null,
                 onSuccess: (response) => {
-                    PubSub.publish(Pubs.Snack, { message: 'Comment created.', severity: 'success' });
+                    PubSub.get().publishSnack({ message: 'Comment created.', severity: 'success' });
                     formik.resetForm();
                     onCommentAdd(response.data.commentCreate);
                 },

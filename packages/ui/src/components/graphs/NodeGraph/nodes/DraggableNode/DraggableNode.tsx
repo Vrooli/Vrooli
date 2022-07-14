@@ -2,7 +2,7 @@ import { DraggableNodeProps } from '../types';
 import { Box } from '@mui/material';
 import { useCallback, useRef, useState } from 'react';
 import Draggable from 'react-draggable';
-import { Pubs } from 'utils';
+import { PubSub } from 'utils';
 
 type DragRefs = {
     graphStartScroll: { scrollLeft: number, scrollTop: number } | null;
@@ -71,7 +71,7 @@ export const DraggableNode = ({
         if (!isDragPublished.current && (Math.abs(x) > dragThreshold || Math.abs(y) > dragThreshold)) {
             isDragPublished.current = true;
             // Alert other components that this node is being dragged (to turn on highlights, for example)
-            PubSub.publish(Pubs.NodeDrag, { nodeId });
+            PubSub.get().publishNodeDrag({ nodeId });
         }
     }, [dragThreshold, nodeId]);
 
@@ -96,7 +96,7 @@ export const DraggableNode = ({
         }
         // Send drop event to parent
         if (isDragPublished.current) {
-            PubSub.publish(Pubs.NodeDrop, { nodeId, position: { x: dropX, y: dropY } });
+            PubSub.get().publishNodeDrop({ nodeId, position: { x: dropX, y: dropY } });
             isDragPublished.current = false;
         }
         // If never dragged, send click event

@@ -24,7 +24,7 @@ import {
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { NodeDataRoutineList, NodeDataRoutineListItem } from 'types';
-import { getTranslation, BuildAction, Pubs, updateTranslationField } from 'utils';
+import { getTranslation, BuildAction, updateTranslationField, PubSub } from 'utils';
 import { EditableLabel } from 'components/inputs';
 
 /**
@@ -137,7 +137,7 @@ export const RoutineListNode = ({
     const addSize = useMemo(() => `max(${NodeWidth.RoutineList * scale / 8}px, 48px)`, [scale]);
 
     const confirmDelete = useCallback((event: any) => {
-        PubSub.publish(Pubs.AlertDialog, {
+        PubSub.get().publishAlertDialog({
             message: 'What would you like to do?',
             buttons: [
                 { text: 'Unlink', onClick: handleNodeUnlink },

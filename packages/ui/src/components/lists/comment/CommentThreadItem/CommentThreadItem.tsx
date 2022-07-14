@@ -3,7 +3,7 @@ import { CommentThreadItemProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
 import { useLocation } from 'wouter';
 import { StarButton, TextLoading, UpvoteDownvote } from '../..';
-import { displayDate, getCreatedByString, getTranslation, Pubs, toCreatedBy } from 'utils';
+import { displayDate, getCreatedByString, getTranslation, PubSub, toCreatedBy } from 'utils';
 import { LinkButton, MarkdownInput } from 'components/inputs';
 import {
     Delete as DeleteIcon,
@@ -71,7 +71,7 @@ export function CommentThreadItem({
                 },
                 successCondition: (response) => response.data.commentCreate !== null,
                 onSuccess: (response) => {
-                    PubSub.publish(Pubs.Snack, { message: 'Comment created.', severity: 'success' });
+                    PubSub.get().publishSnack({ message: 'Comment created.', severity: 'success' });
                     formik.resetForm();
                     setReplyOpen(false);
                     handleCommentAdd(response.data.commentCreate);
@@ -110,7 +110,7 @@ export function CommentThreadItem({
     const handleDelete = useCallback(() => {
         if (!data) return;
         // Confirmation dialog
-        PubSub.publish(Pubs.AlertDialog, {
+        PubSub.get().publishAlertDialog({
             message: `Are you sure you want to delete this comment? This action cannot be undone.`,
             buttons: [
                 {
@@ -120,14 +120,14 @@ export function CommentThreadItem({
                             input: { id: data.id, objectType: DeleteOneType.Comment },
                             onSuccess: (response) => {
                                 if (response?.data?.deleteOne?.success) {
-                                    PubSub.publish(Pubs.Snack, { message: `Comment deleted.` });
+                                    PubSub.get().publishSnack({ message: `Comment deleted.` });
                                     handleCommentRemove(data);
                                 } else {
-                                    PubSub.publish(Pubs.Snack, { message: `Error deleting comment.`, severity: 'error' });
+                                    PubSub.get().publishSnack({ message: `Error deleting comment.`, severity: 'error' });
                                 }
                             },
                             onError: () => {
-                                PubSub.publish(Pubs.Snack, { message: `Failed to delete comment.` });
+                                PubSub.get().publishSnack({ message: `Failed to delete comment.` });
                             }
                         })
                     }

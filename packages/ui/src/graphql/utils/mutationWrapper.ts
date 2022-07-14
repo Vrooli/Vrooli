@@ -1,5 +1,4 @@
-import { Pubs } from "utils";
-import PubSub from 'pubsub-js';
+import { Pubs, PubSub } from "utils";
 import { ApolloCache, DefaultContext, MutationFunctionOptions } from '@apollo/client';
 import { errorToMessage } from './errorParser';
 import { ApolloError } from 'types';
@@ -47,29 +46,29 @@ export const mutationWrapper = <Output, Input extends { input: any }>({
     onError,
     spinnerDelay = 1000,
 }: MutationWrapperProps<Output, Input>) => {
-    if (spinnerDelay) PubSub.publish(Pubs.Loading, spinnerDelay);
+    if (spinnerDelay) PubSub.get().publishLoading(spinnerDelay);
     mutation(input ? { variables: { input } } as Input['input'] : undefined).then((response: { data: Output }) => {
         if (successCondition(response)) {
-            if (successMessage || successData) PubSub.publish(Pubs.Snack, { message: successMessage && successMessage(response), ...successData });
-            if (spinnerDelay) PubSub.publish(Pubs.Loading, false);
+            if (successMessage || successData) PubSub.get().publishSnack({ message: successMessage && successMessage(response), ...successData });
+            if (spinnerDelay) PubSub.get().publishLoading(false);
             if (onSuccess && typeof onSuccess === 'function') onSuccess(response);
         } else {
             if (errorMessage || errorData) {
-                PubSub.publish(Pubs.Snack, { message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
+                PubSub.get().publishSnack({ message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
             }
             else if (showDefaultErrorSnack) {
-                PubSub.publish(Pubs.Snack, { message: 'Unknown error occurred.', severity: 'error', data: response });
+                PubSub.get().publishSnack({ message: 'Unknown error occurred.', severity: 'error', data: response });
             }
-            if (spinnerDelay) PubSub.publish(Pubs.Loading, false);
+            if (spinnerDelay) PubSub.get().publish(Pubs.Loading, false);
             if (onError && typeof onError === 'function') onError({ message: 'Unknown error occurred.' });
         }
     }).catch((response: ApolloError) => {
-        if (spinnerDelay) PubSub.publish(Pubs.Loading, false);
+        if (spinnerDelay) PubSub.get().publishLoading(false);
         if (errorMessage || errorData) {
-            PubSub.publish(Pubs.Snack, { message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
+            PubSub.get().publishSnack({ message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
         }
         else if (showDefaultErrorSnack) {
-            PubSub.publish(Pubs.Snack, { message: errorToMessage(response), severity: 'error', data: response });
+            PubSub.get().publishSnack({ message: errorToMessage(response), severity: 'error', data: response });
         }
         if (onError && typeof onError === 'function') onError(response);
     })

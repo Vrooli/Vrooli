@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { standardUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";
-import { Pubs, shapeStandardUpdate, StandardTranslationShape, TagShape, updateArray } from "utils";
+import { PubSub, shapeStandardUpdate, StandardTranslationShape, TagShape, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -94,7 +94,7 @@ export const StandardUpdate = ({
         validationSchema,
         onSubmit: (values) => {
             if (!standard) {
-                PubSub.publish(Pubs.Snack, { message: 'Could not find existing standard data.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Could not find existing standard data.', severity: 'error' });
                 return;
             }
             // Update translations with final values
