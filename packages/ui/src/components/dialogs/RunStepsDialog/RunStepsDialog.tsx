@@ -219,7 +219,7 @@ export const RunStepsDialog = ({
                     style: { position: "absolute" },
                 }}
                 sx={{
-                    zIndex,
+                    zIndex: zIndex + 1,
                     '& .MuiDrawer-paper': {
                         background: palette.background.default,
                         borderRight: `1px solid ${palette.text.primary}`,

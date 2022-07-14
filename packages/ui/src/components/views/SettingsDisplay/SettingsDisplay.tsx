@@ -104,13 +104,19 @@ export const SettingsDisplay = ({
             if (filteredHiddenTags.length !== hiddenTags.length) {
                 PubSub.publish(Pubs.Snack, { message: 'Found topics in both favorites and hidden. These have been removed from hidden.', severity: 'warning' });
             }
+            const input = shapeProfileUpdate(profile, {
+                id: profile.id,
+                theme: values.theme,
+                starredTags,
+                hiddenTags: filteredHiddenTags,
+            })
+            if (!input || Object.keys(input).length === 0) {
+                PubSub.publish(Pubs.Snack, { message: 'No changes made.' });
+                return;
+            }
             mutationWrapper({
                 mutation,
-                input: shapeProfileUpdate(profile, {
-                    id: profile.id,
-                    starredTags,
-                    hiddenTags: filteredHiddenTags,
-                }),
+                input,
                 onSuccess: (response) => {
                     PubSub.publish(Pubs.Snack, { message: 'Display preferences updated.' });
                     onUpdated(response.data.profileUpdate);

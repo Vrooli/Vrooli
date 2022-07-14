@@ -21,6 +21,7 @@ import { findHandles, findHandlesVariables } from "graphql/generated/findHandles
 import { findHandlesQuery } from "graphql/query";
 import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
 import { v4 as uuid } from 'uuid';
+import { PubSub } from "pubsub-js";
 
 const helpText =
     `This page allows you to update your profile, including your name, handle, and bio.
@@ -110,6 +111,9 @@ export const SettingsProfile = ({
         enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
+            const cases = [
+                [profile, 'Could not find existing profile.', 'error'],
+            ]
             if (!profile) {
                 PubSub.publish(Pubs.Snack, { message: 'Could not find existing data.', severity: 'error' });
                 return;
@@ -120,14 +124,19 @@ export const SettingsProfile = ({
                 language,
                 bio: values.bio,
             })
+            const input = shapeProfileUpdate(profile, {
+                id: profile.id,
+                name: values.name,
+                handle: selectedHandle,
+                translations: allTranslations,
+            })
+            if (!input || Object.keys(input).length === 0) {
+                PubSub.publish(Pubs.Snack, { message: 'No changes made.' });
+                return;
+            }
             mutationWrapper({
                 mutation,
-                input: shapeProfileUpdate(profile, {
-                    id: profile.id,
-                    name: values.name,
-                    handle: selectedHandle,
-                    translations: allTranslations,
-                }),
+                input,
                 onSuccess: (response) => { onUpdated(response.data.profileUpdate); setLocation(APP_LINKS.Profile, { replace: true }) },
                 onError: () => { formik.setSubmitting(false) },
             })

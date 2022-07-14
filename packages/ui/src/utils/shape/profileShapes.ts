@@ -62,7 +62,6 @@ export const shapeProfileUpdate = (
     updated: ProfileShape
 ): ProfileUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
-        id: o.id,
         handle: updated.handle !== original.handle ? updated.handle : undefined,
         name: updated.name !== original.name ? updated.name : undefined,
         theme: updated.theme !== original.theme ? updated.theme : undefined,
