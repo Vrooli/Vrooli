@@ -10,6 +10,10 @@ import { genErrorCode, logger, LogLevel } from '../../logger';
 const { AccountStatus, MemberRole, NodeType, ResourceUsedFor, ResourceListUsedFor } = pkg;
 
 export async function init(prisma: PrismaType) {
+    console.log('a');
+    const temp = await prisma.routine.findMany();
+    console.log(temp);
+    console.log('b');
     // TODO temporary for standard update: internalizes standards that start with 
     // one of the input types
     const boops = ['Checkbox ','Dropzone ','JSON ','LanguageInput ','Markdown ','Radio ','Selector ','Slider ','Switch ','TagSelector ','TextField ','QuantityBox '];
