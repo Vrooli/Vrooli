@@ -410,32 +410,26 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
         const tagsToCreate: TagCreateInput[] = [];
         const tagsToConnect: string[] = [];
         if (input.starredTagsConnect) {
-            console.log('connect a', input.starredTagsConnect);
             // Check if tags exist
             const tags = await prisma.tag.findMany({
                 where: { id: { in: input.starredTagsConnect } },
             })
-            console.log('connect b', JSON.stringify(tags), '\n');
             const connectTags = tags.map(t => t.id);
             const createTags = input.starredTagsConnect.filter(t => !connectTags.includes(t));
             // Add existing tags to tagsToConnect
             tagsToConnect.push(...connectTags);
-            console.log('connect c', tagsToConnect, '\n');
             // Add new tags to tagsToCreate
             tagsToCreate.push(...createTags.map((t) => typeof t === 'string' ? ({ tag: t }) : t));
         }
         if (input.starredTagsCreate) {
-            console.log('create a', input.starredTagsCreate);
             // Check if tags exist
             const tags = await prisma.tag.findMany({
                 where: { tag: { in: input.starredTagsCreate.map(c => c.tag) } },
             })
-            console.log('create b', JSON.stringify(tags), '\n');
             const connectTags = tags.map(t => t.id);
             const createTags = input.starredTagsCreate.filter(t => !connectTags.includes(t.tag));
             // Add existing tags to tagsToConnect
             tagsToConnect.push(...connectTags);
-            console.log('create c', tagsToConnect, '\n');
             // Add new tags to tagsToCreate
             tagsToCreate.push(...createTags);
         }

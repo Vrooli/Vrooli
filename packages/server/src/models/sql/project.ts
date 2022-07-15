@@ -249,12 +249,16 @@ export const projectMutater = (prisma: PrismaType) => ({
             }
         }
         if (deleteMany) {
-            // Add organizationIds to organizationIds array, if userId does not match the object's userId
             const objects = await prisma.project.findMany({
                 where: { id: { in: deleteMany } },
                 select: { id: true, userId: true, organizationId: true },
             });
-            organizationIds.push(...objects.filter(object => object.userId !== userId).map(object => object.organizationId));
+            // Split objects by userId and organizationId
+            const userIds = objects.filter(object => Boolean(object.userId)).map(object => object.userId);
+            if (userIds.some(id => id !== userId))
+                throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0243') })
+            // Add to organizationIds array, to check ownership status
+            organizationIds.push(...objects.filter(object => !userId.includes(object.organizationId ?? '')).map(object => object.organizationId));
         }
         // Find admin/owner member data for every organization
         const memberData = await OrganizationModel(prisma).isOwnerOrAdmin(userId, organizationIds);

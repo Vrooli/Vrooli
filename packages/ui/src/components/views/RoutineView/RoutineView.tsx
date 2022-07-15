@@ -52,7 +52,7 @@ export const RoutineView = ({
         if (!data) return;
         setRoutine(data.routine);
     }, [data]);
-    const updateRoutine = useCallback((routine: Routine) => { setRoutine(routine); }, [setRoutine]);
+    const updateRoutine = useCallback((newRoutine: Routine) => { console.log('updateroutine', newRoutine); setRoutine(newRoutine); }, [setRoutine]);
 
     const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine?.role]);
 
@@ -162,6 +162,7 @@ export const RoutineView = ({
                 nodes: [startNode, routineListNode, endNode],
                 nodeLinks: [link1, link2],
                 translations: [{
+                    id: uuid(),
                     language,
                     title: 'New Routine',
                     instructions: 'Enter instructions here',
@@ -176,9 +177,9 @@ export const RoutineView = ({
         }), { replace: true });
         setIsBuildOpen(true);
     }, [routine?.id, setLocation]);
-    const stopBuild = useCallback(() => {
-        // If was building a new routine, navigate to last page (since this one will just be a blank view)
-        if (!routine?.id) {
+    const stopBuild = useCallback((wasModified: boolean) => {
+        // If was building a new routine (and did not create), navigate to last page (since this one will just be a blank view)
+        if (!routine?.id && !wasModified) {
             window.history.back();
         }
         else setIsBuildOpen(false)

@@ -80,7 +80,7 @@ export interface RunViewProps extends ViewProps<Routine> {
 }
 
 export interface BuildViewProps extends ViewProps<Routine> {
-    handleClose: () => void;
+    handleClose: (wasModified: boolean) => void;
     loading: boolean;
     onChange: (routine: Routine) => void;
     routine: Routine | null;

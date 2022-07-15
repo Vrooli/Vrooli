@@ -18,7 +18,6 @@ export const TagSelector = ({
     onTagRemove,
     onTagsClear,
 }: TagSelectorProps) => {
-    console.log('tagselector', tags);
     const { palette } = useTheme();
     const [inputValue, setInputValue] = useState<string>('');
     const clearText = useCallback(() => { setInputValue(''); }, []);

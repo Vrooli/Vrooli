@@ -164,7 +164,7 @@ export const resourceListMutater = (prisma: PrismaType) => ({
             }
         }
         if (deleteMany) {
-            deleted = await prisma.report.deleteMany({
+            deleted = await prisma.resource_list.deleteMany({
                 where: {
                     AND: [
                         { id: { in: deleteMany } },

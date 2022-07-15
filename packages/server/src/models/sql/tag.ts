@@ -36,17 +36,14 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
         objects: RecursivePartial<any>[],
         partial: PartialGraphQLInfo,
     ): Promise<RecursivePartial<Tag>[]> {
-        console.log('tag addsupplemental fields', JSON.stringify(partial), '\n\n')
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
         if (partial.isStarred) {
-            console.log('getting tag isstarreds', ids, '\n\n')
             const isStarredArray = userId
                 ? await StarModel(prisma).getIsStarreds(userId, ids, GraphQLModelType.Tag)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
-            console.log('got tag isstarreds', JSON.stringify(objects), '\n\n')
         }
         // Query for isOwn
         if (partial.isOwn) objects = objects.map((x) => ({ ...x, isOwn: Boolean(userId) && x.createdByUserId === userId }));
@@ -68,7 +65,6 @@ export const tagSearcher = (): Searcher<TagSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        console.log('tags getsearchquery', searchString, languages);
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
         return ({
             OR: [
@@ -117,7 +113,6 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
         parentType: keyof typeof this.parentMapper,
         relationshipName: string = 'tags',
     ): Promise<{ [x: string]: any } | undefined> {
-        console.log('tag rel builder start', JSON.stringify(input), '\n\n', 'relname', relationshipName);
         // If any tag creates/connects, make sure they exist/not exist
         const initialCreateTags = Array.isArray(input[`${relationshipName}Create`]) ? 
             input[`${relationshipName}Create`].map((c: any) => c.tag) : 
@@ -128,14 +123,12 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
             typeof input[`${relationshipName}Connect`] === 'object' ? [input[`${relationshipName}Connect`]] :
             [];
         const bothInitialTags = [...initialCreateTags, ...initialConnectTags];
-        console.log('tag rel builder both initial tags', bothInitialTags, '\n\n');
         if (bothInitialTags.length > 0) {
             // Query for all of the tags, to determine which ones exist
             const existingTags = await prisma.tag.findMany({
                 where: { tag: { in: bothInitialTags } },
                 select: { tag: true }
             });
-            console.log('tag rel builder existing tags', JSON.stringify(existingTags), '\n\n');
             // All existing tags are the new connects
             input[`${relationshipName}Connect`] = existingTags.map((t) => ({ tag: t.tag }));
             // All new tags are the new creates
@@ -185,6 +178,15 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
             tagsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
             verifier.profanityCheck(updateMany.map(u => u.data));
         }
+        if (deleteMany) {
+            const objects = await prisma.tag.findMany({
+                where: { id: { in: deleteMany } },
+                select: { id: true, createdByUserId: true },
+            });
+            if (objects.some((o) => o.createdByUserId !== userId)) {
+                throw new CustomError(CODE.Unauthorized, "You can't delete tags you didn't create", { code: genErrorCode('0114') });
+            }
+        }
     },
     async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<TagCreateInput, TagUpdateInput>): Promise<CUDResult<Tag>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
@@ -225,13 +227,8 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
             }
         }
         if (deleteMany) {
-            const tags = await prisma.tag.findMany({
-                where: { id: { in: deleteMany } },
-            })
-            if (tags.some(t => t.createdByUserId !== userId)) 
-                throw new CustomError(CODE.Unauthorized, "You can't delete tags you didn't create", { code: genErrorCode('0114') });
             deleted = await prisma.tag.deleteMany({
-                where: { id: { in: tags.map(t => t.id) } },
+                where: { id: { in: deleteMany } },
             });
         }
         return {

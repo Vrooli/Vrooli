@@ -129,6 +129,11 @@ const userSelect = {
     reportsCount: true,
     stars: true,
     isStarred: true,
+    translations: {
+        id: true,
+        language: true,
+        bio: true,
+    },
 }
 const viewSelect = {
     __typename: GraphQLModelType.View,

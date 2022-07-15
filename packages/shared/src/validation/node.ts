@@ -61,12 +61,12 @@ export const nodeLinkCreate = yup.object().shape({
     id: id.required(),
     fromId: id.required(),
     toId: id.required(),
-    operation: operation.notRequired().default(undefined),
+    operation: operation.nullable().notRequired().default(undefined),
     whensCreate: whensCreate.notRequired().default(undefined),
 })
 export const nodeLinkUpdate = yup.object().shape({
     id: id.required(),
-    operation: operation.notRequired().default(undefined),
+    operation: operation.nullable().notRequired().default(undefined),
     whensCreate: whensCreate.notRequired().default(undefined),
     whensUpdate: whensUpdate.notRequired().default(undefined),
     whensDelete: idArray,

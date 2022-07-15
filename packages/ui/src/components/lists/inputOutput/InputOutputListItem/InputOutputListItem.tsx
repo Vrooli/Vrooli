@@ -185,7 +185,7 @@ export const InputOutputListItem = ({
         else handleOpen(index);
     }, [isOpen, handleOpen, index, formik, handleClose]);
 
-    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
+    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(Boolean(standard));
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
 
     return (

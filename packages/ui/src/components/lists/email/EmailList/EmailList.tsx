@@ -36,7 +36,6 @@ export const EmailList = ({
         enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
-            console.log('emaillist', values, formik, loadingAdd);
             if (!formik.isValid || loadingAdd) return;
             mutationWrapper({
                 mutation: addMutation,

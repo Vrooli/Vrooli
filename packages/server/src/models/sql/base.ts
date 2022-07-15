@@ -1200,11 +1200,9 @@ export const addSupplementalFields = async (
         const objectData = ids.map((id: string) => pickObjectById(data, id));
         // Now that we have the data for each object, we can add the supplemental fields
         if (type in FormatterMap) {
-            console.log('formattermap type is', type);
             const valuesWithSupplements = FormatterMap[type as keyof typeof FormatterMap]?.addSupplementalFields
                 ? await (FormatterMap[type as keyof typeof FormatterMap] as any).addSupplementalFields(prisma, userId, objectData, selectFieldsDict[type])
                 : objectData;
-            console.log('valuesWithSupplements', JSON.stringify(valuesWithSupplements), '\n\n');
             // Add each value to objectsById
             for (const v of valuesWithSupplements) {
                 objectsById[v.id] = v;
@@ -1212,7 +1210,6 @@ export const addSupplementalFields = async (
         }
     }
     // Convert objectsById dictionary back into shape of data
-    console.log('objectsById', JSON.stringify(objectsById), '\n\n');
     let result = data.map(d => (d === null || d === undefined) ? d : combineSupplements(d, objectsById));
     return result
 }
@@ -1398,7 +1395,6 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     let formattedNodes = paginatedResults.edges.map(({ node }) => node);
     formattedNodes = formattedNodes.map(n => modelToGraphQL(n, partialInfo as PartialGraphQLInfo));
     formattedNodes = await addSupplementalFields(model.prisma, userId, formattedNodes, partialInfo);
-    console.log('readmany formattednodes', JSON.stringify(formattedNodes), '\n\n')
     return { pageInfo: paginatedResults.pageInfo, edges: paginatedResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })) };
 }
 

@@ -442,12 +442,16 @@ export const standardMutater = (
             organizationIds.push(...objects.filter(object => object.createdByUserId !== userId).map(object => object.createdByOrganizationId));
         }
         if (deleteMany) {
-            // Add organizationIds to organizationIds array, if userId does not match the object's userId
             const objects = await prisma.standard.findMany({
                 where: { id: { in: deleteMany } },
                 select: { id: true, createdByUserId: true, createdByOrganizationId: true },
             });
-            organizationIds.push(...objects.filter(object => object.createdByUserId !== userId).map(object => object.createdByOrganizationId));
+            // Split objects by userId and organizationId
+            const userIds = objects.filter(object => Boolean(object.createdByUserId)).map(object => object.createdByUserId);
+            if (userIds.some(id => id !== userId))
+                throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0244') })
+            // Add to organizationIds array, to check ownership status
+            organizationIds.push(...objects.filter(object => !userId.includes(object.createdByOrganizationId ?? '')).map(object => object.createdByOrganizationId));
         }
         // Find admin/owner member data for every organization
         const memberData = await OrganizationModel(prisma).isOwnerOrAdmin(userId, organizationIds);

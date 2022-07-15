@@ -44,7 +44,7 @@ export const shapeStandardTranslationUpdate = (
 
 export const shapeStandardCreate = (item: StandardShape): StandardCreateInput => { console.log('shapestandardcreate!', item); return ({
     id: item.id,
-    default: item.default,
+    default: item.default + '', // Make sure default is a string
     isInternal: item.isInternal,
     name: item.name,
     props: item.props,

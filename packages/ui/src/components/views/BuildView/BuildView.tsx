@@ -320,7 +320,7 @@ export const BuildView = ({
             onSuccess: ({ data }) => {
                 onChange(data.routineCreate);
                 removeSearchParams();
-                handleClose();
+                handleClose(true);
             },
         })
     }, [changedRoutine, handleClose, onChange, removeSearchParams, routineCreate]);
@@ -368,20 +368,20 @@ export const BuildView = ({
                         text: 'Save', onClick: () => {
                             updateRoutine();
                             removeSearchParams();
-                            handleClose();
+                            handleClose(true);
                         }
                     },
                     {
                         text: "Don't Save", onClick: () => {
                             removeSearchParams();
-                            handleClose();
+                            handleClose(false);
                         }
                     },
                 ]
             });
         } else {
             removeSearchParams();
-            handleClose();
+            handleClose(false);
         }
     }, [changedRoutine, handleClose, isEditing, removeSearchParams, routine, updateRoutine]);
 
