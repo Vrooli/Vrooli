@@ -10,11 +10,12 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { useMutation } from '@apollo/client';
 import { star, starVariables } from 'graphql/generated/star';
 import { starMutation } from 'graphql/mutation';
+import { validate as uuidValidate } from 'uuid';
 
 export const StarButton = ({
     session,
     isStar = false,
-    stars = 0,
+    stars,
     objectId,
     showStars = true,
     starFor,
@@ -26,8 +27,9 @@ export const StarButton = ({
     const [internalIsStar, setInternalIsStar] = useState<boolean | null>(isStar ?? null);
     useEffect(() => setInternalIsStar(isStar ?? false), [isStar]);
 
-    const internalStars = useMemo(() => {
-        const starNum = stars ?? 0;
+    const internalStars: number | null = useMemo(() => {
+        if (!stars) return null;
+        const starNum = stars;
         if (internalIsStar === true && isStar === false) return starNum + 1;
         if (internalIsStar === false && isStar === true) return starNum - 1;
         return starNum;
@@ -40,6 +42,8 @@ export const StarButton = ({
         setInternalIsStar(isStar);
         // Prevent propagation of normal click event
         event.stopPropagation();
+        // If objectId is not valid, return
+        if (!uuidValidate(objectId)) return;
         // Send star mutation
         mutationWrapper({
             mutation,
@@ -64,7 +68,7 @@ export const StarButton = ({
             <Tooltip placement={tooltipPlacement} title={tooltip}>
                 <Icon onClick={handleClick} sx={{ fill: color, cursor: session?.id ? 'pointer' : 'default' }} />
             </Tooltip>
-            { showStars ? <ListItemText
+            { showStars && stars ? <ListItemText
                 primary={internalStars}
                 sx={{ ...multiLineEllipsis(1) }}
             /> : null }

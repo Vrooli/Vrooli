@@ -18,6 +18,7 @@ export interface tag_tag_translations {
 
 export interface tag_tag {
   __typename: "Tag";
+  id: string;
   tag: string;
   created_at: any;
   stars: number;

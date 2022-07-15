@@ -40,6 +40,7 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
         if (partial.isStarred) {
+            console.log('getting tag isstarreds', ids, '\n\n')
             const isStarredArray = userId
                 ? await StarModel(prisma).getIsStarreds(userId, ids, GraphQLModelType.Tag)
                 : Array(ids.length).fill(false);
@@ -65,6 +66,7 @@ export const tagSearcher = (): Searcher<TagSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
+        console.log('tags getsearchquery', searchString, languages);
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
         return ({
             OR: [
@@ -75,6 +77,7 @@ export const tagSearcher = (): Searcher<TagSearchInput> => ({
     },
     customQueries(input: TagSearchInput): { [x: string]: any } {
         return {
+            ...(input.excludeIds !== undefined ? { id: { not: { in: input.excludeIds } } } : {}),
             ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
             ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
         }

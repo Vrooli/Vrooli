@@ -1322,6 +1322,8 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     let partialInfo = toPartialGraphQLInfo(info, model.relationshipMap);
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0023') });
+    // Make sure ID is in partialInfo, since this is required for cursor-based search
+    partialInfo.id = true;
     // Uses __typename to determine which Prisma object is being queried
     const objectType: string | undefined = partialInfo.__typename;
     if (objectType === undefined || !(objectType in PrismaMap))

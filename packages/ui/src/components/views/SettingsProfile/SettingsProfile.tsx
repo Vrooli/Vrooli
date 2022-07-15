@@ -113,12 +113,10 @@ export const SettingsProfile = ({
         onSubmit: (values) => {
             if (!profile) {
                 PubSub.get().publishSnack({ message: 'Could not find existing data.', severity: 'error' });
-                formik.setSubmitting(false);
                 return;
             }
             if (!formik.isValid) {
                 PubSub.get().publishSnack({ message: 'Please fix errors before submitting.', severity: 'error' });
-                formik.setSubmitting(false);
                 return;
             }
             const allTranslations = getTranslationsUpdate(language, {
@@ -134,7 +132,6 @@ export const SettingsProfile = ({
             })
             if (!input || Object.keys(input).length === 0) {
                 PubSub.get().publishSnack({ message: 'No changes made.' });
-                formik.setSubmitting(false);
                 return;
             }
             mutationWrapper({

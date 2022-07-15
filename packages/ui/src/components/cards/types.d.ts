@@ -1,11 +1,4 @@
-import { 
-    Organization,
-    Project,
-    Resource,
-    RoutineShallow,
-    Standard,
-    User 
-} from 'types';
+import { Resource } from 'types';
 
 export interface ResourceCardProps {
     canEdit: boolean;

@@ -80,6 +80,7 @@ export const typeDef = gql`
     input TagSearchInput {
         after: String
         createdTimeFrame: TimeFrame
+        excludeIds: [ID!]
         hidden: Boolean
         ids: [ID!]
         languages: [String!]

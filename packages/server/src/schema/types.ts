@@ -2716,6 +2716,7 @@ export type TagHiddenUpdateInput = {
 export type TagSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
+  excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   hidden?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   languages?: InputMaybe<Array<Scalars['String']>>;

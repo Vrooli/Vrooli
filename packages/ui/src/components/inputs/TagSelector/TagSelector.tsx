@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { tags, tagsVariables } from 'graphql/generated/tags';
 import { tagsQuery } from 'graphql/query';
 import { useQuery } from '@apollo/client';
@@ -66,12 +66,31 @@ export const TagSelector = ({
         if (isSelected) onTagRemove(tag);
         else onTagAdd(tag);
     }, [tags, onTagAdd, onTagRemove]);
-    const onChipDelete = useCallback((tag: TagShape) => {
+    const onChipDelete = useCallback((tag: TagShape | Tag) => {
         onTagRemove(tag);
     }, [onTagRemove]);
+
+    // Map of tag strings to queried tag data, so we can exclude tags that have already been queried before
+    type TagsRef = { [key: string]: TagShape | Tag }
+    const tagsRef = useRef<TagsRef | null>(null);
+    // Whenever selected tags change, add unknown tags to the tag map
+    useEffect(() => {
+        if (!tagsRef.current) return;
+        tags.forEach(tag => {
+            if (!(tagsRef.current as TagsRef)[tag.tag]) (tagsRef.current as TagsRef)[tag.tag] = tag;
+        });
+    }, [tags]);
+
     const { data: autocompleteData, refetch: refetchAutocomplete } = useQuery<tags, tagsVariables>(tagsQuery, {
         variables: {
             input: {
+                // Exclude tags that have already been fully queried, and match the search string
+                // (i.e. in tag map, and have an ID)
+                excludeIds: tagsRef.current !== null ? 
+                    Object.values(tagsRef.current)
+                        .filter(t => (t as Tag).id && t.tag.toLowerCase().includes(inputValue.toLowerCase()))
+                        .map(t => t.id) as string[] : 
+                    [],
                 searchString: inputValue,
                 sortBy: TagSortBy.StarsDesc,
                 take: 25,
@@ -79,13 +98,37 @@ export const TagSelector = ({
         }
     });
     useEffect(() => { refetchAutocomplete() }, [inputValue, refetchAutocomplete]);
-    const autocompleteOptions: TagShape[] = useMemo(() => {
-        if (!autocompleteData) return [];
-        return autocompleteData.tags.edges.map(({ node }) => node);
-    }, [autocompleteData]);
 
-    // //TODO store all queried tag data, and query unknown tag data (e.g. tags set in URL, but you don't know isStarred yet)
-    // const [fullTagData, setFullTagData] = useState<{ [tag: string]: Tag }>({});
+    /**
+     * Store queried tags in the tag ref
+     */
+    useEffect(() => {
+        if (!autocompleteData) return;
+        const queried = autocompleteData.tags.edges.map(({ node }) => node);
+        queried.forEach(tag => {
+            if (!tagsRef.current) tagsRef.current = {};
+            (tagsRef.current as TagsRef)[tag.tag] = tag;
+        });
+    }, [autocompleteData, tagsRef]);
+
+    const autocompleteOptions: (TagShape | Tag)[] = useMemo(() => {
+        if (!autocompleteData) return [];
+        // Find queried
+        const queried = autocompleteData.tags.edges.map(({ node }) => node);
+        // Find already known, that match the search string
+        const known = tagsRef.current ? 
+            Object.values(tagsRef.current)
+                .filter(tag => tag.tag.toLowerCase().includes(inputValue.toLowerCase())) :
+            [];
+        // Return all queried and known
+        return [...queried, ...known];
+    }, [autocompleteData, inputValue, tagsRef]);
+
+    const handleIsStarred = useCallback((tag: string, isStarred: boolean) => {
+        // Update tag ref
+        if (!tagsRef.current) tagsRef.current = {};
+        ((tagsRef.current as TagsRef)[tag] as any) = { ...(tagsRef.current as TagsRef)[tag], isStarred };
+    }, [tagsRef]);
 
     return (
         <Autocomplete
@@ -95,7 +138,7 @@ export const TagSelector = ({
             multiple
             freeSolo={true}
             options={autocompleteOptions}
-            getOptionLabel={(o: string | TagShape) => (typeof o === 'string' ? o : o.tag)}
+            getOptionLabel={(o: string | TagShape | Tag) => (typeof o === 'string' ? o : o.tag)}
             inputValue={inputValue}
             noOptionsText={'No suggestions'}
             limitTags={3}
@@ -104,7 +147,7 @@ export const TagSelector = ({
             // Filter out what has already been selected
             filterOptions={(options, params) => options.filter(o => !tags.some(t => t.tag === o.tag))}
             renderTags={(value, getTagProps) =>
-                value.map((option: TagShape, index) => (
+                value.map((option: TagShape | Tag, index) => (
                     <Chip
                         variant="filled"
                         label={option.tag}
@@ -117,7 +160,7 @@ export const TagSelector = ({
                     />
                 )
                 )}
-            renderOption={(props, option: TagShape) => (
+            renderOption={(props, option: TagShape | Tag) => (
                 <MenuItem
                     {...props}
                     onClick={() => onInputSelect(option as Tag)} //TODO
@@ -125,13 +168,11 @@ export const TagSelector = ({
                     <ListItemText>{option.tag}</ListItemText>
                     <StarButton
                         session={session}
-                        objectId={option.tag ?? ''}
+                        objectId={option.id ?? ''}
                         starFor={StarFor.Tag}
-                        // isStar={option.isStarred} // TODO
-                        // stars={option.stars} //TODO
-                        isStar={false}
-                        stars={0}
-                        onChange={(isStar: boolean) => {}} //TODO
+                        isStar={(option as Tag).isStarred}
+                        stars={(option as Tag).stars}
+                        onChange={(isStar) => { handleIsStarred(option.tag, isStar); }}
                     />
                 </MenuItem>
             )}

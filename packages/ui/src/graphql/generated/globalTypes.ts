@@ -1281,6 +1281,7 @@ export interface TagHiddenUpdateInput {
 export interface TagSearchInput {
   after?: string | null;
   createdTimeFrame?: TimeFrame | null;
+  excludeIds?: string[] | null;
   hidden?: boolean | null;
   ids?: string[] | null;
   languages?: string[] | null;
