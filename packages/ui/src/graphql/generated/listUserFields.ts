@@ -7,6 +7,13 @@
 // GraphQL fragment: listUserFields
 // ====================================================
 
+export interface listUserFields_translations {
+  __typename: "UserTranslation";
+  id: string;
+  language: string;
+  bio: string | null;
+}
+
 export interface listUserFields {
   __typename: "User";
   id: string;
@@ -15,4 +22,5 @@ export interface listUserFields {
   stars: number;
   isStarred: boolean;
   reportsCount: number;
+  translations: listUserFields_translations[];
 }

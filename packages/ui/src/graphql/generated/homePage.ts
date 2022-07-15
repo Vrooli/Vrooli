@@ -181,6 +181,13 @@ export interface homePage_homePage_standards {
   yup: string | null;
 }
 
+export interface homePage_homePage_users_translations {
+  __typename: "UserTranslation";
+  id: string;
+  language: string;
+  bio: string | null;
+}
+
 export interface homePage_homePage_users {
   __typename: "User";
   id: string;
@@ -189,6 +196,7 @@ export interface homePage_homePage_users {
   stars: number;
   isStarred: boolean;
   reportsCount: number;
+  translations: homePage_homePage_users_translations[];
 }
 
 export interface homePage_homePage {

@@ -115,37 +115,47 @@ export const RoutineView = ({
                 rowIndex: 0,
             } as Node;
             const routineListNode: Node = {
+                __typename: 'Node',
                 id: uuid(),
                 type: NodeType.RoutineList,
                 columnIndex: 1,
                 rowIndex: 0,
                 data: {
+                    __typename: 'NodeRoutineList',
                     id: uuid(),
                     isOptional: false,
                     isOrdered: false,
                     routines: [],
-                } as any,
+                } as Node['data'],
                 translations: [{
+                    id: uuid(),
                     language,
                     title: 'Subroutine 1',
-                }] as any
-            } as Node
+                }] as Node['translations'],
+            } as Node;
             const endNode: Node = {
+                __typename: 'Node',
                 id: uuid(),
                 type: NodeType.End,
                 columnIndex: 2,
                 rowIndex: 0,
-            } as Node
+            } as Node;
             const link1: NodeLink = {
+                __typename: 'NodeLink',
                 id: uuid(),
                 fromId: startNode.id,
                 toId: routineListNode.id,
-            } as NodeLink
+                whens: [],
+                operation: null,
+            }
             const link2: NodeLink = {
+                __typename: 'NodeLink',
                 id: uuid(),
                 fromId: routineListNode.id,
                 toId: endNode.id,
-            } as NodeLink
+                whens: [],
+                operation: null,
+            }
             setRoutine({
                 inputs: [],
                 outputs: [],

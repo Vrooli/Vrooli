@@ -1,4 +1,5 @@
 import { Session } from "types";
+import { v4 as uuid } from 'uuid';
 
 /**
  * Array of all IANA language subtags, with their native names. 
@@ -341,7 +342,11 @@ export const AllLanguages = {
  * @param showAny If true, will default to returning the first language if no value is found
  * @returns The value of the field in the object's translations
  */
-export const getTranslation = (obj: any, field: string, languages: readonly string[], showAny: boolean = true): string | undefined => {
+export const getTranslation = <
+    KeyField extends string,
+    Translation extends { [key in KeyField]?: string | null | undefined } & { id: string, language: string },
+    Obj extends { translations?: Translation[] | null | undefined }
+>(obj: Obj | null | undefined, field: KeyField, languages: readonly string[], showAny: boolean = true): string | null | undefined => {
     if (!obj || !obj.translations) return undefined;
     // Loop through translations
     for (const translation of obj.translations) {
@@ -363,10 +368,14 @@ export const getTranslation = (obj: any, field: string, languages: readonly stri
  * @param language 2 letter language code
  * @returns Updated translations array
  */
-export const updateTranslationField = (objectWithTranslation: { [x: string]: any }, key: string, value: string, language: string): { [x: string]: any }[] => {
-    if (!objectWithTranslation.translations) return [];
+export const updateTranslationField = <
+    KeyField extends string,
+    Translation extends { [key in KeyField]?: string | null | undefined } & { id: string, language: string },
+    Obj extends { translations?: Translation[] | null | undefined }
+>(objectWithTranslation: Obj | null | undefined, key: KeyField, value: string, language: string): Translation[] => {
+    if (!objectWithTranslation?.translations) return [];
     let translationFound = false;
-    let translations: any[] = []
+    let translations: Translation[] = []
     for (let translation of objectWithTranslation.translations) {
         if (translation.language === language) {
             translations.push({ ...translation, [key]: value });
@@ -376,7 +385,11 @@ export const updateTranslationField = (objectWithTranslation: { [x: string]: any
         }
     }
     if (!translationFound) {
-        translations.push({ language: language, [key]: value });
+        translations.push({
+            id: uuid(),
+            language: language,
+            [key]: value
+        } as Translation);
     }
     return translations;
 }
@@ -387,10 +400,13 @@ export const updateTranslationField = (objectWithTranslation: { [x: string]: any
  * @param translation The translation object to update, including at least the language code
  * @returns Updated translations array
  */
-export const updateTranslation = (objectWithTranslation: { [x: string]: any }, translation: { language: string, [x: string]: any }): { [x: string]: any }[] => {
+export const updateTranslation = <
+    Translation extends { id: string, language: string },
+    Obj extends { translations: Translation[] }
+>(objectWithTranslation: Obj, translation: Translation): Translation[] => {
     if (!objectWithTranslation.translations) return [];
     let translationFound = false;
-    let translations: any[] = []
+    let translations: Translation[] = []
     for (let existingTranslation of objectWithTranslation.translations) {
         if (existingTranslation.language === translation.language) {
             translations.push({ ...translation });

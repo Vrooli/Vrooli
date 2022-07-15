@@ -15,6 +15,13 @@ export interface users_users_pageInfo {
   hasNextPage: boolean;
 }
 
+export interface users_users_edges_node_translations {
+  __typename: "UserTranslation";
+  id: string;
+  language: string;
+  bio: string | null;
+}
+
 export interface users_users_edges_node {
   __typename: "User";
   id: string;
@@ -23,6 +30,7 @@ export interface users_users_edges_node {
   stars: number;
   isStarred: boolean;
   reportsCount: number;
+  translations: users_users_edges_node_translations[];
 }
 
 export interface users_users_edges {

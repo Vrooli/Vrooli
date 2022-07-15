@@ -79,7 +79,7 @@ export const RoutineListNode = ({
     const handleLabelUpdate = useCallback((newLabel: string) => {
         handleUpdate({
             ...node,
-            translations: updateTranslationField(node, 'title', newLabel, language) as any[],
+            translations: updateTranslationField(node, 'title', newLabel, language),
         });
     }, [handleUpdate, language, node]);
 

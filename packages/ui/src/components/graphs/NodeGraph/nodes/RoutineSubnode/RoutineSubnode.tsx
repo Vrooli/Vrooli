@@ -56,7 +56,7 @@ export const RoutineSubnode = ({
     const handleLabelUpdate = useCallback((newLabel: string) => {
         handleUpdate(data.id, {
             ...data,
-            translations: updateTranslationField(data, 'title', newLabel, language) as any[],
+            translations: updateTranslationField(data, 'title', newLabel, language),
         });
     }, [handleUpdate, data, language]);
 
