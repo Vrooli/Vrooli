@@ -71,7 +71,12 @@ export const SubroutineInfoDialog = ({
     }, [setOutputsList]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ 
+        __typename: 'ResourceList',
+        id: uuid(), 
+        usedFor: ResourceListUsedFor.Display,
+        resources: [],
+    } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
@@ -166,6 +171,7 @@ export const SubroutineInfoDialog = ({
                 routine: {
                     ...subroutine.routine,
                     ...ownedBy,
+                    index: values.index - 1,
                     isInternal: values.isInternal,
                     isComplete: values.isComplete,
                     version: values.version,
@@ -232,7 +238,7 @@ export const SubroutineInfoDialog = ({
 
     const ownedBy = useMemo<string | null>(() => getOwnedByString(subroutine?.routine, [language]), [subroutine, language]);
     const toOwner = useCallback(() => { toOwnedBy(subroutine?.routine, setLocation) }, [subroutine, setLocation]);
-    const canEdit = useMemo<boolean>(() => isEditing && (subroutine?.routine?.isInternal || owns(subroutine?.routine?.role)), [isEditing, subroutine?.routine?.isInternal, subroutine?.routine?.role]);
+    const canEdit = useMemo<boolean>(() => isEditing && (subroutine?.routine?.isInternal || subroutine?.routine?.owner?.id === session.id || owns(subroutine?.routine?.role)), [isEditing, session.id, subroutine?.routine?.isInternal, subroutine?.routine?.owner?.id, subroutine?.routine?.role]);
 
     /**
      * Navigate to the subroutine's build page
@@ -391,7 +397,7 @@ export const SubroutineInfoDialog = ({
                                             minRows={2}
                                             onChange={(newText: string) => formik.setFieldValue('description', newText)}
                                             error={formik.touched.description && Boolean(formik.errors.description)}
-                                            helperText={formik.touched.description ? formik.errors.description as string : null}
+                                            helperText={formik.touched.description ? formik.errors.description : null}
                                         />
                                     ) : (
                                         <Markdown>{getTranslation(subroutine, 'description', [language]) ?? ''}</Markdown>
@@ -414,7 +420,7 @@ export const SubroutineInfoDialog = ({
                                             minRows={2}
                                             onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
                                             error={formik.touched.instructions && Boolean(formik.errors.instructions)}
-                                            helperText={formik.touched.instructions ? formik.errors.instructions as string : null}
+                                            helperText={formik.touched.instructions ? formik.errors.instructions : null}
                                         />
                                     ) : (
                                         <Markdown>{getTranslation(subroutine, 'instructions', [language]) ?? ''}</Markdown>

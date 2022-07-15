@@ -1172,6 +1172,7 @@ export const addSupplementalFields = async (
     data: ({ [x: string]: any } | null | undefined)[],
     partialInfo: PartialGraphQLInfo | PartialGraphQLInfo[],
 ): Promise<{ [x: string]: any }[]> => {
+    // console.log('add supp start', JSON.stringify(data), '\n\n');
     // Group data IDs and select fields by type. This is needed to reduce the number of times 
     // the database is called, as we can query all objects of the same type at once
     let objectIdsDict: { [x: string]: string[] } = {};
@@ -1192,6 +1193,7 @@ export const addSupplementalFields = async (
 
     // Dictionary to store objects by ID, instead of type. This is needed to combineSupplements
     const objectsById: { [x: string]: any } = {};
+    // console.log('objectidsdict', JSON.stringify(objectIdsDict), '\n\n');
 
     // Loop through each type in objectIdsDict
     for (const [type, ids] of Object.entries(objectIdsDict)) {
@@ -1269,6 +1271,7 @@ export async function readOneHelper<GraphQLModel>(
     info: GraphQLInfo | PartialGraphQLInfo,
     model: ModelBusinessLayer<GraphQLModel, any>,
 ): Promise<RecursivePartial<GraphQLModel>> {
+    // console.log('readonehelper start', JSON.stringify(input));
     // Validate input
     if (!input.id && !input.handle)
         throw new CustomError(CODE.InvalidArgs, 'id is required', { code: genErrorCode('0019') });
@@ -1288,8 +1291,10 @@ export async function readOneHelper<GraphQLModel>(
         await prismaObject.findFirst({ where: { handle: input.handle }, ...selectHelper(partialInfo) });
     if (!object)
         throw new CustomError(CODE.NotFound, `${objectType} not found`, { code: genErrorCode('0022') });
+    // console.log('readonehelper got object', JSON.stringify(object), '\n\n');
     // Return formatted for GraphQL
     let formatted = modelToGraphQL(object, partialInfo) as RecursivePartial<GraphQLModel>;
+    // console.log('readonehelper formatted', JSON.stringify(formatted), '\n\n');
     // If logged in and object has view count, handle it
     if (userId && objectType in ViewFor) {
         ViewModel(model.prisma).view(userId, { forId: object.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language

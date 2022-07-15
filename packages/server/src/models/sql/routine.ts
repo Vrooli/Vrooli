@@ -110,6 +110,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         }
         // Query for role
         if (partial.role) {
+            // console.log('checking routine roles', ids);
             let organizationIds: string[] = [];
             // Collect owner data
             let ownerData: any = objects.map(x => x.owner).filter(x => x);
@@ -140,6 +141,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
             const roles = userId
                 ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
                 : [];
+            // console.log('got routine roles', roles)
             objects = objects.map((x) => {
                 const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
                 if (orgRoleIndex >= 0) {
@@ -486,14 +488,14 @@ export const routineMutater = (prisma: PrismaType) => ({
         const [simplicity, complexity] = await this.calculateComplexity(data);
         return {
             id: data.id,
-            isAutomatable: data.isAutomatable,
+            isAutomatable: data.isAutomatable ?? undefined,
             isComplete: data.isComplete,
             completedAt: (data.isComplete === true) ? new Date().toISOString() : (data.isComplete === false) ? null : undefined,
             complexity: complexity,
             simplicity: simplicity,
-            isInternal: data.isInternal,
+            isInternal: data.isInternal ?? undefined,
             parentId: (data as RoutineCreateInput)?.parentId ?? undefined,
-            version: data.version,
+            version: data.version ?? undefined,
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, isAdd),
             tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Routine),
             inputs: await this.relationshipBuilderInput(userId, data, isAdd),
@@ -787,6 +789,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             for (const input of updateMany) {
                 // Call createData helper function
                 let data = await this.toDBShape(userId, input.data, false);
+                // console.log('routine update todbshapeeee', JSON.stringify(data), '\n\n')
                 // Find object
                 let object = await prisma.routine.findFirst({ where: input.where })
                 if (!object)

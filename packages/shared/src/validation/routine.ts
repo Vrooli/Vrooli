@@ -108,10 +108,10 @@ export const routineUpdateForm = routineCreateForm;
  */
 export const routineCreate = yup.object().shape({
     id: id.required(),
-    isAutomatable: isAutomatable.notRequired().default(undefined),
+    isAutomatable: isAutomatable.nullable().notRequired().default(undefined),
     isComplete: isComplete.notRequired().default(undefined),
-    isInternal: isInternal.notRequired().default(undefined),
-    version: version.notRequired().default(undefined),
+    isInternal: isInternal.nullable().notRequired().default(undefined),
+    version: version.nullable().notRequired().default(undefined),
     parentId: id.notRequired().default(undefined), // If forked, the parent's id
     createdByUserId: id.notRequired().default(undefined), // If associating with yourself, your own id. Cannot associate with another user
     createdByOrganizationId: id.notRequired().default(undefined), // If associating with an organization you are an admin of, the organization's id
@@ -130,10 +130,10 @@ export const routineCreate = yup.object().shape({
  */
 export const routineUpdate = yup.object().shape({
     id: id.required(),
-    isAutomatable: isAutomatable.notRequired().default(undefined),
+    isAutomatable: isAutomatable.nullable().notRequired().default(undefined),
     isComplete: isComplete.notRequired().default(undefined),
-    isInternal: isInternal.notRequired().default(undefined),
-    version: version.notRequired().default(undefined),
+    isInternal: isInternal.nullable().notRequired().default(undefined),
+    version: version.nullable().notRequired().default(undefined),
     parentId: id.notRequired().default(undefined), // If forked, the parent's id
     userId: id.notRequired().default(undefined), // If associating with yourself, your own id. Cannot associate with another user
     organizationId: id.notRequired().default(undefined), // If associating with an organization you are an admin of, the organization's id

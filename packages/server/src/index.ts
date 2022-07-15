@@ -100,6 +100,7 @@ const main = async () => {
      * Apollo Server for GraphQL
      */
     const apollo_options = new ApolloServer({
+        cache: 'bounded' as any,
         introspection: process.env.NODE_ENV === 'development',
         schema: schema,
         context: (c) => context(c), // Allows request and response to be included in the context
