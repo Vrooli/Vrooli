@@ -5,7 +5,7 @@ import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getTranslation, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub } from 'utils';
-import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
+import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
 import { useLocation } from 'wouter';
 import { APP_LINKS, isEqual, uniqBy } from '@local/shared';
 import { NodeType } from 'graphql/generated/globalTypes';
@@ -171,7 +171,7 @@ export const BuildView = ({
         // 3. Every node that has no outgoing edges is an end node
         // 4. Validate loop TODO
         // 5. Validate redirects TODO
-        // First check
+        // Check 1
         const startNodes = changedRoutine.nodes.filter(node => node.type === NodeType.Start);
         if (startNodes.length === 0) {
             statuses.push([Status.Invalid, 'No start node found']);
@@ -179,7 +179,7 @@ export const BuildView = ({
         else if (startNodes.length > 1) {
             statuses.push([Status.Invalid, 'More than one start node found']);
         }
-        // Second check
+        // Check 2
         const nodesWithoutIncomingEdges = nodesOnGraph.filter(node => changedRoutine.nodeLinks.every(link => link.toId !== node.id));
         if (nodesWithoutIncomingEdges.length === 0) {
             //TODO this would be fine with a redirect link
@@ -188,7 +188,7 @@ export const BuildView = ({
         else if (nodesWithoutIncomingEdges.length > 1) {
             statuses.push([Status.Invalid, 'Nodes are not fully connected']);
         }
-        // Third check
+        // Check 3
         const nodesWithoutOutgoingEdges = nodesOnGraph.filter(node => changedRoutine.nodeLinks.every(link => link.fromId !== node.id));
         if (nodesWithoutOutgoingEdges.length >= 0) {
             // Check that every node without outgoing edges is an end node
@@ -198,9 +198,14 @@ export const BuildView = ({
         }
         // Performs checks which make the routine incomplete, but not invalid
         // 1. There are unpositioned nodes
-        // First check
+        // 2. Every routine list has at least one subroutine
+        // Check 1
         if (nodesOffGraph.length > 0) {
             statuses.push([Status.Incomplete, 'Some nodes are not linked']);
+        }
+        // Check 2
+        if (nodesOnGraph.some(node => node.type === NodeType.RoutineList && (node.data as NodeDataRoutineList).routines.length === 0)) {
+            statuses.push([Status.Incomplete, 'At least one routine list is empty']);
         }
         // Before returning, send the statuses to the status object
         if (statuses.length > 0) {
@@ -257,7 +262,7 @@ export const BuildView = ({
 
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
     const openLinkDialog = useCallback(() => setIsLinkDialogOpen(true), []);
-    const handleLinkDialogClose = useCallback((link?: NewObject<NodeLink>) => {
+    const handleLinkDialogClose = useCallback((link?: NodeLink) => {
         if (!changedRoutine) return;
         setIsLinkDialogOpen(false);
         // If no link data, return

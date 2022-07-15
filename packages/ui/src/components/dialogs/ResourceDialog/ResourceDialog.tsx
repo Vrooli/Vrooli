@@ -17,7 +17,7 @@ import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { resourceUpdate, resourceUpdateVariables } from 'graphql/generated/resourceUpdate';
 import { useCallback, useEffect, useState } from 'react';
 import { LanguageInput } from 'components/inputs';
-import { NewObject, Resource } from 'types';
+import { Resource } from 'types';
 import { v4 as uuid } from 'uuid';
 
 const helpText =
@@ -155,7 +155,7 @@ export const ResourceDialog = ({
                     })
                 }
             } else {
-                onCreated(input as NewObject<Resource>);
+                onCreated(input as Resource);
                 formik.resetForm();
                 onClose();
             }

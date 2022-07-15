@@ -839,7 +839,7 @@ export const RunView = ({
                     alignItems: 'center',
                 }}>
                     <Grid container spacing={2} sx={{
-                        maxWidth: '100%',
+                        maxWidth: '600px',
                         margin: 0,
                     }}>
                         {/* There are only ever 1 or 2 options shown. 

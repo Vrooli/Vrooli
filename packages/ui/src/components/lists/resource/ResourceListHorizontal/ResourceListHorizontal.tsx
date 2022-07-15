@@ -5,7 +5,7 @@ import { ResourceCard, ResourceListItemContextMenu } from 'components';
 import { ResourceListHorizontalProps } from '../types';
 import { containerShadow } from 'styles';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
-import { NewObject, Resource } from 'types';
+import { Resource } from 'types';
 import {
     Add as AddIcon,
 } from '@mui/icons-material';
@@ -29,7 +29,7 @@ export const ResourceListHorizontal = ({
 }: ResourceListHorizontalProps) => {
     const { palette } = useTheme();
 
-    const onAdd = useCallback((newResource: NewObject<Resource>) => {
+    const onAdd = useCallback((newResource: Resource) => {
         if (!list) return;
         if (handleUpdate) {
             handleUpdate({

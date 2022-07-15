@@ -102,11 +102,6 @@ export type IsInternalInput = {
  * new objects, rather than using queried data.
  */
 export type NoTypename<T> = T extends { __typename: string } ? Omit<T, '__typename'> : T;
-/**
- * Wrapper for removing __typename, and making id optional. Usefule when 
- * creating new objects, rather than using queried data.
- */
-export type NewObject<T> = T extends { __typename: string } ? Omit<T, '__typename' | 'id'> : T;
 
 
 // Routine-related props

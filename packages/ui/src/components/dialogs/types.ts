@@ -2,7 +2,7 @@ import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
 import { DeleteOneType } from '@local/shared';
-import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
+import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 import { ReportFor } from 'graphql/generated/globalTypes';
 import { ObjectType } from 'utils';
 
@@ -107,7 +107,7 @@ export interface ResourceDialogProps extends DialogProps {
      */
     mutate: boolean;
     onClose: () => any;
-    onCreated: (resource: NewObject<Resource>) => any;
+    onCreated: (resource: Resource) => any;
     open: boolean;
     onUpdated: (index: number, resource: Resource) => any;
     partialData?: Partial<Resource>;
@@ -174,7 +174,7 @@ export interface BaseObjectActionDialogProps {
 }
 
 export interface LinkDialogProps {
-    handleClose: (newLink?: NewObject<NodeLink>) => void;
+    handleClose: (newLink?: NodeLink) => void;
     handleDelete: (link: NodeLink) => void;
     isAdd: boolean;
     isOpen: boolean;

@@ -3,7 +3,7 @@
 import { ResourceDialog, ResourceListItem } from 'components';
 import { ResourceListVerticalProps } from '../types';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
-import { NewObject, Resource } from 'types';
+import { Resource } from 'types';
 import { containerShadow } from 'styles';
 import { Box, Button } from '@mui/material';
 import {
@@ -26,7 +26,7 @@ export const ResourceListVertical = ({
     zIndex,
 }: ResourceListVerticalProps) => {
 
-    const onAdd = useCallback((newResource: NewObject<Resource>) => {
+    const onAdd = useCallback((newResource: Resource) => {
         if (!list) return;
         if (handleUpdate) {
             handleUpdate({
