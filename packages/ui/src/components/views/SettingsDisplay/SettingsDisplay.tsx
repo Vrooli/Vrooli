@@ -64,7 +64,7 @@ export const SettingsDisplay = ({
         }]);
     }, [setHiddenTags]);
     const removeHiddenTag = useCallback((tag: TagShape) => {
-        setHiddenTags(tags => tags.filter(t => t.tag.tag !== tag.tag));
+        setHiddenTags(ht => ht.filter(t => t.tag.tag !== tag.tag));
     }, [setHiddenTags]);
     const clearHiddenTags = useCallback(() => {
         setHiddenTags([]);
@@ -81,7 +81,7 @@ export const SettingsDisplay = ({
             setStarredTags(profile.starredTags);
         }
         if (profile?.hiddenTags) {
-            setHiddenTags(profile.hiddenTags.map(t => t.tag as any));
+            setHiddenTags(profile.hiddenTags);
         }
     }, [profile]);
 

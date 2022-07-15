@@ -16,6 +16,7 @@ export interface listRunTagFields_translations {
 
 export interface listRunTagFields {
   __typename: "Tag";
+  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;

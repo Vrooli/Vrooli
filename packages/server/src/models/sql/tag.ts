@@ -36,6 +36,7 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
         objects: RecursivePartial<any>[],
         partial: PartialGraphQLInfo,
     ): Promise<RecursivePartial<Tag>[]> {
+        console.log('tag addsupplemental fields', JSON.stringify(partial), '\n\n')
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
@@ -45,6 +46,7 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
                 ? await StarModel(prisma).getIsStarreds(userId, ids, GraphQLModelType.Tag)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
+            console.log('got tag isstarreds', JSON.stringify(objects), '\n\n')
         }
         // Query for isOwn
         if (partial.isOwn) objects = objects.map((x) => ({ ...x, isOwn: Boolean(userId) && x.createdByUserId === userId }));
@@ -115,16 +117,25 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
         parentType: keyof typeof this.parentMapper,
         relationshipName: string = 'tags',
     ): Promise<{ [x: string]: any } | undefined> {
+        console.log('tag rel builder start', JSON.stringify(input), '\n\n', 'relname', relationshipName);
         // If any tag creates/connects, make sure they exist/not exist
-        const initialCreateTags = Array.isArray(input[`${relationshipName}Create`]) ? input[`${relationshipName}Create`].map((c: any) => c.tag) : [];
-        const initialConnectTags = Array.isArray(input[`${relationshipName}Connect`]) ? input[`${relationshipName}Connect`] : [];
+        const initialCreateTags = Array.isArray(input[`${relationshipName}Create`]) ? 
+            input[`${relationshipName}Create`].map((c: any) => c.tag) : 
+            typeof input[`${relationshipName}Create`] === 'object' ? [input[`${relationshipName}Create`].tag] : 
+            [];
+        const initialConnectTags = Array.isArray(input[`${relationshipName}Connect`]) ?
+            input[`${relationshipName}Connect`] :
+            typeof input[`${relationshipName}Connect`] === 'object' ? [input[`${relationshipName}Connect`]] :
+            [];
         const bothInitialTags = [...initialCreateTags, ...initialConnectTags];
+        console.log('tag rel builder both initial tags', bothInitialTags, '\n\n');
         if (bothInitialTags.length > 0) {
             // Query for all of the tags, to determine which ones exist
             const existingTags = await prisma.tag.findMany({
                 where: { tag: { in: bothInitialTags } },
                 select: { tag: true }
             });
+            console.log('tag rel builder existing tags', JSON.stringify(existingTags), '\n\n');
             // All existing tags are the new connects
             input[`${relationshipName}Connect`] = existingTags.map((t) => ({ tag: t.tag }));
             // All new tags are the new creates

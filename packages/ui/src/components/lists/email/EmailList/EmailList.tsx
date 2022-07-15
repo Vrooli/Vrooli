@@ -31,16 +31,17 @@ export const EmailList = ({
     const [addMutation, { loading: loadingAdd }] = useMutation<emailCreate, emailCreateVariables>(emailCreateMutation);
     const formik = useFormik({
         initialValues: {
-            email: '',
+            emailAddress: '',
         },
         enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
+            console.log('emaillist', values, formik, loadingAdd);
             if (!formik.isValid || loadingAdd) return;
             mutationWrapper({
                 mutation: addMutation,
                 input: {
-                    emailAddress: values.email,
+                    emailAddress: values.emailAddress,
                     receivesAccountUpdates: true,
                     receivesBusinessUpdates: true,
                 },
@@ -143,14 +144,14 @@ export const EmailList = ({
                 <TextField
                     autoComplete='email'
                     fullWidth
-                    id="email"
-                    name="email"
+                    id="emailAddress"
+                    name="emailAddress"
                     label="New Email Address"
-                    value={formik.values.email}
+                    value={formik.values.emailAddress}
                     onBlur={formik.handleBlur}
                     onChange={formik.handleChange}
-                    error={formik.touched.email && Boolean(formik.errors.email)}
-                    helperText={formik.touched.email && formik.errors.email}
+                    error={formik.touched.emailAddress && Boolean(formik.errors.emailAddress)}
+                    helperText={formik.touched.emailAddress && formik.errors.emailAddress}
                     sx={{
                         height: '56px',
                         maxWidth: '400px',
@@ -158,7 +159,7 @@ export const EmailList = ({
                 />
                 <IconButton
                     aria-label='add-new-email-button'
-                    onClick={() => { formik.handleSubmit() }}
+                    type='submit'
                     sx={{
                         background: palette.secondary.main,
                         borderRadius: '0 5px 5px 0',

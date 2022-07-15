@@ -21,7 +21,9 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
     async toDBShapeAdd(userId: string, data: TagHiddenCreateInput, isRelationship: boolean): Promise<any> {
         // Tags are built as many-to-many, but in this case we want a one-to-one relationship. 
         // So we must modify the data a bit.
+        console.log('taghidden toDBShapeAdd start', JSON.stringify(data), '\n\n');
         const tagData = await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.TagHidden, 'tag');
+        console.log('taghidden toDBShapeAdd end', JSON.stringify(tagData), '\n\n');
         let tag: any = tagData && Array.isArray(tagData.create) ? tagData.create[0].tag : undefined;
         return {
             id: data.id,

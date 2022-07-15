@@ -2,6 +2,7 @@ import { gql } from 'graphql-tag';
 
 export const listStandardFields = gql`
     fragment listStandardTagFields on Tag {
+        id
         created_at
         isStarred
         stars

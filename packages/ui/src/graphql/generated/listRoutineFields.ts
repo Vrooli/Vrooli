@@ -18,6 +18,7 @@ export interface listRoutineFields_tags_translations {
 
 export interface listRoutineFields_tags {
   __typename: "Tag";
+  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;

@@ -209,6 +209,7 @@ const starrer = (prisma: PrismaType) => ({
                 result[i] = true;
             }
         }
+        console.log('getisstarreds result', result);
         return result;
     },
 })

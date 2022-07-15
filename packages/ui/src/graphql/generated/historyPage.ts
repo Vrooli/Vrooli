@@ -18,6 +18,7 @@ export interface historyPage_historyPage_activeRuns_routine_tags_translations {
 
 export interface historyPage_historyPage_activeRuns_routine_tags {
   __typename: "Tag";
+  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -75,6 +76,7 @@ export interface historyPage_historyPage_completedRuns_routine_tags_translations
 
 export interface historyPage_historyPage_completedRuns_routine_tags {
   __typename: "Tag";
+  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -387,6 +389,7 @@ export interface historyPage_historyPage_recentlyStarred_to_Organization_tags_tr
 
 export interface historyPage_historyPage_recentlyStarred_to_Organization_tags {
   __typename: "Tag";
+  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -422,6 +425,7 @@ export interface historyPage_historyPage_recentlyStarred_to_Project_tags_transla
 
 export interface historyPage_historyPage_recentlyStarred_to_Project_tags {
   __typename: "Tag";
+  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -459,6 +463,7 @@ export interface historyPage_historyPage_recentlyStarred_to_Routine_tags_transla
 
 export interface historyPage_historyPage_recentlyStarred_to_Routine_tags {
   __typename: "Tag";
+  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -503,6 +508,7 @@ export interface historyPage_historyPage_recentlyStarred_to_Standard_tags_transl
 
 export interface historyPage_historyPage_recentlyStarred_to_Standard_tags {
   __typename: "Tag";
+  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;

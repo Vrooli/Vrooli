@@ -9,7 +9,6 @@ import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink
 import { useLocation } from 'wouter';
 import { APP_LINKS, isEqual, uniqBy } from '@local/shared';
 import { NodeType } from 'graphql/generated/globalTypes';
-import { v4 as uuid } from 'uuid';
 import { BaseObjectAction } from 'components/dialogs/types';
 import { owns } from 'utils/authentication';
 import { BuildViewProps } from '../types';
@@ -19,7 +18,7 @@ import {
     Compress as CleanUpIcon,
     Edit as EditIcon,
 } from '@mui/icons-material';
-import { validate as uuidValidate } from 'uuid';
+import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { StatusMessageArray } from 'components/buttons/types';
 import { StatusButton } from 'components/buttons';
 import { routineUpdate, routineUpdateVariables } from 'graphql/generated/routineUpdate';
@@ -316,7 +315,7 @@ export const BuildView = ({
         }
         mutationWrapper({
             mutation: routineCreate,
-            input: shapeRoutineCreate(changedRoutine),
+            input: shapeRoutineCreate({ ...changedRoutine, id: uuid() }),
             successMessage: () => 'Routine created.',
             onSuccess: ({ data }) => {
                 onChange(data.routineCreate);

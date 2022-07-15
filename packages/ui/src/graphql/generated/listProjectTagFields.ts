@@ -16,6 +16,7 @@ export interface listProjectTagFields_translations {
 
 export interface listProjectTagFields {
   __typename: "Tag";
+  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;

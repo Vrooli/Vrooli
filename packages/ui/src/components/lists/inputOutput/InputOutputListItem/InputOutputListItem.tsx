@@ -93,6 +93,7 @@ export const InputOutputListItem = ({
     const onSwitchChange = useCallback((s: Standard | null) => {
         setSchema(null);
         setStandard(s);
+        if (s) setIsPreviewOn(true);
     }, []);
 
     /**

@@ -18,6 +18,7 @@ export interface researchPage_researchPage_processes_tags_translations {
 
 export interface researchPage_researchPage_processes_tags {
   __typename: "Tag";
+  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -64,6 +65,7 @@ export interface researchPage_researchPage_newlyCompleted_Project_tags_translati
 
 export interface researchPage_researchPage_newlyCompleted_Project_tags {
   __typename: "Tag";
+  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -103,6 +105,7 @@ export interface researchPage_researchPage_newlyCompleted_Routine_tags_translati
 
 export interface researchPage_researchPage_newlyCompleted_Routine_tags {
   __typename: "Tag";
+  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -151,6 +154,7 @@ export interface researchPage_researchPage_needVotes_tags_translations {
 
 export interface researchPage_researchPage_needVotes_tags {
   __typename: "Tag";
+  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -190,6 +194,7 @@ export interface researchPage_researchPage_needInvestments_tags_translations {
 
 export interface researchPage_researchPage_needInvestments_tags {
   __typename: "Tag";
+  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -229,6 +234,7 @@ export interface researchPage_researchPage_needMembers_tags_translations {
 
 export interface researchPage_researchPage_needMembers_tags {
   __typename: "Tag";
+  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;

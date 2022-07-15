@@ -16,6 +16,7 @@ export interface listOrganizationTagFields_translations {
 
 export interface listOrganizationTagFields {
   __typename: "Tag";
+  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
