@@ -15,7 +15,7 @@ import { initializeRedis } from './redisConn';
 
 const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
     `http://localhost:5329/api` :
-    `https://app.vrooli.com/api`;
+    process.env.SERVER_URL ?? `http://${process.env.SITE_IP}:5329/api`;
 
 const main = async () => {
     logger.log(LogLevel.info, 'Starting server...');
@@ -70,15 +70,18 @@ const main = async () => {
         origins.push(
             /^http:\/\/localhost(?::[0-9]+)?$/,
             /^http:\/\/192.168.0.[0-9]{1,2}(?::[0-9]+)?$/,
-            'https://studio.apollographql.com'
+            'https://studio.apollographql.com',
+            new RegExp(`^http(s)?:\/\/${process.env.SITE_IP}(?::[0-9]+)?$`),
         )
     }
     else {
+        // Parse URLs from process.env.VIRTUAL_HOST
+        const domains = (process.env.VIRTUAL_HOST ?? '').split(',');
+        for (const domain of domains) {
+            origins.push(new RegExp(`^http(s)?:\/\/${domain}$`));
+        }
         origins.push(
-            `http://app.vrooli.com`,
-            `http://www.app.vrooli.com`,
-            `https://app.vrooli.com`,
-            `https://www.app.vrooli.com`,
+            new RegExp(`^http(s)?:\/\/${process.env.SITE_IP}(?::[0-9]+)?$`),
         )
     }
     app.use(cors({

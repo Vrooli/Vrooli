@@ -31,6 +31,8 @@ cd ${HERE}/../packages/server
 
 # Make copy of schema.prisma file
 cp src/db/schema.prisma src/db/schema.prisma.bak
+# Set trap to restore schema.prisma file on exit
+trap "mv src/db/schema.prisma.bak src/db/schema.prisma && rm src/db/schema.prisma.bak" EXIT
 # Replace DB_URL in schema.prisma file
 sed -i "s|env(\"DB_URL\")|\"${DB_URL}\"|g" src/db/schema.prisma
 head -n 20 src/db/schema.prisma
@@ -48,8 +50,3 @@ for migration in $(ls -d ./src/db/migrations/*/); do
         break
     fi
 done
-
-# Restore schema.prisma file
-cp src/db/schema.prisma.bak src/db/schema.prisma
-# Remove backup file
-rm src/db/schema.prisma.bak
