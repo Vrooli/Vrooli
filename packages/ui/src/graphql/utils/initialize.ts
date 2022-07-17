@@ -42,7 +42,7 @@ const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
     }
     // If running on server
     else {
-        uri = process.env.REACT_APP_SERVER_URL ?
+        uri = process.env.REACT_APP_SERVER_URL && process.env.REACT_APP_SERVER_URL.length > 0 ?
             `${process.env.REACT_APP_SERVER_URL}/v1` :
             `http://${process.env.REACT_APP_SITE_IP}:${process.env.REACT_APP_PORT_SERVER ?? '5329'}/api/v1`;
     }
