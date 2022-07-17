@@ -11,16 +11,11 @@ cd ${PROJECT_DIR}/packages/server
 if [ "${DB_PULL}" = true ]; then
     echo 'Generating schema.prisma file from database'
     prisma db pull
-fi
-if [ "${DB_PUSH}" = true ]; then
-    echo 'Updating database to match schema.prisma file'
-    prisma db push
-fi
-# If production and database migrations exist, migrate to latest
-if [ "${NODE_ENV}" = "production" ] && [ "$(ls -A src/db/migrations)" ]; then
-    echo 'Environment is set to production, so migrating to latest database'
+else 
+    echo 'Running migrations'
     prisma migrate deploy
 fi
+
 echo 'Generating Prisma schema'
 prisma generate
 
