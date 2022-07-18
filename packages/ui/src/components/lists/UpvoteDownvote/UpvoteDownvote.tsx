@@ -91,7 +91,10 @@ export const UpvoteDownvote = ({
                     }}
                 >
                     <svg width="36" height="36">
-                        <path d="M2 26h32L18 10 2 26z" fill={upvoteColor}></path>
+                        <path
+                            d={direction === 'column' ? "M2 26h32L18 10 2 26z" : "M6 26h24L18 6 6 26z"}
+                            fill={upvoteColor}
+                        ></path>
                     </svg>
                 </Box>
             </Tooltip>
@@ -114,7 +117,10 @@ export const UpvoteDownvote = ({
                     }}
                 >
                     <svg width="36" height="36">
-                        <path d="M2 10h32L18 26 2 10z" fill={downvoteColor}></path>
+                        <path
+                            d={direction === 'column' ? "M2 10h32L18 26 2 10z" : "M6 6h24L18 26 6 6z"}
+                            fill={downvoteColor}
+                        ></path>
                     </svg>
                 </Box>
             </Tooltip>

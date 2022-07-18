@@ -270,14 +270,15 @@ export const ProjectView = ({
                 }
                 {/* Description */}
                 {
-                    loading ? (
+                    loading && (
                         <Stack sx={{ width: '85%', color: 'grey.500' }} spacing={2}>
                             <LinearProgress color="inherit" />
                             <LinearProgress color="inherit" />
                         </Stack>
-                    ) : (
-                        <Typography variant="body1" sx={{ color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary }}>{description ?? 'No description set'}</Typography>
                     )
+                }
+                {
+                    !loading && Boolean(description) && <Typography variant="body1" sx={{ color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary }}>{description}</Typography>
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
                     <Tooltip title="Donate">

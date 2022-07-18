@@ -11,6 +11,7 @@ import { CommentThreadProps } from "../types";
  * To the left of this is a CommentConnector item, which is a collapsible line.
  */
 export const CommentThread = ({
+    canOpen,
     data,
     language,
     session,
@@ -43,6 +44,7 @@ export const CommentThread = ({
         return childData.map((child, index) => {
             return <CommentThread
                 key={`thread-${data.comment.id}-${index}`}
+                canOpen={canOpen && isOpen}
                 data={{
                     ...child,
                     childThreads: [],
@@ -52,9 +54,9 @@ export const CommentThread = ({
                 zIndex={zIndex}
             />;
         });
-    }, [childData, data, language, session, zIndex]);
+    }, [canOpen, childData, data, isOpen, language, session, zIndex]);
 
-    return data ? (
+    return data && canOpen ? (
         <Stack direction="row" spacing={1} pl={2} pr={2}>
             {/* Comment connector */}
             <CommentConnector

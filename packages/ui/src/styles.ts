@@ -15,7 +15,7 @@ export const centeredDiv: SxProps = {
 //==============================================================
 /* #region Shadows */
 //==============================================================
-export const containerShadow: SxProps = {
+export const containerShadow = {
     boxShadow: '0px 0px 12px gray',
 };
 

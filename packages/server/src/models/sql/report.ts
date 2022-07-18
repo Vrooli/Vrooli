@@ -80,13 +80,13 @@ export const reportVerifier = () => ({
 })
 
 const forMapper = {
-    [ReportFor.Comment]: 'commentId',
-    [ReportFor.Organization]: 'organizationId',
-    [ReportFor.Project]: 'projectId',
-    [ReportFor.Routine]: 'routineId',
-    [ReportFor.Standard]: 'standardId',
-    [ReportFor.Tag]: 'tagId',
-    [ReportFor.User]: 'userId',
+    [ReportFor.Comment]: 'comment',
+    [ReportFor.Organization]: 'organization',
+    [ReportFor.Project]: 'project',
+    [ReportFor.Routine]: 'routine',
+    [ReportFor.Standard]: 'standard',
+    [ReportFor.Tag]: 'tag',
+    [ReportFor.User]: 'user',
 }
 
 export const reportMutater = (prisma: PrismaType, verifier: ReturnType<typeof reportVerifier>) => ({
@@ -95,8 +95,8 @@ export const reportMutater = (prisma: PrismaType, verifier: ReturnType<typeof re
             id: data.id,
             reason: data.reason,
             details: data.details,
-            fromId: userId,
-            [forMapper[data.createdFor]]: data.createdForId,
+            from: { connect: { id: userId } },
+            [forMapper[data.createdFor]]: { connect: { id: data.createdForId } },
         }
     },
     async toDBShapeUpdate(userId: string | null, data: ReportUpdateInput): Promise<any> {
@@ -119,7 +119,7 @@ export const reportMutater = (prisma: PrismaType, verifier: ReturnType<typeof re
                 const existingReport = await prisma.report.count({
                     where: {
                         fromId: userId as string,
-                        [forMapper[input.createdFor]]: input.createdForId,
+                        [`${forMapper[input.createdFor]}Id`]: input.createdForId,
                     }
                 })
                 if (existingReport > 0) {

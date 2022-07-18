@@ -161,14 +161,14 @@ export const StandardView = ({
                     {/* Resources */}
                     {resourceList}
                     {/* Description */}
-                    <Box sx={{
+                    {Boolean(description) && <Box sx={{
                         padding: 1,
                         borderRadius: 1,
                         color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary,
                     }}>
                         <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Description</Typography>
-                        <Typography variant="body1">{description ?? 'No description set'}</Typography>
-                    </Box>
+                        <Typography variant="body1">{description}</Typography>
+                    </Box>}
                     {/* Build/Preview switch */}
                     <PreviewSwitch
                         isPreviewOn={isPreviewOn}

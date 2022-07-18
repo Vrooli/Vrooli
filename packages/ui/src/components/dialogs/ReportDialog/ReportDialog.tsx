@@ -1,5 +1,5 @@
 import { useMutation } from '@apollo/client';
-import { reportCreate as validationSchema } from '@local/shared';
+import { reportCreateForm as validationSchema } from '@local/shared';
 import { Box, Button, Dialog, Grid, IconButton, Stack, TextField, Typography, useTheme } from '@mui/material';
 import { HelpButton } from 'components/buttons';
 import { useFormik } from 'formik';
@@ -72,7 +72,7 @@ export const ReportDialog = ({
                 input: {
                     id: uuid(),
                     language,
-                    reason: values.otherReason.length > 0 ? values.otherReason : values.reason,
+                    reason: Boolean(values.otherReason) ? values.otherReason : values.reason,
                     createdFor: reportFor,
                     createdForId: forId
                 },

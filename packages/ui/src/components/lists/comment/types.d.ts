@@ -8,6 +8,7 @@ export interface CommentConnectorProps {
 }
 
 export interface CommentThreadProps {
+    canOpen: boolean;
     data: CommentThread | null;
     language: string;
     session: Session;

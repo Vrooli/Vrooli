@@ -15,7 +15,9 @@ import { initializeRedis } from './redisConn';
 
 const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
     `http://localhost:5329/api` :
-    (process.env.SERVER_URL && process.env.SERVER_URL.length > 0) ?? `http://${process.env.SITE_IP}:5329/api`;
+    Boolean(process.env.SERVER_URL) ?
+        process.env.SERVER_URL :
+        `http://${process.env.SITE_IP}:5329/api`;
 
 const main = async () => {
     logger.log(LogLevel.info, 'Starting server...');

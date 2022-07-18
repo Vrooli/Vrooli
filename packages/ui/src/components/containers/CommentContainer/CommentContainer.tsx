@@ -136,7 +136,7 @@ export function CommentContainer({
         // fields in both otherParams and allAdvancedSearchParams should be the new advanced search params
         const advancedData = Object.keys(otherParams).filter(k => allAdvancedSearchParams.includes(k));
         setAdvancedSearchParams(advancedData.reduce((acc, k) => ({ ...acc, [k]: otherParams[k] }), {}));
-    }, [advancedSearchSchema.fields, searchParams]);
+    }, [searchParams]);
 
     // Handle advanced search dialog
     const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(false);
@@ -231,10 +231,8 @@ export function CommentContainer({
         <Box
             id="comments"
             sx={{
-                ...containerShadow,
-                borderRadius: '8px',
                 overflow: 'overlay',
-                background: palette.background.default,
+                background: palette.background.paper,
                 width: 'min(100%, 700px)',
                 ...(sxs?.root ?? {}),
             }}
@@ -274,6 +272,7 @@ export function CommentContainer({
                 {allData.map((thread, index) => (
                     <CommentThread
                         key={index}
+                        canOpen={true}
                         data={thread}
                         language={language}
                         session={session}
