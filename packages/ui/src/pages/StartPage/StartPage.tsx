@@ -9,8 +9,6 @@ import {
     Box,
     Button,
     Dialog,
-    ListItem,
-    ListItemText,
     Stack,
     SxProps,
     Typography,
@@ -18,10 +16,10 @@ import {
 } from '@mui/material';
 import { Forms, PubSub, useReactSearch } from 'utils';
 import { APP_LINKS, CODE } from '@local/shared';
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { hasWalletExtension, validateWallet, WalletProvider, walletProviderInfo } from 'utils/authentication/walletIntegration';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
 import { ROLES } from '@local/shared';
-import { HelpButton } from 'components';
+import { HelpButton, WalletInstallDialog, WalletSelectDialog } from 'components';
 import {
     LogInForm,
     ForgotPasswordForm,
@@ -39,7 +37,7 @@ import { guestLogIn } from 'graphql/generated/guestLogIn';
 const helpText =
     `Logging in allows you to vote, save favorites, and contribute to the community.
 
-Choose **WALLET** if you are on a browser with a supported extension (currently [Eternl (aka CCVault.io)](https://ccvault.io/app/mainnet/faq), [Nami](https://namiwallet.io/), and [Yoroi](https://yoroi-wallet.com/#/)). This will not cost any money, but requires the signing of a message to verify that you own the wallet. Wallets will be utilized in the future to support user donations and execute routines tied to smart contracts.
+Choose **WALLET** if you are on a browser with a supported extension. This will not cost any money, but requires the signing of a message to verify that you own the wallet. Wallets will be utilized in the future to support user donations and execute routines tied to smart contracts.
 
 Choose **EMAIL** if you are on mobile or do not have a Nami account. A wallet can be associated with your account later.
 
@@ -116,26 +114,11 @@ export const StartPage = ({
         }
     }, [emailLogIn, verificationCode, redirect, session.id, setLocation])
 
-    // Wallet provider select popup
-    const [providerOpen, setProviderPopupOpen] = useState(false);
-    const [walletDialogFor, setWalletDialogFor] = useState<'connect' | 'download'>('connect');
-    const openWalletConnectDialog = useCallback((ev?: MouseEvent<HTMLButtonElement>) => {
-        setWalletDialogFor('connect');
-        setProviderPopupOpen(true);
-        ev?.preventDefault();
-    }, []);
-    const openWalletDownloadDialog = useCallback((ev?: MouseEvent<HTMLButtonElement>) => {
-        setWalletDialogFor('download');
-        setProviderPopupOpen(true);
-        ev?.preventDefault();
-    }, []);
-
-    // Opens link to install wallet extension
-    const downloadExtension = useCallback((provider: WalletProvider) => {
-        const extensionUrl = walletProviderInfo[provider].extensionUrl;
-        window.open(extensionUrl, '_blank', 'noopener,noreferrer');
-    }, [])
-
+    // Wallet provider popups
+    const [connectOpen, setConnectOpen] = useState(false);
+    const [installOpen, setInstallOpen] = useState(false);
+    const openWalletConnectDialog = useCallback(() => { setConnectOpen(true) }, []);
+    const openWalletInstallDialog = useCallback(() => { setInstallOpen(true) }, []);
 
     const toEmailLogIn = useCallback(() => {
         setPopupForm(Forms.LogIn);
@@ -151,21 +134,21 @@ export const StartPage = ({
     // 4. Sign human-readable message (which includes nonce) using wallet
     // 5. Send signed message to backend for verification
     // 6. Receive JWT and user session
-    const walletLogin = useCallback(async (provider: WalletProvider) => {
+    const walletLogin = useCallback(async (providerKey: string) => {
         // Check if wallet extension installed
-        if (!hasWalletExtension(provider)) {
+        if (!hasWalletExtension(providerKey)) {
             PubSub.get().publishAlertDialog({
                 message: 'Wallet provider not found. Please verify that you are using a Chromium browser (e.g. Chrome, Brave), and that the Nami wallet extension is installed.',
                 buttons: [
                     { text: 'Try Again', onClick: openWalletConnectDialog },
-                    { text: 'Install Wallet', onClick: openWalletDownloadDialog },
+                    { text: 'Install Wallet', onClick: openWalletInstallDialog },
                     { text: 'Email Login', onClick: toEmailLogIn },
                 ]
             });
             return;
         }
         // Validate wallet
-        const walletCompleteResult = await validateWallet(provider);
+        const walletCompleteResult = await validateWallet(providerKey);
         if (walletCompleteResult?.session) {
             PubSub.get().publishSnack({ message: 'Wallet verified.', severity: 'success' })
             // Set actor role
@@ -173,7 +156,7 @@ export const StartPage = ({
             // Redirect to main dashboard
             setLocation(walletCompleteResult?.firstLogIn ? APP_LINKS.Welcome : (redirect ?? APP_LINKS.Home));
         }
-    }, [openWalletConnectDialog, openWalletDownloadDialog, toEmailLogIn, setLocation, redirect])
+    }, [openWalletConnectDialog, openWalletInstallDialog, toEmailLogIn, setLocation, redirect])
 
     const requestGuestToken = useCallback(() => {
         mutationWrapper({
@@ -181,7 +164,7 @@ export const StartPage = ({
             onSuccess: () => {
                 let theme: string = 'light';
                 if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) theme = 'dark';
-                PubSub.get().publishSession({ 
+                PubSub.get().publishSession({
                     roles: [ROLES.Guest],
                     theme,
                 })
@@ -190,17 +173,14 @@ export const StartPage = ({
         })
     }, [guestLogIn, setLocation, redirect]);
 
-    const handleProviderClose = useCallback(() => {
-        setProviderPopupOpen(false);
-    }, [])
-    const handleWalletDialogSelect = useCallback((selected: WalletProvider) => {
-        if (walletDialogFor === 'connect') {
-            walletLogin(selected);
-        } else if (walletDialogFor === 'download') {
-            downloadExtension(selected);
+    const closeWalletConnectDialog = useCallback((providerKey: string | null) => { 
+        setConnectOpen(false);
+        if (providerKey) {
+            walletLogin(providerKey);
         }
-        handleProviderClose();
-    }, [walletDialogFor, walletLogin, downloadExtension, handleProviderClose])
+    }, [walletLogin]);
+
+    const closeWalletInstallDialog = useCallback(() => { setInstallOpen(false) }, []);
 
     return (
         <Box
@@ -210,30 +190,17 @@ export const StartPage = ({
                 minHeight: '100vh', //Fullscreen
             }}
         >
-            <Dialog
-                open={providerOpen}
-                disableScrollLock={true}
-                onClose={handleProviderClose}
-            >
-                <Box
-                    sx={{
-                        width: '100',
-                        borderRadius: '4px 4px 0 0',
-                        padding: 1,
-                        paddingLeft: 2,
-                        paddingRight: 2,
-                        background: palette.primary.dark,
-                        color: 'white',
-                    }}
-                >
-                    <Typography variant="h6" textAlign="center">Select Wallet</Typography>
-                </Box>
-                {Object.values(walletProviderInfo).map((o, index) => (
-                    <ListItem button onClick={() => handleWalletDialogSelect(o.enum)} key={index}>
-                        <ListItemText primary={o.label} />
-                    </ListItem>
-                ))}
-            </Dialog>
+            <WalletSelectDialog
+                handleOpenInstall={openWalletInstallDialog}
+                open={connectOpen}
+                onClose={closeWalletConnectDialog}
+                zIndex={200}
+            />
+            <WalletInstallDialog
+                open={installOpen}
+                onClose={closeWalletInstallDialog}
+                zIndex={connectOpen ? 201 : 200}
+            />
             <Box
                 sx={{
                     width: 'min(100%, 500px)',

@@ -282,3 +282,16 @@ export interface RunPickerDialogProps {
     routine?: Routine | null;
     session: Session;
 }
+
+export interface WalletInstallDialogProps {
+    onClose: () => any;
+    open: boolean;
+    zIndex: number;
+}
+
+export interface WalletSelectDialogProps {
+    handleOpenInstall: () => any;
+    onClose: (selectedKey: string | null) => any;
+    open: boolean;
+    zIndex: number;
+}

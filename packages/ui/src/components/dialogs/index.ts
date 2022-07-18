@@ -21,3 +21,5 @@ export * from './StandardDialog/StandardDialog';
 export * from './ShareDialog/ShareDialog';
 export * from './UnlinkedNodesDialog/UnlinkedNodesDialog';
 export * from './UserDialog/UserDialog';
+export * from './WalletInstallDialog/WalletInstallDialog';
+export * from './WalletSelectDialog/WalletSelectDialog';
