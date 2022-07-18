@@ -2,6 +2,7 @@ import { BoxProps, InputProps, SelectProps, TextFieldProps, UseSwitchProps } fro
 import { JSONVariable } from 'forms/types';
 import { ChangeEvent } from 'react';
 import { Organization, Session, Standard, Tag } from 'types';
+import { TagShape } from 'utils';
 
 export interface AutocompleteSearchBarProps extends SearchBarProps {
     debounce?: number;
@@ -270,25 +271,22 @@ export interface SelectorProps extends SelectProps {
 
 export interface StandardSelectSwitchProps extends UseSwitchProps {
     session: Session;
-    selected: Standard | null;
+    selected: {
+        name: Standard['name']
+    } | null;
     onChange: (value: Standard | null) => any;
     disabled?: boolean;
     zIndex: number;
 }
 
-// Tag object which may not exist in the database
-export type TagSelectorTag = Partial<Tag> & {
-    tag: string
-}
-
 export interface TagSelectorProps {
     disabled?: boolean;
-    onTagAdd: (tag: TagSelectorTag) => any;
-    onTagRemove: (tag: TagSelectorTag) => any;
+    onTagAdd: (tag: TagShape | Tag) => any;
+    onTagRemove: (tag: TagShape) => any;
     onTagsClear: () => any;
     placeholder?: string;
     session: Session;
-    tags: TagSelectorTag[];
+    tags: (TagShape | Tag)[];
 }
 
 export interface ThemeSwitchProps {

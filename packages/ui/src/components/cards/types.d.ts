@@ -1,21 +1,4 @@
-import { 
-    Organization,
-    Project,
-    Resource,
-    RoutineShallow,
-    Standard,
-    User 
-} from 'types';
-
-export interface OrganizationCardProps {
-    data: Organization;
-    onClick?: (id: string) => void;
-}
-
-export interface ProjectCardProps {
-    data: Project;
-    onClick?: (id: string) => void;
-}
+import { Resource } from 'types';
 
 export interface ResourceCardProps {
     canEdit: boolean;
@@ -27,23 +10,8 @@ export interface ResourceCardProps {
     session: Session;
 }
 
-export interface RoutineCardProps {
-    data: RoutineShallow;
-    onClick?: (id: string) => void;
-}
-
-export interface StandardCardProps {
-    data: Standard;
-    onClick?: (id: string) => void;
-}
-
 export interface StatCardProps {
     title?: string;
     data: any;
     index: number;
-}
-
-export interface UserCardProps {
-    data: User;
-    onClick?: (id: string) => void;
 }

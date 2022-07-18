@@ -25,13 +25,14 @@ export const typeDef = gql`
     }
 
     input ProjectCreateInput {
-        id: ID
+        id: ID!
         createdByOrganizationId: ID
         createdByUserId: ID
+        handle: String
         isComplete: Boolean
         parentId: ID
         resourceListsCreate: [ResourceListCreateInput!]
-        tagsConnect: [ID!]
+        tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
         translationsCreate: [ProjectTranslationCreateInput!]
     }
@@ -40,13 +41,12 @@ export const typeDef = gql`
         handle: String
         isComplete: Boolean
         organizationId: ID
-        parentId: ID
         userId: ID
         resourceListsDelete: [ID!]
         resourceListsCreate: [ResourceListCreateInput!]
         resourceListsUpdate: [ResourceListUpdateInput!]
-        tagsConnect: [ID!]
-        tagsDisconnect: [ID!]
+        tagsConnect: [String!]
+        tagsDisconnect: [String!]
         tagsCreate: [TagCreateInput!]
         translationsDelete: [ID!]
         translationsCreate: [ProjectTranslationCreateInput!]
@@ -83,7 +83,7 @@ export const typeDef = gql`
     }
 
     input ProjectTranslationCreateInput {
-        id: ID
+        id: ID!
         language: String!
         description: String
         name: String!

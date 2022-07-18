@@ -1,8 +1,8 @@
 import { useMutation } from "@apollo/client";
-import { copy } from 'graphql/generated/copy';
-import { fork } from 'graphql/generated/fork';
-import { star } from 'graphql/generated/star';
-import { vote } from 'graphql/generated/vote';
+import { copy, copyVariables } from 'graphql/generated/copy';
+import { fork, forkVariables } from 'graphql/generated/fork';
+import { star, starVariables } from 'graphql/generated/star';
+import { vote, voteVariables } from 'graphql/generated/vote';
 import { copyMutation, forkMutation, starMutation, voteMutation } from "graphql/mutation";
 import { useCallback, useMemo, useState } from "react";
 import { ReportFor, StarFor, VoteFor } from "@local/shared";
@@ -26,7 +26,8 @@ import {
     SvgIconComponent,
 } from "@mui/icons-material";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
-import { Pubs } from "utils";
+import { PubSub } from "utils";
+import { CopyType, ForkType } from "graphql/generated/globalTypes";
 
 /**
  * [label, Icon, iconColor, preview]
@@ -80,28 +81,40 @@ export const BaseObjectActionDialog = ({
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
     // Mutations
-    const [copy] = useMutation<copy>(copyMutation);
-    const [fork] = useMutation<fork>(forkMutation);
-    const [star] = useMutation<star>(starMutation);
-    const [vote] = useMutation<vote>(voteMutation);
+    const [copy] = useMutation<copy, copyVariables>(copyMutation);
+    const [fork] = useMutation<fork, forkVariables>(forkMutation);
+    const [star] = useMutation<star, starVariables>(starMutation);
+    const [vote] = useMutation<vote, voteVariables>(voteMutation);
 
     const handleCopy = useCallback(() => {
+        // Check if objectType can be converted to CopyType
+        const copyType = CopyType[objectType];
+        if (!copyType) {
+            PubSub.get().publishSnack({ message: 'Copy not supported on this object type.', severity: 'error' });
+            return;
+        }
         mutationWrapper({
             mutation: copy,
-            input: { id: objectId, objectType },
+            input: { id: objectId, objectType: copyType },
             onSuccess: ({ data }) => {
-                PubSub.publish(Pubs.Snack, { message: `${objectName} copied.`, severity: 'success' });
+                PubSub.get().publishSnack({ message: `${objectName} copied.`, severity: 'success' });
                 handleActionComplete(BaseObjectAction.Copy, data);
             },
         })
     }, [copy, handleActionComplete, objectId, objectName, objectType]);
 
     const handleFork = useCallback(() => {
+        // Check if objectType can be converted to ForkType
+        const forkType = ForkType[objectType];
+        if (!forkType) {
+            PubSub.get().publishSnack({ message: 'Fork not supported on this object type.', severity: 'error' });
+            return;
+        }
         mutationWrapper({
             mutation: fork,
-            input: { id: objectId, objectType },
+            input: { id: objectId, objectType: forkType },
             onSuccess: ({ data }) => {
-                PubSub.publish(Pubs.Snack, { message: `${objectName} forked.`, severity: 'success' });
+                PubSub.get().publishSnack({ message: `${objectName} forked.`, severity: 'success' });
                 handleActionComplete(BaseObjectAction.Fork, data);
             }
         })

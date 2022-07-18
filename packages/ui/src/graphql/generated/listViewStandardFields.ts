@@ -18,7 +18,6 @@ export interface listViewStandardFields_tags_translations {
 
 export interface listViewStandardFields_tags {
   __typename: "Tag";
-  id: string;
   created_at: any;
   isStarred: boolean;
   stars: number;
@@ -31,6 +30,7 @@ export interface listViewStandardFields_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface listViewStandardFields {

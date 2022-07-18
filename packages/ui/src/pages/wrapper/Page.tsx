@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { APP_LINKS } from '@local/shared';
 import { useLocation, Redirect } from 'wouter';
-import { Pubs } from 'utils';
 import { PageProps } from './types';
+import { PubSub } from 'utils';
 
 export const Page = ({
     children,
@@ -24,7 +24,7 @@ export const Page = ({
             if (session.roles.some(r => restrictedToRoles.includes(r))) return children;
         }
         if (sessionChecked && location !== redirect) { 
-            PubSub.publish(Pubs.Snack, { message: 'Page restricted. Please log in', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Page restricted. Please log in', severity: 'error' });
             return <Redirect to={redirect} />
         }
         return null;

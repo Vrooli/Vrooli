@@ -1,10 +1,10 @@
 import {
     Box,
-    Button,
     Dialog,
     DialogContent,
     IconButton,
     Stack,
+    Tooltip,
     Typography,
     useTheme
 } from '@mui/material';
@@ -44,7 +44,7 @@ export const OrganizationSelectOrCreateDialog = ({
     /**
      * Before closing, remove all URL search params for advanced search
      */
-     const onClose = useCallback(() => {
+    const onClose = useCallback(() => {
         // Find all search fields
         const searchFields = [
             ...organizationSearchSchema.fields.map(f => f.fieldName),
@@ -138,18 +138,30 @@ export const OrganizationSelectOrCreateDialog = ({
                 onAction={handleCreateClose}
                 open={isCreateOpen}
                 title={"Create Organization"}
-                zIndex={zIndex+1}
+                zIndex={zIndex + 1}
             >
                 <OrganizationCreate
                     onCreated={handleCreated}
                     onCancel={handleCreateClose}
                     session={session}
-                    zIndex={zIndex+1}
+                    zIndex={zIndex + 1}
                 />
             </BaseObjectDialog>
             {titleBar}
             <DialogContent>
-                <Stack direction="column" spacing={4}>
+                <Stack direction="column" spacing={2}>
+                    <Stack direction="row" alignItems="center" justifyContent="center">
+                        <Typography component="h2" variant="h4">Organizations</Typography>
+                        <Tooltip title="Add new" placement="top">
+                            <IconButton
+                                size="large"
+                                onClick={handleCreateOpen}
+                                sx={{ padding: 1 }}
+                            >
+                                <CreateIcon color="secondary" sx={{ width: '1.5em', height: '1.5em' }} />
+                            </IconButton>
+                        </Tooltip>
+                    </Stack>
                     <SearchList
                         itemKeyPrefix='organization-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
@@ -162,11 +174,6 @@ export const OrganizationSelectOrCreateDialog = ({
                         where={{ userId: session?.id }}
                         zIndex={zIndex}
                     />
-                    <Button
-                        fullWidth
-                        onClick={handleCreateOpen}
-                        startIcon={<CreateIcon />}
-                    >Create New</Button>
                 </Stack>
             </DialogContent>
         </Dialog>

@@ -25,7 +25,6 @@ export interface run_run_routine_inputs_standard_tags_translations {
 
 export interface run_run_routine_inputs_standard_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: run_run_routine_inputs_standard_tags_translations[];
 }
@@ -41,6 +40,7 @@ export interface run_run_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -79,6 +79,7 @@ export interface run_run_routine_nodeLinks {
   id: string;
   fromId: string;
   toId: string;
+  operation: string | null;
   whens: run_run_routine_nodeLinks_whens[];
 }
 
@@ -104,7 +105,6 @@ export interface run_run_routine_nodes_data_NodeRoutineList_routines_routine_inp
 
 export interface run_run_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: run_run_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags_translations[];
 }
@@ -120,6 +120,7 @@ export interface run_run_routine_nodes_data_NodeRoutineList_routines_routine_inp
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -154,7 +155,6 @@ export interface run_run_routine_nodes_data_NodeRoutineList_routines_routine_out
 
 export interface run_run_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: run_run_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags_translations[];
 }
@@ -170,6 +170,7 @@ export interface run_run_routine_nodes_data_NodeRoutineList_routines_routine_out
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -256,7 +257,6 @@ export interface run_run_routine_nodes_data_NodeRoutineList_routines_routine_tag
 
 export interface run_run_routine_nodes_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: run_run_routine_nodes_data_NodeRoutineList_routines_routine_tags_translations[];
 }
@@ -376,7 +376,6 @@ export interface run_run_routine_outputs_standard_tags_translations {
 
 export interface run_run_routine_outputs_standard_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: run_run_routine_outputs_standard_tags_translations[];
 }
@@ -392,6 +391,7 @@ export interface run_run_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -491,7 +491,6 @@ export interface run_run_routine_tags_translations {
 
 export interface run_run_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: run_run_routine_tags_translations[];
 }

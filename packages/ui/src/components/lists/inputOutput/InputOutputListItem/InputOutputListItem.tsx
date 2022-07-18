@@ -8,12 +8,13 @@ import {
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
-import { getTranslation, jsonToString, standardToFieldData, updateArray } from 'utils';
+import { getTranslation, InputTranslationShape, jsonToString, OutputTranslationShape, StandardShape, standardToFieldData, updateArray } from 'utils';
 import { useFormik } from 'formik';
-import { ListStandard, NewObject, RoutineInput, RoutineOutput, Standard } from 'types';
+import { Standard } from 'types';
 import { BaseStandardInput, PreviewSwitch, Selector, StandardSelectSwitch } from 'components';
 import { FieldData } from 'forms/types';
 import { generateInputComponent } from 'forms/generators';
+import { v4 as uuid } from 'uuid';
 
 type InputTypeOption = { label: string, value: InputType }
 /**
@@ -54,6 +55,7 @@ export const InputTypeOptions: InputTypeOption[] = [
     },
 ]
 
+//TODO handle language change somehow
 export const InputOutputListItem = ({
     isEditing,
     index,
@@ -71,7 +73,8 @@ export const InputOutputListItem = ({
     const { palette } = useTheme();
 
     // Handle standard select switch
-    const [standard, setStandard] = useState<ListStandard | null>(null);
+    // Should only be set when a non-internal standard is selected
+    const [standard, setStandard] = useState<StandardShape & { name: Standard['name'] } | null>((item?.standard && !item.standard.isInternal) ? item?.standard : null);
     // Handle input type selector
     const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
     const handleInputTypeSelect = useCallback((event: any) => {
@@ -87,9 +90,10 @@ export const InputOutputListItem = ({
     }, [standard]);
     const [schemaKey] = useState(`input-output-schema-${Math.random().toString(36).substring(2, 15)}`);
 
-    const onSwitchChange = useCallback((s: ListStandard | null) => {
+    const onSwitchChange = useCallback((s: Standard | null) => {
         setSchema(null);
         setStandard(s);
+        setIsPreviewOn(Boolean(s));
     }, []);
 
     /**
@@ -97,10 +101,10 @@ export const InputOutputListItem = ({
      */
     useEffect(() => {
         // Check if standard has changed
-        if (item?.standard?.id === standard?.id) return;
+        if (item?.standard?.id === standard?.id || !standard) return;
         handleUpdate(index, {
             ...item,
-            standard: standard || null,
+            standard: standard,
         })
     }, [handleUpdate, index, item, standard]);
     /**
@@ -112,15 +116,18 @@ export const InputOutputListItem = ({
         handleUpdate(index, {
             ...item,
             standard: {
+                __typename: 'Standard',
+                id: uuid(),
                 default: schema.props?.defaultValue ?? null,
+                isInternal: true,
                 type: schema.type,
                 props: JSON.stringify(schema.props),
                 yup: JSON.stringify(schema.yup),
-            } as Standard
+            },
         })
     }, [handleUpdate, index, item, schema]);
 
-    type Translation = NewObject<(RoutineInput | RoutineOutput)['translations'][0]>;
+    type Translation = InputTranslationShape | OutputTranslationShape;
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
         // Find translation
         const index = item.translations.findIndex(t => language === t.language);
@@ -148,7 +155,7 @@ export const InputOutputListItem = ({
         initialValues: {
             description: getTranslation(item, 'description', [language]) ?? '',
             isRequired: true,
-            name: item.name ?? '',
+            name: item.name ?? '' as string,
             // Value of generated input component preview
             [schemaKey]: jsonToString((generatedSchema?.props as any)?.format),
         },
@@ -157,6 +164,7 @@ export const InputOutputListItem = ({
         onSubmit: (values) => {
             // Update translations
             const allTranslations = getTranslationsUpdate(language, {
+                id: uuid(),
                 language,
                 description: values.description,
             })
@@ -165,7 +173,7 @@ export const InputOutputListItem = ({
                 name: values.name,
                 isRequired: isInput ? values.isRequired : undefined,
                 translations: allTranslations,
-            } as any);
+            });
         },
     });
 
@@ -177,7 +185,7 @@ export const InputOutputListItem = ({
         else handleOpen(index);
     }, [isOpen, handleOpen, index, formik, handleClose]);
 
-    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
+    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(Boolean(standard));
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
 
     return (
@@ -276,8 +284,8 @@ export const InputOutputListItem = ({
                             onBlur={(e) => { formik.handleBlur(e); formik.handleSubmit() }}
                             onChange={formik.handleChange}
                             error={formik.touched.name && Boolean(formik.errors.name)}
-                            helperText={formik.touched.name && formik.errors.name}
-                        /> : <Typography variant="h6">{formik.values.name}</Typography>}
+                            helperText={formik.touched.name ? (formik.errors.name as any) : null}
+                        /> : <Typography variant="h6">{`Name: ${formik.values.name}`}</Typography>}
                     </Grid>
                     <Grid item xs={12}>
                         <Grid item xs={12}>
@@ -287,12 +295,13 @@ export const InputOutputListItem = ({
                                 name="description"
                                 label="description"
                                 value={formik.values.description}
-                                rows={3}
+                                multiline
+                                maxRows={3}
                                 onBlur={(e) => { formik.handleBlur(e); formik.handleSubmit() }}
                                 onChange={formik.handleChange}
                                 error={formik.touched.description && Boolean(formik.errors.description)}
                                 helperText={formik.touched.description && formik.errors.description}
-                            /> : <Typography variant="body2">{formik.values.description}</Typography>}
+                            /> : <Typography variant="body2">{`Description: ${formik.values.description}`}</Typography>}
                         </Grid>
                     </Grid>
                     {/* Select standard */}
@@ -324,10 +333,10 @@ export const InputOutputListItem = ({
                                     onUpload: () => { },
                                     zIndex,
                                 })) :
-                                // Only editable if standard not selected
+                                // Only editable if standard not selected and is editing
                                 <Box>
                                     <Selector
-                                        disabled={Boolean(standard)}
+                                        disabled={!isEditing || Boolean(standard)}
                                         fullWidth
                                         options={InputTypeOptions}
                                         selected={standard?.type ? (InputTypeOptions.find(option => option.value === standard.type) ?? InputTypeOptions[0]) : inputType}
@@ -342,7 +351,7 @@ export const InputOutputListItem = ({
                                     <BaseStandardInput
                                         fieldName={schemaKey}
                                         inputType={(standard?.type as InputType) ?? inputType.value}
-                                        isEditing={!Boolean(standard)}
+                                        isEditing={isEditing && !Boolean(standard)}
                                         schema={generatedSchema}
                                         onChange={handleSchemaUpdate}
                                         storageKey={schemaKey}

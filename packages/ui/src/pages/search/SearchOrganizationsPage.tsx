@@ -4,7 +4,7 @@ import { OrganizationDialog } from "components/dialogs/OrganizationDialog/Organi
 import { organizationsQuery } from "graphql/query";
 import { useCallback, useEffect, useState } from "react";
 import { Organization } from "types";
-import { ObjectType, Pubs, stringifySearchParams } from "utils";
+import { ObjectType, PubSub, stringifySearchParams } from "utils";
 import { useLocation } from "wouter";
 import { BaseSearchPage } from "./BaseSearchPage";
 import { SearchOrganizationsPageProps } from "./types";
@@ -37,7 +37,7 @@ export const SearchOrganizationsPage = ({
             setLocation(`${APP_LINKS.SearchOrganizations}/add`)
         }
         else {
-            PubSub.publish(Pubs.Snack, { message: 'Must be logged in.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Must be logged in.', severity: 'error' });
             setLocation(`${APP_LINKS.Start}${stringifySearchParams({
                 redirect: APP_LINKS.SearchOrganizations
             })}`);

@@ -8,13 +8,14 @@ import {
 import { multiLineEllipsis } from 'styles';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { useMutation } from '@apollo/client';
-import { star } from 'graphql/generated/star';
+import { star, starVariables } from 'graphql/generated/star';
 import { starMutation } from 'graphql/mutation';
+import { validate as uuidValidate } from 'uuid';
 
 export const StarButton = ({
     session,
     isStar = false,
-    stars = 0,
+    stars,
     objectId,
     showStars = true,
     starFor,
@@ -26,25 +27,28 @@ export const StarButton = ({
     const [internalIsStar, setInternalIsStar] = useState<boolean | null>(isStar ?? null);
     useEffect(() => setInternalIsStar(isStar ?? false), [isStar]);
 
-    const internalStars = useMemo(() => {
-        const starNum = stars ?? 0;
+    const internalStars: number | null = useMemo(() => {
+        if (!stars) return null;
+        const starNum = stars;
         if (internalIsStar === true && isStar === false) return starNum + 1;
         if (internalIsStar === false && isStar === true) return starNum - 1;
         return starNum;
     }, [internalIsStar, isStar, stars]);
 
-    const [mutation] = useMutation<star>(starMutation);
+    const [mutation] = useMutation<star, starVariables>(starMutation);
     const handleClick = useCallback((event: any) => {
         if (!session.id) return;
         const isStar = !internalIsStar;
         setInternalIsStar(isStar);
         // Prevent propagation of normal click event
         event.stopPropagation();
+        // If objectId is not valid, return
+        if (!uuidValidate(objectId)) return;
         // Send star mutation
         mutationWrapper({
             mutation,
             input: { isStar, starFor, forId: objectId },
-            onSuccess: (response) => { if (onChange) onChange(response.data.star) },
+            onSuccess: () => { if (onChange) onChange(isStar) },
         })
     }, [session.id, internalIsStar, mutation, starFor, objectId, onChange]);
 
@@ -64,7 +68,7 @@ export const StarButton = ({
             <Tooltip placement={tooltipPlacement} title={tooltip}>
                 <Icon onClick={handleClick} sx={{ fill: color, cursor: session?.id ? 'pointer' : 'default' }} />
             </Tooltip>
-            { showStars ? <ListItemText
+            { showStars && stars ? <ListItemText
                 primary={internalStars}
                 sx={{ ...multiLineEllipsis(1) }}
             /> : null }

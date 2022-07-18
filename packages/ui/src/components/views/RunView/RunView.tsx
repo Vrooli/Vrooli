@@ -11,7 +11,7 @@ import {
     DoneAll as CompleteIcon,
 } from '@mui/icons-material';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getRunPercentComplete, getTranslation, getUserLanguages, locationArraysMatch, Pubs, routineHasSubroutines, RoutineStepType, TERTIARY_COLOR, updateArray, useReactSearch } from "utils";
+import { getRunPercentComplete, getTranslation, getUserLanguages, locationArraysMatch, PubSub, routineHasSubroutines, RoutineStepType, TERTIARY_COLOR, updateArray, useReactSearch } from "utils";
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
@@ -19,10 +19,11 @@ import { validate as uuidValidate } from 'uuid';
 import { DecisionStep, Node, NodeDataEnd, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, RunStep, SubroutineStep } from "types";
 import { parseSearchParams, stringifySearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
-import { runComplete } from "graphql/generated/runComplete";
+import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
 import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils";
 import { runUpdate, runUpdateVariables } from "graphql/generated/runUpdate";
+import { v4 as uuid } from 'uuid';
 
 /**
  * Maximum routine nesting supported
@@ -350,7 +351,7 @@ export const RunView = ({
             // Check if this is because the subroutine data hasn't been fetched yet
             //TODO
             // Otherwise, this is an error
-            // PubSub.publish(Pubs.Snack, { message: 'Error: Step not found', severity: 'error' });
+            // PubSub.get().publishSnack({ message: 'Error: Step not found', severity: 'error' });
             return;
         }
         // If current step is a list, then redirect to first step in list
@@ -563,7 +564,7 @@ export const RunView = ({
     }, [previousStep, setCurrStepLocation]);
 
     const [logRunUpdate] = useMutation<runUpdate, runUpdateVariables>(runUpdateMutation);
-    const [logRunComplete] = useMutation<runComplete>(runCompleteMutation);
+    const [logRunComplete] = useMutation<runComplete, runCompleteVariables>(runCompleteMutation);
     /**
      * Navigate to the next subroutine, or complete the routine.
      * Also log progress, time elapsed, and other metrics
@@ -596,6 +597,7 @@ export const RunView = ({
             contextSwitches: currStepRunData.contextSwitches + contextSwitches,
         }] : undefined
         const stepsCreate = currStepRunData ? undefined : [{
+            id: uuid(),
             order: newProgress.length,
             title: currStep?.title ?? '',
             nodeId: (currParentListStep as RoutineListStep).nodeId,
@@ -624,13 +626,13 @@ export const RunView = ({
                     completedComplexity: newlyCompletedComplexity,
                     finalStepCreate: stepsCreate ? stepsCreate[0] : undefined,
                     finalStepUpdate: stepsUpdate ? stepsUpdate[0] : undefined,
-                    title: getTranslation(routine, 'title', getUserLanguages(session), true),
-                    version: routine.version,
+                    title: getTranslation(routine, 'title', getUserLanguages(session), true) ?? 'Unnamed Routine',
+                    version: routine.version ?? '',
                     wasSuccessful: true, //TODO
                 },
                 successMessage: () => 'Routine completed!🎉',
                 onSuccess: () => {
-                    PubSub.publish(Pubs.Celebration);
+                    PubSub.get().publishCelebration();
                     clearSearchParams();
                     handleClose();
                 },
@@ -654,7 +656,7 @@ export const RunView = ({
         const success = data?.wasSuccessful ?? true;
         // Don't actually do it if in test mode
         if (testMode || !run) {
-            if (success) PubSub.publish(Pubs.Celebration);
+            if (success) PubSub.get().publishCelebration();
             clearSearchParams();
             handleClose();
             return;
@@ -666,13 +668,13 @@ export const RunView = ({
             input: {
                 id: run.id,
                 exists: true,
-                title: getTranslation(routine, 'title', getUserLanguages(session), true),
-                version: routine.version,
+                title: getTranslation(routine, 'title', getUserLanguages(session), true) ?? 'Unnamed Routine',
+                version: routine.version ?? '',
                 wasSuccessful: success,
             },
             successMessage: () => 'Routine completed!🎉',
             onSuccess: () => {
-                PubSub.publish(Pubs.Celebration);
+                PubSub.get().publishCelebration();
                 clearSearchParams();
                 handleClose();
             },
@@ -804,7 +806,7 @@ export const RunView = ({
                             percentComplete={progressPercentage}
                             stepList={stepList}
                             sxs={{ icon: { marginLeft: 1, width: '32px', height: '32px' } }}
-                            zIndex={zIndex + 1}
+                            zIndex={zIndex + 3}
                         />
                     </Box>
                     {/* Progress bar */}
@@ -837,7 +839,7 @@ export const RunView = ({
                     alignItems: 'center',
                 }}>
                     <Grid container spacing={2} sx={{
-                        maxWidth: '100%',
+                        maxWidth: '600px',
                         margin: 0,
                     }}>
                         {/* There are only ever 1 or 2 options shown. 

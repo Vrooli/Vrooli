@@ -414,19 +414,24 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
             const tags = await prisma.tag.findMany({
                 where: { id: { in: input.starredTagsConnect } },
             })
+            const connectTags = tags.map(t => t.id);
+            const createTags = input.starredTagsConnect.filter(t => !connectTags.includes(t));
             // Add existing tags to tagsToConnect
-            tagsToConnect.push(...tags.map(tag => tag.id));
+            tagsToConnect.push(...connectTags);
+            // Add new tags to tagsToCreate
+            tagsToCreate.push(...createTags.map((t) => typeof t === 'string' ? ({ tag: t }) : t));
         }
         if (input.starredTagsCreate) {
             // Check if tags exist
             const tags = await prisma.tag.findMany({
                 where: { tag: { in: input.starredTagsCreate.map(c => c.tag) } },
             })
+            const connectTags = tags.map(t => t.id);
+            const createTags = input.starredTagsCreate.filter(t => !connectTags.includes(t.tag));
             // Add existing tags to tagsToConnect
-            tagsToConnect.push(...tags.map(tag => tag.id));
+            tagsToConnect.push(...connectTags);
             // Add new tags to tagsToCreate
-            const newTags = input.starredTagsCreate.filter(c => !tags.find(tag => tag.tag === c.tag));
-            tagsToCreate.push(...newTags);
+            tagsToCreate.push(...createTags);
         }
         // Create new tags
         const createTagsData = await Promise.all(tagsToCreate.map(async (tag: TagCreateInput) => await TagModel(prisma).toDBShape(userId, tag)));

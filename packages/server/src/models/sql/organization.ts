@@ -165,15 +165,23 @@ export const organizationVerifier = (prisma: PrismaType) => ({
 })
 
 export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typeof organizationVerifier>) => ({
-    async toDBShape(userId: string | null, data: OrganizationCreateInput | OrganizationUpdateInput): Promise<any> {
-        // If creating new, add yourself as member
-        let members = {};
-        if (!(data as OrganizationUpdateInput).id) {
-            members = { members: { create: { userId, role: MemberRole.Owner as any } } }
-        }
+    async toDBShapeAdd(userId: string | null, data: OrganizationCreateInput | OrganizationUpdateInput): Promise<any> {
+        // Add yourself as member
+        let members = { members: { create: { userId, role: MemberRole.Owner as any } } };
         return {
             ...members,
-            id: data.id ?? undefined,
+            id: data.id,
+            handle: (data as OrganizationUpdateInput).handle ?? null,
+            isOpenToNewMembers: data.isOpenToNewMembers,
+            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
+            tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Organization),
+            translations: TranslationModel().relationshipBuilder(userId, data, { create: organizationTranslationCreate, update: organizationTranslationUpdate }, false),
+        }
+    },
+    async toDBShapeUpdate(userId: string | null, data: OrganizationCreateInput | OrganizationUpdateInput): Promise<any> {
+        // TODO members
+        return {
+            id: data.id,
             handle: (data as OrganizationUpdateInput).handle ?? null,
             isOpenToNewMembers: data.isOpenToNewMembers,
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
@@ -196,6 +204,7 @@ export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typ
             if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
                 throw new CustomError(CODE.MaxOrganizationsReached, 'Cannot create any more organizations with this account - maximum reached', { code: genErrorCode('0056') });
             }
+            // TODO handle
         }
         if (updateMany) {
             organizationsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
@@ -230,7 +239,7 @@ export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typ
             // Loop through each create input
             for (const input of createMany) {
                 // Call createData helper function
-                const data = await this.toDBShape(userId, input);
+                const data = await this.toDBShapeAdd(userId, input);
                 // Create object
                 const currCreated = await prisma.organization.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
@@ -256,7 +265,7 @@ export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typ
                 // Update object
                 const currUpdated = await prisma.organization.update({
                     where: input.where,
-                    data: await this.toDBShape(userId, input.data),
+                    data: await this.toDBShapeUpdate(userId, input.data),
                     ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL

@@ -1,4 +1,4 @@
-import { description, idArray, id, name, title, language } from './base';
+import { description, idArray, id, name, title, language, tagArray } from './base';
 import { nodeLinksCreate, nodeLinksUpdate, nodesCreate, nodesUpdate } from './node';
 import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 import { standardCreate } from './standard';
@@ -13,6 +13,7 @@ const instructions = yup.string().max(8192)
 const version = yup.string().max(16)
 
 export const inputTranslationCreate = yup.object().shape({
+    id: id.required(),
     language: language.required(),
     description: description.notRequired().default(undefined),
 });
@@ -24,6 +25,7 @@ export const inputTranslationUpdate = yup.object().shape({
 export const inputTranslationsCreate = yup.array().of(inputTranslationCreate.required())
 export const inputTranslationsUpdate = yup.array().of(inputTranslationUpdate.required())
 export const inputCreate = yup.object().shape({
+    id: id.required(),
     isRequired: isRequired.notRequired().default(undefined),
     name: name.required(),
     standardConnect: id.notRequired().default(undefined),
@@ -42,6 +44,7 @@ export const inputsCreate = yup.array().of(inputCreate.required())
 export const inputsUpdate = yup.array().of(inputUpdate.required())
 
 export const outputTranslationCreate = yup.object().shape({
+    id: id.required(),
     language: language.required(),
     description: description.notRequired().default(undefined),
 });
@@ -53,6 +56,7 @@ export const outputTranslationUpdate = yup.object().shape({
 export const outputTranslationsCreate = yup.array().of(outputTranslationCreate.required())
 export const outputTranslationsUpdate = yup.array().of(outputTranslationUpdate.required())
 export const outputCreate = yup.object().shape({
+    id: id.required(),
     name: name.notRequired().default(undefined),
     standardConnect: id.notRequired().default(undefined),
     standardCreate: standardCreate.notRequired().default(undefined),
@@ -73,6 +77,7 @@ export const outputsCreate = yup.array().of(outputCreate.required())
 export const outputsUpdate = yup.array().of(outputUpdate.required())
 
 export const routineTranslationCreate = yup.object().shape({
+    id: id.required(),
     language: language.required(),
     description: description.notRequired().default(undefined),
     instructions: instructions.required(),
@@ -102,10 +107,11 @@ export const routineUpdateForm = routineCreateForm;
  * Information required when creating a routine. 
  */
 export const routineCreate = yup.object().shape({
-    isAutomatable: isAutomatable.notRequired().default(undefined),
+    id: id.required(),
+    isAutomatable: isAutomatable.nullable().notRequired().default(undefined),
     isComplete: isComplete.notRequired().default(undefined),
-    isInternal: isInternal.notRequired().default(undefined),
-    version: version.notRequired().default(undefined),
+    isInternal: isInternal.nullable().notRequired().default(undefined),
+    version: version.nullable().notRequired().default(undefined),
     parentId: id.notRequired().default(undefined), // If forked, the parent's id
     createdByUserId: id.notRequired().default(undefined), // If associating with yourself, your own id. Cannot associate with another user
     createdByOrganizationId: id.notRequired().default(undefined), // If associating with an organization you are an admin of, the organization's id
@@ -114,7 +120,7 @@ export const routineCreate = yup.object().shape({
     inputsCreate: inputsCreate.notRequired().default(undefined),
     outputsCreate: outputsCreate.notRequired().default(undefined),
     resourceListsCreate: resourceListsCreate.notRequired().default(undefined),
-    tagsConnect: idArray.notRequired().default(undefined),
+    tagsConnect: tagArray.notRequired().default(undefined),
     tagsCreate: tagsCreate.notRequired().default(undefined),
     translationsCreate: routineTranslationsCreate.notRequired().default(undefined),
 }, [['createdByUserId', 'createdByOrganizationId']]) // Makes sure you can't associate with both a user and an organization
@@ -124,10 +130,10 @@ export const routineCreate = yup.object().shape({
  */
 export const routineUpdate = yup.object().shape({
     id: id.required(),
-    isAutomatable: isAutomatable.notRequired().default(undefined),
+    isAutomatable: isAutomatable.nullable().notRequired().default(undefined),
     isComplete: isComplete.notRequired().default(undefined),
-    isInternal: isInternal.notRequired().default(undefined),
-    version: version.notRequired().default(undefined),
+    isInternal: isInternal.nullable().notRequired().default(undefined),
+    version: version.nullable().notRequired().default(undefined),
     parentId: id.notRequired().default(undefined), // If forked, the parent's id
     userId: id.notRequired().default(undefined), // If associating with yourself, your own id. Cannot associate with another user
     organizationId: id.notRequired().default(undefined), // If associating with an organization you are an admin of, the organization's id
@@ -146,8 +152,8 @@ export const routineUpdate = yup.object().shape({
     resourceListsDelete: idArray.notRequired().default(undefined),
     resourceListsCreate: resourceListsCreate.notRequired().default(undefined),
     resourceListsUpdate: resourceListsUpdate.notRequired().default(undefined),
-    tagsConnect: idArray.notRequired().default(undefined),
-    tagsDisconnect: idArray.notRequired().default(undefined),
+    tagsConnect: tagArray.notRequired().default(undefined),
+    tagsDisconnect: tagArray.notRequired().default(undefined),
     tagsCreate: tagsCreate.notRequired().default(undefined),
     translationsDelete: idArray.notRequired().default(undefined),
     translationsCreate: routineTranslationsCreate.notRequired().default(undefined),

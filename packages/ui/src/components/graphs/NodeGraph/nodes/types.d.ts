@@ -7,7 +7,7 @@ import { MouseEvent } from 'react';
 /**
  * Props for all nodes (besides the Add node)
  */
-export interface NodeDataProps {
+interface NodeDataProps {
     node: Node;
     zIndex: number;
 }
@@ -15,14 +15,14 @@ export interface NodeDataProps {
 /**
  * Props for all scalable objects
  */
-export interface ScaleProps {
+interface ScaleProps {
     scale: number;
 }
 
 /**
  * Props for all labelled node objects
  */
-export interface LabelledProps {
+interface LabelledProps {
     label?: string | null;
     labelVisible: boolean;
 }
@@ -30,14 +30,14 @@ export interface LabelledProps {
 /**
  * Props for editable node objects
  */
-export interface EditableProps {
+interface EditableProps {
     isEditing: boolean;
 }
 
 /**
  * Props for draggable node objects
  */
-export interface DraggableProps {
+interface DraggableProps {
     isLinked: boolean; // True if node is connected to routine graph
     /**
     * Specified if the cell is allowed to be dragged

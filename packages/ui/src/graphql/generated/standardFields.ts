@@ -55,7 +55,6 @@ export interface standardFields_tags_translations {
 
 export interface standardFields_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: standardFields_tags_translations[];
 }
@@ -65,6 +64,7 @@ export interface standardFields_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface standardFields_creator_Organization_translations {
@@ -93,6 +93,7 @@ export type standardFields_creator = standardFields_creator_Organization | stand
 export interface standardFields {
   __typename: "Standard";
   id: string;
+  isInternal: boolean;
   name: string;
   role: MemberRole | null;
   type: string;

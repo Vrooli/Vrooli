@@ -3,15 +3,17 @@ import {
     Checkbox,
     Container,
     FormControlLabel,
+    IconButton,
     Stack,
     Tooltip,
     Typography,
     useTheme
 } from '@mui/material';
-import { ChangeEvent, CSSProperties, useCallback, useMemo } from 'react';
+import { CSSProperties, useCallback, useMemo } from 'react';
 import { RoutineSubnodeProps } from '../types';
 import {
     Close as DeleteIcon,
+    Edit as EditIcon,
 } from '@mui/icons-material';
 import {
     routineNodeCheckboxOption,
@@ -19,7 +21,6 @@ import {
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { getTranslation, updateTranslationField } from 'utils';
-import { EditableLabel } from 'components/inputs';
 import { owns } from 'utils/authentication';
 
 export const RoutineSubnode = ({
@@ -55,7 +56,7 @@ export const RoutineSubnode = ({
     const handleLabelUpdate = useCallback((newLabel: string) => {
         handleUpdate(data.id, {
             ...data,
-            translations: updateTranslationField(data, 'title', newLabel, language) as any[],
+            translations: updateTranslationField(data, 'title', newLabel, language),
         });
     }, [handleUpdate, data, language]);
 
@@ -68,34 +69,38 @@ export const RoutineSubnode = ({
 
     const labelObject = useMemo(() => {
         if (!labelVisible) return null;
-        return (
-            <EditableLabel
-                canEdit={isEditing && isOpen}
-                handleUpdate={handleLabelUpdate}
-                renderLabel={(t) => (
-                    <Typography
-                        variant="h6"
-                        sx={{
-                            ...noSelect,
-                            ...textShadow,
-                            ...multiLineEllipsis(1),
-                            textAlign: 'center',
-                            width: '100%',
-                            lineBreak: 'anywhere',
-                            whiteSpace: 'pre',
-                        } as CSSProperties}
-                    >{t ?? 'Untitled'}</Typography>
+        return (<>
+            <Stack direction="row" spacing={0} alignItems="center"
+                sx={{
+                    marginLeft: 'auto',
+                    marginRight: 'auto'
+                }}>
+                {/* Label */}
+                <Typography
+                    variant="h6"
+                    sx={{
+                        ...noSelect,
+                        ...textShadow,
+                        ...multiLineEllipsis(1),
+                        textAlign: 'center',
+                        width: '100%',
+                        lineBreak: 'anywhere',
+                        whiteSpace: 'pre',
+                    } as CSSProperties}
+                >{title ?? 'Untitled'}
+                </Typography>
+                {/* Edit icon */}
+                {isEditing && (
+                    <IconButton
+                        id={`edit-subnode-icon-${data.id}`}
+                        sx={{ color: 'inherit' }}
+                    >
+                        <EditIcon id={`edit-subnode-icon-${data.id}`} />
+                    </IconButton>
                 )}
-                sxs={{
-                    stack: {
-                        marginLeft: 'auto',
-                        marginRight: 'auto',
-                    }
-                }}
-                text={title}
-            />
-        )
-    }, [handleLabelUpdate, isEditing, isOpen, labelVisible, title]);
+            </Stack>
+        </>)
+    }, [data.id, isEditing, labelVisible, title]);
 
     return (
         <Box

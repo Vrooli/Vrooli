@@ -130,11 +130,11 @@ export const nodeVerifier = () => ({
 export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof nodeVerifier>) => ({
     async toDBShape(userId: string | null, data: NodeCreateInput | NodeUpdateInput): Promise<any> {
         let nodeData: { [x: string]: any } = {
-            id: data.id ?? undefined,
-            columnIndex: data.columnIndex,
-            routineId: data.routineId,
-            rowIndex: data.rowIndex,
-            type: data.type,
+            id: data.id,
+            columnIndex: data.columnIndex ?? undefined,
+            routineId: data.routineId ?? undefined,
+            rowIndex: data.rowIndex ?? undefined,
+            type: data.type ?? undefined,
             translations: TranslationModel().relationshipBuilder(userId, data, { create: nodeTranslationCreate, update: nodeTranslationUpdate }, false),
         };
         // Create type-specific data, and make sure other types are null
@@ -367,7 +367,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
             let result = [];
             for (const data of formattedInput.create) {
                 result.push({
-                    id: data.id ?? undefined,
+                    id: data.id,
                     index: data.index,
                     isOptional: data.isOptional,
                     routineId: await routineModel.relationshipBuilder(userId, data, isAdd),
@@ -385,8 +385,8 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
                 result.push({
                     where: data.where,
                     data: {
-                        index: data.data.index,
-                        isOptional: data.data.isOptional,
+                        index: data.data.index ?? undefined,
+                        isOptional: data.data.isOptional ?? undefined,
                         routineId: await routineModel.relationshipBuilder(userId, data.data, isAdd),
                         translations: TranslationModel().relationshipBuilder(userId, data.data, { create: nodeRoutineListItemTranslationCreate, update: nodeRoutineListItemTranslationUpdate }, false),
                     }
@@ -416,7 +416,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
             nodeRoutineListCreate.validateSync(create, { abortEarly: false });
             // Convert nested relationships
             formattedInput.create = {
-                id: create.id ?? undefined,
+                id: create.id,
                 isOrdered: create.isOrdered,
                 isOptional: create.isOptional,
                 routines: await this.relationshipBuilderRoutineListNodeItem(userId, create, isAdd)

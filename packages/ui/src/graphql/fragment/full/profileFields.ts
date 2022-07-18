@@ -56,7 +56,6 @@ export const profileFields = gql`
             bio
         }
         starredTags {
-            id
             tag
             created_at
             stars
@@ -71,7 +70,6 @@ export const profileFields = gql`
             id
             isBlur
             tag {
-                id
                 tag
                 created_at
                 stars

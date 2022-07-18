@@ -7,8 +7,8 @@ import { learnPage } from 'graphql/generated/learnPage';
 import { profile } from 'graphql/generated/profile';
 import { learnPageQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Project, ResourceList, Routine } from 'types';
-import { listToListItems, openObject, stringifySearchParams } from 'utils';
+import { ResourceList } from 'types';
+import { listToListItems, openObject, OpenObjectProps, stringifySearchParams } from 'utils';
 import { useLocation } from 'wouter';
 import { LearnPageProps } from '../types';
 
@@ -52,7 +52,7 @@ export const LearnPage = ({
     /**
      * Opens page for list item
      */
-     const toItemPage = useCallback((item: Project | Routine, event: any) => {
+     const toItemPage = useCallback((item: OpenObjectProps['object'], event: any) => {
         event?.stopPropagation();
         // Navigate to item page
         openObject(item, setLocation);

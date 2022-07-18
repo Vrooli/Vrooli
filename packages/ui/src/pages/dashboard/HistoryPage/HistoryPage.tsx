@@ -7,8 +7,8 @@ import { AutocompleteSearchBar, ListTitleContainer } from 'components';
 import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { HistoryPageProps } from '../types';
-import { listToAutocomplete, listToListItems, openObject, useReactSearch } from 'utils';
-import { AutocompleteOption, Organization, Project, Routine, Standard, User } from 'types';
+import { listToAutocomplete, listToListItems, openObject, OpenObjectProps, useReactSearch } from 'utils';
+import { AutocompleteOption } from 'types';
 import { centeredDiv } from 'styles';
 
 const activeRoutinesText = `Routines that you've started to execute, and have not finished.`;
@@ -58,7 +58,7 @@ export const HistoryPage = ({
     /**
      * Opens page for list item
      */
-    const toItemPage = useCallback((item: Organization | Project | Routine | Standard | User, event: any) => {
+    const toItemPage = useCallback((item: OpenObjectProps['object'], event: any) => {
         event?.stopPropagation();
         // Navigate to item page
         openObject(item, setLocation);

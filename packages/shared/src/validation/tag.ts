@@ -1,10 +1,10 @@
-import { description, id, idArray, language } from './base';
+import { description, id, idArray, language, tag } from './base';
 import * as yup from 'yup';
 
 const anonymous = yup.boolean() // Determines if the user will be credited for the tag
-const tag = yup.string().min(2).max(128)
 
 export const tagTranslationCreate = yup.object().shape({
+    id: id.required(),
     language: language.required(),
     description: description.required(),
 });
@@ -29,9 +29,8 @@ export const tagCreate = yup.object().shape({
  * Information required when updating a tag
  */
 export const tagUpdate = yup.object().shape({
-    id: id.required(),
     anonymous: anonymous.notRequired().default(undefined),
-    tag: tag.notRequired().default(undefined),
+    tag: tag.required(),
     translationsDelete: idArray.notRequired().default(undefined),
     translationsCreate: tagTranslationsCreate.notRequired().default(undefined),
     translationsUpdate: tagTranslationsUpdate.notRequired().default(undefined),

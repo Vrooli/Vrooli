@@ -55,7 +55,6 @@ export interface standardUpdate_standardUpdate_tags_translations {
 
 export interface standardUpdate_standardUpdate_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: standardUpdate_standardUpdate_tags_translations[];
 }
@@ -65,6 +64,7 @@ export interface standardUpdate_standardUpdate_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface standardUpdate_standardUpdate_creator_Organization_translations {
@@ -93,6 +93,7 @@ export type standardUpdate_standardUpdate_creator = standardUpdate_standardUpdat
 export interface standardUpdate_standardUpdate {
   __typename: "Standard";
   id: string;
+  isInternal: boolean;
   name: string;
   role: MemberRole | null;
   type: string;

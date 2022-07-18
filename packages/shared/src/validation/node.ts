@@ -18,6 +18,7 @@ const type = yup.string().oneOf(["End", "Loop", "RoutineList", "Redirect", "Star
 const wasSuccessful = yup.boolean()
 
 export const nodeEndCreate = yup.object().shape({
+    id: id.required(),
     wasSuccessful: wasSuccessful.notRequired().default(undefined),
 })
 export const nodeEndUpdate = yup.object().shape({
@@ -26,6 +27,7 @@ export const nodeEndUpdate = yup.object().shape({
 })
 
 export const whenTranslationCreate = yup.object().shape({
+    id: id.required(),
     language: language.required(),
     description: description.notRequired().default(undefined),
     title: title.required(),
@@ -39,6 +41,7 @@ export const whenTranslationUpdate = yup.object().shape({
 const whenTranslationsCreate = yup.array().of(whenTranslationCreate.required())
 const whenTranslationsUpdate = yup.array().of(whenTranslationUpdate.required())
 export const whenCreate = yup.object().shape({
+    id: id.required(),
     condition: condition.required(),
     translationsCreate: whenTranslationsCreate.notRequired().default(undefined),
     translationsUpdate: whenTranslationsUpdate.notRequired().default(undefined),
@@ -55,14 +58,15 @@ export const whensCreate = yup.array().of(whenCreate.required())
 export const whensUpdate = yup.array().of(whenUpdate.required())
 
 export const nodeLinkCreate = yup.object().shape({
+    id: id.required(),
     fromId: id.required(),
     toId: id.required(),
-    operation: operation.notRequired().default(undefined),
+    operation: operation.nullable().notRequired().default(undefined),
     whensCreate: whensCreate.notRequired().default(undefined),
 })
 export const nodeLinkUpdate = yup.object().shape({
     id: id.required(),
-    operation: operation.notRequired().default(undefined),
+    operation: operation.nullable().notRequired().default(undefined),
     whensCreate: whensCreate.notRequired().default(undefined),
     whensUpdate: whensUpdate.notRequired().default(undefined),
     whensDelete: idArray,
@@ -71,6 +75,7 @@ export const nodeLinksCreate = yup.array().of(nodeLinkCreate.required())
 export const nodeLinksUpdate = yup.array().of(nodeLinkUpdate.required())
 
 export const whileTranslationCreate = yup.object().shape({
+    id: id.required(),
     language: language.required(),
     description: description.notRequired().default(undefined),
     title: title.required(),
@@ -84,6 +89,7 @@ export const whileTranslationUpdate = yup.object().shape({
 export const whileTranslationsCreate = yup.array().of(whileTranslationCreate.required())
 export const whileTranslationsUpdate = yup.array().of(whileTranslationUpdate.required())
 export const whileCreate = yup.object().shape({
+    id: id.required(),
     condition: condition.required(),
     translationsCreate: whileTranslationsCreate.notRequired().default(undefined),
 });
@@ -99,6 +105,7 @@ export const whilesCreate = yup.array().of(whileCreate.required())
 export const whilesUpdate = yup.array().of(whileUpdate.required())
 
 export const loopCreate = yup.object().shape({
+    id: id.required(),
     loops: loops.notRequired().default(undefined),
     maxLoops: maxLoops.notRequired().default(undefined),
     operation: operation.notRequired().default(undefined),
@@ -117,6 +124,7 @@ export const loopsCreate = yup.array().of(loopCreate.required())
 export const loopsUpdate = yup.array().of(loopUpdate.required())
 
 export const nodeRoutineListItemTranslationCreate = yup.object().shape({
+    id: id.required(),
     language: language.required(),
     description: description.notRequired().default(undefined),
     title: title.required(),
@@ -150,6 +158,7 @@ export const nodeRoutineListItemsCreate = yup.array().of(nodeRoutineListItemCrea
 export const nodeRoutineListItemsUpdate = yup.array().of(nodeRoutineListItemUpdate.required())
 
 export const nodeRoutineListCreate = yup.object().shape({
+    id: id.required(),
     isOrdered: yup.boolean().notRequired().default(undefined),
     isOptional: yup.boolean().notRequired().default(undefined),
     routinesCreate: nodeRoutineListItemsCreate.notRequired().default(undefined),
@@ -164,6 +173,7 @@ export const nodeRoutineListUpdate = yup.object().shape({
 })
 
 export const nodeTranslationCreate = yup.object().shape({
+    id: id.required(),
     language: language.required(),
     description: description.notRequired().default(undefined),
     title: title.required(),
@@ -178,7 +188,7 @@ export const nodeTranslationsCreate = yup.array().of(nodeTranslationCreate.requi
 export const nodeTranslationsUpdate = yup.array().of(nodeTranslationUpdate.required())
 
 export const nodeCreate = yup.object().shape({
-    id: id.notRequired().default(undefined),
+    id: id.required(),
     columnIndex: columnIndex.notRequired().default(undefined),
     rowIndex: rowIndex.notRequired().default(undefined),
     type: type.required(),

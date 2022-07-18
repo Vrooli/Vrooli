@@ -21,12 +21,14 @@ export interface routineFields_inputs_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface routineFields_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -64,6 +66,7 @@ export interface routineFields_nodeLinks {
   id: string;
   fromId: string;
   toId: string;
+  operation: string | null;
   whens: routineFields_nodeLinks_whens[];
 }
 
@@ -85,12 +88,14 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routine_input
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface routineFields_nodes_data_NodeRoutineList_routines_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -120,12 +125,14 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routine_outpu
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface routineFields_nodes_data_NodeRoutineList_routines_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -211,7 +218,6 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routine_tags_
 
 export interface routineFields_nodes_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: routineFields_nodes_data_NodeRoutineList_routines_routine_tags_translations[];
 }
@@ -327,12 +333,14 @@ export interface routineFields_outputs_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface routineFields_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -463,7 +471,6 @@ export interface routineFields_tags_translations {
 
 export interface routineFields_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: routineFields_tags_translations[];
 }

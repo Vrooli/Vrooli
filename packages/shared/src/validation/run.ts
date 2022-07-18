@@ -8,6 +8,7 @@ const contextSwitches = yup.number().integer().min(0);
 const timeElapsed = yup.number().integer().min(0);
 
 export const runCreate = yup.object().shape({
+    id: id.required(),
     routineId: id.required(),
     title: title.required(),
     version: version.required(),

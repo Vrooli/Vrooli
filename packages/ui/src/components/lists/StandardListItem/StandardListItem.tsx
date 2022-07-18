@@ -96,7 +96,7 @@ export function StandardListItem({
                             sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
                         />}
                         {/* Tags */}
-                        {Array.isArray(data?.tags) && (data.tags as any).length > 0 ? <TagList session={session} parentId={data?.id ?? ''} tags={data?.tags ?? []} /> : null}
+                        {Array.isArray(data?.tags) && (data?.tags as any).length > 0 ? <TagList session={session} parentId={data?.id ?? ''} tags={data?.tags ?? []} /> : null}
                     </Stack>
                     {/* Star/Comment/Report */}
                     <Stack direction="column" spacing={1}>

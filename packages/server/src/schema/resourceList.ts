@@ -25,7 +25,7 @@ export const typeDef = gql`
     }
 
     input ResourceListCreateInput {
-        id: ID
+        id: ID!
         index: Int
         usedFor: ResourceListUsedFor!
         organizationId: ID
@@ -65,6 +65,7 @@ export const typeDef = gql`
     }
 
     input ResourceListTranslationCreateInput {
+        id: ID!
         language: String!
         description: String
         title: String

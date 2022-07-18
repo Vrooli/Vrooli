@@ -16,7 +16,6 @@ export interface nodeTagFields_translations {
 
 export interface nodeTagFields {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: nodeTagFields_translations[];
 }

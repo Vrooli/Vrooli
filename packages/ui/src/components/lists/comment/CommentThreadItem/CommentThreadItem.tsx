@@ -3,7 +3,7 @@ import { CommentThreadItemProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
 import { useLocation } from 'wouter';
 import { StarButton, TextLoading, UpvoteDownvote } from '../..';
-import { displayDate, getCreatedByString, getTranslation, ObjectType, Pubs, toCreatedBy } from 'utils';
+import { displayDate, getCreatedByString, getTranslation, PubSub, toCreatedBy } from 'utils';
 import { LinkButton, MarkdownInput } from 'components/inputs';
 import {
     Delete as DeleteIcon,
@@ -13,14 +13,15 @@ import {
 } from '@mui/icons-material';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
-import { ReportFor, StarFor, VoteFor } from '@local/shared';
+import { DeleteOneType, ReportFor, StarFor, VoteFor } from '@local/shared';
 import { commentCreateForm as validationSchema } from '@local/shared';
-import { commentCreate } from 'graphql/generated/commentCreate';
+import { commentCreate, commentCreateVariables } from 'graphql/generated/commentCreate';
 import { commentCreateMutation, deleteOneMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';
 import { owns } from 'utils/authentication';
-import { deleteOne } from 'graphql/generated/deleteOne';
+import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
 import { ReportDialog } from 'components/dialogs';
+import { v4 as uuid } from 'uuid';
 
 export function CommentThreadItem({
     data,
@@ -47,7 +48,7 @@ export function CommentThreadItem({
     const toOwner = useCallback(() => { toCreatedBy(data, setLocation) }, [data, setLocation]);
 
     const [replyOpen, setReplyOpen] = useState(false);
-    const [addMutation, { loading: loadingAdd }] = useMutation<commentCreate>(commentCreateMutation);
+    const [addMutation, { loading: loadingAdd }] = useMutation<commentCreate, commentCreateVariables>(commentCreateMutation);
     const formik = useFormik({
         initialValues: {
             comment: '',
@@ -58,17 +59,19 @@ export function CommentThreadItem({
             mutationWrapper({
                 mutation: addMutation,
                 input: {
+                    id: uuid(),
                     createdFor: objectType,
                     forId: objectId,
                     parentId: data.id,
                     translationsCreate: [{
+                        id: uuid(),
                         language,
                         text: values.comment,
                     }]
                 },
                 successCondition: (response) => response.data.commentCreate !== null,
                 onSuccess: (response) => {
-                    PubSub.publish(Pubs.Snack, { message: 'Comment created.', severity: 'success' });
+                    PubSub.get().publishSnack({ message: 'Comment created.', severity: 'success' });
                     formik.resetForm();
                     setReplyOpen(false);
                     handleCommentAdd(response.data.commentCreate);
@@ -103,28 +106,28 @@ export function CommentThreadItem({
     const openReport = useCallback(() => setReportOpen(true), [setReportOpen]);
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<deleteOne>(deleteOneMutation);
+    const [deleteMutation, { loading: loadingDelete }] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation);
     const handleDelete = useCallback(() => {
         if (!data) return;
         // Confirmation dialog
-        PubSub.publish(Pubs.AlertDialog, {
+        PubSub.get().publishAlertDialog({
             message: `Are you sure you want to delete this comment? This action cannot be undone.`,
             buttons: [
                 {
                     text: 'Yes', onClick: () => {
                         mutationWrapper({
                             mutation: deleteMutation,
-                            input: { id: data.id, objectType: ObjectType.Comment },
+                            input: { id: data.id, objectType: DeleteOneType.Comment },
                             onSuccess: (response) => {
                                 if (response?.data?.deleteOne?.success) {
-                                    PubSub.publish(Pubs.Snack, { message: `Comment deleted.` });
+                                    PubSub.get().publishSnack({ message: `Comment deleted.` });
                                     handleCommentRemove(data);
                                 } else {
-                                    PubSub.publish(Pubs.Snack, { message: `Error deleting comment.`, severity: 'error' });
+                                    PubSub.get().publishSnack({ message: `Error deleting comment.`, severity: 'error' });
                                 }
                             },
                             onError: () => {
-                                PubSub.publish(Pubs.Snack, { message: `Failed to delete comment.` });
+                                PubSub.get().publishSnack({ message: `Failed to delete comment.` });
                             }
                         })
                     }

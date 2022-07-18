@@ -6,8 +6,8 @@ import { developPage } from 'graphql/generated/developPage';
 import { profile } from 'graphql/generated/profile';
 import { developPageQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Organization, Project, ResourceList, Routine, Standard, User } from 'types';
-import { listToListItems, openObject } from 'utils';
+import { ResourceList } from 'types';
+import { listToListItems, openObject, OpenObjectProps } from 'utils';
 import { useLocation } from 'wouter';
 import { DevelopPageProps } from '../types';
 
@@ -53,7 +53,7 @@ export const DevelopPage = ({
     /**
      * Opens page for list item
      */
-    const toItemPage = useCallback((item: Organization | Project | Routine | Standard | User, event: any) => {
+    const toItemPage = useCallback((item: OpenObjectProps['object'], event: any) => {
         event?.stopPropagation();
         // Navigate to item page
         openObject(item, setLocation);

@@ -75,6 +75,7 @@ export const tagSearcher = (): Searcher<TagSearchInput> => ({
     },
     customQueries(input: TagSearchInput): { [x: string]: any } {
         return {
+            ...(input.excludeIds !== undefined ? { id: { not: { in: input.excludeIds } } } : {}),
             ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
             ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
         }
@@ -91,7 +92,6 @@ export const tagVerifier = () => ({
 export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVerifier>) => ({
     async toDBShape(userId: string | null, data: TagCreateInput | TagUpdateInput): Promise<any> {
         return {
-            id: data.id ?? undefined,
             name: data.tag,
             createdByUserId: userId,
             translations: TranslationModel().relationshipBuilder(userId, data, { create: tagTranslationCreate, update: tagTranslationUpdate }, false),
@@ -101,11 +101,11 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
      * Maps type of a tag's parent with the unique field
      */
     parentMapper: {
-        [GraphQLModelType.Organization]: 'organization_tags_taggedid_tagid_unique',
-        [GraphQLModelType.Project]: 'project_tags_taggedid_tagid_unique',
-        [GraphQLModelType.Routine]: 'routine_tags_taggedid_tagid_unique',
-        [GraphQLModelType.Standard]: 'standard_tags_taggedid_tagid_unique',
-        [GraphQLModelType.TagHidden]: 'user_tags_hidden_userid_tagid_unique',
+        [GraphQLModelType.Organization]: 'organization_tags_taggedid_tagTag_unique',
+        [GraphQLModelType.Project]: 'project_tags_taggedid_tagTag_unique',
+        [GraphQLModelType.Routine]: 'routine_tags_taggedid_tagTag_unique',
+        [GraphQLModelType.Standard]: 'standard_tags_taggedid_tagTag_unique',
+        [GraphQLModelType.TagHidden]: 'user_tags_hidden_userid_tagTag_unique',
     },
     async relationshipBuilder(
         userId: string | null,
@@ -113,19 +113,26 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
         parentType: keyof typeof this.parentMapper,
         relationshipName: string = 'tags',
     ): Promise<{ [x: string]: any } | undefined> {
-        // If any tag creates, check if they're supposed to be connects
-        if (Array.isArray(input[`${relationshipName}Create`])) {
-            // Query for all creating tags
+        // If any tag creates/connects, make sure they exist/not exist
+        const initialCreateTags = Array.isArray(input[`${relationshipName}Create`]) ? 
+            input[`${relationshipName}Create`].map((c: any) => c.tag) : 
+            typeof input[`${relationshipName}Create`] === 'object' ? [input[`${relationshipName}Create`].tag] : 
+            [];
+        const initialConnectTags = Array.isArray(input[`${relationshipName}Connect`]) ?
+            input[`${relationshipName}Connect`] :
+            typeof input[`${relationshipName}Connect`] === 'object' ? [input[`${relationshipName}Connect`]] :
+            [];
+        const bothInitialTags = [...initialCreateTags, ...initialConnectTags];
+        if (bothInitialTags.length > 0) {
+            // Query for all of the tags, to determine which ones exist
             const existingTags = await prisma.tag.findMany({
-                where: { tag: { in: input[`${relationshipName}Create`].map((c: any) => c.tag) } },
-                select: { id: true, tag: true }
+                where: { tag: { in: bothInitialTags } },
+                select: { tag: true }
             });
-            // All results should be connects
-            const connectTags = existingTags.map(t => ({ id: t.id }));
-            // All tags that didn't exist are creates
-            const createTags = input[`${relationshipName}Create`].filter((c: any) => !connectTags.some(t => t.id === c.id));
-            input[`${relationshipName}Connect`] = Array.isArray(input[`${relationshipName}Connect`]) ? [...input[`${relationshipName}Connect`], ...connectTags] : createTags;
-            input[`${relationshipName}Create`] = createTags;
+            // All existing tags are the new connects
+            input[`${relationshipName}Connect`] = existingTags.map((t) => ({ tag: t.tag }));
+            // All new tags are the new creates
+            input[`${relationshipName}Create`] = bothInitialTags.filter((t) => !existingTags.some((et) => et.tag === t)).map((t) => typeof t === 'string' ? ({ tag: t }) : t);
         }
         // Validate create
         if (Array.isArray(input[`${relationshipName}Create`])) {
@@ -133,18 +140,26 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
             tagsCreate.validateSync(createMany, { abortEarly: false });
             verifier.profanityCheck(createMany);
         }
+        // Shape disconnects and deletes
+        if (Array.isArray(input[`${relationshipName}Disconnect`])) {
+            input[`${relationshipName}Disconnect`] = input[`${relationshipName}Disconnect`].map((t: any) => typeof t === 'string' ? ({ tag: t }) : t);
+        }
+        if (Array.isArray(input[`${relationshipName}Delete`])) {
+            input[`${relationshipName}Delete`] = input[`${relationshipName}Delete`].map((t: any) => typeof t === 'string' ? ({ tag: t }) : t);
+        }
         // Convert input to Prisma shape
         // Updating/deleting tags is not supported. This must be done in its own query.
         let formattedInput = joinRelationshipToPrisma({
             data: input,
             joinFieldName: 'tag',
             uniqueFieldName: this.parentMapper[parentType],
-            childIdFieldName: 'tagId',
+            childIdFieldName: 'tagTag',
             parentIdFieldName: 'taggedId',
             parentId: input.id ?? null,
             relationshipName,
             isAdd: !Boolean(input.id),
             relExcludes: [RelationshipTypes.update, RelationshipTypes.delete],
+            idField: 'tag',
         })
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
@@ -162,6 +177,15 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
         if (updateMany) {
             tagsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
             verifier.profanityCheck(updateMany.map(u => u.data));
+        }
+        if (deleteMany) {
+            const objects = await prisma.tag.findMany({
+                where: { id: { in: deleteMany } },
+                select: { id: true, createdByUserId: true },
+            });
+            if (objects.some((o) => o.createdByUserId !== userId)) {
+                throw new CustomError(CODE.Unauthorized, "You can't delete tags you didn't create", { code: genErrorCode('0114') });
+            }
         }
     },
     async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<TagCreateInput, TagUpdateInput>): Promise<CUDResult<Tag>> {
@@ -203,13 +227,8 @@ export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVe
             }
         }
         if (deleteMany) {
-            const tags = await prisma.tag.findMany({
-                where: { id: { in: deleteMany } },
-            })
-            if (tags.some(t => t.createdByUserId !== userId)) 
-                throw new CustomError(CODE.Unauthorized, "You can't delete tags you didn't create", { code: genErrorCode('0114') });
             deleted = await prisma.tag.deleteMany({
-                where: { id: { in: tags.map(t => t.id) } },
+                where: { id: { in: deleteMany } },
             });
         }
         return {

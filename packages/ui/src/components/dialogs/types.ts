@@ -1,11 +1,10 @@
 import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
-import { DeleteOneType, ReportFor } from '@local/shared';
-import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
+import { DeleteOneType } from '@local/shared';
+import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
+import { ReportFor } from 'graphql/generated/globalTypes';
 import { ObjectType } from 'utils';
-
-export interface AlertDialogProps extends DialogProps { };
 
 export interface BaseObjectDialogProps extends DialogProps {
     children: JSX.Element | JSX.Element[];
@@ -25,13 +24,6 @@ export interface DeleteDialogProps {
     objectName: string;
     objectType: DeleteOneType;
     zIndex: number;
-}
-
-export interface FormDialogProps {
-    children: JSX.Element;
-    maxWidth?: string | number;
-    onClose: () => void;
-    title: string;
 }
 
 export interface ListMenuItemData<T> {
@@ -70,11 +62,6 @@ export interface ListMenuProps<T> {
     zIndex: number;
 }
 
-export enum ObjectDialogState {
-    Add = 'Add',
-    Edit = 'Edit',
-    View = 'View',
-}
 export enum ObjectDialogAction {
     Add = 'Add',
     Cancel = 'Cancel',
@@ -103,7 +90,7 @@ export interface ReportDialogProps extends DialogProps {
     forId: string;
     onClose: () => any;
     open: boolean;
-    reportFor: keyof typeof ReportFor;
+    reportFor: ReportFor;
     session: Session;
     title?: string;
     zIndex: number;
@@ -120,7 +107,7 @@ export interface ResourceDialogProps extends DialogProps {
      */
     mutate: boolean;
     onClose: () => any;
-    onCreated: (resource: NewObject<Resource>) => any;
+    onCreated: (resource: Resource) => any;
     open: boolean;
     onUpdated: (index: number, resource: Resource) => any;
     partialData?: Partial<Resource>;
@@ -187,7 +174,7 @@ export interface BaseObjectActionDialogProps {
 }
 
 export interface LinkDialogProps {
-    handleClose: (newLink?: NewObject<NodeLink>) => void;
+    handleClose: (newLink?: NodeLink) => void;
     handleDelete: (link: NodeLink) => void;
     isAdd: boolean;
     isOpen: boolean;
@@ -233,11 +220,6 @@ export interface UnlinkedNodesDialogProps {
     nodes: Node[];
     open: boolean;
     zIndex: number;
-}
-
-export interface CreateNewDialogProps {
-    handleClose: () => any;
-    isOpen: boolean;
 }
 
 export interface RunStepsDialogProps {
@@ -299,4 +281,17 @@ export interface RunPickerDialogProps {
     onSelect: (run: Run | null) => any;
     routine?: Routine | null;
     session: Session;
+}
+
+export interface WalletInstallDialogProps {
+    onClose: () => any;
+    open: boolean;
+    zIndex: number;
+}
+
+export interface WalletSelectDialogProps {
+    handleOpenInstall: () => any;
+    onClose: (selectedKey: string | null) => any;
+    open: boolean;
+    zIndex: number;
 }

@@ -19,7 +19,6 @@
         * [package.json](./packages/server/package.json) - Dependencies and useful scripts
     * [shared](./packages/shared) - Data shared between packages  
     * [ui](./packages/ui) - What the user sees
-        * [.storybook](./packages/ui/.storybook) - Configuration for [Storybook](https://storybook.js.org/), which allows components to be edited without a working frontend
         * [public](./packages/ui/public) - OpenGraph, Progressive Web App, Trusted Web Activity, and other metadata about the website
         * [src](./packages/ui/src)
             * [assets](./packages/ui/src/assets)

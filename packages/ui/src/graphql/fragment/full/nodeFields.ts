@@ -2,7 +2,6 @@ import { gql } from 'graphql-tag';
 
 export const nodeFields = gql`
     fragment nodeTagFields on Tag {
-        id
         tag
         translations {
             id
@@ -26,6 +25,7 @@ export const nodeFields = gql`
             id
             language
             description
+            instructions
             title
         }
     }

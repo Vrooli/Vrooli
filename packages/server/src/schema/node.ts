@@ -20,7 +20,7 @@ export const typeDef = gql`
     union NodeData = NodeEnd | NodeRoutineList
 
     input NodeCreateInput {
-        id: ID
+        id: ID!
         columnIndex: Int
         rowIndex: Int
         type: NodeType
@@ -60,7 +60,7 @@ export const typeDef = gql`
     }
 
     input NodeTranslationCreateInput {
-        id: ID
+        id: ID!
         language: String!
         title: String!
         description: String
@@ -79,7 +79,7 @@ export const typeDef = gql`
     }
 
     input NodeEndCreateInput {
-        id: ID
+        id: ID!
         wasSuccessful: Boolean
     }
     input NodeEndUpdateInput {
@@ -92,7 +92,7 @@ export const typeDef = gql`
     }
 
     input LoopCreateInput {
-        id: ID
+        id: ID!
         loops: Int
         maxLoops: Int
         operation: String
@@ -116,7 +116,7 @@ export const typeDef = gql`
     }
 
     input LoopWhileCreateInput {
-        id: ID
+        id: ID!
         translationsCreate: [LoopWhileTranslationCreateInput!]
         condition: String!
         toId: ID
@@ -137,7 +137,7 @@ export const typeDef = gql`
     } 
 
     input LoopWhileTranslationCreateInput {
-        id: ID
+        id: ID!
         language: String!
         description: String
         title: String!
@@ -156,7 +156,7 @@ export const typeDef = gql`
     }
 
     input NodeRoutineListCreateInput {
-        id: ID
+        id: ID!
         isOrdered: Boolean
         isOptional: Boolean
         routinesCreate: [NodeRoutineListItemCreateInput!]
@@ -177,7 +177,7 @@ export const typeDef = gql`
     }
 
     input NodeRoutineListItemCreateInput {
-        id: ID
+        id: ID!
         index: Int!
         isOptional: Boolean
         routineConnect: ID!
@@ -201,7 +201,7 @@ export const typeDef = gql`
     }
 
     input NodeRoutineListItemTranslationCreateInput {
-        id: ID
+        id: ID!
         language: String!
         description: String
         title: String
@@ -220,7 +220,7 @@ export const typeDef = gql`
     }
 
     input NodeLinkCreateInput {
-        id: ID
+        id: ID!
         whens: [NodeLinkWhenCreateInput!]
         operation: String
         fromId: ID!
@@ -244,14 +244,14 @@ export const typeDef = gql`
     }
 
     input NodeLinkWhenCreateInput {
-        id: ID
-        toId: ID
+        id: ID!
+        linkId: ID
         translationsCreate: [NodeLinkWhenTranslationCreateInput!]
         condition: String!
     }
     input NodeLinkWhenUpdateInput {
         id: ID!
-        toId: ID
+        linkId: ID
         translationsDelete: [ID!]
         translationsCreate: [NodeLinkWhenTranslationCreateInput!]
         translationsUpdate: [NodeLinkWhenTranslationUpdateInput!]
@@ -264,7 +264,7 @@ export const typeDef = gql`
     } 
 
     input NodeLinkWhenTranslationCreateInput {
-        id: ID
+        id: ID!
         language: String!
         description: String
         title: String!

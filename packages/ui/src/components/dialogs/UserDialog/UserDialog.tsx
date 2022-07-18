@@ -4,11 +4,11 @@ import { BaseObjectDialog } from '..';
 import { UserDialogProps, ObjectDialogAction } from 'components/dialogs/types';
 import { useLocation, useRoute } from 'wouter';
 import { useMutation } from '@apollo/client';
-import { user } from 'graphql/generated/user';
+import { user, userVariables } from 'graphql/generated/user';
 import { profileUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { APP_LINKS } from '@local/shared';
-import { Pubs } from 'utils';
+import { PubSub } from 'utils';
 
 export const UserDialog = ({
     partialData,
@@ -19,7 +19,7 @@ export const UserDialog = ({
     const [, params] = useRoute(`${APP_LINKS.SearchUsers}/:params*`);
     const [state] = useMemo(() => Boolean(params?.params) ? (params?.params as string).split("/") : [undefined, undefined], [params]);
 
-    const [update] = useMutation<user>(profileUpdateMutation);
+    const [update] = useMutation<user, userVariables>(profileUpdateMutation);
 
     const onAction = useCallback((action: ObjectDialogAction) => {
         switch (action) {
@@ -41,11 +41,11 @@ export const UserDialog = ({
                     mutation: update,
                     input: {},
                     onSuccess: ({ data }) => {
-                        const id = data?.id;
+                        const id = data?.user?.id;
                         if (id) setLocation(`${APP_LINKS.SearchUsers}/view/${id}`, { replace: true });
                     },
                     onError: (response) => {
-                        PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
+                        PubSub.get().publishSnack({ message: 'Error occurred.', severity: 'error', data: { error: response } });
                     }
                 })
                 break;

@@ -21,12 +21,14 @@ export interface routine_routine_inputs_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface routine_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -64,6 +66,7 @@ export interface routine_routine_nodeLinks {
   id: string;
   fromId: string;
   toId: string;
+  operation: string | null;
   whens: routine_routine_nodeLinks_whens[];
 }
 
@@ -85,12 +88,14 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_inp
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -120,12 +125,14 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_out
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -211,7 +218,6 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_tag
 
 export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: routine_routine_nodes_data_NodeRoutineList_routines_routine_tags_translations[];
 }
@@ -327,12 +333,14 @@ export interface routine_routine_outputs_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface routine_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -463,7 +471,6 @@ export interface routine_routine_tags_translations {
 
 export interface routine_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: routine_routine_tags_translations[];
 }

@@ -11,6 +11,9 @@ services:
         environment: 
             NODE_ENV: "${NODE_ENV}"
             REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
+            REACT_APP_PORT_SERVER: "${PORT_SERVER}"
+            REACT_APP_SERVER_URL: "${SERVER_URL}"
+            REACT_APP_SITE_IP: "${SITE_IP}"
             PROJECT_DIR: "${PROJECT_DIR}"
             VIRTUAL_HOST: "${VIRTUAL_HOST}"
             VIRTUAL_PATH: "/"
@@ -18,7 +21,7 @@ services:
             LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
             LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
         ports:
-            - 3000:3000
+            - ${PORT_UI}:3000
         networks:
             - proxy
             - app
@@ -28,7 +31,7 @@ services:
         depends_on: 
                 - redis
                 - db
-        command: /bin/sh -c "chmod +x ./scripts/* && chmod +w ./packages/ui/build/* && ./scripts/ui.sh"
+        command: /bin/sh -c "chmod +x ./scripts/* && ./scripts/ui.sh"
     server:
         build:
             context: .
@@ -42,12 +45,12 @@ services:
             JWT_SECRET: "${JWT_SECRET}"
             PROJECT_DIR: "${PROJECT_DIR}"
             REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
+            REACT_APP_PORT_SERVER: "${PORT_SERVER}"
             REDIS_CONN: "redis:6379"
             DB_CONN: "db:5432"
             DB_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}"
             CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
             DB_PULL: "${DB_PULL}"
-            DB_PUSH: "${DB_PUSH}"
             MONGO_CONN: "${MONGO_CONN}"
             SITE_EMAIL_FROM: "${SITE_EMAIL_FROM}"
             ADMIN_WALLET: "${ADMIN_WALLET}"
@@ -56,13 +59,15 @@ services:
             SITE_EMAIL_USERNAME: "${SITE_EMAIL_USERNAME}"
             SITE_EMAIL_PASSWORD: "${SITE_EMAIL_PASSWORD}"
             SITE_EMAIL_ALIAS: "${SITE_EMAIL_ALIAS}"
+            SITE_IP: "${SITE_IP}"
+            SERVER_URL: "${SERVER_URL}"
             VIRTUAL_HOST: "${VIRTUAL_HOST}"
             VIRTUAL_PORT: "5329"
             VIRTUAL_PATH: "/api"
             LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
             LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
         ports:
-            - 5329:5329
+            - ${PORT_SERVER}:5329
         networks:
             - proxy
             - app
@@ -78,7 +83,7 @@ services:
             - db
         command: /bin/sh -c "chmod +x ./scripts/* && ./scripts/server.sh"
     db:
-        image: postgres:13
+        image: postgres:13-alpine
         restart: always
         container_name: db
         environment: 
@@ -87,7 +92,7 @@ services:
             POSTGRES_PASSWORD: "${DB_PASSWORD}"
             PROJECT_DIR: "${PROJECT_DIR}"
         ports:
-            - 5432:5432
+            - ${PORT_DB}:5432
         networks:
            - app       
         volumes:
@@ -101,6 +106,8 @@ services:
           - app   
         volumes:
           - ./data/redis:/srv/app/data/redis:z    
+        ports:
+          - ${PORT_REDIS}:6379
         command: /bin/sh -c "mkdir -p /srv/app/data/redis/appendonlydir && rm -f /srv/app/data/redis/dump.rdb && redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes --dbfilename dump.rdb --dir /srv/app/data/redis/"
     # adminer:
     #     image: adminer

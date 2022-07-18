@@ -5,7 +5,7 @@ ${PROJECT_DIR}/scripts/wait-for.sh server:5329 -t 1000 -- echo 'Backend server i
 
 cd ${PROJECT_DIR}/packages/ui
 
-# Determine which favicons to use
+# Determine which favicons to use TODO this doesn't work, and doesn't account for build folder (which should be checked if it exists if in production)
 # Use dev version if NODE_ENV is development or REACT_APP_SERVER_LOCATION is local. 
 # User prod version otherwise
 if [ "${NODE_ENV}" = "development" ] || [ "${REACT_APP_SERVER_LOCATION}" = "local" ]; then

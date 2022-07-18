@@ -2,7 +2,6 @@ import { gql } from 'graphql-tag';
 
 export const runFields = gql`
     fragment runTagFields on Tag {
-        id
         tag
         translations {
             id
@@ -22,6 +21,7 @@ export const runFields = gql`
         standard {
             id
             default
+            isInternal
             name
             type
             props
@@ -48,6 +48,7 @@ export const runFields = gql`
         standard {
             id
             default
+            isInternal
             name
             type
             props
@@ -164,6 +165,7 @@ export const runFields = gql`
         id
         fromId
         toId
+        operation
         whens {
             id
             condition

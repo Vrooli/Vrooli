@@ -6,7 +6,7 @@ import { BaseSearchPage } from "./BaseSearchPage";
 import { SearchStandardsPageProps } from "./types";
 import { useLocation } from "wouter";
 import { APP_LINKS, ROLES } from "@local/shared";
-import { ObjectType, Pubs, stringifySearchParams } from "utils";
+import { ObjectType, PubSub, stringifySearchParams } from "utils";
 
 export const SearchStandardsPage = ({
     session
@@ -36,7 +36,7 @@ export const SearchStandardsPage = ({
             setLocation(`${APP_LINKS.SearchStandards}/add`)
         }
         else {
-            PubSub.publish(Pubs.Snack, { message: 'Must be logged in.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Must be logged in.', severity: 'error' });
             setLocation(`${APP_LINKS.Start}${stringifySearchParams({
                 redirect: APP_LINKS.SearchStandards
             })}`);

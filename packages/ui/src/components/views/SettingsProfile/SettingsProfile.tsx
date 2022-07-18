@@ -1,12 +1,11 @@
 import { Autocomplete, Box, Container, Grid, IconButton, Stack, TextField, Typography, useTheme } from "@mui/material"
 import { useLazyQuery, useMutation } from "@apollo/client";
-import { user } from "graphql/generated/user";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, getUserLanguages, Pubs, TERTIARY_COLOR, updateArray } from "utils";
+import { getUserLanguages, ProfileTranslationShape, shapeProfileUpdate, TERTIARY_COLOR, updateArray } from "utils";
 import {
     Refresh as RefreshIcon,
     Restore as CancelIcon,
@@ -20,7 +19,9 @@ import { LanguageInput } from "components/inputs";
 import { HelpButton } from "components/buttons";
 import { findHandles, findHandlesVariables } from "graphql/generated/findHandles";
 import { findHandlesQuery } from "graphql/query";
-import { NewObject, Profile } from "types";
+import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
+import { v4 as uuid } from 'uuid';
+import { PubSub } from 'utils'
 
 const helpText =
     `This page allows you to update your profile, including your name, handle, and bio.
@@ -51,7 +52,7 @@ export const SettingsProfile = ({
         if (verifiedWallets.length > 0) {
             findHandles({ variables: { input: {} } }); // Intentionally empty
         } else {
-            PubSub.publish(Pubs.Snack, { message: 'No verified wallets associated with account', severity: 'error' })
+            PubSub.get().publishSnack({ message: 'No verified wallets associated with account', severity: 'error' })
         }
     }, [profile, findHandles]);
     useEffect(() => {
@@ -63,7 +64,7 @@ export const SettingsProfile = ({
     const [selectedHandle, setSelectedHandle] = useState<string | null>(null);
 
     // Handle translations
-    type Translation = NewObject<Profile['translations'][0]>;
+    type Translation = ProfileTranslationShape;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -91,6 +92,7 @@ export const SettingsProfile = ({
         // If no translations found, add default
         if (foundTranslations.length === 0) {
             setTranslations([{
+                id: uuid(),
                 language: getUserLanguages(session)[0],
                 bio: '',
             }]);
@@ -100,7 +102,7 @@ export const SettingsProfile = ({
     }, [profile, session]);
 
     // Handle update
-    const [mutation] = useMutation<user>(profileUpdateMutation);
+    const [mutation] = useMutation<profileUpdate, profileUpdateVariables>(profileUpdateMutation);
     const formik = useFormik({
         initialValues: {
             bio: '',
@@ -109,18 +111,32 @@ export const SettingsProfile = ({
         enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
-            if (!formik.isValid) return;
+            if (!profile) {
+                PubSub.get().publishSnack({ message: 'Could not find existing data.', severity: 'error' });
+                return;
+            }
+            if (!formik.isValid) {
+                PubSub.get().publishSnack({ message: 'Please fix errors before submitting.', severity: 'error' });
+                return;
+            }
             const allTranslations = getTranslationsUpdate(language, {
+                id: uuid(),
                 language,
                 bio: values.bio,
             })
+            const input = shapeProfileUpdate(profile, {
+                id: profile.id,
+                name: values.name,
+                handle: selectedHandle,
+                translations: allTranslations,
+            })
+            if (!input || Object.keys(input).length === 0) {
+                PubSub.get().publishSnack({ message: 'No changes made.' });
+                return;
+            }
             mutationWrapper({
                 mutation,
-                input: formatForUpdate(profile, {
-                    name: values.name,
-                    handle: selectedHandle,
-                    translations: allTranslations,
-                }, [], ['translations']),
+                input,
                 onSuccess: (response) => { onUpdated(response.data.profileUpdate); setLocation(APP_LINKS.Profile, { replace: true }) },
                 onError: () => { formik.setSubmitting(false) },
             })
@@ -144,6 +160,7 @@ export const SettingsProfile = ({
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
+            id: uuid(),
             language,
             bio: formik.values.bio,
         })

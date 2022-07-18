@@ -4,12 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, Status, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR } from 'utils';
-import { NewObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
+import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getTranslation, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub } from 'utils';
+import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
 import { useLocation } from 'wouter';
 import { APP_LINKS, isEqual, uniqBy } from '@local/shared';
 import { NodeType } from 'graphql/generated/globalTypes';
-import { v4 as uuidv4 } from 'uuid';
 import { BaseObjectAction } from 'components/dialogs/types';
 import { owns } from 'utils/authentication';
 import { BuildViewProps } from '../types';
@@ -19,11 +18,11 @@ import {
     Compress as CleanUpIcon,
     Edit as EditIcon,
 } from '@mui/icons-material';
-import { validate as uuidValidate } from 'uuid';
+import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { StatusMessageArray } from 'components/buttons/types';
 import { StatusButton } from 'components/buttons';
-import { routineUpdate } from 'graphql/generated/routineUpdate';
-import { routineCreate } from 'graphql/generated/routineCreate';
+import { routineUpdate, routineUpdateVariables } from 'graphql/generated/routineUpdate';
+import { routineCreate, routineCreateVariables } from 'graphql/generated/routineCreate';
 
 //TODO
 const helpText =
@@ -34,6 +33,19 @@ Lorem ipsum dolor sit amet consectetur adipisicing elit.
 ## How does it work?
 Lorem ipsum dolor sit amet consectetur adipisicing elit.
 `
+
+/**
+ * Generates a new link object, but doesn't add it to the routine
+ * @param fromId - The ID of the node the link is coming from
+ * @param toId - The ID of the node the link is going to
+ * @returns The new link object
+ */
+const generateNewLink = (fromId: string, toId: string): NodeLinkShape => ({
+    __typename: 'NodeLink',
+    id: uuid(),
+    fromId,
+    toId,
+})
 
 export const BuildView = ({
     handleClose,
@@ -72,8 +84,8 @@ export const BuildView = ({
 
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
     // Routine mutators
-    const [routineCreate] = useMutation<routineCreate>(routineCreateMutation);
-    const [routineUpdate] = useMutation<routineUpdate>(routineUpdateMutation);
+    const [routineCreate] = useMutation<routineCreate, routineCreateVariables>(routineCreateMutation);
+    const [routineUpdate] = useMutation<routineUpdate, routineUpdateVariables>(routineUpdateMutation);
     // The routine's status (valid/invalid/incomplete)
     const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ['Calculating...'] });
     // Determines the size of the nodes and edges
@@ -159,7 +171,7 @@ export const BuildView = ({
         // 3. Every node that has no outgoing edges is an end node
         // 4. Validate loop TODO
         // 5. Validate redirects TODO
-        // First check
+        // Check 1
         const startNodes = changedRoutine.nodes.filter(node => node.type === NodeType.Start);
         if (startNodes.length === 0) {
             statuses.push([Status.Invalid, 'No start node found']);
@@ -167,7 +179,7 @@ export const BuildView = ({
         else if (startNodes.length > 1) {
             statuses.push([Status.Invalid, 'More than one start node found']);
         }
-        // Second check
+        // Check 2
         const nodesWithoutIncomingEdges = nodesOnGraph.filter(node => changedRoutine.nodeLinks.every(link => link.toId !== node.id));
         if (nodesWithoutIncomingEdges.length === 0) {
             //TODO this would be fine with a redirect link
@@ -176,7 +188,7 @@ export const BuildView = ({
         else if (nodesWithoutIncomingEdges.length > 1) {
             statuses.push([Status.Invalid, 'Nodes are not fully connected']);
         }
-        // Third check
+        // Check 3
         const nodesWithoutOutgoingEdges = nodesOnGraph.filter(node => changedRoutine.nodeLinks.every(link => link.fromId !== node.id));
         if (nodesWithoutOutgoingEdges.length >= 0) {
             // Check that every node without outgoing edges is an end node
@@ -186,9 +198,14 @@ export const BuildView = ({
         }
         // Performs checks which make the routine incomplete, but not invalid
         // 1. There are unpositioned nodes
-        // First check
+        // 2. Every routine list has at least one subroutine
+        // Check 1
         if (nodesOffGraph.length > 0) {
             statuses.push([Status.Incomplete, 'Some nodes are not linked']);
+        }
+        // Check 2
+        if (nodesOnGraph.some(node => node.type === NodeType.RoutineList && (node.data as NodeDataRoutineList).routines.length === 0)) {
+            statuses.push([Status.Incomplete, 'At least one routine list is empty']);
         }
         // Before returning, send the statuses to the status object
         if (statuses.length > 0) {
@@ -245,7 +262,7 @@ export const BuildView = ({
 
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
     const openLinkDialog = useCallback(() => setIsLinkDialogOpen(true), []);
-    const handleLinkDialogClose = useCallback((link?: NewObject<NodeLink>) => {
+    const handleLinkDialogClose = useCallback((link?: NodeLink) => {
         if (!changedRoutine) return;
         setIsLinkDialogOpen(false);
         // If no link data, return
@@ -294,7 +311,6 @@ export const BuildView = ({
     }, [changedRoutine]);
 
     const startEditing = useCallback(() => setIsEditing(true), []);
-
     /**
      * Creates new routine
      */
@@ -302,45 +318,14 @@ export const BuildView = ({
         if (!changedRoutine) {
             return;
         }
-        const input: any = formatForCreate(
-            changedRoutine,
-            ['nodes', 'nodeLinks', 'nodes.data', 'nodes.data.routines']
-        )
-        // If nodes have a data create/update, convert to nodeEnd or nodeRoutineList (i.e. deconstruct union)
-        const relationFields = ['Create', 'Update'];
-        for (const iField of relationFields) {
-            if (!input.hasOwnProperty(`nodes${iField}`)) continue;
-            input[`nodes${iField}`] = input[`nodes${iField}`].map(node => {
-                // Find full node data
-                const fullNode = changedRoutine.nodes.find(n => n.id === node.id);
-                if (!fullNode) return node;
-                // If end node, convert `data${jField}` to `nodeEnd${jField}`
-                if (fullNode.type === NodeType.End) {
-                    for (const jField of relationFields) {
-                        if (!node.hasOwnProperty(`data${jField}`)) continue;
-                        node[`nodeEnd${jField}`] = node[`data${jField}`];
-                        delete node[`data${jField}`];
-                    }
-                }
-                // If routine list node, convert `data${jField}` to `nodeRoutineList${jField}`
-                if (fullNode.type === NodeType.RoutineList) {
-                    for (const jField of relationFields) {
-                        if (!node.hasOwnProperty(`data${jField}`)) continue;
-                        node[`nodeRoutineList${jField}`] = node[`data${jField}`];
-                        delete node[`data${jField}`];
-                    }
-                }
-                return node;
-            });
-        }
         mutationWrapper({
             mutation: routineCreate,
-            input,
+            input: shapeRoutineCreate({ ...changedRoutine, id: uuid() }),
             successMessage: () => 'Routine created.',
             onSuccess: ({ data }) => {
                 onChange(data.routineCreate);
                 removeSearchParams();
-                handleClose();
+                handleClose(true);
             },
         })
     }, [changedRoutine, handleClose, onChange, removeSearchParams, routineCreate]);
@@ -349,54 +334,19 @@ export const BuildView = ({
      * Mutates routine data
      */
     const updateRoutine = useCallback(() => {
+        console.log('original', routine);
+        console.log('changed', changedRoutine);
         if (!changedRoutine || isEqual(routine, changedRoutine)) {
-            PubSub.publish(Pubs.Snack, { message: 'No changes detected', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'No changes detected', severity: 'error' });
             return;
         }
-        if (!changedRoutine.id) {
-            PubSub.publish(Pubs.Snack, { message: 'Cannot update: Invalid routine data', severity: 'error' });
+        if (!routine || !changedRoutine.id) {
+            PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: 'error' });
             return;
-        }
-        const input: any = formatForUpdate(
-            routine,
-            changedRoutine,
-            ['tags', 'nodes.data.routines.routine', 'nodes.data.routines.routine.inputs.standard', 'nodes.data.routines.routine.outputs.standard'],
-            ['nodes', 'nodeLinks', 'nodes.data.routines', 'nodes.nodeRoutineList.routines.routine.translations', 'translations']
-        )
-        // If routine belongs to an organization, add organizationId to input
-        if (routine?.owner?.__typename === 'Organization') {
-            input.organizationId = routine.owner.id;
-        };
-        // If nodes have a data create/update, convert to nodeEnd or nodeRoutineList (i.e. deconstruct union)
-        const relationFields = ['Create', 'Update'];
-        for (const iField of relationFields) {
-            if (!input.hasOwnProperty(`nodes${iField}`)) continue;
-            input[`nodes${iField}`] = input[`nodes${iField}`].map(node => {
-                // Find full node data
-                const fullNode = changedRoutine.nodes.find(n => n.id === node.id);
-                if (!fullNode) return node;
-                // If end node, convert `data${jField}` to `nodeEnd${jField}`
-                if (fullNode.type === NodeType.End) {
-                    for (const jField of relationFields) {
-                        if (!node.hasOwnProperty(`data${jField}`)) continue;
-                        node[`nodeEnd${jField}`] = node[`data${jField}`];
-                        delete node[`data${jField}`];
-                    }
-                }
-                // If routine list node, convert `data${jField}` to `nodeRoutineList${jField}`
-                if (fullNode.type === NodeType.RoutineList) {
-                    for (const jField of relationFields) {
-                        if (!node.hasOwnProperty(`data${jField}`)) continue;
-                        node[`nodeRoutineList${jField}`] = node[`data${jField}`];
-                        delete node[`data${jField}`];
-                    }
-                }
-                return node;
-            });
         }
         mutationWrapper({
             mutation: routineUpdate,
-            input,
+            input: shapeRoutineUpdate(routine, changedRoutine),
             successMessage: () => 'Routine updated.',
             onSuccess: ({ data }) => {
                 // Update main routine object
@@ -416,27 +366,27 @@ export const BuildView = ({
      */
     const onClose = useCallback(() => {
         if (isEditing && JSON.stringify(routine) !== JSON.stringify(changedRoutine)) {
-            PubSub.publish(Pubs.AlertDialog, {
+            PubSub.get().publishAlertDialog({
                 message: 'There are unsaved changes. Would you like to save before exiting?',
                 buttons: [
                     {
                         text: 'Save', onClick: () => {
                             updateRoutine();
                             removeSearchParams();
-                            handleClose();
+                            handleClose(true);
                         }
                     },
                     {
                         text: "Don't Save", onClick: () => {
                             removeSearchParams();
-                            handleClose();
+                            handleClose(false);
                         }
                     },
                 ]
             });
         } else {
             removeSearchParams();
-            handleClose();
+            handleClose(false);
         }
     }, [changedRoutine, handleClose, isEditing, removeSearchParams, routine, updateRoutine]);
 
@@ -472,7 +422,7 @@ export const BuildView = ({
     const revertChanges = useCallback(() => {
         // Confirm if changes have been made
         if (JSON.stringify(routine) !== JSON.stringify(changedRoutine)) {
-            PubSub.publish(Pubs.AlertDialog, {
+            PubSub.get().publishAlertDialog({
                 message: 'There are unsaved changes. Are you sure you would like to cancel?',
                 buttons: [
                     {
@@ -505,17 +455,17 @@ export const BuildView = ({
     const calculateNewLinksList = useCallback((nodeId: string): NodeLink[] => {
         if (!changedRoutine) return [];
         const deletingLinks = changedRoutine.nodeLinks.filter(l => l.fromId === nodeId || l.toId === nodeId);
-        const newLinks: Partial<NodeLink>[] = [];
+        const newLinks: NodeLinkShape[] = [];
         // Find all "from" and "to" nodes in the deleting links
         const fromNodeIds = deletingLinks.map(l => l.fromId).filter(id => id !== nodeId);
         const toNodeIds = deletingLinks.map(l => l.toId).filter(id => id !== nodeId);
         // If there is only one "from" node, create a link between it and every "to" node
         if (fromNodeIds.length === 1) {
-            toNodeIds.forEach(toId => { newLinks.push({ fromId: fromNodeIds[0], toId }) });
+            toNodeIds.forEach(toId => { newLinks.push(generateNewLink(fromNodeIds[0], toId)) });
         }
         // If there is only one "to" node, create a link between it and every "from" node
         else if (toNodeIds.length === 1) {
-            fromNodeIds.forEach(fromId => { newLinks.push({ fromId, toId: toNodeIds[0] }) });
+            fromNodeIds.forEach(fromId => { newLinks.push(generateNewLink(fromId, toNodeIds[0])) });
         }
         // NOTE: Every other case is ambiguous, so we can't auto-create create links
         // Delete old links
@@ -528,18 +478,27 @@ export const BuildView = ({
      * Generates a new node object, but doens't add it to the routine
      */
     const generateNewNode = useCallback((columnIndex: number | null, rowIndex: number | null) => {
-        const newNode: Partial<Node> = {
-            id: uuidv4(),
+        const newNode: Omit<NodeShape, 'routineId'> = {
+            __typename: 'Node',
+            id: uuid(),
             type: NodeType.RoutineList,
             rowIndex,
             columnIndex,
             data: {
+                id: uuid(),
+                __typename: 'NodeRoutineList',
                 isOrdered: false,
                 isOptional: false,
                 routines: [],
-            } as any,
+            },
             // Generate unique placeholder title
-            translations: [{ language, title: `Node ${(changedRoutine?.nodes?.length ?? 0) - 1}` }] as Node['translations'],
+            translations: [{
+                __typename: 'NodeTranslation',
+                id: uuid(),
+                language,
+                title: `Node ${(changedRoutine?.nodes?.length ?? 0) - 1}`,
+                description: '',
+            }],
         }
         return newNode;
     }, [language, changedRoutine?.nodes]);
@@ -630,7 +589,7 @@ export const BuildView = ({
         }
         // If one or the other is null, then there must be an error
         else if (columnIndex === null || rowIndex === null) {
-            PubSub.publish(Pubs.Snack, { message: 'Error: Invalid drop location.', severity: 'errror' });
+            PubSub.get().publishSnack({ message: 'Error: Invalid drop location.', severity: 'errror' });
         }
         // Otherwise, is a drop
         else {
@@ -693,7 +652,7 @@ export const BuildView = ({
         // Find "to" node. New node will be placed in its row and column
         const toNode = changedRoutine.nodes.find(n => n.id === link.toId);
         if (!toNode) {
-            PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'Error' });
+            PubSub.get().publishSnack({ message: 'Error occurred.', severity: 'Error' });
             return;
         }
         const { columnIndex, rowIndex } = toNode;
@@ -705,12 +664,12 @@ export const BuildView = ({
             return n;
         });
         // Create new routine list node
-        const newNode: Partial<Node> = generateNewNode(columnIndex, rowIndex);
+        const newNode: Omit<NodeShape, 'routineId'> = generateNewNode(columnIndex, rowIndex);
         // Find every node 
         // Create two new links
-        const newLinks: Partial<NodeLink>[] = [
-            { fromId: link.fromId, toId: newNode.id },
-            { fromId: newNode.id, toId: link.toId },
+        const newLinks: NodeLinkShape[] = [
+            generateNewLink(link.fromId, newNode.id),
+            generateNewLink(newNode.id, link.toId),
         ];
         // Insert new node and links
         const newRoutine = {
@@ -730,7 +689,7 @@ export const BuildView = ({
         if (nodeIndex === -1) return;
         const routineList: NodeDataRoutineList = changedRoutine.nodes[nodeIndex].data as NodeDataRoutineList;
         let routineItem: NodeDataRoutineListItem = {
-            id: uuidv4(),
+            id: uuid(),
             index: routineList.routines.length,
             isOptional: true,
             routine,
@@ -762,6 +721,7 @@ export const BuildView = ({
         if (nodeIndex === -1) return;
         const routineList: NodeDataRoutineList = changedRoutine.nodes[nodeIndex].data as NodeDataRoutineList;
         const routines = [...routineList.routines];
+        // Find subroutines matching old and new index
         const aIndex = routines.findIndex(r => r.index === oldIndex);
         const bIndex = routines.findIndex(r => r.index === newIndex);
         if (aIndex === -1 || bIndex === -1) return;
@@ -800,8 +760,8 @@ export const BuildView = ({
         }
         // If no links, create link and node
         else {
-            const newNode = generateNewNode(null, null);
-            const newLink = { fromId: nodeId, toId: newNode.id };
+            const newNode: Omit<NodeShape, 'routineId'> = generateNewNode(null, null);
+            const newLink: NodeLinkShape = generateNewLink(nodeId, newNode.id);
             setChangedRoutine({
                 ...changedRoutine,
                 nodes: [...changedRoutine.nodes, newNode as any],
@@ -829,8 +789,8 @@ export const BuildView = ({
         }
         // If no links, create link and node
         else {
-            const newNode = generateNewNode(null, null);
-            const newLink = { fromId: newNode.id, toId: nodeId };
+            const newNode: Omit<NodeShape, 'routineId'> = generateNewNode(null, null);
+            const newLink: NodeLinkShape = generateNewLink(newNode.id, nodeId);
             setChangedRoutine({
                 ...changedRoutine,
                 nodes: [...changedRoutine.nodes, newNode as any],
@@ -882,7 +842,7 @@ export const BuildView = ({
     const handleSubroutineViewFull = useCallback(() => {
         if (!openedSubroutine) return;
         if (!isEqual(routine, changedRoutine)) {
-            PubSub.publish(Pubs.Snack, { message: 'You have unsaved changes. Please save or discard them before navigating to another routine.' });
+            PubSub.get().publishSnack({ message: 'You have unsaved changes. Please save or discard them before navigating to another routine.' });
             return;
         }
         // TODO - buildview should have its own buildview, to recursively open subroutines
@@ -1028,14 +988,15 @@ export const BuildView = ({
                 // If there are no leaving links, create a new link and end node
                 if (leavingLinks.length === 0) {
                     // Generate node ID
-                    const newEndNodeId = uuidv4();
+                    const newEndNodeId = uuid();
                     // Calculate rowIndex and columnIndex
                     // Column is 1 after current column
                     const columnIndex: number = (node.columnIndex ?? 0) + 1;
                     // Node is 1 after last rowIndex in column
                     const rowIndex = (columnIndex >= 0 && columnIndex < columns.length) ? columns[columnIndex].length : 0;
-                    const newLink: Partial<NodeLink> = { fromId: node.id, toId: newEndNodeId }
-                    const newEndNode: Partial<Node> = {
+                    const newLink: NodeLinkShape = generateNewLink(node.id, newEndNodeId);
+                    const newEndNode: Omit<NodeShape, 'routineId'> = {
+                        __typename: 'Node',
                         id: newEndNodeId,
                         type: NodeType.End,
                         rowIndex,
@@ -1043,6 +1004,7 @@ export const BuildView = ({
                         data: {
                             wasSuccessful: false,
                         } as any,
+                        translations: [],
                     }
                     // Add link and end node to resultRoutine
                     resultRoutine.nodeLinks.push(newLink as any);

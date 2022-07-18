@@ -16,9 +16,9 @@ import {
     VisibilityOff as PreviewOffIcon,
 } from '@mui/icons-material';
 import { MarkdownInputProps } from '../types';
-import { Pubs } from 'utils';
 import Markdown from 'markdown-to-jsx';
 import { noSelect } from 'styles';
+import { PubSub } from 'utils';
 
 enum Headers {
     H1 = 'h1',
@@ -108,7 +108,7 @@ export const MarkdownInput = ({
         const endPosition = textarea.selectionEnd;
         // If no selection, return
         if (startPosition === endPosition) {
-            PubSub.publish(Pubs.Snack, { message: 'No text selected', severity: 'Error' });
+            PubSub.get().publishSnack({ message: 'No text selected', severity: 'Error' });
             return;
         }
         // Insert ~~ before the selection, and ~~ after the selection

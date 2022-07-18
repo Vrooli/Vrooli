@@ -8,5 +8,10 @@ export const listUserFields = gql`
         stars
         isStarred
         reportsCount
+        translations {
+            id
+            language
+            bio
+        }
     }
 `

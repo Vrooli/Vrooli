@@ -55,7 +55,6 @@ export interface fork_fork_organization_tags_translations {
 
 export interface fork_fork_organization_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: fork_fork_organization_tags_translations[];
 }
@@ -128,7 +127,6 @@ export interface fork_fork_project_tags_translations {
 
 export interface fork_fork_project_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: fork_fork_project_tags_translations[];
 }
@@ -194,12 +192,14 @@ export interface fork_fork_routine_inputs_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface fork_fork_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -237,6 +237,7 @@ export interface fork_fork_routine_nodeLinks {
   id: string;
   fromId: string;
   toId: string;
+  operation: string | null;
   whens: fork_fork_routine_nodeLinks_whens[];
 }
 
@@ -258,12 +259,14 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_i
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -293,12 +296,14 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_o
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -384,7 +389,6 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_t
 
 export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_tags_translations[];
 }
@@ -500,12 +504,14 @@ export interface fork_fork_routine_outputs_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface fork_fork_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -636,7 +642,6 @@ export interface fork_fork_routine_tags_translations {
 
 export interface fork_fork_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: fork_fork_routine_tags_translations[];
 }
@@ -725,7 +730,6 @@ export interface fork_fork_standard_tags_translations {
 
 export interface fork_fork_standard_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: fork_fork_standard_tags_translations[];
 }
@@ -735,6 +739,7 @@ export interface fork_fork_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface fork_fork_standard_creator_Organization_translations {
@@ -763,6 +768,7 @@ export type fork_fork_standard_creator = fork_fork_standard_creator_Organization
 export interface fork_fork_standard {
   __typename: "Standard";
   id: string;
+  isInternal: boolean;
   name: string;
   role: MemberRole | null;
   type: string;

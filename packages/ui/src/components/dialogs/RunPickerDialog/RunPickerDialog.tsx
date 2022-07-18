@@ -12,13 +12,14 @@ import {
     Close as CloseIcon,
     Delete as DeleteIcon,
 } from "@mui/icons-material";
-import { getRunPercentComplete, parseSearchParams, Pubs } from "utils";
+import { getRunPercentComplete, parseSearchParams, PubSub } from "utils";
 import { useMutation } from "@apollo/client";
-import { runCreate } from "graphql/generated/runCreate";
+import { runCreate, runCreateVariables } from "graphql/generated/runCreate";
 import { deleteOneMutation, runCreateMutation } from "graphql/mutation";
 import { Run } from "types";
-import { deleteOne } from "graphql/generated/deleteOne";
+import { deleteOne, deleteOneVariables } from "graphql/generated/deleteOne";
 import { DeleteOneType } from "@local/shared";
+import { v4 as uuid } from 'uuid';
 
 export const RunPickerDialog = ({
     anchorEl,
@@ -44,18 +45,19 @@ export const RunPickerDialog = ({
         }
     }, [routine, onSelect, handleClose]);
 
-    const [runCreate] = useMutation<runCreate>(runCreateMutation);
+    const [runCreate] = useMutation<runCreate, runCreateVariables>(runCreateMutation);
     const createNewRun = useCallback(() => {
         if (!routine) {
-            PubSub.publish(Pubs.Snack, { message: 'Could not read routine data.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Could not read routine data.', severity: 'error' });
             return;
         }
         mutationWrapper({
             mutation: runCreate,
             input: {
+                id: uuid(),
                 routineId: routine.id,
-                version: routine.version,
-                title: getTranslation(routine, 'title', getUserLanguages(session)),
+                version: routine.version ?? '',
+                title: getTranslation(routine, 'title', getUserLanguages(session)) ?? 'Unnamed Routine',
             },
             successCondition: (response) => response.data.runCreate !== null,
             onSuccess: (response) => { 
@@ -64,25 +66,25 @@ export const RunPickerDialog = ({
                 onSelect(newRun); 
                 handleClose(); 
             },
-            onError: () => { PubSub.publish(Pubs.Snack, { message: 'Failed to create run.', severity: 'error' }) },
+            onError: () => { PubSub.get().publishSnack({ message: 'Failed to create run.', severity: 'error' }) },
         })
     }, [handleClose, onAdd, onSelect, routine, runCreate, session]);
 
-    const [deleteOne] = useMutation<deleteOne>(deleteOneMutation)
+    const [deleteOne] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation)
     const deleteRun = useCallback((run: Run) => {
         mutationWrapper({
             mutation: deleteOne,
             input: { id: run.id, objectType: DeleteOneType.Run },
             onSuccess: (response) => {
                 if (response?.data?.deleteOne?.success) {
-                    PubSub.publish(Pubs.Snack, { message: `${displayDate(run.timeStarted)} deleted.` });
+                    PubSub.get().publishSnack({ message: `${displayDate(run.timeStarted)} deleted.` });
                     onDelete(run);
                 } else {
-                    PubSub.publish(Pubs.Snack, { message: `Error deleting ${displayDate(run.timeStarted)}.`, severity: 'error' });
+                    PubSub.get().publishSnack({ message: `Error deleting ${displayDate(run.timeStarted)}.`, severity: 'error' });
                 }
             },
             onError: () => {
-                PubSub.publish(Pubs.Snack, { message: `Failed to delete ${displayDate(run.timeStarted)}.` });
+                PubSub.get().publishSnack({ message: `Failed to delete ${displayDate(run.timeStarted)}.` });
             }
         })
     }, [deleteOne, onDelete])
@@ -115,7 +117,7 @@ export const RunPickerDialog = ({
         if (!routine) return;
         // If run has some progress, show confirmation dialog
         if (run.completedComplexity > 0) {
-            PubSub.publish(Pubs.AlertDialog, {
+            PubSub.get().publishAlertDialog({
                 message: `Are you sure you want to delete this run from ${displayDate(run.timeStarted)} with ${getRunPercentComplete(run.completedComplexity, routine.complexity)}% completed?`,
                 buttons: [
                     {

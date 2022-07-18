@@ -5,9 +5,10 @@ import { Fragment, useCallback, useEffect, useState } from 'react';
 import {
     Add as AddIcon,
 } from '@mui/icons-material';
-import { updateArray } from 'utils';
+import { InputShape, OutputShape, updateArray } from 'utils';
 import { InputOutputListItem } from '../InputOutputListItem/InputOutputListItem';
 import { RoutineInput, RoutineInputList, RoutineOutput } from 'types';
+import { v4 as uuid } from 'uuid';
 
 const inputHelpText =
     `Inputs specify the information required to complete a routine. 
@@ -104,21 +105,28 @@ export const InputOutputContainer = ({
         newIsOpenArray[Math.min(index + 1, list.length)] = true;
         setIsOpenArray(newIsOpenArray);
         const newList = [...list];
-        let newItemFormatted = {
+        let newItemFormatted: RoutineInput | RoutineOutput = {
             ...newItem,
+            id: uuid(),
             name: newItem.name || `${isInput ? 'Input' : 'Output'} ${list.length + 1}`,
-            standard: newItem.standard || undefined,
+            standard: newItem.standard || null,
             translations: newItem.translations ? newItem.translations : [{
+                __typename: 'InputItemTranslation',
+                id: uuid(),
                 language,
                 description: ''
             }],
         } as any;
-        if (isInput && (newItem as RoutineInput).isRequired !== true && (newItem as RoutineInput).isRequired !== false) newItemFormatted.isRequired = true;
-        newList.splice(index + 1, 0, newItemFormatted);
-        handleUpdate(newList as any);
+        if (isInput && (newItem as RoutineInput).isRequired !== true && (newItem as RoutineInput).isRequired !== false) (newItemFormatted as RoutineInput).isRequired = true;
+        // Add new item to list at index (splice does not work)
+        const listStart = newList.slice(0, index);
+        const listEnd = newList.slice(index);
+        const combined = [...listStart, newItemFormatted, ...listEnd];
+        // newList.splice(index + 1, 0, newItemFormatted);
+        handleUpdate(combined as any);
     }, [list, language, isInput, handleUpdate]);
 
-    const onUpdate = useCallback((index: number, updatedItem: RoutineInput | RoutineOutput) => {
+    const onUpdate = useCallback((index: number, updatedItem: InputShape | OutputShape) => {
         handleUpdate(updateArray(list, index, updatedItem));
     }, [handleUpdate, list]);
 
@@ -128,7 +136,15 @@ export const InputOutputContainer = ({
     }, [handleUpdate, list, isOpenArray]);
 
     return (
-        <Box id={`${isInput ? 'input' : 'output'}-container`} sx={{ position: 'relative' }}>
+        <Box
+            id={`${isInput ? 'input' : 'output'}-container`}
+            sx={{
+                position: 'relative',
+                maxWidth: '500px',
+                marginLeft: 'auto',
+                marginRight: 'auto',
+            }}
+        >
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
                 {/* Title */}
                 <Typography component="h2" variant="h5" textAlign="left">{isInput ? 'Inputs' : 'Outputs'}</Typography>
@@ -140,7 +156,7 @@ export const InputOutputContainer = ({
                 {list.map((item, index) => (
                     <Fragment key={index}>
                         <InputOutputListItem
-                            key={`input-item-${index}`}
+                            key={`input-item-${item.id}`}
                             index={index}
                             isInput={isInput}
                             isOpen={isOpenArray.length > index && isOpenArray[index]}

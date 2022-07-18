@@ -216,14 +216,14 @@ export type CountInputBase = {
 export interface ValidateMutationsInput<Create, Update> {
     userId: string | null,
     createMany?: Create[] | null | undefined,
-    updateMany?: { where: { id: string }, data: Update }[] | null | undefined,
+    updateMany?: { where: { [x: string]: any }, data: Update }[] | null | undefined,
     deleteMany?: string[] | null | undefined,
 }
 
 export interface CUDInput<Create, Update> {
     userId: string | null,
     createMany?: Create[] | null | undefined,
-    updateMany?: { where: { id: string }, data: Update }[] | null | undefined,
+    updateMany?: { where: { [x: string]: any }, data: Update }[] | null | undefined,
     deleteMany?: string[] | null | undefined,
     partialInfo: PartialGraphQLInfo,
 }
@@ -649,25 +649,32 @@ export const selectHelper = (partial: PartialGraphQLInfo | PartialPrismaSelect):
  * @returns Valid GraphQL object
  */
 export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partialInfo: PartialGraphQLInfo): GraphQLModel {
-    // First convert data to usable shape
+    // Remove top-level union from partialInfo, if necessary
+    // If every key starts with a capital letter, it's a union. 
+    // There's a catch-22 here which we must account for. Since "data" has not 
+    // been shaped yet, it won't match the shape of "partialInfo". But we can't do 
+    // this after shaping "data" because we need to know the type of the union. 
+    // To account for this, we call modelToGraphQL on each union, to check which one matches "data"
+    if (Object.keys(partialInfo).every(k => k[0] === k[0].toUpperCase())) {
+        // Find the union type which matches the shape of value. 
+        let matchingType: string | undefined;
+        for (const unionType of Object.keys(partialInfo)) {
+            const unionPartial = partialInfo[unionType];
+            if (!isObject(unionPartial)) continue;
+            const convertedData = modelToGraphQL(data, unionPartial as any);
+            if (subsetsMatch(convertedData, unionPartial)) matchingType = unionType;
+        }
+        if (matchingType) {
+            partialInfo = partialInfo[matchingType] as PartialGraphQLInfo;
+        }
+    }
+    // Convert data to usable shape
     const type: string | undefined = partialInfo?.__typename;
     if (type !== undefined && type in FormatterMap) {
         const formatter: FormatConverter<any> = FormatterMap[type as keyof typeof FormatterMap] as FormatConverter<any>;
         if (formatter.constructUnions) data = formatter.constructUnions(data);
         if (formatter.removeJoinTables) data = formatter.removeJoinTables(data);
         if (formatter.removeCountFields) data = formatter.removeCountFields(data);
-    }
-    // Remove top-level union from partialInfo, if necessary
-    // If every key starts with a capital letter, it's a union
-    if (Object.keys(partialInfo).every(k => k[0] === k[0].toUpperCase())) {
-        // Find the union type which matches the shape of value
-        let matchingType: string | undefined;
-        for (const unionType of Object.keys(partialInfo)) {
-            if (subsetsMatch(data, partialInfo[unionType])) matchingType = unionType;
-        }
-        if (matchingType) {
-            partialInfo = partialInfo[matchingType] as PartialGraphQLInfo;
-        }
     }
     // Then loop through each key/value pair in data and call modelToGraphQL on each array item/object
     for (const [key, value] of Object.entries(data)) {
@@ -751,13 +758,14 @@ export enum RelationshipTypes {
     delete = 'delete',
 }
 
-export interface RelationshipToPrismaArgs {
+export interface RelationshipToPrismaArgs<N extends string> {
     data: { [x: string]: any },
     relationshipName: string,
     isAdd: boolean,
     fieldExcludes?: string[],
     relExcludes?: RelationshipTypes[],
     softDelete?: boolean,
+    idField?: N,
 }
 
 /**
@@ -772,20 +780,22 @@ export interface RelationshipToPrismaArgs {
  * @param fieldExcludes Fields to exclude from the conversion
  * @param relExcludes Relationship types to exclude from the conversion
  * @param softDelete True if deletes should be converted to soft deletes
+ * @param idField The name of the id field. Defaults to "id"
  */
-export const relationshipToPrisma = ({
+export const relationshipToPrisma = <N extends string>({
     data,
     relationshipName,
     isAdd,
     fieldExcludes = [],
     relExcludes = [],
-    softDelete = false
-}: RelationshipToPrismaArgs): {
-    connect?: { id: string }[],
-    disconnect?: { id: string }[],
-    delete?: { id: string }[],
+    softDelete = false,
+    idField = 'id' as N,
+}: RelationshipToPrismaArgs<N>): {
+    connect?: { [key in N]: string }[],
+    disconnect?: { [key in N]: string }[],
+    delete?: { [key in N]: string }[],
     create?: { [x: string]: any }[],
-    update?: { where: { id: string }, data: { [x: string]: any } }[],
+    update?: { where: { [key in N]: string }, data: { [x: string]: any } }[],
 } => {
     // Determine valid operations, and remove operations that should be excluded
     let ops = isAdd ? [RelationshipTypes.connect, RelationshipTypes.create] : Object.values(RelationshipTypes);
@@ -805,9 +815,9 @@ export const relationshipToPrisma = ({
         converted[currOp] = Array.isArray(converted[currOp]) ? [...converted[currOp], ...shapedData] : shapedData;
     };
     // Connects, diconnects, and deletes must be shaped in the form of { id: '123' } (i.e. no other fields)
-    if (Array.isArray(converted.connect) && converted.connect.length > 0) converted.connect = converted.connect.map((e: { [x: string]: any }) => ({ id: e.id }));
-    if (Array.isArray(converted.disconnect) && converted.disconnect.length > 0) converted.disconnect = converted.disconnect.map((e: { [x: string]: any }) => ({ id: e.id }));
-    if (Array.isArray(converted.delete) && converted.delete.length > 0) converted.delete = converted.delete.map((e: { [x: string]: any }) => ({ id: e.id }));
+    if (Array.isArray(converted.connect) && converted.connect.length > 0) converted.connect = converted.connect.map((e: { [x: string]: any }) => ({ [idField]: e[idField] }));
+    if (Array.isArray(converted.disconnect) && converted.disconnect.length > 0) converted.disconnect = converted.disconnect.map((e: { [x: string]: any }) => ({ [idField]: e[idField] }));
+    if (Array.isArray(converted.delete) && converted.delete.length > 0) converted.delete = converted.delete.map((e: { [x: string]: any }) => ({ [idField]: e[idField] }));
     // Updates must be shaped in the form of { where: { id: '123' }, data: {...}}
     if (Array.isArray(converted.update) && converted.update.length > 0) {
         converted.update = converted.update.map((e: any) => ({ where: { id: e.id }, data: e }));
@@ -815,10 +825,10 @@ export const relationshipToPrisma = ({
     return converted;
 }
 
-export interface JoinRelationshipToPrismaArgs extends RelationshipToPrismaArgs {
+export interface JoinRelationshipToPrismaArgs<N extends string> extends RelationshipToPrismaArgs<N> {
     joinFieldName: string, // e.g. organization.tags.tag => 'tag'
-    uniqueFieldName: string, // e.g. organization.tags.tag => 'organization_tags_taggedid_tagid_unique'
-    childIdFieldName: string, // e.g. organization.tags.tag => 'tagId'
+    uniqueFieldName: string, // e.g. organization.tags.tag => 'organization_tags_taggedid_tagTag_unique'
+    childIdFieldName: string, // e.g. organization.tags.tag => 'tagTag'
     parentIdFieldName: string, // e.g. organization.tags.tag => 'taggedId'
     parentId: string | null, // Only needed if not a create
 }
@@ -839,8 +849,9 @@ export interface JoinRelationshipToPrismaArgs extends RelationshipToPrismaArgs {
  * @param fieldExcludes Fields to exclude from the conversion
  * @param relExcludes Relationship types to exclude from the conversion
  * @param softDelete True if deletes should be converted to soft deletes
+ * @param idField The name of the id field. Defaults to "id"
  */
-export const joinRelationshipToPrisma = ({
+export const joinRelationshipToPrisma = <N extends string>({
     data,
     joinFieldName,
     uniqueFieldName,
@@ -851,11 +862,12 @@ export const joinRelationshipToPrisma = ({
     isAdd,
     fieldExcludes = [],
     relExcludes = [],
-    softDelete = false
-}: JoinRelationshipToPrismaArgs): { [x: string]: any } => {
+    softDelete = false,
+    idField = 'id' as N,
+}: JoinRelationshipToPrismaArgs<N>): { [x: string]: any } => {
     let converted: { [x: string]: any } = {};
     // Call relationshipToPrisma to get join data used for one-to-many relationships
-    const normalJoinData = relationshipToPrisma({ data, relationshipName, isAdd, fieldExcludes, relExcludes, softDelete })
+    const normalJoinData = relationshipToPrisma({ data, relationshipName, isAdd, fieldExcludes, relExcludes, softDelete, idField })
     // Convert this to support a join table
     if (normalJoinData.hasOwnProperty('connect')) {
         // ex: create: [ { tag: { connect: { id: 'asdf' } } } ] <-- A join table always creates on connects
@@ -865,16 +877,16 @@ export const joinRelationshipToPrisma = ({
         }
     }
     if (normalJoinData.hasOwnProperty('disconnect')) {
-        // delete: [ { organization_tags_taggedid_tagid_unique: { tagId: 'asdf', taggedId: 'fdas' } } ] <-- A join table always deletes on disconnects
+        // delete: [ { organization_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } } ] <-- A join table always deletes on disconnects
         for (const id of (normalJoinData?.disconnect ?? [])) {
-            const curr = { [uniqueFieldName]: { [childIdFieldName]: id.id, [parentIdFieldName]: parentId } };
+            const curr = { [uniqueFieldName]: { [childIdFieldName]: id[idField], [parentIdFieldName]: parentId } };
             converted.delete = Array.isArray(converted.delete) ? [...converted.delete, curr] : [curr];
         }
     }
     if (normalJoinData.hasOwnProperty('delete')) {
-        // delete: [ { organization_tags_taggedid_tagid_unique: { tagId: 'asdf', taggedId: 'fdas' } } ]
+        // delete: [ { organization_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } } ]
         for (const id of (normalJoinData?.delete ?? [])) {
-            const curr = { [uniqueFieldName]: { [childIdFieldName]: id.id, [parentIdFieldName]: parentId } };
+            const curr = { [uniqueFieldName]: { [childIdFieldName]: id[idField], [parentIdFieldName]: parentId } };
             converted.delete = Array.isArray(converted.delete) ? [...converted.delete, curr] : [curr];
         }
     }
@@ -887,12 +899,12 @@ export const joinRelationshipToPrisma = ({
     }
     if (normalJoinData.hasOwnProperty('update')) {
         // ex: update: [{ 
-        //         where: { organization_tags_taggedid_tagid_unique: { tagId: 'asdf', taggedId: 'fdas' } },
+        //         where: { organization_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } },
         //         data: { tag: { update: { tag: 'fdas', } } }
         //     }]
         for (const data of (normalJoinData?.update ?? [])) {
             const curr = {
-                where: { [uniqueFieldName]: { [childIdFieldName]: data.where.id, [parentIdFieldName]: parentId } },
+                where: { [uniqueFieldName]: { [childIdFieldName]: data.where[idField], [parentIdFieldName]: parentId } },
                 data: { [joinFieldName]: { update: data.data } }
             };
             converted.update = Array.isArray(converted.update) ? [...converted.update, curr] : [curr];
@@ -1160,6 +1172,7 @@ export const addSupplementalFields = async (
     data: ({ [x: string]: any } | null | undefined)[],
     partialInfo: PartialGraphQLInfo | PartialGraphQLInfo[],
 ): Promise<{ [x: string]: any }[]> => {
+    // console.log('add supp start', JSON.stringify(data), '\n\n');
     // Group data IDs and select fields by type. This is needed to reduce the number of times 
     // the database is called, as we can query all objects of the same type at once
     let objectIdsDict: { [x: string]: string[] } = {};
@@ -1180,6 +1193,7 @@ export const addSupplementalFields = async (
 
     // Dictionary to store objects by ID, instead of type. This is needed to combineSupplements
     const objectsById: { [x: string]: any } = {};
+    // console.log('objectidsdict', JSON.stringify(objectIdsDict), '\n\n');
 
     // Loop through each type in objectIdsDict
     for (const [type, ids] of Object.entries(objectIdsDict)) {
@@ -1257,6 +1271,7 @@ export async function readOneHelper<GraphQLModel>(
     info: GraphQLInfo | PartialGraphQLInfo,
     model: ModelBusinessLayer<GraphQLModel, any>,
 ): Promise<RecursivePartial<GraphQLModel>> {
+    // console.log('readonehelper start', JSON.stringify(input));
     // Validate input
     if (!input.id && !input.handle)
         throw new CustomError(CODE.InvalidArgs, 'id is required', { code: genErrorCode('0019') });
@@ -1276,8 +1291,10 @@ export async function readOneHelper<GraphQLModel>(
         await prismaObject.findFirst({ where: { handle: input.handle }, ...selectHelper(partialInfo) });
     if (!object)
         throw new CustomError(CODE.NotFound, `${objectType} not found`, { code: genErrorCode('0022') });
+    // console.log('readonehelper got object', JSON.stringify(object), '\n\n');
     // Return formatted for GraphQL
     let formatted = modelToGraphQL(object, partialInfo) as RecursivePartial<GraphQLModel>;
+    // console.log('readonehelper formatted', JSON.stringify(formatted), '\n\n');
     // If logged in and object has view count, handle it
     if (userId && objectType in ViewFor) {
         ViewModel(model.prisma).view(userId, { forId: object.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language
@@ -1310,6 +1327,8 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     let partialInfo = toPartialGraphQLInfo(info, model.relationshipMap);
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0023') });
+    // Make sure ID is in partialInfo, since this is required for cursor-based search
+    partialInfo.id = true;
     // Uses __typename to determine which Prisma object is being queried
     const objectType: string | undefined = partialInfo.__typename;
     if (objectType === undefined || !(objectType in PrismaMap))
@@ -1460,14 +1479,15 @@ export async function createHelper<GraphQLModel>(
  * @param input GraphQL update input object
  * @param info GraphQL info object
  * @param model Business layer model
- * @param prisma Prisma client
+ * @param where Function to create where clause for update (defaults to (obj) => ({ id: obj.id }))
  * @returns GraphQL response object
  */
 export async function updateHelper<GraphQLModel>(
     userId: string | null,
     input: any,
     info: GraphQLInfo | PartialGraphQLInfo,
-    model: ModelBusinessLayer<GraphQLModel, any>
+    model: ModelBusinessLayer<GraphQLModel, any>,
+    where: (obj: any) => { [x: string]: any } = (obj) => ({ id: obj.id }),
 ): Promise<RecursivePartial<GraphQLModel>> {
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object', { code: genErrorCode('0029') });
@@ -1478,7 +1498,7 @@ export async function updateHelper<GraphQLModel>(
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0031') });
     // Shape update input to match prisma update shape (i.e. "where" and "data" fields)
-    const shapedInput = { where: { id: input.id }, data: input };
+    const shapedInput = { where: where(input), data: input };
     const { updated } = await model.cud({ partialInfo, userId, updateMany: [shapedInput] });
     if (updated && updated.length > 0) {
         // If organization, project, routine, or standard, log for stats

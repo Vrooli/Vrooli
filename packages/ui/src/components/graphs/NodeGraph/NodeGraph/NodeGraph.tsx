@@ -7,10 +7,10 @@
 import { Box, Stack, useTheme } from '@mui/material';
 import { NodeColumn, NodeEdge } from 'components';
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pubs } from 'utils';
 import { NodeGraphProps } from '../types';
 import { Node } from 'types';
 import { NodeType } from 'graphql/generated/globalTypes';
+import { PubSub } from 'utils';
 
 type DragRefs = {
     currPosition: { x: number, y: number } | null; // Current position of the cursor
@@ -135,7 +135,7 @@ export const NodeGraph = ({
         const distX = x - lastX;
         const distY = y - lastY;
         const dist = Math.sqrt(distX * distX + distY * distY);
-        PubSub.publish(Pubs.Snack, { message: dist })
+        PubSub.get().publishSnack({ message: dist + '' }) //TODO for debugging
         // Determine if the pinch is expanding or contracting
         //TODO
         // Set last position to current position
@@ -183,7 +183,7 @@ export const NodeGraph = ({
         // First, find the node being dropped
         const node: Node = nodesById[nodeId];
         if (!node) {
-            PubSub.publish(Pubs.Snack, { message: `Dropped node ${nodeId} not found` });
+            PubSub.get().publishSnack({ message: `Dropped node ${nodeId} not found` });
             return;
         }
         // Next, check if the node was dropped into "Unlinked" container. 
@@ -205,7 +205,7 @@ export const NodeGraph = ({
         }
         // If columnIndex is start node or earlier, return
         if (columnIndex < 1 || columnIndex >= columns.length) {
-            PubSub.publish(Pubs.Snack, { message: 'Cannot drop node here', severity: 'error' })
+            PubSub.get().publishSnack({ message: 'Cannot drop node here', severity: 'error' })
             return;
         }
         // Get the drop row
@@ -335,11 +335,11 @@ export const NodeGraph = ({
         window.addEventListener('touchmove', onTouchMove); // Detects if node is being dragged or graph is being pinched
         window.addEventListener('touchend', onMouseUp); // Stops dragging and pinching
         // Add PubSub subscribers
-        let dragStartSub = PubSub.subscribe(Pubs.NodeDrag, (_, data) => {
+        let dragStartSub = PubSub.get().subscribeNodeDrag((data) => {
             dragRefs.current.timeout = setTimeout(nodeScroll, 50);
             setDragId(data.nodeId)
         });
-        let dragDropSub = PubSub.subscribe(Pubs.NodeDrop, (_, data) => {
+        let dragDropSub = PubSub.get().subscribeNodeDrop((data) => {
             clearScroll();
             handleDragStop(data.nodeId, data.position);
         });
@@ -349,8 +349,8 @@ export const NodeGraph = ({
             window.removeEventListener('mouseup', onMouseUp);
             window.removeEventListener('mousemove', onMouseMove);
             // Remove PubSub subscribers
-            PubSub.unsubscribe(dragStartSub);
-            PubSub.unsubscribe(dragDropSub);
+            PubSub.get().unsubscribe(dragStartSub);
+            PubSub.get().unsubscribe(dragDropSub);
         }
     }, [clearPinch, handleDragStop, nodeScroll, pinch, setIsShiftKeyPressed]);
 

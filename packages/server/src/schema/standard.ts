@@ -21,8 +21,9 @@ export const typeDef = gql`
     }
 
     input StandardCreateInput {
-        id: ID
+        id: ID!
         default: String
+        isInternal: Boolean
         name: String
         type: String!
         props: String!
@@ -31,7 +32,7 @@ export const typeDef = gql`
         createdByUserId: ID
         createdByOrganizationId: ID
         resourceListsCreate: [ResourceListCreateInput!]
-        tagsConnect: [ID!]
+        tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
         translationsCreate: [StandardTranslationCreateInput!]
     }
@@ -41,8 +42,8 @@ export const typeDef = gql`
         resourceListsDelete: [ID!]
         resourceListsCreate: [ResourceListCreateInput!]
         resourceListsUpdate: [ResourceListUpdateInput!]
-        tagsConnect: [ID!]
-        tagsDisconnect: [ID!]
+        tagsConnect: [String!]
+        tagsDisconnect: [String!]
         tagsCreate: [TagCreateInput!]
         translationsDelete: [ID!]
         translationsCreate: [StandardTranslationCreateInput!]
@@ -54,6 +55,7 @@ export const typeDef = gql`
         updated_at: Date!
         default: String
         name: String!
+        isInternal: Boolean!
         isStarred: Boolean!
         role: MemberRole
         isUpvoted: Boolean
@@ -79,22 +81,22 @@ export const typeDef = gql`
     }
 
     input StandardTranslationCreateInput {
-        id: ID
+        id: ID!
         language: String!
         description: String
-        jsonVariables: String
+        jsonVariable: String
     }
     input StandardTranslationUpdateInput {
         id: ID!
         language: String
         description: String
-        jsonVariables: String
+        jsonVariable: String
     }
     type StandardTranslation {
         id: ID!
         language: String!
         description: String
-        jsonVariables: String
+        jsonVariable: String
     }
 
     input StandardSearchInput {

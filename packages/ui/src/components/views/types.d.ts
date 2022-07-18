@@ -1,18 +1,18 @@
 import { DecisionStep, Node, Organization, Profile, Project, Routine, Session, Standard, User } from "types";
 
-export interface CreateProps<T> {
+interface CreateProps<T> {
     onCancel: () => void;
     onCreated: (item: T) => void;
     session: Session;
     zIndex: number;
 }
-export interface UpdateProps<T> {
+interface UpdateProps<T> {
     onCancel: () => void;
     onUpdated: (item: T) => void;
     session: Session;
     zIndex: number;
 }
-export interface ViewProps<T> {
+interface ViewProps<T> {
     /**
      * Any data about the object which is already known, 
      * such as its name. Can be displayed while fetching the full object
@@ -43,7 +43,7 @@ export interface StandardViewProps extends ViewProps<Standard> {}
 export interface UserViewProps extends ViewProps<User> {}
 
 
-export interface SettingsBaseProps {
+interface SettingsBaseProps {
     profile: Profile | undefined;
     onUpdated: (profile: Profile) => void;
     session: Session;
@@ -80,7 +80,7 @@ export interface RunViewProps extends ViewProps<Routine> {
 }
 
 export interface BuildViewProps extends ViewProps<Routine> {
-    handleClose: () => void;
+    handleClose: (wasModified: boolean) => void;
     loading: boolean;
     onChange: (routine: Routine) => void;
     routine: Routine | null;

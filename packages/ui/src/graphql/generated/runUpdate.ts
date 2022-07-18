@@ -25,7 +25,6 @@ export interface runUpdate_runUpdate_routine_inputs_standard_tags_translations {
 
 export interface runUpdate_runUpdate_routine_inputs_standard_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: runUpdate_runUpdate_routine_inputs_standard_tags_translations[];
 }
@@ -41,6 +40,7 @@ export interface runUpdate_runUpdate_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -79,6 +79,7 @@ export interface runUpdate_runUpdate_routine_nodeLinks {
   id: string;
   fromId: string;
   toId: string;
+  operation: string | null;
   whens: runUpdate_runUpdate_routine_nodeLinks_whens[];
 }
 
@@ -104,7 +105,6 @@ export interface runUpdate_runUpdate_routine_nodes_data_NodeRoutineList_routines
 
 export interface runUpdate_runUpdate_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: runUpdate_runUpdate_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags_translations[];
 }
@@ -120,6 +120,7 @@ export interface runUpdate_runUpdate_routine_nodes_data_NodeRoutineList_routines
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -154,7 +155,6 @@ export interface runUpdate_runUpdate_routine_nodes_data_NodeRoutineList_routines
 
 export interface runUpdate_runUpdate_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: runUpdate_runUpdate_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags_translations[];
 }
@@ -170,6 +170,7 @@ export interface runUpdate_runUpdate_routine_nodes_data_NodeRoutineList_routines
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -256,7 +257,6 @@ export interface runUpdate_runUpdate_routine_nodes_data_NodeRoutineList_routines
 
 export interface runUpdate_runUpdate_routine_nodes_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: runUpdate_runUpdate_routine_nodes_data_NodeRoutineList_routines_routine_tags_translations[];
 }
@@ -376,7 +376,6 @@ export interface runUpdate_runUpdate_routine_outputs_standard_tags_translations 
 
 export interface runUpdate_runUpdate_routine_outputs_standard_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: runUpdate_runUpdate_routine_outputs_standard_tags_translations[];
 }
@@ -392,6 +391,7 @@ export interface runUpdate_runUpdate_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -491,7 +491,6 @@ export interface runUpdate_runUpdate_routine_tags_translations {
 
 export interface runUpdate_runUpdate_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: runUpdate_runUpdate_routine_tags_translations[];
 }

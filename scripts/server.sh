@@ -10,19 +10,14 @@ PRISMA_SCHEMA_FILE="src/db/schema.prisma"
 cd ${PROJECT_DIR}/packages/server
 if [ "${DB_PULL}" = true ]; then
     echo 'Generating schema.prisma file from database'
-    prisma db pull --schema ${PRISMA_SCHEMA_FILE}
+    prisma db pull
+else 
+    echo 'Running migrations'
+    prisma migrate deploy
 fi
-if [ "${DB_PUSH}" = true ]; then
-    echo 'Updating database to match schema.prisma file'
-    prisma db push --schema ${PRISMA_SCHEMA_FILE}
-fi
-# If production and database migrations exist, migrate to latest
-if [ "${NODE_ENV}" = "production" ] && [ "$(ls -A src/db/migrations)" ]; then
-    echo 'Environment is set to production, so migrating to latest database'
-    prisma migrate deploy --schema ${PRISMA_SCHEMA_FILE}
-fi
+
 echo 'Generating Prisma schema'
-prisma generate --schema ${PRISMA_SCHEMA_FILE}
+prisma generate
 
 echo 'Converting shared directory to javascript'
 cd ${PROJECT_DIR}/packages/shared

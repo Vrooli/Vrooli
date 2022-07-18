@@ -28,7 +28,6 @@ export const standardFields = gql`
         }
     }
     fragment standardTagFields on Tag {
-        id
         tag
         translations {
             id
@@ -38,6 +37,7 @@ export const standardFields = gql`
     }
     fragment standardFields on Standard {
         id
+        isInternal
         name
         role
         type
@@ -56,6 +56,7 @@ export const standardFields = gql`
             id
             language
             description
+            jsonVariable
         }
         creator {
             ... on Organization {

@@ -10,11 +10,15 @@ import {
 } from '@mui/icons-material';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { Pubs, updateArray } from 'utils';
+import { PubSub, updateArray } from 'utils';
 import { emailCreateMutation, deleteOneMutation, emailUpdateMutation, sendVerificationEmailMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';
 import { EmailListItem } from '../EmailListItem/EmailListItem';
 import { DeleteOneType, emailCreateButton as validationSchema } from '@local/shared';
+import { emailCreate, emailCreateVariables } from 'graphql/generated/emailCreate';
+import { emailUpdate, emailUpdateVariables } from 'graphql/generated/emailUpdate';
+import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
+import { sendVerificationEmail, sendVerificationEmailVariables } from 'graphql/generated/sendVerificationEmail';
 
 export const EmailList = ({
     handleUpdate,
@@ -24,10 +28,10 @@ export const EmailList = ({
     const { palette } = useTheme();
 
     // Handle add
-    const [addMutation, { loading: loadingAdd }] = useMutation<any>(emailCreateMutation);
+    const [addMutation, { loading: loadingAdd }] = useMutation<emailCreate, emailCreateVariables>(emailCreateMutation);
     const formik = useFormik({
         initialValues: {
-            email: '',
+            emailAddress: '',
         },
         enableReinitialize: true,
         validationSchema,
@@ -36,13 +40,13 @@ export const EmailList = ({
             mutationWrapper({
                 mutation: addMutation,
                 input: {
-                    emailAddress: values.email,
+                    emailAddress: values.emailAddress,
                     receivesAccountUpdates: true,
                     receivesBusinessUpdates: true,
                 },
                 onSuccess: (response) => {
-                    PubSub.publish(Pubs.Snack, { message: 'Please check your email to complete verification.' });
-                    handleUpdate([...list, response.data.addEmail]);
+                    PubSub.get().publishSnack({ message: 'Please check your email to complete verification.' });
+                    handleUpdate([...list, response.data.emailCreate]);
                     formik.resetForm();
                 },
                 onError: () => { formik.setSubmitting(false); },
@@ -50,7 +54,7 @@ export const EmailList = ({
         },
     });
 
-    const [updateMutation, { loading: loadingUpdate }] = useMutation<any>(emailUpdateMutation);
+    const [updateMutation, { loading: loadingUpdate }] = useMutation<emailUpdate, emailUpdateVariables>(emailUpdateMutation);
     const onUpdate = useCallback((index: number, updatedEmail: Email) => {
         if (loadingUpdate) return;
         mutationWrapper({
@@ -66,17 +70,17 @@ export const EmailList = ({
         })
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<any>(deleteOneMutation);
+    const [deleteMutation, { loading: loadingDelete }] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation);
     const onDelete = useCallback((email: Email) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 
         // (i.e. one other email or one other wallet)
         if (list.length <= 1 && numVerifiedWallets === 0) {
-            PubSub.publish(Pubs.Snack, { message: 'Cannot delete your only authentication method!', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Cannot delete your only authentication method!', severity: 'error' });
             return;
         }
         // Confirmation dialog
-        PubSub.publish(Pubs.AlertDialog, {
+        PubSub.get().publishAlertDialog({
             message: `Are you sure you want to delete email ${email.emailAddress}?`,
             buttons: [
                 {
@@ -95,14 +99,14 @@ export const EmailList = ({
         });
     }, [deleteMutation, handleUpdate, list, loadingDelete, numVerifiedWallets]);
 
-    const [verifyMutation, { loading: loadingVerifyEmail }] = useMutation<any>(sendVerificationEmailMutation);
+    const [verifyMutation, { loading: loadingVerifyEmail }] = useMutation<sendVerificationEmail, sendVerificationEmailVariables>(sendVerificationEmailMutation);
     const sendVerificationEmail = useCallback((email: Email) => {
         if (loadingVerifyEmail) return;
         mutationWrapper({
             mutation: verifyMutation,
             input: { emailAddress: email.emailAddress },
             onSuccess: (response) => {
-                PubSub.publish(Pubs.Snack, { message: 'Please check your email to complete verification.' });
+                PubSub.get().publishSnack({ message: 'Please check your email to complete verification.' });
             },
         })
     }, [loadingVerifyEmail, verifyMutation]);
@@ -139,14 +143,14 @@ export const EmailList = ({
                 <TextField
                     autoComplete='email'
                     fullWidth
-                    id="email"
-                    name="email"
+                    id="emailAddress"
+                    name="emailAddress"
                     label="New Email Address"
-                    value={formik.values.email}
+                    value={formik.values.emailAddress}
                     onBlur={formik.handleBlur}
                     onChange={formik.handleChange}
-                    error={formik.touched.email && Boolean(formik.errors.email)}
-                    helperText={formik.touched.email && formik.errors.email}
+                    error={formik.touched.emailAddress && Boolean(formik.errors.emailAddress)}
+                    helperText={formik.touched.emailAddress && formik.errors.emailAddress}
                     sx={{
                         height: '56px',
                         maxWidth: '400px',
@@ -154,7 +158,7 @@ export const EmailList = ({
                 />
                 <IconButton
                     aria-label='add-new-email-button'
-                    onClick={() => { formik.handleSubmit() }}
+                    type='submit'
                     sx={{
                         background: palette.secondary.main,
                         borderRadius: '0 5px 5px 0',

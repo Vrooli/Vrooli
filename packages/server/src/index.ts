@@ -15,15 +15,19 @@ import { initializeRedis } from './redisConn';
 
 const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
     `http://localhost:5329/api` :
-    `https://app.vrooli.com/api`;
+    (process.env.SERVER_URL && process.env.SERVER_URL.length > 0) ?? `http://${process.env.SITE_IP}:5329/api`;
 
 const main = async () => {
-    console.info('Starting server...')
+    logger.log(LogLevel.info, 'Starting server...');
 
     // Check for required .env variables
-    if (['JWT_SECRET'].some(name => !process.env[name])) {
-        logger.log(LogLevel.error, '🚨 JWT_SECRET not in environment variables. Stopping server', { code: genErrorCode('0007') });
-        process.exit(1);
+    const requiredEnvs = ['REACT_APP_SERVER_LOCATION', 'JWT_SECRET'];
+    for (const env of requiredEnvs) {
+        if (!process.env[env]) {
+            console.error('uh oh', process.env[env]);
+            logger.log(LogLevel.error, `🚨 ${env} not in environment variables. Stopping server`, { code: genErrorCode('0007') });
+            process.exit(1);
+        }
     }
 
     // Setup databases
@@ -36,14 +40,14 @@ const main = async () => {
             useNewUrlParser: true,
             useUnifiedTopology: true,
         } as mongoose.ConnectOptions);
-        console.info('✅ Connected to MongoDB');
+        logger.log(LogLevel.info, '✅ Connected to MongoDB');
     } catch (error) {
         logger.log(LogLevel.error, '🚨 Failed to connect to MongoDB', { code: genErrorCode('0191'), error });
     }
     // Redis 
     try {
         await initializeRedis();
-        console.info('✅ Connected to Redis');
+        logger.log(LogLevel.info, '✅ Connected to Redis');
     } catch (error) {
         logger.log(LogLevel.error, '🚨 Failed to connect to Redis', { code: genErrorCode('0207'), error });
     }
@@ -66,15 +70,18 @@ const main = async () => {
         origins.push(
             /^http:\/\/localhost(?::[0-9]+)?$/,
             /^http:\/\/192.168.0.[0-9]{1,2}(?::[0-9]+)?$/,
-            'https://studio.apollographql.com'
+            'https://studio.apollographql.com',
+            new RegExp(`^http(s)?:\/\/${process.env.SITE_IP}(?::[0-9]+)?$`),
         )
     }
     else {
+        // Parse URLs from process.env.VIRTUAL_HOST
+        const domains = (process.env.VIRTUAL_HOST ?? '').split(',');
+        for (const domain of domains) {
+            origins.push(new RegExp(`^http(s)?:\/\/${domain}$`));
+        }
         origins.push(
-            `http://app.vrooli.com`,
-            `http://www.app.vrooli.com`,
-            `https://app.vrooli.com`,
-            `https://www.app.vrooli.com`,
+            new RegExp(`^http(s)?:\/\/${process.env.SITE_IP}(?::[0-9]+)?$`),
         )
     }
     app.use(cors({
@@ -96,6 +103,7 @@ const main = async () => {
      * Apollo Server for GraphQL
      */
     const apollo_options = new ApolloServer({
+        cache: 'bounded' as any,
         introspection: process.env.NODE_ENV === 'development',
         schema: schema,
         context: (c) => context(c), // Allows request and response to be included in the context
@@ -115,7 +123,7 @@ const main = async () => {
     // Start cron jobs for calculating site statistics
     initStatsCronJobs();
 
-    console.info(`🚀 Server running at ${SERVER_URL}`)
+    logger.log(LogLevel.info, `🚀 Server running at ${SERVER_URL}`);
 }
 
 main();

@@ -4,27 +4,28 @@
 import { WalletListProps } from '../types';
 import { useCallback, useState } from 'react';
 import { Wallet } from 'types';
-import { Box, Button, Dialog, ListItem, ListItemText, Typography, useTheme } from '@mui/material';
+import { Box, Button } from '@mui/material';
 import {
     Add as AddIcon,
 } from '@mui/icons-material';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { Pubs, updateArray } from 'utils';
+import { PubSub, updateArray } from 'utils';
 import { deleteOneMutation, walletUpdateMutation } from 'graphql/mutation';
-import { hasWalletExtension, validateWallet, WalletProvider, walletProviderInfo } from 'utils/authentication/walletIntegration';
+import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
 import { WalletListItem } from '../WalletListItem/WalletListItem';
 import { DeleteOneType } from '@local/shared';
-import { deleteOne } from 'graphql/generated/deleteOne';
+import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
+import { walletUpdate, walletUpdateVariables } from 'graphql/generated/walletUpdate';
+import { WalletInstallDialog, WalletSelectDialog } from 'components';
 
 export const WalletList = ({
     handleUpdate,
     numVerifiedEmails,
     list,
 }: WalletListProps) => {
-    const { palette } = useTheme();
 
-    const [updateMutation, { loading: loadingUpdate }] = useMutation<any>(walletUpdateMutation);
+    const [updateMutation, { loading: loadingUpdate }] = useMutation<walletUpdate, walletUpdateVariables>(walletUpdateMutation);
     const onUpdate = useCallback((index: number, updatedWallet: Wallet) => {
         if (loadingUpdate) return;
         mutationWrapper({
@@ -39,17 +40,17 @@ export const WalletList = ({
         })
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<deleteOne>(deleteOneMutation);
+    const [deleteMutation, { loading: loadingDelete }] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation);
     const onDelete = useCallback((wallet: Wallet) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 
         // (i.e. one other wallet or one other email)
         if (list.length <= 1 && numVerifiedEmails === 0) {
-            PubSub.publish(Pubs.Snack, { message: 'Cannot delete your only authentication method!', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Cannot delete your only authentication method!', severity: 'error' });
             return;
         }
         // Confirmation dialog
-        PubSub.publish(Pubs.AlertDialog, {
+        PubSub.get().publishAlertDialog({
             message: `Are you sure you want to delete wallet ${wallet.name ?? wallet.stakingAddress}?`,
             buttons: [
                 {
@@ -68,131 +69,110 @@ export const WalletList = ({
         });
     }, [deleteMutation, handleUpdate, list, loadingDelete, numVerifiedEmails]);
 
-    // Opens link to install wallet extension
-    const downloadExtension = useCallback((provider: WalletProvider) => {
-        const extensionUrl = walletProviderInfo[provider].extensionUrl;
-        window.open(extensionUrl, '_blank', 'noopener,noreferrer');
-    }, [])
-
-    // Wallet provider select popup
-    const [providerOpen, setproviderOpen] = useState(false);
+    // Wallet provider popups
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-    const [walletDialogFor, setWalletDialogFor] = useState<'add' | 'verify' | 'download'>('add');
-    const openProviderAddDialog = useCallback(() => {
-        setWalletDialogFor('add');
-        setproviderOpen(true);
+    const [connectOpen, setConnectOpen] = useState(false);
+    const [installOpen, setInstallOpen] = useState(false);
+    const openWalletAddDialog = useCallback(() => { 
+        setSelectedIndex(null);
+        setConnectOpen(true) 
     }, []);
-    const openProviderVerifyDialog = useCallback((wallet: Wallet) => {
+    const openWalletVerifyDialog = useCallback((wallet: Wallet) => {
         const index = list.findIndex(w => w.id === wallet.id);
-        setWalletDialogFor('verify');
         setSelectedIndex(index);
-        setproviderOpen(true);
+        setConnectOpen(true)
     }, [list]);
-    const openProviderDownloadDialog = useCallback(() => {
-        setWalletDialogFor('download');
-        setproviderOpen(true);
-    }, []);
+    const openWalletInstallDialog = useCallback(() => { setInstallOpen(true) }, []);
 
     /**
      * Add new wallet
      */
-    const addWallet = useCallback(async (provider: WalletProvider) => {
+    const addWallet = useCallback(async (providerKey: string) => {
         // Check if wallet extension installed
-        if (!hasWalletExtension(provider)) {
-            PubSub.publish(Pubs.AlertDialog, {
-                message: 'Wallet provider not found. Please verify that you are using a Chromium browser (e.g. Chrome, Brave), and that the Nami wallet extension is installed.',
+        if (!hasWalletExtension(providerKey)) {
+            PubSub.get().publishAlertDialog({
+                message: 'Wallet provider not found. Please verify that you are using a Chromium browser (e.g. Chrome, Brave) that supports extensions, and that your wallet extension is enabled.',
                 buttons: [
-                    { text: 'Try Again', onClick: () => { addWallet(provider); } },
-                    { text: 'Install Wallet', onClick: openProviderDownloadDialog },
+                    { text: 'Try Again', onClick: () => { addWallet(providerKey); } },
+                    { text: 'Install Wallet', onClick: openWalletInstallDialog },
                 ]
             });
             return;
         }
         // Validate wallet
-        const walletCompleteResult = await validateWallet(provider);
+        const walletCompleteResult = await validateWallet(providerKey);
         if (walletCompleteResult?.wallet) {
             // Check if wallet is already in list (i.e. user has already added this wallet)
             const existingWallet = list.find(w => w.stakingAddress === walletCompleteResult.wallet?.stakingAddress);
             if (existingWallet) {
-                PubSub.publish(Pubs.Snack, { message: 'Wallet already connected.', severity: 'warning' })
+                PubSub.get().publishSnack({ message: 'Wallet already connected.', severity: 'warning' })
             }
             else {
-                PubSub.publish(Pubs.Snack, { message: 'Wallet verified.', severity: 'success' });
+                PubSub.get().publishSnack({ message: 'Wallet verified.', severity: 'success' });
                 // Update list
                 handleUpdate([...list, walletCompleteResult.wallet]);
             }
         }
-    }, [handleUpdate, list, openProviderDownloadDialog]);
+    }, [handleUpdate, list, openWalletInstallDialog]);
 
     /**
      * Verify existing wallet
      */
-    const verifyWallet = useCallback(async (provider: WalletProvider) => {
+    const verifyWallet = useCallback(async (providerKey: string) => {
         if (selectedIndex === null) return;
         // Check if wallet extension installed
-        if (!hasWalletExtension(provider)) {
-            PubSub.publish(Pubs.AlertDialog, {
-                message: 'Wallet provider not found. Please verify that you are using a Chromium browser (e.g. Chrome, Brave), and that the Nami wallet extension is installed.',
+        if (!hasWalletExtension(providerKey)) {
+            PubSub.get().publishAlertDialog({
+                message: 'Wallet provider not found. Please verify that you are using a Chromium browser (e.g. Chrome, Brave) that supports extensions, and that your wallet extension is enabled.',
                 buttons: [
-                    { text: 'Try Again', onClick: () => { verifyWallet(provider); } },
-                    { text: 'Install Wallet', onClick: openProviderDownloadDialog },
+                    { text: 'Try Again', onClick: () => { verifyWallet(providerKey); } },
+                    { text: 'Install Wallet', onClick: openWalletInstallDialog },
                 ]
             });
             return;
         }
         // Validate wallet
-        const walletCompleteResult = await validateWallet(provider);
+        const walletCompleteResult = await validateWallet(providerKey);
         if (walletCompleteResult) {
-            PubSub.publish(Pubs.Snack, { message: 'Wallet verified.', severity: 'success' })
+            PubSub.get().publishSnack({ message: 'Wallet verified.', severity: 'success' })
             // Update list
             handleUpdate(updateArray(list, selectedIndex, {
                 ...list[selectedIndex],
                 verified: true,
             }));
         }
-    }, [handleUpdate, list, openProviderDownloadDialog, selectedIndex]);
+    }, [handleUpdate, list, openWalletInstallDialog, selectedIndex]);
 
-    const handleProviderClose = useCallback(() => {
-        setproviderOpen(false);
-    }, [])
-    const handleProviderSelect = useCallback((selected: WalletProvider) => {
-        if (walletDialogFor === 'add') {
-            addWallet(selected);
-        } else if (walletDialogFor === 'verify') {
-            verifyWallet(selected);
-        } else if (walletDialogFor === 'download') {
-            downloadExtension(selected);
+    const closeWalletConnectDialog = useCallback((providerKey: string | null) => { 
+        setConnectOpen(false);
+        const index = selectedIndex;
+        setSelectedIndex(null);
+        if (providerKey) {
+            if (!index || index <= 0) {
+                addWallet(providerKey);
+            } else {
+                verifyWallet(providerKey);
+            }
         }
-        handleProviderClose();
-    }, [addWallet, downloadExtension, handleProviderClose, verifyWallet, walletDialogFor])
+    }, [addWallet, selectedIndex, verifyWallet]);
+
+    const closeWalletInstallDialog = useCallback(() => { setInstallOpen(false) }, []);
 
     return (
         <>
-            {/* Popup for selecting wallet provider (to add new wallet) */}
-            <Dialog
-                open={providerOpen}
-                disableScrollLock={true}
-                onClose={handleProviderClose}
-            >
-                <Box
-                    sx={{
-                        width: '100',
-                        borderRadius: '4px 4px 0 0',
-                        padding: 1,
-                        paddingLeft: 2,
-                        paddingRight: 2,
-                        background: palette.primary.dark,
-                        color: 'white',
-                    }}
-                >
-                    <Typography variant="h6" textAlign="center">Select Wallet</Typography>
-                </Box>
-                {Object.values(walletProviderInfo).map((o, index) => (
-                    <ListItem button onClick={() => handleProviderSelect(o.enum)} key={index}>
-                        <ListItemText primary={o.label} />
-                    </ListItem>
-                ))}
-            </Dialog>
+            {/* Select dialog for adding new wallet */}
+            <WalletSelectDialog
+                handleOpenInstall={openWalletInstallDialog}
+                open={connectOpen}
+                onClose={closeWalletConnectDialog}
+                zIndex={200}
+            />
+            {/* Install dialog for downloading wallet extension */}
+            <WalletInstallDialog
+                open={installOpen}
+                onClose={closeWalletInstallDialog}
+                zIndex={connectOpen ? 201 : 200}
+            />
             <Box sx={{
                 overflow: 'overlay',
                 border: `1px solid #e0e0e0`,
@@ -209,7 +189,7 @@ export const WalletList = ({
                         index={index}
                         handleUpdate={onUpdate}
                         handleDelete={onDelete}
-                        handleVerify={openProviderVerifyDialog}
+                        handleVerify={openWalletVerifyDialog}
                     />
                 ))}
             </Box>
@@ -223,7 +203,7 @@ export const WalletList = ({
             }}>
                 <Button
                     fullWidth
-                    onClick={openProviderAddDialog}
+                    onClick={openWalletAddDialog}
                     startIcon={<AddIcon />}
                     sx={{
                         maxWidth: '400px',

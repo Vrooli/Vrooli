@@ -106,10 +106,11 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
                 });
                 organizationIds = ownerDataUnformatted.map(x => x.createdByOrganization?.id).filter(x => Boolean(x)) as string[];
                 // Inject owner data into "objects"
-                objects = objects.map((x, i) => { 
+                objects = objects.map((x, i) => {
                     const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
                     return ({ ...x, owner: unformatted?.createdByUser || unformatted?.createdByOrganization })
-                });            } else {
+                });
+            } else {
                 organizationIds = objects
                     .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
                     .map(x => x.owner.id)
@@ -161,6 +162,11 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
     },
     customQueries(input: StandardSearchInput): { [x: string]: any } {
         return {
+            /**
+             * isInternal routines should never appear in the query, since they are 
+             * only meant for a single input/output
+             */
+            isInternal: false,
             ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
             ...(input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
             ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
@@ -198,23 +204,61 @@ export const standardQuerier = (prisma: PrismaType) => ({
      * Checks if a standard exists that has an identical shape to the given standard. 
      * This is useful to preventing duplicate standards from being created.
      * @param data StandardCreateData to check
-     * @returns ID of matching standard, or null if none found
+     * @param userId The ID of the user creating the standard
+     * @param uniqueToCreator Whether to check if the standard is unique to the user/organization 
+     * @param isInternal Used to determine if the standard should show up in search results
+     * @returns data of matching standard, or null if no match
      */
-    async findMatchingStandard(data: StandardCreateInput): Promise<string | null> {
+    async findMatchingStandardShape(
+        data: StandardCreateInput,
+        userId: string,
+        uniqueToCreator: boolean,
+        isInternal: boolean | null,
+    ): Promise<{ [x: string]: any } | null> {
         // Sort all JSON properties that are part of the comparison
         const props = sortify(data.props);
         const yup = data.yup ? sortify(data.yup) : null;
         // Find all standards that match the given standard
         const standards = await prisma.standard.findMany({
             where: {
+                isInternal: (isInternal === true || isInternal === false) ? isInternal : undefined,
                 default: data.default ?? null,
                 props: props,
                 yup: yup,
+                createdByUserId: (uniqueToCreator && !data.createdByOrganizationId) ? userId : undefined,
+                createdByOrganizationId: (uniqueToCreator && data.createdByOrganizationId) ? data.createdByOrganizationId : undefined,
             }
         });
         // If any standards match (should only ever be 0 or 1, but you never know) return the first one
         if (standards.length > 0) {
-            return standards[0].id;
+            return standards[0];
+        }
+        // If no standards match, then data is unique. Return null
+        return null;
+    },
+    /**
+     * Checks if a standard exists that has the same createdByUserId, 
+     * createdByOrganizationId, name, and version
+     * @param data StandardCreateData to check
+     * @param userId The ID of the user creating the standard
+     * @returns data of matching standard, or null if no match
+     */
+    async findMatchingStandardName(
+        data: StandardCreateInput & { name: string, version: string },
+        userId: string
+    ): Promise<{ [x: string]: any } | null> {
+        // Find all standards that match the given standard
+        const standards = await prisma.standard.findMany({
+            where: {
+                name: data.name,
+                version: data.version,
+                createdByUserId: !data.createdByOrganizationId ? userId : undefined,
+                createdByOrganizationId: data.createdByOrganizationId ? data.createdByOrganizationId : undefined,
+            }
+        });
+        // If any standards match (should only ever be 0 or 1, but you never know) return the first one
+        if (standards.length > 0) {
+            return standards[0];
         }
         // If no standards match, then data is unique. Return null
         return null;
@@ -254,14 +298,19 @@ export const standardQuerier = (prisma: PrismaType) => ({
     }
 })
 
-export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof standardVerifier>) => ({
+export const standardMutater = (
+    prisma: PrismaType,
+    verifier: ReturnType<typeof standardVerifier>,
+    querier: ReturnType<typeof standardQuerier>
+) => ({
     async toDBShapeAdd(userId: string | null, data: StandardCreateInput): Promise<any> {
         let translations = TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, true)
-        if (translations?.jsonVariables) {
-            translations.jsonVariables = sortify(translations.jsonVariables);
+        if (translations?.jsonVariable) {
+            translations.jsonVariable = sortify(translations.jsonVariable);
         }
         return {
-            id: data.id ?? undefined,
+            id: data.id,
+            isInternal: data.isInternal ?? false,
             name: await standardQuerier(prisma).generateName(userId ?? '', data),
             default: data.default,
             type: data.type,
@@ -275,8 +324,8 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
     },
     async toDBShapeUpdate(userId: string | null, data: StandardUpdateInput): Promise<any> {
         let translations = TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false)
-        if (translations?.jsonVariables) {
-            translations.jsonVariables = sortify(translations.jsonVariables);
+        if (translations?.jsonVariable) {
+            translations.jsonVariable = sortify(translations.jsonVariable);
         }
         return {
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
@@ -308,7 +357,34 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
         });
         // Shape
         if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
-            const create = await this.toDBShapeAdd(userId, formattedInput.create[0]);
+            let create: any;
+            // If standard is internal, check if the shape exists in the database
+            if (formattedInput.create[0].isInternal) {
+                const existingStandard = await querier.findMatchingStandardShape(formattedInput.create[0], userId ?? '', false, true);
+                // If standard found, connect instead of create
+                if (existingStandard) {
+                    return existingStandard.id;
+                }
+            }
+            // Otherwise, perform two unique checks
+            // 1. Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
+            // 2. Check if standard of same shape already exists with the same creator
+            // If the first check returns a standard, throw error
+            // If the second check returns a standard, then connect the existing standard.
+            else {
+                // First call createData helper function, so we can use the generated name
+                create = await this.toDBShapeAdd(userId, formattedInput.create[0]);
+                const check1 = await querier.findMatchingStandardName(create, userId ?? '');
+                if (check1) {
+                    throw new CustomError(CODE.StandardDuplicateName, 'Standard with this name/version pair already exists.', { code: genErrorCode('0240') });
+                }
+                const check2 = await querier.findMatchingStandardShape(create, userId ?? '', true, false)
+                if (check2) {
+                    return check2.id;
+                }
+            }
+            // Shape create data
+            if (!create) create = await this.toDBShapeAdd(userId, formattedInput.create[0]);
             // Create standard
             const standard = await prisma.standard.create({
                 data: create,
@@ -332,6 +408,8 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
         }
         if (Array.isArray(formattedInput.delete) && formattedInput.delete.length > 0) {
             const deleteId = formattedInput.delete[0].id;
+            // If standard is internal, disconnect instead
+            if (input.isInternal) return null;
             // Delete standard
             await deleteOneHelper(userId, { id: deleteId, objectType: DeleteOneType.Standard }, StandardModel(prisma));
             return deleteId;
@@ -364,12 +442,16 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
             organizationIds.push(...objects.filter(object => object.createdByUserId !== userId).map(object => object.createdByOrganizationId));
         }
         if (deleteMany) {
-            // Add organizationIds to organizationIds array, if userId does not match the object's userId
             const objects = await prisma.standard.findMany({
                 where: { id: { in: deleteMany } },
                 select: { id: true, createdByUserId: true, createdByOrganizationId: true },
             });
-            organizationIds.push(...objects.filter(object => object.createdByUserId !== userId).map(object => object.createdByOrganizationId));
+            // Split objects by userId and organizationId
+            const userIds = objects.filter(object => Boolean(object.createdByUserId)).map(object => object.createdByUserId);
+            if (userIds.some(id => id !== userId))
+                throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0244') })
+            // Add to organizationIds array, to check ownership status
+            organizationIds.push(...objects.filter(object => !userId.includes(object.createdByOrganizationId ?? '')).map(object => object.createdByOrganizationId));
         }
         // Find admin/owner member data for every organization
         const memberData = await OrganizationModel(prisma).isOwnerOrAdmin(userId, organizationIds);
@@ -383,25 +465,57 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
         if (createMany) {
+            let data: any;
             // Loop through each create input
             for (const input of createMany) {
-                // Call createData helper function
-                // TODO check for exact matches, and don't add
-                let data = await this.toDBShapeAdd(userId, input);
-                // Associate with either organization or user
-                if (input.createdByOrganizationId) {
-                    data = {
-                        ...data,
-                        createdByOrganization: { connect: { id: input.createdByOrganizationId } },
-                    };
-                } else {
-                    data = {
-                        ...data,
-                        createdByUser: { connect: { id: userId } },
-                    };
+                // If standard is internal, check if the shape exists in the database
+                if (input.isInternal) {
+                    const existingStandard = await querier.findMatchingStandardShape(input, userId ?? '', false, true);
+                    // If standard found, pretend it was created
+                    if (existingStandard) {
+                        // Find full data
+                        const existingData = await prisma.standard.findUnique({ where: { id: existingStandard.id }, ...selectHelper(partialInfo) });
+                        // Convert to GraphQL
+                        const converted = modelToGraphQL(existingData as any, partialInfo);
+                        // Add to created array
+                        created = created ? [...created, converted] : [converted];
+                        continue;
+                    }
+                }
+                // Otherwise, perform two unique checks
+                // 1. Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
+                // 2. Check if standard of same shape already exists with the same creator
+                // If any checks return an existing standard, throw error
+                else {
+                    // First call createData helper function, so we can use the generated name
+                    data = await this.toDBShapeAdd(userId, input);
+                    const check1 = await querier.findMatchingStandardName(data, userId ?? '');
+                    if (check1) {
+                        throw new CustomError(CODE.StandardDuplicateName, 'Standard with this name/version pair already exists.', { code: genErrorCode('0238') });
+                    }
+                    const check2 = await querier.findMatchingStandardShape(data, userId ?? '', true, false)
+                    if (check2) {
+                        throw new CustomError(CODE.StandardDuplicateShape, 'Standard with this shape already exists.', { code: genErrorCode('0239') });
+                    }
+                }
+                // If not called, create data
+                if (!data) data = await this.toDBShapeAdd(userId, input);
+                // If not internal, associate with either organization or user
+                if (!input.isInternal) {
+                    if (input.createdByOrganizationId) {
+                        data = {
+                            ...data,
+                            createdByOrganization: { connect: { id: input.createdByOrganizationId } },
+                        };
+                    } else {
+                        data = {
+                            ...data,
+                            createdByUser: { connect: { id: userId } },
+                        };
+                    }
                 }
                 // Create object
-                const currCreated = await prisma.standard.create({ data, ...select });
+                const currCreated = await prisma.standard.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
                 const converted = modelToGraphQL(currCreated, partialInfo);
                 // Add to created array
@@ -440,9 +554,43 @@ export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof 
             }
         }
         if (deleteMany) {
-            deleted = await prisma.standard.deleteMany({
-                where: { id: { in: deleteMany } },
-            });
+            // While standards can be deleted, we must be careful not to delete standards that are referenced by other objects
+            // For example, a standard used by routines will be anonimized instead of deleted.
+            for (const id of deleteMany) {
+                // Check if standard is used by any inputs/outputs
+                const standard = await prisma.standard.findUnique({
+                    where: { id },
+                    select: {
+                        _count: {
+                            select: {
+                                routineInputs: true,
+                                routineOutputs: true,
+                            }
+                        }
+                    }
+                })
+                // If standard not found, throw error
+                if (!standard) {
+                    throw new CustomError(CODE.NotFound, 'Standard not found', { code: genErrorCode('0241') });
+                }
+                // If standard is being used, anonymize
+                if (standard._count.routineInputs || standard._count.routineOutputs) {
+                    await prisma.standard.update({
+                        where: { id },
+                        data: {
+                            createdByOrganizationId: null,
+                            createdByUserId: null,
+                        }
+                    })
+                }
+                // Otherwise, delete (unless it is internal)
+                else {
+                    await prisma.standard.deleteMany({ where: { 
+                        id,
+                        isInternal: false
+                    } });
+                }
+            }
         }
         return {
             created: createMany ? created : undefined,
@@ -466,7 +614,7 @@ export function StandardModel(prisma: PrismaType) {
     const search = standardSearcher();
     const verify = standardVerifier();
     const query = standardQuerier(prisma);
-    const mutate = standardMutater(prisma, verify);
+    const mutate = standardMutater(prisma, verify, query);
 
     return {
         prisma,

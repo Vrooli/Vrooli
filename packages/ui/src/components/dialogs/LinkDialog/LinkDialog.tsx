@@ -18,9 +18,10 @@ import { HelpButton } from 'components';
 import { useCallback, useMemo, useState } from 'react';
 import { LinkDialogProps } from '../types';
 import { Close as CloseIcon } from '@mui/icons-material';
-import { NewObject, Node, NodeLink } from 'types';
-import { getTranslation, Pubs } from 'utils';
+import { Node, NodeLink } from 'types';
+import { getTranslation, PubSub } from 'utils';
 import { NodeType } from 'graphql/generated/globalTypes';
+import { v4 as uuid } from 'uuid';
 
 const helpText =
     `This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.
@@ -52,7 +53,7 @@ export const LinkDialog = ({
     /**
      * Before closing, clear inputs
      */
-    const onClose = useCallback((newLink?: NewObject<NodeLink>) => {
+    const onClose = useCallback((newLink?: NodeLink) => {
         setFromNode(null);
         setToNode(null);
         handleClose(newLink);
@@ -60,12 +61,15 @@ export const LinkDialog = ({
 
     const addLink = useCallback(() => {
         if (!fromNode || !toNode) {
-            PubSub.publish(Pubs.Snack, { message: 'Please select both from and to nodes', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Please select both from and to nodes', severity: 'error' });
             return;
         }
         onClose({
+            __typename: 'NodeLink',
+            id: uuid(),
             fromId: fromNode.id,
             toId: toNode.id,
+            operation: null, //TODO
             whens: [], //TODO
         })
     }, [onClose, fromNode, toNode]);

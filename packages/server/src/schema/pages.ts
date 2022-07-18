@@ -104,8 +104,10 @@ const standardSelect = {
     id: true,
     commentsCount: true,
     name: true,
+    props: true,
     stars: true,
     score: true,
+    isInternal: true,
     isStarred: true,
     isUpvoted: true,
     role: true,
@@ -117,6 +119,7 @@ const standardSelect = {
     },
     tags: tagSelect,
     type: true,
+    version: true,
 }
 const userSelect = {
     __typename: GraphQLModelType.User,
@@ -126,6 +129,11 @@ const userSelect = {
     reportsCount: true,
     stars: true,
     isStarred: true,
+    translations: {
+        id: true,
+        language: true,
+        bio: true,
+    },
 }
 const viewSelect = {
     __typename: GraphQLModelType.View,
@@ -459,7 +467,7 @@ export const resolvers = {
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [processes, newlyCompletedProjects, newlyCompletedRoutines, needVotes, needInvestmentsProjects, needInvestmentsOrganizations, needMembers],
-                [routineSelect, projectSelect, routineSelect, projectSelect, projectSelect, organizationSelect] as any,
+                [routineSelect, projectSelect, routineSelect, projectSelect, projectSelect, organizationSelect, organizationSelect] as any,
                 ['p', 'ncp', 'ncr', 'nv', 'nip', 'nio', 'nm'],
                 context.req.userId,
                 context.prisma,

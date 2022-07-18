@@ -6,19 +6,21 @@ import { CommentContainerProps } from '../types';
 import { containerShadow } from 'styles';
 import { commentCreateForm as validationSchema } from '@local/shared';
 import { useLazyQuery, useMutation } from '@apollo/client';
-import { commentCreate } from 'graphql/generated/commentCreate';
+import { commentCreate, commentCreateVariables } from 'graphql/generated/commentCreate';
 import { MarkdownInput } from 'components/inputs';
 import { useFormik } from 'formik';
 import { commentCreateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils';
-import { objectToSearchInfo, ObjectType, parseSearchParams, Pubs, stringifySearchParams, useReactSearch } from 'utils';
+import { objectToSearchInfo, ObjectType, parseSearchParams, PubSub, stringifySearchParams, useReactSearch } from 'utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TimeFrame } from 'graphql/generated/globalTypes';
 import { comments, commentsVariables } from 'graphql/generated/comments';
 import { useLocation } from 'wouter';
 import { commentsQuery } from 'graphql/query';
-import { CommentThread as ThreadType } from 'types';
+import { Comment, CommentThread as ThreadType } from 'types';
 import { CommentThread } from 'components/lists/comment';
+import { validate as uuidValidate } from 'uuid';
+import { v4 as uuid } from 'uuid';
 
 const { advancedSearchSchema, defaultSortBy, sortByOptions } = objectToSearchInfo[ObjectType.Comment];
 
@@ -98,12 +100,12 @@ export function CommentContainer({
     // On search filters/sort change, reset the page
     useEffect(() => {
         after.current = undefined;
-        getPageData();
-    }, [advancedSearchParams, searchString, sortBy, timeFrame, getPageData]);
+        if (uuidValidate(objectId)) getPageData();
+    }, [advancedSearchParams, searchString, sortBy, timeFrame, getPageData, objectId]);
 
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
-        if (!pageData) return;
+        if (!pageData || !uuidValidate(objectId)) return;
         const queryData: any = Object.values(pageData)[0];
         if (!queryData || !queryData.pageInfo) return [];
         if (queryData.pageInfo?.hasNextPage) {
@@ -113,7 +115,7 @@ export function CommentContainer({
                 getPageData();
             }
         }
-    }, [getPageData, pageData]);
+    }, [getPageData, objectId, pageData]);
 
     /**
      * Helper method for converting fetched data to an array of object data
@@ -183,7 +185,7 @@ export function CommentContainer({
         }, ...curr]);
     }, []);
 
-    const [addMutation, { loading: loadingAdd }] = useMutation<commentCreate>(commentCreateMutation);
+    const [addMutation, { loading: loadingAdd }] = useMutation<commentCreate, commentCreateVariables>(commentCreateMutation);
     const formik = useFormik({
         initialValues: {
             comment: '',
@@ -193,16 +195,18 @@ export function CommentContainer({
             mutationWrapper({
                 mutation: addMutation,
                 input: {
+                    id: uuid(),
                     createdFor: objectType,
                     forId: objectId,
                     translationsCreate: [{
+                        id: uuid(),
                         language,
                         text: values.comment,
                     }]
                 },
                 successCondition: (response) => response.data.commentCreate !== null,
                 onSuccess: (response) => {
-                    PubSub.publish(Pubs.Snack, { message: 'Comment created.', severity: 'success' });
+                    PubSub.get().publishSnack({ message: 'Comment created.', severity: 'success' });
                     formik.resetForm();
                     onCommentAdd(response.data.commentCreate);
                 },

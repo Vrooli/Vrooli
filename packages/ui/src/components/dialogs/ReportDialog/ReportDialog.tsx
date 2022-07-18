@@ -3,7 +3,7 @@ import { reportCreate as validationSchema } from '@local/shared';
 import { Box, Button, Dialog, Grid, IconButton, Stack, TextField, Typography, useTheme } from '@mui/material';
 import { HelpButton } from 'components/buttons';
 import { useFormik } from 'formik';
-import { reportCreate } from 'graphql/generated/reportCreate';
+import { reportCreate, reportCreateVariables } from 'graphql/generated/reportCreate';
 import { reportCreateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { ReportDialogProps } from '../types';
@@ -12,10 +12,11 @@ import {
     Check as SaveIcon,
     Close as CloseIcon
 } from '@mui/icons-material';
-import { getUserLanguages, Pubs } from 'utils';
+import { getUserLanguages, PubSub } from 'utils';
 import { useEffect, useState } from 'react';
 import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
 import { Selector } from 'components';
+import { v4 as uuid } from 'uuid';
 
 const helpText =
     `Reports help us moderate content. For now, reports will be handled by moderators. 
@@ -53,7 +54,7 @@ export const ReportDialog = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => { setLanguage(getUserLanguages(session)[0]) }, [session]);
 
-    const [mutation, { loading }] = useMutation<reportCreate>(reportCreateMutation);
+    const [mutation, { loading }] = useMutation<reportCreate, reportCreateVariables>(reportCreateMutation);
     const formik = useFormik({
         initialValues: {
             createdFor: reportFor,
@@ -69,14 +70,15 @@ export const ReportDialog = ({
             mutationWrapper({
                 mutation,
                 input: {
+                    id: uuid(),
                     language,
                     reason: values.otherReason.length > 0 ? values.otherReason : values.reason,
                     createdFor: reportFor,
                     createdForId: forId
                 },
                 successCondition: (response) => response.data.reportCreate !== null,
-                onSuccess: (response) => {
-                    PubSub.publish(Pubs.Snack, { message: 'Report submitted.' });
+                onSuccess: () => {
+                    PubSub.get().publishSnack({ message: 'Report submitted.' });
                     formik.resetForm();
                     onClose()
                 },

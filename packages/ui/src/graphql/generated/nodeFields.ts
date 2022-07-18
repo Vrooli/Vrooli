@@ -24,7 +24,6 @@ export interface nodeFields_data_NodeRoutineList_routines_routine_tags_translati
 
 export interface nodeFields_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: nodeFields_data_NodeRoutineList_routines_routine_tags_translations[];
 }
@@ -34,6 +33,7 @@ export interface nodeFields_data_NodeRoutineList_routines_routine_translations {
   id: string;
   language: string;
   description: string | null;
+  instructions: string;
   title: string;
 }
 

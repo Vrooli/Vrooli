@@ -9,6 +9,7 @@ const timeElapsed = yup.number().integer().min(0);
 const step = yup.array().of(yup.number().integer().min(0));
 
 export const stepCreate = yup.object().shape({
+    id: id.required(),
     nodeId: id.required(),
     order: order.required(),
     step: step.required(),

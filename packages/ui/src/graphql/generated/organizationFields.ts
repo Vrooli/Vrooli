@@ -55,7 +55,6 @@ export interface organizationFields_tags_translations {
 
 export interface organizationFields_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: organizationFields_tags_translations[];
 }

@@ -14,7 +14,7 @@ import { APP_LINKS } from '@local/shared';
 import { Forms } from 'utils';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { useLocation } from 'wouter';
-import { emailRequestPasswordChange } from 'graphql/generated/emailRequestPasswordChange';
+import { emailRequestPasswordChange, emailRequestPasswordChangeVariables } from 'graphql/generated/emailRequestPasswordChange';
 import { FormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
@@ -24,7 +24,7 @@ export const ForgotPasswordForm = ({
     onFormChange = () => { }
 }: FormProps) => {
     const [, setLocation] = useLocation();
-    const [emailRequestPasswordChange, { loading }] = useMutation<emailRequestPasswordChange>(emailRequestPasswordChangeMutation);
+    const [emailRequestPasswordChange, { loading }] = useMutation<emailRequestPasswordChange, emailRequestPasswordChangeVariables>(emailRequestPasswordChangeMutation);
 
     const formik = useFormik({
         initialValues: {
@@ -35,7 +35,7 @@ export const ForgotPasswordForm = ({
             mutationWrapper({
                 mutation: emailRequestPasswordChange,
                 input: { ...values },
-                successCondition: (response) => response.data.emailRequestPasswordChange,
+                successCondition: (response) => response.data.emailRequestPasswordChange.success === true,
                 onSuccess: () => setLocation(APP_LINKS.Home),
                 onError: () => { formik.setSubmitting(false) },
                 successMessage: () => 'Request sent. Please check email.',

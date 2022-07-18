@@ -15,7 +15,7 @@ import { ResourceListModel } from "./resourceList";
 import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
 import { runFormatter } from "./run";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuid } from 'uuid';
 
 type NodeWeightData = {
     simplicity: number,
@@ -110,6 +110,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         }
         // Query for role
         if (partial.role) {
+            // console.log('checking routine roles', ids);
             let organizationIds: string[] = [];
             // Collect owner data
             let ownerData: any = objects.map(x => x.owner).filter(x => x);
@@ -140,6 +141,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
             const roles = userId
                 ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
                 : [];
+            // console.log('got routine roles', roles)
             objects = objects.map((x) => {
                 const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
                 if (orgRoleIndex >= 0) {
@@ -485,15 +487,15 @@ export const routineMutater = (prisma: PrismaType) => ({
     async toDBShape(userId: string | null, data: RoutineCreateInput | RoutineUpdateInput, isAdd: boolean): Promise<any> {
         const [simplicity, complexity] = await this.calculateComplexity(data);
         return {
-            id: data.id ?? undefined,
-            isAutomatable: data.isAutomatable,
+            id: data.id,
+            isAutomatable: data.isAutomatable ?? undefined,
             isComplete: data.isComplete,
-            completedAt: data.isComplete ? new Date().toISOString() : null,
+            completedAt: (data.isComplete === true) ? new Date().toISOString() : (data.isComplete === false) ? null : undefined,
             complexity: complexity,
             simplicity: simplicity,
-            isInternal: data.isInternal,
-            parentId: data.parentId,
-            version: data.version,
+            isInternal: data.isInternal ?? undefined,
+            parentId: (data as RoutineCreateInput)?.parentId ?? undefined,
+            version: data.version ?? undefined,
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, isAdd),
             tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Routine),
             inputs: await this.relationshipBuilderInput(userId, data, isAdd),
@@ -531,9 +533,14 @@ export const routineMutater = (prisma: PrismaType) => ({
                     throw new CustomError(CODE.BannedWord, 'Name or description includes bad word', { code: genErrorCode('0091') });
                 // Convert nested relationships
                 result.push({
-                    id: data.id ?? undefined,
+                    id: data.id,
                     name: data.name,
-                    standardId: await standardModel.relationshipBuilder(userId, data, isAdd),
+                    standardId: await standardModel.relationshipBuilder(userId, {
+                        ...data,
+                        // If standard was not internal, then it would have been created 
+                        // in its own mutation
+                        isInternal: true,
+                    }, isAdd),
                     translations: TranslationModel().relationshipBuilder(userId, data, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
                 })
             }
@@ -591,9 +598,14 @@ export const routineMutater = (prisma: PrismaType) => ({
             for (let data of createMany) {
                 // Convert nested relationships
                 result.push({
-                    id: data.id ?? undefined,
+                    id: data.id,
                     name: data.name,
-                    standard: await standardModel.relationshipBuilder(userId, data, isAdd),
+                    standardId: await standardModel.relationshipBuilder(userId, {
+                        ...data,
+                        // If standard was not internal, then it would have been created 
+                        // in its own mutation
+                        isInternal: true,
+                    }, isAdd),
                     translations: TranslationModel().relationshipBuilder(userId, data, { create: outputTranslationCreate, update: outputTranslationUpdate }, false),
                 })
             }
@@ -633,7 +645,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
-    ): Promise<string | null> {
+    ): Promise<string | undefined> {
         // Convert input to Prisma shape
         const fieldExcludes = ['node', 'user', 'userId', 'organization', 'organizationId', 'createdByUser', 'createdByUserId', 'createdByOrganization', 'createdByOrganizationId'];
         let formattedInput: any = relationshipToPrisma({ data: input, relationshipName: 'routine', isAdd, fieldExcludes })
@@ -658,7 +670,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             return formattedInput.connect[0].id;
         }
         if (Array.isArray(formattedInput.disconnect) && formattedInput.disconnect.length > 0) {
-            return null;
+            return undefined;
         }
         if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
             const update = await this.toDBShape(userId, formattedInput.update[0].data, false);
@@ -675,7 +687,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             await deleteOneHelper(userId, { id: deleteId, objectType: DeleteOneType.Routine }, RoutineModel(prisma));
             return deleteId;
         }
-        return null;
+        return undefined;
     },
     /**
      * Validate adds, updates, and deletes
@@ -721,12 +733,16 @@ export const routineMutater = (prisma: PrismaType) => ({
             updateMany.forEach(input => this.validateNodePositions(input.data));
         }
         if (deleteMany) {
-            // Add organizationIds to organizationIds array, if userId does not match the object's userId
             const objects = await prisma.routine.findMany({
                 where: { id: { in: deleteMany } },
                 select: { id: true, userId: true, organizationId: true },
             });
-            organizationIds.push(...objects.filter(object => object.userId !== userId).map(object => object.organizationId));
+            // Split objects by userId and organizationId
+            const userIds = objects.filter(object => Boolean(object.userId)).map(object => object.userId);
+            if (userIds.some(id => id !== userId))
+                throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0242') })
+            // Add to organizationIds array, to check ownership status
+            organizationIds.push(...objects.filter(object => !userId.includes(object.organizationId ?? '')).map(object => object.organizationId));
         }
         // Find admin/owner member data for every organization
         const memberData = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', organizationIds);
@@ -773,7 +789,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             for (const input of updateMany) {
                 // Call createData helper function
                 let data = await this.toDBShape(userId, input.data, false);
-                console.log('going to update routine start', JSON.stringify(data), '\n\n')
+                // console.log('routine update todbshapeeee', JSON.stringify(data), '\n\n')
                 // Find object
                 let object = await prisma.routine.findFirst({ where: input.where })
                 if (!object)
@@ -792,9 +808,6 @@ export const routineMutater = (prisma: PrismaType) => ({
                         organization: { disconnect: true },
                     };
                 }
-                // next line tmep
-                // delete data.nodeLinks.delete
-                console.log('with temp delete', JSON.stringify(data), '\n\n')
                 // Update object
                 const currUpdated = await prisma.routine.update({
                     where: input.where,
@@ -808,7 +821,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             }
         }
         if (deleteMany) {
-            deleted = await prisma.organization.deleteMany({
+            deleted = await prisma.routine.deleteMany({
                 where: { id: { in: deleteMany } }
             })
         }
@@ -1010,7 +1023,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         for (const node of newRoutine.nodes) {
             const oldId = node.id;
             // Update ID
-            node.id = uuidv4();
+            node.id = uuid();
             // Update reference to node in nodeLinks
             for (const nodeLink of newRoutine.nodeLinks) {
                 if (nodeLink.fromId === oldId) {

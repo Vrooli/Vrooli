@@ -16,7 +16,6 @@ export interface standardTagFields_translations {
 
 export interface standardTagFields {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: standardTagFields_translations[];
 }

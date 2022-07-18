@@ -7,7 +7,7 @@ import { HelpButton, LinkButton, ResourceListHorizontal } from "components";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo } from "react";
 import { containerShadow } from "styles";
-import { getOwnedByString, getTranslation, getUserLanguages, Pubs, standardToFieldData, toOwnedBy } from "utils";
+import { getOwnedByString, getTranslation, getUserLanguages, PubSub, standardToFieldData, toOwnedBy } from "utils";
 import { useLocation } from "wouter";
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
@@ -42,7 +42,7 @@ export const SubroutineView = ({
     }, [data, owner, session]);
     const toOwner = useCallback(() => {
         // Confirmation dialog for leaving routine
-        PubSub.publish(Pubs.AlertDialog, {
+        PubSub.get().publishAlertDialog({
             message: 'Are you sure you want to stop this routine? You can continue it later.',
             buttons: [
                 {
@@ -95,9 +95,9 @@ export const SubroutineView = ({
         const input = previewFormik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
-            PubSub.publish(Pubs.Snack, { message: 'Copied to clipboard.', severity: 'success' });
+            PubSub.get().publishSnack({ message: 'Copied to clipboard.', severity: 'success' });
         } else {
-            PubSub.publish(Pubs.Snack, { message: 'Input is empty.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Input is empty.', severity: 'error' });
         }
     }, [previewFormik]);
 

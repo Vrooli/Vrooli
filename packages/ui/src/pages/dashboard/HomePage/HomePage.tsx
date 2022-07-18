@@ -13,8 +13,8 @@ import {
     Add as CreateIcon,
     Search as SearchIcon,
 } from '@mui/icons-material';
-import { listToAutocomplete, listToListItems, ObjectType, openObject, openSearchPage, useReactSearch } from 'utils';
-import { AutocompleteOption, Organization, Project, Routine, Standard, User } from 'types';
+import { listToAutocomplete, listToListItems, ObjectType, openObject, OpenObjectProps, openSearchPage, useReactSearch } from 'utils';
+import { AutocompleteOption } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 
 const faqText =
@@ -285,7 +285,7 @@ export const HomePage = ({
     /**
      * Opens page for list item
      */
-    const toItemPage = useCallback((item: Organization | Project | Routine | Standard | User, event: any) => {
+    const toItemPage = useCallback((item: OpenObjectProps['object'], event: any) => {
         event?.stopPropagation();
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });

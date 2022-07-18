@@ -27,12 +27,14 @@ export interface routineNodeFields_data_NodeRoutineList_routines_routine_inputs_
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface routineNodeFields_data_NodeRoutineList_routines_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -62,12 +64,14 @@ export interface routineNodeFields_data_NodeRoutineList_routines_routine_outputs
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface routineNodeFields_data_NodeRoutineList_routines_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -153,7 +157,6 @@ export interface routineNodeFields_data_NodeRoutineList_routines_routine_tags_tr
 
 export interface routineNodeFields_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: routineNodeFields_data_NodeRoutineList_routines_routine_tags_translations[];
 }

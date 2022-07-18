@@ -31,22 +31,22 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { copy } from 'graphql/generated/copy';
-import { fork } from 'graphql/generated/fork';
-import { star } from 'graphql/generated/star';
-import { vote } from 'graphql/generated/vote';
+import { copy, copyVariables } from 'graphql/generated/copy';
+import { fork, forkVariables } from 'graphql/generated/fork';
+import { star, starVariables } from 'graphql/generated/star';
+import { vote, voteVariables } from 'graphql/generated/vote';
 import { BaseObjectAction, BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { DeleteDialog, EditableLabel, LanguageInput, LinkButton, MarkdownInput, ResourceListHorizontal } from 'components';
-import { AllLanguages, getLanguageSubtag, getOwnedByString, getTranslation, Pubs, toOwnedBy, updateArray } from 'utils';
+import { AllLanguages, getLanguageSubtag, getOwnedByString, getTranslation, PubSub, RoutineTranslationShape, toOwnedBy, updateArray } from 'utils';
 import { useLocation } from 'wouter';
 import { useFormik } from 'formik';
 import { APP_LINKS, CopyType, DeleteOneType, ForkType, MemberRole, routineUpdateForm as validationSchema, StarFor, VoteFor } from '@local/shared';
 import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
-import { NewObject, Routine } from 'types';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
 import { copyMutation, forkMutation, starMutation, voteMutation } from 'graphql/mutation';
+import { v4 as uuid } from 'uuid';
 
 export const BuildInfoDialog = ({
     handleAction,
@@ -67,7 +67,7 @@ export const BuildInfoDialog = ({
     const toOwner = useCallback(() => { toOwnedBy(routine, setLocation) }, [routine, setLocation]);
 
     // Handle translations
-    type Translation = NewObject<Routine['translations'][0]>;
+    type Translation = RoutineTranslationShape;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -96,6 +96,7 @@ export const BuildInfoDialog = ({
         validationSchema,
         onSubmit: (values) => {
             const allTranslations = getTranslationsUpdate(language, {
+                id: uuid(),
                 language,
                 description: values.description,
                 instructions: values.instructions,
@@ -142,6 +143,7 @@ export const BuildInfoDialog = ({
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
+            id: uuid(),
             language,
             description: formik.values.description,
             instructions: formik.values.instructions,
@@ -168,6 +170,7 @@ export const BuildInfoDialog = ({
     const updateRoutineTitle = useCallback((title: string) => {
         if (!routine) return;
         updateTranslation(language, {
+            id: uuid(),
             language,
             description: formik.values.description,
             instructions: formik.values.instructions,
@@ -190,7 +193,7 @@ export const BuildInfoDialog = ({
             formik.handleSubmit();
             setOpen(false);
         } else {
-            PubSub.publish(Pubs.Snack, { message: 'Please fix errors before closing.', severity: 'Error' });
+            PubSub.get().publishSnack({ message: 'Please fix errors before closing.', severity: 'Error' });
         }
     };
 
@@ -253,10 +256,10 @@ export const BuildInfoDialog = ({
     }, [setLocation])
 
     // Mutations
-    const [copy] = useMutation<copy>(copyMutation);
-    const [fork] = useMutation<fork>(forkMutation);
-    const [star] = useMutation<star>(starMutation);
-    const [vote] = useMutation<vote>(voteMutation);
+    const [copy] = useMutation<copy, copyVariables>(copyMutation);
+    const [fork] = useMutation<fork, forkVariables>(forkMutation);
+    const [star] = useMutation<star, starVariables>(starMutation);
+    const [vote] = useMutation<vote, voteVariables>(voteMutation);
 
     const handleCopy = useCallback(() => {
         if (!routine?.id) return;
@@ -264,7 +267,7 @@ export const BuildInfoDialog = ({
             mutation: copy,
             input: { id: routine.id, objectType: CopyType.Routine },
             onSuccess: ({ data }) => {
-                PubSub.publish(Pubs.Snack, { message: `${getTranslation(routine, 'title', [language], true)} copied.`, severity: 'success' });
+                PubSub.get().publishSnack({ message: `${getTranslation(routine, 'title', [language], true)} copied.`, severity: 'success' });
                 handleAction(BaseObjectAction.Copy, data);
             },
         })
@@ -276,7 +279,7 @@ export const BuildInfoDialog = ({
             mutation: fork,
             input: { id: routine.id, objectType: ForkType.Routine },
             onSuccess: ({ data }) => {
-                PubSub.publish(Pubs.Snack, { message: `${getTranslation(routine, 'title', [language], true)} forked.`, severity: 'success' });
+                PubSub.get().publishSnack({ message: `${getTranslation(routine, 'title', [language], true)} forked.`, severity: 'success' });
                 handleAction(BaseObjectAction.Fork, data);
             }
         })
@@ -442,7 +445,8 @@ export const BuildInfoDialog = ({
                                     name="description"
                                     label="description"
                                     value={formik.values.description}
-                                    rows={3}
+                                    multiline
+                                    maxRows={3}
                                     onBlur={formik.handleBlur}
                                     onChange={formik.handleChange}
                                     error={formik.touched.description && Boolean(formik.errors.description)}

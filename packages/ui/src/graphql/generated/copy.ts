@@ -24,7 +24,6 @@ export interface copy_copy_node_data_NodeRoutineList_routines_routine_tags_trans
 
 export interface copy_copy_node_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: copy_copy_node_data_NodeRoutineList_routines_routine_tags_translations[];
 }
@@ -34,6 +33,7 @@ export interface copy_copy_node_data_NodeRoutineList_routines_routine_translatio
   id: string;
   language: string;
   description: string | null;
+  instructions: string;
   title: string;
 }
 
@@ -169,7 +169,6 @@ export interface copy_copy_organization_tags_translations {
 
 export interface copy_copy_organization_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: copy_copy_organization_tags_translations[];
 }
@@ -242,7 +241,6 @@ export interface copy_copy_project_tags_translations {
 
 export interface copy_copy_project_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: copy_copy_project_tags_translations[];
 }
@@ -308,12 +306,14 @@ export interface copy_copy_routine_inputs_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface copy_copy_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -351,6 +351,7 @@ export interface copy_copy_routine_nodeLinks {
   id: string;
   fromId: string;
   toId: string;
+  operation: string | null;
   whens: copy_copy_routine_nodeLinks_whens[];
 }
 
@@ -372,12 +373,14 @@ export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_i
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -407,12 +410,14 @@ export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_o
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -498,7 +503,6 @@ export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_t
 
 export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_tags_translations[];
 }
@@ -614,12 +618,14 @@ export interface copy_copy_routine_outputs_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface copy_copy_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isInternal: boolean;
   name: string;
   type: string;
   props: string;
@@ -750,7 +756,6 @@ export interface copy_copy_routine_tags_translations {
 
 export interface copy_copy_routine_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: copy_copy_routine_tags_translations[];
 }
@@ -839,7 +844,6 @@ export interface copy_copy_standard_tags_translations {
 
 export interface copy_copy_standard_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: copy_copy_standard_tags_translations[];
 }
@@ -849,6 +853,7 @@ export interface copy_copy_standard_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface copy_copy_standard_creator_Organization_translations {
@@ -877,6 +882,7 @@ export type copy_copy_standard_creator = copy_copy_standard_creator_Organization
 export interface copy_copy_standard {
   __typename: "Standard";
   id: string;
+  isInternal: boolean;
   name: string;
   role: MemberRole | null;
   type: string;

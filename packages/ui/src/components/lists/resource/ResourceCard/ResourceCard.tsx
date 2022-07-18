@@ -6,7 +6,7 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { getTranslation, openLink, Pubs, ResourceType } from 'utils';
+import { getTranslation, openLink, PubSub, ResourceType } from 'utils';
 import { useCallback, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { ResourceCardProps } from '../../../cards/types';
@@ -77,20 +77,20 @@ export const ResourceCard = ({
         const resourceType = getResourceType(data.link);
         // If null, show error
         if (!resourceType) {
-            PubSub.publish(Pubs.Snack, { message: 'Unable to open link', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Unable to open link', severity: 'error' });
             return;
         }
         // If URL, open in new tab
         if (resourceType === ResourceType.Url) openLink(setLocation, data.link);
         // If wallet address, open dialog to copy to clipboard
         else if (resourceType === ResourceType.Wallet) {
-            PubSub.publish(Pubs.AlertDialog, {
+            PubSub.get().publishAlertDialog({
                 message: `Wallet address: ${data.link}`,
                 buttons: [
                     {
                         text: 'Copy', onClick: () => {
                             navigator.clipboard.writeText(data.link);
-                            PubSub.publish(Pubs.Snack, { message: 'Copied.', severity: 'success' });
+                            PubSub.get().publishSnack({ message: 'Copied.', severity: 'success' });
                         }
                     },
                     { text: 'Close' }

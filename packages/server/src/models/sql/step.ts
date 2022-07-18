@@ -1,6 +1,6 @@
 import { CODE, stepsCreate, stepsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
-import { Count, RunStep, RunStepCreateInput, RunStepStatus, RunStepUpdateInput} from "../../schema/types";
+import { Count, RunStep, RunStepCreateInput, RunStepStatus, RunStepUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";
 import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
@@ -28,9 +28,10 @@ export const stepVerifier = () => ({
 /**
  * Handles mutations of run steps
  */
- export const stepMutater = (prisma: PrismaType, verifier: ReturnType<typeof stepVerifier>) => ({
+export const stepMutater = (prisma: PrismaType, verifier: ReturnType<typeof stepVerifier>) => ({
     async toDBShapeAdd(userId: string, data: RunStepCreateInput): Promise<any> {
         return {
+            id: data.id,
             nodeId: data.nodeId,
             contextSwitches: data.contextSwitches,
             subroutineId: data.subroutineId,
@@ -94,25 +95,25 @@ export const stepVerifier = () => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<RunStepCreateInput, RunStepUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId) 
+        if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0176') });
         if (createMany) {
             stepsCreate.validateSync(createMany, { abortEarly: false });
             verifier.profanityCheck(createMany);
         }
         if (updateMany) {
-            stepsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            stepsUpdate.validateSync(updateMany.map(u => ({ ...u.data, id: u.where.id })), { abortEarly: false });
             verifier.profanityCheck(updateMany.map(u => u.data));
-            // Check that user owns each run
+            // Check that user owns each step
             //TODO
         }
         if (deleteMany) {
-            // Check that user owns each run
+            // Check that user owns each step
             //TODO
         }
     },
     /**
-     * Performs adds, updates, and deletes of runs. First validates that every action is allowed.
+     * Performs adds, updates, and deletes of steps. First validates that every action is allowed.
      */
     async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<RunStepCreateInput, RunStepUpdateInput>): Promise<CUDResult<RunStep>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });

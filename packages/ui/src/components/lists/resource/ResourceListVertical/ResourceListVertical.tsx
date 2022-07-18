@@ -3,7 +3,7 @@
 import { ResourceDialog, ResourceListItem } from 'components';
 import { ResourceListVerticalProps } from '../types';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
-import { NewObject, Resource } from 'types';
+import { Resource } from 'types';
 import { containerShadow } from 'styles';
 import { Box, Button } from '@mui/material';
 import {
@@ -13,6 +13,7 @@ import { useMutation } from '@apollo/client';
 import { resourceDeleteManyMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { updateArray } from 'utils';
+import { resourceDeleteMany, resourceDeleteManyVariables } from 'graphql/generated/resourceDeleteMany';
 
 export const ResourceListVertical = ({
     title = '📌 Resources',
@@ -25,7 +26,7 @@ export const ResourceListVertical = ({
     zIndex,
 }: ResourceListVerticalProps) => {
 
-    const onAdd = useCallback((newResource: NewObject<Resource>) => {
+    const onAdd = useCallback((newResource: Resource) => {
         if (!list) return;
         if (handleUpdate) {
             handleUpdate({
@@ -45,7 +46,7 @@ export const ResourceListVertical = ({
         }
     }, [handleUpdate, list]);
 
-    const [deleteMutation] = useMutation<any>(resourceDeleteManyMutation);
+    const [deleteMutation] = useMutation<resourceDeleteMany, resourceDeleteManyVariables>(resourceDeleteManyMutation);
     const onDelete = useCallback((index: number) => {
         if (!list) return;
         const resource = list.resources[index];

@@ -23,10 +23,11 @@ export const typeDef = gql`
     }
 
     input OrganizationCreateInput {
-        id: ID
+        id: ID!
+        handle: String
         isOpenToNewMembers: Boolean
         resourceListsCreate: [ResourceListCreateInput!]
-        tagsConnect: [ID!]
+        tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
         translationsCreate: [OrganizationTranslationCreateInput!]
     }
@@ -39,8 +40,8 @@ export const typeDef = gql`
         resourceListsDelete: [ID!]
         resourceListsCreate: [ResourceListCreateInput!]
         resourceListsUpdate: [ResourceListUpdateInput!]
-        tagsConnect: [ID!]
-        tagsDisconnect: [ID!]
+        tagsConnect: [String!]
+        tagsDisconnect: [String!]
         tagsCreate: [TagCreateInput!]
         translationsDelete: [ID!]
         translationsCreate: [OrganizationTranslationCreateInput!]
@@ -73,7 +74,7 @@ export const typeDef = gql`
     }
 
     input OrganizationTranslationCreateInput {
-        id: ID
+        id: ID!
         language: String!
         bio: String
         name: String!

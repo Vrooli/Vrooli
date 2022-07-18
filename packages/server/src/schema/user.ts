@@ -71,13 +71,13 @@ export const typeDef = gql`
     }
 
     input UserTranslationCreateInput {
-        id: ID
+        id: ID!
         language: String!
         bio: String
     }
     input UserTranslationUpdateInput {
         id: ID!
-        language: String!
+        language: String
         bio: String
     }
     type UserTranslation {
@@ -94,8 +94,8 @@ export const typeDef = gql`
         hiddenTagsCreate: [TagHiddenCreateInput!]
         hiddenTagsUpdate: [TagHiddenUpdateInput!]
         resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceCreateInput!]
-        resourceListsUpdate: [ResourceUpdateInput!]
+        resourceListsCreate: [ResourceListCreateInput!]
+        resourceListsUpdate: [ResourceListUpdateInput!]
         starredTagsConnect: [ID!]
         starredTagsDisconnect: [ID!]
         starredTagsCreate: [TagCreateInput!]

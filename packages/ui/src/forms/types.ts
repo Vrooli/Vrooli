@@ -1,6 +1,6 @@
 import { CommonProps, Session } from "types";
-import { Forms } from "utils";
-import { DropzoneProps as DP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, QuantityBoxProps as QP, SelectorProps as SP, TagSelectorProps as TP, TagSelectorTag } from 'components/inputs/types';
+import { Forms, TagShape } from "utils";
+import { DropzoneProps as DP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, QuantityBoxProps as QP, SelectorProps as SP, TagSelectorProps as TP } from 'components/inputs/types';
 import { InputType } from "@local/shared";
 
 //==============================================================
@@ -128,7 +128,7 @@ export interface SwitchProps {
  * Props for rendering a TagSelector input component
  */
 export interface TagSelectorProps extends Omit<TP, 'currentLanguage' | 'session' | 'tags' | 'onTagAdd' | 'onTagRemove' | 'onTagsClear' | 'zIndex'> {
-    defaultValue?: TagSelectorTag[];
+    defaultValue?: TagShape[];
 }
 
 /**

@@ -5,7 +5,7 @@ import { ResourceCard, ResourceListItemContextMenu } from 'components';
 import { ResourceListHorizontalProps } from '../types';
 import { containerShadow } from 'styles';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
-import { NewObject, Resource } from 'types';
+import { Resource } from 'types';
 import {
     Add as AddIcon,
 } from '@mui/icons-material';
@@ -15,6 +15,7 @@ import { updateArray } from 'utils';
 import { resourceDeleteManyMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { resourceDeleteMany, resourceDeleteManyVariables } from 'graphql/generated/resourceDeleteMany';
 
 export const ResourceListHorizontal = ({
     title = '📌 Resources',
@@ -28,7 +29,7 @@ export const ResourceListHorizontal = ({
 }: ResourceListHorizontalProps) => {
     const { palette } = useTheme();
 
-    const onAdd = useCallback((newResource: NewObject<Resource>) => {
+    const onAdd = useCallback((newResource: Resource) => {
         if (!list) return;
         if (handleUpdate) {
             handleUpdate({
@@ -48,7 +49,7 @@ export const ResourceListHorizontal = ({
         }
     }, [handleUpdate, list]);
 
-    const [deleteMutation] = useMutation<any>(resourceDeleteManyMutation);
+    const [deleteMutation] = useMutation<resourceDeleteMany, resourceDeleteManyVariables>(resourceDeleteManyMutation);
     const onDelete = useCallback((index: number) => {
         if (!list) return;
         const resource = list.resources[index];

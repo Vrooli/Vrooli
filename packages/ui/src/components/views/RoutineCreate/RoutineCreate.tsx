@@ -1,11 +1,10 @@
 import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
 import { useMutation } from "@apollo/client";
-import { routine } from "graphql/generated/routine";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { ROLES, routineCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { routineCreateMutation } from "graphql/mutation";
-import { formatForCreate, getUserLanguages, updateArray, useReactSearch } from "utils";
+import { getUserLanguages, InputShape, OutputShape, RoutineTranslationShape, shapeRoutineCreate, TagShape, updateArray, useReactSearch } from "utils";
 import { RoutineCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";
@@ -13,13 +12,13 @@ import {
     Add as CreateIcon,
     Restore as CancelIcon,
 } from '@mui/icons-material';
-import { TagSelectorTag } from "components/inputs/types";
 import { LanguageInput, MarkdownInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { NewObject, Organization, ResourceList, Routine, RoutineInputList, RoutineOutputList } from "types";
+import { Organization, ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuid } from 'uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
+import { routineCreate, routineCreateVariables } from "graphql/generated/routineCreate";
 
 export const RoutineCreate = ({
     onCreated,
@@ -34,29 +33,29 @@ export const RoutineCreate = ({
     const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
 
     // Handle inputs
-    const [inputsList, setInputsList] = useState<RoutineInputList>([]);
-    const handleInputsUpdate = useCallback((updatedList: RoutineInputList) => {
+    const [inputsList, setInputsList] = useState<InputShape[]>([]);
+    const handleInputsUpdate = useCallback((updatedList: InputShape[]) => {
         setInputsList(updatedList);
     }, [setInputsList]);
 
     // Handle outputs
-    const [outputsList, setOutputsList] = useState<RoutineOutputList>([]);
-    const handleOutputsUpdate = useCallback((updatedList: RoutineOutputList) => {
+    const [outputsList, setOutputsList] = useState<OutputShape[]>([]);
+    const handleOutputsUpdate = useCallback((updatedList: OutputShape[]) => {
         setOutputsList(updatedList);
     }, [setOutputsList]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
 
     // Handle tags
-    const [tags, setTags] = useState<TagSelectorTag[]>([]);
-    const addTag = useCallback((tag: TagSelectorTag) => {
+    const [tags, setTags] = useState<TagShape[]>([]);
+    const addTag = useCallback((tag: TagShape) => {
         setTags(t => [...t, tag]);
     }, [setTags]);
-    const removeTag = useCallback((tag: TagSelectorTag) => {
+    const removeTag = useCallback((tag: TagShape) => {
         setTags(tags => tags.filter(t => t.tag !== tag.tag));
     }, [setTags]);
     const clearTags = useCallback(() => {
@@ -64,7 +63,7 @@ export const RoutineCreate = ({
     }, [setTags]);
 
     // Handle translations
-    type Translation = NewObject<Routine['translations'][0]>;
+    type Translation = RoutineTranslationShape;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -94,7 +93,7 @@ export const RoutineCreate = ({
     }, [params]);
 
     // Handle create
-    const [mutation] = useMutation<routine>(routineCreateMutation);
+    const [mutation] = useMutation<routineCreate, routineCreateVariables>(routineCreateMutation);
     const formik = useFormik({
         initialValues: {
             description: '',
@@ -105,13 +104,8 @@ export const RoutineCreate = ({
         },
         validationSchema,
         onSubmit: (values) => {
-            const resourceListAdd = resourceList ? formatForCreate(resourceList) : {};
-            const tagsAdd = tags.length > 0 ? {
-                tagsCreate: tags.filter(t => !t.id).map(t => ({ tag: t.tag })),
-                tagsConnect: tags.filter(t => t.id).map(t => (t.id)),
-            } : {};
-            const createdFor = organizationFor ? { createdByOrganizationId: organizationFor.id } : {};
             const allTranslations = getTranslationsUpdate(language, {
+                id: uuid(),
                 language,
                 description: values.description,
                 instructions: values.instructions,
@@ -119,16 +113,23 @@ export const RoutineCreate = ({
             })
             mutationWrapper({
                 mutation,
-                input: formatForCreate({
-                    ...createdFor,
-                    translations: allTranslations,
-                    inputs: inputsList,
-                    outputs: outputsList,
-                    resourceListsCreate: [resourceListAdd],
-                    ...tagsAdd,
+                input: shapeRoutineCreate({
+                    id: uuid(),
                     version: values.version,
                     isComplete: values.isComplete,
-                }) as any,
+                    owner: organizationFor ? {
+                        __typename: 'Organization',
+                        id: organizationFor.id,
+                    } : {
+                        __typename: 'User',
+                        id: session.id ?? '',
+                    },
+                    inputs: inputsList,
+                    outputs: outputsList,
+                    resourceLists: [resourceList],
+                    tags: tags,
+                    translations: allTranslations,
+                }),
                 onSuccess: (response) => { onCreated(response.data.routineCreate) },
                 onError: () => { formik.setSubmitting(false) }
             })
@@ -172,6 +173,7 @@ export const RoutineCreate = ({
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
+            id: uuid(),
             language,
             description: formik.values.description,
             instructions: formik.values.instructions,
@@ -257,7 +259,8 @@ export const RoutineCreate = ({
                         name="description"
                         label="description"
                         value={formik.values.description}
-                        rows={3}
+                        multiline
+                        maxRows={3}
                         onBlur={formik.handleBlur}
                         onChange={formik.handleChange}
                         error={formik.touched.description && Boolean(formik.errors.description)}
@@ -291,7 +294,7 @@ export const RoutineCreate = ({
                 <Grid item xs={12}>
                     <InputOutputContainer
                         isEditing={true}
-                        handleUpdate={handleInputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
+                        handleUpdate={handleInputsUpdate}
                         isInput={true}
                         language={language}
                         list={inputsList}
@@ -302,7 +305,7 @@ export const RoutineCreate = ({
                 <Grid item xs={12}>
                     <InputOutputContainer
                         isEditing={true}
-                        handleUpdate={handleOutputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
+                        handleUpdate={handleOutputsUpdate}
                         isInput={false}
                         language={language}
                         list={outputsList}

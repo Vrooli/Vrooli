@@ -15,9 +15,9 @@ import {
     Typography
 } from '@mui/material'
 import { Dropzone, JsonInput, LanguageInput, MarkdownInput, QuantityBox, Selector, TagSelector } from 'components'
-import { DropzoneProps, QuantityBoxProps, SelectorProps, TagSelectorTag } from 'components/inputs/types'
+import { DropzoneProps, QuantityBoxProps, SelectorProps } from 'components/inputs/types'
 import { CheckboxProps, FieldData, JSONProps, MarkdownProps, RadioProps, SliderProps, SwitchProps, TextFieldProps } from 'forms/types'
-import { updateArray } from 'utils'
+import { TagShape, updateArray } from 'utils'
 import { InputType, isObject } from '@local/shared'
 import { Session } from 'types'
 
@@ -339,11 +339,11 @@ export const toTagSelector = ({
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
-    const tags = formik.values[data.fieldName] as TagSelectorTag[];
-    const addTag = (tag: TagSelectorTag) => {
+    const tags = formik.values[data.fieldName] as TagShape[];
+    const addTag = (tag: TagShape) => {
         formik.setFieldValue(data.fieldName, [...tags, tag]);
     };
-    const removeTag = (tag: TagSelectorTag) => {
+    const removeTag = (tag: TagShape) => {
         formik.setFieldValue(data.fieldName, tags.filter((t) => t.tag !== tag.tag));
     };
     const clearTags = () => {

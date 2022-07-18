@@ -6,7 +6,7 @@ import { Project } from "types";
 import { BaseSearchPage } from "./BaseSearchPage";
 import { SearchProjectsPageProps } from "./types";
 import { useLocation } from "wouter";
-import { ObjectType, Pubs, stringifySearchParams } from "utils";
+import { ObjectType, PubSub, stringifySearchParams } from "utils";
 
 export const SearchProjectsPage = ({
     session
@@ -36,7 +36,7 @@ export const SearchProjectsPage = ({
             setLocation(`${APP_LINKS.SearchProjects}/add`)
         }
         else {
-            PubSub.publish(Pubs.Snack, { message: 'Must be logged in.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Must be logged in.', severity: 'error' });
             setLocation(`${APP_LINKS.Start}${stringifySearchParams({
                 redirect: APP_LINKS.SearchProjects
             })}`);

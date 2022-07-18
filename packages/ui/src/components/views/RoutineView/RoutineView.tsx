@@ -15,16 +15,16 @@ import {
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, BuildView, HelpButton, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
-import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, Pubs, standardToFieldData, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
+import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, PubSub, standardToFieldData, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
 import { Node, NodeLink, Routine, Run } from "types";
 import Markdown from "markdown-to-jsx";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
-import { NodeType, StarFor } from "graphql/generated/globalTypes";
+import { CommentFor, NodeType, StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
-import { validate as uuidValidate, v4 as uuidv4 } from 'uuid';
-import { runComplete } from "graphql/generated/runComplete";
+import { validate as uuidValidate, v4 as uuid } from 'uuid';
+import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
 import { owns } from "utils/authentication";
 import { useFormik } from "formik";
 import { FieldData } from "forms/types";
@@ -52,7 +52,7 @@ export const RoutineView = ({
         if (!data) return;
         setRoutine(data.routine);
     }, [data]);
-    const updateRoutine = useCallback((routine: Routine) => { setRoutine(routine); }, [setRoutine]);
+    const updateRoutine = useCallback((newRoutine: Routine) => { console.log('updateroutine', newRoutine); setRoutine(newRoutine); }, [setRoutine]);
 
     const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine?.role]);
 
@@ -83,7 +83,7 @@ export const RoutineView = ({
     const ownedBy = useMemo<string | null>(() => getOwnedByString(routine, [language]), [routine, language]);
     const toOwner = useCallback(() => { toOwnedBy(routine, setLocation) }, [routine, setLocation]);
 
-    const [runComplete] = useMutation<runComplete>(runCompleteMutation);
+    const [runComplete] = useMutation<runComplete, runCompleteVariables>(runCompleteMutation);
     const markAsComplete = useCallback(() => {
         if (!routine) return;
         mutationWrapper({
@@ -91,12 +91,12 @@ export const RoutineView = ({
             input: {
                 id: routine.id,
                 exists: false,
-                title: title,
+                title: title ?? 'Unnamed Routine',
                 version: routine?.version ?? '',
             },
             successMessage: () => 'Routine completed!🎉',
             onSuccess: () => {
-                PubSub.publish(Pubs.Celebration);
+                PubSub.get().publishCelebration();
                 setLocation(APP_LINKS.Home)
             },
         })
@@ -109,49 +109,60 @@ export const RoutineView = ({
     useEffect(() => {
         if (!id || !uuidValidate(id)) {
             const startNode: Node = {
-                id: uuidv4(),
+                id: uuid(),
                 type: NodeType.Start,
                 columnIndex: 0,
                 rowIndex: 0,
             } as Node;
             const routineListNode: Node = {
-                id: uuidv4(),
+                __typename: 'Node',
+                id: uuid(),
                 type: NodeType.RoutineList,
                 columnIndex: 1,
                 rowIndex: 0,
                 data: {
-                    id: uuidv4(),
+                    __typename: 'NodeRoutineList',
+                    id: uuid(),
                     isOptional: false,
                     isOrdered: false,
                     routines: [],
-                } as any,
+                } as Node['data'],
                 translations: [{
+                    id: uuid(),
                     language,
                     title: 'Subroutine 1',
-                }] as any
-            } as Node
+                }] as Node['translations'],
+            } as Node;
             const endNode: Node = {
-                id: uuidv4(),
+                __typename: 'Node',
+                id: uuid(),
                 type: NodeType.End,
                 columnIndex: 2,
                 rowIndex: 0,
-            } as Node
+            } as Node;
             const link1: NodeLink = {
-                id: uuidv4(),
+                __typename: 'NodeLink',
+                id: uuid(),
                 fromId: startNode.id,
                 toId: routineListNode.id,
-            } as NodeLink
+                whens: [],
+                operation: null,
+            }
             const link2: NodeLink = {
-                id: uuidv4(),
+                __typename: 'NodeLink',
+                id: uuid(),
                 fromId: routineListNode.id,
                 toId: endNode.id,
-            } as NodeLink
+                whens: [],
+                operation: null,
+            }
             setRoutine({
                 inputs: [],
                 outputs: [],
                 nodes: [startNode, routineListNode, endNode],
                 nodeLinks: [link1, link2],
                 translations: [{
+                    id: uuid(),
                     language,
                     title: 'New Routine',
                     instructions: 'Enter instructions here',
@@ -166,9 +177,9 @@ export const RoutineView = ({
         }), { replace: true });
         setIsBuildOpen(true);
     }, [routine?.id, setLocation]);
-    const stopBuild = useCallback(() => {
-        // If was building a new routine, navigate to last page (since this one will just be a blank view)
-        if (!routine?.id) {
+    const stopBuild = useCallback((wasModified: boolean) => {
+        // If was building a new routine (and did not create), navigate to last page (since this one will just be a blank view)
+        if (!routine?.id && !wasModified) {
             window.history.back();
         }
         else setIsBuildOpen(false)
@@ -215,13 +226,13 @@ export const RoutineView = ({
     const runRoutine = useCallback((e: any) => {
         // Validate routine before trying to run
         if (!routine || !uuidValidate(routine.id)) {
-            PubSub.publish(Pubs.Snack, { message: 'Error loading routine.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Error loading routine.', severity: 'error' });
             return;
         }
         // Find first node
         const firstNode = routine?.nodes?.find(node => node.type === NodeType.Start);
         if (!firstNode) {
-            PubSub.publish(Pubs.Snack, { message: 'Routine invalid - cannot run.', severity: 'Error' });
+            PubSub.get().publishSnack({ message: 'Routine invalid - cannot run.', severity: 'Error' });
             return;
         }
         // If run specified use that
@@ -415,9 +426,9 @@ export const RoutineView = ({
         const input = previewFormik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
-            PubSub.publish(Pubs.Snack, { message: 'Copied to clipboard.', severity: 'success' });
+            PubSub.get().publishSnack({ message: 'Copied to clipboard.', severity: 'success' });
         } else {
-            PubSub.publish(Pubs.Snack, { message: 'Input is empty.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Input is empty.', severity: 'error' });
         }
     }, [previewFormik]);
 
@@ -704,7 +715,7 @@ export const RoutineView = ({
                 <CommentContainer
                     language={language}
                     objectId={id ?? ''}
-                    objectType={ObjectType.Routine}
+                    objectType={CommentFor.Routine}
                     session={session}
                     zIndex={zIndex}
                 />

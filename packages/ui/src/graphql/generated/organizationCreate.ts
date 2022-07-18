@@ -55,7 +55,6 @@ export interface organizationCreate_organizationCreate_tags_translations {
 
 export interface organizationCreate_organizationCreate_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: organizationCreate_organizationCreate_tags_translations[];
 }

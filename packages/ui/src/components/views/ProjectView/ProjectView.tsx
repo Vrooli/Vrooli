@@ -18,7 +18,7 @@ import { ProjectViewProps } from "../types";
 import { Project, ResourceList } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
-import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, Pubs } from "utils";
+import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, PubSub } from "utils";
 import { validate as uuidValidate } from 'uuid';
 import { owns } from "utils/authentication";
 
@@ -112,7 +112,7 @@ export const ProjectView = ({
 
     const shareLink = useCallback(() => {
         navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.Project}/${id}`);
-        PubSub.publish(Pubs.Snack, { message: 'Copied🎉' })
+        PubSub.get().publishSnack({ message: 'Copied🎉' })
     }, [id]);
 
     const onEdit = useCallback(() => {

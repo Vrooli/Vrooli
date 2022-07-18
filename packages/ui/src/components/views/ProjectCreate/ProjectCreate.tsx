@@ -1,11 +1,10 @@
 import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
-import { project } from "graphql/generated/project";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { projectCreateForm as validationSchema, ROLES } from '@local/shared';
 import { useFormik } from 'formik';
 import { projectCreateMutation } from "graphql/mutation";
-import { formatForCreate, getUserLanguages, updateArray, useReactSearch } from "utils";
+import { getUserLanguages, ProjectTranslationShape, shapeProjectCreate, TagShape, updateArray, useReactSearch } from "utils";
 import { ProjectCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";
@@ -13,13 +12,13 @@ import {
     Add as CreateIcon,
     Restore as CancelIcon,
 } from '@mui/icons-material';
-import { TagSelectorTag } from "components/inputs/types";
 import { LanguageInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { NewObject, Organization, Project } from "types";
+import { Organization } from "types";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuid } from 'uuid';
+import { projectCreate, projectCreateVariables } from "graphql/generated/projectCreate";
 
 export const ProjectCreate = ({
     onCreated,
@@ -34,17 +33,17 @@ export const ProjectCreate = ({
     const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, []);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
 
     // Handle tags
-    const [tags, setTags] = useState<TagSelectorTag[]>([]);
-    const addTag = useCallback((tag: TagSelectorTag) => {
+    const [tags, setTags] = useState<TagShape[]>([]);
+    const addTag = useCallback((tag: TagShape) => {
         setTags(t => [...t, tag]);
     }, [setTags]);
-    const removeTag = useCallback((tag: TagSelectorTag) => {
+    const removeTag = useCallback((tag: TagShape) => {
         setTags(tags => tags.filter(t => t.tag !== tag.tag));
     }, [setTags]);
     const clearTags = useCallback(() => {
@@ -52,7 +51,7 @@ export const ProjectCreate = ({
     }, [setTags]);
 
     // Handle translations
-    type Translation = NewObject<Project['translations'][0]>;
+    type Translation = ProjectTranslationShape;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -73,7 +72,7 @@ export const ProjectCreate = ({
     }, [params]);
 
     // Handle create
-    const [mutation] = useMutation<project>(projectCreateMutation);
+    const [mutation] = useMutation<projectCreate, projectCreateVariables>(projectCreateMutation);
     const formik = useFormik({
         initialValues: {
             description: '',
@@ -81,25 +80,28 @@ export const ProjectCreate = ({
         },
         validationSchema,
         onSubmit: (values) => {
-            const resourceListAdd = resourceList ? formatForCreate(resourceList) : {};
-            const tagsAdd = tags.length > 0 ? {
-                tagsCreate: tags.filter(t => !t.id).map(t => ({ tag: t.tag })),
-                tagsConnect: tags.filter(t => t.id).map(t => (t.id)),
-            } : {};
-            const createdFor = organizationFor ? { createdByOrganizationId: organizationFor.id } : {};
             const allTranslations = getTranslationsUpdate(language, {
+                id: uuid(),
                 language,
                 description: values.description,
                 name: values.name,
             })
             mutationWrapper({
                 mutation,
-                input: formatForCreate({
-                    ...createdFor,
+                input: shapeProjectCreate({
+                    id: uuid(),
+                    isComplete: false, //TODO: values.isComplete,
+                    owner: organizationFor ? {
+                        __typename: 'Organization',
+                        id: organizationFor.id,
+                    } : {
+                        __typename: 'User',
+                        id: session.id ?? '',
+                    },
+                    resourceLists: [resourceList],
+                    tags: tags,
                     translations: allTranslations,
-                    resourceListsCreate: [resourceListAdd],
-                    ...tagsAdd
-                }) as any,
+                }),
                 onSuccess: (response) => { onCreated(response.data.projectCreate) },
                 onError: () => { formik.setSubmitting(false) },
             })
@@ -142,6 +144,7 @@ export const ProjectCreate = ({
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
+            id: uuid(),
             language,
             description: formik.values.description,
             name: formik.values.name,

@@ -9,8 +9,8 @@ import {
 } from '@mui/icons-material';
 import { useLocation } from 'wouter';
 import { clickSize } from 'styles';
-import { Pubs } from 'utils';
 import { useEffect } from 'react';
+import { PubSub } from 'utils';
 
 const buttonProps = {
     height: "48px",
@@ -35,7 +35,7 @@ export const WelcomePage = () => {
 
     // Show confetti on page load
     useEffect(() => {
-        PubSub.publish(Pubs.Celebration);
+        PubSub.get().publishCelebration();
     }, []);
 
     return (

@@ -77,7 +77,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
     async toDBShapeAdd(userId: string, data: RunCreateInput): Promise<any> {
         // TODO - when scheduling added, don't assume that it is being started right away
         return {
-            id: data.id ?? undefined,
+            id: data.id,
             timeStarted: new Date(),
             routineId: data.routineId,
             status: RunStatus.InProgress,
@@ -161,7 +161,6 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
                 if (!object) throw new CustomError(CODE.ErrorUnknown, 'Run not found.', { code: genErrorCode('0176') });
                 // Update object
                 const data = await this.toDBShapeUpdate(userId, input.data, object as any)
-                console.log('before run update temp', JSON.stringify(data), '\n\n')
                 const currUpdated = await prisma.run.update({
                     where: input.where,
                     data,

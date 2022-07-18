@@ -55,7 +55,6 @@ export interface standardCreate_standardCreate_tags_translations {
 
 export interface standardCreate_standardCreate_tags {
   __typename: "Tag";
-  id: string;
   tag: string;
   translations: standardCreate_standardCreate_tags_translations[];
 }
@@ -65,6 +64,7 @@ export interface standardCreate_standardCreate_translations {
   id: string;
   language: string;
   description: string | null;
+  jsonVariable: string | null;
 }
 
 export interface standardCreate_standardCreate_creator_Organization_translations {
@@ -93,6 +93,7 @@ export type standardCreate_standardCreate_creator = standardCreate_standardCreat
 export interface standardCreate_standardCreate {
   __typename: "Standard";
   id: string;
+  isInternal: boolean;
   name: string;
   role: MemberRole | null;
   type: string;

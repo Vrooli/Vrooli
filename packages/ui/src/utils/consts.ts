@@ -1,22 +1,5 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { COOKIE, ValueOf } from '@local/shared';
-
-export const Pubs = {
-    ...COOKIE,
-    Celebration: "celebration",
-    Loading: "loading",
-    LogOut: "logout",
-    AlertDialog: "alertDialog",
-    Session: "session",
-    Snack: "snack",
-    BurgerMenuOpen: "burgerMenuOpen",
-    ArrowMenuOpen: "arrowMenuOpen",
-    Theme: "theme",
-    NodeDrag: "NodeDrag",
-    NodeDrop: "NodeDrop",
-    NodeSetPosition: "NodeSetPosition",
-}
-export type Pubs = ValueOf<typeof Pubs>;
+import { ValueOf } from '@local/shared';
 
 export const Forms = {
     ForgotPassword: 'forgot-password',
@@ -26,11 +9,6 @@ export const Forms = {
     SignUp: 'signUp',
 }
 export type Forms = ValueOf<typeof Forms>;
-
-export const DragTypes = {
-    Node: 'node',
-}
-export type DragTypes = ValueOf<typeof DragTypes>;
 
 /**
  * A general status state for an object

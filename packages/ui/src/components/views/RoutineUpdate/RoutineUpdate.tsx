@@ -10,19 +10,19 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { routineUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, updateArray } from "utils";
+import { InputShape, OutputShape, PubSub, RoutineTranslationShape, shapeRoutineUpdate, TagShape, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
 } from '@mui/icons-material';
-import { TagSelectorTag } from "components/inputs/types";
 import { DialogActionItem } from "components/containers/types";
 import { LanguageInput, MarkdownInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { v4 as uuidv4 } from 'uuid';
-import { NewObject, Organization, ResourceList, Routine, RoutineInputList, RoutineOutputList } from "types";
+import { v4 as uuid } from 'uuid';
+import { Organization, ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { InputOutputContainer } from "components/lists/inputOutput";
+import { routineUpdate, routineUpdateVariables } from "graphql/generated/routineUpdate";
 
 export const RoutineUpdate = ({
     onCancel,
@@ -46,29 +46,29 @@ export const RoutineUpdate = ({
     const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
 
     // Handle inputs
-    const [inputsList, setInputsList] = useState<RoutineInputList>([]);
-    const handleInputsUpdate = useCallback((updatedList: RoutineInputList) => {
+    const [inputsList, setInputsList] = useState<InputShape[]>([]);
+    const handleInputsUpdate = useCallback((updatedList: InputShape[]) => {
         setInputsList(updatedList);
     }, [setInputsList]);
 
     // Handle outputs
-    const [outputsList, setOutputsList] = useState<RoutineOutputList>([]);
-    const handleOutputsUpdate = useCallback((updatedList: RoutineOutputList) => {
+    const [outputsList, setOutputsList] = useState<OutputShape[]>([]);
+    const handleOutputsUpdate = useCallback((updatedList: OutputShape[]) => {
         setOutputsList(updatedList);
     }, [setOutputsList]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
 
     // Handle tags
-    const [tags, setTags] = useState<TagSelectorTag[]>([]);
-    const addTag = useCallback((tag: TagSelectorTag) => {
+    const [tags, setTags] = useState<TagShape[]>([]);
+    const addTag = useCallback((tag: TagShape) => {
         setTags(t => [...t, tag]);
     }, [setTags]);
-    const removeTag = useCallback((tag: TagSelectorTag) => {
+    const removeTag = useCallback((tag: TagShape) => {
         setTags(tags => tags.filter(t => t.tag !== tag.tag));
     }, [setTags]);
     const clearTags = useCallback(() => {
@@ -76,7 +76,7 @@ export const RoutineUpdate = ({
     }, [setTags]);
 
     // Handle translations
-    type Translation = NewObject<Routine['translations'][0]>;
+    type Translation = RoutineTranslationShape;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -105,7 +105,7 @@ export const RoutineUpdate = ({
         else setOrganizationFor(null);
         setInputsList(routine?.inputs ?? []);
         setOutputsList(routine?.outputs ?? []);
-        setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+        setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(routine?.tags ?? []);
         setTranslations(routine?.translations?.map(t => ({
             id: t.id,
@@ -117,7 +117,7 @@ export const RoutineUpdate = ({
     }, [routine]);
 
     // Handle update
-    const [mutation] = useMutation<routine>(routineUpdateMutation);
+    const [mutation] = useMutation<routineUpdate, routineUpdateVariables>(routineUpdateMutation);
     const formik = useFormik({
         initialValues: {
             description: '',
@@ -129,15 +129,12 @@ export const RoutineUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
-            const existingResourceList = Array.isArray(routine?.resourceLists) ? (routine as Routine).resourceLists.find(list => list.usedFor === ResourceListUsedFor.Display) : undefined;
-            const resourceListUpdate = existingResourceList ? { resourceListsUpdate: formatForUpdate(existingResourceList, resourceList, [], ['resources']) } : {};
-            const tagsUpdate = tags.length > 0 ? {
-                tagsCreate: tags.filter(t => !t.id && !routine?.tags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
-                tagsConnect: tags.filter(t => t.id && !routine?.tags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
-                tagsDisconnect: routine?.tags?.filter(t => !tags.some(tag => tag.tag === t.tag)).map(t => (t.id)),
-            } : {};
-            const ownedBy: { organizationId: string; } | { userId: string; } = organizationFor ? { organizationId: organizationFor.id } : { userId: session?.id ?? '' };
+            if (!routine) {
+                PubSub.get().publishSnack({ message: 'Could not find existing routine data.', severity: 'error' });
+                return;
+            }
             const allTranslations = getTranslationsUpdate(language, {
+                id: uuid(),
                 language,
                 description: values.description,
                 instructions: values.instructions,
@@ -145,17 +142,23 @@ export const RoutineUpdate = ({
             })
             mutationWrapper({
                 mutation,
-                input: formatForUpdate(routine, {
-                    id,
-                    ...ownedBy,
+                input: shapeRoutineUpdate(routine, {
+                    id: routine.id,
                     version: values.version,
                     isComplete: values.isComplete,
+                    owner: organizationFor ? {
+                        __typename: 'Organization',
+                        id: organizationFor.id,
+                    } : {
+                        __typename: 'User',
+                        id: session.id ?? '',
+                    },
                     inputs: inputsList,
                     outputs: outputsList,
-                    ...resourceListUpdate,
-                    ...tagsUpdate,
+                    resourceLists: [resourceList],
+                    tags: tags,
                     translations: allTranslations,
-                }, ['tags', 'inputs.standard', 'outputs.standard'], ['translations', 'inputs', 'outputs', 'inputs.translations', 'outputs.translations']),
+                }),
                 onSuccess: (response) => { onUpdated(response.data.routineUpdate) },
                 onError: () => { formik.setSubmitting(false) },
             })
@@ -189,6 +192,7 @@ export const RoutineUpdate = ({
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
+            id: uuid(),
             language,
             description: formik.values.description,
             instructions: formik.values.instructions,
@@ -224,10 +228,10 @@ export const RoutineUpdate = ({
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12}>
-                <UserOrganizationSwitch 
-                    session={session} 
-                    selected={organizationFor} 
-                    onChange={onSwitchChange} 
+                <UserOrganizationSwitch
+                    session={session}
+                    selected={organizationFor}
+                    onChange={onSwitchChange}
                     zIndex={zIndex}
                 />
             </Grid>
@@ -263,7 +267,8 @@ export const RoutineUpdate = ({
                     name="description"
                     label="description"
                     value={formik.values.description}
-                    rows={3}
+                    multiline
+                    maxRows={3}
                     onBlur={formik.handleBlur}
                     onChange={formik.handleChange}
                     error={formik.touched.description && Boolean(formik.errors.description)}
@@ -297,7 +302,7 @@ export const RoutineUpdate = ({
             <Grid item xs={12}>
                 <InputOutputContainer
                     isEditing={true}
-                    handleUpdate={handleInputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
+                    handleUpdate={handleInputsUpdate}
                     isInput={true}
                     language={language}
                     list={inputsList}
@@ -308,7 +313,7 @@ export const RoutineUpdate = ({
             <Grid item xs={12}>
                 <InputOutputContainer
                     isEditing={true}
-                    handleUpdate={handleOutputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
+                    handleUpdate={handleOutputsUpdate}
                     isInput={false}
                     language={language}
                     list={outputsList}

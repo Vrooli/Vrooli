@@ -173,6 +173,16 @@ export const CODE: { [x: string]: ApolloErrorCode } = {
         message: 'Warning: Some images were already uploaded',
         snack: 'Some images already uploaded',
     },
+    StandardDuplicateShape: {
+        code: 'StandardDuplicateShape',
+        message: 'Standard with this shape already exists',
+        snack: 'The user/organization this standard was being created for already has a standard with the same shape.',
+    },
+    StandardDuplicateName: {
+        code: 'StandardDuplicateName',
+        message: 'Standard with this name/version pair already exists',
+        snack: 'The user/organization this standard was being created for already has a standard with the same name and version.',
+    },
     Unauthorized: {
         code: 'Unauthorized',
         message: 'Not authorized to perform this action',

@@ -10,18 +10,18 @@ import {
 import { APP_LINKS } from '@local/shared';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { useLocation } from 'wouter';
-import { emailResetPassword } from 'graphql/generated/emailResetPassword';
+import { emailResetPassword, emailResetPasswordVariables } from 'graphql/generated/emailResetPassword';
 import { ResetPasswordFormProps } from './types';
 import { formPaper, formSubmit } from './styles';
-import { Pubs } from 'utils';
 import { PasswordTextField } from 'components';
+import { PubSub } from 'utils';
 
 export const ResetPasswordForm = ({
     userId,
     code,
 }: ResetPasswordFormProps) => {
     const [, setLocation] = useLocation();
-    const [emailResetPassword, { loading }] = useMutation<emailResetPassword>(emailResetPasswordMutation);
+    const [emailResetPassword, { loading }] = useMutation<emailResetPassword, emailResetPasswordVariables>(emailResetPasswordMutation);
 
     const formik = useFormik({
         initialValues: {
@@ -30,10 +30,18 @@ export const ResetPasswordForm = ({
         },
         validationSchema: emailResetPasswordSchema,
         onSubmit: (values) => {
+            // Check for valid userId and code
+            if (!userId || !code) {
+                PubSub.get().publishSnack({ message: 'Invalid reset password URL.', severity: 'error' });
+                return;
+            }
             mutationWrapper({
                 mutation: emailResetPassword,
                 input: { id: userId, code, newPassword: values.newPassword },
-                onSuccess: (response) => { PubSub.publish(Pubs.Session, response.data.emailResetPassword); setLocation(APP_LINKS.Home) },
+                onSuccess: (response) => { 
+                    PubSub.get().publishSession(response.data.emailResetPassword); 
+                    setLocation(APP_LINKS.Home) 
+                },
                 successMessage: () => 'Password reset.',
                 onError: () => { formik.setSubmitting(false) },
             })
