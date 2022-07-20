@@ -626,7 +626,6 @@ export const RoutineView = ({
                     {/* Main container */}
                     <Box sx={{
                         overflowY: 'auto',
-                        width: 'min(100%, 700px)',
                         overflow: 'overlay',
                     }}>
                         {/* Heading container */}

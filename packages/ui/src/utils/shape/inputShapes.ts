@@ -54,6 +54,7 @@ export const shapeInputUpdate = (
         // Otherwise, set as create. The backend will handle the rest, even if 
         // you're updating.
         const shouldConnectToStandard = u.standard && !u.standard.isInternal && u.standard.id;
+        console.log('shapeinputupdate', o, u);
         return {
             id: o.id,
             isRequired: u.isRequired,

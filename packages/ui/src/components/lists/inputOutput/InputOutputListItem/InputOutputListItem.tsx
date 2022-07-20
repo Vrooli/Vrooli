@@ -55,6 +55,31 @@ export const InputTypeOptions: InputTypeOption[] = [
     },
 ]
 
+const defaultStandard = (item: InputOutputListItemProps['item']): StandardShape => ({
+    __typename: 'Standard',
+    id: uuid(),
+    default: null,
+    isInternal: true,
+    type: InputTypeOptions[0].value,
+    props: '{}',
+    yup: '{}',
+    name: `${item.name}-schema`,
+    tags: [],
+    translations: [],
+})
+
+const toFieldData = (schemaKey: string, item: InputOutputListItemProps['item'], language: string): FieldData | null => {
+    if (!item.standard || item.standard.isInternal === false) return null;
+    return standardToFieldData({
+        fieldName: schemaKey,
+        description: getTranslation(item, 'description', [language]) ?? getTranslation(item.standard, 'description', [language]),
+        props: item.standard?.props ?? '',
+        name: item.standard?.name ?? '',
+        type: item.standard?.type ?? InputTypeOptions[0].value,
+        yup: item.standard.yup ?? null,
+    })
+}
+
 //TODO handle language change somehow
 export const InputOutputListItem = ({
     isEditing,
@@ -70,62 +95,51 @@ export const InputOutputListItem = ({
     session,
     zIndex,
 }: InputOutputListItemProps) => {
+    console.log('rendering item')
     const { palette } = useTheme();
-
-    // Handle standard select switch
-    // Should only be set when a non-internal standard is selected
-    const [standard, setStandard] = useState<StandardShape & { name: Standard['name'] } | null>((item?.standard && !item.standard.isInternal) ? item?.standard : null);
-    // Handle input type selector
-    const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
-    const handleInputTypeSelect = useCallback((event: any) => {
-        setInputType(event.target.value)
-    }, []);
-
-    // Handle standard schema
-    const [schema, setSchema] = useState<FieldData | null>(null);
-    const handleSchemaUpdate = useCallback((schema: FieldData) => {
-        // Ignore if standard is already set
-        if (standard) return;
-        setSchema(schema);
-    }, [standard]);
     const [schemaKey] = useState(`input-output-schema-${Math.random().toString(36).substring(2, 15)}`);
 
-    const onSwitchChange = useCallback((s: Standard | null) => {
-        setSchema(null);
-        setStandard(s);
-        setIsPreviewOn(Boolean(s));
-    }, []);
+    const [externalStandard, setExternalStandard] = useState<StandardShape | null>(item.standard);
+    // True if using existing standard
+    const isExternal = useMemo<boolean>(() => externalStandard ? externalStandard.isInternal === false : false, [externalStandard]);
 
     /**
-     * Update object when standard is changed
+     * Schema only available when defining custom (internal) standard
      */
+    const [generatedSchema, setGeneratedSchema] = useState<FieldData | null>(toFieldData(schemaKey, {
+        ...item,
+        standard: {
+            ...(item.standard || defaultStandard(item)),
+        }
+    }, language));
+
+    const handleInputTypeSelect = useCallback((event: any) => {
+        if (event.target.value !== item.standard?.type) {
+            const newType = event.target.value?.value ?? InputTypeOptions[0].value;
+            const existingStandard = item.standard ?? defaultStandard(item);
+            setGeneratedSchema(toFieldData(schemaKey, {
+                ...item,
+                standard: {
+                    ...existingStandard,
+                    type: newType,
+                }
+            }, language));
+        }
+    }, [item, language, schemaKey]);
+
     useEffect(() => {
-        // Check if standard has changed
-        if (item?.standard?.id === standard?.id || !standard) return;
-        handleUpdate(index, {
-            ...item,
-            standard: standard,
-        })
-    }, [handleUpdate, index, item, standard]);
-    /**
-     * Update object when schema (custom standard) is changed
-     * Schemas mock a standard, so they are wrapped in a new standard object
-     */
-    useEffect(() => {
-        if (!schema) return;
-        handleUpdate(index, {
-            ...item,
-            standard: {
-                __typename: 'Standard',
-                id: uuid(),
-                default: schema.props?.defaultValue ?? null,
-                isInternal: true,
-                type: schema.type,
-                props: JSON.stringify(schema.props),
-                yup: JSON.stringify(schema.yup),
-            },
-        })
-    }, [handleUpdate, index, item, schema]);
+        if (item.standard && item.standard.isInternal === false) {
+            setExternalStandard(item.standard)
+        } else {
+            setGeneratedSchema(toFieldData(schemaKey, item, language))
+        }
+    }, [item, language, schemaKey, setExternalStandard]);
+
+    // Handle standard schema
+    const handleSchemaUpdate = useCallback((schema: FieldData) => {
+        console.log('handleschemaupdate', schema)
+        setGeneratedSchema(schema);
+    }, []);
 
     type Translation = InputTranslationShape | OutputTranslationShape;
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
@@ -135,24 +149,9 @@ export const InputOutputListItem = ({
         return index >= 0 ? updateArray(item.translations, index, translation) : [...item.translations, translation];
     }, [item.translations]);
 
-    /**
-     * Current schema, either generated from standard or custom 
-     */
-    const generatedSchema = useMemo<FieldData | null>(() => {
-        if (schema) return schema;
-        if (!standard) return null;
-        return standardToFieldData({
-            fieldName: schemaKey,
-            description: getTranslation(item, 'description', [language]) ?? getTranslation(standard, 'description', [language]),
-            props: standard?.props ?? '',
-            name: standard?.name ?? '',
-            type: standard?.type ?? '',
-            yup: standard?.yup ?? null,
-        });
-    }, [schema, standard, schemaKey, item, language]);
-
     const formik = useFormik({
         initialValues: {
+            id: item.id,
             description: getTranslation(item, 'description', [language]) ?? '',
             isRequired: true,
             name: item.name ?? '' as string,
@@ -162,17 +161,31 @@ export const InputOutputListItem = ({
         enableReinitialize: true,
         validationSchema: isInput ? inputCreate : outputCreate,
         onSubmit: (values) => {
+            console.log('on formik submit', values)
             // Update translations
             const allTranslations = getTranslationsUpdate(language, {
                 id: uuid(),
                 language,
                 description: values.description,
             })
+            const standard: StandardShape = (isExternal && externalStandard) ? externalStandard : {
+                __typename: 'Standard',
+                id: uuid(),
+                default: generatedSchema?.props?.defaultValue ?? null,
+                isInternal: true,
+                type: generatedSchema?.type ?? InputTypeOptions[0].value,
+                props: JSON.stringify(generatedSchema?.props ?? '{}'),
+                yup: JSON.stringify(generatedSchema?.yup ?? '{}'),
+                name: `${item.name}-standard`,
+                tags: [],
+                translations: [],
+            }
             handleUpdate(index, {
                 ...item,
                 name: values.name,
                 isRequired: isInput ? values.isRequired : undefined,
                 translations: allTranslations,
+                standard,
             });
         },
     });
@@ -185,8 +198,19 @@ export const InputOutputListItem = ({
         else handleOpen(index);
     }, [isOpen, handleOpen, index, formik, handleClose]);
 
-    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(Boolean(standard));
+    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(isExternal);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
+    const onSwitchChange = useCallback((s: Standard | null) => {
+        setIsPreviewOn(Boolean(s));
+        if (s && s.isInternal === false) {
+            setExternalStandard(s)
+        } else {
+            setGeneratedSchema(toFieldData(schemaKey, {
+                ...item,
+                standard: s,
+            }, language))
+        }
+    }, [item, language, schemaKey]);
 
     return (
         <Box
@@ -309,7 +333,7 @@ export const InputOutputListItem = ({
                         <StandardSelectSwitch
                             disabled={!isEditing}
                             session={session}
-                            selected={standard}
+                            selected={isExternal ? { name: externalStandard?.name ?? '' } : null}
                             onChange={onSwitchChange}
                             zIndex={zIndex}
                         />
@@ -325,8 +349,17 @@ export const InputOutputListItem = ({
                         />
                         {
                             isPreviewOn ?
-                                (Boolean(generatedSchema) && generateInputComponent({
-                                    data: generatedSchema ?? schema as FieldData,
+                                ((externalStandard || generatedSchema) && generateInputComponent({
+                                    data: externalStandard ?
+                                        standardToFieldData({
+                                            fieldName: schemaKey,
+                                            description: getTranslation(item, 'description', [language]) ?? getTranslation(externalStandard, 'description', [language]),
+                                            props: externalStandard?.props ?? '',
+                                            name: externalStandard?.name ?? '',
+                                            type: externalStandard?.type ?? InputTypeOptions[0].value,
+                                            yup: externalStandard.yup ?? null,
+                                        }) as FieldData :
+                                        generatedSchema as FieldData,
                                     disabled: true,
                                     formik,
                                     session,
@@ -336,10 +369,10 @@ export const InputOutputListItem = ({
                                 // Only editable if standard not selected and is editing
                                 <Box>
                                     <Selector
-                                        disabled={!isEditing || Boolean(standard)}
+                                        disabled={!isEditing || isExternal}
                                         fullWidth
                                         options={InputTypeOptions}
-                                        selected={standard?.type ? (InputTypeOptions.find(option => option.value === standard.type) ?? InputTypeOptions[0]) : inputType}
+                                        selected={InputTypeOptions.find(option => option.value === generatedSchema?.type) ?? InputTypeOptions[0]}
                                         handleChange={handleInputTypeSelect}
                                         getOptionLabel={(option: InputTypeOption) => option.label}
                                         inputAriaLabel='input-type-selector'
@@ -350,8 +383,8 @@ export const InputOutputListItem = ({
                                     />
                                     <BaseStandardInput
                                         fieldName={schemaKey}
-                                        inputType={(standard?.type as InputType) ?? inputType.value}
-                                        isEditing={isEditing && !Boolean(standard)}
+                                        inputType={(generatedSchema?.type as InputType) ?? InputTypeOptions[0].value}
+                                        isEditing={isEditing && !isExternal}
                                         schema={generatedSchema}
                                         onChange={handleSchemaUpdate}
                                         storageKey={schemaKey}

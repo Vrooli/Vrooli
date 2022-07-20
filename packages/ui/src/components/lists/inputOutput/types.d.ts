@@ -1,12 +1,12 @@
 import { Session } from "types";
-import { InputCreate, OutputCreate } from "utils";
+import { InputShape, OutputShape } from "utils";
 
 export interface InputOutputContainerProps {
-    handleUpdate: (updatedList: (InputCreate | OutputCreate)[]) => void;
+    handleUpdate: (updatedList: (InputShape | OutputShape)[]) => void;
     isEditing: boolean;
     isInput: boolean;
     language: string;
-    list: (InputCreate | OutputCreate)[];
+    list: (InputShape | OutputShape)[];
     session: Session;
     zIndex: number;
 }
@@ -16,11 +16,11 @@ export interface InputOutputListItemProps {
     isEditing: boolean;
     isInput: boolean;
     isOpen: boolean;
-    item: InputCreate | OutputCreate;
+    item: InputShape | OutputShape;
     handleOpen: (index: number) => void;
     handleClose: (index: number) => void;
     handleDelete: (index: number) => void;
-    handleUpdate: (index: number, updatedItem: InputCreate | OutputCreate) => void;
+    handleUpdate: (index: number, updatedItem: InputShape | OutputShape) => void;
     language: string;
     session: Session;
     zIndex: number;

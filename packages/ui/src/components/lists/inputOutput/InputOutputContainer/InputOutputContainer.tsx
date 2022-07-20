@@ -111,12 +111,11 @@ export const InputOutputContainer = ({
             name: newItem.name || `${isInput ? 'Input' : 'Output'} ${list.length + 1}`,
             standard: newItem.standard || null,
             translations: newItem.translations ? newItem.translations : [{
-                __typename: 'InputItemTranslation',
                 id: uuid(),
                 language,
                 description: ''
-            }],
-        } as any;
+            }] as any,
+        };
         if (isInput && (newItem as RoutineInput).isRequired !== true && (newItem as RoutineInput).isRequired !== false) (newItemFormatted as RoutineInput).isRequired = true;
         // Add new item to list at index (splice does not work)
         const listStart = newList.slice(0, index);
@@ -127,6 +126,7 @@ export const InputOutputContainer = ({
     }, [list, language, isInput, handleUpdate]);
 
     const onUpdate = useCallback((index: number, updatedItem: InputShape | OutputShape) => {
+        console.log('container onupdate', index, updatedItem, updateArray(list, index, updatedItem));
         handleUpdate(updateArray(list, index, updatedItem));
     }, [handleUpdate, list]);
 

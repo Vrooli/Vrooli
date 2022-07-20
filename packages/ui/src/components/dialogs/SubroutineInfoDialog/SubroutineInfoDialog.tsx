@@ -61,6 +61,7 @@ export const SubroutineInfoDialog = ({
     // Handle inputs
     const [inputsList, setInputsList] = useState<InputShape[]>([]);
     const handleInputsUpdate = useCallback((updatedList: InputShape[]) => {
+        console.log('handleInputsUpdate', updatedList);
         setInputsList(updatedList);
     }, [setInputsList]);
 
