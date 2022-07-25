@@ -1,5 +1,5 @@
-# Handle line endings automatically for files detected as text 
-# and leave all files detected as binary untouched.
+# Never convert line endings to CRLF, since the project is 
+# always ran in a Unix-based environment.
 * text=false
 
 # Never modify line endings of our bash scripts
