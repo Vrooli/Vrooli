@@ -1,6 +1,6 @@
-# Never convert line endings to CRLF, since the project is 
+# Force all line endings to be LF, since the project is
 # always ran in a Unix-based environment.
-* text=false
+* text=auto
 
 # Never modify line endings of our bash scripts
 *.sh -crlf
