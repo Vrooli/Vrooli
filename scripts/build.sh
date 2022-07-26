@@ -121,4 +121,9 @@ if [ "${DEPLOY}" = "y" ] || [ "${DEPLOY}" = "Y" ] || [ "${DEPLOY}" = "yes" ] || 
     read -r
     rsync -r build root@${BUILD_DIR}
     success "Build copied to ${BUILD_DIR}! To finish deployment, run deploy.sh on the VPS."
+else
+    BUILD_DIR="/tmp/${VERSION}"
+    info "Copying build locally to ${BUILD_DIR}."
+    cp -rp build ${BUILD_DIR}
+    success "Build copied to ${BUILD_DIR}!"
 fi
