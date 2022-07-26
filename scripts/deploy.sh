@@ -55,16 +55,22 @@ fi
 
 # Ask for project location, if not supplied in arguments
 if [ -z "$PROJECT_LOCATION" ]; then
-    echo "Where is the project located? (e.g. /root/Vrooli)"
+    echo "Where is the project located? (defaults to /root/Vrooli)"
     read -r PROJECT_LOCATION
+    if [ -z "$PROJECT_LOCATION" ]; then
+        PROJECT_LOCATION="/root/Vrooli"
+    fi
 fi
 
 # Check if nginx-proxy and nginx-proxy-le are running
 if [ ! "$(docker ps -q -f name=nginx-proxy)" ] || [ ! "$(docker ps -q -f name=nginx-proxy-le)" ]; then
     error "Proxy containers are not running!"
     if [ -z "$NGINX_LOCATION" ]; then
-        echo "Enter path to proxy container directory (e.g. /root/NginxSSLReverseProxy):"
+        echo "Enter path to proxy container directory (defaults to /root/NginxSSLReverseProxy):"
         read -r NGINX_LOCATION
+        if [ -z "$NGINX_LOCATION" ]; then
+            NGINX_LOCATION="/root/NginxSSLReverseProxy"
+        fi
     fi
     # Check if ${NGINX_LOCATION}/docker-compose.yml or ${NGINX_LOCATION}/docker-compose.yaml exists
     if [ -f "${NGINX_LOCATION}/docker-compose.yml" ] || [ -f "${NGINX_LOCATION}/docker-compose.yaml" ]; then
@@ -81,6 +87,10 @@ info "Copying current database and build to a safe location, under the same temp
 cd "${PROJECT_LOCATION}"
 cp -rp ./data/postgres /tmp/${VERSION}
 cp -rp ./packages/ui/build/* /tmp/${VERSION}/old-build
+
+# Stop docker containers
+info "Stopping docker containers..."
+docker-compose down
 
 # Pull the latest changes from the repository.
 info "Pulling latest changes from repository..."
@@ -100,6 +110,6 @@ cp -rp /tmp/${VERSION}/build ./packages/ui/build
 
 # Restart docker containers.
 info "Restarting docker containers..."
-docker-compose down && docker-compose up --build -d
+docker-compose up --build -d
 
 success "Done! You may need to wait a few minutes for the Docker containers to finish starting up."

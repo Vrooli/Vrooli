@@ -72,7 +72,7 @@ cd ${HERE}/../packages
 for PACKAGE in server shared ui docs; do
     info "Updating package.json for ${PACKAGE}"
     cd ${PACKAGE}
-    yarn version patch --new-version ${VERSION}
+    yarn version patch --new-version ${VERSION} --no-git-tag-version
     cd ..
 done
 
