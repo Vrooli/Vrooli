@@ -13,6 +13,8 @@
 *.js            text
 *.json          text
 *.properties    text
+*.sh            text
+*.ts            text
 *.txt           text
 *.xml           text
 
@@ -23,3 +25,6 @@
 *.gif           binary
 *.jpg           binary
 *.png           binary
+*.rlib          binary
+*.rmeta         binary
+*.wasm          binary
