@@ -2,16 +2,10 @@ import {
     ContactInfo,
     PopupMenu
 } from 'components';
-import {
-    AccountCircle as ProfileIcon,
-} from '@mui/icons-material';
-import { Action, actionsToMenu, ACTION_TAGS, getUserActions, openLink } from 'utils';
-import { Button, Container, IconButton, Theme, useTheme } from '@mui/material';
+import { Container, Theme, useTheme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { useLocation } from 'wouter';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { NavListProps } from '../types';
-import { APP_LINKS } from '@local/shared';
+import { useCallback, useEffect, useState } from 'react';
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
@@ -46,10 +40,7 @@ const useStyles = makeStyles((theme: Theme) => ({
     },
 }));
 
-export const NavList = ({
-    session,
-    sessionChecked,
-}: NavListProps) => {
+export const NavList = () => {
     const classes = useStyles();
     const { breakpoints } = useTheme();
     const [, setLocation] = useLocation();
@@ -62,8 +53,6 @@ export const NavList = ({
         return () => window.removeEventListener("resize", updateWindowDimensions);
     }, [updateWindowDimensions]);
 
-    const nav_actions = useMemo<Action[]>(() => getUserActions({ roles: session.roles ?? [], exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn] }), [session.roles]);
-
     return (
         <Container className={classes.root}>
             {!isMobile && <PopupMenu
@@ -74,32 +63,6 @@ export const NavList = ({
             >
                 <ContactInfo className={classes.contact} />
             </PopupMenu>}
-            {/* List items displayed when on wide screen */}
-            {!isMobile && actionsToMenu({
-                actions: nav_actions,
-                setLocation,
-                classes: { root: classes.navItem },
-            })}
-            {/* Enter button displayed when not logged in */}
-            {sessionChecked && session !== undefined && !session?.roles && (
-                <Button
-                    className={classes.button}
-                    onClick={() => openLink(setLocation, APP_LINKS.Start)}
-                    sx={{ background: '#387e30' }}
-                >
-                    Log In
-                </Button>
-            )}
-            {/* Profile icon for mobile */}
-            {isMobile && session?.roles && (
-                <IconButton
-                    color="inherit"
-                    onClick={() => { setLocation(APP_LINKS.Profile) }}
-                    aria-label="profile"
-                >
-                    <ProfileIcon sx={{ fill: 'white', width: '40px', height: '40px' }} />
-                </IconButton>
-            )}
         </Container>
     );
 }

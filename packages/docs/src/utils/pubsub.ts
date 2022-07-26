@@ -7,7 +7,6 @@
  */
 import { COOKIE, ValueOf } from '@local/shared';
 import { AlertDialogState, SnackPub } from 'components';
-import { Session } from 'types';
 
 export const Pubs = {
     ...COOKIE,
@@ -15,7 +14,6 @@ export const Pubs = {
     Loading: "loading",
     LogOut: "logout",
     AlertDialog: "alertDialog",
-    Session: "session",
     Snack: "snack",
     ArrowMenuOpen: "arrowMenuOpen",
     Theme: "theme",
@@ -55,9 +53,6 @@ export class PubSub {
     publishAlertDialog(data: AlertDialogState) {
         this.publish(Pubs.AlertDialog, data);
     }
-    publishSession(session: Session | undefined) {
-        this.publish(Pubs.Session, session);
-    }
     publishSnack(data: SnackPub) {
         this.publish(Pubs.Snack, data);
     }
@@ -94,9 +89,6 @@ export class PubSub {
     }
     subscribeAlertDialog(subscriber: (data: AlertDialogState) => void) {
         return this.subscribe(Pubs.AlertDialog, subscriber);
-    }
-    subscribeSession(subscriber: (session: Session | undefined) => void) {
-        return this.subscribe(Pubs.Session, subscriber);
     }
     subscribeSnack(subscriber: (data: SnackPub) => void) {
         return this.subscribe(Pubs.Snack, subscriber);

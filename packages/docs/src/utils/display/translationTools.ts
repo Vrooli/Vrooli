@@ -1,4 +1,3 @@
-import { Session } from "types";
 import { v4 as uuid } from 'uuid';
 
 /**
@@ -435,17 +434,12 @@ export const getLanguageSubtag = (language: string): string => {
 /**
  * Returns a list of user-preferred languages.
  * Priority order is the following: 
- * 1. Languages in session data
- * 2. Languages in browser (i.e. navigator.language)
- * 3. English
+ * 1. Languages in browser (i.e. navigator.language)
+ * 2. English
  * Strips languages so only the subtag is returned (e.g. en-US becomes en)
- * @param session Session data
  * @returns Array of user-preferred language subtags
  */
-export const getUserLanguages = (session?: Session): string[] => {
-    if (session?.languages && session.languages.length > 0) {
-        return session.languages.map(getLanguageSubtag);
-    }
+export const getUserLanguages = (): string[] => {
     if (navigator.language) {
         return [getLanguageSubtag(navigator.language)];
     }

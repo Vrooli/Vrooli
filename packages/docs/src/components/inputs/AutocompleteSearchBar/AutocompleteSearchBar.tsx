@@ -16,7 +16,6 @@ export function AutocompleteSearchBar({
     onInputChange,
     debounce = 200,
     loading = false,
-    session,
     showSecondaryLabel = false,
     sx,
     ...props

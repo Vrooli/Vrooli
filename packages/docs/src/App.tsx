@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     AlertDialog,
-    BottomNav,
     Footer,
     Navbar,
     Snack
@@ -10,12 +9,7 @@ import { PubSub, themes, useReactHash } from 'utils';
 import { AllRoutes } from 'Routes';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { ApolloError, useMutation } from '@apollo/client';
-import { validateSessionMutation } from 'graphql/mutation';
 import SakBunderan from './assets/font/SakBunderan.woff';
-import { Session } from 'types';
-import Confetti from 'react-confetti';
-import { CODE } from '@local/shared';
 
 const useStyles = makeStyles(() => ({
     "@global": {
@@ -66,14 +60,9 @@ const useStyles = makeStyles(() => ({
 
 export function App() {
     useStyles();
-    // Session cookie should automatically expire in time determined by server,
-    // so no need to validate session on first load
-    const [session, setSession] = useState<Session | undefined>(undefined);
     const [theme, setTheme] = useState(themes.light);
     const [loading, setLoading] = useState(false);
-    const [celebrating, setCelebrating] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const [validateSession] = useMutation<any>(validateSessionMutation);
 
     // If anchor tag in url, scroll to element
     const hash = useReactHash();
@@ -101,41 +90,11 @@ export function App() {
 
     useEffect(() => {
         // Determine theme
-        if (session?.theme) setTheme(themes[session?.theme])
-        else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme(themes.dark);
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme(themes.dark);
         else setTheme(themes.light);
-    }, [session])
-
-    const checkSession = useCallback((session?: any) => {
-        if (session) {
-            setSession(session);
-            return;
-        }
-        // Check if previous log in exists
-        validateSession().then(({ data }) => {
-            setSession(data?.validateSession as Session);
-        }).catch((response: ApolloError) => {
-            // Check if error is expired/invalid session
-            let isInvalidSession = false;
-            if (response.graphQLErrors && response.graphQLErrors.length > 0) {
-                const error = response.graphQLErrors[0];
-                if (error.extensions.code === CODE.SessionExpired.code) {
-                    isInvalidSession = true;
-                    // Log in development mode
-                    if (process.env.NODE_ENV === 'development') console.error('Error: failed to verify session', response);
-                }
-            }
-            // If error is something else, notify user
-            if (!isInvalidSession) {
-                PubSub.get().publishSnack({ message: 'Failed to connect to server.', severity: 'error'});
-            }
-            // If not logged in as guest and failed to log in as user, set empty object
-            if (!session) setSession({})
-        })
-    }, [validateSession])
+    }, [])
 
     useEffect(() => {
-        checkSession();
         // Handle loading spinner, which can have a delay
         let loadingSub = PubSub.get().subscribeLoading((data) => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -145,28 +104,12 @@ export function App() {
                 setLoading(Boolean(data));
             }
         });
-        // Handle celebration (confetti). Defaults to 5 seconds long, but duration 
-        // can be passed in as a number
-        let celebrationSub = PubSub.get().subscribeCelebration((data) => {
-            // Start confetti immediately
-            setCelebrating(true);
-            // Determine duration
-            let duration = 5000;
-            if (Number.isInteger(data)) duration = data as number;
-            // Stop confetti after duration
-            setTimeout(() => setCelebrating(false), duration);
-        });
-        let sessionSub = PubSub.get().subscribeSession((session) => {
-            setSession(s => (session === undefined ? undefined : { ...s, ...session }));
-        });
         let themeSub = PubSub.get().subscribeTheme((data) => setTheme(themes[data] ?? themes.light));
         return (() => {
             PubSub.get().unsubscribe(loadingSub);
-            PubSub.get().unsubscribe(celebrationSub);
-            PubSub.get().unsubscribe(sessionSub);
             PubSub.get().unsubscribe(themeSub);
         })
-    }, [checkSession]);
+    }, []);
 
     return (
         <StyledEngineProvider injectFirst>
@@ -200,7 +143,7 @@ export function App() {
                             // md: 100vh
                             minHeight: { xs: 'calc(100vh - 56px - env(safe-area-inset-bottom))', md: '100vh' },
                         }}>
-                            <Navbar session={session ?? {}} sessionChecked={session !== undefined} />
+                            <Navbar />
                             {/* Progress bar */}
                             {
                                 loading && <Box sx={{
@@ -213,27 +156,10 @@ export function App() {
                                     <CircularProgress size={100} />
                                 </Box>
                             }
-                            {/* Celebratory confetti. To be used sparingly */}
-                            {
-                                celebrating && <Confetti
-                                    initialVelocityY={-10}
-                                    recycle={false}
-                                    confettiSource={{
-                                        x: 0,
-                                        y: 40,
-                                        w: window.innerWidth,
-                                        h: 0
-                                    }}
-                                />
-                            }
                             <AlertDialog />
                             <Snack />
-                            <AllRoutes
-                                session={session ?? {}}
-                                sessionChecked={session !== undefined}
-                            />
+                            <AllRoutes />
                         </Box>
-                        <BottomNav session={session ?? {}} />
                         <Footer />
                     </main>
                 </Box>

@@ -1,19 +1,13 @@
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
 import { Router } from 'wouter';
-import { ApolloProvider } from '@apollo/client';
-import { initializeApollo } from 'graphql/utils/initialize';
 import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 import reportWebVitals from './reportWebVitals';
-
-const client = initializeApollo();
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
     <Router>
-        <ApolloProvider client={client}>
-            <App />
-        </ApolloProvider>
+        <App />
     </Router>
 );
 
@@ -24,10 +18,10 @@ serviceWorkerRegistration.register({
     onUpdate: registration => {
         alert('New version available! The site will now update.');
         if (registration && registration.waiting) {
-          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
         }
         window.location.reload();
-      }
+    }
 });
 
 // If you want to start measuring performance in your app, pass a function
