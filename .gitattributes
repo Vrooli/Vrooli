@@ -1,9 +1,7 @@
 # Force all line endings to be LF, since the project is
 # always ran in a Unix-based environment.
 * text=auto
-
-# Never modify line endings of our bash scripts
-*.sh -crlf
+* text eol=lf
 
 #
 # The above will handle all files NOT found below

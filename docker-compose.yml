@@ -126,20 +126,17 @@ services:
             PROJECT_DIR: "${PROJECT_DIR}"
             VIRTUAL_HOST: "${VIRTUAL_HOST_DOCS}"
             VIRTUAL_PATH: "/"
-            VIRTUAL_PORT: "3001"
+            VIRTUAL_PORT: "3456"
             LETSENCRYPT_HOST: "${VIRTUAL_HOST_DOCS}"
             LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
         ports:
-            - ${PORT_DOCS}:3001
+            - ${PORT_DOCS}:3456
         networks:
             - proxy
             - app
         volumes:
-            - ./packages/ui:${PROJECT_DIR}/packages/docs:z
+            - ./packages/docs:${PROJECT_DIR}/packages/docs:z
             - ./packages/shared:${PROJECT_DIR}/packages/shared:z
-        depends_on: 
-                - redis
-                - db
         command: /bin/sh -c "chmod +x ./scripts/* && ./scripts/docs.sh"
     # adminer:
     #     image: adminer

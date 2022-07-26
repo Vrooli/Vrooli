@@ -1,0 +1,114 @@
+{
+    "name": "Vrooli - Productivity, Decentralized",
+    "short_name": "Vrooli",
+    "omnibox": { "keyword" : "vrooli" },
+    "categories": [
+        "automation",
+        "productivity",
+        "decentralization"
+    ],
+    "icons": [
+        {
+            "src": "/favicon-16x16.png",
+            "sizes": "16x16",
+            "type": "image/png"
+        },
+        {
+            "src": "/android-chrome-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/android-chrome-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "/logo-mask-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ],
+    "theme_color": "#232328",
+    "background_color": "#232328",
+    "display": "standalone",
+    "orientation": "any",
+    "scope": "https://app.vrooli.com/",
+    "start_url": "/",
+    "screenshots": [
+        {
+            "src": "/screenshots/1-intro-page.png",
+            "sizes": "720x1280",
+            "platform": "narrow",
+            "type": "image/png",
+            "label": "About Vrooli"
+        },
+        {
+            "src": "/screenshots/2-build-screenshot.png",
+            "sizes": "720x1280",
+            "platform": "narrow",
+            "type": "image/png",
+            "label": "Building a multi-step routine"
+        },
+        {
+            "src": "/screenshots/3-create-routine-screenshot.png",
+            "sizes": "720x1280",
+            "platform": "narrow",
+            "type": "image/png",
+            "label": "Building a single-step routine"
+        },
+        {
+            "src": "/screenshots/4-run-routine-screenshot.png",
+            "sizes": "720x1280",
+            "platform": "narrow",
+            "type": "image/png",
+            "label": "Running a routine"
+        },
+        {
+            "src": "/screenshots/5-build-with-community-screenshot.png",
+            "sizes": "720x1280",
+            "platform": "narrow",
+            "type": "image/png",
+            "label": "Find routines page"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Home",
+            "url": "/",
+            "description": "View and search all tasks"
+        },
+        {
+            "name": "History",
+            "url": "/history",
+            "description": "View your active, completed, and starred routines - and more!"
+        },
+        {
+            "name": "Profile",
+            "url": "/profile",
+            "description": "View your profile and settings"
+        },
+        {
+            "name": "Learn",
+            "url": "/learn",
+            "description": "Personal learning dashboard"
+        },
+        {
+            "name": "Research",
+            "url": "/research",
+            "description": "Research dashboard"
+        },
+        {
+            "name": "Develop",
+            "url": "/develop",
+            "description": "Build new routines, projects, and organizations"
+        }
+    ],
+    "related_applications": [
+        {
+            "platform": "webapp",
+            "url": "https://app.vrooli.com/"
+        }
+    ]
+}
