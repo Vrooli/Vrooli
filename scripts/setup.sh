@@ -15,6 +15,7 @@ source ~/.nvm/nvm.sh
 
 header "Installing Node (includes npm)"
 nvm install 16.16.0
+nvm alias default v16.16.0
 
 header "Installing Yarn"
 npm install -g yarn
