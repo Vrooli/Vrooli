@@ -28,3 +28,4 @@
 *.rlib          binary
 *.rmeta         binary
 *.wasm          binary
+*.dylib         binary
