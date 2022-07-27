@@ -296,7 +296,8 @@ export const BuildView = ({
 
     const handleScaleChange = (newScale: number) => { setScale(newScale) };
     const handleScaleDelta = useCallback((delta: number) => {
-        setScale(s => Math.max(0.05, Math.min(1, s + delta)));
+        console.log('handlesacledelta', delta)
+        setScale(s => { const boop = Math.max(0.25, Math.min(1, s + delta)); console.log('beep', boop, s); return boop; });
     }, []);
 
     const handleRunDelete = useCallback((run: Run) => {
