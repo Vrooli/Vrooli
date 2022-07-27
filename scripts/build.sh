@@ -73,6 +73,10 @@ for PACKAGE in server shared ui docs; do
     info "Updating package.json for ${PACKAGE}"
     cd ${PACKAGE}
     yarn version patch --new-version ${VERSION} --no-git-tag-version
+    if [ $? -ne 0 ]; then
+        error "Failed to update package.json for ${PACKAGE}"
+        exit 1
+    fi
     cd ..
 done
 
@@ -92,9 +96,17 @@ trap "rm .env" EXIT
 # Build React app
 info "Building React app..."
 yarn build
+if [ $? -ne 0 ]; then
+    error "Failed to build React app"
+    exit 1
+fi
 
 # Use production icons
 mv build/prod/* build/
+if [ $? -ne 0 ]; then
+    error "Failed to move production icons"
+    exit 1
+fi
 
 # Create brave-rewards-verification.txt file
 if [ -z "${BRAVE_REWARDS_TOKEN}" ]; then
@@ -115,15 +127,34 @@ if [ -z "$DEPLOY" ]; then
     read -r DEPLOY
 fi
 
+# Compress build
+info "Compressing build..."
+tar -czf build.tar.gz build
+trap "rm build.tar.gz" EXIT
+if [ $? -ne 0 ]; then
+    error "Failed to compress build"
+    exit 1
+fi
+
 if [ "${DEPLOY}" = "y" ] || [ "${DEPLOY}" = "Y" ] || [ "${DEPLOY}" = "yes" ] || [ "${DEPLOY}" = "Yes" ]; then
-    BUILD_DIR="${SITE_IP}:/tmp/${VERSION}"
+    BUILD_DIR="${SITE_IP}:/var/tmp/${VERSION}/"
     info "Going to copy build to ${BUILD_DIR}. Press any key to continue..."
     read -r
-    rsync -r build root@${BUILD_DIR}
-    success "Build copied to ${BUILD_DIR}! To finish deployment, run deploy.sh on the VPS."
+    rsync -r build.tar.gz root@${BUILD_DIR}
+    if [ $? -ne 0 ]; then
+        error "Failed to copy build to ${BUILD_DIR}"
+        exit 1
+    fi
+    success "build.tar.gz copied to ${BUILD_DIR}! To finish deployment, run deploy.sh on the VPS."
 else
-    BUILD_DIR="/tmp/${VERSION}"
+    BUILD_DIR="/var/tmp/${VERSION}"
     info "Copying build locally to ${BUILD_DIR}."
-    cp -rp build ${BUILD_DIR}
-    success "Build copied to ${BUILD_DIR}!"
+    # Make sure to create missing directories
+    mkdir -p "${BUILD_DIR}"
+    cp -p build.tar.gz ${BUILD_DIR}
+    if [ $? -ne 0 ]; then
+        error "Failed to copy build to ${BUILD_DIR}"
+        exit 1
+    fi
+    success "build.tar.gz copied to ${BUILD_DIR}!"
 fi
