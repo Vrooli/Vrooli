@@ -23,7 +23,7 @@ export const NodeColumn = ({
     // Padding between cells
     const padding = useMemo(() => scale * 25, [scale]);
     // Highlights column when a dragging node can be dropped on it
-    const isHighlighted = useMemo(() => columnIndex > 0 && dragId, [columnIndex, dragId]);
+    const isHighlighted = useMemo(() => dragId, [dragId]);
 
     /**
      * Create a node component for the given node data. 

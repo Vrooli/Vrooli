@@ -295,7 +295,7 @@ export const BuildView = ({
     }, [changedRoutine]);
 
     const handleScaleChange = (newScale: number) => { setScale(newScale) };
-    const handleScaleDelta = useCallback((delta: number) => { 
+    const handleScaleDelta = useCallback((delta: number) => {
         setScale(s => Math.max(0.05, Math.min(1, s + delta)));
     }, []);
 
@@ -611,14 +611,74 @@ export const BuildView = ({
                 }),
                 nodeLinks: linksList,
             });
+            return;
         }
         // If one or the other is null, then there must be an error
-        else if (columnIndex === null || rowIndex === null) {
+        if (columnIndex === null || rowIndex === null) {
             PubSub.get().publishSnack({ message: 'Error: Invalid drop location.', severity: 'errror' });
+            return;
         }
         // Otherwise, is a drop
+        let updatedNodes = [...changedRoutine.nodes];
+        // If dropped into the first column, then shift everything that's not the start node to the right
+        if (columnIndex === 0) {
+            updatedNodes = updatedNodes.map(n => {
+                if (n.rowIndex === null || n.columnIndex === null || n.columnIndex === 0) return n;
+                return {
+                    ...n,
+                    columnIndex: n.columnIndex + 1,
+                }
+            });
+            // Update dropped node
+            updatedNodes = updateArray(updatedNodes, nodeIndex, {
+                ...changedRoutine.nodes[nodeIndex],
+                columnIndex: 1,
+                rowIndex,
+            });
+        }
+        // If dropped into the same column the node started in, either shift or swap
+        else if (columnIndex === changedRoutine.nodes[nodeIndex].columnIndex) {
+            console.log('dropping into same column', updatedNodes.map(n => n.columnIndex + ' ' + n.rowIndex));
+            // Find and order nodes in the same column, which are above (or at the same position as) the dropped node
+            const nodesAbove = changedRoutine.nodes.filter(n => 
+                n.columnIndex === columnIndex &&
+                n.rowIndex !== null &&
+                n.rowIndex <= rowIndex
+            ).sort((a, b) => (a.rowIndex ?? 0) - (b.rowIndex ?? 0));
+            console.log('nodes above', nodesAbove.map(n => n.columnIndex + ' ' + n.rowIndex));
+            // If no nodes above, then shift everything in the column down by 1
+            if (nodesAbove.length === 0) {
+                console.log('shifting down');
+                updatedNodes = updatedNodes.map(n => {
+                    if (n.rowIndex === null || n.columnIndex !== columnIndex) return n;
+                    return {
+                        ...n,
+                        rowIndex: n.rowIndex + 1,
+                    }
+                });
+                console.log('after shift', updatedNodes.map(n => n.columnIndex + ' ' + n.rowIndex));
+            }
+            // Otherwise, swap with the last node in the above list
+            else {
+                console.log('swapping');
+                updatedNodes = updatedNodes.map(n => {
+                    if (n.rowIndex === null || n.columnIndex !== columnIndex) return n;
+                    if (n.id === nodeId) return {
+                        ...n,
+                        rowIndex: nodesAbove[nodesAbove.length - 1].rowIndex,
+                    }
+                    if (n.rowIndex === nodesAbove[nodesAbove.length - 1].rowIndex) return {
+                        ...n,
+                        rowIndex: changedRoutine.nodes[nodeIndex].rowIndex,
+                    }
+                    return n;
+                });
+                console.log('after swap', updatedNodes.map(n => n.columnIndex + ' ' + n.rowIndex));
+            }
+        }
+        // Otherwise, treat as a normal drop
         else {
-            let updatedNodes = [...changedRoutine.nodes];
+            console.log('Dropped into normal column', updatedNodes.map(n => n.columnIndex + ' ' + n.rowIndex));
             // If dropped into an existing column, shift rows in dropped column that are below the dropped node
             if (changedRoutine.nodes.some(n => n.columnIndex === columnIndex)) {
                 updatedNodes = updatedNodes.map(n => {
@@ -628,28 +688,34 @@ export const BuildView = ({
                     return n;
                 });
             }
-            // If the column the node was from is now empty, then shift all columns after it
+            console.log('rows shifted', updatedNodes.map(n => n.columnIndex + ' ' + n.rowIndex));
+            // If the column the node was from is now empty, then shift all columns after it.
             const originalColumnIndex = changedRoutine.nodes[nodeIndex].columnIndex;
             const isRemovingColumn = originalColumnIndex !== null && changedRoutine.nodes.filter(n => n.columnIndex === originalColumnIndex).length === 1;
             if (isRemovingColumn) {
+                console.log('isremovingcolumn start', updatedNodes.map(n => n.columnIndex + ' ' + n.rowIndex));
                 updatedNodes = updatedNodes.map(n => {
                     if (n.columnIndex !== null && n.columnIndex > originalColumnIndex) {
                         return { ...n, columnIndex: n.columnIndex - 1 }
                     }
                     return n;
                 });
+                console.log('isremovingcolumn end', updatedNodes.map(n => n.columnIndex + ' ' + n.rowIndex));
             }
-            const updated = updateArray(updatedNodes, nodeIndex, {
+            updatedNodes = updateArray(updatedNodes, nodeIndex, {
                 ...changedRoutine.nodes[nodeIndex],
-                columnIndex: (isRemovingColumn && originalColumnIndex < columnIndex) ? columnIndex - 1 : columnIndex,
+                columnIndex: (isRemovingColumn && originalColumnIndex < columnIndex) ?
+                        columnIndex - 1 :
+                        columnIndex,
                 rowIndex,
             })
-            // Update the routine
-            setChangedRoutine({
-                ...changedRoutine,
-                nodes: updated,
-            });
+            console.log('updated dropped node', updatedNodes.map(n => n.columnIndex + ' ' + n.rowIndex));
         }
+        // Update the routine
+        setChangedRoutine({
+            ...changedRoutine,
+            nodes: updatedNodes,
+        });
     }, [calculateNewLinksList, changedRoutine]);
 
     /**

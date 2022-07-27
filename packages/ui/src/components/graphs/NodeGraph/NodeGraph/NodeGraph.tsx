@@ -11,6 +11,7 @@ import { NodeGraphProps } from '../types';
 import { Node } from 'types';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { PubSub } from 'utils';
+import { on } from 'stream';
 
 type DragRefs = {
     currPosition: { x: number, y: number } | null; // Current position of the cursor
@@ -140,6 +141,9 @@ export const NodeGraph = ({
         // Determine if the pinch is expanding or contracting, depending on sign of distances
         const isShrinking = distX < 0 && distY < 0;
         const isExpanding = distX > 0 && distY > 0;
+        PubSub.get().publishSnack({
+            message: isShrinking ? 'Pinching to shrink' + dist : isExpanding ? 'Pinching to expand' + dist : 'Pinching',
+        })
         if (isShrinking || isExpanding) {
             // Determine the amount of scaling (result must be between 0 and 1)
             const delta = (isShrinking ? 1 : -1) * dist / 400;
@@ -212,7 +216,7 @@ export const NodeGraph = ({
             }
         }
         // If columnIndex is start node or earlier, return
-        if (columnIndex < 1 || columnIndex >= columns.length) {
+        if (columnIndex < 0 || columnIndex >= columns.length) {
             PubSub.get().publishSnack({ message: 'Cannot drop node here', severity: 'error' })
             return;
         }
@@ -230,12 +234,6 @@ export const NodeGraph = ({
         }
         // If not above any nodes, must be below   
         if (rowIndex === -1) rowIndex = centerYs.length;
-        console.log('dropped node position', node.columnIndex, columnIndex, node.rowIndex, rowIndex);
-        // If dropped into its same position, return
-        if (node.columnIndex === columnIndex && node.rowIndex === rowIndex) return
-        // If dropped into its own column and no other nodes in that column, return
-        const nodesInColumn = Object.values(nodesById).filter(node => node.columnIndex === columnIndex);
-        if (nodesInColumn.length === 1 && nodesInColumn[0].id === nodeId) return;
         // Complete drop
         handleNodeDrop(nodeId, columnIndex, rowIndex);
     }, [columns, handleNodeDrop, nodesById]);
@@ -327,13 +325,17 @@ export const NodeGraph = ({
             // Find touch point
             const x = ev.touches[0].clientX;
             const y = ev.touches[0].clientY;
-            // Handle pinch TODO
             if (pinchRefs.current.currPosition) {
                 pinchRefs.current.currPosition = { x, y };
             }
             // drag
             dragRefs.current.currPosition = { x, y };
         }
+        // const onWheelMove = (ev: WheelEvent) => {
+        //     // Find wheel point
+        //     const x = ev.clientX;
+        //     const y = ev.clientY;
+
         // Add event listeners
         window.addEventListener('keydown', onKeyDown); // Detects shift key for pinch
         window.addEventListener('keyup', onKeyUp); // Detects shift key for pinch
@@ -343,6 +345,7 @@ export const NodeGraph = ({
         window.addEventListener('touchstart', onTouchStart); // Detects if node is being dragged or graph is being pinched
         window.addEventListener('touchmove', onTouchMove); // Detects if node is being dragged or graph is being pinched
         window.addEventListener('touchend', onMouseUp); // Stops dragging and pinching
+        // window.addEventListener('wheel', onMouseWheel); // Detects mouse scroll for zoom
         // Add PubSub subscribers
         let dragStartSub = PubSub.get().subscribeNodeDrag((data) => {
             dragRefs.current.timeout = setTimeout(nodeScroll, 50);

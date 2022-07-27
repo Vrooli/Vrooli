@@ -204,6 +204,7 @@ export const BaseEdge = ({
                     open={isEditOpen}
                     anchorEl={anchorEl}
                     onClose={closeEdit}
+                    onClick={closeEdit}
                     anchorOrigin={{
                         vertical: 'top',
                         horizontal: 'center',
