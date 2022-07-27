@@ -295,6 +295,9 @@ export const BuildView = ({
     }, [changedRoutine]);
 
     const handleScaleChange = (newScale: number) => { setScale(newScale) };
+    const handleScaleDelta = useCallback((delta: number) => { 
+        setScale(s => Math.max(0.05, Math.min(1, s + delta)));
+    }, []);
 
     const handleRunDelete = useCallback((run: Run) => {
         if (!changedRoutine) return;
@@ -1299,6 +1302,7 @@ export const BuildView = ({
                     handleNodeInsert={handleNodeInsert}
                     handleNodeUpdate={handleNodeUpdate}
                     handleNodeDrop={handleNodeDrop}
+                    handleScaleChange={handleScaleDelta}
                     isEditing={isEditing}
                     labelVisible={true}
                     language={language}

@@ -35,6 +35,7 @@ export const NodeGraph = ({
     handleLinkCreate,
     handleLinkUpdate,
     handleLinkDelete,
+    handleScaleChange,
     isEditing = true,
     labelVisible = true,
     language,
@@ -136,14 +137,20 @@ export const NodeGraph = ({
         const distX = x - lastX;
         const distY = y - lastY;
         const dist = Math.sqrt(distX * distX + distY * distY);
-        PubSub.get().publishSnack({ message: dist + '' }) //TODO for debugging
-        // Determine if the pinch is expanding or contracting
-        //TODO
+        // Determine if the pinch is expanding or contracting, depending on sign of distances
+        const isShrinking = distX < 0 && distY < 0;
+        const isExpanding = distX > 0 && distY > 0;
+        if (isShrinking || isExpanding) {
+            // Determine the amount of scaling (result must be between 0 and 1)
+            const delta = (isShrinking ? 1 : -1) * dist / 400;
+            // Update the scale
+            handleScaleChange(delta);
+        }
         // Set last position to current position
         pinchRefs.current.lastPosition = pinchRefs.current.currPosition;
         // Set a timeout to call this function again
         if (pinchRefs.current.timeout) setTimeout(pinch, 100);
-    }, [])
+    }, [handleScaleChange])
 
     const clearPinch = useCallback(() => {
         if (pinchRefs.current.timeout) clearTimeout(pinchRefs.current.timeout);
