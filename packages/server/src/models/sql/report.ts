@@ -91,8 +91,10 @@ const forMapper = {
 
 export const reportMutater = (prisma: PrismaType, verifier: ReturnType<typeof reportVerifier>) => ({
     async toDBShapeAdd(userId: string | null, data: ReportCreateInput): Promise<any> {
+        console.log("toDBShapeAdd")
         return {
             id: data.id,
+            language: data.language,
             reason: data.reason,
             details: data.details,
             from: { connect: { id: userId } },
@@ -100,6 +102,7 @@ export const reportMutater = (prisma: PrismaType, verifier: ReturnType<typeof re
         }
     },
     async toDBShapeUpdate(userId: string | null, data: ReportUpdateInput): Promise<any> {
+        console.log("toDBShapeUpdate")
         return {
             reason: data.reason ?? undefined,
             details: data.details,
@@ -108,6 +111,7 @@ export const reportMutater = (prisma: PrismaType, verifier: ReturnType<typeof re
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ReportCreateInput, ReportUpdateInput>): Promise<void> {
+        console.log("validateMutations")
         if (!createMany && !updateMany && !deleteMany) return;
         if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0083') });
@@ -133,6 +137,7 @@ export const reportMutater = (prisma: PrismaType, verifier: ReturnType<typeof re
         }
     },
     async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<ReportCreateInput, ReportUpdateInput>): Promise<CUDResult<Report>> {
+        console.log("cud")
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };

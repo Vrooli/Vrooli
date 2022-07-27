@@ -70,11 +70,12 @@ export const ReportDialog = ({
             mutationWrapper({
                 mutation,
                 input: {
+                    createdFor: reportFor,
+                    createdForId: forId,
+                    details: values.details,
                     id: uuid(),
                     language,
                     reason: Boolean(values.otherReason) ? values.otherReason : values.reason,
-                    createdFor: reportFor,
-                    createdForId: forId
                 },
                 successCondition: (response) => response.data.reportCreate !== null,
                 onSuccess: () => {
