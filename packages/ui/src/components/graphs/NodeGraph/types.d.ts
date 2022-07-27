@@ -48,6 +48,10 @@ export interface NodeGraphProps {
      */
     handleNodeInsert: (link: NodeLink) => void;
     /**
+     * Inserts new branch
+     */
+    handleBranchInsert: (link: NodeLink) => void;
+    /**
      * Updates a node's data
      */
     handleNodeUpdate: (node: Node) => void;
@@ -83,7 +87,6 @@ export interface NodeColumnProps {
     columnIndex: number;
     nodes: Node[];
     handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
-    handleNodeDrop: (nodeId: string, columnIndex: number | null, rowIndex: number | null) => void;
     handleNodeUpdate: (updatedNode: Node) => void;
     language: string;
     zIndex: number;

@@ -5,7 +5,7 @@ import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getTranslation, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub } from 'utils';
-import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
+import { Node, NodeDataEnd, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
 import { useLocation } from 'wouter';
 import { APP_LINKS, isEqual, uniqBy } from '@local/shared';
 import { NodeType } from 'graphql/generated/globalTypes';
@@ -246,6 +246,8 @@ export const BuildView = ({
         for (const column of columns) {
             column.sort((a, b) => (a.rowIndex ?? 0) - (b.rowIndex ?? 0));
         }
+        // Add one empty column to the end, so nodes, can be dragged to the end of the graph
+        columns.push([]);
         // Return
         return { columns, nodesOffGraph, nodesById };
     }, [changedRoutine]);
@@ -475,9 +477,9 @@ export const BuildView = ({
     }, [changedRoutine]);
 
     /**
-     * Generates a new node object, but doens't add it to the routine
+     * Generates a new routine list node object, but doesn't add it to the routine
      */
-    const generateNewNode = useCallback((columnIndex: number | null, rowIndex: number | null) => {
+    const generateNewRoutineListNode = useCallback((columnIndex: number | null, rowIndex: number | null) => {
         const newNode: Omit<NodeShape, 'routineId'> = {
             __typename: 'Node',
             id: uuid(),
@@ -502,6 +504,25 @@ export const BuildView = ({
         }
         return newNode;
     }, [language, changedRoutine?.nodes]);
+
+    /**
+     * Generates new end node object, but doesn't add it to the routine
+     */
+    const generateNewEndNode = useCallback((columnIndex: number | null, rowIndex: number | null) => {
+        const newNode: Omit<NodeShape, 'routineId'> = {
+            __typename: 'Node',
+            id: uuid(),
+            type: NodeType.End,
+            rowIndex,
+            columnIndex,
+            data: {
+                id: uuid(),
+                wasSuccessful: true,
+            },
+            translations: []
+        }
+        return newNode;
+    }, []);
 
     /**
      * Creates a link between two nodes which already exist in the linked routine. 
@@ -571,6 +592,7 @@ export const BuildView = ({
      * Drops or unlinks a node
      */
     const handleNodeDrop = useCallback((nodeId: string, columnIndex: number | null, rowIndex: number | null) => {
+        console.log('handleNodeDrop', nodeId, columnIndex, rowIndex);
         if (!changedRoutine) return;
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
         if (nodeIndex === -1) return;
@@ -664,7 +686,7 @@ export const BuildView = ({
             return n;
         });
         // Create new routine list node
-        const newNode: Omit<NodeShape, 'routineId'> = generateNewNode(columnIndex, rowIndex);
+        const newNode: Omit<NodeShape, 'routineId'> = generateNewRoutineListNode(columnIndex, rowIndex);
         // Find every node 
         // Create two new links
         const newLinks: NodeLinkShape[] = [
@@ -678,7 +700,36 @@ export const BuildView = ({
             nodeLinks: [...linksList, ...newLinks as any],
         };
         setChangedRoutine(newRoutine);
-    }, [changedRoutine, generateNewNode]);
+    }, [changedRoutine, generateNewRoutineListNode]);
+
+    /**
+     * Inserts a new routine list node, with its own branch
+     */
+    const handleBranchInsert = useCallback((link: NodeLink) => {
+        if (!changedRoutine) return;
+        // Find "to" node. New node will be placed in its column
+        const toNode = changedRoutine.nodes.find(n => n.id === link.toId);
+        if (!toNode) {
+            PubSub.get().publishSnack({ message: 'Error occurred.', severity: 'Error' });
+            return;
+        }
+        // Find the largest row index in the column. New node will be placed in the next row
+        const maxRowIndex = changedRoutine.nodes.filter(n => n.columnIndex === toNode.columnIndex).map(n => n.rowIndex).reduce((a, b) => Math.max(a ?? 0, b ?? 0), 0);
+        const newNode: Omit<NodeShape, 'routineId'> = generateNewRoutineListNode(toNode.columnIndex, (maxRowIndex ?? toNode.rowIndex ?? 0) + 1);
+        // Since this is a new branch, we also need to add an end node after the new node
+        const newEndNode: Omit<NodeShape, 'routineId'> = generateNewEndNode((toNode.columnIndex ?? 0) + 1, (maxRowIndex ?? toNode.rowIndex ?? 0) + 1);
+        // Create new link, going from the "from" node to the new node
+        const newLink: NodeLinkShape = generateNewLink(link.fromId, newNode.id);
+        // Create new link, going from the new node to the end node
+        const newEndLink: NodeLinkShape = generateNewLink(newNode.id, newEndNode.id);
+        // Insert new nodes and links
+        const newRoutine = {
+            ...changedRoutine,
+            nodes: [...changedRoutine.nodes, newNode as any, newEndNode as any],
+            nodeLinks: [...changedRoutine.nodeLinks, newLink as any, newEndLink as any],
+        };
+        setChangedRoutine(newRoutine);
+    }, [changedRoutine, generateNewEndNode, generateNewRoutineListNode]);
 
     /**
      * Adds a routine list item to a routine list
@@ -760,7 +811,7 @@ export const BuildView = ({
         }
         // If no links, create link and node
         else {
-            const newNode: Omit<NodeShape, 'routineId'> = generateNewNode(null, null);
+            const newNode: Omit<NodeShape, 'routineId'> = generateNewRoutineListNode(null, null);
             const newLink: NodeLinkShape = generateNewLink(nodeId, newNode.id);
             setChangedRoutine({
                 ...changedRoutine,
@@ -768,7 +819,7 @@ export const BuildView = ({
                 nodeLinks: [...changedRoutine.nodeLinks, newLink as any],
             });
         }
-    }, [changedRoutine, generateNewNode, handleNodeInsert]);
+    }, [changedRoutine, generateNewRoutineListNode, handleNodeInsert]);
 
     /**
      * Add a new routine list BEFORE a node
@@ -789,7 +840,7 @@ export const BuildView = ({
         }
         // If no links, create link and node
         else {
-            const newNode: Omit<NodeShape, 'routineId'> = generateNewNode(null, null);
+            const newNode: Omit<NodeShape, 'routineId'> = generateNewRoutineListNode(null, null);
             const newLink: NodeLinkShape = generateNewLink(newNode.id, nodeId);
             setChangedRoutine({
                 ...changedRoutine,
@@ -797,7 +848,7 @@ export const BuildView = ({
                 nodeLinks: [...changedRoutine.nodeLinks, newLink as any],
             });
         }
-    }, [changedRoutine, generateNewNode, handleNodeInsert]);
+    }, [changedRoutine, generateNewRoutineListNode, handleNodeInsert]);
 
     /**
      * Updates the current selected subroutine
@@ -1241,6 +1292,7 @@ export const BuildView = ({
                 <NodeGraph
                     columns={columns}
                     handleAction={handleAction}
+                    handleBranchInsert={handleBranchInsert}
                     handleLinkCreate={handleLinkCreate}
                     handleLinkUpdate={handleLinkUpdate}
                     handleLinkDelete={handleLinkDelete}

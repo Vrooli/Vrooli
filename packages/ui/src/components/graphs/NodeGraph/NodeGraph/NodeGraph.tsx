@@ -28,6 +28,7 @@ type PinchRefs = {
 export const NodeGraph = ({
     columns,
     handleAction,
+    handleBranchInsert,
     handleNodeDrop,
     handleNodeUpdate,
     handleNodeInsert,
@@ -222,8 +223,9 @@ export const NodeGraph = ({
         }
         // If not above any nodes, must be below   
         if (rowIndex === -1) rowIndex = centerYs.length;
+        console.log('dropped node position', node.columnIndex, columnIndex, node.rowIndex, rowIndex);
         // If dropped into its same position, return
-        if (node.columnIndex === columnIndex && node.rowIndex === rowIndex) return;
+        if (node.columnIndex === columnIndex && node.rowIndex === rowIndex) return
         // If dropped into its own column and no other nodes in that column, return
         const nodesInColumn = Object.values(nodesById).filter(node => node.columnIndex === columnIndex);
         if (nodesInColumn.length === 1 && nodesInColumn[0].id === nodeId) return;
@@ -375,11 +377,12 @@ export const NodeGraph = ({
                 dragId={dragId}
                 scale={scale ?? 1}
                 handleAdd={handleNodeInsert}
+                handleBranch={handleBranchInsert}
                 handleDelete={handleLinkDelete}
                 handleEdit={() => { }}
             />
         }).filter(edge => edge) as JSX.Element[];
-    }, [dragId, handleLinkDelete, handleNodeInsert, isEditing, links, nodesById, scale]);
+    }, [dragId, handleBranchInsert, handleLinkDelete, handleNodeInsert, isEditing, links, nodesById, scale]);
 
     useEffect(() => {
         setEdges(calculateEdges());
@@ -395,7 +398,6 @@ export const NodeGraph = ({
             columnIndex={index}
             dragId={dragId}
             handleAction={handleAction}
-            handleNodeDrop={handleNodeDrop}
             handleNodeUpdate={handleNodeUpdate}
             isEditing={isEditing}
             labelVisible={labelVisible}
@@ -404,7 +406,7 @@ export const NodeGraph = ({
             scale={scale}
             zIndex={zIndex}
         />)
-    }, [columns, dragId, handleAction, handleNodeDrop, handleNodeUpdate, isEditing, labelVisible, language, scale, zIndex]);
+    }, [columns, dragId, handleAction, handleNodeUpdate, isEditing, labelVisible, language, scale, zIndex]);
 
     return (
         <Box id="graph-root" position="relative" sx={{

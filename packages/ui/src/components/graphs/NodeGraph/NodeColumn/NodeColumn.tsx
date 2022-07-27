@@ -9,7 +9,6 @@ import { NodeType } from 'graphql/generated/globalTypes';
 
 export const NodeColumn = ({
     handleAction,
-    handleNodeDrop,
     handleNodeUpdate,
     id,
     isEditing,
@@ -24,7 +23,7 @@ export const NodeColumn = ({
     // Padding between cells
     const padding = useMemo(() => scale * 25, [scale]);
     // Highlights column when a dragging node can be dropped on it
-    const isHighlighted = useMemo(() => columnIndex > 0 && dragId && nodes.every(node => node.id !== dragId), [columnIndex, dragId, nodes]);
+    const isHighlighted = useMemo(() => columnIndex > 0 && dragId, [columnIndex, dragId]);
 
     /**
      * Create a node component for the given node data. 
@@ -102,6 +101,8 @@ export const NodeColumn = ({
                 borderLeft: isHighlighted ? '1px solid #71c84f' : 'none',
                 borderRight: isHighlighted ? '1px solid #71c84f' : 'none',
                 gap: `${padding * 4}px`,
+                // Fill available if column is empty
+                width: nodes.length === 0 ? '-webkit-fill-available' : 'auto',
             }}
         >
             {nodeList}

@@ -59,6 +59,11 @@ export interface NodeEdgeProps {
      */
     handleAdd: (link: NodeLink) => void;
     /**
+     * Creates a new node in the same column as the "to" node. 
+     * This creates a new branch
+     */
+    handleBranch: (link: NodeLink) => void;
+    /**
      * Deletes a link and its conditions. 
      * Does not delete any nodes
      */
