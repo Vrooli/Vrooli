@@ -15,7 +15,7 @@ import {
     useTheme
 } from '@mui/material';
 import { HelpButton } from 'components';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LinkDialogProps } from '../types';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { Node, NodeLink } from 'types';
@@ -35,20 +35,24 @@ export const LinkDialog = ({
     isOpen,
     language,
     link,
+    nodeFrom,
+    nodeTo,
     routine,
     zIndex,
 }: LinkDialogProps) => {
     const { palette } = useTheme();
 
     // Selected "From" and "To" nodes
-    const [fromNode, setFromNode] = useState<Node | null>(null);
+    const [fromNode, setFromNode] = useState<Node | null>(nodeFrom ?? null);
     const handleFromSelect = useCallback((node: Node) => {
         setFromNode(node);
     }, [setFromNode]);
-    const [toNode, setToNode] = useState<Node | null>(null);
+    const [toNode, setToNode] = useState<Node | null>(nodeTo ?? null);
     const handleToSelect = useCallback((node: Node) => {
         setToNode(node);
     }, [setToNode]);
+    useEffect(() => { setFromNode(nodeFrom ?? null); }, [nodeFrom, setFromNode]);
+    useEffect(() => { setToNode(nodeTo ?? null); }, [nodeTo, setToNode]);
 
     /**
      * Before closing, clear inputs
@@ -151,6 +155,7 @@ export const LinkDialog = ({
                 options={fromOptions}
                 getOptionLabel={(option: Node) => getNodeTitle(option)}
                 onChange={(_, value) => handleFromSelect(value as Node)}
+                value={fromNode}
                 sx={{
                     minWidth: 200,
                     maxWidth: 350,
@@ -177,6 +182,7 @@ export const LinkDialog = ({
                 options={toOptions}
                 getOptionLabel={(option: Node) => getNodeTitle(option)}
                 onChange={(_, value) => handleToSelect(value as Node)}
+                value={toNode}
                 sx={{
                     minWidth: 200,
                     maxWidth: 350
@@ -184,7 +190,7 @@ export const LinkDialog = ({
                 renderInput={(params) => <TextField {...params} label="To" />}
             />
         </Stack>
-    ), [fromOptions, toOptions, getNodeTitle, handleFromSelect, handleToSelect]);
+    ), [fromOptions, fromNode, toOptions, toNode, getNodeTitle, handleFromSelect, handleToSelect]);
 
     /**
      * Container for creating link conditions.

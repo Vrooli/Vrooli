@@ -23,7 +23,7 @@ export const ContactInfo = ({
 }: ContactInfoProps) => {
     const { palette } = useTheme();
 
-    const openLink = (e: React.MouseEvent<any>, link: string) => {
+    const openLink = (e: React.MouseEvent, link: string) => {
         window.open(link, '_blank', 'noopener,noreferrer');
         e.preventDefault();
     }

@@ -99,6 +99,7 @@ export interface NodeColumnProps {
     isEditing: boolean;
     dragId: string | null; // ID of node being dragged. Used to display valid drop locations
     labelVisible: boolean;
+    links: NodeLink[];
     columnIndex: number;
     nodes: Node[];
     handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;

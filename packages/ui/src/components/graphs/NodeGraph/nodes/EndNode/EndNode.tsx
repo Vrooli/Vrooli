@@ -1,11 +1,11 @@
 import { Box, Tooltip, Typography } from '@mui/material';
-import { MouseEvent, useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { EndNodeProps } from '../types';
 import { DraggableNode, NodeContextMenu, NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 import { CSSProperties } from '@mui/styles';
-import { BuildAction } from 'utils';
+import { BuildAction, useLongPress } from 'utils';
 
 export const EndNode = ({
     handleAction,
@@ -15,9 +15,21 @@ export const EndNode = ({
     scale = 1,
     label = 'End',
     labelVisible = true,
+    linksIn,
     canDrag = true,
     zIndex,
 }: EndNodeProps) => {
+
+    /**
+     * Border color indicates status of node.
+     * Default (grey) for valid or unlinked, 
+     * Red for not fully connected (missing in links)
+     */
+     const borderColor = useMemo(() => {
+        if (!isLinked) return 'gray';
+        if (linksIn.length === 0) return 'red';
+        return 'gray';
+    }, [isLinked, linksIn.length]);
 
     const labelObject = useMemo(() => labelVisible && scale >= 0.5 ? (
         <Typography
@@ -40,13 +52,14 @@ export const EndNode = ({
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((ev: MouseEvent<HTMLDivElement>) => {
+    const openContext = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
         // Ignore if not linked or editing
-        if (!canDrag || !isLinked) return;
-        setContextAnchor(ev.currentTarget)
+        if (!canDrag || !isLinked || !isEditing) return;
+        setContextAnchor(ev.currentTarget ?? ev.target)
         ev.preventDefault();
-    }, [canDrag, isLinked]);
+    }, [canDrag, isLinked, isEditing]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
+    const longPressEvent = useLongPress({ onLongPress: openContext });
 
     // Normal click edit menu (title, wasSuccessful, etc.)
     const [editMenuOpen, setEditMenuOpen] = useState<boolean>(false);
@@ -67,7 +80,7 @@ export const EndNode = ({
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
-                availableActions={[BuildAction.AddListBeforeNode, BuildAction.AddListAfterNode, BuildAction.AddEndAfterNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.DeleteNode]}
+                availableActions={[BuildAction.AddListBeforeNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.AddIncomingLink, BuildAction.DeleteNode]}
                 handleClose={closeContext}
                 handleSelect={(option) => { handleAction(option, node.id) }}
                 zIndex={zIndex + 1}
@@ -81,7 +94,7 @@ export const EndNode = ({
                     id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
                     aria-owns={contextOpen ? contextId : undefined}
                     onContextMenu={openContext}
-                    onMouseUp={handleNodeMouseUp}
+                    {...longPressEvent}
                     sx={{
                         width: outerCircleSize,
                         height: outerCircleSize,
@@ -91,7 +104,7 @@ export const EndNode = ({
                         backgroundColor: '#979696',
                         color: 'white',
                         borderRadius: '100%',
-                        boxShadow: '0px 0px 12px gray',
+                        boxShadow: `0px 0px 12px ${borderColor}`,
                         '&:hover': {
                             filter: `brightness(120%)`,
                             transform: 'scale(1.1)',

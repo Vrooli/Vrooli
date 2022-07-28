@@ -1,6 +1,6 @@
 import { BoxProps } from '@mui/material';
 import { NodeType } from 'graphql/generated/globalTypes';
-import { Node, NodeDataRoutineListItem } from "types";
+import { Node, NodeDataRoutineListItem, NodeLink } from "types";
 import { BuildAction } from 'utils';
 import { MouseEvent } from 'react';
 
@@ -57,7 +57,8 @@ export interface AddNodeProps extends ScaleProps, EditableProps {
  * Props for the End node
  */
 export interface EndNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
-    handleAction: (action: NodeContextMenuAction, nodeId: string) => void;
+    handleAction: (action: BuildAction, nodeId: string) => void;
+    linksIn: NodeLink[];
 }
 
 /**
@@ -82,6 +83,8 @@ export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, Labelle
     handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
     handleUpdate: (updatedNode: Node) => void; 
     language: string;
+    linksIn: NodeLink[];
+    linksOut: NodeLink[];
 }
 
 /**
@@ -100,7 +103,8 @@ export interface RoutineSubnodeProps extends ScaleProps, LabelledProps, Editable
  * Props for a Start node
  */
 export interface StartNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps {
-
+    handleAction: (action: BuildAction.AddOutgoingLink, subroutineId: string) => void;
+    linksOut: NodeLink[];
 }
 
 export interface DraggableNodeProps extends BoxProps, Omit<DraggableProps, 'isLinked'> {

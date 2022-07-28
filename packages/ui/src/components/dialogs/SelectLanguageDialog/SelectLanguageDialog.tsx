@@ -8,7 +8,7 @@ import {
     Delete as DeleteIcon,
     Language as LanguageIcon,
 } from '@mui/icons-material';
-import { MouseEvent, useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { AllLanguages, getUserLanguages } from 'utils';
 import { FixedSizeList } from 'react-window';
 
@@ -68,7 +68,7 @@ export const SelectLanguageDialog = ({
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const anchorRef = useRef<HTMLElement | null>(null);
     const open = Boolean(anchorEl);
-    const onOpen = useCallback((event: MouseEvent<HTMLDivElement>) => {
+    const onOpen = useCallback((event: React.MouseEvent) => {
         if (canDropdownOpen) setAnchorEl(anchorRef.current);
         // Force parent to save current translation
         if (currentLanguage) handleCurrent(currentLanguage);
@@ -79,7 +79,7 @@ export const SelectLanguageDialog = ({
         setAnchorEl(null)
     }, []);
 
-    const onDelete = useCallback((e: MouseEvent<HTMLButtonElement>, language: string) => {
+    const onDelete = useCallback((e: React.MouseEvent, language: string) => {
         e.preventDefault();
         e.stopPropagation();
         if (handleDelete) handleDelete(language);

@@ -339,11 +339,12 @@ export const NodeGraph = ({
             isEditing={isEditing}
             labelVisible={labelVisible}
             language={language}
+            links={links}
             nodes={col}
             scale={scale}
             zIndex={zIndex}
         />)
-    }, [columns, dragId, handleAction, handleNodeUpdate, isEditing, labelVisible, language, scale, zIndex]);
+    }, [columns, dragId, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, scale, zIndex]);
 
     return (
         <Box id="graph-root" position="relative" sx={{

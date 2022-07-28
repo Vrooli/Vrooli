@@ -1,6 +1,7 @@
 import { NodeContextMenuProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import {
+    AddLink as AddLinkIcon,
     Delete as DeleteIcon,
     Edit as EditIcon,
     EditLocation as EditLocationIcon,
@@ -14,6 +15,8 @@ import { BuildAction } from 'utils';
 import { useMemo } from 'react';
 
 const allOptionsMap: { [index in Exclude<BuildAction, BuildAction.AddSubroutine>]: [string, SvgIconComponent] } = {
+    [BuildAction.AddIncomingLink]: ['Add incoming link', AddLinkIcon],
+    [BuildAction.AddOutgoingLink]: ['Add outgoing link', AddLinkIcon],
     [BuildAction.AddListBeforeNode]: ['Add routine list before', MoveDownIcon],
     [BuildAction.AddListAfterNode]: ['Add routine list after', MoveUpIcon],
     [BuildAction.AddEndAfterNode]: ['Add end node after', MoveUpIcon],

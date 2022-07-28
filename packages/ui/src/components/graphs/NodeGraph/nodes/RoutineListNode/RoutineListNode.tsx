@@ -8,7 +8,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
+import React, { CSSProperties, useCallback, useMemo, useState } from 'react';
 import { RoutineListNodeProps } from '../types';
 import { DraggableNode, RoutineSubnode } from '..';
 import {
@@ -22,9 +22,9 @@ import {
     routineNodeCheckboxOption,
     routineNodeCheckboxLabel,
 } from '../styles';
-import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
+import { multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { NodeDataRoutineList, NodeDataRoutineListItem } from 'types';
-import { getTranslation, BuildAction, updateTranslationField, PubSub } from 'utils';
+import { getTranslation, BuildAction, updateTranslationField, PubSub, useLongPress } from 'utils';
 import { EditableLabel } from 'components/inputs';
 
 /**
@@ -52,6 +52,8 @@ export const RoutineListNode = ({
     isLinked,
     labelVisible,
     language,
+    linksIn,
+    linksOut,
     isEditing,
     node,
     scale = 1,
@@ -240,12 +242,26 @@ export const RoutineListNode = ({
         />
     )), [node?.data, handleSubroutineAction, handleSubroutineUpdate, isEditing, collapseOpen, labelVisible, language, scale, zIndex]);
 
+    /**
+     * Border color indicates status of node.
+     * Default (grey) for valid or unlinked, 
+     * Yellow for missing subroutines,
+     * Red for not fully connected (missing in or out links)
+     */
+    const borderColor = useMemo(() => {
+        if (!isLinked) return 'gray';
+        if (linksIn.length === 0 || linksOut.length === 0) return 'red';
+        if (routines.length === 0) return 'yellow';
+        return 'gray';
+    }, [linksIn, isLinked, linksOut, routines]);
+
+
     const addButton = useMemo(() => isEditing ? (
         <IconButton
             onClick={handleSubroutineAdd}
             onTouchStart={handleSubroutineAdd}
             sx={{
-                ...containerShadow,
+                boxShadow: '0px 0px 12px gray',
                 width: addSize,
                 height: addSize,
                 position: 'relative',
@@ -271,13 +287,14 @@ export const RoutineListNode = ({
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((ev: MouseEvent<HTMLDivElement>) => {
+    const openContext = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
         // Ignore if not linked or editing
-        if (!canDrag || !isLinked) return;
-        setContextAnchor(ev.currentTarget)
+        if (!canDrag || !isLinked || !isEditing) return;
+        setContextAnchor(ev.currentTarget ?? ev.target)
         ev.preventDefault();
-    }, [canDrag, isLinked]);
+    }, [canDrag, isEditing, isLinked]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
+    const longPressEvent = useLongPress({ onLongPress: openContext });
 
     return (
         <DraggableNode
@@ -297,13 +314,13 @@ export const RoutineListNode = ({
                 overflow: 'hidden',
                 backgroundColor: palette.background.paper,
                 color: palette.background.textPrimary,
-                boxShadow: '0px 0px 12px gray',
+                boxShadow: `0px 0px 12px ${borderColor}`,
             }}
         >
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
-                availableActions={[BuildAction.AddListBeforeNode, BuildAction.AddListAfterNode, BuildAction.AddEndAfterNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.DeleteNode, BuildAction.AddSubroutine]}
+                availableActions={[BuildAction.AddListBeforeNode, BuildAction.AddListAfterNode, BuildAction.AddEndAfterNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.AddIncomingLink, BuildAction.AddOutgoingLink, BuildAction.DeleteNode, BuildAction.AddSubroutine]}
                 handleClose={closeContext}
                 handleSelect={(option) => { handleAction(option, node.id) }}
                 zIndex={zIndex + 1}
@@ -313,6 +330,7 @@ export const RoutineListNode = ({
                     id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
                     aria-owns={contextOpen ? contextId : undefined}
                     onContextMenu={openContext}
+                    {...longPressEvent}
                     onMouseUp={handleNodeMouseUp}
                     sx={{
                         display: 'flex',

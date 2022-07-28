@@ -15,6 +15,7 @@ export const NodeColumn = ({
     columnIndex,
     labelVisible,
     language,
+    links,
     dragId,
     nodes,
     scale = 1,
@@ -69,7 +70,7 @@ export const NodeColumn = ({
             // Determine node to display based on node type
             switch (node.type) {
                 case NodeType.End:
-                    return <EndNode {...nodeProps} />
+                    return <EndNode {...nodeProps} linksIn={links.filter(l => l.toId === node.id)} />
                 case NodeType.Redirect:
                     return <RedirectNode {...nodeProps} />
                 case NodeType.RoutineList:
@@ -78,14 +79,16 @@ export const NodeColumn = ({
                         canExpand={true}
                         handleUpdate={handleNodeUpdate}
                         language={language}
+                        linksIn={links.filter(l => l.toId === node.id)}
+                        linksOut={links.filter(l => l.fromId === node.id)}
                     />)
                 case NodeType.Start:
-                    return <StartNode {...nodeProps} />
+                    return <StartNode {...nodeProps} linksOut={links.filter(l => l.fromId === node.id)} />
                 default:
                     return null;
             }
         })
-    }, [columnIndex, handleAction, handleNodeUpdate, isEditing, labelVisible, language, nodes, scale, zIndex]);
+    }, [columnIndex, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, nodes, scale, zIndex]);
 
     return (
         <Stack

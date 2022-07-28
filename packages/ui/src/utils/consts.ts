@@ -23,6 +23,8 @@ export type Forms = ValueOf<typeof Forms>;
  * Prompts Build page to open a specific dialog
  */
 export enum BuildAction {
+    AddIncomingLink = 'AddIncomingLink',
+    AddOutgoingLink = 'AddOutgoingLink',
     AddSubroutine = 'AddSubroutine',
     EditSubroutine = 'EditSubroutine',
     DeleteSubroutine = 'DeleteSubroutine',

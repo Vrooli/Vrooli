@@ -259,10 +259,14 @@ export const BuildView = ({
     }, []);
 
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
+    const [linkDialogFrom, setLinkDialogFrom] = useState<Node | null>(null);
+    const [linkDialogTo, setLinkDialogTo] = useState<Node | null>(null);
     const openLinkDialog = useCallback(() => setIsLinkDialogOpen(true), []);
     const handleLinkDialogClose = useCallback((link?: NodeLink) => {
-        if (!changedRoutine) return;
+        setLinkDialogFrom(null);
+        setLinkDialogTo(null);
         setIsLinkDialogOpen(false);
+        if (!changedRoutine) return;
         // If no link data, return
         if (!link) return;
         // Upsert link
@@ -483,7 +487,7 @@ export const BuildView = ({
      * @returns a node position in the same column, with the first available row starting at the given row
      */
     const getUniqueNodePosition = useCallback((
-        column: number | null, 
+        column: number | null,
         row: number | null
     ): { columnIndex: number, rowIndex: number } => {
         if (column === null || row === null) return { columnIndex: -1, rowIndex: -1 };
@@ -664,7 +668,7 @@ export const BuildView = ({
         else if (columnIndex === changedRoutine.nodes[nodeIndex].columnIndex) {
             console.log('dropping into same column', updatedNodes.map(n => n.columnIndex + ' ' + n.rowIndex));
             // Find and order nodes in the same column, which are above (or at the same position as) the dropped node
-            const nodesAbove = changedRoutine.nodes.filter(n => 
+            const nodesAbove = changedRoutine.nodes.filter(n =>
                 n.columnIndex === columnIndex &&
                 n.rowIndex !== null &&
                 n.rowIndex <= rowIndex
@@ -729,8 +733,8 @@ export const BuildView = ({
             updatedNodes = updateArray(updatedNodes, nodeIndex, {
                 ...changedRoutine.nodes[nodeIndex],
                 columnIndex: (isRemovingColumn && originalColumnIndex < columnIndex) ?
-                        columnIndex - 1 :
-                        columnIndex,
+                    columnIndex - 1 :
+                    columnIndex,
                 rowIndex,
             })
             console.log('updated dropped node', updatedNodes.map(n => n.columnIndex + ' ' + n.rowIndex));
@@ -891,7 +895,7 @@ export const BuildView = ({
     /**
      * Add a new end node AFTER a node
      */
-     const handleAddEndAfter = useCallback((nodeId: string) => {
+    const handleAddEndAfter = useCallback((nodeId: string) => {
         console.log('handleaddendafter start', nodeId);
         if (!changedRoutine) return;
         // Find links where this node is the "from" node
@@ -1033,7 +1037,16 @@ export const BuildView = ({
     }, [changedRoutine, openedSubroutine, routine]);
 
     const handleAction = useCallback((action: BuildAction, nodeId: string, subroutineId?: string) => {
+        const node = changedRoutine?.nodes?.find(n => n.id === nodeId);
         switch (action) {
+            case BuildAction.AddIncomingLink:
+                setLinkDialogTo(node ?? null);
+                setIsLinkDialogOpen(true);
+                break;
+            case BuildAction.AddOutgoingLink:
+                setLinkDialogFrom(node ?? null);
+                setIsLinkDialogOpen(true);
+                break;
             case BuildAction.AddSubroutine:
                 setAddSubroutineNode(nodeId);
                 break;
@@ -1065,7 +1078,7 @@ export const BuildView = ({
                 setMoveNode(nodeId);
                 break;
         }
-    }, [handleNodeDelete, handleSubroutineDelete, handleSubroutineOpen, handleNodeDrop, handleAddEndAfter, handleAddListAfter, handleAddListBefore]);
+    }, [changedRoutine?.nodes, handleNodeDelete, handleSubroutineDelete, handleSubroutineOpen, handleNodeDrop, handleAddEndAfter, handleAddListAfter, handleAddListBefore]);
 
     const handleRoutineAction = useCallback((action: BaseObjectAction, data: any) => {
         switch (action) {
@@ -1258,6 +1271,8 @@ export const BuildView = ({
                 isOpen={isLinkDialogOpen}
                 language={language}
                 link={undefined}
+                nodeFrom={linkDialogFrom}
+                nodeTo={linkDialogTo}
                 routine={changedRoutine}
                 zIndex={zIndex + 3}
             // partial={ }

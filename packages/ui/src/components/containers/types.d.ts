@@ -18,7 +18,7 @@ export interface TitleContainerProps {
     helpText?: string;
     id?: string;
     loading?: boolean;
-    onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
+    onClick?: (event: React.MouseEvent) => void;
     options?: [string, (e?: any) => void][];
     sx?: object;
     title?: string;

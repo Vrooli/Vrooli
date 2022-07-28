@@ -9,7 +9,7 @@ export interface HelpButtonProps extends ButtonProps {
     /**
      * On click event. Not needed to open the menu
      */
-    onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+    onClick?: (event: React.MouseEvent) => void;
     /**
      * Style applied to the root element
      */

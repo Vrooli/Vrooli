@@ -180,6 +180,8 @@ export interface LinkDialogProps {
     isOpen: boolean;
     language: string; // Language to display/edit
     link?: NodeLink; // Link to display on open, if editing
+    nodeFrom?: Node | null; // Initial "from" node
+    nodeTo?: Node | null; // Initial "to" node
     routine: Routine;
     zIndex: number;
 }
