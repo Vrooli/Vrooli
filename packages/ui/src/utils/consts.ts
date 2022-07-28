@@ -29,8 +29,9 @@ export enum BuildAction {
     OpenSubroutine = 'OpenSubroutine',
     DeleteNode = 'DeleteNode',
     UnlinkNode = 'UnlinkNode',
-    AddAfterNode = 'AddAfterNode',
-    AddBeforeNode = 'AddBeforeNode',
+    AddEndAfterNode = 'AddEndAfterNode',
+    AddListAfterNode = 'AddListAfterNode',
+    AddListBeforeNode = 'AddListBeforeNode',
     MoveNode = 'MoveNode',
 }
 

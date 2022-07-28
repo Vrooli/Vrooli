@@ -97,18 +97,16 @@ export const RoutineListNode = ({
         });
     }, [handleUpdate, node]);
 
-    const handleSubroutineOpen = useCallback((subroutineId: string) => {
-        handleAction(BuildAction.OpenSubroutine, node.id, subroutineId);
+    const handleSubroutineAction = useCallback((
+        action: BuildAction.OpenSubroutine | BuildAction.EditSubroutine | BuildAction.DeleteSubroutine,
+        subroutineId: string,
+    ) => {
+        handleAction(action, node.id, subroutineId);
     }, [handleAction, node.id]);
+
     // Opens dialog to add a new subroutine, so no suroutineId is passed
     const handleSubroutineAdd = useCallback(() => {
         handleAction(BuildAction.AddSubroutine, node.id);
-    }, [handleAction, node.id]);
-    const handleSubroutineEdit = useCallback((subroutineId: string) => {
-        handleAction(BuildAction.EditSubroutine, node.id, subroutineId);
-    }, [handleAction, node.id]);
-    const handleSubroutineDelete = useCallback((subroutineId: string) => {
-        handleAction(BuildAction.DeleteSubroutine, node.id, subroutineId);
     }, [handleAction, node.id]);
     const handleSubroutineUpdate = useCallback((subroutineId: string, newData: NodeDataRoutineListItem) => {
         handleUpdate({
@@ -231,17 +229,16 @@ export const RoutineListNode = ({
         <RoutineSubnode
             key={`${routine.id}`}
             data={routine}
-            handleOpen={handleSubroutineOpen}
-            handleEdit={handleSubroutineEdit}
-            handleDelete={handleSubroutineDelete}
+            handleAction={handleSubroutineAction}
             handleUpdate={handleSubroutineUpdate}
             isEditing={isEditing}
             isOpen={collapseOpen}
             labelVisible={labelVisible}
             language={language}
             scale={scale}
+            zIndex={zIndex}
         />
-    )), [node, handleSubroutineOpen, handleSubroutineEdit, handleSubroutineDelete, handleSubroutineUpdate, isEditing, collapseOpen, labelVisible, language, scale]);
+    )), [node?.data, handleSubroutineAction, handleSubroutineUpdate, isEditing, collapseOpen, labelVisible, language, scale, zIndex]);
 
     const addButton = useMemo(() => isEditing ? (
         <IconButton
@@ -306,6 +303,7 @@ export const RoutineListNode = ({
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
+                availableActions={[BuildAction.AddListBeforeNode, BuildAction.AddListAfterNode, BuildAction.AddEndAfterNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.DeleteNode, BuildAction.AddSubroutine]}
                 handleClose={closeContext}
                 handleSelect={(option) => { handleAction(option, node.id) }}
                 zIndex={zIndex + 1}

@@ -51,7 +51,7 @@ export const NodeGraph = ({
 
     usePinchZoom({
         onScaleChange: handleScaleChange,
-        validTargetIds: ['node-', 'graph-', 'Subroutine'],
+        validTargetIds: ['node-', 'graph-', 'subroutine'],
     });
 
     // /**
@@ -376,8 +376,6 @@ export const NodeGraph = ({
                 width: 'fit-content',
                 minWidth: '100vw',
                 minHeight: '-webkit-fill-available',
-                padding: '200px',
-                transform: 'translate(-100px, 0)',
                 // Create grid background pattern on stack, so it scrolls with content
                 '--line-color': palette.mode === 'light' ? `rgba(0 0 0 / .05)` : `rgba(255 255 255 / .05)`,
                 '--line-thickness': `1px`,

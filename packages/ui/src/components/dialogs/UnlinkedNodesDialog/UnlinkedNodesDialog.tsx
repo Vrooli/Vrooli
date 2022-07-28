@@ -44,7 +44,7 @@ export const UnlinkedNodesDialog = ({
             isEditing: false,
             isLinked: false,
             key: `unlinked-node-${node.id}`,
-            label: '',
+            label: getTranslation(node, 'title', [language], false) ?? null,
             labelVisible: false,
             node,
             scale: 0.5,

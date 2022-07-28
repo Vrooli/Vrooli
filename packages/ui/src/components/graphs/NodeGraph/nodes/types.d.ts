@@ -90,11 +90,10 @@ export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, Labelle
 export interface RoutineSubnodeProps extends ScaleProps, LabelledProps, EditableProps {
     data: NodeDataRoutineListItem;
     isOpen: boolean;
-    handleOpen: (subroutineId: string) => void;
-    handleEdit: (subroutineId: string) => void;
-    handleDelete: (subroutineId: string) => void;
+    handleAction: (action: BuildAction.OpenSubroutine | BuildAction.EditSubroutine | BuildAction.DeleteSubroutine, subroutineId: string) => void;
     handleUpdate: (subroutineId: string, updatedSubroutine: NodeDataRoutineListItem) => void; 
     language: string;
+    zIndex: number;
 }
 
 /**

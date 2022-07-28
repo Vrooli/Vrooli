@@ -5,9 +5,11 @@ import { DraggableNode, NodeContextMenu, NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 import { CSSProperties } from '@mui/styles';
+import { BuildAction } from 'utils';
 
 export const EndNode = ({
     handleAction,
+    isEditing,
     isLinked = true,
     node,
     scale = 1,
@@ -46,21 +48,40 @@ export const EndNode = ({
     }, [canDrag, isLinked]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
+    // Normal click edit menu (title, wasSuccessful, etc.)
+    const [editMenuOpen, setEditMenuOpen] = useState<boolean>(false);
+    const handleNodeMouseUp = useCallback((event: any) => {
+        if (isLinked && !canDrag) {
+            setEditMenuOpen(!editMenuOpen);
+        }
+    }, [canDrag, isLinked, editMenuOpen]);
+
     return (
-        <DraggableNode className="handle" nodeId={node.id} canDrag={canDrag}>
+        <DraggableNode
+            className="handle"
+            nodeId={node.id}
+            canDrag={canDrag}
+            onClick={handleNodeMouseUp}
+        >
+            {/* Right-click context menu */}
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
+                availableActions={[BuildAction.AddListBeforeNode, BuildAction.AddListAfterNode, BuildAction.AddEndAfterNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.DeleteNode]}
                 handleClose={closeContext}
                 handleSelect={(option) => { handleAction(option, node.id) }}
-                zIndex={zIndex+1}
+                zIndex={zIndex + 1}
             />
-            <Tooltip placement={'top'} title={'End'}>
+            {/* Normal-click menu */}
+            {/* <EndNodeMenu
+                isOpen={contextOpen}
+            > */}
+            <Tooltip placement={'top'} title={isEditing ? `Edit "${label ?? 'End'}"` : (label ?? 'End')}>
                 <Box
                     id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
                     aria-owns={contextOpen ? contextId : undefined}
                     onContextMenu={openContext}
-                    onClick={() => { }}
+                    onMouseUp={handleNodeMouseUp}
                     sx={{
                         width: outerCircleSize,
                         height: outerCircleSize,
@@ -73,7 +94,8 @@ export const EndNode = ({
                         boxShadow: '0px 0px 12px gray',
                         '&:hover': {
                             filter: `brightness(120%)`,
-                            transition: 'filter 0.2s',
+                            transform: 'scale(1.1)',
+                            transition: 'all 0.2s',
                         },
                     }}
                 >

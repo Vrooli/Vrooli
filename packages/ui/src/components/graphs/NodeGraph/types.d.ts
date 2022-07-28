@@ -1,9 +1,11 @@
-import { Node, NodeLink, Session } from 'types';
+import { Node, NodeDataEnd, NodeLink, Session } from 'types';
+import { BuildAction } from 'utils';
 import { NodeContextMenuAction } from './NodeContextMenu/NodeContextMenu';
 
 export interface NodeContextMenuProps {
     id: string;
     anchorEl: HTMLElement | null;
+    availableActions: BuildAction[];
     handleClose: () => void;
     handleSelect: (option: NodeContextMenuAction) => void;
     zIndex: number;
@@ -27,6 +29,15 @@ export interface AddBeforeLinkDialogProps {
     nodeId: string;
     nodes: Node[];
     links: NodeLink[];
+    session: Session;
+    zIndex: number;
+}
+
+export interface  EndNodeDialogProps {
+    handleClose: () => void;
+    isOpen: boolean;
+    data: Node & { data: NodeDataEnd };
+    language: string;
     session: Session;
     zIndex: number;
 }
