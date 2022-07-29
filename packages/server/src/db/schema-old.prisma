@@ -195,7 +195,6 @@ model organization {
   updated_at         DateTime                   @default(now()) @db.Timestamptz(6)
   handle             String?                    @unique @db.VarChar(16)
   isOpenToNewMembers Boolean                    @default(false)
-  isPrivate         Boolean                    @default(false)
   stars              Int                        @default(0)
   views              Int                        @default(0)
   comments           comment[]
@@ -212,7 +211,6 @@ model organization {
   starredBy          star[]                     @relation("star_organization")
   viewedBy           view[]                     @relation("view_organization")
   wallets            wallet[]
-  roles              role[]
 }
 
 model organization_translation {
@@ -240,6 +238,7 @@ model organization_users {
   id             String       @id @default(uuid()) @db.Uuid
   organizationId String       @db.Uuid
   userId         String       @db.Uuid
+  role           MemberRole   @default(Member)
   organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           user         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -251,7 +250,6 @@ model project {
   created_at              DateTime              @default(now()) @db.Timestamptz(6)
   updated_at              DateTime              @default(now()) @db.Timestamptz(6)
   isComplete              Boolean               @default(false)
-  isPrivate             Boolean               @default(false)
   completedAt             DateTime?             @db.Timestamptz(6)
   score                   Int                   @default(0)
   stars                   Int                   @default(0)
@@ -381,15 +379,11 @@ model resource_list_translation {
 
 model role {
   id          String       @id @default(uuid()) @db.Uuid
-  created_at              DateTime                 @default(now()) @db.Timestamptz(6)
-  updated_at              DateTime                 @default(now()) @db.Timestamptz(6)
-  title       String       @db.VarChar(128)
+  title       String       @unique @db.VarChar(128)
   description String?      @db.VarChar(2048)
-  organizationId       String                 @db.Uuid
-  organization        organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  assignees       user_roles[]
-
-  @@unique([organizationId, title], name: "role_organizationId_title_unique")
+  created_at  DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime     @default(now()) @db.Timestamptz(6)
+  users       user_roles[]
 }
 
 model routine {
@@ -400,9 +394,7 @@ model routine {
   complexity              Int                      @default(1)
   isAutomatable           Boolean                  @default(false)
   isComplete              Boolean                  @default(true)
-  isDeleted               Boolean                  @default(false)
   isInternal              Boolean                  @default(false)
-  isPrivate              Boolean                  @default(false)
   score                   Int                      @default(0)
   simplicity              Int                      @default(1)
   stars                   Int                      @default(0)
@@ -416,7 +408,6 @@ model routine {
   projectId               String?                  @db.Uuid
   userId                  String?                  @db.Uuid
   version                 String                   @default("1.0.0") @db.VarChar(16)
-  versionGroupId          String?                   @db.Uuid
   createdByOrganization   organization?            @relation("routine_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: SetNull)
   createdByUser           user?                    @relation("routine_user_creator", fields: [createdByUserId], references: [id], onDelete: SetNull)
   organization            organization?            @relation("routine_organization_owner", fields: [organizationId], references: [id], onDelete: SetNull)
@@ -510,7 +501,6 @@ model run {
   updated_at          DateTime   @default(now()) @db.Timestamptz(6)
   completedComplexity Int        @default(0)
   contextSwitches             Int        @default(0)
-  isPrivate             Boolean    @default(false)
   timeStarted         DateTime?  @db.Timestamptz(6)
   timeElapsed         Int?
   timeCompleted       DateTime?  @db.Timestamptz(6)
@@ -522,14 +512,6 @@ model run {
   routine             routine?   @relation("run_routine", fields: [routineId], references: [id])
   user                user       @relation("run_user", fields: [userId], references: [id])
   steps               run_step[] @relation("run_step_run")
-  inputs             run_input[] @relation("run_input_run")
-}
-
-model run_input {
-    id           String  @id @default(uuid()) @db.Uuid
-    data         String  @db.VarChar(8192)
-    runId        String  @db.Uuid
-    run          run     @relation("run_input_run", fields: [runId], references: [id], onDelete: Cascade)
 }
 
 model run_step {
@@ -562,9 +544,6 @@ model standard {
   props                   String                 @db.VarChar(8192)
   yup                     String?                @db.VarChar(8192)
   version                 String                 @default("1.0.0") @db.VarChar(16)
-  versionGroupId          String?                 @db.Uuid
-  isDeleted              Boolean                @default(false)
-  isPrivate             Boolean                @default(false)
   views                   Int                    @default(0)
   createdByUserId         String?                @db.Uuid
   createdByOrganizationId String?                @db.Uuid
@@ -721,15 +700,13 @@ model user_language {
 }
 
 model user_roles {
-    id             String       @id @default(uuid()) @db.Uuid
-    created_at     DateTime     @default(now()) @db.Timestamptz(6)
-    updated_at     DateTime     @default(now()) @db.Timestamptz(6)
-    userId         String       @db.Uuid
-    roleId         String       @db.Uuid
-    user           user         @relation(fields: [userId], references: [id], onDelete: Cascade)
-    role           role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
-    
-    @@unique([userId, roleId], name: "user_roles_userid_roleid_unique")
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  roleId String @db.Uuid
+  role   role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user   user   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId], name: "user_roles_userid_roleid_unique")
 }
 
 model user_tag_hidden {
@@ -804,6 +781,12 @@ enum AccountStatus {
   Unlocked
   SoftLocked
   HardLocked
+}
+
+enum MemberRole {
+  Admin
+  Member
+  Owner
 }
 
 enum NodeType {

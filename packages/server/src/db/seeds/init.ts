@@ -10,8 +10,9 @@ import { genErrorCode, logger, LogLevel } from '../../logger';
 const { AccountStatus, MemberRole, NodeType, ResourceUsedFor, ResourceListUsedFor } = pkg;
 
 export async function init(prisma: PrismaType) {
-    // TODO temporary for standard update: internalizes standards that start with 
-    // one of the input types
+    // TODO currently stick migration code here. Once the production database is updated, this stuff
+    // can be removed
+    // 1. internalizes standards that start with one of the input types
     const boops = ['Checkbox ','Dropzone ','JSON ','LanguageInput ','Markdown ','Radio ','Selector ','Slider ','Switch ','TagSelector ','TextField ','QuantityBox '];
     for (let i = 0; i < boops.length; i++) {
         const boop = boops[i];
@@ -20,6 +21,9 @@ export async function init(prisma: PrismaType) {
             data: { isInternal: true },
         })
     }
+    // 2. For every organization that has no roles, add a new 'Admin' role
+    // and apply it to every member
+    //TODO
 
     //==============================================================
     /* #region Initialization */
