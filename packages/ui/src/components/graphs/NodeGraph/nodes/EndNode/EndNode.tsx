@@ -56,7 +56,6 @@ export const EndNode = ({
         // Ignore if not linked or editing
         if (!canDrag || !isLinked || !isEditing) return;
         setContextAnchor(ev.currentTarget ?? ev.target)
-        ev.preventDefault();
     }, [canDrag, isLinked, isEditing]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
     const longPressEvent = useLongPress({ onLongPress: openContext });

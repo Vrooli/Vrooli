@@ -32,6 +32,7 @@ export interface EditableLabelProps {
     canEdit: boolean;
     handleUpdate: (newTitle: string) => void;
     placeholder?: string;
+    onDialogOpen?: (isOpen: boolean) => void;
     renderLabel: (label: string) => JSX.Element;
     sxs?: { stack?: { [x: string]: any } };
     text: string;

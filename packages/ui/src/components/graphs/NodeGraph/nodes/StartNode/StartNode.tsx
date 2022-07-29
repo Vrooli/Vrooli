@@ -50,7 +50,6 @@ export const StartNode = ({
     const openContext = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
         if (!isEditing) return;
         setContextAnchor(ev.currentTarget ?? ev.target)
-        ev.preventDefault();
     }, [isEditing]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
     const longPressEvent = useLongPress({ onLongPress: openContext });

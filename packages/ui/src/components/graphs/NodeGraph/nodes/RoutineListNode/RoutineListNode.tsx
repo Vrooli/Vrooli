@@ -8,7 +8,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import React, { CSSProperties, useCallback, useMemo, useState } from 'react';
+import React, { CSSProperties, useCallback, useMemo, useRef, useState } from 'react';
 import { RoutineListNodeProps } from '../types';
 import { DraggableNode, RoutineSubnode } from '..';
 import {
@@ -146,12 +146,17 @@ export const RoutineListNode = ({
         });
     }, [handleNodeDelete, handleNodeUnlink])
 
+    const isLabelDialogOpen = useRef<boolean>(false);
+    const onLabelDialogOpen = useCallback((isOpen: boolean) => {
+        isLabelDialogOpen.current = isOpen;
+    }, []);
     const labelObject = useMemo(() => {
         if (!labelVisible) return null;
         return (
             <EditableLabel
                 canEdit={isEditing && collapseOpen}
                 handleUpdate={handleLabelUpdate}
+                onDialogOpen={onLabelDialogOpen}
                 renderLabel={(t) => (
                     <Typography
                         id={`node-routinelist-title-${node.id}`}
@@ -176,7 +181,7 @@ export const RoutineListNode = ({
                 text={label}
             />
         )
-    }, [collapseOpen, label, labelVisible, isEditing, node.id, handleLabelUpdate]);
+    }, [labelVisible, isEditing, collapseOpen, handleLabelUpdate, onLabelDialogOpen, label, node.id]);
 
     const optionsCollapse = useMemo(() => (
         <Collapse in={collapseOpen} sx={{
@@ -288,11 +293,11 @@ export const RoutineListNode = ({
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
     const openContext = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
+        console.log('in open context');
         // Ignore if not linked or editing
-        if (!canDrag || !isLinked || !isEditing) return;
+        if (!canDrag || !isLinked || !isEditing || isLabelDialogOpen.current) return;
         setContextAnchor(ev.currentTarget ?? ev.target)
-        ev.preventDefault();
-    }, [canDrag, isEditing, isLinked]);
+    }, [canDrag, isEditing, isLinked, isLabelDialogOpen]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
     const longPressEvent = useLongPress({ onLongPress: openContext });
 

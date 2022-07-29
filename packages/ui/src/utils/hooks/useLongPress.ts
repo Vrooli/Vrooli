@@ -61,6 +61,7 @@ export const useLongPress = ({
     const target = useRef<React.MouseEvent['target'] | React.TouchEvent['target']>();
 
     const start = useCallback((event: React.MouseEvent | React.TouchEvent) => {
+        console.log('start', event)
         if (shouldPreventDefault && event.target) {
             if (isTouchEvent(event)) {
                 event.target.addEventListener("touchEnd", preventDefaultTouch as any, { passive: false });
@@ -69,12 +70,14 @@ export const useLongPress = ({
         }
         startPosition.current = getPosition(event);
         timeout.current = setTimeout(() => {
-            onLongPress(event);
+            console.log('triggering long press')
+            if (!longPressTriggered.current) onLongPress(event);
             longPressTriggered.current = true;
         }, delay);
     }, [onLongPress, shouldPreventDefault, delay]);
 
     const move = useCallback((event: React.MouseEvent | React.TouchEvent) => {
+        console.log('move')
         if (longPressTriggered.current || !timeout.current) return;
         const position = getPosition(event);
         lastPosition.current = position;
@@ -86,6 +89,7 @@ export const useLongPress = ({
     }, []);
 
     const clear = useCallback((event: React.MouseEvent | React.TouchEvent, shouldTriggerClick = true) => {
+        console.log('clear')
         if (timeout.current) {
             clearTimeout(timeout.current);
             timeout.current = undefined;
