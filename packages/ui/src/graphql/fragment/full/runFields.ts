@@ -21,7 +21,9 @@ export const runFields = gql`
         standard {
             id
             default
+            isDeleted
             isInternal
+            isPrivate
             name
             type
             props
@@ -35,6 +37,7 @@ export const runFields = gql`
                 description
             }
             version
+            versionGroupId
         }
     }
     fragment runOutputFields on OutputItem {
@@ -48,7 +51,9 @@ export const runFields = gql`
         standard {
             id
             default
+            isDeleted
             isInternal
+            isPrivate
             name
             type
             props
@@ -62,6 +67,7 @@ export const runFields = gql`
                 description
             }
             version
+            versionGroupId
         }
     }
     fragment runNodeFields on Node {
@@ -91,9 +97,10 @@ export const runFields = gql`
                             ...runInputFields
                         }
                         isComplete
+                        isDeleted
                         isInternal
+                        isPrivate
                         nodesCount
-                        role
                         outputs {
                             ...runOutputFields
                         }
@@ -113,6 +120,14 @@ export const runFields = gql`
                                 handle
                             }
                         }
+                        permissionsRoutine {
+                            canDelete
+                            canEdit
+                            canStar
+                            canReport
+                            canRun
+                            canVote
+                        }
                         resourceLists {
                             ...runResourceListFields
                         }
@@ -128,6 +143,7 @@ export const runFields = gql`
                             instructions
                         }
                         version
+                        versionGroupId
                     }
                     translations {
                         id
@@ -213,7 +229,9 @@ export const runFields = gql`
         }
         isAutomatable
         isComplete
+        isDeleted
         isInternal
+        isPrivate
         isStarred
         isUpvoted
         nodeLinks {
@@ -255,7 +273,14 @@ export const runFields = gql`
         score
         simplicity
         stars
-        role
+        permissionsRoutine {
+            canDelete
+            canEdit
+            canStar
+            canReport
+            canRun
+            canVote
+        }
         tags {
             ...runTagFields
         }
@@ -268,6 +293,7 @@ export const runFields = gql`
         }
         updated_at
         version
+        versionGroupId
     }
     fragment runStepFields on RunStep {
         id
@@ -283,15 +309,23 @@ export const runFields = gql`
             id
         }
     }
+    fragment runInputsFields on RunInput {
+        id
+        data
+    }
     fragment runFields on Run {
         id
         completedComplexity
         contextSwitches
+        isPrivate
         timeStarted
         timeElapsed
         timeCompleted
         title
         status
+        inputs {
+            ...runInputsFields
+        }
         routine {
             ...runRoutineFields
         }

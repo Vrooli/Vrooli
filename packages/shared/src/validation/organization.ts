@@ -1,9 +1,11 @@
 import { bio, id, idArray, language, name, tagArray } from './base';
 import { resourceListsCreate, resourceListsUpdate } from './resourceList';
+import { rolesCreate, rolesUpdate } from './role';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
 
 const isOpenToNewMembers = yup.boolean()
+const isPrivate = yup.boolean()
 
 export const organizationTranslationCreate = yup.object().shape({
     id: id.required(),
@@ -23,6 +25,7 @@ export const organizationTranslationsUpdate = yup.array().of(organizationTransla
 export const organizationCreateForm = yup.object().shape({
     name: name.required(),
     isOpenToNewMembers: isOpenToNewMembers.notRequired().default(undefined),
+    isPrivate: isPrivate.notRequired().default(undefined),
 })
 export const organizationUpdateForm = organizationCreateForm;
 /**
@@ -32,9 +35,11 @@ export const organizationUpdateForm = organizationCreateForm;
 export const organizationCreate = yup.object().shape({
     id: id.required(),
     isOpenToNewMembers: isOpenToNewMembers.notRequired().default(undefined),
+    isPrivate: isPrivate.notRequired().default(undefined),
     // You are automatically added as an admin. IDs you add here will be requested to be added as a member
     membersConnect: idArray.notRequired().default(undefined),
     resourceListsCreate: resourceListsCreate.notRequired().default(undefined),
+    rolesCreate: rolesCreate.notRequired().default(undefined),
     tagsConnect: tagArray.notRequired().default(undefined),
     tagsCreate: tagsCreate.notRequired().default(undefined),
     translationsCreate: organizationTranslationsCreate.required(),
@@ -46,11 +51,15 @@ export const organizationCreate = yup.object().shape({
 export const organizationUpdate = yup.object().shape({
     id: id.required(),
     isOpenToNewMembers: isOpenToNewMembers.notRequired().default(undefined),
+    isPrivate: isPrivate.notRequired().default(undefined),
     membersConnect: idArray.notRequired().default(undefined),
     membersDisconnect: idArray.notRequired().default(undefined),
     resourceListsDelete: idArray.notRequired().default(undefined),
     resourceListsCreate: resourceListsCreate.notRequired().default(undefined),
     resourceListsUpdate: resourceListsUpdate.notRequired().default(undefined),
+    rolesDelete: idArray.notRequired().default(undefined),
+    rolesCreate: rolesCreate.notRequired().default(undefined),
+    rolesUpdate: rolesUpdate.notRequired().default(undefined),
     tagsConnect: tagArray.notRequired().default(undefined),
     tagsDisconnect: tagArray.notRequired().default(undefined),
     tagsCreate: tagsCreate.notRequired().default(undefined),

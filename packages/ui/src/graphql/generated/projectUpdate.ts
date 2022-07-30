@@ -3,11 +3,20 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ProjectUpdateInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { ProjectUpdateInput, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: projectUpdate
 // ====================================================
+
+export interface projectUpdate_projectUpdate_permissionsProject {
+  __typename: "ProjectPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
 
 export interface projectUpdate_projectUpdate_resourceLists_translations {
   __typename: "ResourceListTranslation";
@@ -97,11 +106,12 @@ export interface projectUpdate_projectUpdate {
   created_at: any;
   handle: string | null;
   isComplete: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   score: number;
   stars: number;
+  permissionsProject: projectUpdate_projectUpdate_permissionsProject;
   resourceLists: projectUpdate_projectUpdate_resourceLists[] | null;
   tags: projectUpdate_projectUpdate_tags[];
   translations: projectUpdate_projectUpdate_translations[];

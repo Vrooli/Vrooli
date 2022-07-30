@@ -1,8 +1,8 @@
-import { CODE, DeleteOneType, MemberRole, omit, standardsCreate, standardsUpdate, standardTranslationCreate, standardTranslationUpdate } from "@local/shared";
+import { CODE, DeleteOneType, omit, standardsCreate, standardsUpdate, standardTranslationCreate, standardTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, createHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, PartialPrismaSelect, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, updateHelper, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { validateProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -89,46 +89,49 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
-        // Query for role
-        if (partial.role) {
-            let organizationIds: string[] = [];
-            // Collect owner data
-            let ownerData: any = objects.map(x => x.owner).filter(x => x);
-            // If no owner data was found, then owner data was not queried. In this case, query for owner data.
-            if (ownerData.length === 0) {
-                const ownerDataUnformatted = await prisma.standard.findMany({
-                    where: { id: { in: ids } },
-                    select: {
-                        id: true,
-                        createdByUser: { select: { id: true } },
-                        createdByOrganization: { select: { id: true } },
-                    },
-                });
-                organizationIds = ownerDataUnformatted.map(x => x.createdByOrganization?.id).filter(x => Boolean(x)) as string[];
-                // Inject owner data into "objects"
-                objects = objects.map((x, i) => {
-                    const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
-                    return ({ ...x, owner: unformatted?.createdByUser || unformatted?.createdByOrganization })
-                });
-            } else {
-                organizationIds = objects
-                    .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
-                    .map(x => x.owner.id)
-                    .filter(x => Boolean(x)) as string[];
-            }
-            // If owned by user, set role to owner if userId matches
-            // If owned by organization, set role user's role in organization
-            const roles = userId
-                ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
-                : [];
-            objects = objects.map((x) => {
-                const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
-                if (orgRoleIndex >= 0) {
-                    return { ...x, role: roles[orgRoleIndex] };
-                }
-                return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
-            }) as any;
+        // Query for permissions
+        if (partial.permissionsStandard) {
+            //TODO
         }
+        // if (partial.role) {
+        //     let organizationIds: string[] = [];
+        //     // Collect owner data
+        //     let ownerData: any = objects.map(x => x.owner).filter(x => x);
+        //     // If no owner data was found, then owner data was not queried. In this case, query for owner data.
+        //     if (ownerData.length === 0) {
+        //         const ownerDataUnformatted = await prisma.standard.findMany({
+        //             where: { id: { in: ids } },
+        //             select: {
+        //                 id: true,
+        //                 createdByUser: { select: { id: true } },
+        //                 createdByOrganization: { select: { id: true } },
+        //             },
+        //         });
+        //         organizationIds = ownerDataUnformatted.map(x => x.createdByOrganization?.id).filter(x => Boolean(x)) as string[];
+        //         // Inject owner data into "objects"
+        //         objects = objects.map((x, i) => {
+        //             const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
+        //             return ({ ...x, owner: unformatted?.createdByUser || unformatted?.createdByOrganization })
+        //         });
+        //     } else {
+        //         organizationIds = objects
+        //             .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
+        //             .map(x => x.owner.id)
+        //             .filter(x => Boolean(x)) as string[];
+        //     }
+        //     // If owned by user, set role to owner if userId matches
+        //     // If owned by organization, set role user's role in organization
+        //     const roles = userId
+        //         ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
+        //         : [];
+        //     objects = objects.map((x) => {
+        //         const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
+        //         if (orgRoleIndex >= 0) {
+        //             return { ...x, role: roles[orgRoleIndex] };
+        //         }
+        //         return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
+        //     }) as any;
+        // }
         // Convert Prisma objects to GraphQL objects
         return objects as RecursivePartial<Standard>[];
     },

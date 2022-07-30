@@ -3,11 +3,20 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { StandardCreateInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { StandardCreateInput, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: standardCreate
 // ====================================================
+
+export interface standardCreate_standardCreate_permissionsStandard {
+  __typename: "StandardPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
 
 export interface standardCreate_standardCreate_resourceLists_translations {
   __typename: "ResourceListTranslation";
@@ -93,14 +102,16 @@ export type standardCreate_standardCreate_creator = standardCreate_standardCreat
 export interface standardCreate_standardCreate {
   __typename: "Standard";
   id: string;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
-  role: MemberRole | null;
   type: string;
   props: string;
   yup: string | null;
   default: string | null;
   created_at: any;
+  permissionsStandard: standardCreate_standardCreate_permissionsStandard;
   resourceLists: standardCreate_standardCreate_resourceLists[];
   tags: standardCreate_standardCreate_tags[];
   translations: standardCreate_standardCreate_translations[];
@@ -110,6 +121,7 @@ export interface standardCreate_standardCreate {
   score: number;
   isUpvoted: boolean | null;
   version: string;
+  versionGroupId: string;
 }
 
 export interface standardCreate {

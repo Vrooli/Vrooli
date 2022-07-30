@@ -18,7 +18,6 @@ import { Forms, PubSub, useReactSearch } from 'utils';
 import { APP_LINKS, CODE } from '@local/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
-import { ROLES } from '@local/shared';
 import { HelpButton, WalletInstallDialog, WalletSelectDialog } from 'components';
 import {
     LogInForm,
@@ -165,7 +164,7 @@ export const StartPage = ({
                 let theme: string = 'light';
                 if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) theme = 'dark';
                 PubSub.get().publishSession({
-                    roles: [ROLES.Guest],
+                    isLoggedIn: true,
                     theme,
                 })
                 setLocation(redirect ?? APP_LINKS.Welcome);

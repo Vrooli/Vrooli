@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { RunSearchInput, RunStatus, MemberRole } from "./globalTypes";
+import { RunSearchInput, RunStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: runs
@@ -13,6 +13,16 @@ export interface runs_runs_pageInfo {
   __typename: "PageInfo";
   endCursor: string | null;
   hasNextPage: boolean;
+}
+
+export interface runs_runs_edges_node_routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
 }
 
 export interface runs_runs_edges_node_routine_tags_translations {
@@ -47,17 +57,20 @@ export interface runs_runs_edges_node_routine {
   complexity: number;
   created_at: any;
   isAutomatable: boolean | null;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   score: number;
   simplicity: number;
   stars: number;
+  permissionsRoutine: runs_runs_edges_node_routine_permissionsRoutine;
   tags: runs_runs_edges_node_routine_tags[];
   translations: runs_runs_edges_node_routine_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
 }
 
 export interface runs_runs_edges_node {
@@ -65,6 +78,7 @@ export interface runs_runs_edges_node {
   id: string;
   completedComplexity: number;
   contextSwitches: number;
+  isPrivate: boolean;
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;

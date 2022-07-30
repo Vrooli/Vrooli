@@ -2,18 +2,19 @@
  * Adds initial data to the database. (i.e. data that should be included in production). 
  * This is written so that it can be called multiple times without duplicating data.
  */
-import { InputType, ROLES } from '@local/shared';
+import { InputType } from '@local/shared';
 import { ProfileModel } from '../../models';
 import { PrismaType } from '../../types';
 import pkg from '@prisma/client';
 import { genErrorCode, logger, LogLevel } from '../../logger';
-const { AccountStatus, MemberRole, NodeType, ResourceUsedFor, ResourceListUsedFor } = pkg;
+const { AccountStatus, NodeType, ResourceUsedFor, ResourceListUsedFor } = pkg;
 
 export async function init(prisma: PrismaType) {
+    console.log('a')
     // TODO currently stick migration code here. Once the production database is updated, this stuff
     // can be removed
     // 1. internalizes standards that start with one of the input types
-    const boops = ['Checkbox ','Dropzone ','JSON ','LanguageInput ','Markdown ','Radio ','Selector ','Slider ','Switch ','TagSelector ','TextField ','QuantityBox '];
+    const boops = ['Checkbox ', 'Dropzone ', 'JSON ', 'LanguageInput ', 'Markdown ', 'Radio ', 'Selector ', 'Slider ', 'Switch ', 'TagSelector ', 'TextField ', 'QuantityBox '];
     for (let i = 0; i < boops.length; i++) {
         const boop = boops[i];
         await prisma.standard.updateMany({
@@ -21,9 +22,66 @@ export async function init(prisma: PrismaType) {
             data: { isInternal: true },
         })
     }
+    console.log('b')
     // 2. For every organization that has no roles, add a new 'Admin' role
     // and apply it to every member
-    //TODO
+    const orgs = await prisma.organization.findMany({
+        select: {
+            id: true,
+            members: {
+                select: {
+                    id: true,
+                }
+            },
+            _count: {
+                select: {
+                    roles: true
+                }
+            }
+        }
+    });
+    console.log('c')
+    for (let i = 0; i < orgs.length; i++) {
+        const org = orgs[i];
+        // Create new role titled 'Admin'
+        const role = await prisma.role.upsert({
+            where: {
+                role_organizationId_title_unique: {
+                    title: 'Admin',
+                    organizationId: org.id,
+                }
+            },
+            update: {},
+            create: {
+                title: 'Admin',
+                organizationId: org.id,
+            }
+        })
+        console.log('d')
+        // Apply role to every member
+        for (let j = 0; j < org.members.length; j++) {
+            console.log('e')
+            const member = org.members[j];
+            const exists = prisma.user_roles.findUnique({
+                where: {
+                    user_roles_userid_roleid_unique: {
+                        userId: member.id,
+                        roleId: role.id,
+                    }
+                }
+            })
+            if (!Boolean(exists)) {
+                await prisma.user_roles.create({
+                    data: {
+                        userId: member.id,
+                        roleId: role.id,
+                    }
+                })
+            }
+            console.log('f');
+        }
+    }
+    console.log('g')
 
     //==============================================================
     /* #region Initialization */
@@ -42,18 +100,6 @@ export async function init(prisma: PrismaType) {
     const profileModel = ProfileModel(prisma);
     //==============================================================
     /* #endregion Initialization */
-    //==============================================================
-
-    //==============================================================
-    /* #region Create Roles */
-    //==============================================================
-    const actorRole = await prisma.role.upsert({
-        where: { title: ROLES.Actor },
-        update: {},
-        create: { title: ROLES.Actor, description: 'This role allows a user to create routines and save their progress.' },
-    })
-    //==============================================================
-    /* #endregion Create Roles*/
     //==============================================================
 
     //==============================================================
@@ -101,6 +147,7 @@ export async function init(prisma: PrismaType) {
     //==============================================================
     /* #region Create Admin */
     //==============================================================
+    console.log('h');
     const adminId = '3f038f3b-f8f9-4f9b-8f9b-c8f4b8f9b8d2'
     const admin = await prisma.user.upsert({
         where: {
@@ -121,9 +168,6 @@ export async function init(prisma: PrismaType) {
                 create: [
                     { stakingAddress: process.env.ADMIN_WALLET ?? '', verified: true } as any,
                 ]
-            },
-            roles: {
-                create: [{ roleId: actorRole.id }]
             },
             languages: {
                 create: [{ language: EN }],
@@ -146,6 +190,7 @@ export async function init(prisma: PrismaType) {
             }
         },
     })
+    console.log('i');
     //==============================================================
     /* #endregion Create Admin */
     //==============================================================
@@ -165,6 +210,7 @@ export async function init(prisma: PrismaType) {
             ]
         }
     })
+    console.log('j');
     if (!vrooli) {
         logger.log(LogLevel.info, '🏗 Creating Vrooli organization');
         vrooli = await prisma.organization.create({
@@ -180,7 +226,7 @@ export async function init(prisma: PrismaType) {
                 },
                 members: {
                     create: [
-                        { userId: admin.id, role: MemberRole.Owner },
+                        { userId: admin.id },
                     ]
                 },
                 tags: {
@@ -219,7 +265,41 @@ export async function init(prisma: PrismaType) {
                 }
             }
         })
+        console.log('k');
+        const vrooliAdminRole = await prisma.role.upsert({
+            where: {
+                role_organizationId_title_unique: {
+                    title: 'Admin',
+                    organizationId: vrooli.id,
+                }
+            },
+            update: {},
+            create: {
+                title: 'Admin',
+                organization: {
+                    connect: {
+                        id: vrooli.id
+                    }
+                }
+            }
+        })
+        console.log('l');
+        // Assign admin role to admin
+        await prisma.user.update({
+            where: {
+                id: admin.id
+            },
+            data: {
+                roles: {
+                    connect: {
+                        id: vrooliAdminRole.id
+                    }
+                }
+            }
+        })
+        console.log('m');
     }
+    console.log('n');
     //==============================================================
     /* #endregion Create Organizations */
     //==============================================================

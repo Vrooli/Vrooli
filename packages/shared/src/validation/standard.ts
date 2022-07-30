@@ -7,6 +7,7 @@ import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 const standardDefault = yup.string().max(8192);
 const stringifiedJson = yup.string().max(8192);
 const type = yup.string().oneOf(Object.values(InputType))
+const isPrivate = yup.boolean();
 
 export const standardTranslationCreate = yup.object().shape({
     id: id.required(),
@@ -28,9 +29,11 @@ export const standardCreateForm = yup.object().shape({
     description: description.notRequired().default(undefined),
     name: name.notRequired().default(undefined),
     version: version.notRequired().default(undefined),
+    isPrivate: isPrivate.notRequired().default(undefined),
 })
 export const standardUpdateForm = yup.object().shape({
     description: description.notRequired().default(undefined),
+    isPrivate: isPrivate.notRequired().default(undefined),
 })
 
 /**
@@ -40,6 +43,7 @@ export const standardCreate = yup.object().shape({
     id: id.required(),
     default: standardDefault.notRequired().default(undefined),
     isInternal: yup.boolean().notRequired().default(undefined),
+    isPrivate: isPrivate.notRequired().default(undefined),
     name: name.notRequired().default(undefined),
     type: type.required(),
     props: stringifiedJson.required(),
@@ -58,6 +62,7 @@ export const standardCreate = yup.object().shape({
  */
 export const standardUpdate = yup.object().shape({
     id: id.required(),
+    isPrivate: isPrivate.notRequired().default(undefined),
     makingAnonymous: yup.boolean().notRequired().default(undefined), // If you want the standard to be made anonymous
     resourceListsDelete: idArray.notRequired().default(undefined),
     resourceListsCreate: resourceListsCreate.notRequired().default(undefined),

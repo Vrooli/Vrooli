@@ -3,7 +3,7 @@ import { IWrap, RecursivePartial } from '../types';
 import { Count, DeleteManyInput, FindByIdInput, Run, RunCancelInput, RunCompleteInput, RunCountInput, RunCreateInput, RunSearchInput, RunSearchResult, RunSortBy, RunStatus, RunStepStatus, RunUpdateInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
-import { countHelper, createHelper, deleteManyHelper, LogType, readManyHelper, readOneHelper, RunModel, updateHelper } from '../models';
+import { countHelper, createHelper, deleteManyHelper, readManyHelper, readOneHelper, RunModel, updateHelper } from '../models';
 import { rateLimit } from '../rateLimit';
 
 export const typeDef = gql`
@@ -36,6 +36,7 @@ export const typeDef = gql`
         id: ID!
         completedComplexity: Int!
         contextSwitches: Int!
+        isPrivate: Boolean!
         timeStarted: Date
         timeElapsed: Int
         timeCompleted: Date
@@ -43,6 +44,7 @@ export const typeDef = gql`
         status: RunStatus!
         routine: Routine
         steps: [RunStep!]!
+        inputs: [RunInput!]!
         user: User!
     }
 
@@ -59,6 +61,11 @@ export const typeDef = gql`
         run: Run!
         node: Node
         subroutine: Routine
+    }
+
+    type RunInput {
+        id: ID!
+        data: String!
     }
 
     input RunSearchInput {
@@ -96,10 +103,12 @@ export const typeDef = gql`
 
     input RunCreateInput {
         id: ID!
+        isPrivate: Boolean
         routineId: ID!
         title: String!
         version: String!
         stepsCreate: [RunStepCreateInput!]
+        inputsCreate: [RunInputCreateInput!]
         # If scheduling info provided, not starting immediately
         # TODO
     }
@@ -108,10 +117,14 @@ export const typeDef = gql`
         id: ID!
         completedComplexity: Int # Total completed complexity, including what was completed before this update
         contextSwitches: Int # Total contextSwitches, including what was completed before this update
+        isPrivate: Boolean
         timeElapsed: Int # Total time elapsed, including what was completed before this update
         stepsDelete: [ID!]
         stepsCreate: [RunStepCreateInput!]
         stepsUpdate: [RunStepUpdateInput!]
+        inputsDelete: [ID!]
+        inputsCreate: [RunInputCreateInput!]
+        inputsUpdate: [RunInputUpdateInput!]
     }
 
     input RunStepCreateInput {
@@ -130,6 +143,16 @@ export const typeDef = gql`
         contextSwitches: Int
         status: RunStepStatus
         timeElapsed: Int
+    }
+
+    input RunInputCreateInput {
+        id: ID!
+        data: String!
+    }
+
+    input RunInputUpdateInput {
+        id: ID!
+        data: String!
     }
 
     input RunCompleteInput {

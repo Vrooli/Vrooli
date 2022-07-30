@@ -4,11 +4,9 @@ import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSea
 import { PrismaType, RecursivePartial } from "types";
 import { addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, GraphQLModelType, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper } from "./base";
 import { OrganizationModel, organizationVerifier } from "./organization";
-import pkg from '@prisma/client';
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
 import { StarModel } from "./star";
-const { MemberRole } = pkg;
 
 //==============================================================
 /* #region Custom Components */
@@ -84,45 +82,49 @@ export const commentFormatter = (): FormatConverter<Comment> => ({
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
-        if (partial.role) {
-            let organizationIds: string[] = [];
-            // Collect owner data
-            let ownerData: any = objects.map(x => x.owner).filter(x => x);
-            // If no owner data was found, then owner data was not queried. In this case, query for owner data.
-            if (ownerData.length === 0) {
-                const ownerDataUnformatted = await prisma.comment.findMany({
-                    where: { id: { in: ids } },
-                    select: {
-                        id: true,
-                        user: { select: { id: true } },
-                        organization: { select: { id: true } },
-                    },
-                });
-                organizationIds = ownerDataUnformatted.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
-                // Inject owner data into "objects"
-                objects = objects.map((x, i) => { 
-                    const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
-                    return ({ ...x, owner: unformatted?.user || unformatted?.organization })
-                });
-            } else {
-                organizationIds = objects
-                    .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
-                    .map(x => x.owner.id)
-                    .filter(x => Boolean(x)) as string[];
-            }
-            // If owned by user, set role to owner if userId matches
-            // If owned by organization, set role user's role in organization
-            const roles = userId
-                ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
-                : [];
-            objects = objects.map((x) => {
-                const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
-                if (orgRoleIndex >= 0) {
-                    return { ...x, role: roles[orgRoleIndex] };
-                }
-                return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
-            }) as any;
+        // Query for permissions
+        if (partial.permissionsComment) {
+            //TODO
         }
+        // if (partial.role) {
+        //     let organizationIds: string[] = [];
+        //     // Collect owner data
+        //     let ownerData: any = objects.map(x => x.owner).filter(x => x);
+        //     // If no owner data was found, then owner data was not queried. In this case, query for owner data.
+        //     if (ownerData.length === 0) {
+        //         const ownerDataUnformatted = await prisma.comment.findMany({
+        //             where: { id: { in: ids } },
+        //             select: {
+        //                 id: true,
+        //                 user: { select: { id: true } },
+        //                 organization: { select: { id: true } },
+        //             },
+        //         });
+        //         organizationIds = ownerDataUnformatted.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
+        //         // Inject owner data into "objects"
+        //         objects = objects.map((x, i) => { 
+        //             const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
+        //             return ({ ...x, owner: unformatted?.user || unformatted?.organization })
+        //         });
+        //     } else {
+        //         organizationIds = objects
+        //             .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
+        //             .map(x => x.owner.id)
+        //             .filter(x => Boolean(x)) as string[];
+        //     }
+        //     // If owned by user, set role to owner if userId matches
+        //     // If owned by organization, set role user's role in organization
+        //     const roles = userId
+        //         ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
+        //         : [];
+        //     objects = objects.map((x) => {
+        //         const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
+        //         if (orgRoleIndex >= 0) {
+        //             return { ...x, role: roles[orgRoleIndex] };
+        //         }
+        //         return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
+        //     }) as any;
+        // }
         return objects as RecursivePartial<Comment>[];
     },
 })
@@ -369,12 +371,13 @@ export const commentMutater = (prisma: PrismaType) => ({
             if (notCreatedByThisUser.some(c => c.organizationId === null))
                 throw new CustomError(CODE.Unauthorized, 'Some comments were not created by this user', { code: genErrorCode('0039') });
             // Of the remaining comments, check that user is an admin of the organization
-            const organizationIds = notCreatedByThisUser.map(c => c.organizationId).filter(id => id !== null) as string[];
-            const roles = userId
-                ? await organizationVerifier(prisma).getRoles(userId, organizationIds)
-                : Array(deleteMany.length).fill(null);
-            if (roles.some((role: any) => role !== MemberRole.Owner && role !== MemberRole.Admin))
-                throw new CustomError(CODE.Unauthorized, 'User must be an admin of the organization to delete comments', { code: genErrorCode('0040') });
+            //TODO
+            // const organizationIds = notCreatedByThisUser.map(c => c.organizationId).filter(id => id !== null) as string[];
+            // const roles = userId
+            //     ? await organizationVerifier(prisma).getRoles(userId, organizationIds)
+            //     : Array(deleteMany.length).fill(null);
+            // if (roles.some((role: any) => role !== MemberRole.Owner && role !== MemberRole.Admin))
+            //     throw new CustomError(CODE.Unauthorized, 'User must be an admin of the organization to delete comments', { code: genErrorCode('0040') });
         }
     },
     /**

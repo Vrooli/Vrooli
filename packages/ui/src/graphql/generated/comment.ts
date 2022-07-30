@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, MemberRole } from "./globalTypes";
+import { FindByIdInput } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: comment
@@ -69,6 +69,16 @@ export interface comment_comment_creator_User {
 
 export type comment_comment_creator = comment_comment_creator_Organization | comment_comment_creator_User;
 
+export interface comment_comment_permissionsComment {
+  __typename: "CommentPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReply: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
+
 export interface comment_comment_translations {
   __typename: "CommentTranslation";
   id: string;
@@ -83,10 +93,10 @@ export interface comment_comment {
   updated_at: any;
   score: number;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   isStarred: boolean;
   commentedOn: comment_comment_commentedOn;
   creator: comment_comment_creator | null;
+  permissionsComment: comment_comment_permissionsComment | null;
   translations: comment_comment_translations[];
 }
 

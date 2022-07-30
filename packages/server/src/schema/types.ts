@@ -10,9 +10,7 @@ export type Scalars = {
   Boolean: boolean;
   Int: number;
   Float: number;
-  /** Custom description for the date scalar */
   Date: any;
-  /** The `Upload` scalar type represents a file upload. */
   Upload: any;
 };
 
@@ -36,9 +34,9 @@ export type Comment = {
   id: Scalars['ID'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
+  permissionsComment?: Maybe<CommentPermission>;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
-  role?: Maybe<MemberRole>;
   score: Scalars['Int'];
   starredBy?: Maybe<Array<User>>;
   stars: Scalars['Int'];
@@ -64,6 +62,16 @@ export enum CommentFor {
   Routine = 'Routine',
   Standard = 'Standard'
 }
+
+export type CommentPermission = {
+  __typename?: 'CommentPermission';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canReply: Scalars['Boolean'];
+  canReport: Scalars['Boolean'];
+  canStar: Scalars['Boolean'];
+  canVote: Scalars['Boolean'];
+};
 
 export type CommentSearchInput = {
   after?: InputMaybe<Scalars['String']>;
@@ -523,15 +531,9 @@ export type LoopWhileUpdateInput = {
 
 export type Member = {
   __typename?: 'Member';
-  role: MemberRole;
+  organization: Organization;
   user: User;
 };
-
-export enum MemberRole {
-  Admin = 'Admin',
-  Member = 'Member',
-  Owner = 'Owner'
-}
 
 export type Mutation = {
   __typename?: 'Mutation';
@@ -1103,14 +1105,17 @@ export type Organization = {
   handle?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   isOpenToNewMembers: Scalars['Boolean'];
+  isPrivate: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isViewed: Scalars['Boolean'];
   members: Array<Member>;
+  membersCount: Scalars['Int'];
+  permissionsOrganization?: Maybe<OrganizationPermission>;
   projects: Array<Project>;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   resourceLists: Array<ResourceList>;
-  role?: Maybe<MemberRole>;
+  roles?: Maybe<Array<Role>>;
   routines: Array<Routine>;
   routinesCreated: Array<Routine>;
   starredBy: Array<User>;
@@ -1131,7 +1136,9 @@ export type OrganizationCreateInput = {
   handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
+  roles?: InputMaybe<Array<RoleCreateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   translationsCreate?: InputMaybe<Array<OrganizationTranslationCreateInput>>;
@@ -1141,6 +1148,16 @@ export type OrganizationEdge = {
   __typename?: 'OrganizationEdge';
   cursor: Scalars['String'];
   node: Organization;
+};
+
+export type OrganizationPermission = {
+  __typename?: 'OrganizationPermission';
+  canAddMembers: Scalars['Boolean'];
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canReport: Scalars['Boolean'];
+  canStar: Scalars['Boolean'];
+  isMember: Scalars['Boolean'];
 };
 
 export type OrganizationSearchInput = {
@@ -1206,11 +1223,15 @@ export type OrganizationUpdateInput = {
   handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   membersConnect?: InputMaybe<Array<Scalars['ID']>>;
   membersDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
   resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
+  rolesCreate?: InputMaybe<Array<RoleCreateInput>>;
+  rolesDelete?: InputMaybe<Array<Scalars['ID']>>;
+  rolesUpdate?: InputMaybe<Array<RoleUpdateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
@@ -1337,15 +1358,16 @@ export type Project = {
   handle?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   isComplete: Scalars['Boolean'];
+  isPrivate: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
   owner?: Maybe<Contributor>;
   parent?: Maybe<Project>;
+  permissionsProject: ProjectPermission;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   resourceLists?: Maybe<Array<ResourceList>>;
-  role?: Maybe<MemberRole>;
   routines: Array<Routine>;
   score: Scalars['Int'];
   starredBy?: Maybe<Array<User>>;
@@ -1368,6 +1390,7 @@ export type ProjectCreateInput = {
   handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   parentId?: InputMaybe<Scalars['ID']>;
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
@@ -1386,6 +1409,15 @@ export type ProjectOrOrganization = Organization | Project;
 export type ProjectOrOrganizationOrRoutineOrStandardOrUser = Organization | Project | Routine | Standard | User;
 
 export type ProjectOrRoutine = Project | Routine;
+
+export type ProjectPermission = {
+  __typename?: 'ProjectPermission';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canReport: Scalars['Boolean'];
+  canStar: Scalars['Boolean'];
+  canVote: Scalars['Boolean'];
+};
 
 export type ProjectSearchInput = {
   after?: InputMaybe<Scalars['String']>;
@@ -1459,6 +1491,7 @@ export type ProjectUpdateInput = {
   handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -2056,10 +2089,45 @@ export type Response = {
 
 export type Role = {
   __typename?: 'Role';
-  description?: Maybe<Scalars['String']>;
+  assignees?: Maybe<Array<UserRole>>;
+  created_at: Scalars['Date'];
+  id: Scalars['ID'];
+  organization: Organization;
+  title: Scalars['String'];
+  translations: Array<RoleTranslation>;
+  updated_at: Scalars['Date'];
+};
+
+export type RoleCreateInput = {
   id: Scalars['ID'];
   title: Scalars['String'];
-  users: Array<User>;
+  translationsCreate?: InputMaybe<Array<RoleTranslationCreateInput>>;
+};
+
+export type RoleTranslation = {
+  __typename?: 'RoleTranslation';
+  description: Scalars['String'];
+  id: Scalars['ID'];
+  language: Scalars['String'];
+};
+
+export type RoleTranslationCreateInput = {
+  description: Scalars['String'];
+  id: Scalars['ID'];
+  language: Scalars['String'];
+};
+
+export type RoleTranslationUpdateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
+};
+
+export type RoleUpdateInput = {
+  id: Scalars['ID'];
+  translationsCreate?: InputMaybe<Array<RoleTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<RoleTranslationUpdateInput>>;
 };
 
 export type Routine = {
@@ -2075,7 +2143,9 @@ export type Routine = {
   inputs: Array<InputItem>;
   isAutomatable?: Maybe<Scalars['Boolean']>;
   isComplete: Scalars['Boolean'];
+  isDeleted: Scalars['Boolean'];
   isInternal?: Maybe<Scalars['Boolean']>;
+  isPrivate: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
@@ -2086,11 +2156,11 @@ export type Routine = {
   outputs: Array<OutputItem>;
   owner?: Maybe<Contributor>;
   parent?: Maybe<Routine>;
+  permissionsRoutine: RoutinePermission;
   project?: Maybe<Project>;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   resourceLists: Array<ResourceList>;
-  role?: Maybe<MemberRole>;
   runs: Array<Run>;
   score: Scalars['Int'];
   simplicity: Scalars['Int'];
@@ -2099,7 +2169,8 @@ export type Routine = {
   tags: Array<Tag>;
   translations: Array<RoutineTranslation>;
   updated_at: Scalars['Date'];
-  version?: Maybe<Scalars['String']>;
+  version: Scalars['String'];
+  versionGroupId: Scalars['ID'];
   views: Scalars['Int'];
 };
 
@@ -2116,6 +2187,7 @@ export type RoutineCreateInput = {
   isAutomatable?: InputMaybe<Scalars['Boolean']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
   isInternal?: InputMaybe<Scalars['Boolean']>;
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   nodeLinksCreate?: InputMaybe<Array<NodeLinkCreateInput>>;
   nodesCreate?: InputMaybe<Array<NodeCreateInput>>;
   outputsCreate?: InputMaybe<Array<OutputItemCreateInput>>;
@@ -2132,6 +2204,16 @@ export type RoutineEdge = {
   __typename?: 'RoutineEdge';
   cursor: Scalars['String'];
   node: Routine;
+};
+
+export type RoutinePermission = {
+  __typename?: 'RoutinePermission';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canReport: Scalars['Boolean'];
+  canRun: Scalars['Boolean'];
+  canStar: Scalars['Boolean'];
+  canVote: Scalars['Boolean'];
 };
 
 export type RoutineSearchInput = {
@@ -2223,6 +2305,7 @@ export type RoutineUpdateInput = {
   isAutomatable?: InputMaybe<Scalars['Boolean']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
   isInternal?: InputMaybe<Scalars['Boolean']>;
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   nodeLinksCreate?: InputMaybe<Array<NodeLinkCreateInput>>;
   nodeLinksDelete?: InputMaybe<Array<Scalars['ID']>>;
   nodeLinksUpdate?: InputMaybe<Array<NodeLinkUpdateInput>>;
@@ -2251,6 +2334,8 @@ export type Run = {
   completedComplexity: Scalars['Int'];
   contextSwitches: Scalars['Int'];
   id: Scalars['ID'];
+  inputs: Array<RunInput>;
+  isPrivate: Scalars['Boolean'];
   routine?: Maybe<Routine>;
   status: RunStatus;
   steps: Array<RunStep>;
@@ -2283,6 +2368,8 @@ export type RunCountInput = {
 
 export type RunCreateInput = {
   id: Scalars['ID'];
+  inputsCreate?: InputMaybe<Array<RunInputCreateInput>>;
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   routineId: Scalars['ID'];
   stepsCreate?: InputMaybe<Array<RunStepCreateInput>>;
   title: Scalars['String'];
@@ -2293,6 +2380,22 @@ export type RunEdge = {
   __typename?: 'RunEdge';
   cursor: Scalars['String'];
   node: Run;
+};
+
+export type RunInput = {
+  __typename?: 'RunInput';
+  data: Scalars['String'];
+  id: Scalars['ID'];
+};
+
+export type RunInputCreateInput = {
+  data: Scalars['String'];
+  id: Scalars['ID'];
+};
+
+export type RunInputUpdateInput = {
+  data: Scalars['String'];
+  id: Scalars['ID'];
 };
 
 export type RunSearchInput = {
@@ -2379,6 +2482,10 @@ export type RunUpdateInput = {
   completedComplexity?: InputMaybe<Scalars['Int']>;
   contextSwitches?: InputMaybe<Scalars['Int']>;
   id: Scalars['ID'];
+  inputsCreate?: InputMaybe<Array<RunInputCreateInput>>;
+  inputsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  inputsUpdate?: InputMaybe<Array<RunInputUpdateInput>>;
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   stepsCreate?: InputMaybe<Array<RunStepCreateInput>>;
   stepsDelete?: InputMaybe<Array<Scalars['ID']>>;
   stepsUpdate?: InputMaybe<Array<RunStepUpdateInput>>;
@@ -2392,8 +2499,8 @@ export type SendVerificationEmailInput = {
 export type Session = {
   __typename?: 'Session';
   id?: Maybe<Scalars['ID']>;
+  isLoggedIn: Scalars['Boolean'];
   languages?: Maybe<Array<Scalars['String']>>;
-  roles: Array<Scalars['String']>;
   theme: Scalars['String'];
 };
 
@@ -2405,16 +2512,18 @@ export type Standard = {
   creator?: Maybe<Contributor>;
   default?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
+  isDeleted: Scalars['Boolean'];
   isInternal: Scalars['Boolean'];
+  isPrivate: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
   name: Scalars['String'];
+  permissionsStandard: StandardPermission;
   props: Scalars['String'];
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   resourceLists: Array<ResourceList>;
-  role?: Maybe<MemberRole>;
   routineInputs: Array<Routine>;
   routineOutputs: Array<Routine>;
   score: Scalars['Int'];
@@ -2425,6 +2534,7 @@ export type Standard = {
   type: Scalars['String'];
   updated_at: Scalars['Date'];
   version: Scalars['String'];
+  versionGroupId: Scalars['ID'];
   views: Scalars['Int'];
   yup?: Maybe<Scalars['String']>;
 };
@@ -2440,6 +2550,7 @@ export type StandardCreateInput = {
   default?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isInternal?: InputMaybe<Scalars['Boolean']>;
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
   props: Scalars['String'];
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
@@ -2455,6 +2566,15 @@ export type StandardEdge = {
   __typename?: 'StandardEdge';
   cursor: Scalars['String'];
   node: Standard;
+};
+
+export type StandardPermission = {
+  __typename?: 'StandardPermission';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canReport: Scalars['Boolean'];
+  canStar: Scalars['Boolean'];
+  canVote: Scalars['Boolean'];
 };
 
 export type StandardSearchInput = {
@@ -2521,6 +2641,7 @@ export type StandardTranslationUpdateInput = {
 
 export type StandardUpdateInput = {
   id: Scalars['ID'];
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   makeAnonymous?: InputMaybe<Scalars['Boolean']>;
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;

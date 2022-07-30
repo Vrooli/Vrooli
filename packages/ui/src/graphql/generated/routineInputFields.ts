@@ -26,13 +26,16 @@ export interface routineInputFields_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   translations: routineInputFields_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface routineInputFields {

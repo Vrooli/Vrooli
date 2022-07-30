@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from 'types';
-import { FindByIdOrHandleInput, Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSearchResult, OrganizationSortBy, MemberRole } from './types';
+import { FindByIdOrHandleInput, Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSearchResult, OrganizationSortBy } from './types';
 import { Context } from '../context';
 import { countHelper, createHelper, OrganizationModel, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
@@ -16,25 +16,22 @@ export const typeDef = gql`
         StarsDesc
     }
 
-    enum MemberRole {
-        Admin
-        Member
-        Owner
-    }
-
     input OrganizationCreateInput {
         id: ID!
         handle: String
         isOpenToNewMembers: Boolean
+        isPrivate: Boolean
         resourceListsCreate: [ResourceListCreateInput!]
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
         translationsCreate: [OrganizationTranslationCreateInput!]
+        roles: [RoleCreateInput!]
     }
     input OrganizationUpdateInput {
         id: ID!
         handle: String
         isOpenToNewMembers: Boolean
+        isPrivate: Boolean
         membersConnect: [ID!]
         membersDisconnect: [ID!]
         resourceListsDelete: [ID!]
@@ -46,6 +43,9 @@ export const typeDef = gql`
         translationsDelete: [ID!]
         translationsCreate: [OrganizationTranslationCreateInput!]
         translationsUpdate: [OrganizationTranslationUpdateInput!]
+        rolesDelete: [ID!]
+        rolesCreate: [RoleCreateInput!]
+        rolesUpdate: [RoleUpdateInput!]
     }
     type Organization {
         id: ID!
@@ -53,24 +53,37 @@ export const typeDef = gql`
         updated_at: Date!
         handle: String
         isOpenToNewMembers: Boolean!
+        isPrivate: Boolean!
         stars: Int!
         views: Int!
         isStarred: Boolean!
         isViewed: Boolean!
-        role: MemberRole
         comments: [Comment!]!
         commentsCount: Int!
         members: [Member!]!
+        membersCount: Int!
+        permissionsOrganization: OrganizationPermission
         projects: [Project!]!
         reports: [Report!]!
         reportsCount: Int!
         resourceLists: [ResourceList!]!
+        roles: [Role!]
         routines: [Routine!]!
         routinesCreated: [Routine!]!
         starredBy: [User!]!
         tags: [Tag!]!
         translations: [OrganizationTranslation!]!
         wallets: [Wallet!]!
+    }
+
+    # Will beef this up later
+    type OrganizationPermission {
+        canAddMembers: Boolean!
+        canDelete: Boolean!
+        canEdit: Boolean!
+        canStar: Boolean!
+        canReport: Boolean!
+        isMember: Boolean!
     }
 
     input OrganizationTranslationCreateInput {
@@ -94,7 +107,7 @@ export const typeDef = gql`
 
     type Member {
         user: User!
-        role: MemberRole!
+        organization: Organization!
     }
 
     input OrganizationSearchInput {
@@ -151,7 +164,6 @@ export const typeDef = gql`
 
 export const resolvers = {
     OrganizationSortBy: OrganizationSortBy,
-    MemberRole: MemberRole,
     Query: {
         organization: async (_parent: undefined, { input }: IWrap<FindByIdOrHandleInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization> | null> => {
             await rateLimit({ context, info, max: 1000 });

@@ -3,7 +3,7 @@
 // 2. Email sign up, log in, verification, and password reset
 // 3. Guest login
 import { gql } from 'apollo-server-express';
-import { CODE, COOKIE, emailLogInSchema, emailSignUpSchema, passwordSchema, emailRequestPasswordChangeSchema, ROLES } from '@local/shared';
+import { CODE, COOKIE, emailLogInSchema, emailSignUpSchema, passwordSchema, emailRequestPasswordChangeSchema } from '@local/shared';
 import { CustomError } from '../error';
 import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from '../auth/walletAuth';
 import { generateSessionToken } from '../auth/auth.js';
@@ -71,7 +71,7 @@ export const typeDef = gql`
 
     type Session {
         id: ID
-        roles: [String!]!
+        isLoggedIn: Boolean!
         theme: String!
         languages: [String!]
     }
@@ -107,7 +107,6 @@ export const resolvers = {
                     select: {
                         id: true,
                         theme: true,
-                        roles: { select: { role: { select: { title: true } } } }
                     }
                 });
                 if (!user) 
@@ -172,11 +171,6 @@ export const resolvers = {
             await rateLimit({ context, info, max: 10 });
             // Validate input format
             emailSignUpSchema.validateSync(input, { abortEarly: false });
-            // Find user role to give to new user
-            const roles = await context.prisma.role.findMany({ select: { id: true, title: true } });
-            const actorRoleId = roles.filter((r: any) => r.title === ROLES.Actor)[0].id;
-            if (!actorRoleId) 
-                throw new CustomError(CODE.ErrorUnknown, 'Could not find actor role', { code: genErrorCode('0139') });
             // Check for censored words
             if (hasProfanity(input.name)) 
                 throw new CustomError(CODE.BannedWord, 'Name includes banned word', { code: genErrorCode('0140') });
@@ -194,9 +188,6 @@ export const resolvers = {
                         create: [
                             { emailAddress: input.email },
                         ]
-                    },
-                    roles: {
-                        create: [{ role: { connect: { id: actorRoleId } } }]
                     },
                     resourceLists: {
                         create: [
@@ -257,7 +248,6 @@ export const resolvers = {
                     resetPasswordCode: true,
                     lastResetPasswordReqestAttempt: true,
                     emails: { select: { emailAddress: true } },
-                    roles: { select: { role: { select: { title: true } } } }
                 }
             });
             if (!user) 
@@ -285,7 +275,7 @@ export const resolvers = {
             await rateLimit({ context, info, max: 500 });
             // Create session
             const session: RecursivePartial<Session> = {
-                roles: [ROLES.Guest],
+                isLoggedIn: false,
                 theme: 'light',
             }
             // Set up session token
@@ -299,14 +289,14 @@ export const resolvers = {
         validateSession: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             await rateLimit({ context, info, max: 5000 });
             // If session is expired
-            if (!context.req.userId || !Array.isArray(context.req.roles) || context.req.roles.length === 0) {
+            if (!context.req.userId) {
                 context.res.clearCookie(COOKIE.Session);
                 throw new CustomError(CODE.SessionExpired, 'Session expired. Please log in again');
             }
             // If guest, return default session
-            if (context.req.roles.includes(ROLES.Guest)) {
+            if (context.req.isLoggedIn !== true) {
                 return {
-                    roles: [ROLES.Guest],
+                    isLoggedIn: false,
                 }
             }
             // Otherwise, check if session can be verified from userId
@@ -316,7 +306,6 @@ export const resolvers = {
                     id: true,
                     status: true,
                     theme: true,
-                    roles: { select: { role: { select: { title: true } } } }
                 }
             });
             if (userData) return await profileValidater().toSession(userData, context.prisma);
@@ -413,14 +402,9 @@ export const resolvers = {
                 // If not signed in, create new user
                 else {
                     firstLogIn = true;
-                    const roles = await context.prisma.role.findMany({ select: { id: true, title: true } });
-                    const actorRoleId = roles.filter((r: any) => r.title === ROLES.Actor)[0].id;
                     userData = await context.prisma.user.create({
                         data: {
                             name: `user${randomString(8)}`,
-                            roles: {
-                                create: [{ role: { connect: { id: actorRoleId } } }]
-                            },
                             wallets: {
                                 connect: { id: walletData.id }
                             },
@@ -476,8 +460,8 @@ export const resolvers = {
             // Create session token
             const session = {
                 id: userData?.id,
+                isLoggedIn: true,
                 languages: userData?.languages?.map((l: any) => l.language) ?? [],
-                roles: [ROLES.Actor],
                 theme: userData?.theme,
             }
             // Update user's lastSessionVerified

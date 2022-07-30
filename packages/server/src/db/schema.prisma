@@ -384,12 +384,23 @@ model role {
   created_at              DateTime                 @default(now()) @db.Timestamptz(6)
   updated_at              DateTime                 @default(now()) @db.Timestamptz(6)
   title       String       @db.VarChar(128)
-  description String?      @db.VarChar(2048)
   organizationId       String                 @db.Uuid
   organization        organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   assignees       user_roles[]
+  translations     role_translation[]
 
   @@unique([organizationId, title], name: "role_organizationId_title_unique")
+}
+
+model role_translation {
+  id          String        @id @default(uuid()) @db.Uuid
+  description String?       @db.VarChar(2048)
+  title       String        @db.VarChar(128)
+  language    String        @db.VarChar(3)
+  roleId      String        @db.Uuid
+  role        role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, language])
 }
 
 model routine {

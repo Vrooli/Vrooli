@@ -30,6 +30,7 @@ export const typeDef = gql`
         createdByUserId: ID
         handle: String
         isComplete: Boolean
+        isPrivate: Boolean
         parentId: ID
         resourceListsCreate: [ResourceListCreateInput!]
         tagsConnect: [String!]
@@ -40,6 +41,7 @@ export const typeDef = gql`
         id: ID!
         handle: String
         isComplete: Boolean
+        isPrivate: Boolean
         organizationId: ID
         userId: ID
         resourceListsDelete: [ID!]
@@ -59,10 +61,10 @@ export const typeDef = gql`
         updated_at: Date!
         handle: String
         isComplete: Boolean!
+        isPrivate: Boolean!
         isStarred: Boolean!
         isUpvoted: Boolean
         isViewed: Boolean!
-        role: MemberRole
         score: Int!
         stars: Int!
         views: Int!
@@ -72,6 +74,7 @@ export const typeDef = gql`
         forks: [Project!]!
         owner: Contributor
         parent: Project
+        permissionsProject: ProjectPermission!
         reports: [Report!]!
         reportsCount: Int!
         resourceLists: [ResourceList!]
@@ -80,6 +83,14 @@ export const typeDef = gql`
         tags: [Tag!]!
         translations: [ProjectTranslation!]!
         wallets: [Wallet!]
+    }
+
+    type ProjectPermission {
+        canDelete: Boolean!
+        canEdit: Boolean!
+        canStar: Boolean!
+        canReport: Boolean!
+        canVote: Boolean!
     }
 
     input ProjectTranslationCreateInput {

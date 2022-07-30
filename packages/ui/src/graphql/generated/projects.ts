@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ProjectSearchInput, MemberRole } from "./globalTypes";
+import { ProjectSearchInput } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: projects
@@ -13,6 +13,15 @@ export interface projects_projects_pageInfo {
   __typename: "PageInfo";
   endCursor: string | null;
   hasNextPage: boolean;
+}
+
+export interface projects_projects_edges_node_permissionsProject {
+  __typename: "ProjectPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
 }
 
 export interface projects_projects_edges_node_tags_translations {
@@ -45,12 +54,13 @@ export interface projects_projects_edges_node {
   id: string;
   commentsCount: number;
   handle: string | null;
-  role: MemberRole | null;
   score: number;
   stars: number;
+  isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
   reportsCount: number;
+  permissionsProject: projects_projects_edges_node_permissionsProject;
   tags: projects_projects_edges_node_tags[];
   translations: projects_projects_edges_node_translations[];
 }

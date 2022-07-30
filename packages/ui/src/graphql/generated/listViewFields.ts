@@ -3,11 +3,19 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole } from "./globalTypes";
-
 // ====================================================
 // GraphQL fragment: listViewFields
 // ====================================================
+
+export interface listViewFields_to_Organization_permissionsOrganization {
+  __typename: "OrganizationPermission";
+  canAddMembers: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  isMember: boolean;
+}
 
 export interface listViewFields_to_Organization_tags_translations {
   __typename: "TagTranslation";
@@ -38,10 +46,20 @@ export interface listViewFields_to_Organization {
   id: string;
   handle: string | null;
   stars: number;
+  isPrivate: boolean;
   isStarred: boolean;
-  role: MemberRole | null;
+  permissionsOrganization: listViewFields_to_Organization_permissionsOrganization | null;
   tags: listViewFields_to_Organization_tags[];
   translations: listViewFields_to_Organization_translations[];
+}
+
+export interface listViewFields_to_Project_permissionsProject {
+  __typename: "ProjectPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
 }
 
 export interface listViewFields_to_Project_tags_translations {
@@ -72,13 +90,24 @@ export interface listViewFields_to_Project {
   __typename: "Project";
   id: string;
   handle: string | null;
-  role: MemberRole | null;
   score: number;
   stars: number;
+  isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
+  permissionsProject: listViewFields_to_Project_permissionsProject;
   tags: listViewFields_to_Project_tags[];
   translations: listViewFields_to_Project_translations[];
+}
+
+export interface listViewFields_to_Routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
 }
 
 export interface listViewFields_to_Routine_tags_translations {
@@ -112,17 +141,29 @@ export interface listViewFields_to_Routine {
   complexity: number;
   created_at: any;
   isAutomatable: boolean | null;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   score: number;
   simplicity: number;
   stars: number;
+  permissionsRoutine: listViewFields_to_Routine_permissionsRoutine;
   tags: listViewFields_to_Routine_tags[];
   translations: listViewFields_to_Routine_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
+}
+
+export interface listViewFields_to_Standard_permissionsStandard {
+  __typename: "StandardPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
 }
 
 export interface listViewFields_to_Standard_tags_translations {
@@ -154,12 +195,16 @@ export interface listViewFields_to_Standard {
   id: string;
   score: number;
   stars: number;
+  isDeleted: boolean;
+  isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
   name: string;
-  role: MemberRole | null;
+  permissionsStandard: listViewFields_to_Standard_permissionsStandard;
   tags: listViewFields_to_Standard_tags[];
   translations: listViewFields_to_Standard_translations[];
+  version: string;
+  versionGroupId: string;
 }
 
 export interface listViewFields_to_User {

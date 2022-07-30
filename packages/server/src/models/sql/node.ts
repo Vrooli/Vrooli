@@ -1,14 +1,12 @@
 import { Count, Node, NodeCreateInput, NodeUpdateInput } from "../../schema/types";
-import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, PartialPrismaSelect, toPartialPrismaSelect, PartialGraphQLInfo } from "./base";
+import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType } from "./base";
 import { CustomError } from "../../error";
-import { CODE, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeTranslationCreate, nodeTranslationUpdate, nodeUpdate, whilesCreate, whilesUpdate, whensCreate, whensUpdate, nodeRoutineListItemTranslationCreate, nodeRoutineListItemTranslationUpdate, loopsCreate, loopsUpdate, nodesCreate, nodesUpdate } from "@local/shared";
+import { CODE, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeTranslationCreate, nodeTranslationUpdate, whilesCreate, whilesUpdate, whensCreate, whensUpdate, nodeRoutineListItemTranslationCreate, nodeRoutineListItemTranslationUpdate, loopsCreate, loopsUpdate, nodesCreate, nodesUpdate } from "@local/shared";
 import { PrismaType } from "types";
 import { validateProfanity } from "../../utils/censor";
 import { RoutineModel } from "./routine";
-import pkg from '@prisma/client';
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
-const { MemberRole } = pkg;
 
 const MAX_NODES_IN_ROUTINE = 100;
 
@@ -61,48 +59,50 @@ export const nodeVerifier = () => ({
      * @returns Promise with routineId, so we can use it later
      */
     async authorizedCheck(userId: string, nodeIds: string[], prisma: PrismaType): Promise<string | null> {
-        let nodes = await prisma.node.findMany({
-            where: {
-                AND: [
-                    { id: { in: nodeIds } },
-                    {
-                        OR: [
-                            { routine: { userId } },
-                            {
-                                routine: {
-                                    organization: {
-                                        members: {
-                                            some: {
-                                                userId,
-                                                role: { in: [MemberRole.Owner, MemberRole.Admin] }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        ]
-                    }
-                ]
-            },
-            select: { routineId: true }
-        });
-        // Check that all nodes are in the same routine
-        const uniqueRoutineIds = new Set(nodes.map(node => node.routineId))
-        // If not routine ids found, check if all nodes are new
-        if (uniqueRoutineIds.size === 0) {
-            const newNodes = await prisma.node.count({
-                where: {
-                    id: { in: nodeIds },
-                }
-            })
-            // If all nodes are new, return null for routineId
-            if (newNodes === 0) return null;
-            // If not all nodes are new, then there must be one that is not new and not owned by the user
-            else throw new CustomError(CODE.Unauthorized, 'You do not own all nodes', { code: genErrorCode('0050') });
-        }
-        if (uniqueRoutineIds.size > 1)
-            throw new CustomError(CODE.InvalidArgs, 'All nodes must be in the same routine!', { code: genErrorCode('0051') });
-        return uniqueRoutineIds.values().next().value;
+        //TODO
+        return null;
+        // let nodes = await prisma.node.findMany({
+        //     where: {
+        //         AND: [
+        //             { id: { in: nodeIds } },
+        //             {
+        //                 OR: [
+        //                     { routine: { userId } },
+        //                     {
+        //                         routine: {
+        //                             organization: {
+        //                                 members: {
+        //                                     some: {
+        //                                         userId,
+        //                                         role: { in: [MemberRole.Owner, MemberRole.Admin] }
+        //                                     }
+        //                                 }
+        //                             }
+        //                         }
+        //                     }
+        //                 ]
+        //             }
+        //         ]
+        //     },
+        //     select: { routineId: true }
+        // });
+        // // Check that all nodes are in the same routine
+        // const uniqueRoutineIds = new Set(nodes.map(node => node.routineId))
+        // // If not routine ids found, check if all nodes are new
+        // if (uniqueRoutineIds.size === 0) {
+        //     const newNodes = await prisma.node.count({
+        //         where: {
+        //             id: { in: nodeIds },
+        //         }
+        //     })
+        //     // If all nodes are new, return null for routineId
+        //     if (newNodes === 0) return null;
+        //     // If not all nodes are new, then there must be one that is not new and not owned by the user
+        //     else throw new CustomError(CODE.Unauthorized, 'You do not own all nodes', { code: genErrorCode('0050') });
+        // }
+        // if (uniqueRoutineIds.size > 1)
+        //     throw new CustomError(CODE.InvalidArgs, 'All nodes must be in the same routine!', { code: genErrorCode('0051') });
+        // return uniqueRoutineIds.values().next().value;
     },
     /**
      * Verify that the maximum number of nodes on a routine will not be exceeded

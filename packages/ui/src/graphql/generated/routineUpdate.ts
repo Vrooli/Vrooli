@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { RoutineUpdateInput, NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor, RunStatus, RunStepStatus } from "./globalTypes";
+import { RoutineUpdateInput, NodeType, ResourceListUsedFor, ResourceUsedFor, RunStatus, RunStepStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: routineUpdate
@@ -28,13 +28,16 @@ export interface routineUpdate_routineUpdate_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   translations: routineUpdate_routineUpdate_inputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface routineUpdate_routineUpdate_inputs {
@@ -95,13 +98,16 @@ export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs {
@@ -132,13 +138,16 @@ export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs {
@@ -171,6 +180,16 @@ export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines
 }
 
 export type routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_owner = routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_owner_Organization | routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_owner_User;
+
+export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
+}
 
 export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_resourceLists_translations {
   __typename: "ResourceListTranslation";
@@ -236,17 +255,20 @@ export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines
   id: string;
   complexity: number;
   isComplete: boolean;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   inputs: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_inputs[];
   nodesCount: number | null;
-  role: MemberRole | null;
   outputs: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_outputs[];
   owner: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_owner | null;
+  permissionsRoutine: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine;
   resourceLists: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_resourceLists[];
   simplicity: number;
   tags: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_tags[];
   translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
 }
 
 export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_translations {
@@ -340,13 +362,16 @@ export interface routineUpdate_routineUpdate_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   translations: routineUpdate_routineUpdate_outputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface routineUpdate_routineUpdate_outputs {
@@ -462,6 +487,16 @@ export interface routineUpdate_routineUpdate_runs {
   steps: routineUpdate_routineUpdate_runs_steps[];
 }
 
+export interface routineUpdate_routineUpdate_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
+}
+
 export interface routineUpdate_routineUpdate_tags_translations {
   __typename: "TagTranslation";
   id: string;
@@ -493,7 +528,9 @@ export interface routineUpdate_routineUpdate {
   inputs: routineUpdate_routineUpdate_inputs[];
   isAutomatable: boolean | null;
   isComplete: boolean;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
   nodeLinks: routineUpdate_routineUpdate_nodeLinks[];
@@ -506,11 +543,12 @@ export interface routineUpdate_routineUpdate {
   score: number;
   simplicity: number;
   stars: number;
-  role: MemberRole | null;
+  permissionsRoutine: routineUpdate_routineUpdate_permissionsRoutine;
   tags: routineUpdate_routineUpdate_tags[];
   translations: routineUpdate_routineUpdate_translations[];
   updated_at: any;
-  version: string | null;
+  version: string;
+  versionGroupId: string;
 }
 
 export interface routineUpdate {

@@ -16,8 +16,16 @@ export const listViewFields = gql`
         id
         handle
         stars
+        isPrivate
         isStarred
-        role
+        permissionsOrganization {
+            canAddMembers
+            canDelete
+            canEdit
+            canStar
+            canReport
+            isMember
+        }
         tags {
             ...listViewTagFields
         }
@@ -31,11 +39,18 @@ export const listViewFields = gql`
     fragment listViewProjectFields on Project {
         id
         handle
-        role
         score
         stars
+        isPrivate
         isUpvoted
         isStarred
+        permissionsProject {
+            canDelete
+            canEdit
+            canStar
+            canReport
+            canVote
+        }
         tags {
             ...listViewTagFields
         }
@@ -52,14 +67,23 @@ export const listViewFields = gql`
         complexity
         created_at
         isAutomatable
+        isDeleted
         isInternal
+        isPrivate
         isComplete
         isStarred
         isUpvoted
-        role
         score
         simplicity
         stars
+        permissionsRoutine {
+            canDelete
+            canEdit
+            canStar
+            canReport
+            canRun
+            canVote
+        }
         tags {
             ...listViewTagFields
         }
@@ -70,15 +94,24 @@ export const listViewFields = gql`
             title
         }
         version
+        versionGroupId
     }
     fragment listViewStandardFields on Standard {
         id
         score
         stars
+        isDeleted
+        isPrivate
         isUpvoted
         isStarred
         name
-        role
+        permissionsStandard {
+            canDelete
+            canEdit
+            canStar
+            canReport
+            canVote
+        }
         tags {
             ...listViewTagFields
         }
@@ -88,6 +121,8 @@ export const listViewFields = gql`
             description
             jsonVariable
         }
+        version
+        versionGroupId
     }
     fragment listViewUserFields on User {
         id

@@ -41,11 +41,18 @@ export const projectFields = gql`
         created_at
         handle
         isComplete
+        isPrivate
         isStarred
         isUpvoted
-        role
         score
         stars
+        permissionsProject {
+            canDelete
+            canEdit
+            canStar
+            canReport
+            canVote
+        }
         resourceLists {
             ...projectResourceListFields
         }

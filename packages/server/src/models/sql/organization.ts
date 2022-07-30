@@ -2,7 +2,7 @@ import { PrismaType, RecursivePartial } from "../../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor } from "../../schema/types";
 import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, PartialGraphQLInfo, addCountFieldsHelper, removeCountFieldsHelper } from "./base";
 import { CustomError } from "../../error";
-import { CODE, MemberRole, omit, organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@local/shared";
+import { CODE, omit, organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@local/shared";
 import { organization_users } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -17,7 +17,7 @@ import { ViewModel } from "./view";
 //==============================================================
 
 const joinMapper = { starredBy: 'user', tags: 'tag' };
-const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
+const countMapper = { commentsCount: 'comments', membersCount: 'members', reportsCount: 'reports' };
 const calculatedFields = ['isStarred', 'role'];
 export const organizationFormatter = (): FormatConverter<Organization> => ({
     relationshipMap: {
@@ -114,7 +114,8 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
             ...(input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
             ...(input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
             ...(input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
-            ...(input.userId !== undefined ? { members: { some: { userId: input.userId, role: { in: [MemberRole.Admin, MemberRole.Owner] } } } } : {}),
+            //TODO
+            // ...(input.userId !== undefined ? { members: { some: { userId: input.userId, role: { in: [MemberRole.Admin, MemberRole.Owner] } } } } : {}),
             ...(input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
             ...(input.standardId !== undefined ? { standards: { some: { id: input.standardId } } } : {}),
             ...(input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
@@ -129,17 +130,19 @@ export const organizationVerifier = (prisma: PrismaType) => ({
      * @param organizationIds The list of organization ids
      * @returns An array in the same order as the ids, with either a role or undefined
      */
-    async getRoles(userId: string, organizationIds: (string | null | undefined)[]): Promise<Array<MemberRole | undefined>> {
-        if (organizationIds.length === 0) return [];
-        // Take out nulls
-        const idsToQuery = organizationIds.filter(x => x) as string[];
-        // Query member data for each ID
-        const memberData = await prisma.organization_users.findMany({
-            where: { organization: { id: { in: idsToQuery } }, user: { id: userId } },
-            select: { organizationId: true, role: true }
-        });
-        // Create an array of the same length as the input, with the member data or undefined
-        return organizationIds.map(id => memberData.find(({ organizationId }) => organizationId === id)).map((o) => o?.role) as Array<MemberRole | undefined>;
+    async getRoles(userId: string, organizationIds: (string | null | undefined)[]): Promise<Array<any | undefined>> {
+        //TODO
+        return Array(organizationIds.length).fill(undefined);
+        // if (organizationIds.length === 0) return [];
+        // // Take out nulls
+        // const idsToQuery = organizationIds.filter(x => x) as string[];
+        // // Query member data for each ID
+        // const memberData = await prisma.organization_users.findMany({
+        //     where: { organization: { id: { in: idsToQuery } }, user: { id: userId } },
+        //     select: { organizationId: true, role: true }
+        // });
+        // // Create an array of the same length as the input, with the member data or undefined
+        // return organizationIds.map(id => memberData.find(({ organizationId }) => organizationId === id)).map((o) => o?.role) as Array<MemberRole | undefined>;
     },
     /**
      * Determines if a user is an admin or member of a list of organizations
@@ -148,28 +151,31 @@ export const organizationVerifier = (prisma: PrismaType) => ({
      * @returns Array in the same order as the ids, with either admin/owner role data or undefined
      */
      async isOwnerOrAdmin(userId: string, organizationIds: (string | null | undefined)[]): Promise<Array<organization_users | undefined>> {
-        if (organizationIds.length === 0) return [];
-        // Take out nulls
-        const idsToQuery = organizationIds.filter(x => x) as string[];
-        // Query member data for each ID
-        const memberData = await prisma.organization_users.findMany({
-            where: {
-                organization: { id: { in: idsToQuery } },
-                user: { id: userId },
-                role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
-            }
-        });
-        // Create an array of the same length as the input, with the member data or undefined
-        return organizationIds.map(id => memberData.find(({ organizationId }) => organizationId === id));
+        //TODO
+        return Array(organizationIds.length).fill(undefined);
+        // if (organizationIds.length === 0) return [];
+        // // Take out nulls
+        // const idsToQuery = organizationIds.filter(x => x) as string[];
+        // // Query member data for each ID
+        // const memberData = await prisma.organization_users.findMany({
+        //     where: {
+        //         organization: { id: { in: idsToQuery } },
+        //         user: { id: userId },
+        //         role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
+        //     }
+        // });
+        // // Create an array of the same length as the input, with the member data or undefined
+        // return organizationIds.map(id => memberData.find(({ organizationId }) => organizationId === id));
     },
 })
 
 export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typeof organizationVerifier>) => ({
     async toDBShapeAdd(userId: string | null, data: OrganizationCreateInput | OrganizationUpdateInput): Promise<any> {
         // Add yourself as member
-        let members = { members: { create: { userId, role: MemberRole.Owner as any } } };
+        //TODO
+        // let members = { members: { create: { userId, role: MemberRole.Owner as any } } };
         return {
-            ...members,
+            // ...members,
             id: data.id,
             handle: (data as OrganizationUpdateInput).handle ?? null,
             isOpenToNewMembers: data.isOpenToNewMembers,
@@ -200,10 +206,11 @@ export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typ
             TranslationModel().profanityCheck(createMany);
             createMany.forEach(input => TranslationModel().validateLineBreaks(input, ['bio'], CODE.LineBreaksBio));
             // Check if user will pass max organizations limit
-            const existingCount = await prisma.organization.count({ where: { members: { some: { userId: userId, role: MemberRole.Owner as any } } } });
-            if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
-                throw new CustomError(CODE.MaxOrganizationsReached, 'Cannot create any more organizations with this account - maximum reached', { code: genErrorCode('0056') });
-            }
+            //TODO
+            // const existingCount = await prisma.organization.count({ where: { members: { some: { userId: userId, role: MemberRole.Owner as any } } } });
+            // if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
+            //     throw new CustomError(CODE.MaxOrganizationsReached, 'Cannot create any more organizations with this account - maximum reached', { code: genErrorCode('0056') });
+            // }
             // TODO handle
         }
         if (updateMany) {
@@ -214,18 +221,20 @@ export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typ
                 TranslationModel().validateLineBreaks(input.data, ['bio'], CODE.LineBreaksBio);
             }
             // Check that user is owner OR admin of each organization
-            const roles = userId
-                ? await verifier.getRoles(userId, updateMany.map(input => input.where.id))
-                : Array(updateMany.length).fill(null);
-            if (roles.some((role: any) => role !== MemberRole.Owner && role !== MemberRole.Admin)) throw new CustomError(CODE.Unauthorized);
+            //TODO
+            // const roles = userId
+            //     ? await verifier.getRoles(userId, updateMany.map(input => input.where.id))
+            //     : Array(updateMany.length).fill(null);
+            // if (roles.some((role: any) => role !== MemberRole.Owner && role !== MemberRole.Admin)) throw new CustomError(CODE.Unauthorized);
         }
         if (deleteMany) {
             // Check that user is owner of each organization
-            const roles = userId
-                ? await verifier.getRoles(userId, deleteMany)
-                : Array(deleteMany.length).fill(null);
-            if (roles.some((role: any) => role !== MemberRole.Owner)) 
-                throw new CustomError(CODE.Unauthorized, 'User must be owner of organization to delete', { code: genErrorCode('0057') });
+            //TODO
+            // const roles = userId
+            //     ? await verifier.getRoles(userId, deleteMany)
+            //     : Array(deleteMany.length).fill(null);
+            // if (roles.some((role: any) => role !== MemberRole.Owner)) 
+            //     throw new CustomError(CODE.Unauthorized, 'User must be owner of organization to delete', { code: genErrorCode('0057') });
         }
     },
     /**

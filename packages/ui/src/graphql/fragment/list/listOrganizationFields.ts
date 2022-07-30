@@ -19,9 +19,18 @@ export const listOrganizationFields = gql`
         handle
         stars
         isOpenToNewMembers
+        isPrivate
         isStarred
+        membersCount
         reportsCount
-        role
+        permissionsOrganization {
+            canAddMembers
+            canDelete
+            canEdit
+            canStar
+            canReport
+            isMember
+        }
         tags {
             ...listOrganizationTagFields
         }

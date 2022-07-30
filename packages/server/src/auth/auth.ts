@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
-import { CODE, COOKIE, ROLES } from '@local/shared';
+import { CODE, COOKIE } from '@local/shared';
 import { CustomError } from '../error';
 import { Session } from 'schema/types';
 import { RecursivePartial } from '../types';
@@ -30,7 +30,6 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
         // Now, set token and role variables for other middleware to use
         req.isLoggedIn = payload.isLoggedIn ?? false;
         req.languages = payload.languages ?? [];
-        req.roles = payload.roles ?? [];
         req.userId = payload.userId ?? null;
         req.validToken = true;
         next();
@@ -45,7 +44,6 @@ interface BasicToken {
 interface SessionToken extends BasicToken {
     isLoggedIn: boolean;
     languages: string[] | null;
-    roles: string[];
     userId: string | null;
 }
 
@@ -68,9 +66,8 @@ const basicToken = (): BasicToken => ({
 export async function generateSessionToken(res: Response, session: RecursivePartial<Session>): Promise<undefined> {
     const tokenContents: SessionToken = {
         ...basicToken(),
-        isLoggedIn: Array.isArray(session.roles) ? session.roles.includes(ROLES.Actor) : false,
+        isLoggedIn: session.isLoggedIn ?? false,
         languages: (session.languages as string[]) ?? [],
-        roles: (session.roles as string[]) ?? [],
         userId: session.id ?? null,
     }
     if (!process.env.JWT_SECRET) {

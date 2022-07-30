@@ -3,11 +3,20 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { StandardUpdateInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { StandardUpdateInput, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: standardUpdate
 // ====================================================
+
+export interface standardUpdate_standardUpdate_permissionsStandard {
+  __typename: "StandardPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
 
 export interface standardUpdate_standardUpdate_resourceLists_translations {
   __typename: "ResourceListTranslation";
@@ -93,14 +102,16 @@ export type standardUpdate_standardUpdate_creator = standardUpdate_standardUpdat
 export interface standardUpdate_standardUpdate {
   __typename: "Standard";
   id: string;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
-  role: MemberRole | null;
   type: string;
   props: string;
   yup: string | null;
   default: string | null;
   created_at: any;
+  permissionsStandard: standardUpdate_standardUpdate_permissionsStandard;
   resourceLists: standardUpdate_standardUpdate_resourceLists[];
   tags: standardUpdate_standardUpdate_tags[];
   translations: standardUpdate_standardUpdate_translations[];
@@ -110,6 +121,7 @@ export interface standardUpdate_standardUpdate {
   score: number;
   isUpvoted: boolean | null;
   version: string;
+  versionGroupId: string;
 }
 
 export interface standardUpdate {

@@ -3,11 +3,18 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole } from "./globalTypes";
-
 // ====================================================
 // GraphQL fragment: listProjectFields
 // ====================================================
+
+export interface listProjectFields_permissionsProject {
+  __typename: "ProjectPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
 
 export interface listProjectFields_tags_translations {
   __typename: "TagTranslation";
@@ -39,12 +46,13 @@ export interface listProjectFields {
   id: string;
   commentsCount: number;
   handle: string | null;
-  role: MemberRole | null;
   score: number;
   stars: number;
+  isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
   reportsCount: number;
+  permissionsProject: listProjectFields_permissionsProject;
   tags: listProjectFields_tags[];
   translations: listProjectFields_translations[];
 }

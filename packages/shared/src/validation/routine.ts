@@ -8,6 +8,7 @@ import * as yup from 'yup';
 const isAutomatable = yup.boolean()
 const isComplete = yup.boolean()
 const isInternal = yup.boolean()
+const isPrivate = yup.boolean()
 const isRequired = yup.boolean()
 const instructions = yup.string().max(8192)
 const version = yup.string().max(16)
@@ -97,6 +98,7 @@ export const routineCreateForm = yup.object().shape({
     description: description.notRequired().default(undefined),
     inputs: inputsCreate.notRequired().default([]),
     instructions: instructions.required(),
+    isPrivate: isPrivate.notRequired().default(false),
     outputs: outputsCreate.notRequired().default([]),
     title: title.required(),
     version: version.notRequired().default(undefined),
@@ -111,6 +113,7 @@ export const routineCreate = yup.object().shape({
     isAutomatable: isAutomatable.nullable().notRequired().default(undefined),
     isComplete: isComplete.notRequired().default(undefined),
     isInternal: isInternal.nullable().notRequired().default(undefined),
+    isPrivate: isPrivate.notRequired().default(false),
     version: version.nullable().notRequired().default(undefined),
     parentId: id.notRequired().default(undefined), // If forked, the parent's id
     createdByUserId: id.notRequired().default(undefined), // If associating with yourself, your own id. Cannot associate with another user
@@ -133,6 +136,7 @@ export const routineUpdate = yup.object().shape({
     isAutomatable: isAutomatable.nullable().notRequired().default(undefined),
     isComplete: isComplete.notRequired().default(undefined),
     isInternal: isInternal.nullable().notRequired().default(undefined),
+    isPrivate: isPrivate.notRequired().default(false),
     version: version.nullable().notRequired().default(undefined),
     parentId: id.notRequired().default(undefined), // If forked, the parent's id
     userId: id.notRequired().default(undefined), // If associating with yourself, your own id. Cannot associate with another user

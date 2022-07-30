@@ -16,8 +16,15 @@ export const nodeFields = gql`
         created_at
         isAutomatable
         isInternal
-        role
         simplicity
+        permissionsRoutine {
+            canDelete
+            canEdit
+            canStar
+            canReport
+            canRun
+            canVote
+        }
         tags {
             ...nodeTagFields
         }

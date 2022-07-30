@@ -20,8 +20,8 @@ import { comments_comments_threads } from 'graphql/generated/comments';
 export type SessionChecked = boolean;
 export type Session = {
     id?: string | null;
+    isLoggedIn?: boolean;
     languages?: string[] | null;
-    roles?: string[] | null;
     theme?: string;
 }
 export interface CommonProps {

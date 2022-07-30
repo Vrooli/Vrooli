@@ -1,4 +1,4 @@
-import { CODE, MemberRole, omit, projectsCreate, projectsUpdate, projectTranslationCreate, projectTranslationUpdate } from "@local/shared";
+import { CODE, omit, projectsCreate, projectsUpdate, projectTranslationCreate, projectTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor } from "../../schema/types";
@@ -95,46 +95,50 @@ export const projectFormatter = (): FormatConverter<Project> => ({
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
-        // Query for role
-        if (partial.role) {
-            let organizationIds: string[] = [];
-            // Collect owner data
-            let ownerData: any = objects.map(x => x.owner).filter(x => x);
-            // If no owner data was found, then owner data was not queried. In this case, query for owner data.
-            if (ownerData.length === 0) {
-                const ownerDataUnformatted = await prisma.project.findMany({
-                    where: { id: { in: ids } },
-                    select: {
-                        id: true,
-                        user: { select: { id: true } },
-                        organization: { select: { id: true } },
-                    },
-                });
-                organizationIds = ownerDataUnformatted.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
-                // Inject owner data into "objects"
-                objects = objects.map((x, i) => { 
-                    const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
-                    return ({ ...x, owner: unformatted?.user || unformatted?.organization })
-                });
-            } else {
-                organizationIds = objects
-                    .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
-                    .map(x => x.owner.id)
-                    .filter(x => Boolean(x)) as string[];
-            }
-            // If owned by user, set role to owner if userId matches
-            // If owned by organization, set role user's role in organization
-            const roles = userId
-                ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
-                : [];
-            objects = objects.map((x) => {
-                const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
-                if (orgRoleIndex >= 0) {
-                    return { ...x, role: roles[orgRoleIndex] };
-                }
-                return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
-            }) as any;
+        // Query for permissions
+        if (partial.permissionsProject) {
+            //TODO
         }
+        // // Query for role
+        // if (partial.role) {
+        //     let organizationIds: string[] = [];
+        //     // Collect owner data
+        //     let ownerData: any = objects.map(x => x.owner).filter(x => x);
+        //     // If no owner data was found, then owner data was not queried. In this case, query for owner data.
+        //     if (ownerData.length === 0) {
+        //         const ownerDataUnformatted = await prisma.project.findMany({
+        //             where: { id: { in: ids } },
+        //             select: {
+        //                 id: true,
+        //                 user: { select: { id: true } },
+        //                 organization: { select: { id: true } },
+        //             },
+        //         });
+        //         organizationIds = ownerDataUnformatted.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
+        //         // Inject owner data into "objects"
+        //         objects = objects.map((x, i) => { 
+        //             const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
+        //             return ({ ...x, owner: unformatted?.user || unformatted?.organization })
+        //         });
+        //     } else {
+        //         organizationIds = objects
+        //             .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
+        //             .map(x => x.owner.id)
+        //             .filter(x => Boolean(x)) as string[];
+        //     }
+        //     // If owned by user, set role to owner if userId matches
+        //     // If owned by organization, set role user's role in organization
+        //     const roles = userId
+        //         ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
+        //         : [];
+        //     objects = objects.map((x) => {
+        //         const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
+        //         if (orgRoleIndex >= 0) {
+        //             return { ...x, role: roles[orgRoleIndex] };
+        //         }
+        //         return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
+        //     }) as any;
+        // }
         // Convert Prisma objects to GraphQL objects
         return objects as RecursivePartial<Project>[];
     },
@@ -219,17 +223,18 @@ export const projectMutater = (prisma: PrismaType) => ({
             // Add createdByOrganizationIds to organizationIds array, if they are set
             organizationIds.push(...createMany.map(input => input.createdByOrganizationId).filter(id => id))
             // Check if user will pass max projects limit
-            const existingCount = await prisma.project.count({
-                where: {
-                    OR: [
-                        { user: { id: userId } },
-                        { organization: { members: { some: { userId: userId, role: MemberRole.Owner as any } } } },
-                    ]
-                }
-            })
-            if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
-                throw new CustomError(CODE.MaxProjectsReached, 'Reached the maximum number of projects allowed on this account', { code: genErrorCode('0074') });
-            }
+            //TODO
+            // const existingCount = await prisma.project.count({
+            //     where: {
+            //         OR: [
+            //             { user: { id: userId } },
+            //             { organization: { members: { some: { userId: userId, role: MemberRole.Owner as any } } } },
+            //         ]
+            //     }
+            // })
+            // if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
+            //     throw new CustomError(CODE.MaxProjectsReached, 'Reached the maximum number of projects allowed on this account', { code: genErrorCode('0074') });
+            // }
             // TODO handle
         }
         if (updateMany) {

@@ -3,7 +3,7 @@ import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success,
 import { sendResetPasswordLink, sendVerificationLink } from "../../worker/email/queue";
 import { addJoinTablesHelper, addSupplementalFields, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, padSelect, PartialGraphQLInfo, readOneHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo } from "./base";
 import { user } from "@prisma/client";
-import { CODE, omit, profileUpdateSchema, ROLES, userTranslationCreate, userTranslationUpdate } from "@local/shared";
+import { CODE, omit, profileUpdateSchema, userTranslationCreate, userTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import bcrypt from 'bcrypt';
 import { hasProfanity } from "../../utils/censor";
@@ -286,7 +286,7 @@ export const profileValidater = () => ({
         return {
             id: user.id,
             theme: user.theme ?? 'light',
-            roles: [ROLES.Actor],
+            isLoggedIn: true,
             languages: (user as any)?.languages ? (user as any).languages.map((language: any) => language.language) : null,
         }
     }

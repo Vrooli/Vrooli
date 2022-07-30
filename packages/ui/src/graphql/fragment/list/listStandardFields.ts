@@ -19,13 +19,21 @@ export const listStandardFields = gql`
         default
         score
         stars
+        isDeleted
         isInternal
+        isPrivate
         isUpvoted
         isStarred
         name
         props
         reportsCount
-        role
+        permissionsStandard {
+            canDelete
+            canEdit
+            canStar
+            canReport
+            canVote
+        }
         tags {
             ...listStandardTagFields
         }
@@ -37,6 +45,7 @@ export const listStandardFields = gql`
         }
         type
         version
+        versionGroupId
         yup
     }
 `

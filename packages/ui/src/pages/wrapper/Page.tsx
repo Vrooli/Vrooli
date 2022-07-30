@@ -6,8 +6,8 @@ import { PubSub } from 'utils';
 
 export const Page = ({
     children,
+    mustBeLoggedIn = false,
     redirect = APP_LINKS.Start,
-    restrictedToRoles = [],
     session,
     sessionChecked,
     title = '',
@@ -19,10 +19,8 @@ export const Page = ({
     }, [title]);
 
     // If this page has restricted access
-    if (restrictedToRoles.length > 0) {
-        if (Array.isArray(session.roles)) {
-            if (session.roles.some(r => restrictedToRoles.includes(r))) return children;
-        }
+    if (mustBeLoggedIn) {
+        if (session.isLoggedIn) return children;
         if (sessionChecked && location !== redirect) { 
             PubSub.get().publishSnack({ message: 'Page restricted. Please log in', severity: 'error' });
             return <Redirect to={redirect} />

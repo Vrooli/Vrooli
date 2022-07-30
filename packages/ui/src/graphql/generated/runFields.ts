@@ -3,11 +3,17 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { RunStatus, NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor, RunStepStatus } from "./globalTypes";
+import { RunStatus, NodeType, ResourceListUsedFor, ResourceUsedFor, RunStepStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: runFields
 // ====================================================
+
+export interface runFields_inputs {
+  __typename: "RunInput";
+  id: string;
+  data: string;
+}
 
 export interface runFields_routine_inputs_translations {
   __typename: "InputItemTranslation";
@@ -40,7 +46,9 @@ export interface runFields_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
@@ -48,6 +56,7 @@ export interface runFields_routine_inputs_standard {
   tags: runFields_routine_inputs_standard_tags[];
   translations: runFields_routine_inputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface runFields_routine_inputs {
@@ -120,7 +129,9 @@ export interface runFields_routine_nodes_data_NodeRoutineList_routines_routine_i
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
@@ -128,6 +139,7 @@ export interface runFields_routine_nodes_data_NodeRoutineList_routines_routine_i
   tags: runFields_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags[];
   translations: runFields_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface runFields_routine_nodes_data_NodeRoutineList_routines_routine_inputs {
@@ -170,7 +182,9 @@ export interface runFields_routine_nodes_data_NodeRoutineList_routines_routine_o
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
@@ -178,6 +192,7 @@ export interface runFields_routine_nodes_data_NodeRoutineList_routines_routine_o
   tags: runFields_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags[];
   translations: runFields_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface runFields_routine_nodes_data_NodeRoutineList_routines_routine_outputs {
@@ -210,6 +225,16 @@ export interface runFields_routine_nodes_data_NodeRoutineList_routines_routine_o
 }
 
 export type runFields_routine_nodes_data_NodeRoutineList_routines_routine_owner = runFields_routine_nodes_data_NodeRoutineList_routines_routine_owner_Organization | runFields_routine_nodes_data_NodeRoutineList_routines_routine_owner_User;
+
+export interface runFields_routine_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
+}
 
 export interface runFields_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists_translations {
   __typename: "ResourceListTranslation";
@@ -276,16 +301,19 @@ export interface runFields_routine_nodes_data_NodeRoutineList_routines_routine {
   complexity: number;
   inputs: runFields_routine_nodes_data_NodeRoutineList_routines_routine_inputs[];
   isComplete: boolean;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   nodesCount: number | null;
-  role: MemberRole | null;
   outputs: runFields_routine_nodes_data_NodeRoutineList_routines_routine_outputs[];
   owner: runFields_routine_nodes_data_NodeRoutineList_routines_routine_owner | null;
+  permissionsRoutine: runFields_routine_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine;
   resourceLists: runFields_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists[];
   simplicity: number;
   tags: runFields_routine_nodes_data_NodeRoutineList_routines_routine_tags[];
   translations: runFields_routine_nodes_data_NodeRoutineList_routines_routine_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
 }
 
 export interface runFields_routine_nodes_data_NodeRoutineList_routines_translations {
@@ -391,7 +419,9 @@ export interface runFields_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
@@ -399,6 +429,7 @@ export interface runFields_routine_outputs_standard {
   tags: runFields_routine_outputs_standard_tags[];
   translations: runFields_routine_outputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface runFields_routine_outputs {
@@ -482,6 +513,16 @@ export interface runFields_routine_resourceLists {
   resources: runFields_routine_resourceLists_resources[];
 }
 
+export interface runFields_routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
+}
+
 export interface runFields_routine_tags_translations {
   __typename: "TagTranslation";
   id: string;
@@ -513,7 +554,9 @@ export interface runFields_routine {
   inputs: runFields_routine_inputs[];
   isAutomatable: boolean | null;
   isComplete: boolean;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
   nodeLinks: runFields_routine_nodeLinks[];
@@ -525,11 +568,12 @@ export interface runFields_routine {
   score: number;
   simplicity: number;
   stars: number;
-  role: MemberRole | null;
+  permissionsRoutine: runFields_routine_permissionsRoutine;
   tags: runFields_routine_tags[];
   translations: runFields_routine_translations[];
   updated_at: any;
-  version: string | null;
+  version: string;
+  versionGroupId: string;
 }
 
 export interface runFields_steps_node {
@@ -556,11 +600,13 @@ export interface runFields {
   id: string;
   completedComplexity: number;
   contextSwitches: number;
+  isPrivate: boolean;
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
   title: string;
   status: RunStatus;
+  inputs: runFields_inputs[];
   routine: runFields_routine | null;
   steps: runFields_steps[];
 }

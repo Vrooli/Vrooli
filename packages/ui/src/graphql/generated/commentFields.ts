@@ -3,8 +3,6 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole } from "./globalTypes";
-
 // ====================================================
 // GraphQL fragment: commentFields
 // ====================================================
@@ -69,6 +67,16 @@ export interface commentFields_creator_User {
 
 export type commentFields_creator = commentFields_creator_Organization | commentFields_creator_User;
 
+export interface commentFields_permissionsComment {
+  __typename: "CommentPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReply: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
+
 export interface commentFields_translations {
   __typename: "CommentTranslation";
   id: string;
@@ -83,9 +91,9 @@ export interface commentFields {
   updated_at: any;
   score: number;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   isStarred: boolean;
   commentedOn: commentFields_commentedOn;
   creator: commentFields_creator | null;
+  permissionsComment: commentFields_permissionsComment | null;
   translations: commentFields_translations[];
 }

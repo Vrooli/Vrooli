@@ -19,7 +19,6 @@ export const listStarFields = gql`
         updated_at
         score
         isUpvoted
-        role
         isStarred
         commentedOn {
             ... on Project {
@@ -60,6 +59,14 @@ export const listStarFields = gql`
                 handle
             }
         }
+        permissionsComment {
+            canDelete
+            canEdit
+            canStar
+            canReply
+            canReport
+            canVote
+        }
         translations {
             id
             language
@@ -70,8 +77,16 @@ export const listStarFields = gql`
         id
         handle
         stars
+        isPrivate
         isStarred
-        role
+        permissionsOrganization {
+            canAddMembers
+            canDelete
+            canEdit
+            canStar
+            canReport
+            isMember
+        }
         tags {
             ...listStarTagFields
         }
@@ -85,11 +100,18 @@ export const listStarFields = gql`
     fragment listStarProjectFields on Project {
         id
         handle
-        role
         score
         stars
+        isPrivate
         isUpvoted
         isStarred
+        permissionsProject {
+            canDelete
+            canEdit
+            canStar
+            canReport
+            canVote
+        }
         tags {
             ...listStarTagFields
         }
@@ -106,14 +128,23 @@ export const listStarFields = gql`
         complexity
         created_at
         isAutomatable
+        isDeleted
         isInternal
+        isPrivate
         isComplete
         isStarred
         isUpvoted
-        role
         score
         simplicity
         stars
+        permissionsRoutine {
+            canDelete
+            canEdit
+            canStar
+            canReport
+            canRun
+            canVote
+        }
         tags {
             ...listStarTagFields
         }
@@ -124,15 +155,24 @@ export const listStarFields = gql`
             title
         }
         version
+        versionGroupId
     }
     fragment listStarStandardFields on Standard {
         id
         score
         stars
+        isDeleted
+        isPrivate
         isUpvoted
         isStarred
         name
-        role
+        permissionsStandard {
+            canDelete
+            canEdit
+            canStar
+            canReport
+            canVote
+        }
         tags {
             ...listStarTagFields
         }
@@ -141,6 +181,8 @@ export const listStarFields = gql`
             language
             description
         }
+        version
+        versionGroupId
     }
     fragment listStarUserFields on User {
         id

@@ -13,7 +13,7 @@ export interface emailResetPassword_emailResetPassword {
   __typename: "Session";
   id: string | null;
   theme: string;
-  roles: string[];
+  isLoggedIn: boolean;
   languages: string[] | null;
 }
 

@@ -2,7 +2,7 @@ import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Ro
 import { PrismaType, RecursivePartial } from "types";
 import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, FormatConverter, GraphQLInfo, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
-import { CODE, DeleteOneType, inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, isObject, MemberRole, omit, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routinesUpdate, routineTranslationCreate, routineTranslationUpdate } from "@local/shared";
+import { CODE, DeleteOneType, inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, isObject, omit, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routinesUpdate, routineTranslationCreate, routineTranslationUpdate } from "@local/shared";
 import { hasProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -108,48 +108,52 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
-        // Query for role
-        if (partial.role) {
-            // console.log('checking routine roles', ids);
-            let organizationIds: string[] = [];
-            // Collect owner data
-            let ownerData: any = objects.map(x => x.owner).filter(x => x);
-            // If no owner data was found, then owner data was not queried. In this case, query for owner data.
-            if (ownerData.length === 0) {
-                const ownerDataUnformatted = await prisma.routine.findMany({
-                    where: { id: { in: ids } },
-                    select: {
-                        id: true,
-                        user: { select: { id: true } },
-                        organization: { select: { id: true } },
-                    },
-                });
-                organizationIds = ownerDataUnformatted.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
-                // Inject owner data into "objects"
-                objects = objects.map((x, i) => {
-                    const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
-                    return ({ ...x, owner: unformatted?.user || unformatted?.organization })
-                });
-            } else {
-                organizationIds = objects
-                    .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
-                    .map(x => x.owner.id)
-                    .filter(x => Boolean(x)) as string[];
-            }
-            // If owned by user, set role to owner if userId matches
-            // If owned by organization, set role user's role in organization
-            const roles = userId
-                ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
-                : [];
-            // console.log('got routine roles', roles)
-            objects = objects.map((x) => {
-                const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
-                if (orgRoleIndex >= 0) {
-                    return { ...x, role: roles[orgRoleIndex] };
-                }
-                return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
-            }) as any;
+        // Query for permissions
+        if (partial.permissionsRoutine) {
+            //TODO
         }
+        // // Query for role
+        // if (partial.role) {
+        //     // console.log('checking routine roles', ids);
+        //     let organizationIds: string[] = [];
+        //     // Collect owner data
+        //     let ownerData: any = objects.map(x => x.owner).filter(x => x);
+        //     // If no owner data was found, then owner data was not queried. In this case, query for owner data.
+        //     if (ownerData.length === 0) {
+        //         const ownerDataUnformatted = await prisma.routine.findMany({
+        //             where: { id: { in: ids } },
+        //             select: {
+        //                 id: true,
+        //                 user: { select: { id: true } },
+        //                 organization: { select: { id: true } },
+        //             },
+        //         });
+        //         organizationIds = ownerDataUnformatted.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
+        //         // Inject owner data into "objects"
+        //         objects = objects.map((x, i) => {
+        //             const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
+        //             return ({ ...x, owner: unformatted?.user || unformatted?.organization })
+        //         });
+        //     } else {
+        //         organizationIds = objects
+        //             .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
+        //             .map(x => x.owner.id)
+        //             .filter(x => Boolean(x)) as string[];
+        //     }
+        //     // If owned by user, set role to owner if userId matches
+        //     // If owned by organization, set role user's role in organization
+        //     const roles = userId
+        //         ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
+        //         : [];
+        //     // console.log('got routine roles', roles)
+        //     objects = objects.map((x) => {
+        //         const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
+        //         if (orgRoleIndex >= 0) {
+        //             return { ...x, role: roles[orgRoleIndex] };
+        //         }
+        //         return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
+        //     }) as any;
+        // }
         // Query for run data. This must be done here because we are not querying all runs - just ones made by the user
         if (isObject(partial.runs)) {
             if (userId) {
@@ -707,17 +711,18 @@ export const routineMutater = (prisma: PrismaType) => ({
             organizationIds.push(...createMany.map(input => input.createdByOrganizationId).filter(id => id));
             createMany.forEach(input => this.validateNodePositions(input));
             // Check if user will pass max routines limit
-            const existingCount = await prisma.routine.count({
-                where: {
-                    OR: [
-                        { user: { id: userId } },
-                        { organization: { members: { some: { userId: userId, role: MemberRole.Owner as any } } } },
-                    ]
-                }
-            })
-            if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
-                throw new CustomError(CODE.MaxRoutinesReached, 'Maximum routines reached on this account', { code: genErrorCode('0094') });
-            }
+            //TODO
+            // const existingCount = await prisma.routine.count({
+            //     where: {
+            //         OR: [
+            //             { user: { id: userId } },
+            //             { organization: { members: { some: { userId: userId, role: MemberRole.Owner as any } } } },
+            //         ]
+            //     }
+            // })
+            // if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
+            //     throw new CustomError(CODE.MaxRoutinesReached, 'Maximum routines reached on this account', { code: genErrorCode('0094') });
+            // }
         }
         if (updateMany) {
             routinesUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });

@@ -13,7 +13,7 @@ export interface emailLogIn_emailLogIn {
   __typename: "Session";
   id: string | null;
   theme: string;
-  roles: string[];
+  isLoggedIn: boolean;
   languages: string[] | null;
 }
 

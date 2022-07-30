@@ -1,23 +1,26 @@
 import { gql } from 'graphql-tag';
 
 export const organizationFields = gql`
-    fragment organizationResourceListFields on ResourceList {
+    fragment organizationFields on Organization {
         id
         created_at
-        index
-        usedFor
-        translations {
-            id
-            language
-            description
-            title
+        handle
+        isOpenToNewMembers
+        isPrivate
+        isStarred
+        stars
+        permissionsOrganization {
+            canAddMembers
+            canDelete
+            canEdit
+            canStar
+            canReport
+            isMember
         }
-        resources {
+        resourceLists {
             id
             created_at
             index
-            link
-            updated_at
             usedFor
             translations {
                 id
@@ -25,29 +28,39 @@ export const organizationFields = gql`
                 description
                 title
             }
+            resources {
+                id
+                created_at
+                index
+                link
+                updated_at
+                usedFor
+                translations {
+                    id
+                    language
+                    description
+                    title
+                }
+            }
         }
-    }
-    fragment organizationTagFields on Tag {
-        tag
-        translations {
+        roles {
             id
-            language
-            description
-        }
-    }
-    fragment organizationFields on Organization {
-        id
-        created_at
-        handle
-        isOpenToNewMembers
-        isStarred
-        role
-        stars
-        resourceLists {
-            ...organizationResourceListFields
+            created_at
+            updated_at
+            title
+            translations {
+                id
+                language
+                description
+            }
         }
         tags {
-            ...organizationTagFields
+            tag
+            translations {
+                id
+                language
+                description
+            }
         }
         translations {
             id

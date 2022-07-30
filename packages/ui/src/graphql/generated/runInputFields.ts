@@ -38,7 +38,9 @@ export interface runInputFields_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
@@ -46,6 +48,7 @@ export interface runInputFields_standard {
   tags: runInputFields_standard_tags[];
   translations: runInputFields_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface runInputFields {

@@ -1,7 +1,7 @@
 import { Box, Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { InputType, ROLES, standardCreateForm as validationSchema } from '@local/shared';
+import { InputType, standardCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardCreateMutation } from "graphql/mutation";
 import { getUserLanguages, shapeStandardCreate, StandardTranslationShape, TagShape, updateArray, useReactSearch } from "utils";
@@ -16,7 +16,7 @@ import { LanguageInput, ResourceListHorizontal, Selector, TagSelector } from "co
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { v4 as uuid } from 'uuid';
+import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { FieldData } from "forms/types";
 import { BaseStandardInput, PreviewSwitch } from "components/inputs";
 import { generateInputComponent, generateYupSchema } from "forms/generators";
@@ -236,9 +236,9 @@ export const StandardCreate = ({
     }, [deleteTranslation, languages, updateFormikTranslation]);
 
     const actions: DialogActionItem[] = useMemo(() => {
-        const correctRole = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
+        const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
         return [
-            ['Create', CreateIcon, Boolean(!correctRole || formik.isSubmitting), true, () => { }],
+            ['Create', CreateIcon, Boolean(!loggedIn || formik.isSubmitting), true, () => { }],
             ['Cancel', CancelIcon, formik.isSubmitting, false, () => {
                 // Remove schema from local state
                 localStorage.removeItem('standard-create-schema');

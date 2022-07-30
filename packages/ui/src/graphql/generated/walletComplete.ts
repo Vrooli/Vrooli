@@ -13,7 +13,7 @@ export interface walletComplete_walletComplete_session {
   __typename: "Session";
   id: string | null;
   theme: string;
-  roles: string[];
+  isLoggedIn: boolean;
   languages: string[] | null;
 }
 

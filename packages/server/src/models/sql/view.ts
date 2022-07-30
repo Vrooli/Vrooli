@@ -1,4 +1,4 @@
-import { CODE, isObject, MemberRole, ViewFor } from "@local/shared";
+import { CODE, isObject, ViewFor } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, LogType, User, ViewSearchInput, ViewSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
@@ -192,81 +192,84 @@ const viewer = (prisma: PrismaType) => ({
                 break;
             case ViewFor.Project:
                 // Check if project is owned by this user or by an organization they are a member of
-                const project = await prisma.project.findFirst({
-                    where: {
-                        AND: [
-                            { id: input.forId },
-                            {
-                                OR: [
-                                    { user: { id: userId } },
-                                    {
-                                        organization: {
-                                            members: {
-                                                some: {
-                                                    id: userId,
-                                                    role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
-                                                }
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                })
-                if (project) isOwn = true;
+                //TODO
+                // const project = await prisma.project.findFirst({
+                //     where: {
+                //         AND: [
+                //             { id: input.forId },
+                //             {
+                //                 OR: [
+                //                     { user: { id: userId } },
+                //                     {
+                //                         organization: {
+                //                             members: {
+                //                                 some: {
+                //                                     id: userId,
+                //                                     role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
+                //                                 }
+                //                             }
+                //                         }
+                //                     }
+                //                 ]
+                //             }
+                //         ]
+                //     }
+                // })
+                // if (project) isOwn = true;
                 break;
             case ViewFor.Routine:
                 // Check if routine is owned by this user or by an organization they are a member of
-                const routine = await prisma.routine.findFirst({
-                    where: {
-                        AND: [
-                            { id: input.forId },
-                            {
-                                OR: [
-                                    { user: { id: userId } },
-                                    {
-                                        organization: {
-                                            members: {
-                                                some: {
-                                                    id: userId,
-                                                    role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
-                                                }
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                })
-                if (routine) isOwn = true;
+                //TODO
+                // const routine = await prisma.routine.findFirst({
+                //     where: {
+                //         AND: [
+                //             { id: input.forId },
+                //             {
+                //                 OR: [
+                //                     { user: { id: userId } },
+                //                     {
+                //                         organization: {
+                //                             members: {
+                //                                 some: {
+                //                                     id: userId,
+                //                                     role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
+                //                                 }
+                //                             }
+                //                         }
+                //                     }
+                //                 ]
+                //             }
+                //         ]
+                //     }
+                // })
+                // if (routine) isOwn = true;
                 break;
             case ViewFor.Standard:
                 // Check if standard is owned by this user or by an organization they are a member of
-                const standard = await prisma.standard.findFirst({
-                    where: {
-                        AND: [
-                            { id: input.forId },
-                            {
-                                OR: [
-                                    { createdByUser: { id: userId } },
-                                    {
-                                        createdByOrganization: {
-                                            members: {
-                                                some: {
-                                                    id: userId,
-                                                    role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
-                                                }
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                })
-                if (standard) isOwn = true;
+                //TODO
+                // const standard = await prisma.standard.findFirst({
+                //     where: {
+                //         AND: [
+                //             { id: input.forId },
+                //             {
+                //                 OR: [
+                //                     { createdByUser: { id: userId } },
+                //                     {
+                //                         createdByOrganization: {
+                //                             members: {
+                //                                 some: {
+                //                                     id: userId,
+                //                                     role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
+                //                                 }
+                //                             }
+                //                         }
+                //                     }
+                //                 ]
+                //             }
+                //         ]
+                //     }
+                // })
+                // if (standard) isOwn = true;
                 break;
             case ViewFor.User:
                 isOwn = userId === input.forId;

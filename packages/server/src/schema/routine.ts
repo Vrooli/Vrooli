@@ -29,6 +29,7 @@ export const typeDef = gql`
         isAutomatable: Boolean
         isComplete: Boolean
         isInternal: Boolean
+        isPrivate: Boolean
         version: String
         parentId: ID
         projectId: ID
@@ -48,6 +49,7 @@ export const typeDef = gql`
         isAutomatable: Boolean
         isComplete: Boolean
         isInternal: Boolean
+        isPrivate: Boolean
         version: String
         userId: ID
         organizationId: ID
@@ -81,16 +83,18 @@ export const typeDef = gql`
         updated_at: Date!
         isAutomatable: Boolean
         isComplete: Boolean!
+        isDeleted: Boolean!
         isInternal: Boolean
+        isPrivate: Boolean!
         isStarred: Boolean!
-        role: MemberRole
         isUpvoted: Boolean
         isViewed: Boolean!
         score: Int!
         simplicity: Int!
         stars: Int!
         views: Int!
-        version: String
+        version: String!
+        versionGroupId: ID!
         comments: [Comment!]!
         commentsCount: Int!
         creator: Contributor
@@ -103,6 +107,7 @@ export const typeDef = gql`
         outputs: [OutputItem!]!
         owner: Contributor
         parent: Routine
+        permissionsRoutine: RoutinePermission!
         project: Project
         reports: [Report!]!
         reportsCount: Int!
@@ -111,6 +116,15 @@ export const typeDef = gql`
         starredBy: [User!]!
         tags: [Tag!]!
         translations: [RoutineTranslation!]!
+    }
+
+    type RoutinePermission {
+        canDelete: Boolean!
+        canEdit: Boolean!
+        canStar: Boolean!
+        canReport: Boolean!
+        canRun: Boolean!
+        canVote: Boolean!
     }
 
     input RoutineTranslationCreateInput {

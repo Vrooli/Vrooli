@@ -4,13 +4,11 @@
 // This file was automatically generated and should not be edited.
 
 // ====================================================
-// GraphQL fragment: sessionFields
+// GraphQL fragment: runInputsFields
 // ====================================================
 
-export interface sessionFields {
-  __typename: "Session";
-  id: string | null;
-  theme: string;
-  isLoggedIn: boolean;
-  languages: string[] | null;
+export interface runInputsFields {
+  __typename: "RunInput";
+  id: string;
+  data: string;
 }

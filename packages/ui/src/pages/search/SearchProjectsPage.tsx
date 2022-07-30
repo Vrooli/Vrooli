@@ -1,4 +1,4 @@
-import { APP_LINKS, ROLES } from "@local/shared";
+import { APP_LINKS } from "@local/shared";
 import { ProjectDialog } from "components";
 import { projectsQuery } from "graphql/query";
 import { useCallback, useEffect, useState } from "react";
@@ -7,6 +7,7 @@ import { BaseSearchPage } from "./BaseSearchPage";
 import { SearchProjectsPageProps } from "./types";
 import { useLocation } from "wouter";
 import { ObjectType, PubSub, stringifySearchParams } from "utils";
+import { validate as uuidValidate } from 'uuid';
 
 export const SearchProjectsPage = ({
     session
@@ -31,8 +32,8 @@ export const SearchProjectsPage = ({
 
     // Handles dialog when adding a new organization
     const handleAddDialogOpen = useCallback(() => {
-        const canAdd = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
-        if (canAdd) {
+        const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
+        if (loggedIn) {
             setLocation(`${APP_LINKS.SearchProjects}/add`)
         }
         else {
@@ -41,7 +42,7 @@ export const SearchProjectsPage = ({
                 redirect: APP_LINKS.SearchProjects
             })}`);
         }
-    }, [session?.roles, setLocation]);
+    }, [session?.id, session?.isLoggedIn, setLocation]);
 
     return (
         <>

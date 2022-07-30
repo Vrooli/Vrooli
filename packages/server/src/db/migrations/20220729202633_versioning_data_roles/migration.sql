@@ -62,15 +62,23 @@ DROP TABLE "user_roles";
 -- Delete role table, since we don't need the old data anyway
 DROP TABLE "role";
 
--- Create new role table
+-- Create new role table and translations table
 CREATE TABLE "role" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "title" VARCHAR(128) NOT NULL,
-    "description" VARCHAR(2048),
     "organizationId" UUID NOT NULL,
     CONSTRAINT "role_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "role_translation" (
+    "id" UUID NOT NULL,
+    "description" VARCHAR(2048) NOT NULL,
+    "language" VARCHAR(3) NOT NULL,
+    "roleId" UUID NOT NULL,
+
+    CONSTRAINT "role_translation_pkey" PRIMARY KEY ("id")
 );
 
 -- Create new user_roles table
@@ -167,5 +175,14 @@ ADD
 -- Create unique index for a role's organizationId and title
 CREATE UNIQUE INDEX "role_organizationId_title_key" ON "role" ("organizationId", "title");
 
+-- Create unique index for a role's translation's language and roleId
+CREATE UNIQUE INDEX "role_translation_language_roleId_key" ON "role_translation" ("language", "roleId");
+
 -- Create unique index for a user_role's userId and roleId
 CREATE UNIQUE INDEX "user_roles_userId_roleId_key" ON "user_roles" ("userId", "roleId");
+
+-- Create foreign key for a role's translation's roleId
+ALTER TABLE
+    "role_translation"
+ADD
+    CONSTRAINT "role_translation_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "role" ("id") ON DELETE CASCADE ON UPDATE CASCADE;

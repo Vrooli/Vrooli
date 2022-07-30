@@ -24,6 +24,7 @@ export const typeDef = gql`
         id: ID!
         default: String
         isInternal: Boolean
+        isPrivate: Boolean
         name: String
         type: String!
         props: String!
@@ -39,6 +40,7 @@ export const typeDef = gql`
     input StandardUpdateInput {
         id: ID!
         makeAnonymous: Boolean
+        isPrivate: Boolean
         resourceListsDelete: [ID!]
         resourceListsCreate: [ResourceListCreateInput!]
         resourceListsUpdate: [ResourceListUpdateInput!]
@@ -55,21 +57,24 @@ export const typeDef = gql`
         updated_at: Date!
         default: String
         name: String!
+        isDeleted: Boolean!
         isInternal: Boolean!
+        isPrivate: Boolean!
         isStarred: Boolean!
-        role: MemberRole
         isUpvoted: Boolean
         isViewed: Boolean!
         type: String!
         props: String!
         yup: String
         version: String!
+        versionGroupId: ID!
         score: Int!
         stars: Int!
         views: Int!
         comments: [Comment!]!
         commentsCount: Int!
         creator: Contributor
+        permissionsStandard: StandardPermission!
         reports: [Report!]!
         reportsCount: Int!
         resourceLists: [ResourceList!]!
@@ -78,6 +83,14 @@ export const typeDef = gql`
         starredBy: [User!]!
         tags: [Tag!]!
         translations: [StandardTranslation!]!
+    }
+
+    type StandardPermission {
+        canDelete: Boolean!
+        canEdit: Boolean!
+        canStar: Boolean!
+        canReport: Boolean!
+        canVote: Boolean!
     }
 
     input StandardTranslationCreateInput {

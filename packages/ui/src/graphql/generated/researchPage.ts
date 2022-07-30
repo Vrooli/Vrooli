@@ -3,11 +3,19 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole } from "./globalTypes";
-
 // ====================================================
 // GraphQL query operation: researchPage
 // ====================================================
+
+export interface researchPage_researchPage_processes_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
+}
 
 export interface researchPage_researchPage_processes_tags_translations {
   __typename: "TagTranslation";
@@ -42,18 +50,30 @@ export interface researchPage_researchPage_processes {
   complexity: number;
   created_at: any;
   isAutomatable: boolean | null;
+  isDeleted: boolean;
   isInternal: boolean | null;
   isComplete: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
   reportsCount: number;
-  role: MemberRole | null;
   score: number;
   simplicity: number;
   stars: number;
+  permissionsRoutine: researchPage_researchPage_processes_permissionsRoutine;
   tags: researchPage_researchPage_processes_tags[];
   translations: researchPage_researchPage_processes_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
+}
+
+export interface researchPage_researchPage_newlyCompleted_Project_permissionsProject {
+  __typename: "ProjectPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
 }
 
 export interface researchPage_researchPage_newlyCompleted_Project_tags_translations {
@@ -86,14 +106,25 @@ export interface researchPage_researchPage_newlyCompleted_Project {
   id: string;
   commentsCount: number;
   handle: string | null;
-  role: MemberRole | null;
   score: number;
   stars: number;
+  isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
   reportsCount: number;
+  permissionsProject: researchPage_researchPage_newlyCompleted_Project_permissionsProject;
   tags: researchPage_researchPage_newlyCompleted_Project_tags[];
   translations: researchPage_researchPage_newlyCompleted_Project_translations[];
+}
+
+export interface researchPage_researchPage_newlyCompleted_Routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
 }
 
 export interface researchPage_researchPage_newlyCompleted_Routine_tags_translations {
@@ -129,21 +160,33 @@ export interface researchPage_researchPage_newlyCompleted_Routine {
   complexity: number;
   created_at: any;
   isAutomatable: boolean | null;
+  isDeleted: boolean;
   isInternal: boolean | null;
   isComplete: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
   reportsCount: number;
-  role: MemberRole | null;
   score: number;
   simplicity: number;
   stars: number;
+  permissionsRoutine: researchPage_researchPage_newlyCompleted_Routine_permissionsRoutine;
   tags: researchPage_researchPage_newlyCompleted_Routine_tags[];
   translations: researchPage_researchPage_newlyCompleted_Routine_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
 }
 
 export type researchPage_researchPage_newlyCompleted = researchPage_researchPage_newlyCompleted_Project | researchPage_researchPage_newlyCompleted_Routine;
+
+export interface researchPage_researchPage_needVotes_permissionsProject {
+  __typename: "ProjectPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
 
 export interface researchPage_researchPage_needVotes_tags_translations {
   __typename: "TagTranslation";
@@ -175,14 +218,24 @@ export interface researchPage_researchPage_needVotes {
   id: string;
   commentsCount: number;
   handle: string | null;
-  role: MemberRole | null;
   score: number;
   stars: number;
+  isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
   reportsCount: number;
+  permissionsProject: researchPage_researchPage_needVotes_permissionsProject;
   tags: researchPage_researchPage_needVotes_tags[];
   translations: researchPage_researchPage_needVotes_translations[];
+}
+
+export interface researchPage_researchPage_needInvestments_permissionsProject {
+  __typename: "ProjectPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
 }
 
 export interface researchPage_researchPage_needInvestments_tags_translations {
@@ -215,14 +268,25 @@ export interface researchPage_researchPage_needInvestments {
   id: string;
   commentsCount: number;
   handle: string | null;
-  role: MemberRole | null;
   score: number;
   stars: number;
+  isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
   reportsCount: number;
+  permissionsProject: researchPage_researchPage_needInvestments_permissionsProject;
   tags: researchPage_researchPage_needInvestments_tags[];
   translations: researchPage_researchPage_needInvestments_translations[];
+}
+
+export interface researchPage_researchPage_needMembers_permissionsOrganization {
+  __typename: "OrganizationPermission";
+  canAddMembers: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  isMember: boolean;
 }
 
 export interface researchPage_researchPage_needMembers_tags_translations {
@@ -257,9 +321,11 @@ export interface researchPage_researchPage_needMembers {
   handle: string | null;
   stars: number;
   isOpenToNewMembers: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
+  membersCount: number;
   reportsCount: number;
-  role: MemberRole | null;
+  permissionsOrganization: researchPage_researchPage_needMembers_permissionsOrganization | null;
   tags: researchPage_researchPage_needMembers_tags[];
   translations: researchPage_researchPage_needMembers_translations[];
 }

@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { OrganizationSearchInput, MemberRole } from "./globalTypes";
+import { OrganizationSearchInput } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: organizations
@@ -13,6 +13,16 @@ export interface organizations_organizations_pageInfo {
   __typename: "PageInfo";
   endCursor: string | null;
   hasNextPage: boolean;
+}
+
+export interface organizations_organizations_edges_node_permissionsOrganization {
+  __typename: "OrganizationPermission";
+  canAddMembers: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  isMember: boolean;
 }
 
 export interface organizations_organizations_edges_node_tags_translations {
@@ -47,9 +57,11 @@ export interface organizations_organizations_edges_node {
   handle: string | null;
   stars: number;
   isOpenToNewMembers: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
+  membersCount: number;
   reportsCount: number;
-  role: MemberRole | null;
+  permissionsOrganization: organizations_organizations_edges_node_permissionsOrganization | null;
   tags: organizations_organizations_edges_node_tags[];
   translations: organizations_organizations_edges_node_translations[];
 }

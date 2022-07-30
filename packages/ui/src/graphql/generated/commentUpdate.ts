@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { CommentUpdateInput, MemberRole } from "./globalTypes";
+import { CommentUpdateInput } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: commentUpdate
@@ -69,6 +69,16 @@ export interface commentUpdate_commentUpdate_creator_User {
 
 export type commentUpdate_commentUpdate_creator = commentUpdate_commentUpdate_creator_Organization | commentUpdate_commentUpdate_creator_User;
 
+export interface commentUpdate_commentUpdate_permissionsComment {
+  __typename: "CommentPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReply: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
+
 export interface commentUpdate_commentUpdate_translations {
   __typename: "CommentTranslation";
   id: string;
@@ -83,10 +93,10 @@ export interface commentUpdate_commentUpdate {
   updated_at: any;
   score: number;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   isStarred: boolean;
   commentedOn: commentUpdate_commentUpdate_commentedOn;
   creator: commentUpdate_commentUpdate_creator | null;
+  permissionsComment: commentUpdate_commentUpdate_permissionsComment | null;
   translations: commentUpdate_commentUpdate_translations[];
 }
 

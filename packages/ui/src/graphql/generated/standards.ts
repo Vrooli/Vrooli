@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { StandardSearchInput, MemberRole } from "./globalTypes";
+import { StandardSearchInput } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: standards
@@ -13,6 +13,15 @@ export interface standards_standards_pageInfo {
   __typename: "PageInfo";
   endCursor: string | null;
   hasNextPage: boolean;
+}
+
+export interface standards_standards_edges_node_permissionsStandard {
+  __typename: "StandardPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
 }
 
 export interface standards_standards_edges_node_tags_translations {
@@ -47,17 +56,20 @@ export interface standards_standards_edges_node {
   default: string | null;
   score: number;
   stars: number;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
   name: string;
   props: string;
   reportsCount: number;
-  role: MemberRole | null;
+  permissionsStandard: standards_standards_edges_node_permissionsStandard;
   tags: standards_standards_edges_node_tags[];
   translations: standards_standards_edges_node_translations[];
   type: string;
   version: string;
+  versionGroupId: string;
   yup: string | null;
 }
 

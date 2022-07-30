@@ -1,5 +1,5 @@
 import { CODE, resourceCreate, resourcesCreate, resourcesUpdate, resourceUpdate } from "@local/shared";
-import { Resource, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Count, MemberRole } from "../../schema/types";
+import { Resource, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Count } from "../../schema/types";
 import { PrismaType } from "types";
 import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
@@ -76,9 +76,11 @@ const isUserOwner = (userId: string, data: any) => {
  * @returns True if user is owner of resource
  */
 const isOrganizationOwner = (userId: string, data: any) => {
-    if (!data.organization) return false;
-    const member = data.organization.members.find((m: any) => m.userId === userId && [MemberRole.Admin, MemberRole.Owner].includes(m.role));
-    return Boolean(member);
+    //TODO
+    return false;
+    // if (!data.organization) return false;
+    // const member = data.organization.members.find((m: any) => m.userId === userId && [MemberRole.Admin, MemberRole.Owner].includes(m.role));
+    // return Boolean(member);
 }
 
 /**

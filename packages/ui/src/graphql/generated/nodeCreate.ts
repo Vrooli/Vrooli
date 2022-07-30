@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { NodeCreateInput, NodeType, MemberRole } from "./globalTypes";
+import { NodeCreateInput, NodeType } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: nodeCreate
@@ -13,6 +13,16 @@ export interface nodeCreate_nodeCreate_data_NodeEnd {
   __typename: "NodeEnd";
   id: string;
   wasSuccessful: boolean;
+}
+
+export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
 }
 
 export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_tags_translations {
@@ -41,12 +51,12 @@ export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine {
   __typename: "Routine";
   id: string;
   complexity: number;
-  version: string | null;
+  version: string;
   created_at: any;
   isAutomatable: boolean | null;
   isInternal: boolean | null;
-  role: MemberRole | null;
   simplicity: number;
+  permissionsRoutine: nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_permissionsRoutine;
   tags: nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_tags[];
   translations: nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_translations[];
 }

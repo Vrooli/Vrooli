@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { NodeType, MemberRole } from "./globalTypes";
+import { NodeType } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: nodeFields
@@ -13,6 +13,16 @@ export interface nodeFields_data_NodeEnd {
   __typename: "NodeEnd";
   id: string;
   wasSuccessful: boolean;
+}
+
+export interface nodeFields_data_NodeRoutineList_routines_routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
 }
 
 export interface nodeFields_data_NodeRoutineList_routines_routine_tags_translations {
@@ -41,12 +51,12 @@ export interface nodeFields_data_NodeRoutineList_routines_routine {
   __typename: "Routine";
   id: string;
   complexity: number;
-  version: string | null;
+  version: string;
   created_at: any;
   isAutomatable: boolean | null;
   isInternal: boolean | null;
-  role: MemberRole | null;
   simplicity: number;
+  permissionsRoutine: nodeFields_data_NodeRoutineList_routines_routine_permissionsRoutine;
   tags: nodeFields_data_NodeRoutineList_routines_routine_tags[];
   translations: nodeFields_data_NodeRoutineList_routines_routine_translations[];
 }
