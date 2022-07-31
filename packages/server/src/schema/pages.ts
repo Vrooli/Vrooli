@@ -7,7 +7,7 @@ import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, Orga
 import { CODE } from '@local/shared';
 import { IWrap } from '../types';
 import { Context } from '../context';
-import { addSupplementalFieldsMultiTypes, GraphQLModelType, modelToGraphQL, OrganizationModel, PartialGraphQLInfo, ProjectModel, readManyHelper, RoutineModel, RunModel, StandardModel, StarModel, toPartialGraphQLInfo, UserModel, ViewModel } from '../models';
+import { addSupplementalFieldsMultiTypes, GraphQLModelType, modelToGraphQL, OrganizationModel, PartialGraphQLInfo, ProjectModel, readManyAsFeed, readManyHelper, RoutineModel, RunModel, StandardModel, StarModel, toPartialGraphQLInfo, UserModel, ViewModel } from '../models';
 import { CustomError } from '../error';
 import { rateLimit } from '../rateLimit';
 import { resolveProjectOrOrganization, resolveProjectOrOrganizationOrRoutineOrStandardOrUser, resolveProjectOrRoutine } from './resolvers';
@@ -320,67 +320,58 @@ export const resolvers = {
     Query: {
         homePage: async (_parent: undefined, { input }: IWrap<HomePageInput>, context: Context, info: GraphQLResolveInfo): Promise<HomePageResult> => {
             await rateLimit({ context, info, max: 5000 });
+            const userId = context.req.userId;
+            const prisma = context.prisma;
             const MinimumStars = 0; // Minimum stars required to show up in results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
-            // Initialize models
-            const oModel = OrganizationModel(context.prisma);
-            const pModel = ProjectModel(context.prisma);
-            const rModel = RoutineModel(context.prisma);
-            const sModel = StandardModel(context.prisma);
-            const uModel = UserModel(context.prisma);
+            const commonReadParams = {
+                additionalQueries: { ...starsQuery },
+                prisma,
+                userId,
+            }
             // Query organizations
-            let organizations = (await readManyHelper(
-                context.req.userId,
-                { take, ...input, sortBy: OrganizationSortBy.StarsDesc },
-                organizationSelect,
-                oModel,
-                { ...starsQuery },
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(organizationSelect, oModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const organizations = await readManyAsFeed({
+                ...commonReadParams,
+                info: organizationSelect,
+                input: { ...input, take, sortBy: OrganizationSortBy.StarsDesc },
+                model: OrganizationModel,
+            });
             // Query projects
-            let projects = (await readManyHelper(
-                context.req.userId,
-                { take, ...input, sortBy: ProjectSortBy.StarsDesc, isComplete: true, },
-                projectSelect,
-                pModel,
-                { ...starsQuery },
-                false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(projectSelect, pModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const projects = await readManyAsFeed({
+                ...commonReadParams,
+                info: projectSelect,
+                input: { ...input, take, sortBy: ProjectSortBy.StarsDesc, isComplete: true },
+                model: ProjectModel,
+            });
             // Query routines
-            let routines = (await readManyHelper(
-                context.req.userId,
-                { take, ...input, sortBy: RoutineSortBy.StarsDesc, isComplete: true, isInternal: false },
-                routineSelect,
-                rModel,
-                { ...starsQuery },
-                false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(routineSelect, rModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const routines = await readManyAsFeed({
+                ...commonReadParams,
+                info: routineSelect,
+                input: { ...input, take, sortBy: RoutineSortBy.StarsDesc, isComplete: true, isInternal: false },
+                model: RoutineModel,
+            });
             // Query standards
-            let standards = (await readManyHelper(
-                context.req.userId,
-                { take, ...input, sortBy: StandardSortBy.StarsDesc, type: 'JSON' },
-                standardSelect,
-                sModel,
-                { ...starsQuery },
-                false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(standardSelect, sModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const standards = await readManyAsFeed({
+                ...commonReadParams,
+                info: standardSelect,
+                input: { ...input, take, sortBy: StandardSortBy.StarsDesc, type: 'JSON' },
+                model: StandardModel,
+            });
             // Query users
-            let users = (await readManyHelper(
-                context.req.userId,
-                { take, ...input, sortBy: UserSortBy.StarsDesc },
-                userSelect,
-                uModel,
-                { ...starsQuery },
-                false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(userSelect, uModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const users = await readManyAsFeed({
+                ...commonReadParams,
+                info: userSelect,
+                input: { ...input, take, sortBy: UserSortBy.StarsDesc },
+                model: UserModel,
+            });
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [organizations, projects, routines, standards, users],
                 [organizationSelect, projectSelect, routineSelect, standardSelect, userSelect] as any,
                 ['o', 'p', 'r', 's', 'u'],
-                context.req.userId,
-                context.prisma,
+                userId,
+                prisma,
             )
             // Return results
             return {
@@ -395,30 +386,31 @@ export const resolvers = {
          * Queries data shown on Learn page
          */
         learnPage: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<LearnPageResult> => {
+            await rateLimit({ context, info, max: 5000 });
+            const userId = context.req.userId;
+            const prisma = context.prisma;
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
-            // Initialize models
-            const pModel = ProjectModel(context.prisma);
-            const rModel = RoutineModel(context.prisma);
+            const commonReadParams = {
+                additionalQueries: { ...starsQuery },
+                prisma,
+                userId,
+            }
             // Query courses
-            const courses = (await readManyHelper(
-                context.req.userId,
-                { take, sortBy: ProjectSortBy.VotesDesc, tags: ['Learn'], isComplete: true, },
-                projectSelect,
-                pModel,
-                { ...starsQuery },
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(projectSelect, pModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const courses = await readManyAsFeed({
+                ...commonReadParams,
+                info: projectSelect,
+                input: { take, sortBy: ProjectSortBy.VotesDesc, tags: ['Learn'], isComplete: true, },
+                model: ProjectModel,
+            });
             // Query tutorials
-            const tutorials = (await readManyHelper(
-                context.req.userId,
-                { take, sortBy: RoutineSortBy.VotesDesc, tags: ['Learn'], isComplete: true, isInternal: false },
-                routineSelect,
-                rModel,
-                { ...starsQuery },
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(routineSelect, rModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const tutorials = await readManyAsFeed({
+                ...commonReadParams,
+                info: routineSelect,
+                input: { take, sortBy: ProjectSortBy.VotesDesc, tags: ['Learn'], isComplete: true, },
+                model: RoutineModel,
+            });
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [courses, tutorials],
@@ -437,74 +429,64 @@ export const resolvers = {
          * Queries data shown on Research page
          */
         researchPage: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<ResearchPageResult> => {
+            await rateLimit({ context, info, max: 5000 });
+            const userId = context.req.userId;
+            const prisma = context.prisma;
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
-            // Initialize models
-            const oModel = OrganizationModel(context.prisma);
-            const pModel = ProjectModel(context.prisma);
-            const rModel = RoutineModel(context.prisma);
+            const commonReadParams = {
+                additionalQueries: { ...starsQuery },
+                prisma,
+                userId,
+            }
             // Query processes
-            const processes = (await readManyHelper(
-                context.req.userId,
-                { take, sortBy: RoutineSortBy.VotesDesc, tags: ['Research'], isComplete: true, isInternal: false },
-                routineSelect,
-                rModel,
-                { ...starsQuery },
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(routineSelect, rModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const processes = await readManyAsFeed({
+                ...commonReadParams,
+                info: routineSelect,
+                input: { take, sortBy: RoutineSortBy.VotesDesc, tags: ['Research'], isComplete: true, isInternal: false },
+                model: RoutineModel,
+            });
             // Query newlyCompleted
-            const newlyCompletedProjects = (await readManyHelper(
-                context.req.userId,
-                { take, sortBy: ProjectSortBy.DateCompletedAsc, isComplete: true },
-                projectSelect,
-                pModel,
-                { ...starsQuery },
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(projectSelect, pModel.relationshipMap) as PartialGraphQLInfo)) as any[]
-            const newlyCompletedRoutines = (await readManyHelper(
-                context.req.userId,
-                { take, isComplete: true, isInternal: false, sortBy: RoutineSortBy.DateCompletedAsc },
-                routineSelect,
-                rModel,
-                { ...starsQuery },
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(routineSelect, rModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const newlyCompletedProjects = await readManyAsFeed({
+                ...commonReadParams,
+                info: projectSelect,
+                input: { take, sortBy: ProjectSortBy.DateCompletedAsc, isComplete: true },
+                model: ProjectModel,
+            });
+            const newlyCompletedRoutines = await readManyAsFeed({
+                ...commonReadParams,
+                info: routineSelect,
+                input: { take, isComplete: true, isInternal: false, sortBy: RoutineSortBy.DateCompletedAsc },
+                model: RoutineModel,
+            });
             // Query needVotes
-            const needVotes = (await readManyHelper(
-                context.req.userId,
-                { take, isComplete: false, resourceTypes: [ResourceUsedFor.Proposal] },
-                projectSelect,
-                pModel,
-                { ...starsQuery },
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(projectSelect, pModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const needVotes = await readManyAsFeed({
+                ...commonReadParams,
+                info: projectSelect,
+                input: { take, isComplete: false, resourceTypes: [ResourceUsedFor.Proposal] },
+                model: ProjectModel,
+            });
             // Query needInvestments
-            const needInvestmentsProjects = (await readManyHelper(
-                context.req.userId,
-                { take, isComplete: false, resourceTypes: [ResourceUsedFor.Donation] },
-                projectSelect,
-                pModel,
-                { ...starsQuery },
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(projectSelect, pModel.relationshipMap) as PartialGraphQLInfo)) as any[]
-            const needInvestmentsOrganizations = (await readManyHelper(
-                context.req.userId,
-                { take, resourceTypes: [ResourceUsedFor.Donation] },
-                organizationSelect,
-                oModel,
-                { ...starsQuery },
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(organizationSelect, oModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const needInvestmentsProjects = await readManyAsFeed({
+                ...commonReadParams,
+                info: projectSelect,
+                input: { take, isComplete: false, resourceTypes: [ResourceUsedFor.Donation] },
+                model: ProjectModel,
+            });
+            const needInvestmentsOrganizations = await readManyAsFeed({
+                ...commonReadParams,
+                info: organizationSelect,
+                input: { take, resourceTypes: [ResourceUsedFor.Donation] },
+                model: OrganizationModel,
+            });
             // Query needMembers
-            const needMembers = (await readManyHelper(
-                context.req.userId,
-                { take, isOpenToNewMembers: true, sortBy: OrganizationSortBy.StarsDesc },
-                organizationSelect,
-                oModel,
-                { ...starsQuery },
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(organizationSelect, oModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const needMembers = await readManyAsFeed({
+                ...commonReadParams,
+                info: organizationSelect,
+                input: { take, isOpenToNewMembers: true, sortBy: OrganizationSortBy.StarsDesc },
+                model: OrganizationModel,
+            });
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [processes, newlyCompletedProjects, newlyCompletedRoutines, needVotes, needInvestmentsProjects, needInvestmentsOrganizations, needMembers],
@@ -536,6 +518,9 @@ export const resolvers = {
          * Queries data shown on Develop page
          */
         developPage: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<DevelopPageResult> => {
+            await rateLimit({ context, info, max: 5000 });
+            const userId = context.req.userId;
+            const prisma = context.prisma;
             // If not signed in, return empty data
             if (!context.req.userId) return {
                 completed: [],
@@ -543,63 +528,53 @@ export const resolvers = {
                 recent: [],
             }
             const take = 5;
-            // Initialize models
-            const pModel = ProjectModel(context.prisma);
-            const rModel = RoutineModel(context.prisma);
+            const commonReadParams = {
+                additionalQueries: { },
+                prisma,
+                userId,
+            }
             // Query for routines you've completed
-            const completedRoutines = (await readManyHelper(
-                context.req.userId,
-                { take, isComplete: true, isInternal: false, userId: context.req.userId, sortBy: RoutineSortBy.DateCompletedAsc },
-                routineSelect,
-                rModel,
-                {},
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(routineSelect, rModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const completedRoutines = await readManyAsFeed({
+                ...commonReadParams,
+                info: routineSelect,
+                input: { take, isComplete: true, isInternal: false, userId: context.req.userId, sortBy: RoutineSortBy.DateCompletedAsc },
+                model: RoutineModel,
+            });
             // Query for projects you've completed
-            const completedProjects = (await readManyHelper(
-                context.req.userId,
-                { take, isComplete: true, userId: context.req.userId, sortBy: ProjectSortBy.DateCompletedAsc },
-                projectSelect,
-                pModel,
-                {},
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(projectSelect, pModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const completedProjects = await readManyAsFeed({
+                ...commonReadParams,
+                info: projectSelect,
+                input: { take, isComplete: true, userId: context.req.userId, sortBy: ProjectSortBy.DateCompletedAsc },
+                model: ProjectModel,
+            });
             // Query for routines you're currently working on
-            const inProgressRoutines = (await readManyHelper(
-                context.req.userId,
-                { take, isComplete: false, isInternal: false, userId: context.req.userId, sortBy: RoutineSortBy.DateCreatedAsc },
-                routineSelect,
-                rModel,
-                {},
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(routineSelect, rModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const inProgressRoutines = await readManyAsFeed({
+                ...commonReadParams,
+                info: routineSelect,
+                input: { take, isComplete: false, isInternal: false, userId: context.req.userId, sortBy: RoutineSortBy.DateCreatedAsc },
+                model: RoutineModel,
+            });
             // Query for projects you're currently working on
-            const inProgressProjects = (await readManyHelper(
-                context.req.userId,
-                { take, isComplete: false, userId: context.req.userId, sortBy: ProjectSortBy.DateCreatedAsc },
-                projectSelect,
-                pModel,
-                {},
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(projectSelect, pModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const inProgressProjects = await readManyAsFeed({
+                ...commonReadParams,
+                info: projectSelect,
+                input: { take, isComplete: false, userId: context.req.userId, sortBy: ProjectSortBy.DateCreatedAsc },
+                model: ProjectModel,
+            });
             // Query recently created/updated routines
-            const recentRoutines = (await readManyHelper(
-                context.req.userId,
-                { take, userId: context.req.userId, sortBy: RoutineSortBy.DateUpdatedAsc, isInternal: false },
-                routineSelect,
-                rModel,
-                {},
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(routineSelect, rModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const recentRoutines = await readManyAsFeed({
+                ...commonReadParams,
+                info: routineSelect,
+                input: { take, userId: context.req.userId, sortBy: RoutineSortBy.DateUpdatedAsc, isInternal: false },
+                model: RoutineModel,
+            });
             // Query recently created/updated projects
-            const recentProjects = (await readManyHelper(
-                context.req.userId,
-                { take, userId: context.req.userId, sortBy: ProjectSortBy.DateUpdatedAsc },
-                projectSelect,
-                pModel,
-                {},
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(projectSelect, pModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const recentProjects = await readManyAsFeed({
+                ...commonReadParams,
+                info: projectSelect,
+                input: { take, userId: context.req.userId, sortBy: ProjectSortBy.DateUpdatedAsc },
+                model: ProjectModel,
+            });
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [completedRoutines, completedProjects, inProgressRoutines, inProgressProjects, recentRoutines, recentProjects],
@@ -642,47 +617,41 @@ export const resolvers = {
             // If not signed in, shouldn't be able to see this page
             if (!context.req.userId) throw new CustomError(CODE.Unauthorized, 'Must be signed in to see this page');
             await rateLimit({ context, info, max: 5000 });
+            const userId = context.req.userId;
+            const prisma = context.prisma;
             const take = 5;
-            // Initialize models
-            const runModel = RunModel(context.prisma);
-            const starModel = StarModel(context.prisma);
-            const viewModel = ViewModel(context.prisma);
+            const commonReadParams = {
+                prisma,
+                userId,
+            }
             // Query for incomplete runs
-            const activeRuns = (await readManyHelper(
-                context.req.userId,
-                { take, ...input, status: RunStatus.InProgress, sortBy: RunSortBy.DateUpdatedDesc },
-                runSelect,
-                runModel,
-                { userId: context.req.userId },
-                false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(runSelect, runModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const activeRuns = await readManyAsFeed({
+                ...commonReadParams,
+                info: runSelect,
+                input: { take, ...input, status: RunStatus.InProgress, sortBy: RunSortBy.DateUpdatedDesc },
+                model: RunModel,
+            });
             // Query for complete runs
-            const completedRuns = (await readManyHelper(
-                context.req.userId,
-                { take, ...input, status: RunStatus.Completed, sortBy: RunSortBy.DateUpdatedDesc },
-                runSelect,
-                runModel,
-                { userId: context.req.userId },
-                false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(runSelect, runModel.relationshipMap) as PartialGraphQLInfo)) as any[]
+            const completedRuns = await readManyAsFeed({
+                ...commonReadParams,
+                info: runSelect,
+                input: { take, ...input, status: RunStatus.Completed, sortBy: RunSortBy.DateUpdatedDesc },
+                model: RunModel,
+            });
             // Query recently viewed objects (of any type)
-            const recentlyViewed = (await readManyHelper(
-                context.req.userId,
-                { take, ...input, sortBy: ViewSortBy.LastViewedDesc },
-                viewSelect,
-                viewModel,
-                { byId: context.req.userId },
-                false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(viewSelect, viewModel.relationshipMap) as PartialGraphQLInfo)) as any[];
+            const recentlyViewed = await readManyAsFeed({
+                ...commonReadParams,
+                info: viewSelect,
+                input: { take, ...input, sortBy: ViewSortBy.LastViewedDesc },
+                model: ViewModel,
+            });
             // Query recently starred objects (of any type). Make sure to ignore tags
-            const recentlyStarred = (await readManyHelper(
-                context.req.userId,
-                { take, ...input, sortBy: UserSortBy.DateCreatedDesc },
-                starSelect,
-                starModel,
-                { byId: context.req.userId, tagId: null },
-                false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialGraphQLInfo(starSelect, starModel.relationshipMap) as PartialGraphQLInfo)) as any[];
+            const recentlyStarred = await readManyAsFeed({
+                ...commonReadParams,
+                info: starSelect,
+                input: { take, ...input, sortBy: UserSortBy.DateCreatedDesc },
+                model: StarModel,
+            });
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [activeRuns, completedRuns, recentlyViewed, recentlyStarred],

@@ -21,6 +21,14 @@ export enum AccountStatus {
   Unlocked = 'Unlocked'
 }
 
+export type ApiKeyStatus = {
+  __typename?: 'ApiKeyStatus';
+  creditsTotal: Scalars['Int'];
+  creditsUsed: Scalars['Int'];
+  locksWhenCreditsUsed: Scalars['Boolean'];
+  nextResetAt: Scalars['Date'];
+};
+
 export type BooleanSearchException = {
   id: Scalars['ID'];
   relation: Scalars['String'];
@@ -537,6 +545,9 @@ export type Member = {
 
 export type Mutation = {
   __typename?: 'Mutation';
+  apiKeyCreate: Scalars['String'];
+  apiKeyDelete: Success;
+  apiKeyValidate: Success;
   commentCreate: Comment;
   commentUpdate: Comment;
   copy: CopyResult;

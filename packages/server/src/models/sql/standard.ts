@@ -2,7 +2,7 @@ import { CODE, DeleteOneType, omit, standardsCreate, standardsUpdate, standardTr
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, GraphQLModelType, ModelLogic, modelToGraphQL, PartialGraphQLInfo, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { validateProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -71,21 +71,21 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel(prisma).getIsStarreds(userId, ids, GraphQLModelType.Standard)
+                ? await StarModel.query(prisma).getIsStarreds(userId, ids, GraphQLModelType.Standard)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isUpvoted
         if (partial.isUpvoted) {
             const isUpvotedArray = userId
-                ? await VoteModel(prisma).getIsUpvoteds(userId, ids, GraphQLModelType.Standard)
+                ? await VoteModel.query(prisma).getIsUpvoteds(userId, ids, GraphQLModelType.Standard)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isUpvoted: isUpvotedArray[i] }));
         }
         // Query for isViewed
         if (partial.isViewed) {
             const isViewedArray = userId
-                ? await ViewModel(prisma).getIsVieweds(userId, ids, GraphQLModelType.Standard)
+                ? await ViewModel.query(prisma).getIsVieweds(userId, ids, GraphQLModelType.Standard)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
@@ -198,7 +198,7 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
 export const standardVerifier = () => ({
     profanityCheck(data: (StandardCreateInput | StandardUpdateInput)[]): void {
         validateProfanity(data.map((d: any) => d.name));
-        TranslationModel().profanityCheck(data);
+        TranslationModel.profanityCheck(data);
     },
 })
 
@@ -301,13 +301,9 @@ export const standardQuerier = (prisma: PrismaType) => ({
     }
 })
 
-export const standardMutater = (
-    prisma: PrismaType,
-    verifier: ReturnType<typeof standardVerifier>,
-    querier: ReturnType<typeof standardQuerier>
-) => ({
+export const standardMutater = (prisma: PrismaType) => ({
     async toDBShapeAdd(userId: string | null, data: StandardCreateInput): Promise<any> {
-        let translations = TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, true)
+        let translations = TranslationModel.relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, true)
         if (translations?.jsonVariable) {
             translations.jsonVariable = sortify(translations.jsonVariable);
         }
@@ -319,20 +315,20 @@ export const standardMutater = (
             type: data.type,
             props: sortify(data.props),
             yup: data.yup ? sortify(data.yup) : undefined,
-            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, true),
-            tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Standard),
+            resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, true),
+            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, GraphQLModelType.Standard),
             translations,
             version: data.version ?? '1.0.0',
         }
     },
     async toDBShapeUpdate(userId: string | null, data: StandardUpdateInput): Promise<any> {
-        let translations = TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false)
+        let translations = TranslationModel.relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false)
         if (translations?.jsonVariable) {
             translations.jsonVariable = sortify(translations.jsonVariable);
         }
         return {
-            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
-            tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Standard),
+            resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, false),
+            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, GraphQLModelType.Standard),
             translations,
         }
     },
@@ -363,7 +359,7 @@ export const standardMutater = (
             let create: any;
             // If standard is internal, check if the shape exists in the database
             if (formattedInput.create[0].isInternal) {
-                const existingStandard = await querier.findMatchingStandardShape(formattedInput.create[0], userId ?? '', false, true);
+                const existingStandard = await standardQuerier(prisma).findMatchingStandardShape(formattedInput.create[0], userId ?? '', false, true);
                 // If standard found, connect instead of create
                 if (existingStandard) {
                     return existingStandard.id;
@@ -377,11 +373,11 @@ export const standardMutater = (
             else {
                 // First call createData helper function, so we can use the generated name
                 create = await this.toDBShapeAdd(userId, formattedInput.create[0]);
-                const check1 = await querier.findMatchingStandardName(create, userId ?? '');
+                const check1 = await standardQuerier(prisma).findMatchingStandardName(create, userId ?? '');
                 if (check1) {
                     throw new CustomError(CODE.StandardDuplicateName, 'Standard with this name/version pair already exists.', { code: genErrorCode('0240') });
                 }
-                const check2 = await querier.findMatchingStandardShape(create, userId ?? '', true, false)
+                const check2 = await standardQuerier(prisma).findMatchingStandardShape(create, userId ?? '', true, false)
                 if (check2) {
                     return check2.id;
                 }
@@ -414,7 +410,12 @@ export const standardMutater = (
             // If standard is internal, disconnect instead
             if (input.isInternal) return null;
             // Delete standard
-            await deleteOneHelper(userId, { id: deleteId, objectType: DeleteOneType.Standard }, StandardModel(prisma));
+            await deleteOneHelper({
+                input: { id: deleteId, objectType: DeleteOneType.Standard },
+                model: StandardModel,
+                prisma,
+                userId,
+            })
             return deleteId;
         }
         return null;
@@ -429,14 +430,14 @@ export const standardMutater = (
         const organizationIds: (string | null | undefined)[] = [];
         if (createMany) {
             standardsCreate.validateSync(createMany, { abortEarly: false });
-            verifier.profanityCheck(createMany);
+            standardVerifier().profanityCheck(createMany);
             // Add createdByOrganizationIds to organizationIds array, if they are set
             organizationIds.push(...createMany.map(input => input.createdByOrganizationId).filter(id => id));
             // Check for max standards created by user TODO
         }
         if (updateMany) {
             standardsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            verifier.profanityCheck(updateMany.map(u => u.data));
+            standardVerifier().profanityCheck(updateMany.map(u => u.data));
             // Add existing organizationIds to organizationIds array, if userId does not match the object's userId
             const objects = await prisma.standard.findMany({
                 where: { id: { in: updateMany.map(input => input.where.id) } },
@@ -457,7 +458,7 @@ export const standardMutater = (
             organizationIds.push(...objects.filter(object => !userId.includes(object.createdByOrganizationId ?? '')).map(object => object.createdByOrganizationId));
         }
         // Find admin/owner member data for every organization
-        const memberData = await OrganizationModel(prisma).isOwnerOrAdmin(userId, organizationIds);
+        const memberData = await OrganizationModel.query(prisma).isOwnerOrAdmin(userId, organizationIds);
         // If any member data is undefined, the user is not authorized to delete one or more objects
         if (memberData.some(member => !member))
             throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0095') })
@@ -473,7 +474,7 @@ export const standardMutater = (
             for (const input of createMany) {
                 // If standard is internal, check if the shape exists in the database
                 if (input.isInternal) {
-                    const existingStandard = await querier.findMatchingStandardShape(input, userId ?? '', false, true);
+                    const existingStandard = await standardQuerier(prisma).findMatchingStandardShape(input, userId ?? '', false, true);
                     // If standard found, pretend it was created
                     if (existingStandard) {
                         // Find full data
@@ -492,11 +493,11 @@ export const standardMutater = (
                 else {
                     // First call createData helper function, so we can use the generated name
                     data = await this.toDBShapeAdd(userId, input);
-                    const check1 = await querier.findMatchingStandardName(data, userId ?? '');
+                    const check1 = await standardQuerier(prisma).findMatchingStandardName(data, userId ?? '');
                     if (check1) {
                         throw new CustomError(CODE.StandardDuplicateName, 'Standard with this name/version pair already exists.', { code: genErrorCode('0238') });
                     }
-                    const check2 = await querier.findMatchingStandardShape(data, userId ?? '', true, false)
+                    const check2 = await standardQuerier(prisma).findMatchingStandardShape(data, userId ?? '', true, false)
                     if (check2) {
                         throw new CustomError(CODE.StandardDuplicateShape, 'Standard with this shape already exists.', { code: genErrorCode('0239') });
                     }
@@ -588,10 +589,12 @@ export const standardMutater = (
                 }
                 // Otherwise, delete (unless it is internal)
                 else {
-                    await prisma.standard.deleteMany({ where: { 
-                        id,
-                        isInternal: false
-                    } });
+                    await prisma.standard.deleteMany({
+                        where: {
+                            id,
+                            isInternal: false
+                        }
+                    });
                 }
             }
         }
@@ -611,25 +614,14 @@ export const standardMutater = (
 /* #region Model */
 //==============================================================
 
-export function StandardModel(prisma: PrismaType) {
-    const prismaObject = prisma.standard
-    const format = standardFormatter();
-    const search = standardSearcher();
-    const verify = standardVerifier();
-    const query = standardQuerier(prisma);
-    const mutate = standardMutater(prisma, verify, query);
-
-    return {
-        prisma,
-        prismaObject,
-        format,
-        ...format,
-        ...search,
-        ...verify,
-        ...query,
-        ...mutate,
-    }
-}
+export const StandardModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.standard,
+    format: standardFormatter(),
+    mutate: standardMutater,
+    query: standardQuerier,
+    search: standardSearcher(),
+    verify: standardVerifier(),
+})
 
 //==============================================================
 /* #endregion Model */

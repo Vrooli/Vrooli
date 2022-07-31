@@ -52,8 +52,8 @@ export const resolvers = {
         star: async (_parent: undefined, { input }: IWrap<StarInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
             if (!context.req.userId) 
                 throw new CustomError(CODE.Unauthorized, 'Must be logged in to star', { code: genErrorCode('0157') });
-            await rateLimit({ context, info, max: 1000, byAccount: true });
-            const success = await StarModel(context.prisma).star(context.req.userId, input);
+            await rateLimit({ context, info, max: 1000, byAccountOrKey: true });
+            const success = await StarModel.mutate(context.prisma).star(context.req.userId, input);
             return { success };
         },
     }

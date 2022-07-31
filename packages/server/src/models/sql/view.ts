@@ -2,7 +2,7 @@ import { CODE, isObject, ViewFor } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, LogType, User, ViewSearchInput, ViewSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { deconstructUnion, FormatConverter, GraphQLModelType, PartialGraphQLInfo, readManyHelper, Searcher, timeFrameToPrisma } from "./base";
+import { deconstructUnion, FormatConverter, GraphQLModelType, ModelLogic, ObjectMap, PartialGraphQLInfo, readManyHelper, Searcher, timeFrameToPrisma } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { OrganizationModel } from "./organization";
@@ -73,27 +73,24 @@ export const viewFormatter = (): FormatConverter<View> => ({
             // Query for each type
             const tos: any[] = [];
             for (const type of Object.keys(toIdsByType)) {
-                let typeModel: any; 
-                switch (type) {
-                    case GraphQLModelType.Organization:
-                        typeModel = OrganizationModel(prisma);
-                        break;
-                    case GraphQLModelType.Project:
-                        typeModel = ProjectModel(prisma);
-                        break;
-                    case GraphQLModelType.Routine:
-                        typeModel = RoutineModel(prisma);
-                        break;
-                    case GraphQLModelType.Standard:
-                        typeModel = StandardModel(prisma);
-                        break;
-                    case GraphQLModelType.User:
-                        typeModel = UserModel(prisma);
-                        break;
-                    default:
-                        throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0186') });
+                const validTypes: Array<keyof typeof GraphQLModelType> = [
+                    GraphQLModelType.Organization,
+                    GraphQLModelType.Project,
+                    GraphQLModelType.Routine,
+                    GraphQLModelType.Standard,
+                    GraphQLModelType.User,
+                ];
+                if (!validTypes.includes(type as keyof typeof GraphQLModelType)) {
+                    throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0186') });
                 }
-                const paginated = await readManyHelper(userId, { ids: toIdsByType[type] }, partial.to[type], typeModel);
+                const model: ModelLogic<any, any> = ObjectMap[type as keyof typeof GraphQLModelType] as ModelLogic<any, any>;
+                const paginated = await readManyHelper({
+                    info: partial.to[type],
+                    input: { ids: toIdsByType[type] },
+                    model,
+                    prisma,
+                    userId,
+                })
                 tos.push(...paginated.edges.map(x => x.node));
             }
             // Apply each "to" to the "to" property of each object
@@ -142,12 +139,33 @@ export const viewSearcher = (): Searcher<ViewSearchInput> => ({
     },
 })
 
+const viewQuerier = (prisma: PrismaType) => ({
+    async getIsVieweds(
+        userId: string,
+        ids: string[],
+        viewFor: keyof typeof ViewFor
+    ): Promise<Array<boolean | null>> {
+        // Create result array that is the same length as ids
+        const result = new Array(ids.length).fill(null);
+        // Filter out nulls and undefineds from ids
+        const idsFiltered = ids.filter(id => id !== null && id !== undefined);
+        const fieldName = `${viewFor.toLowerCase()}Id`;
+        const isViewedArray = await prisma.view.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
+        // Replace the nulls in the result array with true if viewed
+        for (let i = 0; i < ids.length; i++) {
+            // Try to find this id in the isViewed array
+            result[i] = Boolean(isViewedArray.find((view: any) => view[fieldName] === ids[i]));
+        }
+        return result;
+    },
+})
+
 /**
  * Marks objects as viewed. If view exists, updates last viewed time.
  * A user may view their own objects, but it does not count towards its view count.
  * @returns True if view updated correctly
  */
-const viewer = (prisma: PrismaType) => ({
+const viewMutater = (prisma: PrismaType) => ({
     async view(userId: string, input: ViewInput): Promise<boolean> {
         // Define prisma type for viewed object
         const prismaFor = (prisma[forMapper[input.viewFor] as keyof PrismaType] as any);
@@ -187,7 +205,7 @@ const viewer = (prisma: PrismaType) => ({
         switch (input.viewFor) {
             case ViewFor.Organization:
                 // Check if user is an admin or owner of the organization
-                const memberData = await OrganizationModel(prisma).isOwnerOrAdmin(userId, [input.forId]);
+                const memberData = await OrganizationModel.query(prisma).isOwnerOrAdmin(userId, [input.forId]);
                 isOwn = Boolean(memberData[0]);
                 break;
             case ViewFor.Project:
@@ -321,24 +339,6 @@ const viewer = (prisma: PrismaType) => ({
             where: { byId: userId }
         })
     },
-    async getIsVieweds(
-        userId: string,
-        ids: string[],
-        viewFor: keyof typeof ViewFor
-    ): Promise<Array<boolean | null>> {
-        // Create result array that is the same length as ids
-        const result = new Array(ids.length).fill(null);
-        // Filter out nulls and undefineds from ids
-        const idsFiltered = ids.filter(id => id !== null && id !== undefined);
-        const fieldName = `${viewFor.toLowerCase()}Id`;
-        const isViewedArray = await prisma.view.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
-        // Replace the nulls in the result array with true if viewed
-        for (let i = 0; i < ids.length; i++) {
-            // Try to find this id in the isViewed array
-            result[i] = Boolean(isViewedArray.find((view: any) => view[fieldName] === ids[i]));
-        }
-        return result;
-    },
 })
 
 //==============================================================
@@ -349,19 +349,13 @@ const viewer = (prisma: PrismaType) => ({
 /* #region Model */
 //==============================================================
 
-export function ViewModel(prisma: PrismaType) {
-    const prismaObject = prisma.view;
-    const format = viewFormatter();
-    const search = viewSearcher();
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...search,
-        ...viewer(prisma),
-    }
-}
+export const ViewModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.view,
+    mutate: viewMutater,
+    format: viewFormatter(),
+    search: viewSearcher(),
+    query: viewQuerier,
+})
 
 //==============================================================
 /* #endregion Model */

@@ -182,8 +182,14 @@ export const resolvers = {
     },
     Mutation: {
         walletUpdate: async (_parent: undefined, { input }: IWrap<WalletUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Wallet>> => {
-            await rateLimit({ context, info, max: 250, byAccount: true });
-            return updateHelper(context.req.userId, input, info, WalletModel(context.prisma));
+            await rateLimit({ context, info, max: 250, byAccountOrKey: true });
+            return updateHelper({
+                info,
+                input,
+                model: WalletModel,
+                prisma: context.prisma,
+                userId: context.req.userId,
+            })
         },
     }
 }

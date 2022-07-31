@@ -1,6 +1,6 @@
 import { PrismaType } from "types";
 import { Role } from "../../schema/types";
-import { FormatConverter, addJoinTablesHelper, removeJoinTablesHelper, GraphQLModelType } from "./base";
+import { FormatConverter, addJoinTablesHelper, removeJoinTablesHelper, GraphQLModelType, ModelLogic } from "./base";
 
 //==============================================================
 /* #region Custom Components */
@@ -28,16 +28,10 @@ export const roleFormatter = (): FormatConverter<Role> => ({
 /* #region Model */
 //==============================================================
 
-export function RoleModel(prisma: PrismaType) {
-    const prismaObject = prisma.role;
-    const format = roleFormatter();
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-    }
-}
+export const RoleModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.role,
+    format: roleFormatter(),
+})
 
 //==============================================================
 /* #endregion Model */

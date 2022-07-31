@@ -2,7 +2,7 @@ import { CODE, VoteFor } from "@local/shared";
 import { CustomError } from "../../error";
 import { LogType, Vote, VoteInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
+import { deconstructUnion, FormatConverter, GraphQLModelType, ModelLogic } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 
@@ -55,7 +55,7 @@ const forMapper = {
  * A user may vote on their own project/routine/etc.
  * @returns True if cast correctly (even if skipped because of duplicate)
  */
-const voter = (prisma: PrismaType) => ({
+const voteMutater = (prisma: PrismaType) => ({
     async vote(userId: string, input: VoteInput): Promise<boolean> {
         // Define prisma type for voted-on object
         const prismaFor = (prisma[forMapper[input.voteFor] as keyof PrismaType] as any);
@@ -141,6 +141,9 @@ const voter = (prisma: PrismaType) => ({
             return true;
         }
     },
+})
+
+const voteQuerier = (prisma: PrismaType) => ({
     async getIsUpvoteds(
         userId: string,
         ids: string[],
@@ -172,17 +175,12 @@ const voter = (prisma: PrismaType) => ({
 /* #region Model */
 //==============================================================
 
-export function VoteModel(prisma: PrismaType) {
-    const prismaObject = prisma.vote;
-    const format = voteFormatter();
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...voter(prisma),
-    }
-}
+export const VoteModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.vote,
+    format: voteFormatter(),
+    mutate: voteMutater,
+    query: voteQuerier,
+})
 
 //==============================================================
 /* #endregion Model */

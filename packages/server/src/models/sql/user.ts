@@ -1,5 +1,5 @@
 import { User, UserSortBy, UserSearchInput, ResourceListUsedFor, } from "../../schema/types";
-import { addCountFieldsHelper, addJoinTablesHelper, FormatConverter, GraphQLModelType, PartialGraphQLInfo, removeCountFieldsHelper, removeJoinTablesHelper, Searcher } from "./base";
+import { addCountFieldsHelper, addJoinTablesHelper, FormatConverter, GraphQLModelType, ModelLogic, PartialGraphQLInfo, removeCountFieldsHelper, removeJoinTablesHelper, Searcher } from "./base";
 import { PrismaType, RecursivePartial } from "../../types";
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
@@ -48,14 +48,14 @@ export const userFormatter = (): FormatConverter<User> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel(prisma).getIsStarreds(userId, ids, GraphQLModelType.User)
+                ? await StarModel.query(prisma).getIsStarreds(userId, ids, GraphQLModelType.User)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isViewed
         if (partial.isViewed) {
             const isViewedArray = userId
-                ? await ViewModel(prisma).getIsVieweds(userId, ids, GraphQLModelType.User)
+                ? await ViewModel.query(prisma).getIsVieweds(userId, ids, GraphQLModelType.User)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
@@ -109,18 +109,11 @@ export const userSearcher = (): Searcher<UserSearchInput> => ({
 /* #region Model */
 //==============================================================
 
-export function UserModel(prisma: PrismaType) {
-    const prismaObject = prisma.user;
-    const format = userFormatter();
-    const search = userSearcher();
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...search,
-    }
-}
+export const UserModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.user,
+    format: userFormatter(),
+    search: userSearcher(),
+})
 
 //==============================================================
 /* #endregion Model */

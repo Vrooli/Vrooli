@@ -1,7 +1,7 @@
 import { CODE, resourceCreate, resourcesCreate, resourcesUpdate, resourceUpdate } from "@local/shared";
 import { Resource, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Count } from "../../schema/types";
 import { PrismaType } from "types";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, ModelLogic, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
@@ -136,7 +136,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
             if (!data.list) return false;
             return isUserOwner(userId, data.list) || isOrganizationOwner(userId, data.list) || isProjectOwner(userId, data.list) || isRoutineOwner(userId, data.list);
         }
-        if (!existingResources.some(r => isOwner(userId, r))) 
+        if (!existingResources.some(r => isOwner(userId, r)))
             throw new CustomError(CODE.Unauthorized, 'You do not own the resource, or are not an admin of its organization', { code: genErrorCode('0086') });
     },
     toDBShape(userId: string | null, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean, isRelationship: boolean): any {
@@ -146,7 +146,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
             index: data.index,
             link: data.link,
             usedFor: data.usedFor,
-            translations: TranslationModel().relationshipBuilder(userId, data, { create: resourceCreate, update: resourceUpdate }, isAdd),
+            translations: TranslationModel.relationshipBuilder(userId, data, { create: resourceCreate, update: resourceUpdate }, isAdd),
         };
     },
     async relationshipBuilder(
@@ -193,17 +193,17 @@ export const resourceMutater = (prisma: PrismaType) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ResourceCreateInput, ResourceUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId) 
+        if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0087') });
         if (createMany) {
             resourcesCreate.validateSync(createMany, { abortEarly: false });
-            TranslationModel().profanityCheck(createMany);
+            TranslationModel.profanityCheck(createMany);
             await this.authorizedAdd(userId as string, createMany, prisma);
             // Check for max resources on object TODO
         }
         if (updateMany) {
             resourcesUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            TranslationModel().profanityCheck(updateMany.map(u => u.data));
+            TranslationModel.profanityCheck(updateMany.map(u => u.data));
             await this.authorizedUpdateOrDelete(userId as string, updateMany.map(u => u.where.id), prisma);
         }
     },
@@ -233,11 +233,11 @@ export const resourceMutater = (prisma: PrismaType) => ({
                     where: {
                         AND: [
                             input.where,
-                            { list: { userId }},
+                            { list: { userId } },
                         ]
                     }
                 })
-                if (!object) 
+                if (!object)
                     throw new CustomError(CODE.ErrorUnknown, 'Resource not found', { code: genErrorCode('0088') });
                 // Update object
                 const currUpdated = await prisma.resource.update({
@@ -256,7 +256,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
                 where: {
                     AND: [
                         { id: { in: deleteMany } },
-                        { list: { userId }},
+                        { list: { userId } },
                     ]
                 }
             })
@@ -277,20 +277,12 @@ export const resourceMutater = (prisma: PrismaType) => ({
 /* #region Model */
 //==============================================================
 
-export function ResourceModel(prisma: PrismaType) {
-    const prismaObject = prisma.resource;
-    const format = resourceFormatter();
-    const search = resourceSearcher();
-    const mutate = resourceMutater(prisma);
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...search,
-        ...mutate,
-    }
-}
+export const ResourceModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.resource,
+    format: resourceFormatter(),
+    mutate: resourceMutater,
+    search: resourceSearcher(),
+})
 
 //==============================================================
 /* #endregion Model */

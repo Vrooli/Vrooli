@@ -1,6 +1,6 @@
 import { PrismaType, RecursivePartial } from "../../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor } from "../../schema/types";
-import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, PartialGraphQLInfo, addCountFieldsHelper, removeCountFieldsHelper } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, PartialGraphQLInfo, addCountFieldsHelper, removeCountFieldsHelper, ModelLogic } from "./base";
 import { CustomError } from "../../error";
 import { CODE, omit, organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@local/shared";
 import { organization_users } from "@prisma/client";
@@ -60,21 +60,21 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel(prisma).getIsStarreds(userId, ids, GraphQLModelType.Organization)
+                ? await StarModel.query(prisma).getIsStarreds(userId, ids, GraphQLModelType.Organization)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isViewed
         if (partial.isViewed) {
             const isViewedArray = userId
-                ? await ViewModel(prisma).getIsVieweds(userId, ids, GraphQLModelType.Organization)
+                ? await ViewModel.query(prisma).getIsVieweds(userId, ids, GraphQLModelType.Organization)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
         // Query for role
         if (partial.role) {
             const roles = userId
-                ? await OrganizationModel(prisma).getRoles(userId, ids)
+                ? await OrganizationModel.query(prisma).getRoles(userId, ids)
                 : Array(ids.length).fill(null);
             objects = objects.map((x, i) => ({ ...x, role: roles[i] })) as any;
         }
@@ -123,7 +123,7 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
     },
 })
 
-export const organizationVerifier = (prisma: PrismaType) => ({
+export const organizationQuerier = (prisma: PrismaType) => ({
     /**
      * Finds the roles a users has for a list of organizations
      * @param userId The user's id
@@ -150,7 +150,7 @@ export const organizationVerifier = (prisma: PrismaType) => ({
      * @param organizationIds The list of organization IDs
      * @returns Array in the same order as the ids, with either admin/owner role data or undefined
      */
-     async isOwnerOrAdmin(userId: string, organizationIds: (string | null | undefined)[]): Promise<Array<organization_users | undefined>> {
+    async isOwnerOrAdmin(userId: string, organizationIds: (string | null | undefined)[]): Promise<Array<organization_users | undefined>> {
         //TODO
         return Array(organizationIds.length).fill(undefined);
         // if (organizationIds.length === 0) return [];
@@ -169,7 +169,7 @@ export const organizationVerifier = (prisma: PrismaType) => ({
     },
 })
 
-export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typeof organizationVerifier>) => ({
+export const organizationMutater = (prisma: PrismaType) => ({
     async toDBShapeAdd(userId: string | null, data: OrganizationCreateInput | OrganizationUpdateInput): Promise<any> {
         // Add yourself as member
         //TODO
@@ -179,9 +179,9 @@ export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typ
             id: data.id,
             handle: (data as OrganizationUpdateInput).handle ?? null,
             isOpenToNewMembers: data.isOpenToNewMembers,
-            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
-            tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Organization),
-            translations: TranslationModel().relationshipBuilder(userId, data, { create: organizationTranslationCreate, update: organizationTranslationUpdate }, false),
+            resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, false),
+            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, GraphQLModelType.Organization),
+            translations: TranslationModel.relationshipBuilder(userId, data, { create: organizationTranslationCreate, update: organizationTranslationUpdate }, false),
         }
     },
     async toDBShapeUpdate(userId: string | null, data: OrganizationCreateInput | OrganizationUpdateInput): Promise<any> {
@@ -190,21 +190,21 @@ export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typ
             id: data.id,
             handle: (data as OrganizationUpdateInput).handle ?? null,
             isOpenToNewMembers: data.isOpenToNewMembers,
-            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
-            tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Organization),
-            translations: TranslationModel().relationshipBuilder(userId, data, { create: organizationTranslationCreate, update: organizationTranslationUpdate }, false),
+            resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, false),
+            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, GraphQLModelType.Organization),
+            translations: TranslationModel.relationshipBuilder(userId, data, { create: organizationTranslationCreate, update: organizationTranslationUpdate }, false),
         }
     },
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<OrganizationCreateInput, OrganizationUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId) 
+        if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0055') });
         if (createMany) {
             organizationsCreate.validateSync(createMany, { abortEarly: false });
-            TranslationModel().profanityCheck(createMany);
-            createMany.forEach(input => TranslationModel().validateLineBreaks(input, ['bio'], CODE.LineBreaksBio));
+            TranslationModel.profanityCheck(createMany);
+            createMany.forEach(input => TranslationModel.validateLineBreaks(input, ['bio'], CODE.LineBreaksBio));
             // Check if user will pass max organizations limit
             //TODO
             // const existingCount = await prisma.organization.count({ where: { members: { some: { userId: userId, role: MemberRole.Owner as any } } } });
@@ -215,10 +215,10 @@ export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typ
         }
         if (updateMany) {
             organizationsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            TranslationModel().profanityCheck(updateMany.map(u => u.data));
+            TranslationModel.profanityCheck(updateMany.map(u => u.data));
             for (const input of updateMany) {
-                await WalletModel(prisma).verifyHandle(GraphQLModelType.Organization, input.where.id, input.data.handle);
-                TranslationModel().validateLineBreaks(input.data, ['bio'], CODE.LineBreaksBio);
+                await WalletModel.verify(prisma).verifyHandle(GraphQLModelType.Organization, input.where.id, input.data.handle);
+                TranslationModel.validateLineBreaks(input.data, ['bio'], CODE.LineBreaksBio);
             }
             // Check that user is owner OR admin of each organization
             //TODO
@@ -304,22 +304,13 @@ export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typ
 /* #region Model */
 //==============================================================
 
-export function OrganizationModel(prisma: PrismaType) {
-    const prismaObject = prisma.organization;
-    const format = organizationFormatter();
-    const search = organizationSearcher();
-    const verify = organizationVerifier(prisma);
-    const mutate = organizationMutater(prisma, verify);
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...search,
-        ...verify,
-        ...mutate,
-    }
-}
+export const OrganizationModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.organization,
+    format: organizationFormatter(),
+    mutate: organizationMutater,
+    search: organizationSearcher(),
+    query: organizationQuerier,
+})
 
 //==============================================================
 /* #endregion Model */

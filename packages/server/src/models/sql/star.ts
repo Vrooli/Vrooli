@@ -2,7 +2,7 @@ import { CODE, isObject, StarFor } from "@local/shared";
 import { CustomError } from "../../error";
 import { LogType, Star, StarInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { deconstructUnion, FormatConverter, GraphQLModelType, PartialGraphQLInfo, readManyHelper } from "./base";
+import { deconstructUnion, FormatConverter, GraphQLModelType, ModelLogic, ObjectMap, PartialGraphQLInfo, readManyHelper } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { CommentModel } from "./comment";
@@ -74,33 +74,26 @@ export const starFormatter = (): FormatConverter<Star> => ({
             // Query for each type
             const tos: any[] = [];
             for (const type of Object.keys(toIdsByType)) {
-                let typeModel: any; 
-                switch (type) {
-                    case GraphQLModelType.Comment: 
-                        typeModel = CommentModel(prisma); 
-                        break;
-                    case GraphQLModelType.Organization:
-                        typeModel = OrganizationModel(prisma);
-                        break;
-                    case GraphQLModelType.Project:
-                        typeModel = ProjectModel(prisma);
-                        break;
-                    case GraphQLModelType.Routine:
-                        typeModel = RoutineModel(prisma);
-                        break;
-                    case GraphQLModelType.Standard:
-                        typeModel = StandardModel(prisma);
-                        break;
-                    case GraphQLModelType.Tag:
-                        typeModel = TagModel(prisma);
-                        break;
-                    case GraphQLModelType.User:
-                        typeModel = UserModel(prisma);
-                        break;
-                    default:
-                        throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0185') });
+                const validTypes: Array<keyof typeof GraphQLModelType> = [
+                    GraphQLModelType.Comment, 
+                    GraphQLModelType.Organization,
+                    GraphQLModelType.Project,
+                    GraphQLModelType.Routine,
+                    GraphQLModelType.Standard,
+                    GraphQLModelType.Tag,
+                    GraphQLModelType.User,
+                ];
+                if (!validTypes.includes(type as keyof typeof GraphQLModelType)) {
+                    throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0185') });
                 }
-                const paginated = await readManyHelper(userId, { ids: toIdsByType[type] }, partial.to[type], typeModel);
+                const model: ModelLogic<any, any, any> = ObjectMap[type as keyof typeof GraphQLModelType] as ModelLogic<any, any, any>;
+                const paginated = await readManyHelper({
+                    info: partial.to[type],
+                    input: { ids: toIdsByType[type] },
+                    model,
+                    prisma,
+                    userId,
+                })
                 tos.push(...paginated.edges.map(x => x.node));
             }
             // Apply each "to" to the "to" property of each object
@@ -124,18 +117,13 @@ const forMapper = {
     [StarFor.User]: 'user',
 }
 
-/**
- * Casts stars. Makes sure not to duplicate.
- * A user may star their own project/routine/etc, but why would you want to?
- * @returns True if cast correctly (even if skipped because of duplicate)
- */
-const starrer = (prisma: PrismaType) => ({
+const starMutater = (prisma: PrismaType) => ({
     async star(userId: string, input: StarInput): Promise<boolean> {
         // Define prisma type for object being starred
         const prismaFor = (prisma[forMapper[input.starFor] as keyof PrismaType] as any);
         // Check if object being starred exists
         const starringFor: null | { id: string, stars: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, stars: true } });
-        if (!starringFor) 
+        if (!starringFor)
             throw new CustomError(CODE.ErrorUnknown, 'Could not find object being starred', { code: genErrorCode('0110') });
         // Check if star already exists on object by this user TODO fix for tags
         const star = await prisma.star.findFirst({
@@ -189,7 +177,10 @@ const starrer = (prisma: PrismaType) => ({
             }).catch(error => logger.log(LogLevel.error, 'Failed creating "Remove Star" log', { code: genErrorCode('0202'), error }));
         }
         return true;
-    },
+    }
+})
+
+const starQuerier = (prisma: PrismaType) => ({
     async getIsStarreds(
         userId: string,
         ids: string[],
@@ -204,7 +195,7 @@ const starrer = (prisma: PrismaType) => ({
         // Replace the nulls in the result array with true or false
         for (let i = 0; i < ids.length; i++) {
             // check if this id is in isStarredArray
-            if (ids[i] !== null && ids[i] !== undefined && 
+            if (ids[i] !== null && ids[i] !== undefined &&
                 isStarredArray.find((star: any) => star[fieldName] === ids[i])) {
                 result[i] = true;
             }
@@ -221,17 +212,12 @@ const starrer = (prisma: PrismaType) => ({
 /* #region Model */
 //==============================================================
 
-export function StarModel(prisma: PrismaType) {
-    const prismaObject = prisma.star;
-    const format = starFormatter();
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...starrer(prisma),
-    }
-}
+export const StarModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.star,
+    format: starFormatter(),
+    mutate: starMutater,
+    query: starQuerier,
+})
 
 //==============================================================
 /* #endregion Model */

@@ -2,7 +2,7 @@ import { CODE, stepsCreate, stepsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, RunStep, RunStepCreateInput, RunStepStatus, RunStepUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, ModelLogic, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
 import { validateProfanity } from "../../utils/censor";
 
@@ -28,7 +28,7 @@ export const stepVerifier = () => ({
 /**
  * Handles mutations of run steps
  */
-export const stepMutater = (prisma: PrismaType, verifier: ReturnType<typeof stepVerifier>) => ({
+export const stepMutater = (prisma: PrismaType) => ({
     async toDBShapeAdd(userId: string, data: RunStepCreateInput): Promise<any> {
         return {
             id: data.id,
@@ -99,11 +99,11 @@ export const stepMutater = (prisma: PrismaType, verifier: ReturnType<typeof step
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0176') });
         if (createMany) {
             stepsCreate.validateSync(createMany, { abortEarly: false });
-            verifier.profanityCheck(createMany);
+            stepVerifier().profanityCheck(createMany);
         }
         if (updateMany) {
             stepsUpdate.validateSync(updateMany.map(u => ({ ...u.data, id: u.where.id })), { abortEarly: false });
-            verifier.profanityCheck(updateMany.map(u => u.data));
+            stepVerifier().profanityCheck(updateMany.map(u => u.data));
             // Check that user owns each step
             //TODO
         }
@@ -174,17 +174,9 @@ export const stepMutater = (prisma: PrismaType, verifier: ReturnType<typeof step
 /* #region Model */
 //==============================================================
 
-export function StepModel(prisma: PrismaType) {
-    const prismaObject = prisma.run_step;
-    const format = stepFormatter();
-    const verify = stepVerifier();
-    const mutate = stepMutater(prisma, verify);
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...verify,
-        ...mutate,
-    }
-}
+export const StepModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.run_step,
+    format: stepFormatter(),
+    mutate: stepMutater,
+    verify: stepVerifier(),
+})

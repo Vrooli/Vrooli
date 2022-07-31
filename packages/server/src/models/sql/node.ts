@@ -1,5 +1,5 @@
 import { Count, Node, NodeCreateInput, NodeUpdateInput } from "../../schema/types";
-import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType } from "./base";
+import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, ModelLogic } from "./base";
 import { CustomError } from "../../error";
 import { CODE, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeTranslationCreate, nodeTranslationUpdate, whilesCreate, whilesUpdate, whensCreate, whensUpdate, nodeRoutineListItemTranslationCreate, nodeRoutineListItemTranslationUpdate, loopsCreate, loopsUpdate, nodesCreate, nodesUpdate } from "@local/shared";
 import { PrismaType } from "types";
@@ -127,7 +127,7 @@ export const nodeVerifier = () => ({
     },
 })
 
-export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof nodeVerifier>) => ({
+export const nodeMutater = (prisma: PrismaType) => ({
     async toDBShape(userId: string | null, data: NodeCreateInput | NodeUpdateInput): Promise<any> {
         let nodeData: { [x: string]: any } = {
             id: data.id,
@@ -135,7 +135,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
             routineId: data.routineId ?? undefined,
             rowIndex: data.rowIndex ?? undefined,
             type: data.type ?? undefined,
-            translations: TranslationModel().relationshipBuilder(userId, data, { create: nodeTranslationCreate, update: nodeTranslationUpdate }, false),
+            translations: TranslationModel.relationshipBuilder(userId, data, { create: nodeTranslationCreate, update: nodeTranslationUpdate }, false),
         };
         // Create type-specific data, and make sure other types are null
         nodeData.nodeEnd = undefined;
@@ -212,13 +212,13 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
         if (Array.isArray(formattedInput.create)) {
             // Check for valid arguments
             whensCreate.validateSync(formattedInput.create, { abortEarly: false });
-            TranslationModel().profanityCheck(formattedInput.create);
+            TranslationModel.profanityCheck(formattedInput.create);
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
             // Check for valid arguments
             whensUpdate.validateSync(formattedInput.update.map(u => u.data), { abortEarly: false });
-            TranslationModel().profanityCheck(formattedInput.update.map(u => u.data));
+            TranslationModel.profanityCheck(formattedInput.update.map(u => u.data));
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
@@ -359,7 +359,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by node data (since they can only be applied to one node)
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'routines', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        const routineModel = RoutineModel(prisma);
+        const mutate = RoutineModel.mutate(prisma);
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             // Check for valid arguments
@@ -370,8 +370,8 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
                     id: data.id,
                     index: data.index,
                     isOptional: data.isOptional,
-                    routineId: await routineModel.relationshipBuilder(userId, data, isAdd),
-                    translations: TranslationModel().relationshipBuilder(userId, data, { create: nodeRoutineListItemTranslationCreate, update: nodeRoutineListItemTranslationUpdate }, false),
+                    routineId: await mutate.relationshipBuilder(userId, data, isAdd),
+                    translations: TranslationModel.relationshipBuilder(userId, data, { create: nodeRoutineListItemTranslationCreate, update: nodeRoutineListItemTranslationUpdate }, false),
                 })
             }
             formattedInput.create = result;
@@ -387,8 +387,8 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
                     data: {
                         index: data.data.index ?? undefined,
                         isOptional: data.data.isOptional ?? undefined,
-                        routineId: await routineModel.relationshipBuilder(userId, data.data, isAdd),
-                        translations: TranslationModel().relationshipBuilder(userId, data.data, { create: nodeRoutineListItemTranslationCreate, update: nodeRoutineListItemTranslationUpdate }, false),
+                        routineId: await mutate.relationshipBuilder(userId, data.data, isAdd),
+                        translations: TranslationModel.relationshipBuilder(userId, data.data, { create: nodeRoutineListItemTranslationCreate, update: nodeRoutineListItemTranslationUpdate }, false),
                     }
                 })
             }
@@ -451,16 +451,16 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
         const deleteNodeIds: string[] = deleteMany?.filter(Boolean) ?? [];
         const allNodeIds = [...createNodeIds, ...updateNodeIds, ...deleteNodeIds];
         if (allNodeIds.length === 0) return;
-        const routineId: string | null = await verifier.authorizedCheck(userId, allNodeIds, prisma);
+        const routineId: string | null = await nodeVerifier().authorizedCheck(userId, allNodeIds, prisma);
         if (createMany) {
             nodesCreate.validateSync(createMany, { abortEarly: false });
-            verifier.profanityCheck(createMany);
+            nodeVerifier().profanityCheck(createMany);
             // Check if will pass max nodes (on routine) limit
-            if (routineId) await verifier.maximumCheck(routineId, (createMany?.length ?? 0) - (deleteMany?.length ?? 0), prisma);
+            if (routineId) await nodeVerifier().maximumCheck(routineId, (createMany?.length ?? 0) - (deleteMany?.length ?? 0), prisma);
         }
         if (updateMany) {
             nodesUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            verifier.profanityCheck(updateMany.map(u => u.data));
+            nodeVerifier().profanityCheck(updateMany.map(u => u.data));
         }
     },
     /**
@@ -520,20 +520,12 @@ export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof node
 /* #region Model */
 //==============================================================
 
-export function NodeModel(prisma: PrismaType) {
-    const prismaObject = prisma.node;
-    const format = nodeFormatter();
-    const verify = nodeVerifier();
-    const mutate = nodeMutater(prisma, verify);
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...verify,
-        ...mutate,
-    }
-}
+export const NodeModel = ({
+    prismaObject: (prisma: any) => prisma.node,
+    format: nodeFormatter(),
+    mutate: nodeMutater,
+    verify: nodeVerifier(),
+})
 
 //==============================================================
 /* #endregion Model */

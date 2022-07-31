@@ -1,6 +1,6 @@
 import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeRoutineListItem, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemCreateInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, FormatConverter, GraphQLInfo, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, FormatConverter, GraphQLInfo, GraphQLModelType, ModelLogic, modelToGraphQL, PartialGraphQLInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { CODE, DeleteOneType, inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, isObject, omit, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routinesUpdate, routineTranslationCreate, routineTranslationUpdate } from "@local/shared";
 import { hasProfanity } from "../../utils/censor";
@@ -90,21 +90,21 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel(prisma).getIsStarreds(userId, ids, GraphQLModelType.Routine)
+                ? await StarModel.query(prisma).getIsStarreds(userId, ids, GraphQLModelType.Routine)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isUpvoted
         if (partial.isUpvoted) {
             const isUpvotedArray = userId
-                ? await VoteModel(prisma).getIsUpvoteds(userId, ids, GraphQLModelType.Routine)
+                ? await VoteModel.query(prisma).getIsUpvoteds(userId, ids, GraphQLModelType.Routine)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isUpvoted: isUpvotedArray[i] }));
         }
         // Query for isViewed
         if (partial.isViewed) {
             const isViewedArray = userId
-                ? await ViewModel(prisma).getIsVieweds(userId, ids, GraphQLModelType.Routine)
+                ? await ViewModel.query(prisma).getIsVieweds(userId, ids, GraphQLModelType.Routine)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
@@ -500,13 +500,13 @@ export const routineMutater = (prisma: PrismaType) => ({
             isInternal: data.isInternal ?? undefined,
             parentId: (data as RoutineCreateInput)?.parentId ?? undefined,
             version: data.version ?? undefined,
-            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, isAdd),
-            tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Routine),
+            resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, isAdd),
+            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, GraphQLModelType.Routine),
             inputs: await this.relationshipBuilderInput(userId, data, isAdd),
             outputs: await this.relationshipBuilderOutput(userId, data, isAdd),
-            nodes: await NodeModel(prisma).relationshipBuilder(userId, (data as RoutineUpdateInput)?.id ?? null, data, isAdd),
-            nodeLinks: NodeModel(prisma).relationshipBuilderNodeLink(userId, data, isAdd),
-            translations: TranslationModel().relationshipBuilder(userId, data, { create: routineTranslationCreate, update: routineTranslationUpdate }, isAdd),
+            nodes: await NodeModel.mutate(prisma).relationshipBuilder(userId, (data as RoutineUpdateInput)?.id ?? null, data, isAdd),
+            nodeLinks: NodeModel.mutate(prisma).relationshipBuilderNodeLink(userId, data, isAdd),
+            translations: TranslationModel.relationshipBuilder(userId, data, { create: routineTranslationCreate, update: routineTranslationUpdate }, isAdd),
         }
     },
     /**
@@ -524,7 +524,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         // are not supported in this case (since they can only be applied to one routine)
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'inputs', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         let { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
-        const standardModel = StandardModel(prisma);
+        const mutate = StandardModel.mutate(prisma);
         // If nodes relationship provided, calculate inputs and outputs from nodes. Otherwise, use given inputs 
         //TODO
         // Validate create
@@ -539,13 +539,13 @@ export const routineMutater = (prisma: PrismaType) => ({
                 result.push({
                     id: data.id,
                     name: data.name,
-                    standardId: await standardModel.relationshipBuilder(userId, {
+                    standardId: await mutate.relationshipBuilder(userId, {
                         ...data,
                         // If standard was not internal, then it would have been created 
                         // in its own mutation
                         isInternal: true,
                     }, isAdd),
-                    translations: TranslationModel().relationshipBuilder(userId, data, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
+                    translations: TranslationModel.relationshipBuilder(userId, data, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
                 })
             }
             createMany = result;
@@ -563,8 +563,8 @@ export const routineMutater = (prisma: PrismaType) => ({
                     where: update.where,
                     data: {
                         name: update.data.name,
-                        standardId: await standardModel.relationshipBuilder(userId, update.data, isAdd),
-                        translations: TranslationModel().relationshipBuilder(userId, update.data, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
+                        standardId: await mutate.relationshipBuilder(userId, update.data, isAdd),
+                        translations: TranslationModel.relationshipBuilder(userId, update.data, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
                     }
                 })
             }
@@ -591,26 +591,26 @@ export const routineMutater = (prisma: PrismaType) => ({
         // are not supported in this case (since they can only be applied to one routine)
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'outputs', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         let { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
-        const standardModel = StandardModel(prisma);
+        const mutate = StandardModel.mutate(prisma);
         // If nodes relationship provided, calculate inputs and outputs from nodes. Otherwise, use given inputs
         //TODO
         // Validate create
         if (Array.isArray(createMany)) {
             outputsCreate.validateSync(createMany, { abortEarly: false });
-            TranslationModel().profanityCheck(createMany);
+            TranslationModel.profanityCheck(createMany);
             let result = [];
             for (let data of createMany) {
                 // Convert nested relationships
                 result.push({
                     id: data.id,
                     name: data.name,
-                    standardId: await standardModel.relationshipBuilder(userId, {
+                    standardId: await mutate.relationshipBuilder(userId, {
                         ...data,
                         // If standard was not internal, then it would have been created 
                         // in its own mutation
                         isInternal: true,
                     }, isAdd),
-                    translations: TranslationModel().relationshipBuilder(userId, data, { create: outputTranslationCreate, update: outputTranslationUpdate }, false),
+                    translations: TranslationModel.relationshipBuilder(userId, data, { create: outputTranslationCreate, update: outputTranslationUpdate }, false),
                 })
             }
             createMany = result;
@@ -618,7 +618,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         // Validate update
         if (Array.isArray(updateMany)) {
             outputsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            TranslationModel().profanityCheck(updateMany.map(u => u.data));
+            TranslationModel.profanityCheck(updateMany.map(u => u.data));
             let result = [];
             for (let update of updateMany) {
                 // Convert nested relationships
@@ -626,8 +626,8 @@ export const routineMutater = (prisma: PrismaType) => ({
                     where: update.where,
                     data: {
                         name: update.data.name,
-                        standard: await standardModel.relationshipBuilder(userId, update.data, isAdd),
-                        translations: TranslationModel().relationshipBuilder(userId, update.data, { create: outputTranslationCreate, update: outputTranslationUpdate }, false),
+                        standard: await mutate.relationshipBuilder(userId, update.data, isAdd),
+                        translations: TranslationModel.relationshipBuilder(userId, update.data, { create: outputTranslationCreate, update: outputTranslationUpdate }, false),
                     }
                 })
             }
@@ -688,7 +688,12 @@ export const routineMutater = (prisma: PrismaType) => ({
         if (Array.isArray(formattedInput.delete) && formattedInput.delete.length > 0) {
             const deleteId = formattedInput.delete[0].id;
             // Delete routine
-            await deleteOneHelper(userId, { id: deleteId, objectType: DeleteOneType.Routine }, RoutineModel(prisma));
+            await deleteOneHelper({
+                input: { id: deleteId, objectType: DeleteOneType.Routine },
+                model: RoutineModel,
+                prisma,
+                userId,
+            })
             return deleteId;
         }
         return undefined;
@@ -706,7 +711,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         const organizationIds: (string | null | undefined)[] = [];
         if (createMany) {
             routinesCreate.validateSync(createMany, { abortEarly: false });
-            TranslationModel().profanityCheck(createMany);
+            TranslationModel.profanityCheck(createMany);
             // Add createdByOrganizationIds to organizationIds array, if they are set
             organizationIds.push(...createMany.map(input => input.createdByOrganizationId).filter(id => id));
             createMany.forEach(input => this.validateNodePositions(input));
@@ -726,7 +731,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         }
         if (updateMany) {
             routinesUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            TranslationModel().profanityCheck(updateMany.map(u => u.data));
+            TranslationModel.profanityCheck(updateMany.map(u => u.data));
             // Add new organizationIds to organizationIds array, if they are set
             organizationIds.push(...updateMany.map(input => input.data.organizationId).filter(id => id))
             // Add existing organizationIds to organizationIds array, if userId does not match the object's userId
@@ -750,7 +755,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             organizationIds.push(...objects.filter(object => !userId.includes(object.organizationId ?? '')).map(object => object.organizationId));
         }
         // Find admin/owner member data for every organization
-        const memberData = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', organizationIds);
+        const memberData = await OrganizationModel.query(prisma).isOwnerOrAdmin(userId ?? '', organizationIds);
         // If any member data is undefined, the user is not authorized to delete one or more objects
         if (memberData.some(member => !member))
             throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0095') })
@@ -1017,7 +1022,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         }
         // If routine is marked as internal and it doesn't belong to you
         else if (routine.isInternal && routine.userId !== userId) {
-            const memberData = await OrganizationModel(prisma).isOwnerOrAdmin(userId, [routine.organizationId]);
+            const memberData = await OrganizationModel.query(prisma).isOwnerOrAdmin(userId, [routine.organizationId]);
             if (!memberData.some(member => member))
                 throw new CustomError(CODE.Unauthorized, 'Not authorized to copy', { code: genErrorCode('0226') })
         }
@@ -1250,20 +1255,13 @@ export const routineMutater = (prisma: PrismaType) => ({
 /* #region Model */
 //==============================================================
 
-export function RoutineModel(prisma: PrismaType) {
-    const prismaObject = prisma.routine;
-    const format = routineFormatter();
-    const search = routineSearcher();
-    const mutate = routineMutater(prisma);
+export const RoutineModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.routine,
+    format: routineFormatter(),
+    mutate: routineMutater,
+    search: routineSearcher(),
+})
 
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...search,
-        ...mutate,
-    }
-}
 //==============================================================
 /* #endregion Model */
 //==============================================================

@@ -45,19 +45,31 @@ export const resolvers = {
          * Associate a new email address to your account.
          */
         emailCreate: async (_parent: undefined, { input }: IWrap<EmailCreateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
-            await rateLimit({ context, info, max: 10, byAccount: true });
-            return createHelper(context.req.userId, input, info, EmailModel(context.prisma));
+            await rateLimit({ context, info, max: 10, byAccountOrKey: true });
+            return createHelper({
+                info,
+                input,
+                model: EmailModel,
+                prisma: context.prisma,
+                userId: context.req.userId,
+            })
         },
         /**
          * Update an existing email address that is associated with your account.
          */
         emailUpdate: async (_parent: undefined, { input }: IWrap<EmailUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
-            await rateLimit({ context, info, max: 10, byAccount: true });
-            return updateHelper(context.req.userId, input, info, EmailModel(context.prisma));
+            await rateLimit({ context, info, max: 10, byAccountOrKey: true });
+            return updateHelper({
+                info,
+                input,
+                model: EmailModel,
+                prisma: context.prisma,
+                userId: context.req.userId,
+            })
         },
         sendVerificationEmail: async (_parent: undefined, { input }: IWrap<any>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            await rateLimit({ context, info, max: 50, byAccount: true });
-            ProfileModel(context.prisma).setupVerificationCode(input.emailAddress, context.prisma);
+            await rateLimit({ context, info, max: 50, byAccountOrKey: true });
+            await ProfileModel.verify.setupVerificationCode(input.emailAddress, context.prisma);
             return { success: true };   
         },
     }

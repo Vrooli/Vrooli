@@ -2,7 +2,7 @@ import { CODE, runsCreate, runsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, LogType, Run, RunCancelInput, RunCompleteInput, RunCreateInput, RunSearchInput, RunSortBy, RunStatus, RunUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
+import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, ValidateMutationsInput, ModelLogic } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { StepModel } from "./step";
@@ -73,7 +73,7 @@ export const runVerifier = () => ({
 /**
  * Handles run instances of routines
  */
-export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVerifier>) => ({
+export const runMutater = (prisma: PrismaType) => ({
     async toDBShapeAdd(userId: string, data: RunCreateInput): Promise<any> {
         // TODO - when scheduling added, don't assume that it is being started right away
         return {
@@ -81,7 +81,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
             timeStarted: new Date(),
             routineId: data.routineId,
             status: RunStatus.InProgress,
-            steps: await StepModel(prisma).relationshipBuilder(userId, data, true, 'step'),
+            steps: await StepModel.mutate(prisma).relationshipBuilder(userId, data, true, 'step'),
             title: data.title,
             userId,
             version: data.version,
@@ -92,7 +92,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
             timeElapsed: (existingData.timeElapsed ?? 0) + (updateData.timeElapsed ?? 0),
             completedComplexity: (existingData.completedComplexity ?? 0) + (updateData.completedComplexity ?? 0),
             contextSwitches: (existingData.contextSwitches ?? 0) + (updateData.contextSwitches ?? 0),
-            steps: await StepModel(prisma).relationshipBuilder(userId, updateData, false),
+            steps: await StepModel.mutate(prisma).relationshipBuilder(userId, updateData, false),
         }
     },
     async validateMutations({
@@ -103,11 +103,11 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0174') });
         if (createMany) {
             runsCreate.validateSync(createMany, { abortEarly: false });
-            verifier.profanityCheck(createMany);
+            runVerifier().profanityCheck(createMany);
         }
         if (updateMany) {
             runsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            verifier.profanityCheck(updateMany.map(u => u.data));
+            runVerifier().profanityCheck(updateMany.map(u => u.data));
             // Check that user owns each run
             //TODO
         }
@@ -349,19 +349,10 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
 /* #region Model */
 //==============================================================
 
-export function RunModel(prisma: PrismaType) {
-    const prismaObject = prisma.run;
-    const format = runFormatter();
-    const search = runSearcher();
-    const verify = runVerifier();
-    const mutate = runMutater(prisma, verify);
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...search,
-        ...verify,
-        ...mutate,
-    }
-}
+export const RunModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.run,
+    format: runFormatter(),
+    mutate: runMutater,
+    search: runSearcher(),
+    verify: runVerifier(),
+})

@@ -1,6 +1,6 @@
 import { OutputItem } from "../../schema/types";
 import { PrismaType } from "types";
-import { FormatConverter, GraphQLModelType } from "./base";
+import { FormatConverter, GraphQLModelType, ModelLogic } from "./base";
 
 //==============================================================
 /* #region Custom Components */
@@ -21,16 +21,11 @@ export const outputItemFormatter = (): FormatConverter<OutputItem> => ({
 /* #region Model */
 //==============================================================
 
-export function OutputItemModel(prisma: PrismaType) {
-    const prismaObject = prisma.routine_output;
-    const format = outputItemFormatter();
+export const OutputItemModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.routine_output,
+    format: outputItemFormatter(),
+})
 
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-    }
-}
 //==============================================================
 /* #endregion Model */
 //==============================================================

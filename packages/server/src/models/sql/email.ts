@@ -24,7 +24,7 @@ export const emailVerifier = () => ({
     },
 })
 
-export const emailMutater = (prisma: PrismaType, verifier: ReturnType<typeof emailVerifier>) => ({
+export const emailMutater = (prisma: PrismaType) => ({
     toDBShapeAdd(userId: string | null, data: EmailCreateInput): any {
         return {
             userId,
@@ -67,7 +67,7 @@ export const emailMutater = (prisma: PrismaType, verifier: ReturnType<typeof ema
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0043') });
         if (createMany) {
             emailsCreate.validateSync(createMany, { abortEarly: false });
-            verifier.profanityCheck(createMany);
+            emailVerifier().profanityCheck(createMany);
             // Make sure emails aren't already in use
             const emails = await prisma.email.findMany({
                 where: { emailAddress: { in: createMany.map(email => email.emailAddress) } },
@@ -189,20 +189,12 @@ export const emailMutater = (prisma: PrismaType, verifier: ReturnType<typeof ema
 /* #region Model */
 //==============================================================
 
-export function EmailModel(prisma: PrismaType) {
-    const prismaObject = prisma.email;
-    const format = emailFormatter();
-    const verify = emailVerifier();
-    const mutate = emailMutater(prisma, verify);
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...verify,
-        ...mutate,
-    }
-}
+export const EmailModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.email,
+    format: emailFormatter(),
+    mutate: emailMutater,
+    verify: emailVerifier(),
+})
 
 //==============================================================
 /* #endregion Model */

@@ -154,15 +154,15 @@ export const resolvers = {
     },
     Mutation: {
         resourceCreate: async (_parent: undefined, { input }: IWrap<ResourceCreateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
-            await rateLimit({ context, info, max: 500, byAccount: true });
+            await rateLimit({ context, info, max: 500, byAccountOrKey: true });
             return createHelper(context.req.userId, input, info, ResourceModel(context.prisma));
         },
         resourceUpdate: async (_parent: undefined, { input }: IWrap<ResourceUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
-            await rateLimit({ context, info, max: 1000, byAccount: true });
+            await rateLimit({ context, info, max: 1000, byAccountOrKey: true });
             return updateHelper(context.req.userId, input, info, ResourceModel(context.prisma));
         },
         resourceDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
-            await rateLimit({ context, info, max: 500, byAccount: true });
+            await rateLimit({ context, info, max: 500, byAccountOrKey: true });
             return deleteManyHelper(context.req.userId, input, ResourceModel(context.prisma));
         },
     }

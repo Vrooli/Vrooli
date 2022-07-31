@@ -2,34 +2,35 @@
 import { CopyInput, CopyType, Count, DeleteManyInput, DeleteOneInput, FindByIdOrHandleInput, ForkInput, PageInfo, Success, TimeFrame } from '../../schema/types';
 import { PrismaType, RecursivePartial } from '../../types';
 import { GraphQLResolveInfo } from 'graphql';
-import { commentFormatter, commentSearcher } from './comment';
-import { nodeFormatter, nodeRoutineListFormatter } from './node';
-import { organizationFormatter, organizationSearcher } from './organization';
-import { projectFormatter, projectSearcher } from './project';
-import { reportFormatter, reportSearcher } from './report';
-import { resourceFormatter, resourceSearcher } from './resource';
-import { roleFormatter } from './role';
-import { routineFormatter, routineSearcher } from './routine';
-import { standardFormatter, standardSearcher } from './standard';
-import { tagFormatter, tagSearcher } from './tag';
-import { userFormatter, userSearcher } from './user';
-import { starFormatter } from './star';
-import { voteFormatter } from './vote';
-import { emailFormatter } from './email';
+import { CommentModel } from './comment';
+import { NodeModel } from './node';
+import { OrganizationModel } from './organization';
+import { ProjectModel } from './project';
+import { ReportModel } from './report';
+import { ResourceModel } from './resource';
+import { RoleModel } from './role';
+import { RoutineModel } from './routine';
+import { StandardModel } from './standard';
+import { TagModel } from './tag';
+import { UserModel } from './user';
+import { StarModel } from './star';
+import { VoteModel } from './vote';
+import { EmailModel } from './email';
 import { CustomError } from '../../error';
 import { CODE, isObject, ViewFor } from '@local/shared';
-import { profileFormatter } from './profile';
-import { memberFormatter } from './member';
+import { ProfileModel } from './profile';
+import { MemberModel } from './member';
 import { resolveGraphQLInfo } from '../../utils';
-import { inputItemFormatter } from './inputItem';
-import { outputItemFormatter } from './outputItem';
-import { resourceListFormatter, resourceListSearcher } from './resourceList';
-import { tagHiddenFormatter } from './tagHidden';
+import { InputItemModel } from './inputItem';
+import { OutputItemModel } from './outputItem';
+import { ResourceListModel } from './resourceList';
+import { TagHiddenModel } from './tagHidden';
 import { Log, LogType } from '../../models/nosql';
 import { genErrorCode, logger, LogLevel } from '../../logger';
-import { viewFormatter, ViewModel } from './view';
-import { runFormatter, runSearcher } from './run';
+import { ViewModel } from './view';
+import { RunModel } from './run';
 import pkg from 'lodash';
+import { WalletModel } from './wallet';
 const { difference, flatten, merge } = pkg;
 
 
@@ -76,10 +77,13 @@ export enum GraphQLModelType {
  * Every business layer object has at least a PrismaType object and a format converter. 
  * Everything else is optional
  */
-export interface ModelBusinessLayer<GraphQLModel, SearchInput> extends FormatConverter<GraphQLModel>, Partial<Searcher<SearchInput>> {
-    prisma: PrismaType,
-    cud?({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<any, any>): Promise<CUDResult<GraphQLModel>>
-    duplicate?({ userId, objectId, isFork, createCount }: DuplicateInput): Promise<DuplicateResult<GraphQLModel>>
+export type ModelLogic<GraphQLModel, SearchInput, PermissionObject> = {
+    format: FormatConverter<GraphQLModel>;
+    prismaObject: (prisma: PrismaType) => PrismaType[keyof PrismaType];
+    search?: Searcher<SearchInput>;
+    mutate?: (prisma: PrismaType) => Mutater<GraphQLModel>;
+    verify?: { [x: string]: any };
+    query?: (prisma: PrismaType) => Querier<PermissionObject>;
 }
 
 /**
@@ -180,6 +184,21 @@ export type Searcher<SearchInput> = {
 }
 
 /**
+ * Describes shape of component that can be queried
+ */
+export type Querier<PermissionObject> = {
+    permissions?({ userId, objectId }: { userId: string | null, objectId: string }): Promise<PermissionObject>
+} & { [x: string]: any };
+
+/**
+ * Describes shape of component that can be mutated
+ */
+export type Mutater<GraphQLModel> = {
+    cud?({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<any, any>): Promise<CUDResult<GraphQLModel>>;
+    duplicate?({ userId, objectId, isFork, createCount }: DuplicateInput): Promise<DuplicateResult<GraphQLModel>>;
+} & { [x: string]: any };
+
+/**
  * Mapper for associating a model's many-to-many relationship names with
  * their corresponding join table names.
  */
@@ -262,89 +281,68 @@ export interface DuplicateResult<GraphQLObject> {
 /* #endregion Type Definitions */
 //======================================================================================================================
 
-export const FormatterMap: { [key in GraphQLModelType]?: FormatConverter<any> } = {
-    [GraphQLModelType.Comment]: commentFormatter(),
-    [GraphQLModelType.Email]: emailFormatter(),
-    [GraphQLModelType.InputItem]: inputItemFormatter(),
-    [GraphQLModelType.Member]: memberFormatter(),
-    [GraphQLModelType.Node]: nodeFormatter(),
-    [GraphQLModelType.NodeRoutineList]: nodeRoutineListFormatter(),
-    [GraphQLModelType.Organization]: organizationFormatter(),
-    [GraphQLModelType.OutputItem]: outputItemFormatter(),
-    [GraphQLModelType.Profile]: profileFormatter(),
-    [GraphQLModelType.Project]: projectFormatter(),
-    [GraphQLModelType.Report]: reportFormatter(),
-    [GraphQLModelType.Resource]: resourceFormatter(),
-    [GraphQLModelType.ResourceList]: resourceListFormatter(),
-    [GraphQLModelType.Role]: roleFormatter(),
-    [GraphQLModelType.Routine]: routineFormatter(),
-    [GraphQLModelType.Run]: runFormatter(),
-    [GraphQLModelType.Standard]: standardFormatter(),
-    [GraphQLModelType.Star]: starFormatter(),
-    [GraphQLModelType.Tag]: tagFormatter(),
-    [GraphQLModelType.TagHidden]: tagHiddenFormatter(),
-    [GraphQLModelType.User]: userFormatter(),
-    [GraphQLModelType.Vote]: voteFormatter(),
-    [GraphQLModelType.View]: viewFormatter(),
+/**
+ * Maps model types to various helper functions
+ */
+export const ObjectMap: { [key in GraphQLModelType]?: ModelLogic<any, any, any> } = {
+    [GraphQLModelType.Comment]: CommentModel,
+    [GraphQLModelType.Email]: EmailModel,
+    [GraphQLModelType.InputItem]: InputItemModel,
+    [GraphQLModelType.Member]: MemberModel, // TODO create searcher for members
+    [GraphQLModelType.Node]: NodeModel,
+    [GraphQLModelType.NodeRoutineList]: NodeRoutineListModel,
+    [GraphQLModelType.Organization]: OrganizationModel,
+    [GraphQLModelType.OutputItem]: OutputItemModel,
+    [GraphQLModelType.Profile]: ProfileModel,
+    [GraphQLModelType.Project]: ProjectModel,
+    [GraphQLModelType.Report]: ReportModel,
+    [GraphQLModelType.Resource]: ResourceModel,
+    [GraphQLModelType.ResourceList]: ResourceListModel,
+    [GraphQLModelType.Role]: RoleModel,
+    [GraphQLModelType.Routine]: RoutineModel,
+    [GraphQLModelType.Run]: RunModel,
+    [GraphQLModelType.Standard]: StandardModel,
+    [GraphQLModelType.RunStep]: RunStepModel,
+    [GraphQLModelType.Star]: StarModel,
+    [GraphQLModelType.Tag]: TagModel,
+    [GraphQLModelType.TagHidden]: TagHiddenModel,
+    [GraphQLModelType.User]: UserModel,
+    [GraphQLModelType.Vote]: VoteModel,
+    [GraphQLModelType.View]: ViewModel,
+    [GraphQLModelType.Wallet]: WalletModel,
 }
 
-export const SearcherMap: { [key in GraphQLModelType]?: Searcher<any> } = {
-    [GraphQLModelType.Comment]: commentSearcher(),
-    // 'Member': memberSearcher(),TODO create searchers for all these
-    [GraphQLModelType.Organization]: organizationSearcher(),
-    [GraphQLModelType.Project]: projectSearcher(),
-    [GraphQLModelType.Report]: reportSearcher(),
-    [GraphQLModelType.Resource]: resourceSearcher(),
-    [GraphQLModelType.ResourceList]: resourceListSearcher(),
-    [GraphQLModelType.Routine]: routineSearcher(),
-    [GraphQLModelType.Run]: runSearcher(),
-    [GraphQLModelType.Standard]: standardSearcher(),
-    // 'Star': starSearcher(),
-    [GraphQLModelType.Tag]: tagSearcher(),
-    [GraphQLModelType.User]: userSearcher(),
-    // 'Vote': voteSearcher(),
-}
-
-export const PrismaMap: { [key in GraphQLModelType]?: (prisma: PrismaType) => any } = {
-    [GraphQLModelType.Comment]: (prisma: PrismaType) => prisma.comment,
-    [GraphQLModelType.Email]: (prisma: PrismaType) => prisma.email,
-    [GraphQLModelType.Member]: (prisma: PrismaType) => prisma.organization_users,
-    [GraphQLModelType.Node]: (prisma: PrismaType) => prisma.node,
-    [GraphQLModelType.Organization]: (prisma: PrismaType) => prisma.organization,
-    [GraphQLModelType.Profile]: (prisma: PrismaType) => prisma.user,
-    [GraphQLModelType.Project]: (prisma: PrismaType) => prisma.project,
-    [GraphQLModelType.Report]: (prisma: PrismaType) => prisma.report,
-    [GraphQLModelType.Resource]: (prisma: PrismaType) => prisma.resource,
-    [GraphQLModelType.Role]: (prisma: PrismaType) => prisma.role,
-    [GraphQLModelType.Routine]: (prisma: PrismaType) => prisma.routine,
-    [GraphQLModelType.Run]: (prisma: PrismaType) => prisma.run,
-    [GraphQLModelType.Standard]: (prisma: PrismaType) => prisma.standard,
-    [GraphQLModelType.RunStep]: (prisma: PrismaType) => prisma.run_step,
-    [GraphQLModelType.Star]: (prisma: PrismaType) => prisma.star,
-    [GraphQLModelType.Tag]: (prisma: PrismaType) => prisma.tag,
-    [GraphQLModelType.User]: (prisma: PrismaType) => prisma.user,
-    [GraphQLModelType.Vote]: (prisma: PrismaType) => prisma.vote,
-    [GraphQLModelType.View]: (prisma: PrismaType) => prisma.view,
-}
+/**
+ * Finds 
+ */
 
 /**
  * Determines if an object is a relationship object, and not an array of relationship objects.
  * @param obj - object to check
- * @returns true if obj is a relationship object, false otherwise
+ * @returns True if obj is a relationship object, false otherwise
  */
 const isRelationshipObject = (obj: any): boolean => isObject(obj) && Object.prototype.toString.call(obj) !== '[object Date]';
 
 /**
  * Determines if an object is an array of relationship objects, and not a relationship object.
  * @param obj - object to check
- * @returns true if obj is an array of relationship objects, false otherwise
+ * @returns True if obj is an array of relationship objects, false otherwise
  */
 const isRelationshipArray = (obj: any): boolean => Array.isArray(obj) && obj.every(e => isRelationshipObject(e));
 
 /**
+ * Lowercases the first letter of a string
+ * @param str String to lowercase
+ * @returns Lowercased string
+ */
+export function lowercaseFirstLetter(str: string): string {
+    return str.charAt(0).toLowerCase() + str.slice(1);
+}
+
+/**
  * Helper function for adding join tables between 
  * many-to-many relationship parents and children
- * @param obj - GraphQL-shaped object
+ * @param partialInfo - GraphQL-shaped object
  * @param map - Mapping of many-to-many relationship names to join table names
  */
 export const addJoinTablesHelper = (partialInfo: PartialGraphQLInfo, map: JoinMap | undefined): any => {
@@ -538,7 +536,9 @@ const injectTypenames = (select: { [x: string]: any }, parentRelationshipMap: Re
         if (typeof nestedValue === 'object') nestedValue = nestedValue[selectKey];
         // If nestedValue is not an object, try to get its relationshipMap
         let relationshipMap;
-        if (nestedValue !== undefined && typeof nestedValue !== 'object') relationshipMap = FormatterMap[nestedValue]?.relationshipMap;
+        if (nestedValue !== undefined && typeof nestedValue !== 'object') {
+            relationshipMap = ObjectMap[nestedValue]?.format?.relationshipMap;
+        }
         // If relationship map found, this becomes the new parent
         if (relationshipMap) {
             // New parent found, so we recurse with nestFields removed
@@ -617,8 +617,8 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
     }
     // Handle base case
     const type: string | undefined = partial?.__typename;
-    if (type !== undefined && type in FormatterMap) {
-        const formatter: FormatConverter<any> = FormatterMap[type as keyof typeof FormatterMap] as FormatConverter<any>;
+    const formatter: FormatConverter<any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
+    if (formatter) {
         if (formatter.removeCalculatedFields) result = formatter.removeCalculatedFields(result);
         if (formatter.deconstructUnions) result = formatter.deconstructUnions(result);
         if (formatter.addJoinTables) result = formatter.addJoinTables(result);
@@ -670,8 +670,8 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
     }
     // Convert data to usable shape
     const type: string | undefined = partialInfo?.__typename;
-    if (type !== undefined && type in FormatterMap) {
-        const formatter: FormatConverter<any> = FormatterMap[type as keyof typeof FormatterMap] as FormatConverter<any>;
+    const formatter: FormatConverter<any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
+    if (formatter) {
         if (formatter.constructUnions) data = formatter.constructUnions(data);
         if (formatter.removeJoinTables) data = formatter.removeJoinTables(data);
         if (formatter.removeCountFields) data = formatter.removeCountFields(data);
@@ -952,9 +952,9 @@ const subsetsMatch = (obj: any, query: any): boolean => {
     // This should hopefully always be the case for the main subsetsMatch call, 
     // but not necessarily for the recursive calls.
     let formattedQuery = query;
-    if (query.__typename in FormatterMap) {
+    const formatter: FormatConverter<any> | undefined = typeof query?.__typename === 'string' ? ObjectMap[query.__typename as keyof typeof ObjectMap]?.format : undefined;
+    if (formatter) {
         // Remove calculated fields from query, since these will not be in obj
-        const formatter = FormatterMap[query.__typename as keyof typeof FormatterMap];
         formattedQuery = formatter?.removeCalculatedFields ? formatter.removeCalculatedFields(query) : query;
     }
     // First, check if obj is a join table. If this is the case, what we want to check 
@@ -1201,14 +1201,13 @@ export const addSupplementalFields = async (
         // we must loop through each element in it and call pickObjectById
         const objectData = ids.map((id: string) => pickObjectById(data, id));
         // Now that we have the data for each object, we can add the supplemental fields
-        if (type in FormatterMap) {
-            const valuesWithSupplements = FormatterMap[type as keyof typeof FormatterMap]?.addSupplementalFields
-                ? await (FormatterMap[type as keyof typeof FormatterMap] as any).addSupplementalFields(prisma, userId, objectData, selectFieldsDict[type])
-                : objectData;
-            // Add each value to objectsById
-            for (const v of valuesWithSupplements) {
-                objectsById[v.id] = v;
-            }
+        const formatter: FormatConverter<any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
+        const valuesWithSupplements = formatter?.addSupplementalFields ?
+            await formatter.addSupplementalFields(prisma, userId, objectData, selectFieldsDict[type]) :
+            objectData;
+        // Add each value to objectsById
+        for (const v of valuesWithSupplements) {
+            objectsById[v.id] = v;
         }
     }
     // Convert objectsById dictionary back into shape of data
@@ -1219,7 +1218,7 @@ export const addSupplementalFields = async (
 /**
  * Combines addSupplementalFields calls for multiple object types
  * @param data Array of arrays, where each array is a list of the same object type queried from the database
- * @param partials Array of PartialGraphQLInfo objects, in the same order as data arrays
+ * @param partialInfos Array of PartialGraphQLInfo objects, in the same order as data arrays
  * @param keys Keys to associate with each data array
  * @param userId Requesting user's ID
  * @param prisma Prisma client
@@ -1257,38 +1256,80 @@ export const addSupplementalFieldsMultiTypes = async (
     return formatted;
 }
 
+type PermissionsHelper<PermissionKeys extends readonly string[], PermissionObject> = {
+    model: ModelLogic<any, any, PermissionObject>;
+    objectId: string;
+    /**
+     * Array of permissions to check for
+     */
+    permissions: PermissionKeys;
+    prisma: PrismaType;
+    userId: string | null;
+}
+
+//TODO needs better typescript handling
+/**
+ * Helper function to query for the permissions a user has on a given object, 
+ * @returns Requested permissions in an object with keys equal to the permissions, and values equal to true if the user has the permission
+ */
+export async function permissionsHelper<PermissionKeys extends readonly string[], PermissionObject extends { [key in PermissionKeys[number]]: boolean }>({
+    model,
+    objectId,
+    permissions,
+    prisma,
+    userId,
+}: PermissionsHelper<PermissionKeys, PermissionObject>): Promise<{ [key in PermissionKeys[number]]: boolean }> {
+    // Initialize result with false
+    let result: { [x: string]: boolean } = {};
+    for (const permission of permissions) {
+        result[permission] = false;
+    }
+    if (!model.query) return result as { [key in PermissionKeys[number]]: boolean };
+    const query = model.query(prisma);
+    if (!query.permissions) return result as { [key in PermissionKeys[number]]: boolean };
+    return await query.permissions({ userId, objectId }) as { [key in PermissionKeys[number]]: boolean };
+}
+
+type ReadOneHelperProps<GraphQLModel> = {
+    info: GraphQLInfo | PartialGraphQLInfo;
+    input: any;
+    model: ModelLogic<GraphQLModel, any, any>;
+    prisma: PrismaType;
+    userId: string | null;
+}
+
 /**
  * Helper function for reading one object in a single line
- * @param userId ID of user making the request
- * @param input GraphQL find by ID input object
- * @param info GraphQL info object
- * @param model Business layer object
  * @returns GraphQL response object
  */
-export async function readOneHelper<GraphQLModel>(
-    userId: string | null,
-    input: FindByIdOrHandleInput,
-    info: GraphQLInfo | PartialGraphQLInfo,
-    model: ModelBusinessLayer<GraphQLModel, any>,
-): Promise<RecursivePartial<GraphQLModel>> {
-    // console.log('readonehelper start', JSON.stringify(input));
+export async function readOneHelper<GraphQLModel>({
+    info,
+    input,
+    model,
+    prisma,
+    userId,
+}: ReadOneHelperProps<GraphQLModel>): Promise<RecursivePartial<GraphQLModel>> {
+    const objectType = model.format.relationshipMap.__typename;
     // Validate input
     if (!input.id && !input.handle)
         throw new CustomError(CODE.InvalidArgs, 'id is required', { code: genErrorCode('0019') });
     // Partially convert info
-    let partialInfo = toPartialGraphQLInfo(info, model.relationshipMap);
+    let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0020') });
-    // Uses __typename to determine which Prisma object is being queried
-    const objectType: string | undefined = partialInfo.__typename;
-    if (objectType === undefined || !(objectType in PrismaMap)) {
-        throw new CustomError(CODE.InternalError, `${objectType} missing in PrismaMap`, { code: genErrorCode('0021') });
-    }
+    // Check permissions
+    const { canRead } = await permissionsHelper({ 
+        model,
+        objectId: input.id || input.handle,
+        permissions: ['read'],
+        prisma,
+        userId,
+    });
+    if (!canRead) throw new CustomError(CODE.Unauthorized, `Not allowed to read object`, { code: genErrorCode('0249') });
     // Get the Prisma object
-    const prismaObject = (PrismaMap[objectType as keyof typeof PrismaMap] as any)(model.prisma);
     let object = input.id ?
-        await prismaObject.findUnique({ where: { id: input.id }, ...selectHelper(partialInfo) }) :
-        await prismaObject.findFirst({ where: { handle: input.handle }, ...selectHelper(partialInfo) });
+        await (model.prismaObject(prisma) as any).findUnique({ where: { id: input.id }, ...selectHelper(partialInfo) }) :
+        await (model.prismaObject(prisma) as any).findFirst({ where: { handle: input.handle }, ...selectHelper(partialInfo) });
     if (!object)
         throw new CustomError(CODE.NotFound, `${objectType} not found`, { code: genErrorCode('0022') });
     // console.log('readonehelper got object', JSON.stringify(object), '\n\n');
@@ -1297,61 +1338,66 @@ export async function readOneHelper<GraphQLModel>(
     // console.log('readonehelper formatted', JSON.stringify(formatted), '\n\n');
     // If logged in and object has view count, handle it
     if (userId && objectType in ViewFor) {
-        ViewModel(model.prisma).view(userId, { forId: object.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language
+        ViewModel.mutate(prisma).view(userId, { forId: object.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language
     }
-    return (await addSupplementalFields(model.prisma, userId, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
+    return (await addSupplementalFields(prisma, userId, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
+}
+
+type ReadManyHelperProps<GraphQLModel, SearchInput extends SearchInputBase<any>> = {
+    additionalQueries?: { [x: string]: any };
+    /**
+     * Decides if queried data should be called. Defaults to true. 
+     * You may want to set this to false if you are calling readManyHelper multiple times, so you can do this 
+     * later in one call
+     */
+    addSupplemental?: boolean;
+    info: GraphQLInfo | PartialGraphQLInfo;
+    input: any;
+    model: ModelLogic<GraphQLModel, SearchInput, any>;
+    prisma: PrismaType;
+    userId: string | null;
 }
 
 /**
  * Helper function for reading many objects in a single line.
  * Cursor-based search. Supports pagination, sorting, and filtering by string.
- * @param userId ID of user making the request
- * @param input GraphQL search input object
- * @param info GraphQL info object
- * @param model Business layer object
- * @param additionalQueries Additional where clauses to apply to the search
- * @param addSupplemental Decides if queried data should be called. Defaults to true. 
- * You may want to set this to false if you are calling readManyHelper multiple times, so you can do this 
- * later in one call
  * @returns Paginated search result
  */
-export async function readManyHelper<GraphQLModel, SearchInput extends SearchInputBase<any>>(
-    userId: string | null,
-    input: SearchInput,
-    info: GraphQLInfo | PartialGraphQLInfo,
-    model: ModelBusinessLayer<GraphQLModel, SearchInput>,
-    additionalQueries?: { [x: string]: any },
+export async function readManyHelper<GraphQLModel, SearchInput extends SearchInputBase<any>>({
+    additionalQueries,
     addSupplemental = true,
-): Promise<PaginatedSearchResult> {
+    info,
+    input,
+    model,
+    prisma,
+    userId,
+}: ReadManyHelperProps<GraphQLModel, SearchInput>): Promise<PaginatedSearchResult> {
     // Partially convert info type
-    let partialInfo = toPartialGraphQLInfo(info, model.relationshipMap);
+    let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0023') });
     // Make sure ID is in partialInfo, since this is required for cursor-based search
     partialInfo.id = true;
-    // Uses __typename to determine which Prisma object is being queried
-    const objectType: string | undefined = partialInfo.__typename;
-    if (objectType === undefined || !(objectType in PrismaMap))
-        throw new CustomError(CODE.InternalError, `${objectType} not found in PrismaMap`, { code: genErrorCode('0024') });
+    // Check permissions
+    // TODO need different permissions than readonehelper. Needs to use requested fields to determine which permissions to check.
+    // For example, a routines query with a specified organizationId input must check read permission on the organizationId, 
+    // and use that to determine if private routines can be returned.
     // Create query for specified ids
     const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
     // Determine text search query
-    const searchQuery = (input.searchString && model.getSearchStringQuery) ? model.getSearchStringQuery(input.searchString) : undefined;
+    const searchQuery = (input.searchString && model.search?.getSearchStringQuery) ? model.search.getSearchStringQuery(input.searchString) : undefined;
     // Determine createdTimeFrame query
     const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
     // Determine updatedTimeFrame query
     const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
     // Create type-specific queries
-    let typeQuery: any = undefined;
-    if (objectType in SearcherMap && SearcherMap[objectType as keyof typeof SearcherMap]?.customQueries) {
-        typeQuery = (SearcherMap[objectType as keyof typeof SearcherMap] as any).customQueries(input);
-    }
+    let typeQuery = model.search?.customQueries ? model.search.customQueries(input) : undefined;
     // Combine queries
     const where = { ...additionalQueries, ...idQuery, ...searchQuery, ...createdQuery, ...updatedQuery, ...typeQuery };
     // Determine sort order
-    const orderBy = model.getSortQuery ? model.getSortQuery(input.sortBy ?? model.defaultSort) : undefined;
+    const orderBy = model.search?.getSortQuery ? model.search.getSortQuery(input.sortBy ?? model.search.defaultSort) : undefined;
     // Find requested search array
-    const searchResults = await (PrismaMap[objectType as keyof typeof PrismaMap] as any)(model.prisma).findMany({
+    const searchResults = await (model.prismaObject(prisma) as any).findMany({
         where,
         orderBy,
         take: input.take ?? 20,
@@ -1367,7 +1413,7 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
         // Find cursor
         const cursor = searchResults[searchResults.length - 1].id;
         // Query after the cursor to check if there are more results
-        const hasNextPage = await (PrismaMap[objectType as keyof typeof PrismaMap] as any)(model.prisma).findMany({
+        const hasNextPage = await (model.prismaObject(prisma) as any).findMany({
             take: 1,
             cursor: {
                 id: cursor
@@ -1399,28 +1445,35 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     // Return formatted for GraphQL
     let formattedNodes = paginatedResults.edges.map(({ node }) => node);
     formattedNodes = formattedNodes.map(n => modelToGraphQL(n, partialInfo as PartialGraphQLInfo));
-    formattedNodes = await addSupplementalFields(model.prisma, userId, formattedNodes, partialInfo);
+    formattedNodes = await addSupplementalFields(prisma, userId, formattedNodes, partialInfo);
     return { pageInfo: paginatedResults.pageInfo, edges: paginatedResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })) };
+}
+
+type CountHelperProps<GraphQLModel, CountInput extends CountInputBase> = {
+    input: CountInput;
+    model: ModelLogic<GraphQLModel, any, any>;
+    prisma: PrismaType;
+    where?: { [x: string]: any };
 }
 
 /**
  * Counts the number of objects in the database, optionally filtered by a where clauses
- * @param input Count metrics common to all models
- * @param model Business layer object
- * @param where Additional where clauses, in addition to the createdMetric and updatedMetric passed into input
  * @returns The number of matching objects
  */
-export async function countHelper<CountInput extends CountInputBase>(input: CountInput, model: ModelBusinessLayer<any, any>, where?: { [x: string]: any }): Promise<number> {
-    // Check if model is supported
-    const type: string = model.relationshipMap.__typename;
-    if (!type || !(type in PrismaMap))
-        throw new CustomError(CODE.InternalError, `${type} not found in PrismaMap`, { code: genErrorCode('0183') });
+export async function countHelper<GraphQLModel, CountInput extends CountInputBase>({
+    input,
+    model,
+    prisma,
+    where,
+}: CountHelperProps<GraphQLModel, CountInput>): Promise<number> {
+    // Check permissions
+    //TODO use same permissions as readmanyhelper, to determine if private should be counted
     // Create query for created metric
     const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
     // Create query for created metric
     const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
     // Count objects that match queries
-    return await (PrismaMap[type as keyof typeof PrismaMap] as any)(model.prisma).count({
+    return await (model.prismaObject(prisma) as any).count({
         where: {
             ...where,
             ...createdQuery,
@@ -1429,30 +1482,40 @@ export async function countHelper<CountInput extends CountInputBase>(input: Coun
     });
 }
 
+type CreateHelperProps<GraphQLModel> = {
+    info: GraphQLInfo | PartialGraphQLInfo;
+    input: any;
+    model: ModelLogic<GraphQLModel, any, any>;
+    prisma: PrismaType;
+    userId: string | null;
+}
+
 /**
  * Helper function for creating one object in a single line.
  * Throws error if not successful.
- * @param userId ID of user making the request
- * @param input GraphQL create input object
- * @param info GraphQL info object
- * @param model Business layer object
  * @returns GraphQL response object
  */
-export async function createHelper<GraphQLModel>(
-    userId: string | null,
-    input: any,
-    info: GraphQLInfo | PartialGraphQLInfo,
-    model: ModelBusinessLayer<GraphQLModel, any>,
-): Promise<RecursivePartial<GraphQLModel>> {
+export async function createHelper<GraphQLModel>({
+    info,
+    input,
+    model,
+    prisma,
+    userId,
+}: CreateHelperProps<GraphQLModel>): Promise<RecursivePartial<GraphQLModel>> {
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object', { code: genErrorCode('0025') });
-    if (!model.cud)
+    const cud = model.mutate ? model.mutate(prisma).cud : undefined;
+    if (!cud)
         throw new CustomError(CODE.InternalError, 'Model does not support create', { code: genErrorCode('0026') });
     // Partially convert info type
-    const partialInfo = toPartialGraphQLInfo(info, model.relationshipMap);
+    const partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0027') });
-    const cudResult = await model.cud({ partialInfo, userId, createMany: [input] });
+    // Check permissions
+    // TODO will need custom permissions. Needs to use input fields to determine which permissions to check.
+    // e.g. A routine with a projectId must verify that the user has permission to create a routine in the project (i.e. owns project and hasn't reached max routines inside).
+    // Then it also needs to check that the user hasn't reached a max number of overall routines.
+    const cudResult = await cud({ partialInfo, userId, createMany: [input] });
     const { created } = cudResult;
     if (created && created.length > 0) {
         // If organization, project, routine, or standard, log for stats
@@ -1468,38 +1531,48 @@ export async function createHelper<GraphQLModel>(
             // No need to await this, since it is not needed for the response
             Log.collection.insertMany(logs).catch(error => logger.log(LogLevel.error, 'Failed creating "Create" log', { code: genErrorCode('0194'), error }));
         }
-        return (await addSupplementalFields(model.prisma, userId, created, partialInfo))[0] as any;
+        return (await addSupplementalFields(prisma, userId, created, partialInfo))[0] as any;
     }
     throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in createHelper', { code: genErrorCode('0028') });
 }
 
+type UpdateHelperProps<GraphQLModel> = {
+    info: GraphQLInfo | PartialGraphQLInfo;
+    input: any;
+    model: ModelLogic<GraphQLModel, any, any>;
+    prisma: PrismaType;
+    userId: string | null;
+    where?: (obj: any) => { [x: string]: any };
+}
+
 /**
  * Helper function for updating one object in a single line
- * @param userId ID of user making the request
- * @param input GraphQL update input object
- * @param info GraphQL info object
- * @param model Business layer model
- * @param where Function to create where clause for update (defaults to (obj) => ({ id: obj.id }))
  * @returns GraphQL response object
  */
-export async function updateHelper<GraphQLModel>(
-    userId: string | null,
-    input: any,
-    info: GraphQLInfo | PartialGraphQLInfo,
-    model: ModelBusinessLayer<GraphQLModel, any>,
-    where: (obj: any) => { [x: string]: any } = (obj) => ({ id: obj.id }),
-): Promise<RecursivePartial<GraphQLModel>> {
+export async function updateHelper<GraphQLModel>({
+    info,
+    input,
+    model,
+    prisma,
+    userId,
+    where = (obj) => ({ id: obj.id }),
+}: UpdateHelperProps<any>): Promise<RecursivePartial<GraphQLModel>> {
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object', { code: genErrorCode('0029') });
-    if (!model.cud)
+    const cud = model.mutate ? model.mutate(prisma).cud : undefined;
+    if (!cud)
         throw new CustomError(CODE.InternalError, 'Model does not support update', { code: genErrorCode('0030') });
     // Partially convert info type
-    let partialInfo = toPartialGraphQLInfo(info, model.relationshipMap);
+    let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0031') });
+    // Check permissions
+    //TODO use same permissions as readonehelper (but for updating obviously), but also similar custom
+    // logic to createHelper. For example, if a routine is being moved to another project, then need to check 
+    // permissions for current and new project.
     // Shape update input to match prisma update shape (i.e. "where" and "data" fields)
     const shapedInput = { where: where(input), data: input };
-    const { updated } = await model.cud({ partialInfo, userId, updateMany: [shapedInput] });
+    const { updated } = await cud({ partialInfo, userId, updateMany: [shapedInput] });
     if (updated && updated.length > 0) {
         // If organization, project, routine, or standard, log for stats
         const objectType = partialInfo.__typename;
@@ -1514,32 +1587,39 @@ export async function updateHelper<GraphQLModel>(
             // No need to await this, since it is not needed for the response
             Log.collection.insertMany(logs).catch(error => logger.log(LogLevel.error, 'Failed creating "Update" log', { code: genErrorCode('0195'), error }));
         }
-        return (await addSupplementalFields(model.prisma, userId, updated, partialInfo))[0] as any;
+        return (await addSupplementalFields(prisma, userId, updated, partialInfo))[0] as any;
     }
     throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in updateHelper', { code: genErrorCode('0032') });
 }
 
+type DeleteOneHelperProps = {
+    input: DeleteOneInput;
+    model: ModelLogic<any, any>;
+    prisma: PrismaType;
+    userId: string | null;
+}
+
 /**
  * Helper function for deleting one object in a single line
- * @param userId ID of user making the request
- * @param input GraphQL delete one input object
- * @param info GraphQL info object
- * @param model Business layer model
  * @returns GraphQL Success response object
  */
-export async function deleteOneHelper(
-    userId: string | null,
-    input: DeleteOneInput,
-    model: ModelBusinessLayer<any, any>,
-): Promise<Success> {
+export async function deleteOneHelper({
+    input,
+    model,
+    prisma,
+    userId,
+}: DeleteOneHelperProps): Promise<Success> {
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete object', { code: genErrorCode('0033') });
-    if (!model.cud)
+    const cud = model.mutate ? model.mutate(prisma).cud : undefined;
+    if (!cud)
         throw new CustomError(CODE.InternalError, 'Model does not support delete', { code: genErrorCode('0034') });
-    const { deleted } = await model.cud({ partialInfo: {}, userId, deleteMany: [input.id] });
+    // Check permissions
+    // TODO
+    const { deleted } = await cud({ partialInfo: {}, userId, deleteMany: [input.id] });
     if (deleted?.count && deleted.count > 0) {
         // If organization, project, routine, or standard, log for stats
-        const objectType = model.relationshipMap.__typename;
+        const objectType = model.format.relationshipMap.__typename;
         if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {
             // No need to await this, since it is not needed for the response
             Log.collection.insertOne({
@@ -1555,28 +1635,35 @@ export async function deleteOneHelper(
     return { success: false };
 }
 
+type DeleteManyHelperProps = {
+    input: DeleteManyInput;
+    model: ModelLogic<any, any>;
+    prisma: PrismaType;
+    userId: string | null;
+}
+
 /**
  * Helper function for deleting many of the same object in a single line
- * @param userId ID of user making the request
- * @param input GraphQL delete one input object
- * @param info GraphQL info object
- * @param model Business layer model
  * @returns GraphQL Count response object
  */
-export async function deleteManyHelper(
-    userId: string | null,
-    input: DeleteManyInput,
-    model: ModelBusinessLayer<any, any>,
-): Promise<Count> {
+export async function deleteManyHelper({
+    input,
+    model,
+    prisma,
+    userId,
+}: DeleteManyHelperProps): Promise<Count> {
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete objects', { code: genErrorCode('0035') });
-    if (!model.cud)
+    const cud = model.mutate ? model.mutate(prisma).cud : undefined;
+    if (!cud)
         throw new CustomError(CODE.InternalError, 'Model does not support delete', { code: genErrorCode('0036') });
-    const { deleted } = await model.cud({ partialInfo: {}, userId, deleteMany: input.ids });
+    // Check permissions
+    //TODO
+    const { deleted } = await cud({ partialInfo: {}, userId, deleteMany: input.ids });
     if (!deleted)
         throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in deleteManyHelper', { code: genErrorCode('0037') });
     // If organization, project, routine, or standard, log for stats
-    const objectType = model.relationshipMap.__typename;
+    const objectType = model.format.relationshipMap.__typename;
     if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {
         const logs = input.ids.map((id: string) => ({
             timestamp: Date.now(),
@@ -1591,24 +1678,32 @@ export async function deleteManyHelper(
     return deleted
 }
 
+type CopyHelperProps<GraphQLModel> = {
+    info: GraphQLInfo | PartialGraphQLInfo;
+    input: CopyInput;
+    model: ModelLogic<GraphQLModel, any>;
+    prisma: PrismaType;
+    userId: string | null;
+}
+
 /**
  * Helper function for copying an object in a single line
- * @param userId ID of user making the request
- * @param input GraphQL delete one input object
- * @param info GraphQL info object
- * @param model Business layer model
  * @returns GraphQL Success response object
  */
-export async function copyHelper(
-    userId: string | null,
-    input: CopyInput,
-    info: GraphQLInfo | PartialGraphQLInfo,
-    model: ModelBusinessLayer<any, any>,
-): Promise<any> {
+export async function copyHelper({
+    info,
+    input,
+    model,
+    prisma,
+    userId,
+}: CopyHelperProps<any>): Promise<any> {
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to copy object', { code: genErrorCode('0229') });
-    if (!model.duplicate)
+    const duplicate = model.mutate ? model.mutate(prisma).duplicate : undefined;
+    if (!duplicate)
         throw new CustomError(CODE.InternalError, 'Model does not support copy', { code: genErrorCode('0230') });
+    // Check permissions
+    //TODO
     // Partially convert info
     let partialInfo = toPartialGraphQLInfo(info, ({
         '__typename': GraphQLModelType.Copy,
@@ -1620,7 +1715,7 @@ export async function copyHelper(
     }));
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0231') });
-    const { object } = await model.duplicate({ userId, objectId: input.id, isFork: false, createCount: 0 });
+    const { object } = await duplicate({ userId, objectId: input.id, isFork: false, createCount: 0 });
     // If not a node, log for stats
     if (input.objectType !== CopyType.Node) {
         // No need to await this, since it is not needed for the response
@@ -1632,28 +1727,42 @@ export async function copyHelper(
             object1Id: input.id,
         }).catch(error => logger.log(LogLevel.error, 'Failed creating "Copy" log', { code: genErrorCode('0232'), error }));
     }
-    const fullObject = await readOneHelper(userId, { id: object.id }, (partialInfo as any)[input.objectType.toLowerCase()], model);
+    const fullObject = await readOneHelper({
+        info: (partialInfo as any)[lowercaseFirstLetter(input.objectType)],
+        input: { id: object.id },
+        model,
+        prisma,
+        userId,
+    })
     return fullObject;
+}
+
+type ForkHelperProps<GraphQLModelType> = {
+    info: GraphQLInfo | PartialGraphQLInfo,
+    input: ForkInput,
+    model: ModelLogic<GraphQLModelType, any>,
+    prisma: PrismaType,
+    userId: string | null,
 }
 
 /**
  * Helper function for forking an object in a single line
- * @param userId ID of user making the request
- * @param input GraphQL delete one input object
- * @param info GraphQL info object
- * @param model Business layer model
  * @returns GraphQL Success response object
  */
-export async function forkHelper(
-    userId: string | null,
-    input: ForkInput,
-    info: GraphQLInfo | PartialGraphQLInfo,
-    model: ModelBusinessLayer<any, any>,
-): Promise<any> {
+export async function forkHelper({
+    info,
+    input,
+    model,
+    prisma,
+    userId,
+}: ForkHelperProps<any>): Promise<any> {
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to fork object', { code: genErrorCode('0233') });
-    if (!model.duplicate)
+    const duplicate = model.mutate ? model.mutate(prisma).duplicate : undefined;
+    if (!duplicate)
         throw new CustomError(CODE.InternalError, 'Model does not support fork', { code: genErrorCode('0234') });
+    // Check permissions
+    //TODO
     // Partially convert info
     let partialInfo = toPartialGraphQLInfo(info, ({
         '__typename': GraphQLModelType.Fork,
@@ -1664,7 +1773,7 @@ export async function forkHelper(
     }));
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0235') });
-    const { object } = await model.duplicate({ userId, objectId: input.id, isFork: false, createCount: 0 });
+    const { object } = await duplicate({ userId, objectId: input.id, isFork: false, createCount: 0 });
     // Log for stats
     // No need to await this, since it is not needed for the response
     Log.collection.insertOne({
@@ -1674,6 +1783,37 @@ export async function forkHelper(
         object1Type: input.objectType,
         object1Id: input.id,
     }).catch(error => logger.log(LogLevel.error, 'Failed creating "Fork" log', { code: genErrorCode('0236'), error }));
-    const fullObject = await readOneHelper(userId, { id: object.id }, (partialInfo as any)[input.objectType.toLowerCase()], model);
+    const fullObject = await readOneHelper({
+        info: (partialInfo as any)[lowercaseFirstLetter(input.objectType)],
+        input: { id: object.id },
+        model,
+        prisma,
+        userId,
+    })
     return fullObject;
+}
+
+/**
+ * Helper function for reading many objects and converting them to a GraphQL response
+ * (except for supplemental fields). This is useful when querying feeds
+ */
+export async function readManyAsFeed<GraphQLModel, SearchInput extends SearchInputBase<any>>({
+    additionalQueries,
+    info,
+    input,
+    model,
+    prisma,
+    userId,
+}: Omit<ReadManyHelperProps<GraphQLModel, SearchInput>, 'addSupplemental'>): Promise<any[]> {
+    const readManyResult = await readManyHelper({
+        additionalQueries,
+        addSupplemental: false,
+        info,
+        input,
+        model,
+        prisma,
+        userId,
+    })
+    return readManyResult.edges.map(({ node }: any) => 
+        modelToGraphQL(node, toPartialGraphQLInfo(info, model.format.relationshipMap) as PartialGraphQLInfo)) as any[]
 }

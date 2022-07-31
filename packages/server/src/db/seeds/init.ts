@@ -96,8 +96,6 @@ export async function init(prisma: PrismaType) {
 
     const EN = 'en';
 
-    // Initialize models
-    const profileModel = ProfileModel(prisma);
     //==============================================================
     /* #endregion Initialization */
     //==============================================================
@@ -157,7 +155,7 @@ export async function init(prisma: PrismaType) {
         create: {
             id: adminId,
             name: 'Matt Halloran',
-            password: profileModel.hashPassword(process.env.ADMIN_PASSWORD ?? ''),
+            password: ProfileModel.verify.hashPassword(process.env.ADMIN_PASSWORD ?? ''),
             status: AccountStatus.Unlocked,
             emails: {
                 create: [

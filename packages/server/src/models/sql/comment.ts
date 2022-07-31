@@ -1,9 +1,8 @@
 import { CODE, commentsCreate, CommentSortBy, commentsUpdate, commentTranslationCreate, commentTranslationUpdate, omit } from "@local/shared";
 import { CustomError } from "../../error";
-import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, Count } from "../../schema/types";
+import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, Count } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, GraphQLModelType, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper } from "./base";
-import { OrganizationModel, organizationVerifier } from "./organization";
+import { addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, GraphQLModelType, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, Querier } from "./base";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
 import { StarModel } from "./star";
@@ -78,7 +77,7 @@ export const commentFormatter = (): FormatConverter<Comment> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel(prisma).getIsStarreds(userId, ids, GraphQLModelType.Comment)
+                ? await StarModel.query(prisma).getIsStarreds(userId, ids, GraphQLModelType.Comment)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
@@ -161,7 +160,21 @@ export const commentSearcher = (): Searcher<CommentSearchInput> => ({
     },
 })
 
-export const commentQuerier = (prisma: PrismaType) => ({
+export const commentQuerier = (prisma: PrismaType): Querier<CommentPermission> => ({
+    async permissions({
+        userId,
+        objectId,
+    }) {
+        //TODO
+        return {
+            canDelete: true,
+            canEdit: true,
+            canStar: true,
+            canReply: true,
+            canReport: true,
+            canVote: true,
+        };
+    },
     /**
      * Custom search query for querying comment threads
      */
@@ -348,12 +361,12 @@ export const commentMutater = (prisma: PrismaType) => ({
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0038') });
         if (createMany) {
             commentsCreate.validateSync(createMany, { abortEarly: false });
-            TranslationModel().profanityCheck(createMany)
+            TranslationModel.profanityCheck(createMany)
             // TODO check limits on comments to prevent spam
         }
         if (updateMany) {
             commentsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            TranslationModel().profanityCheck(updateMany.map(u => u.data))
+            TranslationModel.profanityCheck(updateMany.map(u => u.data))
         }
         if (deleteMany) {
             // Check that user created each comment
@@ -394,7 +407,7 @@ export const commentMutater = (prisma: PrismaType) => ({
                 const currCreated = await prisma.comment.create({
                     data: {
                         id: input.id,
-                        translations: TranslationModel().relationshipBuilder(userId, input, { create: commentTranslationCreate, update: commentTranslationUpdate }, false),
+                        translations: TranslationModel.relationshipBuilder(userId, input, { create: commentTranslationCreate, update: commentTranslationUpdate }, false),
                         userId,
                         [forMapper[input.createdFor]]: input.forId,
                         parentId: input.parentId ?? null,
@@ -418,7 +431,7 @@ export const commentMutater = (prisma: PrismaType) => ({
                 const currUpdated = await prisma.comment.update({
                     where: input.where,
                     data: {
-                        translations: TranslationModel().relationshipBuilder(userId, input.data, { create: commentTranslationCreate, update: commentTranslationUpdate }, false),
+                        translations: TranslationModel.relationshipBuilder(userId, input.data, { create: commentTranslationCreate, update: commentTranslationUpdate }, false),
                     },
                     ...selectHelper(partialInfo)
                 });
@@ -449,22 +462,13 @@ export const commentMutater = (prisma: PrismaType) => ({
 /* #region Model */
 //==============================================================
 
-export function CommentModel(prisma: PrismaType) {
-    const prismaObject = prisma.comment;
-    const format = commentFormatter();
-    const search = commentSearcher();
-    const mutater = commentMutater(prisma);
-    const query = commentQuerier(prisma);
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...search,
-        ...mutater,
-        ...query
-    }
-}
+export const CommentModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.comment,
+    format: commentFormatter(),
+    mutate: commentMutater,
+    query: commentQuerier,
+    search: commentSearcher(),
+})
 
 //==============================================================
 /* #endregion Model */

@@ -41,7 +41,7 @@ import { DeleteDialog, EditableLabel, LanguageInput, LinkButton, MarkdownInput, 
 import { AllLanguages, getLanguageSubtag, getOwnedByString, getTranslation, PubSub, RoutineTranslationShape, toOwnedBy, updateArray } from 'utils';
 import { useLocation } from 'wouter';
 import { useFormik } from 'formik';
-import { APP_LINKS, CopyType, DeleteOneType, ForkType, MemberRole, routineUpdateForm as validationSchema, StarFor, VoteFor } from '@local/shared';
+import { APP_LINKS, CopyType, DeleteOneType, ForkType, routineUpdateForm as validationSchema, StarFor, VoteFor } from '@local/shared';
 import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
@@ -219,8 +219,8 @@ export const BuildInfoDialog = ({
     const actions = useMemo(() => {
         // [value, label, icon, secondaryLabel]
         const results: [BaseObjectAction, string, any, string | null][] = [];
-        // If signed in, not editing, and not your own routine, show vote/star options
-        if (session && !isEditing && ![MemberRole.Owner, MemberRole.Admin].includes(routine?.role ?? '' as any)) {
+        // If signed in and not editing, show vote/star options
+        if (session?.isLoggedIn === true && !isEditing) {
             results.push(routine?.isUpvoted ? 
                 [BaseObjectAction.Downvote, 'Downvote', DownvoteIcon, null] : 
                 [BaseObjectAction.Upvote, 'Upvote', UpvoteIcon, null]
@@ -245,7 +245,7 @@ export const BuildInfoDialog = ({
             )
         }
         return results;
-    }, [isEditing, routine?.id, routine?.isStarred, routine?.isUpvoted, routine?.role, session]);
+    }, [isEditing, routine?.id, routine?.isStarred, routine?.isUpvoted, session]);
 
     // Handle delete
     const [deleteOpen, setDeleteOpen] = useState(false);

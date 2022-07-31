@@ -101,7 +101,7 @@ export const resolvers = {
     LogType: LogType,
     Query: {
         logs: async (_parent: undefined, { input }: IWrap<LogSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<LogSearchResult> => {
-            await rateLimit({ context, info, max: 1000, byAccount: true });
+            await rateLimit({ context, info, max: 1000, byAccountOrKey: true });
             // Create the search and sort queries
             const findQuery = logSearcher().getFindQuery(context.req.userId ?? '', input);
             const sortQuery = logSearcher().getSortQuery(input.sortBy ?? LogSortBy.DateCreatedDesc);
@@ -118,7 +118,7 @@ export const resolvers = {
     // Logs are created automatically, so the only mutation is to delete them
     Mutation: {
         logDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
-            await rateLimit({ context, info, max: 1000, byAccount: true });
+            await rateLimit({ context, info, max: 1000, byAccountOrKey: true });
             throw new CustomError(CODE.NotImplemented);
             // return deleteManyHelper(context.req.userId, input, LogModel(context.prisma));
         },

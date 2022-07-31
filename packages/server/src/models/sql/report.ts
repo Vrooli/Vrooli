@@ -3,7 +3,7 @@ import { CustomError } from "../../error";
 import { Count, Report, ReportCreateInput, ReportSearchInput, ReportSortBy, ReportUpdateInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { validateProfanity } from "../../utils/censor";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, ModelLogic, modelToGraphQL, PartialGraphQLInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
 
 //==============================================================
@@ -109,7 +109,7 @@ export const reportMutater = (prisma: PrismaType, verifier: ReturnType<typeof re
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ReportCreateInput, ReportUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId) 
+        if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0083') });
         if (createMany) {
             reportsCreate.validateSync(createMany, { abortEarly: false });
@@ -195,22 +195,13 @@ export const reportMutater = (prisma: PrismaType, verifier: ReturnType<typeof re
 /* #region Model */
 //==============================================================
 
-export function ReportModel(prisma: PrismaType) {
-    const prismaObject = prisma.report;
-    const format = reportFormatter();
-    const search = reportSearcher();
-    const verify = reportVerifier();
-    const mutate = reportMutater(prisma, verify);
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...search,
-        ...verify,
-        ...mutate,
-    }
-}
+export const ReportModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.report,
+    format: reportFormatter(),
+    mutate: reportMutater,
+    search: reportSearcher(),
+    verify: reportVerifier(),
+})
 
 //==============================================================
 /* #endregion Model */

@@ -183,11 +183,11 @@ export const resolvers = {
     },
     Mutation: {
         projectCreate: async (_parent: undefined, { input }: IWrap<ProjectCreateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
-            await rateLimit({ context, info, max: 100, byAccount: true });
+            await rateLimit({ context, info, max: 100, byAccountOrKey: true });
             return createHelper(context.req.userId, input, info, ProjectModel(context.prisma));
         },
         projectUpdate: async (_parent: undefined, { input }: IWrap<ProjectUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
-            await rateLimit({ context, info, max: 250, byAccount: true });
+            await rateLimit({ context, info, max: 250, byAccountOrKey: true });
             return updateHelper(context.req.userId, input, info, ProjectModel(context.prisma));
         },
     }

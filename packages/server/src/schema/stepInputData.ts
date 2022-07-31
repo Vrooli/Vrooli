@@ -103,25 +103,25 @@ export const resolvers = {
     StepInputDataSortBy: StepInputDataSortBy,
     Query: {
         stepInputData: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<StepInputData> => {
-            await rateLimit({ context, info, max: 5000, byAccount: true });
+            await rateLimit({ context, info, max: 5000, byAccountOrKey: true });
             throw new CustomError(CODE.NotImplemented);
         },
         stepInputDatas: async (_parent: undefined, { input }: IWrap<StepInputDataSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<StepInputDataSearchResult> => {
-            await rateLimit({ context, info, max: 5000, byAccount: true });
+            await rateLimit({ context, info, max: 5000, byAccountOrKey: true });
             throw new CustomError(CODE.NotImplemented);
         },
     },
     Mutation: {
         stepInputDataCreate: async (_parent: undefined, { input }: IWrap<StepInputDataCreateInput>, context: Context, info: GraphQLResolveInfo): Promise<StepInputData> => {
-            await rateLimit({ context, info, max: 5000, byAccount: true });
+            await rateLimit({ context, info, max: 5000, byAccountOrKey: true });
             throw new CustomError(CODE.NotImplemented);
         },
         stepInputDataUpdate: async (_parent: undefined, { input }: IWrap<StepInputDataUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<StepInputData> => {
-            await rateLimit({ context, info, max: 5000, byAccount: true });
+            await rateLimit({ context, info, max: 5000, byAccountOrKey: true });
             throw new CustomError(CODE.NotImplemented);
         },
         stepInputDataDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
-            await rateLimit({ context, info, max: 5000, byAccount: true });
+            await rateLimit({ context, info, max: 5000, byAccountOrKey: true });
             throw new CustomError(CODE.NotImplemented);
         },
     }
