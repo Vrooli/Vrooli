@@ -1,4 +1,4 @@
-import { Box, Button, CircularProgress, Dialog, Grid, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
+import { Box, Button, CircularProgress, Dialog, Grid, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, VoteFor } from "@local/shared";
 import { useMutation, useLazyQuery } from "@apollo/client";
@@ -45,6 +45,7 @@ export const RoutineView = ({
     // Fetch data
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
     const [routine, setRoutine] = useState<Routine | null>(null);
+    console.log(routine);
     useEffect(() => {
         if (id && uuidValidate(id)) { getData({ variables: { input: { id } } }); }
     }, [getData, id])
@@ -715,15 +716,19 @@ export const RoutineView = ({
                             onChange={(isStar: boolean) => { routine && setRoutine({ ...routine, isStarred: isStar }) }}
                             tooltipPlacement="bottom"
                         />
+                        <Link href="#" underline="hover">
+                            Reports ({routine?.reportsCount})
+                        </Link>
                         <Tooltip title="More options">
                             <IconButton
-                                aria-label="More"
+                                 aria-label="More"
                                 size="small"
                                 onClick={openMoreMenu}
                                 sx={{
                                     display: 'block',
                                     marginLeft: 'auto',
                                     marginRight: 1,
+                                    padding: 0,
                                 }}
                             >
                                 <EllipsisIcon />

@@ -501,6 +501,7 @@ export interface routineCreate_routineCreate {
   outputs: routineCreate_routineCreate_outputs[];
   owner: routineCreate_routineCreate_owner | null;
   parent: routineCreate_routineCreate_parent | null;
+  reportsCount: number;
   resourceLists: routineCreate_routineCreate_resourceLists[];
   runs: routineCreate_routineCreate_runs[];
   score: number;

@@ -501,6 +501,7 @@ export interface routine_routine {
   outputs: routine_routine_outputs[];
   owner: routine_routine_owner | null;
   parent: routine_routine_parent | null;
+  reportsCount: number;
   resourceLists: routine_routine_resourceLists[];
   runs: routine_routine_runs[];
   score: number;

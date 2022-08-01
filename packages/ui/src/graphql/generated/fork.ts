@@ -672,6 +672,7 @@ export interface fork_fork_routine {
   outputs: fork_fork_routine_outputs[];
   owner: fork_fork_routine_owner | null;
   parent: fork_fork_routine_parent | null;
+  reportsCount: number;
   resourceLists: fork_fork_routine_resourceLists[];
   runs: fork_fork_routine_runs[];
   score: number;

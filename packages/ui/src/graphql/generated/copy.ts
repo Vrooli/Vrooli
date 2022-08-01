@@ -786,6 +786,7 @@ export interface copy_copy_routine {
   outputs: copy_copy_routine_outputs[];
   owner: copy_copy_routine_owner | null;
   parent: copy_copy_routine_parent | null;
+  reportsCount: number;
   resourceLists: copy_copy_routine_resourceLists[];
   runs: copy_copy_routine_runs[];
   score: number;
