@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { DeleteOneInput, Success } from './types';
-import { IWrap } from 'types';
+import { IWrap } from '../types';
 import { deleteOneHelper, GraphQLModelType, ModelLogic, ObjectMap } from '../models';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';

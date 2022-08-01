@@ -5,7 +5,7 @@
  */
 import { gql } from 'apollo-server-express';
 import { CopyInput, CopyResult, ForkInput, ForkResult } from './types';
-import { IWrap } from 'types';
+import { IWrap } from '../types';
 import { copyHelper, forkHelper, GraphQLModelType, lowercaseFirstLetter, ModelLogic, ObjectMap } from '../models';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';

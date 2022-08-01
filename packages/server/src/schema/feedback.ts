@@ -1,6 +1,6 @@
 import { feedbackCreate } from '@local/shared';
 import { gql } from 'apollo-server-express';
-import { IWrap } from 'types';
+import { IWrap } from '../types';
 import { feedbackNotifyAdmin } from '../worker/email/queue';
 import { FeedbackInput, Success } from './types';
 import { Context } from '../context';

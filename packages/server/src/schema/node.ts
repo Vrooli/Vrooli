@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { createHelper, NodeModel, updateHelper } from '../models';
-import { IWrap, RecursivePartial } from 'types';
+import { IWrap, RecursivePartial } from '../types';
 import { Node, NodeCreateInput, NodeUpdateInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';

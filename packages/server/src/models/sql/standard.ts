@@ -1,6 +1,6 @@
 import { CODE, DeleteOneType, omit, standardsCreate, standardsUpdate, standardTranslationCreate, standardTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
-import { PrismaType, RecursivePartial } from "types";
+import { PrismaType, RecursivePartial } from "../../types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count } from "../../schema/types";
 import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { validateProfanity } from "../../utils/censor";

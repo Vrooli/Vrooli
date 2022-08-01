@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { IWrap, RecursivePartial } from 'types';
+import { IWrap, RecursivePartial } from '../types';
 import { Wallet, WalletUpdateInput } from './types';
 import { Context } from '../context';
 import { updateHelper, WalletModel } from '../models';

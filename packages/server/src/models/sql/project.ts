@@ -1,6 +1,6 @@
 import { CODE, omit, projectsCreate, projectsUpdate, projectTranslationCreate, projectTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
-import { PrismaType, RecursivePartial } from "types";
+import { PrismaType, RecursivePartial } from "../../types";
 import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor } from "../../schema/types";
 import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, ModelLogic, modelToGraphQL, PartialGraphQLInfo, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { OrganizationModel } from "./organization";

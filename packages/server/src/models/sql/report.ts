@@ -1,7 +1,7 @@
 import { CODE, omit, ReportFor, reportsCreate, reportsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, Report, ReportCreateInput, ReportSearchInput, ReportSortBy, ReportUpdateInput } from "../../schema/types";
-import { PrismaType, RecursivePartial } from "types";
+import { PrismaType, RecursivePartial } from "../../types";
 import { validateProfanity } from "../../utils/censor";
 import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";

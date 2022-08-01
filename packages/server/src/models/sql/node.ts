@@ -2,7 +2,7 @@ import { Count, Node, NodeCreateInput, NodeUpdateInput } from "../../schema/type
 import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType } from "./base";
 import { CustomError } from "../../error";
 import { CODE, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeTranslationCreate, nodeTranslationUpdate, whilesCreate, whilesUpdate, whensCreate, whensUpdate, loopsCreate, loopsUpdate, nodesCreate, nodesUpdate } from "@local/shared";
-import { PrismaType } from "types";
+import { PrismaType } from "../../types";
 import { validateProfanity } from "../../utils/censor";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";

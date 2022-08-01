@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { countHelper, createHelper, deleteManyHelper, readManyHelper, readOneHelper, ResourceModel, updateHelper } from '../models';
-import { IWrap, RecursivePartial } from 'types';
+import { IWrap, RecursivePartial } from '../types';
 import { Count, DeleteManyInput, FindByIdInput, Resource, ResourceCountInput, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSearchResult, ResourceFor, ResourceSortBy, ResourceUsedFor } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';

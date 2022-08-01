@@ -1,7 +1,7 @@
 import { CODE, commentsCreate, CommentSortBy, commentsUpdate, commentTranslationCreate, commentTranslationUpdate, omit } from "@local/shared";
 import { CustomError } from "../../error";
 import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, Count } from "../../schema/types";
-import { PrismaType, RecursivePartial } from "types";
+import { PrismaType, RecursivePartial } from "../../types";
 import { addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, GraphQLModelType, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, Querier } from "./base";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";

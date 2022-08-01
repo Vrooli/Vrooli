@@ -1,5 +1,5 @@
 import { OutputItem } from "../../schema/types";
-import { PrismaType } from "types";
+import { PrismaType } from "../../types";
 import { FormatConverter, GraphQLModelType } from "./base";
 
 //==============================================================

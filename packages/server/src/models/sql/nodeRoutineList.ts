@@ -1,7 +1,7 @@
 import { Node, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from "../../schema/types";
 import { FormatConverter, relationshipToPrisma, RelationshipTypes, GraphQLModelType } from "./base";
 import { nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeRoutineListItemTranslationCreate, nodeRoutineListItemTranslationUpdate } from "@local/shared";
-import { PrismaType } from "types";
+import { PrismaType } from "../../types";
 import { RoutineModel } from "./routine";
 import { TranslationModel } from "./translation";
 

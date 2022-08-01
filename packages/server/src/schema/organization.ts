@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { IWrap, RecursivePartial } from 'types';
+import { IWrap, RecursivePartial } from '../types';
 import { FindByIdOrHandleInput, Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSearchResult, OrganizationSortBy } from './types';
 import { Context } from '../context';
 import { countHelper, createHelper, OrganizationModel, readManyHelper, readOneHelper, updateHelper } from '../models';

@@ -1,4 +1,4 @@
-import { PrismaType } from "types";
+import { PrismaType } from "../../types";
 import { Role } from "../../schema/types";
 import { FormatConverter, addJoinTablesHelper, removeJoinTablesHelper, GraphQLModelType, ModelLogic } from "./base";
 

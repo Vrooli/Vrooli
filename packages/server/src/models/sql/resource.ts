@@ -1,6 +1,6 @@
 import { CODE, resourceCreate, resourcesCreate, resourcesUpdate, resourceUpdate } from "@local/shared";
 import { Resource, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Count } from "../../schema/types";
-import { PrismaType } from "types";
+import { PrismaType } from "../../types";
 import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { TranslationModel } from "./translation";

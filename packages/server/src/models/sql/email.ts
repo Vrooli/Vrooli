@@ -1,7 +1,7 @@
 import { CODE, emailsCreate, emailsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, Email, EmailCreateInput, EmailUpdateInput } from "../../schema/types";
-import { PrismaType } from "types";
+import { PrismaType } from "../../types";
 import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { validateProfanity } from "../../utils/censor";
 import { genErrorCode } from "../../logger";

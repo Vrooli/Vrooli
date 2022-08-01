@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { VoteInput, Success, VoteFor } from './types';
-import { IWrap } from 'types';
+import { IWrap } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { VoteModel } from '../models';

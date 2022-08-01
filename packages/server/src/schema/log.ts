@@ -2,7 +2,7 @@
  * User log (e.g. created a project, completed a routine)
  */
 import { gql } from 'apollo-server-express';
-import { IWrap } from 'types';
+import { IWrap } from '../types';
 import { Count, LogSortBy, DeleteManyInput, LogSearchResult, LogSearchInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
