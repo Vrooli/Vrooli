@@ -8,6 +8,10 @@ export interface ProjectViewPageProps {
     session: Session
 }
 
+export interface ReportsViewPageProps {
+    session: Session
+}
+
 export interface RoutineViewPageProps {
     session: Session
 }

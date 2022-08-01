@@ -45,7 +45,6 @@ export const RoutineView = ({
     // Fetch data
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
     const [routine, setRoutine] = useState<Routine | null>(null);
-    console.log(routine);
     useEffect(() => {
         if (id && uuidValidate(id)) { getData({ variables: { input: { id } } }); }
     }, [getData, id])

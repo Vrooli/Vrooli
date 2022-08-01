@@ -35,6 +35,7 @@ const {
 const { OrganizationViewPage } = lazily(() => import('./pages/view/OrganizationViewPage'));
 const { ProjectViewPage } = lazily(() => import('./pages/view/ProjectViewPage'));
 const { StandardViewPage } = lazily(() => import('./pages/view/StandardViewPage'));
+const { ReportsViewPage } = lazily(() => import('./pages/view/ReportsViewPage'));
 const { RoutineViewPage } = lazily(() => import('./pages/view/RoutineViewPage'));
 const { UserViewPage } = lazily(() => import('./pages/view/UserViewPage'));
 const { FormPage } = lazily(() => import('./pages/wrapper/FormPage'));
@@ -152,6 +153,13 @@ export const AllRoutes = (props: CommonProps) => {
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
                             <RoutineViewPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route path={`${LINKS.Routine}/reports/:id`}>
+                    <Suspense fallback={Fallback}>
+                        <Page {...props}>
+                            <ReportsViewPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
