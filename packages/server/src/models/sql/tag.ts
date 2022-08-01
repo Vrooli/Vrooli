@@ -1,6 +1,6 @@
 import { Count, Tag, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, joinRelationshipToPrisma, modelToGraphQL, PartialGraphQLInfo, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addJoinTablesHelper, addSupplementalFieldsHelper, CUDInput, CUDResult, FormatConverter, joinRelationshipToPrisma, modelToGraphQL, PartialGraphQLInfo, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { CODE, omit, tagsCreate, tagsUpdate, tagTranslationCreate, tagTranslationUpdate } from "@local/shared";
 import { validateProfanity } from "../../utils/censor";
@@ -31,19 +31,14 @@ export const tagFormatter = (): FormatConverter<Tag, any> => ({
         return { ...omitted, createdByUserId: true }
     },
     async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Tag>[]> {
-        // Get all of the ids
-        const ids = objects.map(x => x.id) as string[];
-        // Query for isStarred
-        if (partial.isStarred) {
-            const isStarredArray = userId
-                ? await StarModel.query(prisma).getIsStarreds(userId, ids, 'Tag')
-                : Array(ids.length).fill(false);
-            objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
-        }
-        // Query for isOwn
-        if (partial.isOwn) objects = objects.map((x) => ({ ...x, isOwn: Boolean(userId) && x.createdByUserId === userId }));
-        // Convert Prisma objects to GraphQL objects
-        return objects as RecursivePartial<Tag>[];
+        return addSupplementalFieldsHelper({
+            objects,
+            partial,
+            resolvers: [
+                ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Tag')],
+                ['isOwn', async () => objects.map((x) => Boolean(userId) && x.createdByUserId === userId)],
+            ]
+        });
     },
 })
 

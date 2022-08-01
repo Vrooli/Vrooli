@@ -170,12 +170,14 @@ const starMutater = (prisma: PrismaType) => ({
 
 const starQuerier = (prisma: PrismaType) => ({
     async getIsStarreds(
-        userId: string,
+        userId: string | null,
         ids: string[],
         starFor: keyof typeof StarFor
     ): Promise<boolean[]> {
         // Create result array that is the same length as ids
         const result = new Array(ids.length).fill(false);
+        // If userId not passed, return result
+        if (!userId) return result;
         // Filter out nulls and undefineds from ids
         const idsFiltered = ids.filter(id => id !== null && id !== undefined);
         const fieldName = `${starFor.toLowerCase()}Id`;

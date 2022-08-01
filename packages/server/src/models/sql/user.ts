@@ -1,5 +1,5 @@
 import { User, UserSortBy, UserSearchInput, ResourceListUsedFor, } from "../../schema/types";
-import { addCountFieldsHelper, addJoinTablesHelper, FormatConverter, PartialGraphQLInfo, removeCountFieldsHelper, removeJoinTablesHelper, Searcher } from "./base";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, FormatConverter, PartialGraphQLInfo, removeCountFieldsHelper, removeJoinTablesHelper, Searcher } from "./base";
 import { PrismaType, RecursivePartial } from "../../types";
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
@@ -38,23 +38,14 @@ export const userFormatter = (): FormatConverter<User, any> => ({
         return omit(partial, supplementalFields);
     },
     async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<User>[]> {
-        // Get all of the ids
-        const ids = objects.map(x => x.id) as string[];
-        // Query for isStarred
-        if (partial.isStarred) {
-            const isStarredArray = userId
-                ? await StarModel.query(prisma).getIsStarreds(userId, ids, 'User')
-                : Array(ids.length).fill(false);
-            objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
-        }
-        // Query for isViewed
-        if (partial.isViewed) {
-            const isViewedArray = userId
-                ? await ViewModel.query(prisma).getIsVieweds(userId, ids, 'User')
-                : Array(ids.length).fill(false);
-            objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
-        }
-        return objects as RecursivePartial<User>[];
+        return addSupplementalFieldsHelper({
+            objects,
+            partial,
+            resolvers: [
+                ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'User')],
+                ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'User')],
+            ]
+        });
     },
 })
 

@@ -3,7 +3,7 @@ import { CustomError } from "../../error";
 import { Count, Report, ReportCreateInput, ReportSearchInput, ReportSortBy, ReportUpdateInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
 import { validateProfanity } from "../../utils/censor";
-import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, PartialGraphQLInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addSupplementalFieldsHelper, CUDInput, CUDResult, FormatConverter, modelToGraphQL, PartialGraphQLInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
 
 //==============================================================
@@ -24,10 +24,13 @@ export const reportFormatter = (): FormatConverter<Report, any> => ({
         return { ...omitted, userId: true }
     },
     async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Report>[]> {
-        // Query for isOwn
-        if (partial.isOwn) objects = objects.map((x) => ({ ...x, isOwn: Boolean(userId) && x.fromId === userId }));
-        // Convert Prisma objects to GraphQL objects
-        return objects as RecursivePartial<Report>[];
+        return addSupplementalFieldsHelper({
+            objects,
+            partial,
+            resolvers: [
+                ['isOwn', async () => objects.map((x) => Boolean(userId) && x.fromId === userId)],
+            ]
+        });
     },
 })
 

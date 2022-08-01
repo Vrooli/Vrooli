@@ -7,6 +7,7 @@ import { ProfileModel } from '../../models';
 import { PrismaType } from '../../types';
 import pkg from '@prisma/client';
 import { genErrorCode, logger, LogLevel } from '../../logger';
+import { v4 as uuid } from 'uuid';
 const { AccountStatus, NodeType, ResourceUsedFor, ResourceListUsedFor } = pkg;
 
 export async function init(prisma: PrismaType) {
@@ -22,7 +23,6 @@ export async function init(prisma: PrismaType) {
             data: { isInternal: true },
         })
     }
-    console.log('b')
     // 2. For every organization that has no roles, add a new 'Admin' role
     // and apply it to every member
     const orgs = await prisma.organization.findMany({
@@ -40,7 +40,6 @@ export async function init(prisma: PrismaType) {
             }
         }
     });
-    console.log('c')
     for (let i = 0; i < orgs.length; i++) {
         const org = orgs[i];
         // Create new role titled 'Admin'
@@ -57,10 +56,8 @@ export async function init(prisma: PrismaType) {
                 organizationId: org.id,
             }
         })
-        console.log('d')
         // Apply role to every member
         for (let j = 0; j < org.members.length; j++) {
-            console.log('e')
             const member = org.members[j];
             const exists = prisma.user_roles.findUnique({
                 where: {
@@ -78,10 +75,46 @@ export async function init(prisma: PrismaType) {
                     }
                 })
             }
-            console.log('f');
         }
     }
-    console.log('g')
+    // For every routine that has a null versionGroupId, set it to a new ID
+    const routinesWithoutVersionGroupId = await prisma.routine.findMany({
+        where: {
+            versionGroupId: null
+        },
+        select: {
+            id: true,
+        }
+    })
+    for (let i = 0; i < routinesWithoutVersionGroupId.length; i++) {
+        await prisma.routine.update({
+            where: {
+                id: routinesWithoutVersionGroupId[i].id,
+            },
+            data: {
+                versionGroupId: uuid(),
+            }
+        })
+    }
+    // For every standard that has a null versionGroupId, set it to a new ID
+    const standardsWithoutVersionGroupId = await prisma.standard.findMany({
+        where: {
+            versionGroupId: null
+        },
+        select: {
+            id: true,
+        }
+    })
+    for (let i = 0; i < standardsWithoutVersionGroupId.length; i++) {
+        await prisma.standard.update({
+            where: {
+                id: standardsWithoutVersionGroupId[i].id,
+            },
+            data: {
+                versionGroupId: uuid(),
+            }
+        })
+    }
 
     //==============================================================
     /* #region Initialization */

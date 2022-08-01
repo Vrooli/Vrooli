@@ -1,6 +1,6 @@
 import { PrismaType, RecursivePartial } from "../../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor, OrganizationPermission } from "../../schema/types";
-import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, PartialGraphQLInfo, addCountFieldsHelper, removeCountFieldsHelper } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, Permissioner } from "./base";
 import { CustomError } from "../../error";
 import { CODE, omit, organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@local/shared";
 import { organization_users } from "@prisma/client";
@@ -50,34 +50,40 @@ export const organizationFormatter = (): FormatConverter<Organization, Organizat
         return omit(partial, supplementalFields);
     },
     async addSupplementalFields({ objects, partial, permissions, prisma, userId }): Promise<RecursivePartial<Organization>[]> {
-        // Get all of the ids
-        const ids = objects.map(x => x.id) as string[];
-        // Query for isStarred
-        if (partial.isStarred) {
-            const isStarredArray = userId
-                ? await StarModel.query(prisma).getIsStarreds(userId, ids, 'Organization')
-                : Array(ids.length).fill(false);
-            objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
-        }
-        // Query for isViewed
-        if (partial.isViewed) {
-            const isViewedArray = userId
-                ? await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Organization')
-                : Array(ids.length).fill(false);
-            objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
-        }
-        // Query for permissions
-        if (partial.permissionsOrganization) {
-            //TODO set permissions to those passed in, or query for them
-        }
-        // // Query for role
-        // if (partial.role) {
-        //     const roles = userId
-        //         ? await OrganizationModel.query(prisma).getRoles(userId, ids)
-        //         : Array(ids.length).fill(null);
-        //     objects = objects.map((x, i) => ({ ...x, role: roles[i] })) as any;
-        // }
-        return objects as RecursivePartial<Organization>[];
+        return addSupplementalFieldsHelper({
+            objects,
+            partial,
+            resolvers: [
+                ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Organization')],
+                ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Organization')],
+                ['permissionsOrganization', async () => await OrganizationModel.permissions(prisma).get({ objects, permissions, userId })],
+            ]
+        });
+    }
+    // // Query for role
+    // if (partial.role) {
+    //     const roles = userId
+    //         ? await OrganizationModel.query(prisma).getRoles(userId, ids)
+    //         : Array(ids.length).fill(null);
+    //     objects = objects.map((x, i) => ({ ...x, role: roles[i] })) as any;
+    // }
+})
+
+export const organizationPermissioner = (prisma: PrismaType): Permissioner<OrganizationPermission> => ({
+    async get({
+        objects,
+        permissions,
+        userId,
+    }) {
+        //TODO
+        return objects.map((o) => ({
+            canAddMembers: true,
+            canDelete: true,
+            canEdit: true,
+            canReport: true,
+            canStar: true,
+            isMember: true,
+        }));
     },
 })
 
@@ -307,6 +313,7 @@ export const OrganizationModel = ({
     prismaObject: (prisma: PrismaType) => prisma.organization,
     format: organizationFormatter(),
     mutate: organizationMutater,
+    permissions: organizationPermissioner,
     search: organizationSearcher(),
     query: organizationQuerier,
 })

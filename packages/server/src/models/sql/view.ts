@@ -91,7 +91,7 @@ export const viewFormatter = (): FormatConverter<View, any> => ({
                 object.to = to;
             }
         }
-        return objects;
+        return objects as RecursivePartial<View>[];
     },
 })
 
@@ -132,12 +132,14 @@ export const viewSearcher = (): Searcher<ViewSearchInput> => ({
 
 const viewQuerier = (prisma: PrismaType) => ({
     async getIsVieweds(
-        userId: string,
+        userId: string | null,
         ids: string[],
         viewFor: keyof typeof ViewFor
     ): Promise<Array<boolean | null>> {
         // Create result array that is the same length as ids
         const result = new Array(ids.length).fill(null);
+        // If userId not provided, return result
+        if (!userId) return result;
         // Filter out nulls and undefineds from ids
         const idsFiltered = ids.filter(id => id !== null && id !== undefined);
         const fieldName = `${viewFor.toLowerCase()}Id`;

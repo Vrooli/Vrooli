@@ -45,10 +45,14 @@ const { difference, flatten, merge } = pkg;
 export const GraphQLModelType = {
     Comment: 'Comment',
     Copy: 'Copy',
+    DevelopPageResult: 'DevelopPageResult',
     Email: 'Email',
     Fork: 'Fork',
     Handle: 'Handle',
+    HistoryPageResult: 'HistoryPageResult',
+    HomePageResult: 'HomePageResult',
     InputItem: 'InputItem',
+    LearnPageResult: 'LearnPageResult',
     Member: 'Member',
     Node: 'Node',
     NodeEnd: 'NodeEnd',
@@ -60,6 +64,7 @@ export const GraphQLModelType = {
     Profile: 'Profile',
     Project: 'Project',
     Report: 'Report',
+    ResearchPageResult: 'ResearchPageResult',
     Resource: 'Resource',
     ResourceList: 'ResourceList',
     Role: 'Role',
@@ -88,8 +93,9 @@ export type ModelLogic<GraphQLModel, SearchInput, PermissionObject> = {
     prismaObject: (prisma: PrismaType) => PrismaType[keyof PrismaType];
     search?: Searcher<SearchInput>;
     mutate?: (prisma: PrismaType) => Mutater<GraphQLModel>;
+    permission?: (prisma: PrismaType) => Permissioner<PermissionObject>;
     verify?: { [x: string]: any };
-    query?: (prisma: PrismaType) => Querier<PermissionObject>;
+    query?: (prisma: PrismaType) => Querier;
 }
 
 /**
@@ -169,7 +175,7 @@ export type FormatConverter<GraphQLModel, PermissionObject> = {
      * @returns objects ready to be sent through GraphQL
      */
     addSupplementalFields?: ({ objects, partial, permissions, prisma, userId }: {
-        objects: RecursivePartial<any>[],
+        objects: ({ id: string } & { [x: string]: any })[];
         partial: PartialGraphQLInfo,
         permissions?: PermissionObject[] | null,
         prisma: PrismaType,
@@ -190,9 +196,7 @@ export type Searcher<SearchInput> = {
 /**
  * Describes shape of component that can be queried
  */
-export type Querier<PermissionObject> = {
-    permissions?({ userId, objectId }: { userId: string | null, objectId: string }): Promise<PermissionObject>
-} & { [x: string]: any };
+export type Querier = { [x: string]: any };
 
 /**
  * Describes shape of component that can be mutated
@@ -201,6 +205,17 @@ export type Mutater<GraphQLModel> = {
     cud?({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<any, any>): Promise<CUDResult<GraphQLModel>>;
     duplicate?({ userId, objectId, isFork, createCount }: DuplicateInput): Promise<DuplicateResult<GraphQLModel>>;
 } & { [x: string]: any };
+
+/**
+ * Describes shape of component with permissioned access
+ */
+export type Permissioner<PermissionObject> = {
+    get({ objects, permissions, userId }: {
+        objects: ({ id: string } & { [x: string]: any })[],
+        permissions?: PermissionObject[] | null,
+        userId: string | null,
+    }): Promise<PermissionObject[]>
+}
 
 /**
  * Mapper for associating a model's many-to-many relationship names with
@@ -318,10 +333,6 @@ export const ObjectMap: { [key in GraphQLModelType]?: ModelLogic<any, any, any> 
 }
 
 /**
- * Finds 
- */
-
-/**
  * Determines if an object is a relationship object, and not an array of relationship objects.
  * @param obj - object to check
  * @returns True if obj is a relationship object, false otherwise
@@ -342,6 +353,15 @@ const isRelationshipArray = (obj: any): boolean => Array.isArray(obj) && obj.eve
  */
 export function lowercaseFirstLetter(str: string): string {
     return str.charAt(0).toLowerCase() + str.slice(1);
+}
+
+/**
+ * Uppercases the first letter of a string
+ * @param str String to capitalize
+ * @returns Uppercased string
+ */
+export function uppercaseFirstLetter(str: string): string {
+    return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 /**
@@ -1099,7 +1119,7 @@ const combineSupplements = (data: { [x: string]: any }, objectsById: { [x: strin
  * @returns Requested object with all its fields and children included. If object not found, 
  * returns { id }
  */
-const pickObjectById = (data: any, id: string): { [x: string]: any } => {
+const pickObjectById = (data: any, id: string): ({ id: string } & { [x: string]: any }) => {
     // Stringify data, so we can perform search of ID
     const dataString = JSON.stringify(data);
     // Find the location in the string where the ID is. 
@@ -1198,8 +1218,8 @@ export const addSupplementalFields = async (
 
     // Dictionary to store objects by ID, instead of type. This is needed to combineSupplements
     const objectsById: { [x: string]: any } = {};
-    // console.log('objectidsdict', JSON.stringify(objectIdsDict), '\n\n');
 
+    console.log('add supp start', JSON.stringify(objectIdsDict), '\n\n');
     // Loop through each type in objectIdsDict
     for (const [type, ids] of Object.entries(objectIdsDict)) {
         // Find the data for each id in ids. Since the data parameter is an array,
@@ -1236,6 +1256,7 @@ export const addSupplementalFieldsMultiTypes = async (
     userId: string | null,
     prisma: PrismaType,
 ): Promise<{ [x: string]: any[] }> => {
+    console.log('addsupplementalfield multitypes start', '\n\n');
     // Flatten data array
     const combinedData = flatten(data);
     // Create an array of partials, that match the data array
@@ -1284,10 +1305,12 @@ export async function permissionsHelper<PermissionKeys extends readonly string[]
     prisma,
     userId,
 }: PermissionsHelper<PermissionKeys, PermissionObject>): Promise<{ [key in PermissionKeys[number]]: boolean }> {
-    // Initialize result with false
+    // Initialize result with true for each permission. 
+    // This is because some objects don't have the requested permissions, 
+    // and we don't want to deny access in that case
     let result: { [x: string]: boolean } = {};
     for (const permission of permissions) {
-        result[permission] = false;
+        result[`can${uppercaseFirstLetter(permission)}`] = true;
     }
     if (!model.query) return result as { [key in PermissionKeys[number]]: boolean };
     const query = model.query(prisma);
@@ -1330,6 +1353,7 @@ export async function readOneHelper<GraphQLModel>({
         prisma,
         userId,
     });
+    console.log('got permissions', canRead)
     if (!canRead) throw new CustomError(CODE.Unauthorized, `Not allowed to read object`, { code: genErrorCode('0249') });
     // Get the Prisma object
     let object = input.id ?
@@ -1821,4 +1845,30 @@ export async function readManyAsFeed<GraphQLModel, SearchInput extends SearchInp
     })
     return readManyResult.edges.map(({ node }: any) =>
         modelToGraphQL(node, toPartialGraphQLInfo(info, model.format.relationshipMap) as PartialGraphQLInfo)) as any[]
+}
+
+type AddSupplementalFieldsHelper = {
+    objects: ({ id: string } & { [x: string]: any })[],
+    partial: PartialGraphQLInfo,
+    resolvers: [string, (ids: string[]) => Promise<any>][],
+}
+
+/**
+ * Helper function for simplifying addSupplementalFields
+ */
+export async function addSupplementalFieldsHelper<GraphQLModel>({
+    objects,
+    partial,
+    resolvers,
+}: AddSupplementalFieldsHelper): Promise<RecursivePartial<GraphQLModel>[]> {
+    // Get IDs from objects
+    const ids = objects.map(({ id }) => id);
+    // Get supplemental fields, and inject into objects
+    for (const [field, resolver] of resolvers) {
+        // If not in partial, skip
+        if (!partial[field]) continue;
+        const supplemental = await resolver(ids);
+        objects = objects.map((x, i) => ({ ...x, [field]: supplemental[i] }));
+    }
+    return objects;
 }

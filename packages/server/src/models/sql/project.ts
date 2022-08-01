@@ -2,7 +2,7 @@ import { CODE, omit, projectsCreate, projectsUpdate, projectTranslationCreate, p
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
 import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor, ProjectPermission } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, modelToGraphQL, PartialGraphQLInfo, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFieldsHelper, CUDInput, CUDResult, FormatConverter, modelToGraphQL, PartialGraphQLInfo, Permissioner, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -67,75 +67,74 @@ export const projectFormatter = (): FormatConverter<Project, ProjectPermission> 
         return omit(partial, supplementalFields);
     },
     async addSupplementalFields({ objects, partial, permissions, prisma, userId }): Promise<RecursivePartial<Project>[]> {
-        // Get all of the ids
-        const ids = objects.map(x => x.id) as string[];
-        // Query for isStarred
-        if (partial.isStarred) {
-            const isStarredArray = userId
-                ? await StarModel.query(prisma).getIsStarreds(userId, ids, 'Project')
-                : Array(ids.length).fill(false);
-            objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
-        }
-        // Query for isUpvoted
-        if (partial.isUpvoted) {
-            const isUpvotedArray = userId
-                ? await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Project')
-                : Array(ids.length).fill(false);
-            objects = objects.map((x, i) => ({ ...x, isUpvoted: isUpvotedArray[i] }));
-        }
-        // Query for isViewed
-        if (partial.isViewed) {
-            const isViewedArray = userId
-                ? await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Project')
-                : Array(ids.length).fill(false);
-            objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
-        }
-        // Query for permissions
-        if (partial.permissionsProject) {
-            //TODO set permissions to those passed in, or query for them
-        }
-        // // Query for role
-        // if (partial.role) {
-        //     let organizationIds: string[] = [];
-        //     // Collect owner data
-        //     let ownerData: any = objects.map(x => x.owner).filter(x => x);
-        //     // If no owner data was found, then owner data was not queried. In this case, query for owner data.
-        //     if (ownerData.length === 0) {
-        //         const ownerDataUnformatted = await prisma.project.findMany({
-        //             where: { id: { in: ids } },
-        //             select: {
-        //                 id: true,
-        //                 user: { select: { id: true } },
-        //                 organization: { select: { id: true } },
-        //             },
-        //         });
-        //         organizationIds = ownerDataUnformatted.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
-        //         // Inject owner data into "objects"
-        //         objects = objects.map((x, i) => { 
-        //             const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
-        //             return ({ ...x, owner: unformatted?.user || unformatted?.organization })
-        //         });
-        //     } else {
-        //         organizationIds = objects
-        //             .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
-        //             .map(x => x.owner.id)
-        //             .filter(x => Boolean(x)) as string[];
-        //     }
-        //     // If owned by user, set role to owner if userId matches
-        //     // If owned by organization, set role user's role in organization
-        //     const roles = userId
-        //         ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
-        //         : [];
-        //     objects = objects.map((x) => {
-        //         const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
-        //         if (orgRoleIndex >= 0) {
-        //             return { ...x, role: roles[orgRoleIndex] };
-        //         }
-        //         return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
-        //     }) as any;
-        // }
-        // Convert Prisma objects to GraphQL objects
-        return objects as RecursivePartial<Project>[];
+        return addSupplementalFieldsHelper({
+            objects,
+            partial,
+            resolvers: [
+                ['isStarred', async (ids) => StarModel.query(prisma).getIsStarreds(userId, ids, 'Project')],
+                ['isUpvoted', async (ids) => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Project')],
+                ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Project')],
+                ['permissionsProject', async () => await ProjectModel.permissions(prisma).get({ objects, permissions, userId })],
+            ]
+        });
+    }
+    // // Query for role
+    // if (partial.role) {
+    //     let organizationIds: string[] = [];
+    //     // Collect owner data
+    //     let ownerData: any = objects.map(x => x.owner).filter(x => x);
+    //     // If no owner data was found, then owner data was not queried. In this case, query for owner data.
+    //     if (ownerData.length === 0) {
+    //         const ownerDataUnformatted = await prisma.project.findMany({
+    //             where: { id: { in: ids } },
+    //             select: {
+    //                 id: true,
+    //                 user: { select: { id: true } },
+    //                 organization: { select: { id: true } },
+    //             },
+    //         });
+    //         organizationIds = ownerDataUnformatted.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
+    //         // Inject owner data into "objects"
+    //         objects = objects.map((x, i) => { 
+    //             const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
+    //             return ({ ...x, owner: unformatted?.user || unformatted?.organization })
+    //         });
+    //     } else {
+    //         organizationIds = objects
+    //             .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
+    //             .map(x => x.owner.id)
+    //             .filter(x => Boolean(x)) as string[];
+    //     }
+    //     // If owned by user, set role to owner if userId matches
+    //     // If owned by organization, set role user's role in organization
+    //     const roles = userId
+    //         ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
+    //         : [];
+    //     objects = objects.map((x) => {
+    //         const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
+    //         if (orgRoleIndex >= 0) {
+    //             return { ...x, role: roles[orgRoleIndex] };
+    //         }
+    //         return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
+    //     }) as any;
+    // }
+})
+
+export const projectPermissioner = (prisma: PrismaType): Permissioner<ProjectPermission> => ({
+    async get({
+        objects,
+        permissions,
+        userId,
+    }) {
+        //TODO
+        return objects.map((o) => ({
+            canComment: true,
+            canDelete: true,
+            canEdit: true,
+            canReport: true,
+            canStar: true,
+            canVote: true,
+        }));
     },
 })
 
@@ -376,6 +375,7 @@ export const ProjectModel = ({
     prismaObject: (prisma: PrismaType) => prisma.project,
     format: projectFormatter(),
     mutate: projectMutater,
+    permissions: projectPermissioner,
     search: projectSearcher(),
 })
 

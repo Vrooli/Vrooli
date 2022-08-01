@@ -145,12 +145,14 @@ const voteMutater = (prisma: PrismaType) => ({
 
 const voteQuerier = (prisma: PrismaType) => ({
     async getIsUpvoteds(
-        userId: string,
+        userId: string | null,
         ids: string[],
         voteFor: keyof typeof VoteFor
     ): Promise<Array<boolean | null>> {
         // Create result array that is the same length as ids
         const result = new Array(ids.length).fill(null);
+        // If userId not provided, return result
+        if (!userId) return result;
         // Filter out nulls and undefineds from ids
         const idsFiltered = ids.filter(id => id !== null && id !== undefined);
         const fieldName = `${voteFor.toLowerCase()}Id`;
