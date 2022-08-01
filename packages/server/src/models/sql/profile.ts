@@ -1,7 +1,7 @@
 import { PrismaType, RecursivePartial } from "../../types";
 import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success, Tag, TagCreateInput, TagHidden, User, UserDeleteInput } from "../../schema/types";
 import { sendResetPasswordLink, sendVerificationLink } from "../../worker/email/queue";
-import { addJoinTablesHelper, addSupplementalFields, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, padSelect, PartialGraphQLInfo, readOneHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo } from "./base";
+import { addJoinTablesHelper, addSupplementalFields, FormatConverter, GraphQLInfo, modelToGraphQL, padSelect, PartialGraphQLInfo, readOneHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo } from "./base";
 import { user } from "@prisma/client";
 import { CODE, omit, profileUpdateSchema, userTranslationCreate, userTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
@@ -39,25 +39,25 @@ const joinMapper = { hiddenTags: 'tag', roles: 'role', starredBy: 'user' };
 const calculatedFields = ['starredTags', 'hiddenTags'];
 export const profileFormatter = (): FormatConverter<User> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Profile,
-        'comments': GraphQLModelType.Comment,
-        'roles': GraphQLModelType.Role,
-        'emails': GraphQLModelType.Email,
-        'wallets': GraphQLModelType.Wallet,
-        'standards': GraphQLModelType.Standard,
-        'tags': GraphQLModelType.Tag,
-        'resourceLists': GraphQLModelType.ResourceList,
-        'organizations': GraphQLModelType.Member,
-        'projects': GraphQLModelType.Project,
-        'projectsCreated': GraphQLModelType.Project,
-        'routines': GraphQLModelType.Routine,
-        'routinesCreated': GraphQLModelType.Routine,
-        'starredBy': GraphQLModelType.User,
-        'starred': GraphQLModelType.Star,
-        'hiddenTags': GraphQLModelType.TagHidden,
-        'sentReports': GraphQLModelType.Report,
-        'reports': GraphQLModelType.Report,
-        'votes': GraphQLModelType.Vote,
+        '__typename': 'Profile',
+        'comments': 'Comment',
+        'roles': 'Role',
+        'emails': 'Email',
+        'wallets': 'Wallet',
+        'standards': 'Standard',
+        'tags': 'Tag',
+        'resourceLists': 'ResourceList',
+        'organizations': 'Member',
+        'projects': 'Project',
+        'projectsCreated': 'Project',
+        'routines': 'Routine',
+        'routinesCreated': 'Routine',
+        'starredBy': 'User',
+        'starred': 'Star',
+        'hiddenTags': 'TagHidden',
+        'sentReports': 'Report',
+        'reports': 'Report',
+        'votes': 'Vote',
     },
     removeCalculatedFields: (partial) => {
         return omit(partial, calculatedFields);
@@ -403,7 +403,7 @@ const profileMutater = (prisma: PrismaType) => ({
         info: GraphQLInfo,
     ): Promise<RecursivePartial<Profile>> {
         profileUpdateSchema.validateSync(input, { abortEarly: false });
-        await WalletModel.verify(prisma).verifyHandle(GraphQLModelType.User, userId, input.handle);
+        await WalletModel.verify(prisma).verifyHandle('User', userId, input.handle);
         if (hasProfanity(input.name))
             throw new CustomError(CODE.BannedWord, 'User name contains banned word', { code: genErrorCode('0066') });
         TranslationModel.profanityCheck([input]);

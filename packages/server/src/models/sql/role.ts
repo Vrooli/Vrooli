@@ -1,6 +1,6 @@
 import { PrismaType } from "../../types";
 import { Role } from "../../schema/types";
-import { FormatConverter, addJoinTablesHelper, removeJoinTablesHelper, GraphQLModelType, ModelLogic } from "./base";
+import { FormatConverter, addJoinTablesHelper, removeJoinTablesHelper } from "./base";
 
 //==============================================================
 /* #region Custom Components */
@@ -9,8 +9,8 @@ import { FormatConverter, addJoinTablesHelper, removeJoinTablesHelper, GraphQLMo
 const joinMapper = { users: 'user' };
 export const roleFormatter = (): FormatConverter<Role> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Role,
-        'users': GraphQLModelType.User,
+        '__typename': 'Role',
+        'users': 'User',
     },
     addJoinTables: (partial) => {
         return addJoinTablesHelper(partial, joinMapper);

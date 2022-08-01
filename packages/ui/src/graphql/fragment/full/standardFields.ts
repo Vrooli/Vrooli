@@ -48,6 +48,7 @@ export const standardFields = gql`
         default
         created_at
         permissionsStandard {
+            canComment
             canDelete
             canEdit
             canStar

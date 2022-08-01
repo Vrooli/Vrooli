@@ -9,7 +9,7 @@ export const runFields = gql`
             description
         }
     }
-    fragment runInputFields on RunInputItem {
+    fragment runInputItemFields on InputItem {
         id
         isRequired
         name
@@ -94,7 +94,7 @@ export const runFields = gql`
                         id
                         complexity
                         inputs {
-                            ...runInputFields
+                            ...runInputItemFields
                         }
                         isComplete
                         isDeleted
@@ -225,7 +225,7 @@ export const runFields = gql`
         complexity
         created_at
         inputs {
-            ...runInputFields
+            ...runInputItemFields
         }
         isAutomatable
         isComplete
@@ -309,11 +309,11 @@ export const runFields = gql`
             id
         }
     }
-    fragment runInputsFields on RunInput {
+    fragment runInputDataFields on RunInput {
         id
         data
         input {
-            ...runInputFields
+            ...runInputItemFields
         }
     }
     fragment runFields on Run {
@@ -327,7 +327,7 @@ export const runFields = gql`
         title
         status
         inputs {
-            ...runInputsFields
+            ...runInputDataFields
         }
         routine {
             ...runRoutineFields

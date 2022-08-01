@@ -14,10 +14,8 @@ import { StandardViewProps } from "../types";
 import { getCreatedByString, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData, TERTIARY_COLOR, toCreatedBy } from "utils";
 import { Standard } from "types";
 import { CommentFor, StarFor } from "graphql/generated/globalTypes";
-import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
 import { validate as uuidValidate } from 'uuid';
-import { owns } from "utils/authentication";
 import { FieldData, FieldDataJSON } from "forms/types";
 import { useFormik } from "formik";
 import { generateInputComponent } from "forms/generators";
@@ -42,7 +40,6 @@ export const StandardView = ({
 
     const standard = useMemo(() => data?.standard, [data]);
     const [changedStandard, setChangedStandard] = useState<Standard | null>(null); // Standard may change if it is starred/upvoted/etc.
-    const canEdit = useMemo<boolean>(() => owns(standard?.role), [standard]);
 
     const availableLanguages = useMemo<string[]>(() => (standard?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [standard?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -71,8 +68,11 @@ export const StandardView = ({
         if (standard) { setChangedStandard(standard) }
     }, [standard]);
 
-    const { description, name } = useMemo(() => {
+    const { canEdit, canStar, description, name } = useMemo(() => {
+        const permissions = standard?.permissionsStandard;
         return {
+            canEdit: permissions?.canEdit === true,
+            canStar: permissions?.canStar === true,
             description: getTranslation(standard, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
             name: standard?.name ?? partialData?.name,
         };
@@ -97,29 +97,6 @@ export const StandardView = ({
         ev.preventDefault();
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
-
-    // Determine options available to object, in order
-    const moreOptions: BaseObjectAction[] = useMemo(() => {
-        // Initialize
-        let options: BaseObjectAction[] = [];
-        if (canEdit) {
-            options.push(BaseObjectAction.Edit);
-        }
-        options.push(BaseObjectAction.Stats);
-        if (session && !canEdit) {
-            options.push(standard?.isUpvoted ? BaseObjectAction.Downvote : BaseObjectAction.Upvote);
-            options.push(standard?.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
-            options.push(BaseObjectAction.Fork);
-        }
-        options.push(BaseObjectAction.Donate, BaseObjectAction.Share)
-        if (session?.id) {
-            options.push(BaseObjectAction.Report);
-        }
-        if (canEdit) {
-            options.push(BaseObjectAction.Delete);
-        }
-        return options;
-    }, [standard, canEdit, session]);
 
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(true);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
@@ -220,13 +197,15 @@ export const StandardView = ({
             <BaseObjectActionDialog
                 handleActionComplete={() => { }} //TODO
                 handleEdit={onEdit}
+                isUpvoted={standard?.isUpvoted}
+                isStarred={standard?.isStarred}
                 objectId={id ?? ''}
                 objectName={name ?? ''}
                 objectType={ObjectType.Standard}
                 anchorEl={moreMenuAnchor}
                 title='Standard Options'
-                availableOptions={moreOptions}
                 onClose={closeMoreMenu}
+                permissions={standard?.permissionsStandard}
                 session={session}
                 zIndex={zIndex + 1}
             />
@@ -293,7 +272,7 @@ export const StandardView = ({
                             alignItems: 'center',
                             justifyContent: 'center',
                         }}>
-                            <StarButton
+                            {canStar && <StarButton
                                 session={session}
                                 objectId={standard?.id ?? ''}
                                 showStars={false}
@@ -302,7 +281,7 @@ export const StandardView = ({
                                 stars={changedStandard?.stars ?? 0}
                                 onChange={(isStar: boolean) => { changedStandard && setChangedStandard({ ...changedStandard, isStarred: isStar }) }}
                                 tooltipPlacement="bottom"
-                            />
+                            />}
                             {createdBy && (
                                 <LinkButton
                                     onClick={toCreator}

@@ -16,19 +16,19 @@ const countMapper = { reportsCount: 'reports' };
 const calculatedFields = ['isStarred', 'isUpvoted', 'role'];
 export const commentFormatter = (): FormatConverter<Comment> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Comment,
+        '__typename': 'Comment',
         'creator': {
-            'User': GraphQLModelType.User,
-            'Organization': GraphQLModelType.Organization,
+            'User': 'User',
+            'Organization': 'Organization',
         },
         'commentedOn': {
-            'Project': GraphQLModelType.Project,
-            'Routine': GraphQLModelType.Routine,
-            'Standard': GraphQLModelType.Standard,
+            'Project': 'Project',
+            'Routine': 'Routine',
+            'Standard': 'Standard',
         },
-        'reports': GraphQLModelType.Report,
-        'starredBy': GraphQLModelType.User,
-        'votes': GraphQLModelType.Vote,
+        'reports': 'Report',
+        'starredBy': 'User',
+        'votes': 'Vote',
     },
     removeCalculatedFields: (partial) => {
         return omit(partial, calculatedFields);
@@ -44,13 +44,13 @@ export const commentFormatter = (): FormatConverter<Comment> => ({
     },
     deconstructUnions: (partial) => {
         let modified = deconstructUnion(partial, 'creator', [
-            [GraphQLModelType.User, 'user'],
-            [GraphQLModelType.Organization, 'organization'],
+            ['User', 'user'],
+            ['Organization', 'organization'],
         ]);
         modified = deconstructUnion(modified, 'commentedOn', [
-            [GraphQLModelType.Project, 'project'],
-            [GraphQLModelType.Routine, 'routine'],
-            [GraphQLModelType.Standard, 'standard'],
+            ['Project', 'project'],
+            ['Routine', 'routine'],
+            ['Standard', 'standard'],
         ]);
         return modified;
     },
@@ -77,7 +77,7 @@ export const commentFormatter = (): FormatConverter<Comment> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel.query(prisma).getIsStarreds(userId, ids, GraphQLModelType.Comment)
+                ? await StarModel.query(prisma).getIsStarreds(userId, ids, 'Comment')
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }

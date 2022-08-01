@@ -17,13 +17,11 @@ import { BaseObjectActionDialog, SearchList, SelectLanguageDialog, StarButton } 
 import { containerShadow } from "styles";
 import { OrganizationViewProps } from "../types";
 import { Organization, ResourceList } from "types";
-import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
 import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, PubSub } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { owns } from "utils/authentication";
 
 enum TabOptions {
     Resources = "Resources",
@@ -55,7 +53,7 @@ export const OrganizationView = ({
     useEffect(() => {
         setOrganization(data?.organization);
     }, [data]);
-    const canEdit = useMemo<boolean>(() => owns(organization?.role), [organization]);
+    const canEdit = useMemo<boolean>(() => organization?.permissionsOrganization?.canEdit === true, [organization?.permissionsOrganization?.canEdit]);
 
     const availableLanguages = useMemo<string[]>(() => (organization?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [organization?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -64,10 +62,12 @@ export const OrganizationView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { bio, handle, name, resourceList } = useMemo(() => {
+    const { bio, canStar, handle, name, resourceList } = useMemo(() => {
+        const permissions = organization?.permissionsOrganization;
         const resourceList: ResourceList | undefined = Array.isArray(organization?.resourceLists) ? organization?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
         return {
             bio: getTranslation(organization, 'bio', [language]) ?? getTranslation(partialData, 'bio', [language]),
+            canStar: permissions?.canStar === true,
             handle: organization?.handle ?? partialData?.handle,
             name: getTranslation(organization, 'name', [language]) ?? getTranslation(partialData, 'name', [language]),
             resourceList,
@@ -184,23 +184,6 @@ export const OrganizationView = ({
                 }
         }
     }, [currTabType, setLocation, id, canEdit]);
-
-    // Determine options available to object, in order
-    const moreOptions: BaseObjectAction[] = useMemo(() => {
-        // Initialize
-        let options: BaseObjectAction[] = [];
-        if (session && !canEdit) {
-            options.push(organization?.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
-        }
-        options.push(BaseObjectAction.Donate, BaseObjectAction.Share)
-        if (session?.id) {
-            options.push(BaseObjectAction.Report);
-        }
-        if (canEdit) {
-            options.push(BaseObjectAction.Delete);
-        }
-        return options;
-    }, [session, canEdit, organization?.isStarred]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -337,21 +320,19 @@ export const OrganizationView = ({
                             <ShareIcon />
                         </IconButton>
                     </Tooltip>
-                    {
-                        !canEdit ? <StarButton
-                            session={session}
-                            objectId={organization?.id ?? ''}
-                            starFor={StarFor.Organization}
-                            isStar={organization?.isStarred ?? false}
-                            stars={organization?.stars ?? 0}
-                            onChange={(isStar: boolean) => { }}
-                            tooltipPlacement="bottom"
-                        /> : null
-                    }
+                    {canStar && <StarButton
+                        session={session}
+                        objectId={organization?.id ?? ''}
+                        starFor={StarFor.Organization}
+                        isStar={organization?.isStarred ?? false}
+                        stars={organization?.stars ?? 0}
+                        onChange={(isStar: boolean) => { }}
+                        tooltipPlacement="bottom"
+                    />}
                 </Stack>
             </Stack>
         </Box >
-    ), [palette, profileColors, openMoreMenu, loading, canEdit, name, onEdit, handle, organization?.created_at, organization?.id, organization?.isStarred, organization?.stars, bio, shareLink, session]);
+    ), [palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.mode, palette.primary.main, palette.secondary.light, palette.secondary.dark, profileColors, openMoreMenu, loading, canEdit, name, onEdit, handle, organization.created_at, organization?.id, organization?.isStarred, organization?.stars, bio, shareLink, canStar, session]);
 
     /**
      * Opens add new page
@@ -379,13 +360,15 @@ export const OrganizationView = ({
             <BaseObjectActionDialog
                 handleActionComplete={() => { }} //TODO
                 handleEdit={onEdit}
+                isUpvoted={null}
+                isStarred={organization?.isStarred}
                 objectId={id}
                 objectName={name ?? ''}
                 objectType={ObjectType.Organization}
                 anchorEl={moreMenuAnchor}
                 title='Organization Options'
-                availableOptions={moreOptions}
                 onClose={closeMoreMenu}
+                permissions={organization?.permissionsOrganization}
                 session={session}
                 zIndex={zIndex + 1}
             />

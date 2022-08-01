@@ -119,6 +119,7 @@ export const typeDef = gql`
     }
 
     type RoutinePermission {
+        canComment: Boolean!
         canDelete: Boolean!
         canEdit: Boolean!
         canStar: Boolean!

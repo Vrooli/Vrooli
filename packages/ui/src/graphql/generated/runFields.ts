@@ -9,10 +9,64 @@ import { RunStatus, NodeType, ResourceListUsedFor, ResourceUsedFor, RunStepStatu
 // GraphQL fragment: runFields
 // ====================================================
 
+export interface runFields_inputs_input_translations {
+  __typename: "InputItemTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface runFields_inputs_input_standard_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface runFields_inputs_input_standard_tags {
+  __typename: "Tag";
+  tag: string;
+  translations: runFields_inputs_input_standard_tags_translations[];
+}
+
+export interface runFields_inputs_input_standard_translations {
+  __typename: "StandardTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface runFields_inputs_input_standard {
+  __typename: "Standard";
+  id: string;
+  default: string | null;
+  isDeleted: boolean;
+  isInternal: boolean;
+  isPrivate: boolean;
+  name: string;
+  type: string;
+  props: string;
+  yup: string | null;
+  tags: runFields_inputs_input_standard_tags[];
+  translations: runFields_inputs_input_standard_translations[];
+  version: string;
+  versionGroupId: string;
+}
+
+export interface runFields_inputs_input {
+  __typename: "InputItem";
+  id: string;
+  isRequired: boolean | null;
+  name: string | null;
+  translations: runFields_inputs_input_translations[];
+  standard: runFields_inputs_input_standard | null;
+}
+
 export interface runFields_inputs {
   __typename: "RunInput";
   id: string;
   data: string;
+  input: runFields_inputs_input[] | null;
 }
 
 export interface runFields_routine_inputs_translations {

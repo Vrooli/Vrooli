@@ -1,5 +1,5 @@
 // Components for providing basic functionality to model objects
-import { CopyInput, CopyType, Count, DeleteManyInput, DeleteOneInput, FindByIdOrHandleInput, ForkInput, PageInfo, Success, TimeFrame } from '../../schema/types';
+import { CopyInput, CopyType, Count, DeleteManyInput, DeleteOneInput, ForkInput, PageInfo, Success, TimeFrame } from '../../schema/types';
 import { PrismaType, RecursivePartial } from '../../types';
 import { GraphQLResolveInfo } from 'graphql';
 import { CommentModel } from './comment';
@@ -34,6 +34,7 @@ import { WalletModel } from './wallet';
 import { RunStepModel } from './runStep';
 import { NodeRoutineListModel } from './nodeRoutineList';
 import { RunInputModel } from './runInput';
+import { ValueOf } from '@local/shared';
 const { difference, flatten, merge } = pkg;
 
 
@@ -41,40 +42,41 @@ const { difference, flatten, merge } = pkg;
 /* #region Type Definitions */
 //======================================================================================================================
 
-export enum GraphQLModelType {
-    Comment = 'Comment',
-    Copy = 'Copy',
-    Email = 'Email',
-    Fork = 'Fork',
-    Handle = 'Handle',
-    InputItem = 'InputItem',
-    Member = 'Member',
-    Node = 'Node',
-    NodeEnd = 'NodeEnd',
-    NodeLoop = 'NodeLoop',
-    NodeRoutineList = 'NodeRoutineList',
-    NodeRoutineListItem = 'NodeRoutineListItem',
-    Organization = 'Organization',
-    OutputItem = 'OutputItem',
-    Profile = 'Profile',
-    Project = 'Project',
-    Report = 'Report',
-    Resource = 'Resource',
-    ResourceList = 'ResourceList',
-    Role = 'Role',
-    Routine = 'Routine',
-    Run = 'Run',
-    RunInput = 'RunInput',
-    RunStep = 'RunStep',
-    Standard = 'Standard',
-    Star = 'Star',
-    Tag = 'Tag',
-    TagHidden = 'TagHidden',
-    User = 'User',
-    View = 'View',
-    Vote = 'Vote',
-    Wallet = 'Wallet',
-}
+export const GraphQLModelType = {
+    Comment: 'Comment',
+    Copy: 'Copy',
+    Email: 'Email',
+    Fork: 'Fork',
+    Handle: 'Handle',
+    InputItem: 'InputItem',
+    Member: 'Member',
+    Node: 'Node',
+    NodeEnd: 'NodeEnd',
+    NodeLoop: 'NodeLoop',
+    NodeRoutineList: 'NodeRoutineList',
+    NodeRoutineListItem: 'NodeRoutineListItem',
+    Organization: 'Organization',
+    OutputItem: 'OutputItem',
+    Profile: 'Profile',
+    Project: 'Project',
+    Report: 'Report',
+    Resource: 'Resource',
+    ResourceList: 'ResourceList',
+    Role: 'Role',
+    Routine: 'Routine',
+    Run: 'Run',
+    RunInput: 'RunInput',
+    RunStep: 'RunStep',
+    Standard: 'Standard',
+    Star: 'Star',
+    Tag: 'Tag',
+    TagHidden: 'TagHidden',
+    User: 'User',
+    View: 'View',
+    Vote: 'Vote',
+    Wallet: 'Wallet',
+} as const
+export type GraphQLModelType = ValueOf<typeof GraphQLModelType>;
 
 /**
  * Basic structure of an object's business layer.
@@ -289,32 +291,32 @@ export interface DuplicateResult<GraphQLObject> {
  * Maps model types to various helper functions
  */
 export const ObjectMap: { [key in GraphQLModelType]?: ModelLogic<any, any, any> } = {
-    [GraphQLModelType.Comment]: CommentModel,
-    [GraphQLModelType.Email]: EmailModel,
-    [GraphQLModelType.InputItem]: InputItemModel,
-    [GraphQLModelType.Member]: MemberModel, // TODO create searcher for members
-    [GraphQLModelType.Node]: NodeModel,
-    [GraphQLModelType.NodeRoutineList]: NodeRoutineListModel,
-    [GraphQLModelType.Organization]: OrganizationModel,
-    [GraphQLModelType.OutputItem]: OutputItemModel,
-    [GraphQLModelType.Profile]: ProfileModel,
-    [GraphQLModelType.Project]: ProjectModel,
-    [GraphQLModelType.Report]: ReportModel,
-    [GraphQLModelType.Resource]: ResourceModel,
-    [GraphQLModelType.ResourceList]: ResourceListModel,
-    [GraphQLModelType.Role]: RoleModel,
-    [GraphQLModelType.Routine]: RoutineModel,
-    [GraphQLModelType.Run]: RunModel,
-    [GraphQLModelType.RunInput]: RunInputModel,
-    [GraphQLModelType.Standard]: StandardModel,
-    [GraphQLModelType.RunStep]: RunStepModel,
-    [GraphQLModelType.Star]: StarModel,
-    [GraphQLModelType.Tag]: TagModel,
-    [GraphQLModelType.TagHidden]: TagHiddenModel,
-    [GraphQLModelType.User]: UserModel,
-    [GraphQLModelType.Vote]: VoteModel,
-    [GraphQLModelType.View]: ViewModel,
-    [GraphQLModelType.Wallet]: WalletModel,
+    'Comment': CommentModel,
+    'Email': EmailModel,
+    'InputItem': InputItemModel,
+    'Member': MemberModel, // TODO create searcher for members
+    'Node': NodeModel,
+    'NodeRoutineList': NodeRoutineListModel,
+    'Organization': OrganizationModel,
+    'OutputItem': OutputItemModel,
+    'Profile': ProfileModel,
+    'Project': ProjectModel,
+    'Report': ReportModel,
+    'Resource': ResourceModel,
+    'ResourceList': ResourceListModel,
+    'Role': RoleModel,
+    'Routine': RoutineModel,
+    'Run': RunModel,
+    'RunInput': RunInputModel,
+    'Standard': StandardModel,
+    'RunStep': RunStepModel,
+    'Star': StarModel,
+    'Tag': TagModel,
+    'TagHidden': TagHiddenModel,
+    'User': UserModel,
+    'Vote': VoteModel,
+    'View': ViewModel,
+    'Wallet': WalletModel,
 }
 
 /**
@@ -442,8 +444,8 @@ export const addCreatorField = (data: any): any => {
  */
 export const removeCreatorField = (select: any): any => {
     return deconstructUnion(select, 'creator', [
-        [GraphQLModelType.User, 'createdByUser'],
-        [GraphQLModelType.Organization, 'createdByOrganization']
+        ['User', 'createdByUser'],
+        ['Organization', 'createdByOrganization']
     ]);
 }
 
@@ -468,8 +470,8 @@ export const addOwnerField = (data: any): any => {
  */
 export const removeOwnerField = (select: any): any => {
     return deconstructUnion(select, 'owner', [
-        [GraphQLModelType.User, 'user'],
-        [GraphQLModelType.Organization, 'organization']
+        ['User', 'user'],
+        ['Organization', 'organization']
     ]);
 }
 
@@ -1711,12 +1713,12 @@ export async function copyHelper({
     //TODO
     // Partially convert info
     let partialInfo = toPartialGraphQLInfo(info, ({
-        '__typename': GraphQLModelType.Copy,
-        'node': GraphQLModelType.Node,
-        'organization': GraphQLModelType.Organization,
-        'project': GraphQLModelType.Project,
-        'routine': GraphQLModelType.Routine,
-        'standard': GraphQLModelType.Standard,
+        '__typename': 'Copy',
+        'node': 'Node',
+        'organization': 'Organization',
+        'project': 'Project',
+        'routine': 'Routine',
+        'standard': 'Standard',
     }));
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0231') });
@@ -1770,11 +1772,11 @@ export async function forkHelper({
     //TODO
     // Partially convert info
     let partialInfo = toPartialGraphQLInfo(info, ({
-        '__typename': GraphQLModelType.Fork,
-        'organization': GraphQLModelType.Organization,
-        'project': GraphQLModelType.Project,
-        'routine': GraphQLModelType.Routine,
-        'standard': GraphQLModelType.Standard,
+        '__typename': 'Fork',
+        'organization': 'Organization',
+        'project': 'Project',
+        'routine': 'Routine',
+        'standard': 'Standard',
     }));
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0235') });

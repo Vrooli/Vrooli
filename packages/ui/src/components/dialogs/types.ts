@@ -161,13 +161,22 @@ export enum BaseObjectAction {
 
 export interface BaseObjectActionDialogProps {
     anchorEl: HTMLElement | null;
-    availableOptions: BaseObjectAction[];
     handleActionComplete: (action: BaseObjectAction, data: any) => any;
     handleEdit: () => any;
+    isUpvoted: boolean | null | undefined;
+    isStarred: boolean | null | undefined;
     objectId: string;
     objectName: string;
     objectType: ObjectType;
     onClose: () => any;
+    permissions: {
+        canDelete?: boolean;
+        canEdit?: boolean;
+        canFork?: boolean;
+        canReport?: boolean;
+        canStar?: boolean;
+        canVote?: boolean;
+    } | null | undefined
     session: Session;
     title: string;
     zIndex: number;

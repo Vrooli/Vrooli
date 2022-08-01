@@ -1,5 +1,5 @@
 import { Node, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from "../../schema/types";
-import { FormatConverter, relationshipToPrisma, RelationshipTypes, GraphQLModelType } from "./base";
+import { FormatConverter, relationshipToPrisma, RelationshipTypes } from "./base";
 import { nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeRoutineListItemTranslationCreate, nodeRoutineListItemTranslationUpdate } from "@local/shared";
 import { PrismaType } from "../../types";
 import { RoutineModel } from "./routine";
@@ -11,10 +11,10 @@ import { TranslationModel } from "./translation";
 
 export const nodeRoutineListFormatter = (): FormatConverter<Node> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.NodeRoutineList,
+        '__typename': 'NodeRoutineList',
         'routines': {
-            '__typename': GraphQLModelType.NodeRoutineListItem,
-            'routine': GraphQLModelType.Routine,
+            '__typename': 'NodeRoutineListItem',
+            'routine': 'Routine',
         },
     },
 })

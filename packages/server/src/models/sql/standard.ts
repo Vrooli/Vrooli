@@ -2,7 +2,7 @@ import { CODE, DeleteOneType, omit, standardsCreate, standardsUpdate, standardTr
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, modelToGraphQL, PartialGraphQLInfo, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { validateProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -24,18 +24,18 @@ const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
 const calculatedFields = ['isUpvoted', 'isStarred', 'role'];
 export const standardFormatter = (): FormatConverter<Standard> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Standard,
-        'comments': GraphQLModelType.Comment,
+        '__typename': 'Standard',
+        'comments': 'Comment',
         'creator': {
-            'User': GraphQLModelType.User,
-            'Organization': GraphQLModelType.Organization,
+            'User': 'User',
+            'Organization': 'Organization',
         },
-        'reports': GraphQLModelType.Report,
-        'resourceLists': GraphQLModelType.ResourceList,
-        'routineInputs': GraphQLModelType.Routine,
-        'routineOutputs': GraphQLModelType.Routine,
-        'starredBy': GraphQLModelType.User,
-        'tags': GraphQLModelType.Tag,
+        'reports': 'Report',
+        'resourceLists': 'ResourceList',
+        'routineInputs': 'Routine',
+        'routineOutputs': 'Routine',
+        'starredBy': 'User',
+        'tags': 'Tag',
     },
     removeCalculatedFields: (partial) => {
         return omit(partial, calculatedFields);
@@ -71,21 +71,21 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel.query(prisma).getIsStarreds(userId, ids, GraphQLModelType.Standard)
+                ? await StarModel.query(prisma).getIsStarreds(userId, ids, 'Standard')
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isUpvoted
         if (partial.isUpvoted) {
             const isUpvotedArray = userId
-                ? await VoteModel.query(prisma).getIsUpvoteds(userId, ids, GraphQLModelType.Standard)
+                ? await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Standard')
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isUpvoted: isUpvotedArray[i] }));
         }
         // Query for isViewed
         if (partial.isViewed) {
             const isViewedArray = userId
-                ? await ViewModel.query(prisma).getIsVieweds(userId, ids, GraphQLModelType.Standard)
+                ? await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Standard')
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
@@ -276,7 +276,7 @@ export const standardQuerier = (prisma: PrismaType) => ({
     async generateName(userId: string, data: StandardCreateInput): Promise<string> {
         // Created by query
         const id = data.createdByOrganizationId ?? data.createdByUserId ?? userId
-        const createdBy = { [`createdBy${data.createdByOrganizationId ? GraphQLModelType.Organization : GraphQLModelType.User}Id`]: id };
+        const createdBy = { [`createdBy${data.createdByOrganizationId ? 'Organization' : 'User'}Id`]: id };
         // Calculate optional standard name
         const name = data.name ? data.name : `${data.type} ${randomString(5)}`;
         // Loop until a unique name is found, or a max of 20 tries
@@ -316,7 +316,7 @@ export const standardMutater = (prisma: PrismaType) => ({
             props: sortify(data.props),
             yup: data.yup ? sortify(data.yup) : undefined,
             resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, true),
-            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, GraphQLModelType.Standard),
+            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Standard'),
             translations,
             version: data.version ?? '1.0.0',
         }
@@ -328,7 +328,7 @@ export const standardMutater = (prisma: PrismaType) => ({
         }
         return {
             resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, false),
-            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, GraphQLModelType.Standard),
+            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Standard'),
             translations,
         }
     },

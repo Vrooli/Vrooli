@@ -2,7 +2,7 @@ import { CODE, VoteFor } from "@local/shared";
 import { CustomError } from "../../error";
 import { LogType, Vote, VoteInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { deconstructUnion, FormatConverter, GraphQLModelType, ModelLogic } from "./base";
+import { deconstructUnion, FormatConverter } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 
@@ -12,14 +12,14 @@ import { Log } from "../../models/nosql";
 
 export const voteFormatter = (): FormatConverter<Vote> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Vote,
-        'from': GraphQLModelType.User,
+        '__typename': 'Vote',
+        'from': 'User',
         'to': {
-            'Comment': GraphQLModelType.Comment,
-            'Project': GraphQLModelType.Project,
-            'Routine': GraphQLModelType.Routine,
-            'Standard': GraphQLModelType.Standard,
-            'Tag': GraphQLModelType.Tag,
+            'Comment': 'Comment',
+            'Project': 'Project',
+            'Routine': 'Routine',
+            'Standard': 'Standard',
+            'Tag': 'Tag',
         }
     },
     constructUnions: (data) => {
@@ -33,10 +33,10 @@ export const voteFormatter = (): FormatConverter<Vote> => ({
     },
     deconstructUnions: (partial) => {
         let modified = deconstructUnion(partial, 'to', [
-            [GraphQLModelType.Comment, 'comment'],
-            [GraphQLModelType.Project, 'project'],
-            [GraphQLModelType.Routine, 'routine'],
-            [GraphQLModelType.Standard, 'standard'],
+            ['Comment', 'comment'],
+            ['Project', 'project'],
+            ['Routine', 'routine'],
+            ['Standard', 'standard'],
         ]);
         return modified;
     },

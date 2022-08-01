@@ -16,11 +16,11 @@ import { RunInputModel } from "./runInput";
 
 export const runFormatter = (): FormatConverter<Run> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Run,
-        'routine': GraphQLModelType.Routine,
-        'steps': GraphQLModelType.RunStep,
-        'inputs': GraphQLModelType.RunInput,
-        'user': GraphQLModelType.User,
+        '__typename': 'Run',
+        'routine': 'Routine',
+        'steps': 'RunStep',
+        'inputs': 'RunInput',
+        'user': 'User',
     },
 })
 

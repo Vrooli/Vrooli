@@ -25,7 +25,6 @@ import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
 import { validate as uuidValidate, v4 as uuid } from 'uuid';
 import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
-import { owns } from "utils/authentication";
 import { useFormik } from "formik";
 import { FieldData } from "forms/types";
 import { generateInputComponent } from "forms/generators";
@@ -54,8 +53,6 @@ export const RoutineView = ({
     }, [data]);
     const updateRoutine = useCallback((newRoutine: Routine) => { console.log('updateroutine', newRoutine); setRoutine(newRoutine); }, [setRoutine]);
 
-    const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine?.role]);
-
     const search = useReactSearch(null);
     const { runId } = useMemo(() => ({
         runId: typeof search.run === 'string' && uuidValidate(search.run) ? search.run : null,
@@ -68,8 +65,11 @@ export const RoutineView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { title, description, instructions } = useMemo(() => {
+    const { canStar, canVote, title, description, instructions } = useMemo(() => {
+        const permissions = routine?.permissionsRoutine;
         return {
+            canStar: permissions?.canStar === true,
+            canVote: permissions?.canVote === true,
             title: getTranslation(routine, 'title', [language]) ?? getTranslation(partialData, 'title', [language]),
             description: getTranslation(routine, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
             instructions: getTranslation(routine, 'instructions', [language]) ?? getTranslation(partialData, 'instructions', [language]),
@@ -271,33 +271,6 @@ export const RoutineView = ({
         ev.preventDefault();
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
-
-    // Determine options available to object, in order
-    const moreOptions: BaseObjectAction[] = useMemo(() => {
-        // Initialize
-        let options: BaseObjectAction[] = [];
-        if (canEdit) {
-            options.push(BaseObjectAction.Edit);
-        }
-        options.push(BaseObjectAction.Stats);
-        if (session && !canEdit) {
-            options.push(routine?.isUpvoted ? BaseObjectAction.Downvote : BaseObjectAction.Upvote);
-            options.push(routine?.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
-        }
-        options.push(
-            BaseObjectAction.Donate,
-            BaseObjectAction.Share,
-            BaseObjectAction.Fork,
-            BaseObjectAction.Copy,
-        )
-        if (session?.id) {
-            options.push(BaseObjectAction.Report);
-        }
-        if (canEdit) {
-            options.push(BaseObjectAction.Delete);
-        }
-        return options;
-    }, [routine, canEdit, session]);
 
     const handleMoreActionComplete = useCallback((action: BaseObjectAction, data: any) => {
         switch (action) {
@@ -596,13 +569,15 @@ export const RoutineView = ({
             <BaseObjectActionDialog
                 handleActionComplete={handleMoreActionComplete}
                 handleEdit={onEdit}
+                isUpvoted={routine?.isUpvoted}
+                isStarred={routine?.isStarred}
                 objectId={id ?? ''}
                 objectName={title ?? ''}
                 objectType={ObjectType.Routine}
                 anchorEl={moreMenuAnchor}
                 title='Routine Options'
-                availableOptions={moreOptions}
                 onClose={closeMoreMenu}
+                permissions={routine?.permissionsRoutine}
                 session={session}
                 zIndex={zIndex + 1}
             />
@@ -671,7 +646,7 @@ export const RoutineView = ({
                                     session={session}
                                     zIndex={zIndex}
                                 />
-                                {canEdit && <Tooltip title="Edit routine">
+                                {routine?.permissionsRoutine?.canEdit && <Tooltip title="Edit routine">
                                     <IconButton
                                         aria-label="Edit routine"
                                         size="small"
@@ -696,7 +671,7 @@ export const RoutineView = ({
                         alignItems: 'center',
                         padding: 2,
                     }}>
-                        <UpvoteDownvote
+                        {canVote && <UpvoteDownvote
                             direction="row"
                             session={session}
                             objectId={routine?.id ?? ''}
@@ -704,8 +679,8 @@ export const RoutineView = ({
                             isUpvoted={routine?.isUpvoted}
                             score={routine?.score}
                             onChange={(isUpvote) => { routine && setRoutine({ ...routine, isUpvoted: isUpvote }); }}
-                        />
-                        <StarButton
+                        />}
+                        {canStar && <StarButton
                             session={session}
                             objectId={routine?.id ?? ''}
                             showStars={false}
@@ -714,7 +689,7 @@ export const RoutineView = ({
                             stars={routine?.stars ?? 0}
                             onChange={(isStar: boolean) => { routine && setRoutine({ ...routine, isStarred: isStar }) }}
                             tooltipPlacement="bottom"
-                        />
+                        />}
                         <Tooltip title="More options">
                             <IconButton
                                 aria-label="More"

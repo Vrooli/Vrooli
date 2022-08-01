@@ -86,6 +86,7 @@ export const typeDef = gql`
     }
 
     type ProjectPermission {
+        canComment: Boolean!
         canDelete: Boolean!
         canEdit: Boolean!
         canStar: Boolean!

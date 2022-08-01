@@ -3,7 +3,7 @@ import { CustomError } from "../../error";
 import { Count, Report, ReportCreateInput, ReportSearchInput, ReportSortBy, ReportUpdateInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
 import { validateProfanity } from "../../utils/censor";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, PartialGraphQLInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
 
 //==============================================================
@@ -12,7 +12,7 @@ import { genErrorCode } from "../../logger";
 
 const calculatedFields = ['isOwn'];
 export const reportFormatter = (): FormatConverter<Report> => ({
-    relationshipMap: { '__typename': GraphQLModelType.Report },
+    relationshipMap: { '__typename': 'Report' },
     removeCalculatedFields: (partial) => {
         const omitted = omit(partial, calculatedFields)
         // Add userId field so we can calculate isOwn

@@ -9,10 +9,64 @@ import { RunCancelInput, RunStatus, NodeType, ResourceListUsedFor, ResourceUsedF
 // GraphQL mutation operation: runCancel
 // ====================================================
 
+export interface runCancel_runCancel_inputs_input_translations {
+  __typename: "InputItemTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface runCancel_runCancel_inputs_input_standard_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface runCancel_runCancel_inputs_input_standard_tags {
+  __typename: "Tag";
+  tag: string;
+  translations: runCancel_runCancel_inputs_input_standard_tags_translations[];
+}
+
+export interface runCancel_runCancel_inputs_input_standard_translations {
+  __typename: "StandardTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface runCancel_runCancel_inputs_input_standard {
+  __typename: "Standard";
+  id: string;
+  default: string | null;
+  isDeleted: boolean;
+  isInternal: boolean;
+  isPrivate: boolean;
+  name: string;
+  type: string;
+  props: string;
+  yup: string | null;
+  tags: runCancel_runCancel_inputs_input_standard_tags[];
+  translations: runCancel_runCancel_inputs_input_standard_translations[];
+  version: string;
+  versionGroupId: string;
+}
+
+export interface runCancel_runCancel_inputs_input {
+  __typename: "InputItem";
+  id: string;
+  isRequired: boolean | null;
+  name: string | null;
+  translations: runCancel_runCancel_inputs_input_translations[];
+  standard: runCancel_runCancel_inputs_input_standard | null;
+}
+
 export interface runCancel_runCancel_inputs {
   __typename: "RunInput";
   id: string;
   data: string;
+  input: runCancel_runCancel_inputs_input[] | null;
 }
 
 export interface runCancel_runCancel_routine_inputs_translations {

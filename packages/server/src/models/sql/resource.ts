@@ -1,7 +1,7 @@
 import { CODE, resourceCreate, resourcesCreate, resourcesUpdate, resourceUpdate } from "@local/shared";
 import { Resource, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Count } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
@@ -11,7 +11,7 @@ import { genErrorCode } from "../../logger";
 //==============================================================
 
 export const resourceFormatter = (): FormatConverter<Resource> => ({
-    relationshipMap: { '__typename': GraphQLModelType.Resource }, // For now, resource is never queried directly. So no need to handle relationships
+    relationshipMap: { '__typename': 'Resource' }, // For now, resource is never queried directly. So no need to handle relationships
 })
 
 export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({

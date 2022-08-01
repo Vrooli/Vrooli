@@ -28,6 +28,7 @@ export const listStandardFields = gql`
         props
         reportsCount
         permissionsStandard {
+            canComment
             canDelete
             canEdit
             canStar

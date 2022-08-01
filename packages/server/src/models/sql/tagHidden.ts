@@ -3,7 +3,7 @@ import { CustomError } from "../../error";
 import { genErrorCode } from "../../logger";
 import { PrismaType } from "../../types";
 import { Count, TagHidden, TagHiddenCreateInput, TagHiddenUpdateInput } from "../../schema/types";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { TagModel } from "./tag";
 
 //==============================================================
@@ -12,8 +12,8 @@ import { TagModel } from "./tag";
 
 export const tagHiddenFormatter = (): FormatConverter<TagHidden> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.TagHidden,
-        'user': GraphQLModelType.User,
+        '__typename': 'TagHidden',
+        'user': 'User',
     },
 })
 
@@ -21,7 +21,7 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
     async toDBShapeAdd(userId: string, data: TagHiddenCreateInput, isRelationship: boolean): Promise<any> {
         // Tags are built as many-to-many, but in this case we want a one-to-one relationship. 
         // So we must modify the data a bit.
-        const tagData = await TagModel.mutate(prisma).relationshipBuilder(userId, data, GraphQLModelType.TagHidden, 'tag');
+        const tagData = await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'TagHidden', 'tag');
         let tag: any = tagData && Array.isArray(tagData.create) ? tagData.create[0].tag : undefined;
         return {
             id: data.id,

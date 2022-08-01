@@ -13,16 +13,16 @@ import { resolveStarTo } from "../../schema/resolvers";
 
 export const starFormatter = (): FormatConverter<Star> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Star,
-        'from': GraphQLModelType.User,
+        '__typename': 'Star',
+        'from': 'User',
         'to': {
-            'Comment': GraphQLModelType.Comment,
-            'Organization': GraphQLModelType.Organization,
-            'Project': GraphQLModelType.Project,
-            'Routine': GraphQLModelType.Routine,
-            'Standard': GraphQLModelType.Standard,
-            'Tag': GraphQLModelType.Tag,
-            'User': GraphQLModelType.User,
+            'Comment': 'Comment',
+            'Organization': 'Organization',
+            'Project': 'Project',
+            'Routine': 'Routine',
+            'Standard': 'Standard',
+            'Tag': 'Tag',
+            'User': 'User',
         }
     },
     constructUnions: (data) => {
@@ -38,13 +38,13 @@ export const starFormatter = (): FormatConverter<Star> => ({
     },
     deconstructUnions: (partial) => {
         let modified = deconstructUnion(partial, 'to', [
-            [GraphQLModelType.Comment, 'comment'],
-            [GraphQLModelType.Organization, 'organization'],
-            [GraphQLModelType.Project, 'project'],
-            [GraphQLModelType.Routine, 'routine'],
-            [GraphQLModelType.Standard, 'standard'],
-            [GraphQLModelType.Tag, 'tag'],
-            [GraphQLModelType.User, 'user'],
+            ['Comment', 'comment'],
+            ['Organization', 'organization'],
+            ['Project', 'project'],
+            ['Routine', 'routine'],
+            ['Standard', 'standard'],
+            ['Tag', 'tag'],
+            ['User', 'user'],
         ]);
         return modified;
     },
@@ -68,13 +68,13 @@ export const starFormatter = (): FormatConverter<Star> => ({
             const tos: any[] = [];
             for (const type of Object.keys(toIdsByType)) {
                 const validTypes: Array<keyof typeof GraphQLModelType> = [
-                    GraphQLModelType.Comment, 
-                    GraphQLModelType.Organization,
-                    GraphQLModelType.Project,
-                    GraphQLModelType.Routine,
-                    GraphQLModelType.Standard,
-                    GraphQLModelType.Tag,
-                    GraphQLModelType.User,
+                    'Comment', 
+                    'Organization',
+                    'Project',
+                    'Routine',
+                    'Standard',
+                    'Tag',
+                    'User',
                 ];
                 if (!validTypes.includes(type as keyof typeof GraphQLModelType)) {
                     throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0185') });

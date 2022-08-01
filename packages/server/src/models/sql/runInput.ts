@@ -1,7 +1,7 @@
 import { CODE, inputsCreate, inputsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, RunInputCreateInput, RunInputUpdateInput, RunInput } from "../../schema/types";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
 import { validateProfanity } from "../../utils/censor";
 import { PrismaType } from "../../types";
@@ -12,8 +12,8 @@ import { PrismaType } from "../../types";
 
 export const runInputFormatter = (): FormatConverter<RunInput> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.RunInput,
-        'input': GraphQLModelType.InputItem,
+        '__typename': 'RunInput',
+        'input': 'InputItem',
     },
 })
 

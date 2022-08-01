@@ -1,5 +1,5 @@
 import { Count, Node, NodeCreateInput, NodeUpdateInput } from "../../schema/types";
-import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType } from "./base";
+import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { CODE, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeTranslationCreate, nodeTranslationUpdate, whilesCreate, whilesUpdate, whensCreate, whensUpdate, loopsCreate, loopsUpdate, nodesCreate, nodesUpdate } from "@local/shared";
 import { PrismaType } from "../../types";
@@ -16,13 +16,13 @@ const MAX_NODES_IN_ROUTINE = 100;
 
 export const nodeFormatter = (): FormatConverter<Node> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Node,
+        '__typename': 'Node',
         'data': {
-            'NodeEnd': GraphQLModelType.NodeEnd,
-            'NodeRoutineList': GraphQLModelType.NodeRoutineList,
+            'NodeEnd': 'NodeEnd',
+            'NodeRoutineList': 'NodeRoutineList',
         },
-        'loop': GraphQLModelType.NodeLoop,
-        'routine': GraphQLModelType.Routine,
+        'loop': 'NodeLoop',
+        'routine': 'Routine',
     },
     constructUnions: (data) => {
         let { nodeEnd, nodeRoutineList, ...modified } = data;
@@ -32,8 +32,8 @@ export const nodeFormatter = (): FormatConverter<Node> => ({
     deconstructUnions: (partial) => {
         let modified = deconstructUnion(partial, 'data',
             [
-                [GraphQLModelType.NodeEnd, 'nodeEnd'],
-                [GraphQLModelType.NodeRoutineList, 'nodeRoutineList'],
+                ['NodeEnd', 'nodeEnd'],
+                ['NodeRoutineList', 'nodeRoutineList'],
             ]);
         return modified;
     },

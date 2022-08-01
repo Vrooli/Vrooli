@@ -1,6 +1,6 @@
 import { InputItem } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { FormatConverter, GraphQLModelType } from "./base";
+import { FormatConverter } from "./base";
 
 //==============================================================
 /* #region Custom Components */
@@ -8,8 +8,8 @@ import { FormatConverter, GraphQLModelType } from "./base";
 
 export const inputItemFormatter = (): FormatConverter<InputItem> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.InputItem,
-        'standard': GraphQLModelType.Standard,
+        '__typename': 'InputItem',
+        'standard': 'Standard',
     },
 })
 

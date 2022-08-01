@@ -233,13 +233,6 @@ export enum StarFor {
   User = "User",
 }
 
-export enum StepInputDataSortBy {
-  DateCreatedAsc = "DateCreatedAsc",
-  DateCreatedDesc = "DateCreatedDesc",
-  DateUpdatedAsc = "DateUpdatedAsc",
-  DateUpdatedDesc = "DateUpdatedDesc",
-}
-
 export enum TagSortBy {
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
@@ -1128,6 +1121,17 @@ export interface RunInputCreateInput {
   data: string;
 }
 
+export interface RunInputSearchInput {
+  after?: string | null;
+  createdTimeFrame?: TimeFrame | null;
+  excludeIds?: string[] | null;
+  ids?: string[] | null;
+  routineIds?: string[] | null;
+  standardIds?: string[] | null;
+  take?: number | null;
+  updatedTimeFrame?: TimeFrame | null;
+}
+
 export interface RunInputUpdateInput {
   id: string;
   data: string;
@@ -1261,45 +1265,6 @@ export interface StarInput {
   isStar: boolean;
   starFor: StarFor;
   forId: string;
-}
-
-export interface StepInputDataCreateInput {
-  stepId: string;
-  runId: string;
-  nodeId: string;
-  routineId: string;
-  subroutineId?: string | null;
-  inputsCreate?: StepInputDataInputsCreateInput[] | null;
-}
-
-export interface StepInputDataInputsCreateInput {
-  inputId: string;
-  standardId?: string | null;
-  name: string;
-  value: string;
-}
-
-export interface StepInputDataInputsUpdateInput {
-  inputId: string;
-  value: string;
-}
-
-export interface StepInputDataSearchInput {
-  createdTimeFrame?: TimeFrame | null;
-  updatedTimeFrame?: TimeFrame | null;
-  ids?: string[] | null;
-  nodeId?: string | null;
-  runId?: string | null;
-  sortBy?: StepInputDataSortBy | null;
-  stepId?: string | null;
-  subroutineId?: string | null;
-  take?: number | null;
-}
-
-export interface StepInputDataUpdateInput {
-  stepId: string;
-  inputsCreate?: StepInputDataInputsCreateInput[] | null;
-  inputsUpdate?: StepInputDataInputsUpdateInput[] | null;
 }
 
 export interface TagCountInput {

@@ -2,7 +2,7 @@ import { CODE, emailsCreate, emailsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, Email, EmailCreateInput, EmailUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { validateProfanity } from "../../utils/censor";
 import { genErrorCode } from "../../logger";
 import { ProfileModel } from "./profile";
@@ -13,8 +13,8 @@ import { ProfileModel } from "./profile";
 
 export const emailFormatter = (): FormatConverter<Email> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Email,
-        'user': GraphQLModelType.Profile,
+        '__typename': 'Email',
+        'user': 'Profile',
     }
 })
 

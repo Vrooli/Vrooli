@@ -1,6 +1,6 @@
 import { PrismaType } from "../../types";
 import { Member } from "../../schema/types";
-import { FormatConverter, GraphQLModelType } from "./base";
+import { FormatConverter } from "./base";
 
 //==============================================================
 /* #region Custom Components */
@@ -8,9 +8,9 @@ import { FormatConverter, GraphQLModelType } from "./base";
 
 export const memberFormatter = (): FormatConverter<Member> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Member,
-        'organization': GraphQLModelType.Organization,
-        'user': GraphQLModelType.User,
+        '__typename': 'Member',
+        'organization': 'Organization',
+        'user': 'User',
     }
 })
 

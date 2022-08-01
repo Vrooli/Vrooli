@@ -14,7 +14,7 @@ import { resolveProjectOrOrganization, resolveProjectOrOrganizationOrRoutineOrSt
 
 // Query fields shared across multiple endpoints
 const tagSelect = {
-    __typename: GraphQLModelType.Tag,
+    __typename: 'Tag',
     id: true,
     created_at: true,
     tag: true,
@@ -27,7 +27,7 @@ const tagSelect = {
     }
 }
 const organizationSelect = {
-    __typename: GraphQLModelType.Organization,
+    __typename: 'Organization',
     id: true,
     commentsCount: true,
     handle: true,
@@ -52,7 +52,7 @@ const organizationSelect = {
     tags: tagSelect,
 }
 const projectSelect = {
-    __typename: GraphQLModelType.Project,
+    __typename: 'Project',
     id: true,
     commentsCount: true,
     completedAt: true,
@@ -79,7 +79,7 @@ const projectSelect = {
     tags: tagSelect,
 }
 const routineSelect = {
-    __typename: GraphQLModelType.Routine,
+    __typename: 'Routine',
     id: true,
     commentsCount: true,
     created_at: true,
@@ -112,7 +112,7 @@ const routineSelect = {
     versionGroupId: true,
 }
 const runSelect = {
-    __typename: GraphQLModelType.Run,
+    __typename: 'Run',
     id: true,
     completedComplexity: true,
     contextSwitches: true,
@@ -126,7 +126,7 @@ const runSelect = {
     routine: routineSelect,
 }
 const standardSelect = {
-    __typename: GraphQLModelType.Standard,
+    __typename: 'Standard',
     id: true,
     commentsCount: true,
     name: true,
@@ -157,7 +157,7 @@ const standardSelect = {
     versionGroupId: true,
 }
 const userSelect = {
-    __typename: GraphQLModelType.User,
+    __typename: 'User',
     id: true,
     name: true,
     handle: true,
@@ -171,7 +171,7 @@ const userSelect = {
     },
 }
 const viewSelect = {
-    __typename: GraphQLModelType.View,
+    __typename: 'View',
     id: true,
     lastViewed: true,
     title: true,
@@ -184,7 +184,7 @@ const viewSelect = {
     }
 }
 const commentSelect = {
-    __typename: GraphQLModelType.Comment,
+    __typename: 'Comment',
     id: true,
     created_at: true,
     updated_at: true,
@@ -214,7 +214,7 @@ const commentSelect = {
     }
 }
 const starSelect = {
-    __typename: GraphQLModelType.Star,
+    __typename: 'Star',
     id: true,
     to: {
         Comment: commentSelect,

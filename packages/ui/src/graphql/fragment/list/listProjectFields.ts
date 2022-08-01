@@ -24,6 +24,7 @@ export const listProjectFields = gql`
         isStarred
         reportsCount
         permissionsProject {
+            canComment
             canDelete
             canEdit
             canStar

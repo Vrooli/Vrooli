@@ -2,7 +2,7 @@ import { CODE, stepsCreate, stepsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, RunStep, RunStepCreateInput, RunStepStatus, RunStepUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
 import { validateProfanity } from "../../utils/censor";
 
@@ -12,10 +12,10 @@ import { validateProfanity } from "../../utils/censor";
 
 export const runStepFormatter = (): FormatConverter<RunStep> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.RunStep,
-        'run': GraphQLModelType.Run,
-        'node': GraphQLModelType.Node,
-        'subroutine': GraphQLModelType.Routine,
+        '__typename': 'RunStep',
+        'run': 'Run',
+        'node': 'Node',
+        'subroutine': 'Routine',
     },
 })
 

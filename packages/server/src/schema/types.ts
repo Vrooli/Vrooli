@@ -593,9 +593,6 @@ export type Mutation = {
   standardCreate: Standard;
   standardUpdate: Standard;
   star: Success;
-  stepInputDataCreate: StepInputData;
-  stepInputDataDeleteMany: Count;
-  stepInputDataUpdate: StepInputData;
   tagCreate: Tag;
   tagDeleteMany: Count;
   tagUpdate: Tag;
@@ -811,21 +808,6 @@ export type MutationStandardUpdateArgs = {
 
 export type MutationStarArgs = {
   input: StarInput;
-};
-
-
-export type MutationStepInputDataCreateArgs = {
-  input: StepInputDataCreateInput;
-};
-
-
-export type MutationStepInputDataDeleteManyArgs = {
-  input?: InputMaybe<DeleteManyInput>;
-};
-
-
-export type MutationStepInputDataUpdateArgs = {
-  input: StepInputDataUpdateInput;
 };
 
 
@@ -1549,14 +1531,13 @@ export type Query = {
   routines: RoutineSearchResult;
   routinesCount: Scalars['Int'];
   run?: Maybe<Run>;
+  runInputs: RunInputSearchResult;
   runs: RunSearchResult;
   runsCount: Scalars['Int'];
   standard?: Maybe<Standard>;
   standards: StandardSearchResult;
   standardsCount: Scalars['Int'];
   statisticsPage: StatisticsPageResult;
-  stepInputData?: Maybe<StepInputData>;
-  stepInputDatas: StepInputDataSearchResult;
   tag?: Maybe<Tag>;
   tags: TagSearchResult;
   tagsCount: Scalars['Int'];
@@ -1701,6 +1682,11 @@ export type QueryRunArgs = {
 };
 
 
+export type QueryRunInputsArgs = {
+  input: RunInputSearchInput;
+};
+
+
 export type QueryRunsArgs = {
   input: RunSearchInput;
 };
@@ -1728,16 +1714,6 @@ export type QueryStandardsCountArgs = {
 
 export type QueryStatisticsPageArgs = {
   input: StatisticsPageInput;
-};
-
-
-export type QueryStepInputDataArgs = {
-  input: FindByIdInput;
-};
-
-
-export type QueryStepInputDatasArgs = {
-  input: StepInputDataSearchInput;
 };
 
 
@@ -2397,12 +2373,43 @@ export type RunInput = {
   __typename?: 'RunInput';
   data: Scalars['String'];
   id: Scalars['ID'];
+  input?: Maybe<Array<InputItem>>;
 };
 
 export type RunInputCreateInput = {
   data: Scalars['String'];
   id: Scalars['ID'];
 };
+
+export type RunInputEdge = {
+  __typename?: 'RunInputEdge';
+  cursor: Scalars['String'];
+  node: RunInput;
+};
+
+export type RunInputSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  excludeIds?: InputMaybe<Array<Scalars['ID']>>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  routineIds?: InputMaybe<Array<Scalars['ID']>>;
+  standardIds?: InputMaybe<Array<Scalars['ID']>>;
+  take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+};
+
+export type RunInputSearchResult = {
+  __typename?: 'RunInputSearchResult';
+  edges: Array<RunInputEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum RunInputSortBy {
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
 
 export type RunInputUpdateInput = {
   data: Scalars['String'];
@@ -2440,13 +2447,6 @@ export enum RunSortBy {
   DateUpdatedAsc = 'DateUpdatedAsc',
   DateUpdatedDesc = 'DateUpdatedDesc'
 }
-
-export enum RunInputSortBy {
-    DateCreatedAsc = 'DateCreatedAsc',
-    DateCreatedDesc = 'DateCreatedDesc',
-    DateUpdatedAsc = 'DateUpdatedAsc',
-    DateUpdatedDesc = 'DateUpdatedDesc'
-  }
 
 export enum RunStatus {
   Cancelled = 'Cancelled',
@@ -2718,84 +2718,6 @@ export type StatisticsTimeFrame = {
   routines: Array<Scalars['Int']>;
   standards: Array<Scalars['Int']>;
   users: Array<Scalars['Int']>;
-};
-
-export type StepInputData = {
-  __typename?: 'StepInputData';
-  id: Scalars['ID'];
-  inputs: Array<StepInputDataInput>;
-  nodeId: Scalars['ID'];
-  routineId: Scalars['ID'];
-  runId: Scalars['ID'];
-  stepId: Scalars['ID'];
-  subroutineId?: Maybe<Scalars['ID']>;
-};
-
-export type StepInputDataCreateInput = {
-  inputsCreate?: InputMaybe<Array<StepInputDataInputsCreateInput>>;
-  nodeId: Scalars['ID'];
-  routineId: Scalars['ID'];
-  runId: Scalars['ID'];
-  stepId: Scalars['ID'];
-  subroutineId?: InputMaybe<Scalars['ID']>;
-};
-
-export type StepInputDataEdge = {
-  __typename?: 'StepInputDataEdge';
-  cursor: Scalars['String'];
-  node: StepInputData;
-};
-
-export type StepInputDataInput = {
-  __typename?: 'StepInputDataInput';
-  id: Scalars['ID'];
-  inputId: Scalars['ID'];
-  name: Scalars['String'];
-  standardId?: Maybe<Scalars['ID']>;
-  value: Scalars['String'];
-};
-
-export type StepInputDataInputsCreateInput = {
-  inputId: Scalars['ID'];
-  name: Scalars['String'];
-  standardId?: InputMaybe<Scalars['ID']>;
-  value: Scalars['String'];
-};
-
-export type StepInputDataInputsUpdateInput = {
-  inputId: Scalars['ID'];
-  value: Scalars['String'];
-};
-
-export type StepInputDataSearchInput = {
-  createdTimeFrame?: InputMaybe<TimeFrame>;
-  ids?: InputMaybe<Array<Scalars['ID']>>;
-  nodeId?: InputMaybe<Scalars['ID']>;
-  runId?: InputMaybe<Scalars['ID']>;
-  sortBy?: InputMaybe<StepInputDataSortBy>;
-  stepId?: InputMaybe<Scalars['ID']>;
-  subroutineId?: InputMaybe<Scalars['ID']>;
-  take?: InputMaybe<Scalars['Int']>;
-  updatedTimeFrame?: InputMaybe<TimeFrame>;
-};
-
-export type StepInputDataSearchResult = {
-  __typename?: 'StepInputDataSearchResult';
-  edges: Array<StepInputDataEdge>;
-  pageInfo: PageInfo;
-};
-
-export enum StepInputDataSortBy {
-  DateCreatedAsc = 'DateCreatedAsc',
-  DateCreatedDesc = 'DateCreatedDesc',
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
-}
-
-export type StepInputDataUpdateInput = {
-  inputsCreate?: InputMaybe<Array<StepInputDataInputsCreateInput>>;
-  inputsUpdate?: InputMaybe<Array<StepInputDataInputsUpdateInput>>;
-  stepId: Scalars['ID'];
 };
 
 export type Success = {

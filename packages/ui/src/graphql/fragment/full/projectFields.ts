@@ -47,6 +47,7 @@ export const projectFields = gql`
         score
         stars
         permissionsProject {
+            canComment
             canDelete
             canEdit
             canStar

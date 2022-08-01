@@ -31,6 +31,7 @@ export const listRoutineFields = gql`
         simplicity
         stars
         permissionsRoutine {
+            canComment
             canDelete
             canEdit
             canStar

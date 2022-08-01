@@ -19,7 +19,6 @@ import {
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { BuildAction, getTranslation, updateTranslationField } from 'utils';
-import { owns } from 'utils/authentication';
 import { EditableLabel, NodeContextMenu } from 'components';
 
 /**
@@ -48,7 +47,7 @@ export const RoutineSubnode = ({
     const nodeSize = useMemo(() => `${220 * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${220 * scale / 5}px, 2em)`, [scale]);
     // Determines if the subroutine is one you can edit
-    const canEdit = useMemo<boolean>(() => (data?.routine?.isInternal ?? owns(data?.routine?.role)), [data.routine]);
+    const canEdit = useMemo<boolean>(() => (data?.routine?.isInternal ?? data?.routine?.permissionsRoutine?.canEdit === true), [data.routine]);
 
     const { title } = useMemo(() => {
         const languages = navigator.languages;

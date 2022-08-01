@@ -1,6 +1,6 @@
 import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeRoutineListItem, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemCreateInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, FormatConverter, modelToGraphQL, PartialGraphQLInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { CODE, DeleteOneType, inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, isObject, omit, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routinesUpdate, routineTranslationCreate, routineTranslationUpdate } from "@local/shared";
 import { hasProfanity } from "../../utils/censor";
@@ -33,26 +33,26 @@ const countMapper = { commentsCount: 'comments', nodesCount: 'nodes', reportsCou
 const calculatedFields = ['inProgressCompletedSteps', 'inProgressCompletedComplexity', 'inProgressVersion', 'isUpvoted', 'isStarred', 'role', 'runs'];
 export const routineFormatter = (): FormatConverter<Routine> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Routine,
-        'comments': GraphQLModelType.Comment,
+        '__typename': 'Routine',
+        'comments': 'Comment',
         'creator': {
-            'User': GraphQLModelType.User,
-            'Organization': GraphQLModelType.Organization,
+            'User': 'User',
+            'Organization': 'Organization',
         },
-        'forks': GraphQLModelType.Routine,
-        'inputs': GraphQLModelType.InputItem,
-        'nodes': GraphQLModelType.Node,
-        'outputs': GraphQLModelType.OutputItem,
+        'forks': 'Routine',
+        'inputs': 'InputItem',
+        'nodes': 'Node',
+        'outputs': 'OutputItem',
         'owner': {
-            'User': GraphQLModelType.User,
-            'Organization': GraphQLModelType.Organization,
+            'User': 'User',
+            'Organization': 'Organization',
         },
-        'parent': GraphQLModelType.Routine,
-        'project': GraphQLModelType.Project,
-        'reports': GraphQLModelType.Report,
-        'resourceLists': GraphQLModelType.ResourceList,
-        'starredBy': GraphQLModelType.User,
-        'tags': GraphQLModelType.Tag,
+        'parent': 'Routine',
+        'project': 'Project',
+        'reports': 'Report',
+        'resourceLists': 'ResourceList',
+        'starredBy': 'User',
+        'tags': 'Tag',
     },
     removeCalculatedFields: (partial) => {
         return omit(partial, calculatedFields);
@@ -90,21 +90,21 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel.query(prisma).getIsStarreds(userId, ids, GraphQLModelType.Routine)
+                ? await StarModel.query(prisma).getIsStarreds(userId, ids, 'Routine')
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isUpvoted
         if (partial.isUpvoted) {
             const isUpvotedArray = userId
-                ? await VoteModel.query(prisma).getIsUpvoteds(userId, ids, GraphQLModelType.Routine)
+                ? await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Routine')
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isUpvoted: isUpvotedArray[i] }));
         }
         // Query for isViewed
         if (partial.isViewed) {
             const isViewedArray = userId
-                ? await ViewModel.query(prisma).getIsVieweds(userId, ids, GraphQLModelType.Routine)
+                ? await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Routine')
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
@@ -501,7 +501,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             parentId: (data as RoutineCreateInput)?.parentId ?? undefined,
             version: data.version ?? undefined,
             resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, isAdd),
-            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, GraphQLModelType.Routine),
+            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Routine'),
             inputs: await this.relationshipBuilderInput(userId, data, isAdd),
             outputs: await this.relationshipBuilderOutput(userId, data, isAdd),
             nodes: await NodeModel.mutate(prisma).relationshipBuilder(userId, (data as RoutineUpdateInput)?.id ?? null, data, isAdd),

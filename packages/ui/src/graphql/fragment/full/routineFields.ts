@@ -117,6 +117,7 @@ export const routineFields = gql`
                             }
                         }
                         permissionsRoutine {
+                            canComment
                             canDelete
                             canEdit
                             canStar
@@ -300,6 +301,7 @@ export const routineFields = gql`
         simplicity
         stars
         permissionsRoutine {
+            canComment
             canDelete
             canEdit
             canStar

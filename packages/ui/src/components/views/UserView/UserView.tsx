@@ -18,7 +18,6 @@ import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
 import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, PubSub } from "utils";
 import { ResourceList, User } from "types";
-import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
 import { validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
@@ -128,20 +127,6 @@ export const UserView = ({
         // Depends on if we're in a search popup or a normal organization page
         setLocation(isProfile ? `${APP_LINKS.Settings}?page="profile"` : `${APP_LINKS.SearchUsers}/edit/${id}`);
     }, [id, isProfile, setLocation]);
-
-    // Determine options available to object, in order
-    const moreOptions: BaseObjectAction[] = useMemo(() => {
-        // Initialize
-        let options: BaseObjectAction[] = [];
-        if (user && session && !isOwn) {
-            options.push(user.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
-        }
-        options.push(BaseObjectAction.Donate, BaseObjectAction.Share)
-        if (session?.id) {
-            options.push(BaseObjectAction.Report);
-        }
-        return options;
-    }, [user, isOwn, session]);
 
     // Create search data
     const { objectType, itemKeyPrefix, placeholder, searchQuery, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
@@ -378,13 +363,19 @@ export const UserView = ({
             <BaseObjectActionDialog
                 handleActionComplete={() => { }} //TODO
                 handleEdit={onEdit}
+                isUpvoted={null}
+                isStarred={user?.isStarred}
                 objectId={id}
                 objectName={name ?? ''}
                 objectType={ObjectType.User}
                 anchorEl={moreMenuAnchor}
                 title='User Options'
-                availableOptions={moreOptions}
                 onClose={closeMoreMenu}
+                permissions={{
+                    canEdit: isOwn,
+                    canReport: !isOwn,
+                    canStar: !isOwn,
+                }}
                 session={session}
                 zIndex={zIndex+1}
             />

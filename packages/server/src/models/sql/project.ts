@@ -2,7 +2,7 @@ import { CODE, omit, projectsCreate, projectsUpdate, projectTranslationCreate, p
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
 import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, ModelLogic, modelToGraphQL, PartialGraphQLInfo, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, modelToGraphQL, PartialGraphQLInfo, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -22,24 +22,24 @@ const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
 const calculatedFields = ['isUpvoted', 'isStarred', 'role'];
 export const projectFormatter = (): FormatConverter<Project> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Project,
-        'comments': GraphQLModelType.Comment,
+        '__typename': 'Project',
+        'comments': 'Comment',
         'creator': {
-            'User': GraphQLModelType.User,
-            'Organization': GraphQLModelType.Organization,
+            'User': 'User',
+            'Organization': 'Organization',
         },
-        'forks': GraphQLModelType.Project,
+        'forks': 'Project',
         'owner': {
-            'User': GraphQLModelType.User,
-            'Organization': GraphQLModelType.Organization,
+            'User': 'User',
+            'Organization': 'Organization',
         },
-        'parent': GraphQLModelType.Project,
-        'reports': GraphQLModelType.Report,
-        'resourceLists': GraphQLModelType.ResourceList,
-        'routines': GraphQLModelType.Routine,
-        'starredBy': GraphQLModelType.User,
-        'tags': GraphQLModelType.Tag,
-        'wallets': GraphQLModelType.Wallet,
+        'parent': 'Project',
+        'reports': 'Report',
+        'resourceLists': 'ResourceList',
+        'routines': 'Routine',
+        'starredBy': 'User',
+        'tags': 'Tag',
+        'wallets': 'Wallet',
     },
     removeCalculatedFields: (partial) => {
         return omit(partial, calculatedFields);
@@ -77,21 +77,21 @@ export const projectFormatter = (): FormatConverter<Project> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel.query(prisma).getIsStarreds(userId, ids, GraphQLModelType.Project)
+                ? await StarModel.query(prisma).getIsStarreds(userId, ids, 'Project')
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isUpvoted
         if (partial.isUpvoted) {
             const isUpvotedArray = userId
-                ? await VoteModel.query(prisma).getIsUpvoteds(userId, ids, GraphQLModelType.Project)
+                ? await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Project')
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isUpvoted: isUpvotedArray[i] }));
         }
         // Query for isViewed
         if (partial.isViewed) {
             const isViewedArray = userId
-                ? await ViewModel.query(prisma).getIsVieweds(userId, ids, GraphQLModelType.Project)
+                ? await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Project')
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
@@ -249,7 +249,7 @@ export const projectMutater = (prisma: PrismaType) => ({
             });
             organizationIds.push(...objects.filter(object => object.userId !== userId).map(object => object.organizationId));
             for (const input of updateMany) {
-                await WalletModel.verify(prisma).verifyHandle(GraphQLModelType.Project, input.where.id, input.data.handle);
+                await WalletModel.verify(prisma).verifyHandle('Project', input.where.id, input.data.handle);
                 TranslationModel.validateLineBreaks(input.data, ['description'], CODE.LineBreaksDescription);
             }
         }
@@ -286,7 +286,7 @@ export const projectMutater = (prisma: PrismaType) => ({
             completedAt: (input.isComplete === true) ? new Date().toISOString() : (input.isComplete === false) ? null : undefined,
             parentId: (input as ProjectCreateInput)?.parentId ?? undefined,
             resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, input, true),
-            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, input, GraphQLModelType.Project),
+            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, input, 'Project'),
             translations: TranslationModel.relationshipBuilder(userId, input, { create: projectTranslationCreate, update: projectTranslationUpdate }, false),
         })
         // Perform mutations

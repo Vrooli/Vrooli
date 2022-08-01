@@ -10,7 +10,6 @@ import { useLocation } from 'wouter';
 import { APP_LINKS, isEqual, uniqBy } from '@local/shared';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { BaseObjectAction } from 'components/dialogs/types';
-import { owns } from 'utils/authentication';
 import { BuildViewProps } from '../types';
 import {
     AddLink as AddLinkIcon,
@@ -90,7 +89,7 @@ export const BuildView = ({
     const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ['Calculating...'] });
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
-    const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine?.role]);
+    const canEdit = useMemo<boolean>(() => routine?.permissionsRoutine?.canEdit === true, [routine?.permissionsRoutine?.canEdit]);
 
     useEffect(() => {
         setChangedRoutine(routine);

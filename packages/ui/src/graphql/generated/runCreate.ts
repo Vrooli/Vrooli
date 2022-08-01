@@ -9,10 +9,64 @@ import { RunCreateInput, RunStatus, NodeType, ResourceListUsedFor, ResourceUsedF
 // GraphQL mutation operation: runCreate
 // ====================================================
 
+export interface runCreate_runCreate_inputs_input_translations {
+  __typename: "InputItemTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface runCreate_runCreate_inputs_input_standard_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface runCreate_runCreate_inputs_input_standard_tags {
+  __typename: "Tag";
+  tag: string;
+  translations: runCreate_runCreate_inputs_input_standard_tags_translations[];
+}
+
+export interface runCreate_runCreate_inputs_input_standard_translations {
+  __typename: "StandardTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface runCreate_runCreate_inputs_input_standard {
+  __typename: "Standard";
+  id: string;
+  default: string | null;
+  isDeleted: boolean;
+  isInternal: boolean;
+  isPrivate: boolean;
+  name: string;
+  type: string;
+  props: string;
+  yup: string | null;
+  tags: runCreate_runCreate_inputs_input_standard_tags[];
+  translations: runCreate_runCreate_inputs_input_standard_translations[];
+  version: string;
+  versionGroupId: string;
+}
+
+export interface runCreate_runCreate_inputs_input {
+  __typename: "InputItem";
+  id: string;
+  isRequired: boolean | null;
+  name: string | null;
+  translations: runCreate_runCreate_inputs_input_translations[];
+  standard: runCreate_runCreate_inputs_input_standard | null;
+}
+
 export interface runCreate_runCreate_inputs {
   __typename: "RunInput";
   id: string;
   data: string;
+  input: runCreate_runCreate_inputs_input[] | null;
 }
 
 export interface runCreate_runCreate_routine_inputs_translations {

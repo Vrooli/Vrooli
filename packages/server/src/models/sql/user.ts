@@ -1,5 +1,5 @@
 import { User, UserSortBy, UserSearchInput, ResourceListUsedFor, } from "../../schema/types";
-import { addCountFieldsHelper, addJoinTablesHelper, FormatConverter, GraphQLModelType, PartialGraphQLInfo, removeCountFieldsHelper, removeJoinTablesHelper, Searcher } from "./base";
+import { addCountFieldsHelper, addJoinTablesHelper, FormatConverter, PartialGraphQLInfo, removeCountFieldsHelper, removeJoinTablesHelper, Searcher } from "./base";
 import { PrismaType, RecursivePartial } from "../../types";
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
@@ -14,13 +14,13 @@ const countMapper = { reportsCount: 'reports' };
 const calculatedFields = ['isStarred'];
 export const userFormatter = (): FormatConverter<User> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.User,
-        'comments': GraphQLModelType.Comment,
-        'resourceLists': GraphQLModelType.ResourceList,
-        'projects': GraphQLModelType.Project,
-        'starredBy': GraphQLModelType.User,
-        'reports': GraphQLModelType.Report,
-        'routines': GraphQLModelType.Routine,
+        '__typename': 'User',
+        'comments': 'Comment',
+        'resourceLists': 'ResourceList',
+        'projects': 'Project',
+        'starredBy': 'User',
+        'reports': 'Report',
+        'routines': 'Routine',
     },
     removeCalculatedFields: (partial) => {
         return omit(partial, calculatedFields);
@@ -48,14 +48,14 @@ export const userFormatter = (): FormatConverter<User> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel.query(prisma).getIsStarreds(userId, ids, GraphQLModelType.User)
+                ? await StarModel.query(prisma).getIsStarreds(userId, ids, 'User')
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isViewed
         if (partial.isViewed) {
             const isViewedArray = userId
-                ? await ViewModel.query(prisma).getIsVieweds(userId, ids, GraphQLModelType.User)
+                ? await ViewModel.query(prisma).getIsVieweds(userId, ids, 'User')
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }

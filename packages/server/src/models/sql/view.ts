@@ -21,14 +21,14 @@ export interface View {
 
 export const viewFormatter = (): FormatConverter<View> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.View,
-        'from': GraphQLModelType.User,
+        '__typename': 'View',
+        'from': 'User',
         'to': {
-            'Organization': GraphQLModelType.Organization,
-            'Project': GraphQLModelType.Project,
-            'Routine': GraphQLModelType.Routine,
-            'Standard': GraphQLModelType.Standard,
-            'User': GraphQLModelType.User,
+            'Organization': 'Organization',
+            'Project': 'Project',
+            'Routine': 'Routine',
+            'Standard': 'Standard',
+            'User': 'User',
         }
     },
     constructUnions: (data) => {
@@ -42,11 +42,11 @@ export const viewFormatter = (): FormatConverter<View> => ({
     },
     deconstructUnions: (partial) => {
         let modified = deconstructUnion(partial, 'to', [
-            [GraphQLModelType.Organization, 'organization'],
-            [GraphQLModelType.Project, 'project'],
-            [GraphQLModelType.Routine, 'routine'],
-            [GraphQLModelType.Standard, 'standard'],
-            [GraphQLModelType.User, 'user'],
+            ['Organization', 'organization'],
+            ['Project', 'project'],
+            ['Routine', 'routine'],
+            ['Standard', 'standard'],
+            ['User', 'user'],
         ]);
         return modified;
     },
@@ -70,11 +70,11 @@ export const viewFormatter = (): FormatConverter<View> => ({
             const tos: any[] = [];
             for (const type of Object.keys(toIdsByType)) {
                 const validTypes: Array<keyof typeof GraphQLModelType> = [
-                    GraphQLModelType.Organization,
-                    GraphQLModelType.Project,
-                    GraphQLModelType.Routine,
-                    GraphQLModelType.Standard,
-                    GraphQLModelType.User,
+                    'Organization',
+                    'Project',
+                    'Routine',
+                    'Standard',
+                    'User',
                 ];
                 if (!validTypes.includes(type as keyof typeof GraphQLModelType)) {
                     throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0186') });

@@ -1,6 +1,6 @@
 import { PrismaType, RecursivePartial } from "../../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor } from "../../schema/types";
-import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, PartialGraphQLInfo, addCountFieldsHelper, removeCountFieldsHelper } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, PartialGraphQLInfo, addCountFieldsHelper, removeCountFieldsHelper } from "./base";
 import { CustomError } from "../../error";
 import { CODE, omit, organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@local/shared";
 import { organization_users } from "@prisma/client";
@@ -21,18 +21,18 @@ const countMapper = { commentsCount: 'comments', membersCount: 'members', report
 const calculatedFields = ['isStarred', 'role'];
 export const organizationFormatter = (): FormatConverter<Organization> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Organization,
-        'comments': GraphQLModelType.Comment,
-        'members': GraphQLModelType.Member,
-        'projects': GraphQLModelType.Project,
-        'projectsCreated': GraphQLModelType.Project,
-        'reports': GraphQLModelType.Report,
-        'resourceLists': GraphQLModelType.ResourceList,
-        'routines': GraphQLModelType.Routine,
-        'routersCreated': GraphQLModelType.Routine,
-        'standards': GraphQLModelType.Standard,
-        'starredBy': GraphQLModelType.User,
-        'tags': GraphQLModelType.Tag,
+        '__typename': 'Organization',
+        'comments': 'Comment',
+        'members': 'Member',
+        'projects': 'Project',
+        'projectsCreated': 'Project',
+        'reports': 'Report',
+        'resourceLists': 'ResourceList',
+        'routines': 'Routine',
+        'routersCreated': 'Routine',
+        'standards': 'Standard',
+        'starredBy': 'User',
+        'tags': 'Tag',
     },
     removeCalculatedFields: (partial) => {
         return omit(partial, calculatedFields);
@@ -60,14 +60,14 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel.query(prisma).getIsStarreds(userId, ids, GraphQLModelType.Organization)
+                ? await StarModel.query(prisma).getIsStarreds(userId, ids, 'Organization')
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isViewed
         if (partial.isViewed) {
             const isViewedArray = userId
-                ? await ViewModel.query(prisma).getIsVieweds(userId, ids, GraphQLModelType.Organization)
+                ? await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Organization')
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
@@ -180,7 +180,7 @@ export const organizationMutater = (prisma: PrismaType) => ({
             handle: (data as OrganizationUpdateInput).handle ?? null,
             isOpenToNewMembers: data.isOpenToNewMembers,
             resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, false),
-            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, GraphQLModelType.Organization),
+            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Organization'),
             translations: TranslationModel.relationshipBuilder(userId, data, { create: organizationTranslationCreate, update: organizationTranslationUpdate }, false),
         }
     },
@@ -191,7 +191,7 @@ export const organizationMutater = (prisma: PrismaType) => ({
             handle: (data as OrganizationUpdateInput).handle ?? null,
             isOpenToNewMembers: data.isOpenToNewMembers,
             resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, false),
-            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, GraphQLModelType.Organization),
+            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Organization'),
             translations: TranslationModel.relationshipBuilder(userId, data, { create: organizationTranslationCreate, update: organizationTranslationUpdate }, false),
         }
     },
@@ -217,7 +217,7 @@ export const organizationMutater = (prisma: PrismaType) => ({
             organizationsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
             TranslationModel.profanityCheck(updateMany.map(u => u.data));
             for (const input of updateMany) {
-                await WalletModel.verify(prisma).verifyHandle(GraphQLModelType.Organization, input.where.id, input.data.handle);
+                await WalletModel.verify(prisma).verifyHandle('Organization', input.where.id, input.data.handle);
                 TranslationModel.validateLineBreaks(input.data, ['bio'], CODE.LineBreaksBio);
             }
             // Check that user is owner OR admin of each organization

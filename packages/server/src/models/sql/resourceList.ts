@@ -1,7 +1,7 @@
 import { CODE, resourceListsCreate, resourceListsUpdate, resourceListTranslationsCreate, resourceListTranslationsUpdate } from "@local/shared";
 import { ResourceList, ResourceListCreateInput, ResourceListUpdateInput, Count, ResourceListSortBy, ResourceListSearchInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { TranslationModel } from "./translation";
 import { ResourceModel } from "./resource";
@@ -13,8 +13,8 @@ import { genErrorCode } from "../../logger";
 
 export const resourceListFormatter = (): FormatConverter<ResourceList> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.ResourceList,
-        'resources': GraphQLModelType.Resource,
+        '__typename': 'ResourceList',
+        'resources': 'Resource',
     },
 })
 
@@ -45,16 +45,6 @@ export const resourceListSearcher = (): Searcher<ResourceListSearchInput> => ({
         }
     },
 })
-
-// /**
-//  * Maps object type to Id field
-//  */
-//  const resourceListMapper = {
-//     [GraphQLModelType.Organization]: 'organizationId',
-//     [GraphQLModelType.Project]: 'projectId',
-//     [GraphQLModelType.Routine]: 'routineId',
-//     [GraphQLModelType.User]: 'userId',
-// }
 
 export const resourceListMutater = (prisma: PrismaType) => ({
     async toDBShape(userId: string | null, data: ResourceListCreateInput | ResourceListUpdateInput, isAdd: boolean): Promise<any> {

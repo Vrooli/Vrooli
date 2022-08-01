@@ -18,7 +18,6 @@ import { commentCreateForm as validationSchema } from '@local/shared';
 import { commentCreate, commentCreateVariables } from 'graphql/generated/commentCreate';
 import { commentCreateMutation, deleteOneMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';
-import { owns } from 'utils/authentication';
 import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
 import { ReportDialog } from 'components/dialogs';
 import { v4 as uuid } from 'uuid';
@@ -37,9 +36,17 @@ export function CommentThreadItem({
 }: CommentThreadItemProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const { text } = useMemo(() => {
+
+    const { canDelete, canEdit, canReply, canReport, canStar, canVote, text } = useMemo(() => {
+        const permissions = data?.permissionsComment;
         const languages = session?.languages ?? navigator.languages;
         return {
+            canDelete: permissions?.canDelete === true,
+            canEdit: permissions?.canEdit === true,
+            canReply: permissions?.canReply === true,
+            canReport: permissions?.canReport === true,
+            canStar: permissions?.canStar === true,
+            canVote: permissions?.canVote === true,
             text: getTranslation(data, 'text', languages, true),
         };
     }, [data, session]);
@@ -182,8 +189,8 @@ export function CommentThreadItem({
                                             }
                                         }}
                                     />
-                                    {data?.role && !(data?.creator?.id && data.creator.id === session?.id) && <ListItemText
-                                        primary={`(${data.role})`}
+                                    {canEdit && !(data?.creator?.id && data.creator.id === session?.id) && <ListItemText
+                                        primary={`(Can Edit)`}
                                         sx={{
                                             display: 'flex',
                                             alignItems: 'center',
@@ -216,7 +223,7 @@ export function CommentThreadItem({
                     />)}
                     {/* Text buttons for reply, share, report, star, delete. */}
                     {isOpen && <Stack direction="row" spacing={1}>
-                        <UpvoteDownvote
+                        {canVote && <UpvoteDownvote
                             direction="row"
                             session={session}
                             objectId={data?.id ?? ''}
@@ -224,16 +231,16 @@ export function CommentThreadItem({
                             isUpvoted={data?.isUpvoted}
                             score={data?.score}
                             onChange={() => { }}
-                        />
-                        <StarButton
+                        />}
+                        {canStar && <StarButton
                             session={session}
                             objectId={data?.id ?? ''}
                             starFor={StarFor.Comment}
                             isStar={data?.isStarred ?? false}
                             showStars={false}
                             tooltipPlacement="top"
-                        />
-                        <Tooltip title="Reply" placement='top'>
+                        />}
+                        {canReply && <Tooltip title="Reply" placement='top'>
                             <IconButton
                                 onClick={openReplyInput}
                                 sx={{
@@ -242,7 +249,7 @@ export function CommentThreadItem({
                             >
                                 <ReplyIcon />
                             </IconButton>
-                        </Tooltip>
+                        </Tooltip>}
                         <Tooltip title="Share" placement='top'>
                             <IconButton
                                 onClick={handleShare}
@@ -253,7 +260,7 @@ export function CommentThreadItem({
                                 <ShareIcon />
                             </IconButton>
                         </Tooltip>
-                        {!owns(data?.role) && <Tooltip title="Report" placement='top'>
+                        {canReport && <Tooltip title="Report" placement='top'>
                             <IconButton
                                 onClick={openReport}
                                 sx={{
@@ -263,7 +270,7 @@ export function CommentThreadItem({
                                 <ReportIcon />
                             </IconButton>
                         </Tooltip>}
-                        {owns(data?.role) && <Tooltip title="Delete" placement='top'>
+                        {canDelete && <Tooltip title="Delete" placement='top'>
                             <IconButton
                                 onClick={handleDelete}
                                 disabled={loadingDelete}

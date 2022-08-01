@@ -1,6 +1,6 @@
 import { Count, Tag, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, joinRelationshipToPrisma, modelToGraphQL, PartialGraphQLInfo, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, joinRelationshipToPrisma, modelToGraphQL, PartialGraphQLInfo, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { CODE, omit, tagsCreate, tagsUpdate, tagTranslationCreate, tagTranslationUpdate } from "@local/shared";
 import { validateProfanity } from "../../utils/censor";
@@ -16,8 +16,8 @@ const joinMapper = { organizations: 'tagged', projects: 'tagged', routines: 'tag
 const calculatedFields = ['isStarred', 'isOwn'];
 export const tagFormatter = (): FormatConverter<Tag> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Tag,
-        'starredBy': GraphQLModelType.User,
+        '__typename': 'Tag',
+        'starredBy': 'User',
     },
     removeCalculatedFields: (partial) => {
         const omitted = omit(partial, calculatedFields);
@@ -41,7 +41,7 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel.query(prisma).getIsStarreds(userId, ids, GraphQLModelType.Tag)
+                ? await StarModel.query(prisma).getIsStarreds(userId, ids, 'Tag')
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
@@ -101,11 +101,11 @@ export const tagMutater = (prisma: PrismaType) => ({
      * Maps type of a tag's parent with the unique field
      */
     parentMapper: {
-        [GraphQLModelType.Organization]: 'organization_tags_taggedid_tagTag_unique',
-        [GraphQLModelType.Project]: 'project_tags_taggedid_tagTag_unique',
-        [GraphQLModelType.Routine]: 'routine_tags_taggedid_tagTag_unique',
-        [GraphQLModelType.Standard]: 'standard_tags_taggedid_tagTag_unique',
-        [GraphQLModelType.TagHidden]: 'user_tags_hidden_userid_tagTag_unique',
+        'Organization': 'organization_tags_taggedid_tagTag_unique',
+        'Project': 'project_tags_taggedid_tagTag_unique',
+        'Routine': 'routine_tags_taggedid_tagTag_unique',
+        'Standard': 'standard_tags_taggedid_tagTag_unique',
+        'TagHidden': 'user_tags_hidden_userid_tagTag_unique',
     },
     async relationshipBuilder(
         userId: string | null,
