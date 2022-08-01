@@ -1,4 +1,4 @@
-import { Context } from "./context";
+import { Request } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import { initializeRedis } from "./redisConn";
 import { CustomError } from "./error";
@@ -11,13 +11,13 @@ export interface RateLimitProps {
      * rather than IP address.
      */
     byAccountOrKey?: boolean;
-    context: Context;
     info: GraphQLResolveInfo;
     /**
      * Maximum number of requests allowed per window. Different than the 
      * API key rate limit, which happens over a longer period of time.
      */
     max?: number;
+    req: Request;
     window?: number;
 }
 
@@ -29,14 +29,14 @@ export interface RateLimitProps {
  */
 export async function rateLimit({
     byAccountOrKey = false,
-    context, 
     info,
     max = 1000,
+    req,
     window = 60 * 60 * 24,
 }: RateLimitProps): Promise<void> {
-    if (byAccountOrKey && !context.req.userId) throw new CustomError(CODE.Unauthorized, "Calling rateLimit with 'byAccountOrKey' set to true, but with an invalid or expired JWT", { code: genErrorCode('0015') });
+    if (byAccountOrKey && !req.userId) throw new CustomError(CODE.Unauthorized, "Calling rateLimit with 'byAccountOrKey' set to true, but with an invalid or expired JWT", { code: genErrorCode('0015') });
     // Unique key for this request. Combination of GraphQL endpoint and userId/ip.
-    const key = `rate-limit:${info.path.key}:${byAccountOrKey ? (context.req.apiToken ?? context.req.userId) : context.req.ip}`;
+    const key = `rate-limit:${info.path.key}:${byAccountOrKey ? (req.apiToken ?? req.userId) : req.ip}`;
     try {
         const client = await initializeRedis();
         // Increment and get the current count.

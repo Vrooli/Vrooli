@@ -4,8 +4,8 @@ import { Count, Email, EmailCreateInput, EmailUpdateInput } from "../../schema/t
 import { PrismaType } from "types";
 import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { validateProfanity } from "../../utils/censor";
-import { profileValidater } from "./profile";
 import { genErrorCode } from "../../logger";
+import { ProfileModel } from "./profile";
 
 //==============================================================
 /* #region Custom Components */
@@ -107,7 +107,7 @@ export const emailMutater = (prisma: PrismaType) => ({
                     ...selectHelper(partialInfo)
                 });
                 // Send verification email
-                await profileValidater().setupVerificationCode(input.emailAddress, prisma);
+                await ProfileModel.verify.setupVerificationCode(input.emailAddress, prisma);
                 // Convert to GraphQL
                 const converted = modelToGraphQL(currCreated, partialInfo);
                 // Add to created array

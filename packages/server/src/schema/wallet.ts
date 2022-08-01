@@ -53,8 +53,8 @@ export const resolvers = {
         /**
          * Finds all ADA handles for your profile, or an organization you belong to.
          */
-        findHandles: async (_parent: undefined, { input }: IWrap<any>, context: Context, info: GraphQLResolveInfo): Promise<string[]> => {
-            await rateLimit({ context, info, max: 50 });
+        findHandles: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<string[]> => {
+            await rateLimit({ info, max: 50, req });
             // const policyID = 'de95598bb370b6d289f42dfc1de656d65c250ec4cdc930d32b1dc0e5'; // Fake policy ID for testing
             const policyID = 'f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a'; // Mainnet ADA Handle policy ID
             const walletFields = {
@@ -70,7 +70,7 @@ export const resolvers = {
             // Find all wallets associated with user or organization
             let wallets;
             if (input.organizationId) {
-                wallets = await context.prisma.wallet.findMany({
+                wallets = await prisma.wallet.findMany({
                     where: {
                         organizationId: input.organizationId
                     },
@@ -78,11 +78,11 @@ export const resolvers = {
                 })
             }
             else {
-                if (!context.req.userId) 
+                if (!req.userId) 
                     throw new CustomError(CODE.Unauthorized, 'Must be logged in to query your wallets', { code: genErrorCode('0166') })
-                wallets = await context.prisma.wallet.findMany({
+                wallets = await prisma.wallet.findMany({
                     where: {
-                        userId: context.req.userId
+                        userId: req.userId
                     },
                     select: walletFields
                 })
@@ -125,7 +125,7 @@ export const resolvers = {
                 const currWallet = wallets[i];
                 const currHandles = handles[i];
                 // Find existing handles
-                const existingHandles = await context.prisma.handle.findMany({
+                const existingHandles = await prisma.handle.findMany({
                     where: { handle: { in: currHandles } },
                     select: {
                         id: true,
@@ -143,23 +143,23 @@ export const resolvers = {
                 // If any of the existing handles are not associated with the current wallet, change that
                 const badLinks = existingHandles.filter(({ wallet }) => wallet !== null && wallet.id !== currWallet.id);
                 if (badLinks.length > 0) {
-                    await context.prisma.handle.updateMany({
+                    await prisma.handle.updateMany({
                         where: { id: { in: badLinks.map(({ id }) => id) } },
                         data: { walletId: currWallet.id }
                     })
                     // Remove the handle from the user, organization, or project linked to a wallet with one of the bad handles
                     const userIds = badLinks.filter(({ wallet }) => wallet?.userId !== null).map(({ wallet }) => wallet?.userId as string);
-                    await context.prisma.user.updateMany({
+                    await prisma.user.updateMany({
                         where: { id: { in: userIds } },
                         data: { handle: null }
                     });
                     const organizationIds = badLinks.filter(({ wallet }) => wallet?.organizationId !== null).map(({ wallet }) => wallet?.organizationId as string);
-                    await context.prisma.organization.updateMany({
+                    await prisma.organization.updateMany({
                         where: { id: { in: organizationIds } },
                         data: { handle: null }
                     });
                     const projectIds = badLinks.filter(({ wallet }) => wallet?.projectId !== null).map(({ wallet }) => wallet?.projectId as string);
-                    await context.prisma.project.updateMany({
+                    await prisma.project.updateMany({
                         where: { id: { in: projectIds } },
                         data: { handle: null }
                     });
@@ -167,7 +167,7 @@ export const resolvers = {
                 // If any handles did not exist in the database already, add them
                 const newHandles = currHandles.filter(handle => !existingHandles.some(({ handle: existingHandle }) => existingHandle === handle));
                 if (newHandles.length > 0) {
-                    await context.prisma.handle.createMany({
+                    await prisma.handle.createMany({
                         data: newHandles.map(handle => ({
                             handle,
                             walletId: currWallet.id
@@ -181,15 +181,9 @@ export const resolvers = {
         },
     },
     Mutation: {
-        walletUpdate: async (_parent: undefined, { input }: IWrap<WalletUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Wallet>> => {
-            await rateLimit({ context, info, max: 250, byAccountOrKey: true });
-            return updateHelper({
-                info,
-                input,
-                model: WalletModel,
-                prisma: context.prisma,
-                userId: context.req.userId,
-            })
+        walletUpdate: async (_parent: undefined, { input }: IWrap<WalletUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Wallet>> => {
+            await rateLimit({ info, max: 250, byAccountOrKey: true, req });
+            return updateHelper({ info, input, model: WalletModel, prisma: prisma, userId: req.userId })
         },
     }
 }

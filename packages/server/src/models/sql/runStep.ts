@@ -2,7 +2,7 @@ import { CODE, stepsCreate, stepsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, RunStep, RunStepCreateInput, RunStepStatus, RunStepUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, ModelLogic, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
 import { validateProfanity } from "../../utils/censor";
 
@@ -10,7 +10,7 @@ import { validateProfanity } from "../../utils/censor";
 /* #region Custom Components */
 //==============================================================
 
-export const stepFormatter = (): FormatConverter<RunStep> => ({
+export const runStepFormatter = (): FormatConverter<RunStep> => ({
     relationshipMap: {
         '__typename': GraphQLModelType.RunStep,
         'run': GraphQLModelType.Run,
@@ -19,7 +19,7 @@ export const stepFormatter = (): FormatConverter<RunStep> => ({
     },
 })
 
-export const stepVerifier = () => ({
+export const runStepVerifier = () => ({
     profanityCheck(data: (RunStepCreateInput | RunStepUpdateInput)[]): void {
         validateProfanity(data.map((d: any) => d.title));
     },
@@ -28,7 +28,7 @@ export const stepVerifier = () => ({
 /**
  * Handles mutations of run steps
  */
-export const stepMutater = (prisma: PrismaType) => ({
+export const runStepMutater = (prisma: PrismaType) => ({
     async toDBShapeAdd(userId: string, data: RunStepCreateInput): Promise<any> {
         return {
             id: data.id,
@@ -56,8 +56,6 @@ export const stepMutater = (prisma: PrismaType) => ({
         relationshipName: string = 'steps',
     ): Promise<{ [x: string]: any } | undefined> {
         // Convert input to Prisma shape
-        // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported by nodes (since they can only be applied to one routine)
         let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         let { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         // Further shape the input
@@ -99,11 +97,11 @@ export const stepMutater = (prisma: PrismaType) => ({
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0176') });
         if (createMany) {
             stepsCreate.validateSync(createMany, { abortEarly: false });
-            stepVerifier().profanityCheck(createMany);
+            runStepVerifier().profanityCheck(createMany);
         }
         if (updateMany) {
             stepsUpdate.validateSync(updateMany.map(u => ({ ...u.data, id: u.where.id })), { abortEarly: false });
-            stepVerifier().profanityCheck(updateMany.map(u => u.data));
+            runStepVerifier().profanityCheck(updateMany.map(u => u.data));
             // Check that user owns each step
             //TODO
         }
@@ -174,9 +172,9 @@ export const stepMutater = (prisma: PrismaType) => ({
 /* #region Model */
 //==============================================================
 
-export const StepModel = ({
+export const RunStepModel = ({
     prismaObject: (prisma: PrismaType) => prisma.run_step,
-    format: stepFormatter(),
-    mutate: stepMutater,
-    verify: stepVerifier(),
+    format: runStepFormatter(),
+    mutate: runStepMutater,
+    verify: runStepVerifier(),
 })

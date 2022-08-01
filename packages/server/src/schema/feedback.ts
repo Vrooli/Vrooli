@@ -20,12 +20,12 @@ export const typeDef = gql`
 
 export const resolvers = {
     Mutation: {
-        feedbackCreate: async (_parent: undefined, { input }: IWrap<FeedbackInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            await rateLimit({ context, info, max: 250 });
+        feedbackCreate: async (_parent: undefined, { input }: IWrap<FeedbackInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
+            await rateLimit({ info, max: 250, req });
             // Check for valid arguments
             feedbackCreate.validateSync(input, { abortEarly: false });
             // Find user who sent feedback, if any
-            let from = input.userId ? await context.prisma.user.findUnique({ where: { id: input.userId } }) : null;
+            let from = input.userId ? await prisma.user.findUnique({ where: { id: input.userId } }) : null;
             // Send feedback to admin
             feedbackNotifyAdmin(input.text, from?.name ?? 'anonymous');
             return { success: true };

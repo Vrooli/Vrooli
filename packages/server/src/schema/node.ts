@@ -299,13 +299,13 @@ export const resolvers = {
          * Note that the order of a routine (i.e. previous, next) cannot be updated with this mutation. 
          * @returns Updated node
          */
-        nodeCreate: async (_parent: undefined, { input }: IWrap<NodeCreateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
-            await rateLimit({ context, info, max: 2000, byAccountOrKey: true });
-            return createHelper(context.req.userId, input, info, NodeModel(context.prisma));
+        nodeCreate: async (_parent: undefined, { input }: IWrap<NodeCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
+            await rateLimit({ info, max: 2000, byAccountOrKey: true, req });
+            return createHelper({ info, input, model: NodeModel, prisma, userId: req.userId })
         },
-        nodeUpdate: async (_parent: undefined, { input }: IWrap<NodeUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
-            await rateLimit({ context, info, max: 2000, byAccountOrKey: true });
-            return updateHelper(context.req.userId, input, info, NodeModel(context.prisma));
+        nodeUpdate: async (_parent: undefined, { input }: IWrap<NodeUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
+            await rateLimit({ info, max: 2000, byAccountOrKey: true, req });
+            return updateHelper({ info, input, model: NodeModel, prisma, userId: req.userId })
         },
     }
 }

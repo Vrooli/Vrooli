@@ -318,10 +318,9 @@ export const resolvers = {
         __resolveType(obj: any) { return resolveProjectOrOrganizationOrRoutineOrStandardOrUser(obj) }
     },
     Query: {
-        homePage: async (_parent: undefined, { input }: IWrap<HomePageInput>, context: Context, info: GraphQLResolveInfo): Promise<HomePageResult> => {
-            await rateLimit({ context, info, max: 5000 });
-            const userId = context.req.userId;
-            const prisma = context.prisma;
+        homePage: async (_parent: undefined, { input }: IWrap<HomePageInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<HomePageResult> => {
+            await rateLimit({ info, max: 5000, req });
+            const userId = req.userId;
             const MinimumStars = 0; // Minimum stars required to show up in results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
@@ -385,10 +384,9 @@ export const resolvers = {
         /**
          * Queries data shown on Learn page
          */
-        learnPage: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<LearnPageResult> => {
-            await rateLimit({ context, info, max: 5000 });
-            const userId = context.req.userId;
-            const prisma = context.prisma;
+        learnPage: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<LearnPageResult> => {
+            await rateLimit({ info, max: 5000, req });
+            const userId = req.userId;
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
@@ -416,8 +414,8 @@ export const resolvers = {
                 [courses, tutorials],
                 [projectSelect, routineSelect] as any,
                 ['c', 't'],
-                context.req.userId,
-                context.prisma,
+                userId,
+                prisma,
             )
             // Return data
             return {
@@ -428,10 +426,9 @@ export const resolvers = {
         /**
          * Queries data shown on Research page
          */
-        researchPage: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<ResearchPageResult> => {
-            await rateLimit({ context, info, max: 5000 });
-            const userId = context.req.userId;
-            const prisma = context.prisma;
+        researchPage: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ResearchPageResult> => {
+            await rateLimit({ info, max: 5000, req });
+            const userId = req.userId;
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
@@ -492,8 +489,8 @@ export const resolvers = {
                 [processes, newlyCompletedProjects, newlyCompletedRoutines, needVotes, needInvestmentsProjects, needInvestmentsOrganizations, needMembers],
                 [routineSelect, projectSelect, routineSelect, projectSelect, projectSelect, organizationSelect, organizationSelect] as any,
                 ['p', 'ncp', 'ncr', 'nv', 'nip', 'nio', 'nm'],
-                context.req.userId,
-                context.prisma,
+                userId,
+                prisma,
             )
             // Return data
             return {
@@ -517,12 +514,11 @@ export const resolvers = {
         /**
          * Queries data shown on Develop page
          */
-        developPage: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<DevelopPageResult> => {
-            await rateLimit({ context, info, max: 5000 });
-            const userId = context.req.userId;
-            const prisma = context.prisma;
+        developPage: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<DevelopPageResult> => {
+            await rateLimit({ info, max: 5000, req });
+            const userId = req.userId;
             // If not signed in, return empty data
-            if (!context.req.userId) return {
+            if (!userId) return {
                 completed: [],
                 inProgress: [],
                 recent: [],
@@ -537,42 +533,42 @@ export const resolvers = {
             const completedRoutines = await readManyAsFeed({
                 ...commonReadParams,
                 info: routineSelect,
-                input: { take, isComplete: true, isInternal: false, userId: context.req.userId, sortBy: RoutineSortBy.DateCompletedAsc },
+                input: { take, isComplete: true, isInternal: false, userId, sortBy: RoutineSortBy.DateCompletedAsc },
                 model: RoutineModel,
             });
             // Query for projects you've completed
             const completedProjects = await readManyAsFeed({
                 ...commonReadParams,
                 info: projectSelect,
-                input: { take, isComplete: true, userId: context.req.userId, sortBy: ProjectSortBy.DateCompletedAsc },
+                input: { take, isComplete: true, userId, sortBy: ProjectSortBy.DateCompletedAsc },
                 model: ProjectModel,
             });
             // Query for routines you're currently working on
             const inProgressRoutines = await readManyAsFeed({
                 ...commonReadParams,
                 info: routineSelect,
-                input: { take, isComplete: false, isInternal: false, userId: context.req.userId, sortBy: RoutineSortBy.DateCreatedAsc },
+                input: { take, isComplete: false, isInternal: false, userId, sortBy: RoutineSortBy.DateCreatedAsc },
                 model: RoutineModel,
             });
             // Query for projects you're currently working on
             const inProgressProjects = await readManyAsFeed({
                 ...commonReadParams,
                 info: projectSelect,
-                input: { take, isComplete: false, userId: context.req.userId, sortBy: ProjectSortBy.DateCreatedAsc },
+                input: { take, isComplete: false, userId, sortBy: ProjectSortBy.DateCreatedAsc },
                 model: ProjectModel,
             });
             // Query recently created/updated routines
             const recentRoutines = await readManyAsFeed({
                 ...commonReadParams,
                 info: routineSelect,
-                input: { take, userId: context.req.userId, sortBy: RoutineSortBy.DateUpdatedAsc, isInternal: false },
+                input: { take, userId, sortBy: RoutineSortBy.DateUpdatedAsc, isInternal: false },
                 model: RoutineModel,
             });
             // Query recently created/updated projects
             const recentProjects = await readManyAsFeed({
                 ...commonReadParams,
                 info: projectSelect,
-                input: { take, userId: context.req.userId, sortBy: ProjectSortBy.DateUpdatedAsc },
+                input: { take, userId, sortBy: ProjectSortBy.DateUpdatedAsc },
                 model: ProjectModel,
             });
             // Add supplemental fields to every result
@@ -580,8 +576,8 @@ export const resolvers = {
                 [completedRoutines, completedProjects, inProgressRoutines, inProgressProjects, recentRoutines, recentProjects],
                 [routineSelect, projectSelect, routineSelect, projectSelect, routineSelect, projectSelect] as any,
                 ['cr', 'cp', 'ipr', 'ipp', 'rr', 'rp'],
-                context.req.userId,
-                context.prisma,
+                userId,
+                prisma,
             )
             // Combine arrays
             const completed: Array<Project | Routine> = [...withSupplemental['cr'], ...withSupplemental['cp']];
@@ -613,12 +609,11 @@ export const resolvers = {
         /**
          * Queries data shown on History page 
          */
-        historyPage: async (_parent: undefined, { input }: IWrap<HistoryPageInput>, context: Context, info: GraphQLResolveInfo): Promise<HistoryPageResult> => {
-            // If not signed in, shouldn't be able to see this page
-            if (!context.req.userId) throw new CustomError(CODE.Unauthorized, 'Must be signed in to see this page');
-            await rateLimit({ context, info, max: 5000 });
-            const userId = context.req.userId;
-            const prisma = context.prisma;
+        historyPage: async (_parent: undefined, { input }: IWrap<HistoryPageInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<HistoryPageResult> => {
+            // Only accessible if logged in and not using an API key
+            if (!req.userId || req.apiToken) throw new CustomError(CODE.Unauthorized, 'Must be signed in to see this page');
+            await rateLimit({ info, max: 5000, req });
+            const userId = req.userId;
             const take = 5;
             const commonReadParams = {
                 prisma,
@@ -657,8 +652,8 @@ export const resolvers = {
                 [activeRuns, completedRuns, recentlyViewed, recentlyStarred],
                 [runSelect, runSelect, viewSelect, starSelect] as any,
                 ['ar', 'cr', 'rv', 'rs'],
-                context.req.userId,
-                context.prisma,
+                userId,
+                prisma,
             )
             // Return results
             return {
@@ -671,8 +666,8 @@ export const resolvers = {
         /**
          * Returns site-wide statistics
          */
-        statisticsPage: async (_parent: undefined, { input }: IWrap<StatisticsPageInput>, context: Context, info: GraphQLResolveInfo): Promise<StatisticsPageResult> => {
-            await rateLimit({ context, info, max: 500 });
+        statisticsPage: async (_parent: undefined, { input }: IWrap<StatisticsPageInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<StatisticsPageResult> => {
+            await rateLimit({ info, max: 500, req });
             // Query current stats
             // Read historical stats from file
             throw new CustomError(CODE.NotImplemented);

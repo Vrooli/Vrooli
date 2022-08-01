@@ -7,10 +7,6 @@ import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { OrganizationModel } from "./organization";
 import { initializeRedis } from "../../redisConn";
-import { ProjectModel } from "./project";
-import { RoutineModel } from "./routine";
-import { StandardModel } from "./standard";
-import { UserModel } from "./user";
 import { resolveProjectOrOrganizationOrRoutineOrStandardOrUser } from "../../schema/resolvers";
 
 //==============================================================
@@ -83,7 +79,7 @@ export const viewFormatter = (): FormatConverter<View> => ({
                 if (!validTypes.includes(type as keyof typeof GraphQLModelType)) {
                     throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0186') });
                 }
-                const model: ModelLogic<any, any> = ObjectMap[type as keyof typeof GraphQLModelType] as ModelLogic<any, any>;
+                const model = ObjectMap[type as keyof typeof GraphQLModelType] as ModelLogic<any, any, any>;
                 const paginated = await readManyHelper({
                     info: partial.to[type],
                     input: { ids: toIdsByType[type] },

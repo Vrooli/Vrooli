@@ -12,7 +12,7 @@ export * from './routineFields';
 export * from './runFields';
 export * from './sessionFields';
 export * from './standardFields';
-export * from './stepInputData';
+export * from './runInputFields';
 export * from './tagFields';
 export * from './threadFields';
 export * from './userFields';

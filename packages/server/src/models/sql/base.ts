@@ -31,6 +31,9 @@ import { ViewModel } from './view';
 import { RunModel } from './run';
 import pkg from 'lodash';
 import { WalletModel } from './wallet';
+import { RunStepModel } from './runStep';
+import { NodeRoutineListModel } from './nodeRoutineList';
+import { RunInputModel } from './runInput';
 const { difference, flatten, merge } = pkg;
 
 
@@ -61,6 +64,7 @@ export enum GraphQLModelType {
     Role = 'Role',
     Routine = 'Routine',
     Run = 'Run',
+    RunInput = 'RunInput',
     RunStep = 'RunStep',
     Standard = 'Standard',
     Star = 'Star',
@@ -301,6 +305,7 @@ export const ObjectMap: { [key in GraphQLModelType]?: ModelLogic<any, any, any> 
     [GraphQLModelType.Role]: RoleModel,
     [GraphQLModelType.Routine]: RoutineModel,
     [GraphQLModelType.Run]: RunModel,
+    [GraphQLModelType.RunInput]: RunInputModel,
     [GraphQLModelType.Standard]: StandardModel,
     [GraphQLModelType.RunStep]: RunStepModel,
     [GraphQLModelType.Star]: StarModel,
@@ -1594,7 +1599,7 @@ export async function updateHelper<GraphQLModel>({
 
 type DeleteOneHelperProps = {
     input: DeleteOneInput;
-    model: ModelLogic<any, any>;
+    model: ModelLogic<any, any, any>;
     prisma: PrismaType;
     userId: string | null;
 }
@@ -1637,7 +1642,7 @@ export async function deleteOneHelper({
 
 type DeleteManyHelperProps = {
     input: DeleteManyInput;
-    model: ModelLogic<any, any>;
+    model: ModelLogic<any, any, any>;
     prisma: PrismaType;
     userId: string | null;
 }
@@ -1681,7 +1686,7 @@ export async function deleteManyHelper({
 type CopyHelperProps<GraphQLModel> = {
     info: GraphQLInfo | PartialGraphQLInfo;
     input: CopyInput;
-    model: ModelLogic<GraphQLModel, any>;
+    model: ModelLogic<GraphQLModel, any, any>;
     prisma: PrismaType;
     userId: string | null;
 }
@@ -1740,7 +1745,7 @@ export async function copyHelper({
 type ForkHelperProps<GraphQLModelType> = {
     info: GraphQLInfo | PartialGraphQLInfo,
     input: ForkInput,
-    model: ModelLogic<GraphQLModelType, any>,
+    model: ModelLogic<GraphQLModelType, any, any>,
     prisma: PrismaType,
     userId: string | null,
 }

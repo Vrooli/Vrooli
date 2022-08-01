@@ -3,7 +3,7 @@ import { CustomError } from "../../error";
 import { genErrorCode } from "../../logger";
 import { PrismaType } from "types";
 import { Count, TagHidden, TagHiddenCreateInput, TagHiddenUpdateInput } from "../../schema/types";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, ModelLogic, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { TagModel } from "./tag";
 
 //==============================================================

@@ -166,33 +166,17 @@ export const typeDef = gql`
 export const resolvers = {
     StandardSortBy: StandardSortBy,
     Query: {
-        standard: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard> | null> => {
-            await rateLimit({ context, info, max: 1000 });
-            return readOneHelper({
-                info,
-                input,
-                model: StandardModel,
-                prisma: context.prisma,
-                userId: context.req.userId,
-            })
+        standard: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard> | null> => {
+            await rateLimit({ info, max: 1000, req });
+            return readOneHelper({ info, input, model: StandardModel, prisma, userId: req.userId });
         },
-        standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<StandardSearchResult> => {
-            await rateLimit({ context, info, max: 1000 });
-            return readManyHelper({
-                info,
-                input,
-                model: StandardModel,
-                prisma: context.prisma,
-                userId: context.req.userId,
-            })
+        standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<StandardSearchResult> => {
+            await rateLimit({ info, max: 1000, req });
+            return readManyHelper({ info, input, model: StandardModel, prisma, userId: req.userId });
         },
-        standardsCount: async (_parent: undefined, { input }: IWrap<StandardCountInput>, context: Context, info: GraphQLResolveInfo): Promise<number> => {
-            await rateLimit({ context, info, max: 1000 });
-            return countHelper({
-                input,
-                model: StandardModel,
-                prisma: context.prisma,
-            })
+        standardsCount: async (_parent: undefined, { input }: IWrap<StandardCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
+            await rateLimit({ info, max: 1000, req });
+            return countHelper({ input, model: StandardModel, prisma });
         },
     },
     Mutation: {
@@ -200,15 +184,9 @@ export const resolvers = {
          * Create a new standard
          * @returns Standard object if successful
          */
-        standardCreate: async (_parent: undefined, { input }: IWrap<StandardCreateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
-            await rateLimit({ context, info, max: 250, byAccountOrKey: true });
-            return createHelper({
-                info,
-                input,
-                model: StandardModel,
-                prisma: context.prisma,
-                userId: context.req.userId,
-            })
+        standardCreate: async (_parent: undefined, { input }: IWrap<StandardCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
+            await rateLimit({ info, max: 250, byAccountOrKey: true, req });
+            return createHelper({ info, input, model: StandardModel, prisma, userId: req.userId });
         },
         /**
          * Update a standard you created.
@@ -217,15 +195,9 @@ export const resolvers = {
          * version number) or delete the old one and create a new one.
          * @returns Standard object if successful
          */
-        standardUpdate: async (_parent: undefined, { input }: IWrap<StandardUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
-            await rateLimit({ context, info, max: 500, byAccountOrKey: true });
-            return updateHelper({
-                info,
-                input,
-                model: StandardModel,
-                prisma: context.prisma,
-                userId: context.req.userId,
-            })
+        standardUpdate: async (_parent: undefined, { input }: IWrap<StandardUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
+            await rateLimit({ info, max: 500, byAccountOrKey: true, req });
+            return updateHelper({ info, input, model: StandardModel, prisma, userId: req.userId });
         },
     }
 }

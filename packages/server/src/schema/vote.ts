@@ -48,11 +48,12 @@ export const resolvers = {
          * their previous vote is overruled. A user may vote on their own project/routine/etc.
          * @returns 
          */
-        vote: async (_parent: undefined, { input }: IWrap<VoteInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            if (!context.req.userId) 
+        vote: async (_parent: undefined, { input }: IWrap<VoteInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
+            // Only accessible if logged in and not using an API key
+            if (!req.userId || req.apiToken) 
                 throw new CustomError(CODE.Unauthorized, 'Must be logged in to vote', { code: genErrorCode('0165') });
-            await rateLimit({ context, info, max: 1000, byAccountOrKey: true });
-            const success = await VoteModel.mutate(context.prisma).vote(context.req.userId, input);
+            await rateLimit({ info, max: 1000, byAccountOrKey: true, req });
+            const success = await VoteModel.mutate(prisma).vote(req.userId, input);
             return { success };
         },
     }

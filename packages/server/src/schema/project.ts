@@ -168,27 +168,27 @@ export const typeDef = gql`
 export const resolvers = {
     ProjectSortBy: ProjectSortBy,
     Query: {
-        project: async (_parent: undefined, { input }: IWrap<FindByIdOrHandleInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project> | null> => {
-            await rateLimit({ context, info, max: 1000 });
-            return readOneHelper(context.req.userId, input, info, ProjectModel(context.prisma));
+        project: async (_parent: undefined, { input }: IWrap<FindByIdOrHandleInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project> | null> => {
+            await rateLimit({ info, max: 1000, req });
+            return readOneHelper({ info, input, model: ProjectModel, prisma, userId: req.userId })
         },
-        projects: async (_parent: undefined, { input }: IWrap<ProjectSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<ProjectSearchResult> => {
-            await rateLimit({ context, info, max: 1000 });
-            return readManyHelper(context.req.userId, input, info, ProjectModel(context.prisma));
+        projects: async (_parent: undefined, { input }: IWrap<ProjectSearchInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<ProjectSearchResult> => {
+            await rateLimit({ info, max: 1000, req });
+            return readManyHelper({ info, input, model: ProjectModel, prisma, userId: req.userId })
         },
-        projectsCount: async (_parent: undefined, { input }: IWrap<ProjectCountInput>, context: Context, info: GraphQLResolveInfo): Promise<number> => {
-            await rateLimit({ context, info, max: 1000 });
-            return countHelper(input, ProjectModel(context.prisma));
+        projectsCount: async (_parent: undefined, { input }: IWrap<ProjectCountInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<number> => {
+            await rateLimit({ info, max: 1000, req });
+            return countHelper({ input, model: ProjectModel, prisma })
         },
     },
     Mutation: {
-        projectCreate: async (_parent: undefined, { input }: IWrap<ProjectCreateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
-            await rateLimit({ context, info, max: 100, byAccountOrKey: true });
-            return createHelper(context.req.userId, input, info, ProjectModel(context.prisma));
+        projectCreate: async (_parent: undefined, { input }: IWrap<ProjectCreateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
+            await rateLimit({ info, max: 100, byAccountOrKey: true, req });
+            return createHelper({ info, input, model: ProjectModel, prisma, userId: req.userId })
         },
-        projectUpdate: async (_parent: undefined, { input }: IWrap<ProjectUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
-            await rateLimit({ context, info, max: 250, byAccountOrKey: true });
-            return updateHelper(context.req.userId, input, info, ProjectModel(context.prisma));
+        projectUpdate: async (_parent: undefined, { input }: IWrap<ProjectUpdateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
+            await rateLimit({ info, max: 250, byAccountOrKey: true, req });
+            return updateHelper({ info, input, model: ProjectModel, prisma, userId: req.userId })
         },
     }
 }

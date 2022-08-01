@@ -1,12 +1,12 @@
 import { Count, Node, NodeCreateInput, NodeUpdateInput } from "../../schema/types";
-import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, ModelLogic } from "./base";
+import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType } from "./base";
 import { CustomError } from "../../error";
-import { CODE, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeTranslationCreate, nodeTranslationUpdate, whilesCreate, whilesUpdate, whensCreate, whensUpdate, nodeRoutineListItemTranslationCreate, nodeRoutineListItemTranslationUpdate, loopsCreate, loopsUpdate, nodesCreate, nodesUpdate } from "@local/shared";
+import { CODE, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeTranslationCreate, nodeTranslationUpdate, whilesCreate, whilesUpdate, whensCreate, whensUpdate, loopsCreate, loopsUpdate, nodesCreate, nodesUpdate } from "@local/shared";
 import { PrismaType } from "types";
 import { validateProfanity } from "../../utils/censor";
-import { RoutineModel } from "./routine";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
+import { NodeRoutineListModel } from "./nodeRoutineList";
 
 const MAX_NODES_IN_ROUTINE = 100;
 
@@ -36,16 +36,6 @@ export const nodeFormatter = (): FormatConverter<Node> => ({
                 [GraphQLModelType.NodeRoutineList, 'nodeRoutineList'],
             ]);
         return modified;
-    },
-})
-
-export const nodeRoutineListFormatter = (): FormatConverter<Node> => ({
-    relationshipMap: {
-        '__typename': GraphQLModelType.NodeRoutineList,
-        'routines': {
-            '__typename': GraphQLModelType.NodeRoutineListItem,
-            'routine': GraphQLModelType.Routine,
-        },
     },
 })
 
@@ -142,8 +132,8 @@ export const nodeMutater = (prisma: PrismaType) => ({
         nodeData.nodeRoutineList = undefined;
         if ((data as NodeCreateInput)?.nodeEndCreate) nodeData.nodeEnd = this.relationshipBuilderEndNode(userId, data, true);
         else if ((data as NodeUpdateInput)?.nodeEndUpdate) nodeData.nodeEnd = this.relationshipBuilderEndNode(userId, data, false);
-        if ((data as NodeCreateInput).nodeRoutineListCreate) nodeData.nodeRoutineList = await this.relationshipBuilderRoutineListNode(userId, data, true);
-        else if ((data as NodeUpdateInput)?.nodeRoutineListUpdate) nodeData.nodeRoutineList = await this.relationshipBuilderRoutineListNode(userId, data, false);
+        if ((data as NodeCreateInput).nodeRoutineListCreate) nodeData.nodeRoutineList = await NodeRoutineListModel.mutate(prisma).relationshipBuilder(userId, data, true);
+        else if ((data as NodeUpdateInput)?.nodeRoutineListUpdate) nodeData.nodeRoutineList = await NodeRoutineListModel.mutate(prisma).relationshipBuilder(userId, data, false);
         if (nodeData.loop) {
             if (data.loopCreate) nodeData.loop = this.relationshipBuilderLoop(userId, data, true);
             else if ((data as NodeUpdateInput)?.loopUpdate) nodeData.loop = this.relationshipBuilderLoop(userId, data, false);
@@ -348,95 +338,6 @@ export const nodeMutater = (prisma: PrismaType) => ({
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     /**
-     * Add, update, or remove routine list node item data from a node
-     */
-    async relationshipBuilderRoutineListNodeItem(
-        userId: string | null,
-        input: { [x: string]: any },
-        isAdd: boolean = true,
-    ): Promise<{ [x: string]: any } | undefined> {
-        // Convert input to Prisma shape
-        // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'routines', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        const mutate = RoutineModel.mutate(prisma);
-        // Validate create
-        if (Array.isArray(formattedInput.create)) {
-            // Check for valid arguments
-            nodeRoutineListItemsCreate.validateSync(formattedInput.create, { abortEarly: false });
-            let result = [];
-            for (const data of formattedInput.create) {
-                result.push({
-                    id: data.id,
-                    index: data.index,
-                    isOptional: data.isOptional,
-                    routineId: await mutate.relationshipBuilder(userId, data, isAdd),
-                    translations: TranslationModel.relationshipBuilder(userId, data, { create: nodeRoutineListItemTranslationCreate, update: nodeRoutineListItemTranslationUpdate }, false),
-                })
-            }
-            formattedInput.create = result;
-        }
-        // Validate update
-        if (Array.isArray(formattedInput.update)) {
-            // Check for valid arguments
-            nodeRoutineListItemsUpdate.validateSync(formattedInput.update.map(u => u.data), { abortEarly: false });
-            let result = [];
-            for (const data of formattedInput.update) {
-                result.push({
-                    where: data.where,
-                    data: {
-                        index: data.data.index ?? undefined,
-                        isOptional: data.data.isOptional ?? undefined,
-                        routineId: await mutate.relationshipBuilder(userId, data.data, isAdd),
-                        translations: TranslationModel.relationshipBuilder(userId, data.data, { create: nodeRoutineListItemTranslationCreate, update: nodeRoutineListItemTranslationUpdate }, false),
-                    }
-                })
-            }
-            formattedInput.update = result;
-        }
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
-    },
-    /**
-     * Add, update, or remove routine list node data from a node.
-     * Since this is a one-to-one relationship, we cannot return arrays
-     */
-    async relationshipBuilderRoutineListNode(
-        userId: string | null,
-        input: { [x: string]: any },
-        isAdd: boolean = true,
-    ): Promise<{ [x: string]: any } | undefined> {
-        // Convert input to Prisma shape
-        // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported by node data (since they can only be applied to one node)
-        let formattedInput: any = relationshipToPrisma({ data: input, relationshipName: 'nodeRoutineList', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        // Validate create
-        if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
-            const create = formattedInput.create[0];
-            // Check for valid arguments
-            nodeRoutineListCreate.validateSync(create, { abortEarly: false });
-            // Convert nested relationships
-            formattedInput.create = {
-                id: create.id,
-                isOrdered: create.isOrdered,
-                isOptional: create.isOptional,
-                routines: await this.relationshipBuilderRoutineListNodeItem(userId, create, isAdd)
-            }
-        }
-        // Validate update
-        if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
-            const update = formattedInput.update[0].data;
-            // Check for valid arguments
-            nodeRoutineListUpdate.validateSync(update, { abortEarly: false });
-            // Convert nested relationships
-            formattedInput.update = {
-                isOrdered: update.isOrdered,
-                isOptional: update.isOptional,
-                routines: await this.relationshipBuilderRoutineListNodeItem(userId, update, isAdd)
-            }
-        }
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
-    },
-    /**
      * NOTE: Nodes must all be applied to the same routine
      */
     async validateMutations({
@@ -521,7 +422,7 @@ export const nodeMutater = (prisma: PrismaType) => ({
 //==============================================================
 
 export const NodeModel = ({
-    prismaObject: (prisma: any) => prisma.node,
+    prismaObject: (prisma: PrismaType) => prisma.node,
     format: nodeFormatter(),
     mutate: nodeMutater,
     verify: nodeVerifier(),

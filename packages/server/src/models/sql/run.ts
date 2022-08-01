@@ -2,12 +2,13 @@ import { CODE, runsCreate, runsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, LogType, Run, RunCancelInput, RunCompleteInput, RunCreateInput, RunSearchInput, RunSortBy, RunStatus, RunUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, ValidateMutationsInput, ModelLogic } from "./base";
+import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
-import { StepModel } from "./step";
+import { RunStepModel } from "./runStep";
 import { run } from "@prisma/client";
 import { validateProfanity } from "../../utils/censor";
+import { RunInputModel } from "./runInput";
 
 //==============================================================
 /* #region Custom Components */
@@ -18,6 +19,7 @@ export const runFormatter = (): FormatConverter<Run> => ({
         '__typename': GraphQLModelType.Run,
         'routine': GraphQLModelType.Routine,
         'steps': GraphQLModelType.RunStep,
+        'inputs': GraphQLModelType.RunInput,
         'user': GraphQLModelType.User,
     },
 })
@@ -81,7 +83,7 @@ export const runMutater = (prisma: PrismaType) => ({
             timeStarted: new Date(),
             routineId: data.routineId,
             status: RunStatus.InProgress,
-            steps: await StepModel.mutate(prisma).relationshipBuilder(userId, data, true, 'step'),
+            steps: await RunStepModel.mutate(prisma).relationshipBuilder(userId, data, true, 'step'),
             title: data.title,
             userId,
             version: data.version,
@@ -92,7 +94,8 @@ export const runMutater = (prisma: PrismaType) => ({
             timeElapsed: (existingData.timeElapsed ?? 0) + (updateData.timeElapsed ?? 0),
             completedComplexity: (existingData.completedComplexity ?? 0) + (updateData.completedComplexity ?? 0),
             contextSwitches: (existingData.contextSwitches ?? 0) + (updateData.contextSwitches ?? 0),
-            steps: await StepModel.mutate(prisma).relationshipBuilder(userId, updateData, false),
+            steps: await RunStepModel.mutate(prisma).relationshipBuilder(userId, updateData, false),
+            inputs: await RunInputModel.mutate(prisma).relationshipBuilder(userId, updateData, false),
         }
     },
     async validateMutations({
@@ -245,6 +248,10 @@ export const runMutater = (prisma: PrismaType) => ({
                             status: input.finalStepUpdate.status ?? (input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed),
                         } as any : undefined,
                     }
+                    //TODO
+                    // inputs: {
+                    //     create: input.finalInputCreate ? {
+                    // }
                 },
                 ...selectHelper(partial)
             });
@@ -276,6 +283,7 @@ export const runMutater = (prisma: PrismaType) => ({
                             status: input.finalStepUpdate?.status ?? (input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed),
                         } : undefined,
                     }
+                    //TODO inputs
                 },
                 ...selectHelper(partial)
             });

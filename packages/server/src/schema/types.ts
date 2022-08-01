@@ -2441,6 +2441,13 @@ export enum RunSortBy {
   DateUpdatedDesc = 'DateUpdatedDesc'
 }
 
+export enum RunInputSortBy {
+    DateCreatedAsc = 'DateCreatedAsc',
+    DateCreatedDesc = 'DateCreatedDesc',
+    DateUpdatedAsc = 'DateUpdatedAsc',
+    DateUpdatedDesc = 'DateUpdatedDesc'
+  }
+
 export enum RunStatus {
   Cancelled = 'Cancelled',
   Completed = 'Completed',

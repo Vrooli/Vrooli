@@ -9,7 +9,7 @@ export const runFields = gql`
             description
         }
     }
-    fragment runInputFields on InputItem {
+    fragment runInputFields on RunInputItem {
         id
         isRequired
         name
@@ -312,6 +312,9 @@ export const runFields = gql`
     fragment runInputsFields on RunInput {
         id
         data
+        input {
+            ...runInputFields
+        }
     }
     fragment runFields on Run {
         id

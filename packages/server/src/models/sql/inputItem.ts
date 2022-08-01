@@ -1,6 +1,6 @@
 import { InputItem } from "../../schema/types";
 import { PrismaType } from "types";
-import { FormatConverter, GraphQLModelType, ModelLogic } from "./base";
+import { FormatConverter, GraphQLModelType } from "./base";
 
 //==============================================================
 /* #region Custom Components */

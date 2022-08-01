@@ -5,13 +5,6 @@ import { PrismaType, RecursivePartial } from "../../types";
 import { deconstructUnion, FormatConverter, GraphQLModelType, ModelLogic, ObjectMap, PartialGraphQLInfo, readManyHelper } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
-import { CommentModel } from "./comment";
-import { OrganizationModel } from "./organization";
-import { ProjectModel } from "./project";
-import { RoutineModel } from "./routine";
-import { StandardModel } from "./standard";
-import { TagModel } from "./tag";
-import { UserModel } from "./user";
 import { resolveStarTo } from "../../schema/resolvers";
 
 //==============================================================

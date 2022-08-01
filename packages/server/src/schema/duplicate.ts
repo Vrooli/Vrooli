@@ -65,8 +65,8 @@ export const resolvers = {
     CopyType: CopyType,
     ForkType: ForkType,
     Mutation: {
-        copy: async (_parent: undefined, { input }: IWrap<CopyInput>, context: Context, info: GraphQLResolveInfo): Promise<CopyResult> => {
-            await rateLimit({ context, info, max: 500, byAccountOrKey: true });
+        copy: async (_parent: undefined, { input }: IWrap<CopyInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<CopyResult> => {
+            await rateLimit({ info, max: 500, byAccountOrKey: true, req });
             const validTypes: Array<keyof typeof CopyType> = [
                 CopyType.Node,
                 CopyType.Organization,
@@ -78,17 +78,11 @@ export const resolvers = {
                 throw new CustomError(CODE.InvalidArgs, 'Invalid copy object type.', { code: genErrorCode('0227') });
             }
             const model: ModelLogic<any, any, any> = ObjectMap[input.objectType as keyof typeof GraphQLModelType] as ModelLogic<any, any, any>;
-            const result = await copyHelper({
-                info,
-                input,
-                model: model,
-                prisma: context.prisma,
-                userId: context.req.userId,
-            })
+            const result = await copyHelper({ info, input, model: model, prisma, userId: req.userId })
             return { [lowercaseFirstLetter(input.objectType)]: result };
         },
-        fork: async (_parent: undefined, { input }: IWrap<ForkInput>, context: Context, info: GraphQLResolveInfo): Promise<ForkResult> => {
-            await rateLimit({ context, info, max: 500, byAccountOrKey: true });
+        fork: async (_parent: undefined, { input }: IWrap<ForkInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<ForkResult> => {
+            await rateLimit({ info, max: 500, byAccountOrKey: true, req });
             const validTypes: Array<keyof typeof ForkType> = [
                 ForkType.Organization,
                 ForkType.Project,
@@ -99,13 +93,7 @@ export const resolvers = {
                 throw new CustomError(CODE.InvalidArgs, 'Invalid fork object type.', { code: genErrorCode('0228') });
             }
             const model: ModelLogic<any, any, any> = ObjectMap[input.objectType as keyof typeof GraphQLModelType] as ModelLogic<any, any, any>;
-            const result = await forkHelper({
-                info,
-                input,
-                model: model,
-                prisma: context.prisma,
-                userId: context.req.userId,
-            })
+            const result = await forkHelper({ info, input, model: model, prisma, userId: req.userId })
             return { [lowercaseFirstLetter(input.objectType)]: result };
         }
     }

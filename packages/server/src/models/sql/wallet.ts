@@ -1,8 +1,8 @@
-import { CODE, walletsUpdate, walletUpdate } from "@local/shared";
+import { CODE, walletsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { PrismaType } from "types";
 import { Count, Wallet, WalletUpdateInput } from "../../schema/types";
-import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, ModelLogic, modelToGraphQL, relationshipToPrisma, RelationshipTypes, removeJoinTablesHelper, selectHelper, ValidateMutationsInput } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, removeJoinTablesHelper, selectHelper, ValidateMutationsInput } from "./base";
 import { hasProfanity } from "../../utils/censor";
 import { genErrorCode } from "../../logger";
 

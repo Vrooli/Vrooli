@@ -3,7 +3,7 @@ import { CustomError } from "../../error";
 import { Count, Report, ReportCreateInput, ReportSearchInput, ReportSortBy, ReportUpdateInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { validateProfanity } from "../../utils/censor";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, ModelLogic, modelToGraphQL, PartialGraphQLInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
 
 //==============================================================
@@ -89,7 +89,7 @@ const forMapper = {
     [ReportFor.User]: 'user',
 }
 
-export const reportMutater = (prisma: PrismaType, verifier: ReturnType<typeof reportVerifier>) => ({
+export const reportMutater = (prisma: PrismaType) => ({
     async toDBShapeAdd(userId: string | null, data: ReportCreateInput): Promise<any> {
         return {
             id: data.id,
@@ -113,7 +113,7 @@ export const reportMutater = (prisma: PrismaType, verifier: ReturnType<typeof re
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0083') });
         if (createMany) {
             reportsCreate.validateSync(createMany, { abortEarly: false });
-            verifier.profanityCheck(createMany);
+            reportVerifier().profanityCheck(createMany);
             // Check if report already exists by user on object
             for (const input of createMany) {
                 const existingReport = await prisma.report.count({
@@ -129,7 +129,7 @@ export const reportMutater = (prisma: PrismaType, verifier: ReturnType<typeof re
         }
         if (updateMany) {
             reportsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            verifier.profanityCheck(updateMany.map(u => u.data));
+            reportVerifier().profanityCheck(updateMany.map(u => u.data));
         }
     },
     async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<ReportCreateInput, ReportUpdateInput>): Promise<CUDResult<Report>> {

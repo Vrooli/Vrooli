@@ -49,11 +49,12 @@ export const resolvers = {
          * Adds or removes a star to an object. A user can only star an object once.
          * @returns 
          */
-        star: async (_parent: undefined, { input }: IWrap<StarInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            if (!context.req.userId) 
+        star: async (_parent: undefined, { input }: IWrap<StarInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
+            // Only accessible if logged in and not using an API key
+            if (!req.userId || req.apiToken) 
                 throw new CustomError(CODE.Unauthorized, 'Must be logged in to star', { code: genErrorCode('0157') });
-            await rateLimit({ context, info, max: 1000, byAccountOrKey: true });
-            const success = await StarModel.mutate(context.prisma).star(context.req.userId, input);
+            await rateLimit({ info, max: 1000, byAccountOrKey: true, req });
+            const success = await StarModel.mutate(prisma).star(req.userId, input);
             return { success };
         },
     }
