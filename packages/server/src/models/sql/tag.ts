@@ -13,16 +13,11 @@ import { genErrorCode } from "../../logger";
 //==============================================================
 
 const joinMapper = { organizations: 'tagged', projects: 'tagged', routines: 'tagged', standards: 'tagged', starredBy: 'user' };
-const calculatedFields = ['isStarred', 'isOwn'];
-export const tagFormatter = (): FormatConverter<Tag> => ({
+const supplementalFields = ['isStarred', 'isOwn'];
+export const tagFormatter = (): FormatConverter<Tag, any> => ({
     relationshipMap: {
         '__typename': 'Tag',
         'starredBy': 'User',
-    },
-    removeCalculatedFields: (partial) => {
-        const omitted = omit(partial, calculatedFields);
-        // Add createdByUserId field so we can calculate isOwn
-        return { ...omitted, createdByUserId: true }
     },
     addJoinTables: (partial) => {
         return addJoinTablesHelper(partial, joinMapper);
@@ -30,12 +25,12 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
     removeJoinTables: (data) => {
         return removeJoinTablesHelper(data, joinMapper);
     },
-    async addSupplementalFields(
-        prisma: PrismaType,
-        userId: string | null, // Of the user making the request
-        objects: RecursivePartial<any>[],
-        partial: PartialGraphQLInfo,
-    ): Promise<RecursivePartial<Tag>[]> {
+    removeSupplementalFields: (partial) => {
+        const omitted = omit(partial, supplementalFields);
+        // Add createdByUserId field so we can calculate isOwn
+        return { ...omitted, createdByUserId: true }
+    },
+    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Tag>[]> {
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred

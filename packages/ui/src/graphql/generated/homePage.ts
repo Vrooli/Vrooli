@@ -62,6 +62,7 @@ export interface homePage_homePage_organizations {
 
 export interface homePage_homePage_projects_permissionsProject {
   __typename: "ProjectPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -112,6 +113,7 @@ export interface homePage_homePage_projects {
 
 export interface homePage_homePage_routines_permissionsRoutine {
   __typename: "RoutinePermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -172,6 +174,7 @@ export interface homePage_homePage_routines {
 
 export interface homePage_homePage_standards_permissionsStandard {
   __typename: "StandardPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

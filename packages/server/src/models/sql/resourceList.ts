@@ -11,7 +11,7 @@ import { genErrorCode } from "../../logger";
 /* #region Custom Components */
 //==============================================================
 
-export const resourceListFormatter = (): FormatConverter<ResourceList> => ({
+export const resourceListFormatter = (): FormatConverter<ResourceList, any> => ({
     relationshipMap: {
         '__typename': 'ResourceList',
         'resources': 'Resource',

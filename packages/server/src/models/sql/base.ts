@@ -84,7 +84,7 @@ export type GraphQLModelType = ValueOf<typeof GraphQLModelType>;
  * Everything else is optional
  */
 export type ModelLogic<GraphQLModel, SearchInput, PermissionObject> = {
-    format: FormatConverter<GraphQLModel>;
+    format: FormatConverter<GraphQLModel, PermissionObject>;
     prismaObject: (prisma: PrismaType) => PrismaType[keyof PrismaType];
     search?: Searcher<SearchInput>;
     mutate?: (prisma: PrismaType) => Mutater<GraphQLModel>;
@@ -129,17 +129,13 @@ export type RelationshipMap = {
 /**
  * Helper functions for converting between Prisma types and GraphQL types
  */
-export type FormatConverter<GraphQLModel> = {
+export type FormatConverter<GraphQLModel, PermissionObject> = {
     /**
      * Maps relationship names to their GraphQL type. 
      * If the relationship is a union (i.e. has mutliple possible types), 
      * the GraphQL type will be an object of field/GraphQLModelType pairs.
      */
     relationshipMap: RelationshipMap;
-    /**
-     * Removes fields which are not in the database
-     */
-    removeCalculatedFields?: (partial: PartialGraphQLInfo | PartialPrismaSelect) => any;
     /**
      * Convert database fields to GraphQL union types
      */
@@ -165,18 +161,20 @@ export type FormatConverter<GraphQLModel> = {
      */
     removeCountFields?: (data: { [x: string]: any }) => any;
     /**
+     * Removes fields which are not in the database (i.e. calculated/supplemental fields)
+     */
+    removeSupplementalFields?: (partial: PartialGraphQLInfo | PartialPrismaSelect) => any;
+    /**
      * Adds fields which are calculated after the main query
-     * @param userId ID of the user making the request
-     * @param objects
-     * @param info GraphQL info object or partial info object
      * @returns objects ready to be sent through GraphQL
      */
-    addSupplementalFields?: (
-        prisma: PrismaType,
-        userId: string | null,
+    addSupplementalFields?: ({ objects, partial, permissions, prisma, userId }: {
         objects: RecursivePartial<any>[],
         partial: PartialGraphQLInfo,
-    ) => Promise<RecursivePartial<GraphQLModel>[]>;
+        permissions?: PermissionObject[] | null,
+        prisma: PrismaType,
+        userId: string | null,
+    }) => Promise<RecursivePartial<GraphQLModel>[]>;
 }
 
 /**
@@ -624,9 +622,9 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
     }
     // Handle base case
     const type: string | undefined = partial?.__typename;
-    const formatter: FormatConverter<any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
+    const formatter: FormatConverter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
     if (formatter) {
-        if (formatter.removeCalculatedFields) result = formatter.removeCalculatedFields(result);
+        if (formatter.removeSupplementalFields) result = formatter.removeSupplementalFields(result);
         if (formatter.deconstructUnions) result = formatter.deconstructUnions(result);
         if (formatter.addJoinTables) result = formatter.addJoinTables(result);
         if (formatter.addCountFields) result = formatter.addCountFields(result);
@@ -677,7 +675,7 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
     }
     // Convert data to usable shape
     const type: string | undefined = partialInfo?.__typename;
-    const formatter: FormatConverter<any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
+    const formatter: FormatConverter<GraphQLModel, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
     if (formatter) {
         if (formatter.constructUnions) data = formatter.constructUnions(data);
         if (formatter.removeJoinTables) data = formatter.removeJoinTables(data);
@@ -959,10 +957,10 @@ const subsetsMatch = (obj: any, query: any): boolean => {
     // This should hopefully always be the case for the main subsetsMatch call, 
     // but not necessarily for the recursive calls.
     let formattedQuery = query;
-    const formatter: FormatConverter<any> | undefined = typeof query?.__typename === 'string' ? ObjectMap[query.__typename as keyof typeof ObjectMap]?.format : undefined;
+    const formatter: FormatConverter<any, any> | undefined = typeof query?.__typename === 'string' ? ObjectMap[query.__typename as keyof typeof ObjectMap]?.format : undefined;
     if (formatter) {
         // Remove calculated fields from query, since these will not be in obj
-        formattedQuery = formatter?.removeCalculatedFields ? formatter.removeCalculatedFields(query) : query;
+        formattedQuery = formatter?.removeSupplementalFields ? formatter.removeSupplementalFields(query) : query;
     }
     // First, check if obj is a join table. If this is the case, what we want to check 
     // is actually one layer down
@@ -1208,9 +1206,9 @@ export const addSupplementalFields = async (
         // we must loop through each element in it and call pickObjectById
         const objectData = ids.map((id: string) => pickObjectById(data, id));
         // Now that we have the data for each object, we can add the supplemental fields
-        const formatter: FormatConverter<any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
+        const formatter: FormatConverter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
         const valuesWithSupplements = formatter?.addSupplementalFields ?
-            await formatter.addSupplementalFields(prisma, userId, objectData, selectFieldsDict[type]) :
+            await formatter.addSupplementalFields({ objects: objectData, partial: selectFieldsDict[type], prisma, userId }) :
             objectData;
         // Add each value to objectsById
         for (const v of valuesWithSupplements) {
@@ -1325,7 +1323,7 @@ export async function readOneHelper<GraphQLModel>({
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0020') });
     // Check permissions
-    const { canRead } = await permissionsHelper({ 
+    const { canRead } = await permissionsHelper({
         model,
         objectId: input.id || input.handle,
         permissions: ['read'],
@@ -1821,6 +1819,6 @@ export async function readManyAsFeed<GraphQLModel, SearchInput extends SearchInp
         prisma,
         userId,
     })
-    return readManyResult.edges.map(({ node }: any) => 
+    return readManyResult.edges.map(({ node }: any) =>
         modelToGraphQL(node, toPartialGraphQLInfo(info, model.format.relationshipMap) as PartialGraphQLInfo)) as any[]
 }

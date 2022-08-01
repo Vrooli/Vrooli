@@ -10,7 +10,7 @@ import { genErrorCode } from "../../logger";
 /* #region Custom Components */
 //==============================================================
 
-export const resourceFormatter = (): FormatConverter<Resource> => ({
+export const resourceFormatter = (): FormatConverter<Resource, any> => ({
     relationshipMap: { '__typename': 'Resource' }, // For now, resource is never queried directly. So no need to handle relationships
 })
 

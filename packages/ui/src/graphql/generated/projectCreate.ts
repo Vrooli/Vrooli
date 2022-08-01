@@ -11,6 +11,7 @@ import { ProjectCreateInput, ResourceListUsedFor, ResourceUsedFor } from "./glob
 
 export interface projectCreate_projectCreate_permissionsProject {
   __typename: "ProjectPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

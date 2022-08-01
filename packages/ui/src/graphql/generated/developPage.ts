@@ -9,6 +9,7 @@
 
 export interface developPage_developPage_completed_Project_permissionsProject {
   __typename: "ProjectPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -59,6 +60,7 @@ export interface developPage_developPage_completed_Project {
 
 export interface developPage_developPage_completed_Routine_permissionsRoutine {
   __typename: "RoutinePermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -121,6 +123,7 @@ export type developPage_developPage_completed = developPage_developPage_complete
 
 export interface developPage_developPage_inProgress_Project_permissionsProject {
   __typename: "ProjectPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -171,6 +174,7 @@ export interface developPage_developPage_inProgress_Project {
 
 export interface developPage_developPage_inProgress_Routine_permissionsRoutine {
   __typename: "RoutinePermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -233,6 +237,7 @@ export type developPage_developPage_inProgress = developPage_developPage_inProgr
 
 export interface developPage_developPage_recent_Project_permissionsProject {
   __typename: "ProjectPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -283,6 +288,7 @@ export interface developPage_developPage_recent_Project {
 
 export interface developPage_developPage_recent_Routine_permissionsRoutine {
   __typename: "RoutinePermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

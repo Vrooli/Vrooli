@@ -14,7 +14,7 @@ import { RunInputModel } from "./runInput";
 /* #region Custom Components */
 //==============================================================
 
-export const runFormatter = (): FormatConverter<Run> => ({
+export const runFormatter = (): FormatConverter<Run, any> => ({
     relationshipMap: {
         '__typename': 'Run',
         'routine': 'Routine',

@@ -10,7 +10,7 @@ import { TagModel } from "./tag";
 /* #region Custom Components */
 //==============================================================
 
-export const tagHiddenFormatter = (): FormatConverter<TagHidden> => ({
+export const tagHiddenFormatter = (): FormatConverter<TagHidden, any> => ({
     relationshipMap: {
         '__typename': 'TagHidden',
         'user': 'User',

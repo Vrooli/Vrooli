@@ -235,6 +235,7 @@ export interface copy_copy_organization {
 
 export interface copy_copy_project_permissionsProject {
   __typename: "ProjectPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -516,6 +517,7 @@ export type copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_owner 
 
 export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine {
   __typename: "RoutinePermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -822,6 +824,7 @@ export interface copy_copy_routine_runs {
 
 export interface copy_copy_routine_permissionsRoutine {
   __typename: "RoutinePermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -886,6 +889,7 @@ export interface copy_copy_routine {
 
 export interface copy_copy_standard_permissionsStandard {
   __typename: "StandardPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

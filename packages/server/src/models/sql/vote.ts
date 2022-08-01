@@ -10,7 +10,7 @@ import { Log } from "../../models/nosql";
 /* #region Custom Components */
 //==============================================================
 
-export const voteFormatter = (): FormatConverter<Vote> => ({
+export const voteFormatter = (): FormatConverter<Vote, any> => ({
     relationshipMap: {
         '__typename': 'Vote',
         'from': 'User',

@@ -53,6 +53,7 @@ export const threadFields = gql`
             canDelete
             canEdit
             canStar
+            canReply
             canReport
             canVote
         }

@@ -72,6 +72,7 @@ export interface threadComment_permissionsComment {
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
+  canReply: boolean;
   canReport: boolean;
   canVote: boolean;
 }

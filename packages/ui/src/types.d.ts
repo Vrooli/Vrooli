@@ -22,7 +22,7 @@ export type Session = {
     id?: string | null;
     isLoggedIn?: boolean;
     languages?: string[] | null;
-    theme?: string;
+    theme?: string | null;
 }
 export interface CommonProps {
     session: Session;

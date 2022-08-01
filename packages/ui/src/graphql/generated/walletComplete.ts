@@ -12,7 +12,7 @@ import { WalletCompleteInput } from "./globalTypes";
 export interface walletComplete_walletComplete_session {
   __typename: "Session";
   id: string | null;
-  theme: string;
+  theme: string | null;
   isLoggedIn: boolean;
   languages: string[] | null;
 }

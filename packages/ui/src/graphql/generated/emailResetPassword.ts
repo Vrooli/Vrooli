@@ -12,7 +12,7 @@ import { EmailResetPasswordInput } from "./globalTypes";
 export interface emailResetPassword_emailResetPassword {
   __typename: "Session";
   id: string | null;
-  theme: string;
+  theme: string | null;
   isLoggedIn: boolean;
   languages: string[] | null;
 }

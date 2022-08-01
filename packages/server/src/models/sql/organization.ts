@@ -1,5 +1,5 @@
 import { PrismaType, RecursivePartial } from "../../types";
-import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor } from "../../schema/types";
+import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor, OrganizationPermission } from "../../schema/types";
 import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, PartialGraphQLInfo, addCountFieldsHelper, removeCountFieldsHelper } from "./base";
 import { CustomError } from "../../error";
 import { CODE, omit, organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@local/shared";
@@ -18,8 +18,8 @@ import { ViewModel } from "./view";
 
 const joinMapper = { starredBy: 'user', tags: 'tag' };
 const countMapper = { commentsCount: 'comments', membersCount: 'members', reportsCount: 'reports' };
-const calculatedFields = ['isStarred', 'role'];
-export const organizationFormatter = (): FormatConverter<Organization> => ({
+const supplementalFields = ['isStarred', 'isViewed', 'permissionsOrganization'];
+export const organizationFormatter = (): FormatConverter<Organization, OrganizationPermission> => ({
     relationshipMap: {
         '__typename': 'Organization',
         'comments': 'Comment',
@@ -34,9 +34,6 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         'starredBy': 'User',
         'tags': 'Tag',
     },
-    removeCalculatedFields: (partial) => {
-        return omit(partial, calculatedFields);
-    },
     addJoinTables: (partial) => {
         return addJoinTablesHelper(partial, joinMapper);
     },
@@ -49,12 +46,10 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
     removeCountFields: (data) => {
         return removeCountFieldsHelper(data, countMapper);
     },
-    async addSupplementalFields(
-        prisma: PrismaType,
-        userId: string | null, // Of the user making the request
-        objects: RecursivePartial<any>[],
-        partial: PartialGraphQLInfo,
-    ): Promise<RecursivePartial<Organization>[]> {
+    removeSupplementalFields: (partial) => {
+        return omit(partial, supplementalFields);
+    },
+    async addSupplementalFields({ objects, partial, permissions, prisma, userId }): Promise<RecursivePartial<Organization>[]> {
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
@@ -71,13 +66,17 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
-        // Query for role
-        if (partial.role) {
-            const roles = userId
-                ? await OrganizationModel.query(prisma).getRoles(userId, ids)
-                : Array(ids.length).fill(null);
-            objects = objects.map((x, i) => ({ ...x, role: roles[i] })) as any;
+        // Query for permissions
+        if (partial.permissionsOrganization) {
+            //TODO set permissions to those passed in, or query for them
         }
+        // // Query for role
+        // if (partial.role) {
+        //     const roles = userId
+        //         ? await OrganizationModel.query(prisma).getRoles(userId, ids)
+        //         : Array(ids.length).fill(null);
+        //     objects = objects.map((x, i) => ({ ...x, role: roles[i] })) as any;
+        // }
         return objects as RecursivePartial<Organization>[];
     },
 })

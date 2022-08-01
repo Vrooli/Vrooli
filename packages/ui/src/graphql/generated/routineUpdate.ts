@@ -183,6 +183,7 @@ export type routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_rout
 
 export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine {
   __typename: "RoutinePermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -489,6 +490,7 @@ export interface routineUpdate_routineUpdate_runs {
 
 export interface routineUpdate_routineUpdate_permissionsRoutine {
   __typename: "RoutinePermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

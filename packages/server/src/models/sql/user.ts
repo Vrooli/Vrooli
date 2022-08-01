@@ -11,8 +11,8 @@ import { omit } from "@local/shared";
 
 const joinMapper = { starredBy: 'user' };
 const countMapper = { reportsCount: 'reports' };
-const calculatedFields = ['isStarred'];
-export const userFormatter = (): FormatConverter<User> => ({
+const supplementalFields = ['isStarred', 'isViewed'];
+export const userFormatter = (): FormatConverter<User, any> => ({
     relationshipMap: {
         '__typename': 'User',
         'comments': 'Comment',
@@ -21,9 +21,6 @@ export const userFormatter = (): FormatConverter<User> => ({
         'starredBy': 'User',
         'reports': 'Report',
         'routines': 'Routine',
-    },
-    removeCalculatedFields: (partial) => {
-        return omit(partial, calculatedFields);
     },
     addJoinTables: (partial) => {
         return addJoinTablesHelper(partial, joinMapper);
@@ -37,12 +34,10 @@ export const userFormatter = (): FormatConverter<User> => ({
     removeCountFields: (data) => {
         return removeCountFieldsHelper(data, countMapper);
     },
-    async addSupplementalFields(
-        prisma: PrismaType,
-        userId: string | null, // Of the user making the request
-        objects: RecursivePartial<any>[],
-        partial: PartialGraphQLInfo,
-    ): Promise<RecursivePartial<User>[]> {
+    removeSupplementalFields: (partial) => {
+        return omit(partial, supplementalFields);
+    },
+    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<User>[]> {
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred

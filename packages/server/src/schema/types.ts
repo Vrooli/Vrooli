@@ -1405,6 +1405,7 @@ export type ProjectOrRoutine = Project | Routine;
 
 export type ProjectPermission = {
   __typename?: 'ProjectPermission';
+  canComment: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
@@ -2195,6 +2196,7 @@ export type RoutineEdge = {
 
 export type RoutinePermission = {
   __typename?: 'RoutinePermission';
+  canComment: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
@@ -2519,7 +2521,7 @@ export type Session = {
   id?: Maybe<Scalars['ID']>;
   isLoggedIn: Scalars['Boolean'];
   languages?: Maybe<Array<Scalars['String']>>;
-  theme: Scalars['String'];
+  theme?: Maybe<Scalars['String']>;
 };
 
 export type Standard = {
@@ -2588,6 +2590,7 @@ export type StandardEdge = {
 
 export type StandardPermission = {
   __typename?: 'StandardPermission';
+  canComment: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
   canReport: Scalars['Boolean'];

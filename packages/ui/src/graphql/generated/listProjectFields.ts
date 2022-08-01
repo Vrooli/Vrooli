@@ -9,6 +9,7 @@
 
 export interface listProjectFields_permissionsProject {
   __typename: "ProjectPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

@@ -211,7 +211,7 @@ export const HomePage = ({
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
     const { data, refetch, loading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
     useEffect(() => { refetch() }, [refetch, searchString]);
-    const showHistoryTab = useMemo(() => Array.isArray(session?.roles) && session.roles.length > 0, [session]);
+    const showHistoryTab = useMemo(() => session?.isLoggedIn === true, [session?.isLoggedIn]);
 
     // Handle tabs
     const tabIndex = useMemo(() => {

@@ -111,6 +111,7 @@ export interface fork_fork_organization {
 
 export interface fork_fork_project_permissionsProject {
   __typename: "ProjectPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -392,6 +393,7 @@ export type fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_owner 
 
 export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine {
   __typename: "RoutinePermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -698,6 +700,7 @@ export interface fork_fork_routine_runs {
 
 export interface fork_fork_routine_permissionsRoutine {
   __typename: "RoutinePermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -762,6 +765,7 @@ export interface fork_fork_routine {
 
 export interface fork_fork_standard_permissionsStandard {
   __typename: "StandardPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

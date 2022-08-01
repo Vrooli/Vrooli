@@ -119,6 +119,7 @@ export type routineNodeFields_data_NodeRoutineList_routines_routine_owner = rout
 
 export interface routineNodeFields_data_NodeRoutineList_routines_routine_permissionsRoutine {
   __typename: "RoutinePermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

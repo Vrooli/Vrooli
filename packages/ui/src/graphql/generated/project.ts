@@ -11,6 +11,7 @@ import { FindByIdOrHandleInput, ResourceListUsedFor, ResourceUsedFor } from "./g
 
 export interface project_project_permissionsProject {
   __typename: "ProjectPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

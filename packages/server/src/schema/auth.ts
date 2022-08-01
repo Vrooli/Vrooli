@@ -72,7 +72,7 @@ export const typeDef = gql`
     type Session {
         id: ID
         isLoggedIn: Boolean!
-        theme: String!
+        theme: String
         languages: [String!]
     }
 

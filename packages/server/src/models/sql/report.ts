@@ -10,25 +10,20 @@ import { genErrorCode } from "../../logger";
 /* #region Custom Components */
 //==============================================================
 
-const calculatedFields = ['isOwn'];
-export const reportFormatter = (): FormatConverter<Report> => ({
+const supplementalFields = ['isOwn'];
+export const reportFormatter = (): FormatConverter<Report, any> => ({
     relationshipMap: { '__typename': 'Report' },
-    removeCalculatedFields: (partial) => {
-        const omitted = omit(partial, calculatedFields)
-        // Add userId field so we can calculate isOwn
-        return { ...omitted, userId: true }
-    },
     removeJoinTables: (data) => {
         // Remove userId to hide who submitted the report
         let { userId, ...rest } = data;
         return rest;
     },
-    async addSupplementalFields(
-        prisma: PrismaType,
-        userId: string | null, // Of the user making the request
-        objects: RecursivePartial<any>[],
-        partial: PartialGraphQLInfo,
-    ): Promise<RecursivePartial<Report>[]> {
+    removeSupplementalFields: (partial) => {
+        const omitted = omit(partial, supplementalFields)
+        // Add userId field so we can calculate isOwn
+        return { ...omitted, userId: true }
+    },
+    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Report>[]> {
         // Query for isOwn
         if (partial.isOwn) objects = objects.map((x) => ({ ...x, isOwn: Boolean(userId) && x.fromId === userId }));
         // Convert Prisma objects to GraphQL objects

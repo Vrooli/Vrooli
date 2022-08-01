@@ -9,6 +9,7 @@
 
 export interface researchPage_researchPage_processes_permissionsRoutine {
   __typename: "RoutinePermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -69,6 +70,7 @@ export interface researchPage_researchPage_processes {
 
 export interface researchPage_researchPage_newlyCompleted_Project_permissionsProject {
   __typename: "ProjectPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -119,6 +121,7 @@ export interface researchPage_researchPage_newlyCompleted_Project {
 
 export interface researchPage_researchPage_newlyCompleted_Routine_permissionsRoutine {
   __typename: "RoutinePermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -181,6 +184,7 @@ export type researchPage_researchPage_newlyCompleted = researchPage_researchPage
 
 export interface researchPage_researchPage_needVotes_permissionsProject {
   __typename: "ProjectPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -231,6 +235,7 @@ export interface researchPage_researchPage_needVotes {
 
 export interface researchPage_researchPage_needInvestments_permissionsProject {
   __typename: "ProjectPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

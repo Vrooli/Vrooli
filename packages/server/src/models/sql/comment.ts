@@ -13,8 +13,8 @@ import { StarModel } from "./star";
 
 const joinMapper = { starredBy: 'user' };
 const countMapper = { reportsCount: 'reports' };
-const calculatedFields = ['isStarred', 'isUpvoted', 'role'];
-export const commentFormatter = (): FormatConverter<Comment> => ({
+const supplementalFields = ['isStarred', 'permissionsComment'];
+export const commentFormatter = (): FormatConverter<Comment, CommentPermission> => ({
     relationshipMap: {
         '__typename': 'Comment',
         'creator': {
@@ -29,9 +29,6 @@ export const commentFormatter = (): FormatConverter<Comment> => ({
         'reports': 'Report',
         'starredBy': 'User',
         'votes': 'Vote',
-    },
-    removeCalculatedFields: (partial) => {
-        return omit(partial, calculatedFields);
     },
     constructUnions: (data) => {
         let { organization, project, routine, standard, user, ...modified } = data;
@@ -66,12 +63,10 @@ export const commentFormatter = (): FormatConverter<Comment> => ({
     removeCountFields: (data) => {
         return removeCountFieldsHelper(data, countMapper);
     },
-    async addSupplementalFields(
-        prisma: PrismaType,
-        userId: string | null, // Of the user making the request
-        objects: RecursivePartial<any>[],
-        partial: PartialGraphQLInfo,
-    ): Promise<RecursivePartial<Comment>[]> {
+    removeSupplementalFields: (partial) => {
+        return omit(partial, supplementalFields);
+    },
+    async addSupplementalFields({ objects, partial, permissions, prisma, userId }): Promise<RecursivePartial<Comment>[]> {
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
@@ -83,7 +78,7 @@ export const commentFormatter = (): FormatConverter<Comment> => ({
         }
         // Query for permissions
         if (partial.permissionsComment) {
-            //TODO
+            //TODO set permissions to those passed in, or query for them
         }
         // if (partial.role) {
         //     let organizationIds: string[] = [];

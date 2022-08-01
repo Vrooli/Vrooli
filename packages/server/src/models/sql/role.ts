@@ -7,7 +7,7 @@ import { FormatConverter, addJoinTablesHelper, removeJoinTablesHelper } from "./
 //==============================================================
 
 const joinMapper = { users: 'user' };
-export const roleFormatter = (): FormatConverter<Role> => ({
+export const roleFormatter = (): FormatConverter<Role, any> => ({
     relationshipMap: {
         '__typename': 'Role',
         'users': 'User',

@@ -35,6 +35,7 @@ const organizationSelect = {
     isOpenToNewMembers: true,
     isPrivate: true,
     isStarred: true,
+    membersCount: true,
     permissionsOrganization: {
         canAddMembers: true,
         canDelete: true,
@@ -194,6 +195,7 @@ const commentSelect = {
         canDelete: true,
         canEdit: true,
         canStar: true,
+        canReply: true,
         canReport: true,
         canVote: true,
     },

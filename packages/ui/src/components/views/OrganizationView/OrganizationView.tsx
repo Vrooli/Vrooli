@@ -332,7 +332,7 @@ export const OrganizationView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.mode, palette.primary.main, palette.secondary.light, palette.secondary.dark, profileColors, openMoreMenu, loading, canEdit, name, onEdit, handle, organization.created_at, organization?.id, organization?.isStarred, organization?.stars, bio, shareLink, canStar, session]);
+    ), [palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.mode, palette.primary.main, palette.secondary.light, palette.secondary.dark, profileColors, openMoreMenu, loading, canEdit, name, onEdit, handle, organization?.created_at, organization?.id, organization?.isStarred, organization?.stars, bio, shareLink, canStar, session]);
 
     /**
      * Opens add new page

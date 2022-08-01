@@ -285,7 +285,7 @@ export const ProjectView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.mode, palette.primary.main, palette.secondary.light, palette.secondary.dark, openMoreMenu, loading, canEdit, name, onEdit, handle, project.created_at, project?.id, project?.isStarred, project?.stars, description, shareLink, canStar, session]);
+    ), [palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.mode, palette.primary.main, palette.secondary.light, palette.secondary.dark, openMoreMenu, loading, canEdit, name, onEdit, handle, project?.created_at, project?.id, project?.isStarred, project?.stars, description, shareLink, canStar, session]);
 
     /**
     * Opens add new page

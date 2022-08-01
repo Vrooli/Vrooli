@@ -11,6 +11,7 @@ import { FindByIdInput, ResourceListUsedFor, ResourceUsedFor } from "./globalTyp
 
 export interface standard_standard_permissionsStandard {
   __typename: "StandardPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

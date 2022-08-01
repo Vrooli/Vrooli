@@ -183,6 +183,7 @@ export type routineFields_nodes_data_NodeRoutineList_routines_routine_owner = ro
 
 export interface routineFields_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine {
   __typename: "RoutinePermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -489,6 +490,7 @@ export interface routineFields_runs {
 
 export interface routineFields_permissionsRoutine {
   __typename: "RoutinePermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

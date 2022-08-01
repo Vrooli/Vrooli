@@ -9,6 +9,7 @@
 
 export interface listRoutineFields_permissionsRoutine {
   __typename: "RoutinePermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

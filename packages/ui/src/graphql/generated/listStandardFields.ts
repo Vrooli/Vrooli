@@ -9,6 +9,7 @@
 
 export interface listStandardFields_permissionsStandard {
   __typename: "StandardPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

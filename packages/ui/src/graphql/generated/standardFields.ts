@@ -11,6 +11,7 @@ import { ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 export interface standardFields_permissionsStandard {
   __typename: "StandardPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

@@ -1,7 +1,7 @@
 import { CODE, DeleteOneType, omit, standardsCreate, standardsUpdate, standardTranslationCreate, standardTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
-import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count } from "../../schema/types";
+import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count, StandardPermission } from "../../schema/types";
 import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, modelToGraphQL, PartialGraphQLInfo, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { validateProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
@@ -21,8 +21,8 @@ import { ResourceListModel } from "./resourceList";
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
-const calculatedFields = ['isUpvoted', 'isStarred', 'role'];
-export const standardFormatter = (): FormatConverter<Standard> => ({
+const supplementalFields = ['isUpvoted', 'isStarred', 'isViewed', 'permissionsStandard'];
+export const standardFormatter = (): FormatConverter<Standard, StandardPermission> => ({
     relationshipMap: {
         '__typename': 'Standard',
         'comments': 'Comment',
@@ -36,9 +36,6 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
         'routineOutputs': 'Routine',
         'starredBy': 'User',
         'tags': 'Tag',
-    },
-    removeCalculatedFields: (partial) => {
-        return omit(partial, calculatedFields);
     },
     constructUnions: (data) => {
         let modified = addCreatorField(data);
@@ -60,12 +57,10 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
     removeCountFields: (data) => {
         return removeCountFieldsHelper(data, countMapper);
     },
-    async addSupplementalFields(
-        prisma: PrismaType,
-        userId: string | null, // Of the user making the request
-        objects: RecursivePartial<any>[],
-        partial: PartialGraphQLInfo,
-    ): Promise<RecursivePartial<Standard>[]> {
+    removeSupplementalFields: (partial) => {
+        return omit(partial, supplementalFields);
+    },
+    async addSupplementalFields({ objects, partial, permissions, prisma, userId }): Promise<RecursivePartial<Standard>[]> {
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
@@ -91,7 +86,7 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
         }
         // Query for permissions
         if (partial.permissionsStandard) {
-            //TODO
+            //TODO set permissions to those passed in, or query for them
         }
         // if (partial.role) {
         //     let organizationIds: string[] = [];

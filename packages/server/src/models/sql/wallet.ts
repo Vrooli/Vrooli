@@ -11,7 +11,7 @@ import { genErrorCode } from "../../logger";
 //==============================================================
 
 const joinMapper = { handles: 'handle' };
-export const walletFormatter = (): FormatConverter<Wallet> => ({
+export const walletFormatter = (): FormatConverter<Wallet, any> => ({
     relationshipMap: {
         '__typename': 'Wallet',
         'handles': 'Handle',

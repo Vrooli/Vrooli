@@ -1,7 +1,7 @@
 import { CODE, omit, projectsCreate, projectsUpdate, projectTranslationCreate, projectTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
-import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor } from "../../schema/types";
+import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor, ProjectPermission } from "../../schema/types";
 import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, modelToGraphQL, PartialGraphQLInfo, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -19,8 +19,8 @@ import { ViewModel } from "./view";
 
 const joinMapper = { tags: 'tag', users: 'user', organizations: 'organization', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
-const calculatedFields = ['isUpvoted', 'isStarred', 'role'];
-export const projectFormatter = (): FormatConverter<Project> => ({
+const supplementalFields = ['isUpvoted', 'isStarred', 'isViewed', 'permissionsProject'];
+export const projectFormatter = (): FormatConverter<Project, ProjectPermission> => ({
     relationshipMap: {
         '__typename': 'Project',
         'comments': 'Comment',
@@ -40,9 +40,6 @@ export const projectFormatter = (): FormatConverter<Project> => ({
         'starredBy': 'User',
         'tags': 'Tag',
         'wallets': 'Wallet',
-    },
-    removeCalculatedFields: (partial) => {
-        return omit(partial, calculatedFields);
     },
     constructUnions: (data) => {
         let modified = addCreatorField(data);
@@ -66,12 +63,10 @@ export const projectFormatter = (): FormatConverter<Project> => ({
     removeCountFields: (data) => {
         return removeCountFieldsHelper(data, countMapper);
     },
-    async addSupplementalFields(
-        prisma: PrismaType,
-        userId: string | null, // Of the user making the request
-        objects: RecursivePartial<any>[],
-        partial: PartialGraphQLInfo,
-    ): Promise<RecursivePartial<Project>[]> {
+    removeSupplementalFields: (partial) => {
+        return omit(partial, supplementalFields);
+    },
+    async addSupplementalFields({ objects, partial, permissions, prisma, userId }): Promise<RecursivePartial<Project>[]> {
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
@@ -97,7 +92,7 @@ export const projectFormatter = (): FormatConverter<Project> => ({
         }
         // Query for permissions
         if (partial.permissionsProject) {
-            //TODO
+            //TODO set permissions to those passed in, or query for them
         }
         // // Query for role
         // if (partial.role) {

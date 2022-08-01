@@ -19,7 +19,7 @@ export interface View {
     to: ViewFor;
 }
 
-export const viewFormatter = (): FormatConverter<View> => ({
+export const viewFormatter = (): FormatConverter<View, any> => ({
     relationshipMap: {
         '__typename': 'View',
         'from': 'User',
@@ -50,12 +50,7 @@ export const viewFormatter = (): FormatConverter<View> => ({
         ]);
         return modified;
     },
-    async addSupplementalFields(
-        prisma: PrismaType,
-        userId: string | null, // Of the user making the request
-        objects: RecursivePartial<any>[],
-        partial: PartialGraphQLInfo,
-    ): Promise<RecursivePartial<View>[]> {
+    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<View>[]> {
         // Query for data that view is applied to
         if (isObject(partial.to)) {
             const toTypes: GraphQLModelType[] = objects.map(o => resolveProjectOrOrganizationOrRoutineOrStandardOrUser(o.to))

@@ -9,6 +9,7 @@
 
 export interface learnPage_learnPage_courses_permissionsProject {
   __typename: "ProjectPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
@@ -59,6 +60,7 @@ export interface learnPage_learnPage_courses {
 
 export interface learnPage_learnPage_tutorials_permissionsRoutine {
   __typename: "RoutinePermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

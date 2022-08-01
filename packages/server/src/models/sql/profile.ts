@@ -36,8 +36,8 @@ const tagSelect = {
 }
 
 const joinMapper = { hiddenTags: 'tag', roles: 'role', starredBy: 'user' };
-const calculatedFields = ['starredTags', 'hiddenTags'];
-export const profileFormatter = (): FormatConverter<User> => ({
+const supplementalFields = ['starredTags', 'hiddenTags'];
+export const profileFormatter = (): FormatConverter<User, any> => ({
     relationshipMap: {
         '__typename': 'Profile',
         'comments': 'Comment',
@@ -59,14 +59,14 @@ export const profileFormatter = (): FormatConverter<User> => ({
         'reports': 'Report',
         'votes': 'Vote',
     },
-    removeCalculatedFields: (partial) => {
-        return omit(partial, calculatedFields);
-    },
     addJoinTables: (partial) => {
         return addJoinTablesHelper(partial, joinMapper);
     },
     removeJoinTables: (data) => {
         return removeJoinTablesHelper(data, joinMapper);
+    },
+    removeSupplementalFields: (partial) => {
+        return omit(partial, supplementalFields);
     },
 })
 

@@ -11,7 +11,7 @@ import { resolveStarTo } from "../../schema/resolvers";
 /* #region Custom Components */
 //==============================================================
 
-export const starFormatter = (): FormatConverter<Star> => ({
+export const starFormatter = (): FormatConverter<Star, any> => ({
     relationshipMap: {
         '__typename': 'Star',
         'from': 'User',
@@ -48,12 +48,7 @@ export const starFormatter = (): FormatConverter<Star> => ({
         ]);
         return modified;
     },
-    async addSupplementalFields(
-        prisma: PrismaType,
-        userId: string | null, // Of the user making the request
-        objects: RecursivePartial<any>[],
-        partial: PartialGraphQLInfo,
-    ): Promise<RecursivePartial<Star>[]> {
+    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Star>[]> {
         // Query for data that star is applied to
         if (isObject(partial.to)) {
             const toTypes: GraphQLModelType[] = objects.map(o => resolveStarTo(o.to))

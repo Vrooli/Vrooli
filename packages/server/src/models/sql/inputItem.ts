@@ -6,7 +6,7 @@ import { FormatConverter } from "./base";
 /* #region Custom Components */
 //==============================================================
 
-export const inputItemFormatter = (): FormatConverter<InputItem> => ({
+export const inputItemFormatter = (): FormatConverter<InputItem, any> => ({
     relationshipMap: {
         '__typename': 'InputItem',
         'standard': 'Standard',

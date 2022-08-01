@@ -1,4 +1,4 @@
-import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeRoutineListItem, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemCreateInput } from "../../schema/types";
+import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeRoutineListItem, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemCreateInput, RoutinePermission } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
 import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, FormatConverter, modelToGraphQL, PartialGraphQLInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
@@ -30,8 +30,8 @@ type NodeWeightData = {
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', nodesCount: 'nodes', reportsCount: 'reports' };
-const calculatedFields = ['inProgressCompletedSteps', 'inProgressCompletedComplexity', 'inProgressVersion', 'isUpvoted', 'isStarred', 'role', 'runs'];
-export const routineFormatter = (): FormatConverter<Routine> => ({
+const supplementalFields = ['isUpvoted', 'isStarred', 'isViewed', 'permissionsRoutine', 'runs'];
+export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> => ({
     relationshipMap: {
         '__typename': 'Routine',
         'comments': 'Comment',
@@ -53,9 +53,6 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         'resourceLists': 'ResourceList',
         'starredBy': 'User',
         'tags': 'Tag',
-    },
-    removeCalculatedFields: (partial) => {
-        return omit(partial, calculatedFields);
     },
     constructUnions: (data) => {
         let modified = addCreatorField(data);
@@ -79,12 +76,10 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
     removeCountFields: (data) => {
         return removeCountFieldsHelper(data, countMapper);
     },
-    async addSupplementalFields(
-        prisma: PrismaType,
-        userId: string | null, // Of the user making the request
-        objects: RecursivePartial<any>[],
-        partial: PartialGraphQLInfo,
-    ): Promise<RecursivePartial<Routine>[]> {
+    removeSupplementalFields: (partial) => {
+        return omit(partial, supplementalFields);
+    },
+    async addSupplementalFields({ objects, partial, permissions, prisma, userId }): Promise<RecursivePartial<Routine>[]> {
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
@@ -110,7 +105,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         }
         // Query for permissions
         if (partial.permissionsRoutine) {
-            //TODO
+            //TODO set permissions to those passed in, or query for them
         }
         // // Query for role
         // if (partial.role) {

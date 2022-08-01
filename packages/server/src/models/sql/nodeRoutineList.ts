@@ -9,7 +9,7 @@ import { TranslationModel } from "./translation";
 /* #region Custom Components */
 //==============================================================
 
-export const nodeRoutineListFormatter = (): FormatConverter<Node> => ({
+export const nodeRoutineListFormatter = (): FormatConverter<Node, any> => ({
     relationshipMap: {
         '__typename': 'NodeRoutineList',
         'routines': {

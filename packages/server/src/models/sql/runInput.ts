@@ -10,7 +10,7 @@ import { PrismaType } from "../../types";
 /* #region Custom Components */
 //==============================================================
 
-export const runInputFormatter = (): FormatConverter<RunInput> => ({
+export const runInputFormatter = (): FormatConverter<RunInput, any> => ({
     relationshipMap: {
         '__typename': 'RunInput',
         'input': 'InputItem',

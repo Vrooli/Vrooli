@@ -23,7 +23,7 @@ export function StandardListItem({
         const permissions = data?.permissionsStandard;
         const languages = session?.languages ?? navigator.languages;
         return {
-            canCommment: permissions?.canComment === true,
+            canComment: permissions?.canComment === true,
             canEdit: permissions?.canEdit === true,
             canReport: permissions?.canReport === true,
             canStar: permissions?.canStar === true,

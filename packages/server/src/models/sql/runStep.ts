@@ -10,7 +10,7 @@ import { validateProfanity } from "../../utils/censor";
 /* #region Custom Components */
 //==============================================================
 
-export const runStepFormatter = (): FormatConverter<RunStep> => ({
+export const runStepFormatter = (): FormatConverter<RunStep, any> => ({
     relationshipMap: {
         '__typename': 'RunStep',
         'run': 'Run',

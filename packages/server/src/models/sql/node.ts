@@ -14,7 +14,7 @@ const MAX_NODES_IN_ROUTINE = 100;
 /* #region Custom Components */
 //==============================================================
 
-export const nodeFormatter = (): FormatConverter<Node> => ({
+export const nodeFormatter = (): FormatConverter<Node, any> => ({
     relationshipMap: {
         '__typename': 'Node',
         'data': {

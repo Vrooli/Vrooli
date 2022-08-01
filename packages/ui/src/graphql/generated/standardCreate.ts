@@ -11,6 +11,7 @@ import { StandardCreateInput, ResourceListUsedFor, ResourceUsedFor } from "./glo
 
 export interface standardCreate_standardCreate_permissionsStandard {
   __typename: "StandardPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

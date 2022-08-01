@@ -17,6 +17,7 @@ export interface routines_routines_pageInfo {
 
 export interface routines_routines_edges_node_permissionsRoutine {
   __typename: "RoutinePermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

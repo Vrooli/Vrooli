@@ -17,6 +17,7 @@ export interface standards_standards_pageInfo {
 
 export interface standards_standards_edges_node_permissionsStandard {
   __typename: "StandardPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

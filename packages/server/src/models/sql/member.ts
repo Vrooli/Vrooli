@@ -6,7 +6,7 @@ import { FormatConverter } from "./base";
 /* #region Custom Components */
 //==============================================================
 
-export const memberFormatter = (): FormatConverter<Member> => ({
+export const memberFormatter = (): FormatConverter<Member, any> => ({
     relationshipMap: {
         '__typename': 'Member',
         'organization': 'Organization',

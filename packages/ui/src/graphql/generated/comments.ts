@@ -74,6 +74,7 @@ export interface comments_comments_threads_childThreads_childThreads_comment_per
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
+  canReply: boolean;
   canReport: boolean;
   canVote: boolean;
 }
@@ -171,6 +172,7 @@ export interface comments_comments_threads_childThreads_comment_permissionsComme
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
+  canReply: boolean;
   canReport: boolean;
   canVote: boolean;
 }
@@ -269,6 +271,7 @@ export interface comments_comments_threads_comment_permissionsComment {
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;
+  canReply: boolean;
   canReport: boolean;
   canVote: boolean;
 }

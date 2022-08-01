@@ -11,6 +11,7 @@ import { ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 export interface projectFields_permissionsProject {
   __typename: "ProjectPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

@@ -17,6 +17,7 @@ export interface projects_projects_pageInfo {
 
 export interface projects_projects_edges_node_permissionsProject {
   __typename: "ProjectPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

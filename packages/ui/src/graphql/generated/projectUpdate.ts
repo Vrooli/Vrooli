@@ -11,6 +11,7 @@ import { ProjectUpdateInput, ResourceListUsedFor, ResourceUsedFor } from "./glob
 
 export interface projectUpdate_projectUpdate_permissionsProject {
   __typename: "ProjectPermission";
+  canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
   canStar: boolean;

@@ -11,7 +11,7 @@ import { ProfileModel } from "./profile";
 /* #region Custom Components */
 //==============================================================
 
-export const emailFormatter = (): FormatConverter<Email> => ({
+export const emailFormatter = (): FormatConverter<Email, any> => ({
     relationshipMap: {
         '__typename': 'Email',
         'user': 'Profile',
