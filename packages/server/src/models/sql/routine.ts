@@ -503,6 +503,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             isInternal: data.isInternal ?? undefined,
             parentId: (data as RoutineCreateInput)?.parentId ?? undefined,
             version: data.version ?? undefined,
+            versionGroupId: isAdd ? uuid() : undefined,
             resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, isAdd),
             tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Routine'),
             inputs: await this.relationshipBuilderInput(userId, data, isAdd),
@@ -758,10 +759,10 @@ export const routineMutater = (prisma: PrismaType) => ({
             // Add to organizationIds array, to check ownership status
             organizationIds.push(...objects.filter(object => !userId.includes(object.organizationId ?? '')).map(object => object.organizationId));
         }
-        // Find admin/owner member data for every organization
-        const memberData = await OrganizationModel.query(prisma).isOwnerOrAdmin(userId ?? '', organizationIds);
-        // If any member data is undefined, the user is not authorized to delete one or more objects
-        if (memberData.some(member => !member))
+        // Find role for every organization
+        const roles = await OrganizationModel.query(prisma).hasRole(userId ?? '', organizationIds);
+        // If any role is undefined, the user is not authorized to delete one or more objects
+        if (roles.some(role => !role))
             throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0095') })
     },
     /**
@@ -1027,8 +1028,8 @@ export const routineMutater = (prisma: PrismaType) => ({
         }
         // If routine is marked as internal and it doesn't belong to you
         else if (routine.isInternal && routine.userId !== userId) {
-            const memberData = await OrganizationModel.query(prisma).isOwnerOrAdmin(userId, [routine.organizationId]);
-            if (!memberData.some(member => member))
+            const roles = await OrganizationModel.query(prisma).hasRole(userId, [routine.organizationId]);
+            if (roles.some(role => !role))
                 throw new CustomError(CODE.Unauthorized, 'Not authorized to copy', { code: genErrorCode('0226') })
         }
         // Initialize new routine object

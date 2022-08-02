@@ -460,11 +460,11 @@ export const standardMutater = (prisma: PrismaType) => ({
             // Add to organizationIds array, to check ownership status
             organizationIds.push(...objects.filter(object => !userId.includes(object.createdByOrganizationId ?? '')).map(object => object.createdByOrganizationId));
         }
-        // Find admin/owner member data for every organization
-        const memberData = await OrganizationModel.query(prisma).isOwnerOrAdmin(userId, organizationIds);
-        // If any member data is undefined, the user is not authorized to delete one or more objects
-        if (memberData.some(member => !member))
-            throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0095') })
+        // Find role for every organization
+        const roles = await OrganizationModel.query(prisma).hasRole(userId, organizationIds);
+        // If any role is undefined, the user is not authorized to delete one or more objects
+        if (roles.some(role => !role))
+            throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0251') })
     },
     async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<StandardCreateInput, StandardUpdateInput>): Promise<CUDResult<Standard>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });

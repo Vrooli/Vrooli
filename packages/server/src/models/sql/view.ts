@@ -198,8 +198,8 @@ const viewMutater = (prisma: PrismaType) => ({
         switch (input.viewFor) {
             case ViewFor.Organization:
                 // Check if user is an admin or owner of the organization
-                const memberData = await OrganizationModel.query(prisma).isOwnerOrAdmin(userId, [input.forId]);
-                isOwn = Boolean(memberData[0]);
+                const roles = await OrganizationModel.query(prisma).hasRole(userId, [input.forId]);
+                isOwn = Boolean(roles[0]);
                 break;
             case ViewFor.Project:
                 // Check if project is owned by this user or by an organization they are a member of

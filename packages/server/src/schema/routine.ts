@@ -321,7 +321,7 @@ export const resolvers = {
         routineCreate: async (_parent: undefined, { input }: IWrap<RoutineCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             await rateLimit({ info, max: 500, byAccountOrKey: true, req });
             console.log('routien create start')
-            return createHelper({ info, input, model: new RoutineModel(), prisma, userId: req.userId });
+            return createHelper({ info, input, model: RoutineModel, prisma, userId: req.userId });
         },
         routineUpdate: async (_parent: undefined, { input }: IWrap<RoutineUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             await rateLimit({ info, max: 1000, byAccountOrKey: true, req });

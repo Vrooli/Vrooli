@@ -1540,19 +1540,18 @@ export async function createHelper<GraphQLModel>({
     console.log('createhelper 1')
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object', { code: genErrorCode('0025') });
-    const cud = model.mutate ? model.mutate(prisma).cud : undefined;
-    if (!cud)
+    if (!model.mutate || !model.mutate(prisma).cud)
         throw new CustomError(CODE.InternalError, 'Model does not support create', { code: genErrorCode('0026') });
     // Partially convert info type
     const partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0027') });
-    console.log('createhelper2', cud);
+    console.log('createhelper2');
     // Check permissions
     // TODO will need custom permissions. Needs to use input fields to determine which permissions to check.
     // e.g. A routine with a projectId must verify that the user has permission to create a routine in the project (i.e. owns project and hasn't reached max routines inside).
     // Then it also needs to check that the user hasn't reached a max number of overall routines.
-    const cudResult = await cud({ partialInfo, userId, createMany: [input] });
+    const cudResult = await model.mutate!(prisma).cud!({ partialInfo, userId, createMany: [input] });
     console.log('createhelper3', cudResult);
     const { created } = cudResult;
     if (created && created.length > 0) {
@@ -1597,8 +1596,7 @@ export async function updateHelper<GraphQLModel>({
 }: UpdateHelperProps<any>): Promise<RecursivePartial<GraphQLModel>> {
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object', { code: genErrorCode('0029') });
-    const cud = model.mutate ? model.mutate(prisma).cud : undefined;
-    if (!cud)
+    if (!model.mutate || !model.mutate(prisma).cud)
         throw new CustomError(CODE.InternalError, 'Model does not support update', { code: genErrorCode('0030') });
     // Partially convert info type
     let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
@@ -1610,7 +1608,7 @@ export async function updateHelper<GraphQLModel>({
     // permissions for current and new project.
     // Shape update input to match prisma update shape (i.e. "where" and "data" fields)
     const shapedInput = { where: where(input), data: input };
-    const { updated } = await cud({ partialInfo, userId, updateMany: [shapedInput] });
+    const { updated } = await model.mutate!(prisma).cud!({ partialInfo, userId, updateMany: [shapedInput] });
     if (updated && updated.length > 0) {
         // If organization, project, routine, or standard, log for stats
         const objectType = partialInfo.__typename;
@@ -1649,12 +1647,11 @@ export async function deleteOneHelper({
 }: DeleteOneHelperProps): Promise<Success> {
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete object', { code: genErrorCode('0033') });
-    const cud = model.mutate ? model.mutate(prisma).cud : undefined;
-    if (!cud)
+    if (!model.mutate || !model.mutate(prisma).cud)
         throw new CustomError(CODE.InternalError, 'Model does not support delete', { code: genErrorCode('0034') });
     // Check permissions
     // TODO
-    const { deleted } = await cud({ partialInfo: {}, userId, deleteMany: [input.id] });
+    const { deleted } = await model.mutate!(prisma).cud!({ partialInfo: {}, userId, deleteMany: [input.id] });
     if (deleted?.count && deleted.count > 0) {
         // If organization, project, routine, or standard, log for stats
         const objectType = model.format.relationshipMap.__typename;
@@ -1692,12 +1689,11 @@ export async function deleteManyHelper({
 }: DeleteManyHelperProps): Promise<Count> {
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete objects', { code: genErrorCode('0035') });
-    const cud = model.mutate ? model.mutate(prisma).cud : undefined;
-    if (!cud)
+    if (!model.mutate || !model.mutate(prisma).cud)
         throw new CustomError(CODE.InternalError, 'Model does not support delete', { code: genErrorCode('0036') });
     // Check permissions
     //TODO
-    const { deleted } = await cud({ partialInfo: {}, userId, deleteMany: input.ids });
+    const { deleted } = await model.mutate!(prisma).cud!({ partialInfo: {}, userId, deleteMany: input.ids });
     if (!deleted)
         throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in deleteManyHelper', { code: genErrorCode('0037') });
     // If organization, project, routine, or standard, log for stats

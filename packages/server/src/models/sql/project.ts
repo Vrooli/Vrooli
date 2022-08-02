@@ -309,10 +309,10 @@ export const projectMutater = (prisma: PrismaType) => ({
             // Add to organizationIds array, to check ownership status
             organizationIds.push(...objects.filter(object => !userId.includes(object.organizationId ?? '')).map(object => object.organizationId));
         }
-        // Find admin/owner member data for every organization
-        const memberData = await OrganizationModel.query(prisma).isOwnerOrAdmin(userId, organizationIds);
-        // If any member data is undefined, the user is not authorized to delete one or more objects
-        if (memberData.some(member => !member))
+        // Find roles for every organization
+        const roles = await OrganizationModel.query(prisma).hasRole(userId, organizationIds);
+        // If any role is undefined, the user is not authorized to delete one or more objects
+        if (roles.some(role => !role))
             throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0076') })
     },
     /**

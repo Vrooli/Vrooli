@@ -3,7 +3,7 @@ import { Organization, OrganizationCreateInput, OrganizationUpdateInput, Organiz
 import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, Permissioner } from "./base";
 import { CustomError } from "../../error";
 import { CODE, omit, organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@local/shared";
-import { organization_users } from "@prisma/client";
+import { organization_users, role } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { TranslationModel } from "./translation";
@@ -158,27 +158,26 @@ export const organizationQuerier = (prisma: PrismaType) => ({
         // return organizationIds.map(id => memberData.find(({ organizationId }) => organizationId === id)).map((o) => o?.role) as Array<MemberRole | undefined>;
     },
     /**
-     * Determines if a user is an admin or member of a list of organizations
+     * Determines if a user has a role of a list of organizations
      * @param userId The user's ID
      * @param organizationIds The list of organization IDs
+     * @param title The name of the role
      * @returns Array in the same order as the ids, with either admin/owner role data or undefined
      */
-    async isOwnerOrAdmin(userId: string, organizationIds: (string | null | undefined)[]): Promise<Array<organization_users | undefined>> {
-        //TODO
-        return Array(organizationIds.length).fill(undefined);
-        // if (organizationIds.length === 0) return [];
-        // // Take out nulls
-        // const idsToQuery = organizationIds.filter(x => x) as string[];
-        // // Query member data for each ID
-        // const memberData = await prisma.organization_users.findMany({
-        //     where: {
-        //         organization: { id: { in: idsToQuery } },
-        //         user: { id: userId },
-        //         role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
-        //     }
-        // });
-        // // Create an array of the same length as the input, with the member data or undefined
-        // return organizationIds.map(id => memberData.find(({ organizationId }) => organizationId === id));
+    async hasRole(userId: string, organizationIds: (string | null | undefined)[], title: string = 'Admin'): Promise<Array<role | undefined>> {
+        if (organizationIds.length === 0) return [];
+        // Take out nulls
+        const idsToQuery = organizationIds.filter(x => x) as string[];
+        // Query roles data for each organization ID
+        const roles = await prisma.role.findMany({
+            where: {
+                title,
+                organization: { id: { in: idsToQuery } },
+                assignees: { some: { id: userId } }
+            }
+        })
+        // Create an array of the same length as the input, with the role data or undefined
+        return organizationIds.map(id => roles.find(({ organizationId }) => organizationId === id));
     },
 })
 
