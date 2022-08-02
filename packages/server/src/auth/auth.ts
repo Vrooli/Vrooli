@@ -43,7 +43,7 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
         }
         // Now, set token and role variables for other middleware to use
         req.apiToken = payload.apiToken ?? false;
-        req.isLoggedIn = payload.isLoggedIn === true && req.fromSafeOrigin !== true;
+        req.isLoggedIn = payload.isLoggedIn === true && req.fromSafeOrigin === true;
         req.languages = payload.languages ?? [];
         req.userId = payload.userId ?? null;
         req.validToken = true;
@@ -93,6 +93,7 @@ export async function generateSessionJwt(res: Response, session: RecursivePartia
         logger.log(LogLevel.error, '❗️ JWT_SECRET not set! Please check .env file', { code: genErrorCode('0004') });
         return;
     }
+    console.log('signing token contents:', tokenContents);
     const token = jwt.sign(tokenContents, process.env.JWT_SECRET);
     res.cookie(COOKIE.Jwt, token, {
         httpOnly: true,

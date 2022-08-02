@@ -80,7 +80,6 @@ export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> 
         return omit(partial, supplementalFields);
     },
     async addSupplementalFields({ objects, partial, permissions, prisma, userId }): Promise<RecursivePartial<Routine>[]> {
-        console.log('routine addsupplementalfields starttttt', objects.length);
         return addSupplementalFieldsHelper({
             objects,
             partial,
@@ -169,7 +168,7 @@ export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> 
     // }
 })
 
-export const routinePermissioner = (prisma: PrismaType): Permissioner<RoutinePermission> => ({
+export const routinePermissioner = (prisma: PrismaType): Permissioner<RoutinePermission, RoutineSearchInput> => ({
     async get({
         objects,
         permissions,
@@ -183,9 +182,17 @@ export const routinePermissioner = (prisma: PrismaType): Permissioner<RoutinePer
             canReport: true,
             canRun: true,
             canStar: true,
+            canView: true,
             canVote: true,
         }));
     },
+    async canSearch({
+        input,
+        userId
+    }) {
+        //TODO
+        return 'full';
+    }
 })
 
 export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
@@ -700,6 +707,7 @@ export const routineMutater = (prisma: PrismaType) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<RoutineCreateInput, RoutineUpdateInput>): Promise<void> {
+        console.log('in routine validatemutations')
         if (!createMany && !updateMany && !deleteMany) return;
         if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0093') });
@@ -760,6 +768,7 @@ export const routineMutater = (prisma: PrismaType) => ({
      * Performs adds, updates, and deletes of routines. First validates that every action is allowed.
      */
     async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<RoutineCreateInput, RoutineUpdateInput>): Promise<CUDResult<Routine>> {
+        console.log('before validatemuatations break', this)
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };

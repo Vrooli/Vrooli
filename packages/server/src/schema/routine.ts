@@ -125,6 +125,7 @@ export const typeDef = gql`
         canStar: Boolean!
         canReport: Boolean!
         canRun: Boolean!
+        canView: Boolean!
         canVote: Boolean!
     }
 
@@ -240,6 +241,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
+        includePrivate: Boolean
         isComplete: Boolean
         isCompleteExceptions: [BooleanSearchException!]
         isInternal: Boolean
@@ -304,9 +306,7 @@ export const resolvers = {
     Query: {
         routine: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             await rateLimit({ info, max: 1000, req });
-            const result = readOneHelper({ info, input, model: RoutineModel, prisma, userId: req.userId });
-            console.log('routine read result', JSON.stringify(result), '\n\n')
-            return result;
+            return readOneHelper({ info, input, model: RoutineModel, prisma, userId: req.userId });
         },
         routines: async (_parent: undefined, { input }: IWrap<RoutineSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RoutineSearchResult> => {
             await rateLimit({ info, max: 1000, req });
@@ -320,7 +320,8 @@ export const resolvers = {
     Mutation: {
         routineCreate: async (_parent: undefined, { input }: IWrap<RoutineCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             await rateLimit({ info, max: 500, byAccountOrKey: true, req });
-            return createHelper({ info, input, model: RoutineModel, prisma, userId: req.userId });
+            console.log('routien create start')
+            return createHelper({ info, input, model: new RoutineModel(), prisma, userId: req.userId });
         },
         routineUpdate: async (_parent: undefined, { input }: IWrap<RoutineUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             await rateLimit({ info, max: 1000, byAccountOrKey: true, req });

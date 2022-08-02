@@ -2,7 +2,7 @@ import { CODE, runsCreate, runsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, LogType, Run, RunCancelInput, RunCompleteInput, RunCreateInput, RunSearchInput, RunSortBy, RunStatus, RunUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
+import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, ValidateMutationsInput, Permissioner } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { RunStepModel } from "./runStep";
@@ -70,6 +70,28 @@ export const runVerifier = () => ({
     profanityCheck(data: (RunCreateInput | RunUpdateInput)[]): void {
         validateProfanity(data.map((d: any) => d.title));
     },
+})
+
+export const runPermissioner = (prisma: PrismaType): Permissioner<{ canDelete: boolean, canEdit: boolean }, RunSearchInput> => ({
+    async get({
+        objects,
+        permissions,
+        userId,
+    }) {
+        //TODO
+        return objects.map((o) => ({
+            canDelete: true,
+            canEdit: true,
+            canView: true,
+        }));
+    },
+    async canSearch({
+        input,
+        userId
+    }) {
+        //TODO
+        return 'full';
+    }
 })
 
 /**
@@ -361,6 +383,7 @@ export const RunModel = ({
     prismaObject: (prisma: PrismaType) => prisma.run,
     format: runFormatter(),
     mutate: runMutater,
+    permissions: runPermissioner,
     search: runSearcher(),
     verify: runVerifier(),
 })

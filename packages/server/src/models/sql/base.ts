@@ -93,7 +93,7 @@ export type ModelLogic<GraphQLModel, SearchInput, PermissionObject> = {
     prismaObject: (prisma: PrismaType) => PrismaType[keyof PrismaType];
     search?: Searcher<SearchInput>;
     mutate?: (prisma: PrismaType) => Mutater<GraphQLModel>;
-    permission?: (prisma: PrismaType) => Permissioner<PermissionObject>;
+    permission?: (prisma: PrismaType) => Permissioner<PermissionObject, SearchInput>;
     verify?: { [x: string]: any };
     query?: (prisma: PrismaType) => Querier;
 }
@@ -209,12 +209,26 @@ export type Mutater<GraphQLModel> = {
 /**
  * Describes shape of component with permissioned access
  */
-export type Permissioner<PermissionObject> = {
+export type Permissioner<PermissionObject, SearchInput> = {
+    /**
+     * Permissions for the object
+     */
     get({ objects, permissions, userId }: {
         objects: ({ id: string } & { [x: string]: any })[],
         permissions?: PermissionObject[] | null,
         userId: string | null,
     }): Promise<PermissionObject[]>
+    /**
+     * Checks if user has permissions to complete search input, and if search can include 
+     * private objects
+     * @returns 'full' if user has permissions and search can include private objects, 
+     * 'public' if user has permissions and search cannot include private objects, 
+     * 'none' if user does not have permission to search 
+     */
+    canSearch?({ input, userId }: {
+        input: SearchInput,
+        userId: string | null,
+    }): Promise<'full' | 'public' | 'none'>
 }
 
 /**
@@ -984,35 +998,35 @@ const subsetsMatch = (obj: any, query: any): boolean => {
     }
     // First, check if obj is a join table. If this is the case, what we want to check 
     // is actually one layer down
-    let formttedObj = obj;
+    let formattedObj = obj;
     if (Object.keys(obj).length === 1 && isRelationshipObject(obj[Object.keys(obj)[0]])) {
-        formttedObj = obj[Object.keys(obj)[0]];
+        formattedObj = obj[Object.keys(obj)[0]];
     }
     // If query contains any fields which are not in obj, return false
     for (const key of Object.keys(formattedQuery)) {
         // Ignore __typename
         if (key === '__typename') continue;
-        // If key is not in object, return false
-        if (!formttedObj.hasOwnProperty(key)) {
-            return false;
-        }
-        // If union, check if any of the union types match formttedObj[key]
-        else if (key[0] === key[0].toUpperCase()) {
-            const unionTypes = Object.keys(formattedQuery[key]);
-            const unionSubsetsMatch = unionTypes.some(unionType => subsetsMatch(formttedObj[key], formattedQuery[key][unionType]));
+        // If union, check if any of the union types match formattedObj
+        if (key[0] === key[0].toUpperCase()) {
+            const unionTypes = Object.keys(formattedQuery);
+            const unionSubsetsMatch = unionTypes.some(unionType => subsetsMatch(formattedObj, formattedQuery[unionType]));
             if (!unionSubsetsMatch) return false;
         }
-        // If formttedObj[key] is array, compare to first element of query[key]
-        else if (Array.isArray(formttedObj[key])) {
+        // If key is not in object, return false
+        else if (!formattedObj.hasOwnProperty(key)) {
+            return false;
+        }
+        // If formattedObj[key] is array, compare to first element of query[key]
+        else if (Array.isArray(formattedObj[key])) {
             // Can't check if array is empty
-            if (formttedObj[key].length === 0) continue;
-            const firstElem = formttedObj[key][0];
+            if (formattedObj[key].length === 0) continue;
+            const firstElem = formattedObj[key][0];
             const matches = subsetsMatch(firstElem, formattedQuery[key]);
             if (!matches) return false;
         }
-        // If formttedObj[key] is formttedObject, recurse
-        else if (isRelationshipObject((formttedObj)[key])) {
-            const matches = subsetsMatch(formttedObj[key], formattedQuery[key]);
+        // If formattedObj[key] is formattedObject, recurse
+        else if (isRelationshipObject((formattedObj)[key])) {
+            const matches = subsetsMatch(formattedObj[key], formattedQuery[key]);
             if (!matches) return false;
         }
     }
@@ -1197,7 +1211,6 @@ export const addSupplementalFields = async (
     data: ({ [x: string]: any } | null | undefined)[],
     partialInfo: PartialGraphQLInfo | PartialGraphQLInfo[],
 ): Promise<{ [x: string]: any }[]> => {
-    // console.log('add supp start', JSON.stringify(data), '\n\n');
     // Group data IDs and select fields by type. This is needed to reduce the number of times 
     // the database is called, as we can query all objects of the same type at once
     let objectIdsDict: { [x: string]: string[] } = {};
@@ -1219,7 +1232,6 @@ export const addSupplementalFields = async (
     // Dictionary to store objects by ID, instead of type. This is needed to combineSupplements
     const objectsById: { [x: string]: any } = {};
 
-    console.log('add supp start', JSON.stringify(objectIdsDict), '\n\n');
     // Loop through each type in objectIdsDict
     for (const [type, ids] of Object.entries(objectIdsDict)) {
         // Find the data for each id in ids. Since the data parameter is an array,
@@ -1256,7 +1268,6 @@ export const addSupplementalFieldsMultiTypes = async (
     userId: string | null,
     prisma: PrismaType,
 ): Promise<{ [x: string]: any[] }> => {
-    console.log('addsupplementalfield multitypes start', '\n\n');
     // Flatten data array
     const combinedData = flatten(data);
     // Create an array of partials, that match the data array
@@ -1282,40 +1293,38 @@ export const addSupplementalFieldsMultiTypes = async (
     return formatted;
 }
 
-type PermissionsHelper<PermissionKeys extends readonly string[], PermissionObject> = {
-    model: ModelLogic<any, any, PermissionObject>;
-    objectId: string;
+type PermissionsHelper<PermissionObject> = {
     /**
-     * Array of permissions to check for
+     * Array of actions to check for
      */
-    permissions: PermissionKeys;
+    actions: string[];
+    model: ModelLogic<any, any, PermissionObject>;
+    object: ({ id: string } & { [x: string]: any });
     prisma: PrismaType;
     userId: string | null;
 }
 
 //TODO needs better typescript handling
 /**
- * Helper function to query for the permissions a user has on a given object, 
- * @returns Requested permissions in an object with keys equal to the permissions, and values equal to true if the user has the permission
+ * Helper function to verify that a user has the correct permissions to perform an action on an object.
+ * @returns True if the user has the correct permissions, false otherwise
  */
-export async function permissionsHelper<PermissionKeys extends readonly string[], PermissionObject extends { [key in PermissionKeys[number]]: boolean }>({
+export async function permissionsCheck<PermissionObject>({
+    actions,
     model,
-    objectId,
-    permissions,
+    object,
     prisma,
     userId,
-}: PermissionsHelper<PermissionKeys, PermissionObject>): Promise<{ [key in PermissionKeys[number]]: boolean }> {
-    // Initialize result with true for each permission. 
-    // This is because some objects don't have the requested permissions, 
-    // and we don't want to deny access in that case
-    let result: { [x: string]: boolean } = {};
-    for (const permission of permissions) {
-        result[`can${uppercaseFirstLetter(permission)}`] = true;
+}: PermissionsHelper<PermissionObject>): Promise<boolean> {
+    if (!model.permission) return true;
+    // Query object's permissions
+    const perms = await model.permission(prisma).get({ objects: [object], userId });
+    for (const action of actions) {
+        if (!perms[0][action as keyof PermissionObject]) {
+            return false;
+        }
     }
-    if (!model.query) return result as { [key in PermissionKeys[number]]: boolean };
-    const query = model.query(prisma);
-    if (!query.permissions) return result as { [key in PermissionKeys[number]]: boolean };
-    return await query.permissions({ userId, objectId }) as { [key in PermissionKeys[number]]: boolean };
+    return true;
 }
 
 type ReadOneHelperProps<GraphQLModel> = {
@@ -1346,25 +1355,22 @@ export async function readOneHelper<GraphQLModel>({
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0020') });
     // Check permissions
-    const { canRead } = await permissionsHelper({
+    const authorized = await permissionsCheck({
         model,
-        objectId: input.id || input.handle,
-        permissions: ['read'],
+        object: { id: input.id || input.handle },
+        actions: ['canRead'],
         prisma,
         userId,
     });
-    console.log('got permissions', canRead)
-    if (!canRead) throw new CustomError(CODE.Unauthorized, `Not allowed to read object`, { code: genErrorCode('0249') });
+    if (!authorized) throw new CustomError(CODE.Unauthorized, `Not allowed to read object`, { code: genErrorCode('0249') });
     // Get the Prisma object
     let object = input.id ?
         await (model.prismaObject(prisma) as any).findUnique({ where: { id: input.id }, ...selectHelper(partialInfo) }) :
         await (model.prismaObject(prisma) as any).findFirst({ where: { handle: input.handle }, ...selectHelper(partialInfo) });
     if (!object)
         throw new CustomError(CODE.NotFound, `${objectType} not found`, { code: genErrorCode('0022') });
-    // console.log('readonehelper got object', JSON.stringify(object), '\n\n');
     // Return formatted for GraphQL
     let formatted = modelToGraphQL(object, partialInfo) as RecursivePartial<GraphQLModel>;
-    // console.log('readonehelper formatted', JSON.stringify(formatted), '\n\n');
     // If logged in and object has view count, handle it
     if (userId && objectType in ViewFor) {
         ViewModel.mutate(prisma).view(userId, { forId: object.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language
@@ -1531,6 +1537,7 @@ export async function createHelper<GraphQLModel>({
     prisma,
     userId,
 }: CreateHelperProps<GraphQLModel>): Promise<RecursivePartial<GraphQLModel>> {
+    console.log('createhelper 1')
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object', { code: genErrorCode('0025') });
     const cud = model.mutate ? model.mutate(prisma).cud : undefined;
@@ -1540,11 +1547,13 @@ export async function createHelper<GraphQLModel>({
     const partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0027') });
+    console.log('createhelper2', cud);
     // Check permissions
     // TODO will need custom permissions. Needs to use input fields to determine which permissions to check.
     // e.g. A routine with a projectId must verify that the user has permission to create a routine in the project (i.e. owns project and hasn't reached max routines inside).
     // Then it also needs to check that the user hasn't reached a max number of overall routines.
     const cudResult = await cud({ partialInfo, userId, createMany: [input] });
+    console.log('createhelper3', cudResult);
     const { created } = cudResult;
     if (created && created.length > 0) {
         // If organization, project, routine, or standard, log for stats

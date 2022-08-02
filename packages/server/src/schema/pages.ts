@@ -144,7 +144,6 @@ export const resolvers = {
                 input: { ...input, take, sortBy: RoutineSortBy.StarsDesc, isComplete: true, isInternal: false },
                 model: RoutineModel,
             });
-            console.log('pages got routines', JSON.stringify(routines), '\n\n')
             // Query standards
             const standards = await readManyAsFeed({
                 ...commonReadParams,
@@ -167,7 +166,6 @@ export const resolvers = {
                 userId,
                 prisma,
             )
-            console.log('pages routines result', JSON.stringify(withSupplemental['r']), '\n\n')
             // Return results
             return {
                 organizations: withSupplemental['o'],
@@ -240,7 +238,6 @@ export const resolvers = {
                 'needInvestments': 'Project',
                 'needMembers': 'Organization',
             }) as PartialGraphQLInfo;
-            console.log('research page partial', JSON.stringify(partial), '\n\n')
             const userId = req.userId;
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };

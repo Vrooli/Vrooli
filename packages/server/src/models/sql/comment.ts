@@ -2,11 +2,12 @@ import { CODE, commentsCreate, CommentSortBy, commentsUpdate, commentTranslation
 import { CustomError } from "../../error";
 import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, Count } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, Querier, addSupplementalFieldsHelper, Permissioner } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, Querier, addSupplementalFieldsHelper, Permissioner, permissionsCheck } from "./base";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
+import { OrganizationModel } from "./organization";
 
 //==============================================================
 /* #region Custom Components */
@@ -151,7 +152,7 @@ export const commentSearcher = (): Searcher<CommentSearchInput> => ({
     },
 })
 
-export const commentPermissioner = (prisma: PrismaType): Permissioner<CommentPermission> => ({
+export const commentPermissioner = (prisma: PrismaType): Permissioner<CommentPermission, CommentSearchInput> => ({
     async get({
         objects,
         permissions,
@@ -164,6 +165,7 @@ export const commentPermissioner = (prisma: PrismaType): Permissioner<CommentPer
             canStar: true,
             canReply: true,
             canReport: true,
+            canView: true,
             canVote: true,
         }));
     },

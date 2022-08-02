@@ -91,6 +91,7 @@ export const typeDef = gql`
         canEdit: Boolean!
         canStar: Boolean!
         canReport: Boolean!
+        canView: Boolean!
         canVote: Boolean!
     }
 
@@ -117,6 +118,7 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
+        includePrivate: Boolean  
         languages: [String!]
         minScore: Int
         minStars: Int

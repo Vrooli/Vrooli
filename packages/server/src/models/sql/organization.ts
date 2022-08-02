@@ -69,7 +69,7 @@ export const organizationFormatter = (): FormatConverter<Organization, Organizat
     // }
 })
 
-export const organizationPermissioner = (prisma: PrismaType): Permissioner<OrganizationPermission> => ({
+export const organizationPermissioner = (prisma: PrismaType): Permissioner<OrganizationPermission, OrganizationSearchInput> => ({
     async get({
         objects,
         permissions,
@@ -82,9 +82,17 @@ export const organizationPermissioner = (prisma: PrismaType): Permissioner<Organ
             canEdit: true,
             canReport: true,
             canStar: true,
+            canView: true,
             isMember: true,
         }));
     },
+    async canSearch({
+        input,
+        userId
+    }) {
+        //TODO
+        return 'full';
+    }
 })
 
 export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({

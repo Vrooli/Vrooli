@@ -657,6 +657,7 @@ export interface OrganizationSearchInput {
   after?: string | null;
   createdTimeFrame?: TimeFrame | null;
   ids?: string[] | null;
+  includePrivate?: boolean | null;
   isOpenToNewMembers?: boolean | null;
   languages?: string[] | null;
   minStars?: number | null;
@@ -789,6 +790,7 @@ export interface ProjectSearchInput {
   after?: string | null;
   createdTimeFrame?: TimeFrame | null;
   ids?: string[] | null;
+  includePrivate?: boolean | null;
   isComplete?: boolean | null;
   isCompleteExceptions?: BooleanSearchException[] | null;
   languages?: string[] | null;
@@ -1010,6 +1012,7 @@ export interface RoutineSearchInput {
   createdTimeFrame?: TimeFrame | null;
   excludeIds?: string[] | null;
   ids?: string[] | null;
+  includePrivate?: boolean | null;
   isComplete?: boolean | null;
   isCompleteExceptions?: BooleanSearchException[] | null;
   isInternal?: boolean | null;
@@ -1144,6 +1147,7 @@ export interface RunSearchInput {
   completedTimeFrame?: TimeFrame | null;
   excludeIds?: string[] | null;
   ids?: string[] | null;
+  includePrivate?: boolean | null;
   status?: RunStatus | null;
   routineId?: string | null;
   searchString?: string | null;
@@ -1215,6 +1219,7 @@ export interface StandardSearchInput {
   after?: string | null;
   createdTimeFrame?: TimeFrame | null;
   ids?: string[] | null;
+  includePrivate?: boolean | null;
   languages?: string[] | null;
   minScore?: number | null;
   minStars?: number | null;

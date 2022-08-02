@@ -78,6 +78,7 @@ export type CommentPermission = {
   canReply: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
+  canView: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
 };
 
@@ -1150,6 +1151,7 @@ export type OrganizationPermission = {
   canEdit: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
+  canView: Scalars['Boolean'];
   isMember: Scalars['Boolean'];
 };
 
@@ -1157,6 +1159,7 @@ export type OrganizationSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  includePrivate?: InputMaybe<Scalars['Boolean']>;
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   minStars?: InputMaybe<Scalars['Int']>;
@@ -1410,6 +1413,7 @@ export type ProjectPermission = {
   canEdit: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
+  canView: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
 };
 
@@ -1417,6 +1421,7 @@ export type ProjectSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  includePrivate?: InputMaybe<Scalars['Boolean']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
   isCompleteExceptions?: InputMaybe<Array<BooleanSearchException>>;
   languages?: InputMaybe<Array<Scalars['String']>>;
@@ -2202,6 +2207,7 @@ export type RoutinePermission = {
   canReport: Scalars['Boolean'];
   canRun: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
+  canView: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
 };
 
@@ -2210,6 +2216,7 @@ export type RoutineSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  includePrivate?: InputMaybe<Scalars['Boolean']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
   isCompleteExceptions?: InputMaybe<Array<BooleanSearchException>>;
   isInternal?: InputMaybe<Scalars['Boolean']>;
@@ -2424,6 +2431,7 @@ export type RunSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  includePrivate?: InputMaybe<Scalars['Boolean']>;
   routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RunSortBy>;
@@ -2595,6 +2603,7 @@ export type StandardPermission = {
   canEdit: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
+  canView: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
 };
 
@@ -2602,6 +2611,7 @@ export type StandardSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  includePrivate?: InputMaybe<Scalars['Boolean']>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;

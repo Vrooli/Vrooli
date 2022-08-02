@@ -42,6 +42,15 @@ export interface  EndNodeDialogProps {
     zIndex: number;
 }
 
+export interface MoveNodeMenuProps {
+    handleClose: (newPosition?: { columnIndex: number, rowIndex: number }) => void;
+    isOpen: boolean;
+    language: string; // Language to display/edit
+    node?: Node | null; // Node to be moved
+    routine: Routine;
+    zIndex: number;
+}
+
 export interface NodeGraphProps {
     /**
      * 2D array of nodes, by column then row

@@ -114,7 +114,7 @@ export const standardFormatter = (): FormatConverter<Standard, StandardPermissio
     // Convert Prisma objects to GraphQL objects
 })
 
-export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardPermission> => ({
+export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardPermission, StandardSearchInput> => ({
     async get({
         objects,
         permissions,
@@ -127,9 +127,17 @@ export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardP
             canEdit: true,
             canReport: true,
             canStar: true,
+            canView: true,
             canVote: true,
         }));
     },
+    async canSearch({
+        input,
+        userId
+    }) {
+        //TODO
+        return 'full';
+    }
 })
 
 export const standardSearcher = (): Searcher<StandardSearchInput> => ({

@@ -64,6 +64,7 @@ export const typeDef = gql`
         canStar: Boolean!
         canReply: Boolean!
         canReport: Boolean!
+        canView: Boolean!
         canVote: Boolean!
     }
 

@@ -70,6 +70,7 @@ export const typeDef = gql`
         completedTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
+        includePrivate: Boolean
         status: RunStatus
         routineId: ID
         searchString: String

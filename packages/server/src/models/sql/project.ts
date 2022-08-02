@@ -1,8 +1,8 @@
 import { CODE, omit, projectsCreate, projectsUpdate, projectTranslationCreate, projectTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
-import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor, ProjectPermission } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFieldsHelper, CUDInput, CUDResult, FormatConverter, modelToGraphQL, PartialGraphQLInfo, Permissioner, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor, ProjectPermission, OrganizationPermission } from "../../schema/types";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFieldsHelper, CUDInput, CUDResult, FormatConverter, modelToGraphQL, Permissioner, permissionsCheck, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -78,64 +78,114 @@ export const projectFormatter = (): FormatConverter<Project, ProjectPermission> 
             ]
         });
     }
-    // // Query for role
-    // if (partial.role) {
-    //     let organizationIds: string[] = [];
-    //     // Collect owner data
-    //     let ownerData: any = objects.map(x => x.owner).filter(x => x);
-    //     // If no owner data was found, then owner data was not queried. In this case, query for owner data.
-    //     if (ownerData.length === 0) {
-    //         const ownerDataUnformatted = await prisma.project.findMany({
-    //             where: { id: { in: ids } },
-    //             select: {
-    //                 id: true,
-    //                 user: { select: { id: true } },
-    //                 organization: { select: { id: true } },
-    //             },
-    //         });
-    //         organizationIds = ownerDataUnformatted.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
-    //         // Inject owner data into "objects"
-    //         objects = objects.map((x, i) => { 
-    //             const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
-    //             return ({ ...x, owner: unformatted?.user || unformatted?.organization })
-    //         });
-    //     } else {
-    //         organizationIds = objects
-    //             .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
-    //             .map(x => x.owner.id)
-    //             .filter(x => Boolean(x)) as string[];
-    //     }
-    //     // If owned by user, set role to owner if userId matches
-    //     // If owned by organization, set role user's role in organization
-    //     const roles = userId
-    //         ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
-    //         : [];
-    //     objects = objects.map((x) => {
-    //         const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
-    //         if (orgRoleIndex >= 0) {
-    //             return { ...x, role: roles[orgRoleIndex] };
-    //         }
-    //         return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
-    //     }) as any;
-    // }
 })
 
-export const projectPermissioner = (prisma: PrismaType): Permissioner<ProjectPermission> => ({
+export const projectPermissioner = (prisma: PrismaType): Permissioner<ProjectPermission, ProjectSearchInput> => ({
     async get({
         objects,
         permissions,
         userId,
     }) {
-        //TODO
-        return objects.map((o) => ({
+        // Initialize result with ID
+        const result: Partial<ProjectPermission>[] = objects.map((o) => ({
             canComment: true,
-            canDelete: true,
-            canEdit: true,
+            canDelete: false,
+            canEdit: false,
             canReport: true,
             canStar: true,
             canVote: true,
+            canView: true,
         }));
+        const ids = objects.map(x => x.id);
+        let ownerData: { 
+            id: string, 
+            user?: { id: string } | null | undefined, 
+            organization?: { id: string } | null | undefined
+        }[] = [];
+        // If some owner data missing, query for owner data.
+        if (objects.map(x => x.owner).filter(x => x).length < objects.length) {
+            ownerData = await prisma.project.findMany({
+                where: { id: { in: ids } },
+                select: {
+                    id: true,
+                    user: { select: { id: true } },
+                    organization: { select: { id: true } },
+                },
+            });
+        } else {
+            ownerData = objects.map((x) => {
+                const isOrg = Boolean(Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name);
+                return ({
+                    id: x.id,
+                    user: isOrg ? null : x.owner,
+                    organization: isOrg ? x.owner : null,
+                });
+            });
+        }
+        // Find permissions for every organization
+        const organizationIds: string[] = ownerData.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
+        const orgPermissions = await OrganizationModel.permissions(prisma).get({ 
+            objects: organizationIds.map(x => ({ id: x })),
+            userId 
+        });
+        // Find which objects have ownership permissions
+        for (let i = 0; i < objects.length; i++) {
+            const unformatted = ownerData.find(y => y.id === objects[i].id);
+            if (!unformatted) continue;
+            // Check if user owns object directly, or through organization
+            if (unformatted.user?.id !== userId) {
+                const orgIdIndex = organizationIds.findIndex(id => id === unformatted?.organization?.id);
+                if (orgIdIndex < 0) continue;
+                if (!orgPermissions[orgIdIndex].canEdit) continue;
+            }
+            // Set owner permissions
+            result[i].canDelete = true;
+            result[i].canEdit = true;
+            result[i].canView = true;
+        }
+        // TODO isPrivate view check
+        // TODO check relationships for permissions
+        return result as ProjectPermission[];
     },
+    async canSearch({
+        input,
+        userId
+    }) {
+        // Check permissions of specified objects TODO need better approach, but this will do for now
+        if (input.ids) {
+            const permissions = await this.get({ objects: input.ids.map(id => ({ id })), permissions: [], userId });
+            // Check if trying to view hidden objects
+            if (input.includePrivate === true && !permissions.every(x => x.canView)) return 'none';
+            // If you own all data, you have full search permissions
+            if (permissions.every(x => x.canEdit)) return 'full';
+        }
+        // Now check every specified relationship with permissions
+        if (input.organizationId) {
+            const isMember = await permissionsCheck({
+                actions: ['isMember'],
+                model: OrganizationModel,
+                object: { id: input.organizationId },
+                prisma,
+                userId,
+            })
+            if (!isMember) return 'none';
+        }
+        if (input.parentId) {
+            const canEdit = await permissionsCheck({
+                model: ProjectModel,
+                object: { id: input.parentId },
+                actions: ['canEdit'],
+                prisma,
+                userId,
+            })
+            if (!canEdit) return 'none';
+        }
+        if (input.userId) {
+            if (input.userId !== userId) return 'none';
+        }
+        if (input.organizationId || input.userId || input.parentId) return 'full';
+        return 'public';
+    }
 })
 
 export const projectSearcher = (): Searcher<ProjectSearchInput> => ({

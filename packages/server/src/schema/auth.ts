@@ -327,6 +327,8 @@ export const resolvers = {
             }
             // If guest, return default session
             if (req.isLoggedIn !== true) {
+                // Make sure session is cleared
+                res.clearCookie(COOKIE.Jwt);
                 return {
                     isLoggedIn: false,
                 }

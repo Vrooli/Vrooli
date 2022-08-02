@@ -275,6 +275,7 @@ export const profileVerifier = () => ({
      * @returns Session object
      */
     async toSession(user: RecursivePartial<user>, prisma: PrismaType): Promise<Session> {
+        console.log('e1')
         if (!user.id)
             throw new CustomError(CODE.ErrorUnknown, 'User ID not found', { code: genErrorCode('0064') });
         // Update user's lastSessionVerified
@@ -282,6 +283,7 @@ export const profileVerifier = () => ({
             where: { id: user.id },
             data: { lastSessionVerified: new Date().toISOString() }
         })
+        console.log('e2');
         // Return shaped session object
         return {
             id: user.id,
