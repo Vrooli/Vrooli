@@ -290,9 +290,13 @@ export const BuildView = ({
         });
     }, [changedRoutine]);
 
-    const handleScaleChange = (newScale: number) => { setScale(newScale) };
+    const handleScaleChange = (newScale: number) => { 
+        PubSub.get().publishFastUpdate({ duration: 1000 });
+        setScale(newScale) 
+    };
     const handleScaleDelta = useCallback((delta: number) => {
         console.log('handlesacledelta', delta)
+        PubSub.get().publishFastUpdate({ duration: 1000 });
         setScale(s => { const boop = Math.max(0.25, Math.min(1, s + delta)); console.log('beep', boop, s); return boop; });
     }, []);
 
@@ -801,6 +805,7 @@ export const BuildView = ({
             nodes: [...nodesList, newNode as any],
             nodeLinks: [...linksList, ...newLinks as any],
         };
+        PubSub.get().publishFastUpdate({ duration: 1000 });
         setChangedRoutine(newRoutine);
     }, [changedRoutine, createRoutineListNode]);
 
@@ -833,6 +838,7 @@ export const BuildView = ({
             nodes: [...changedRoutine.nodes, newNode as any, newEndNode as any],
             nodeLinks: [...changedRoutine.nodeLinks, newLink as any, newEndLink as any],
         };
+        PubSub.get().publishFastUpdate({ duration: 1000 });
         setChangedRoutine(newRoutine);
     }, [changedRoutine, createEndNode, createRoutineListNode]);
 
@@ -851,6 +857,7 @@ export const BuildView = ({
             routine,
         } as any
         if (routineList.isOrdered) routineItem.index = routineList.routines.length
+        PubSub.get().publishFastUpdate({ duration: 1000 });
         setChangedRoutine({
             ...changedRoutine,
             nodes: updateArray(changedRoutine.nodes, nodeIndex, {
@@ -1223,6 +1230,8 @@ export const BuildView = ({
             const toNode = resultRoutine.nodes.find(n => n.id === link.toId);
             return Boolean(fromNode && toNode);
         });
+        // Increase link refresh rate while nodes are moving
+        PubSub.get().publishFastUpdate({ duration: 1000 });
         // Update changedRoutine with resultRoutine
         setChangedRoutine(resultRoutine);
     }, [changedRoutine, columns]);

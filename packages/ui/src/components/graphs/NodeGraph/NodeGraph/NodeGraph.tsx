@@ -48,6 +48,12 @@ export const NodeGraph = ({
         speed: 0,
         timeout: null,
     })
+    // Determines if links should be re-rendered quickly or slowly
+    const [fastUpdate, setFastUpdate] = useState(false);
+    const fastUpdateTimeout = useRef<NodeJS.Timeout | null>(null);
+    useEffect(() => {
+        setFastUpdate(Boolean(dragId));
+    }, [dragId]);
 
     usePinchZoom({
         onScaleChange: handleScaleChange,
@@ -282,6 +288,10 @@ export const NodeGraph = ({
             clearScroll();
             handleDragStop(data.nodeId, data.position);
         });
+        let fastUpdateSub = PubSub.get().subscribeFastUpdate((data) => {
+            setFastUpdate(data.on);
+            fastUpdateTimeout.current = setTimeout(() => { setFastUpdate(false) }, data.duration);
+        });
         return () => {
             // Remove event listeners
             window.removeEventListener('mousedown', onMouseDown);
@@ -290,6 +300,7 @@ export const NodeGraph = ({
             // Remove PubSub subscribers
             PubSub.get().unsubscribe(dragStartSub);
             PubSub.get().unsubscribe(dragDropSub);
+            PubSub.get().unsubscribe(fastUpdateSub);
         }
     }, [handleDragStop, nodeScroll]);
 
@@ -307,11 +318,11 @@ export const NodeGraph = ({
             if (!fromNode || !toNode) return null;
             return <NodeEdge
                 key={`edge-${link.id ?? 'new-' + fromNode.id + '-to-' + toNode.id}`}
+                fastUpdate={fastUpdate}
                 link={link}
                 isEditing={isEditing}
                 isFromRoutineList={fromNode.type === NodeType.RoutineList}
                 isToRoutineList={toNode.type === NodeType.RoutineList}
-                dragId={dragId}
                 scale={scale ?? 1}
                 handleAdd={handleNodeInsert}
                 handleBranch={handleBranchInsert}
@@ -319,7 +330,7 @@ export const NodeGraph = ({
                 handleEdit={() => { }}
             />
         }).filter(edge => edge) as JSX.Element[];
-    }, [dragId, handleBranchInsert, handleLinkDelete, handleNodeInsert, isEditing, links, nodesById, scale]);
+    }, [fastUpdate, handleBranchInsert, handleLinkDelete, handleNodeInsert, isEditing, links, nodesById, scale]);
 
     useEffect(() => {
         setEdges(calculateEdges());

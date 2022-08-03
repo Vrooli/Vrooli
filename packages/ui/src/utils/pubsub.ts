@@ -12,6 +12,7 @@ import { Session } from 'types';
 export const Pubs = {
     ...COOKIE,
     Celebration: "celebration",
+    FastUpdate: "fastUpdate",
     Loading: "loading",
     LogOut: "logout",
     AlertDialog: "alertDialog",
@@ -42,6 +43,12 @@ export class PubSub {
     }
     publishCelebration(duration?: number) {
         this.publish(Pubs.Celebration, duration);
+    }
+    /**
+     * Notifies graph links to re-render quickly for a period of time
+     */
+    publishFastUpdate({ on = true, duration = 1000 }: { on?: boolean, duration?: number }) {
+        this.publish(Pubs.FastUpdate, { on, duration });
     }
     /**
      * Pass delay to show spinner if turning on, or false to turn off.
@@ -85,6 +92,9 @@ export class PubSub {
     }
     subscribeCelebration(subscriber: (duration?: number) => void) {
         return this.subscribe(Pubs.Celebration, subscriber);
+    }
+    subscribeFastUpdate(subscriber: ({ on, duration }: { on: boolean, duration: number }) => void) {
+        return this.subscribe(Pubs.FastUpdate, subscriber);
     }
     subscribeLoading(subscriber: (spinnerDelay: number | false) => void) {
         return this.subscribe(Pubs.Loading, subscriber);

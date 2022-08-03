@@ -14,6 +14,7 @@ import { BaseEdge } from '../BaseEdge/BaseEdge';
  * If in editing mode, displays a clickable button to edit the link or inserting a node
  */
 export const NodeEdge = ({
+    fastUpdate,
     handleAdd,
     handleBranch,
     handleDelete,
@@ -22,7 +23,6 @@ export const NodeEdge = ({
     isFromRoutineList,
     isToRoutineList,
     link,
-    dragId,
     scale,
 }: NodeEdgeProps) => {
     const { palette } = useTheme();
@@ -35,14 +35,6 @@ export const NodeEdge = ({
     const handleEditClick = useCallback(() => {
         handleEdit(link);
     }, [handleEdit, link]);
-
-    /**
-     * Redraw edge quickly while dragging, and slowly while not dragging
-     */
-    const timeBetweenDraws = useMemo(() => {
-        if (dragId && (dragId === link.fromId || dragId === link.toId)) return 15;
-        return 1000;
-    }, [dragId, link.fromId, link.toId]);
 
     /**
      * Place button along bezier to display "Add Node" button
@@ -151,7 +143,7 @@ export const NodeEdge = ({
         popoverComponent={popoverComponent}
         popoverT={popoverT}
         thiccness={thiccness}
-        timeBetweenDraws={timeBetweenDraws}
+        timeBetweenDraws={fastUpdate ? 15 : 1000}
         toId={`node-${link.toId}`}
     />
 }

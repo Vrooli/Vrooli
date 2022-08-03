@@ -26,7 +26,6 @@ import { EditableLabel, NodeContextMenu } from 'components';
  * @param id ID of the clicked element
  */
 const shouldOpen = (id: string | null | undefined): boolean => {
-    console.log('shouldopen', id);
     // Only collapse if clicked on title bar or title
     return Boolean(id && (id.startsWith('subroutine-title-')));
 }

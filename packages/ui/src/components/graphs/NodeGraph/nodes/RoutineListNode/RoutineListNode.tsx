@@ -8,7 +8,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import React, { CSSProperties, useCallback, useMemo, useRef, useState } from 'react';
+import React, { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RoutineListNodeProps } from '../types';
 import { DraggableNode, RoutineSubnode } from '..';
 import {
@@ -60,10 +60,34 @@ export const RoutineListNode = ({
     zIndex,
 }: RoutineListNodeProps) => {
     const { palette } = useTheme();
+
+    // When fastUpdate is triggered, context menu should never open
+    const fastUpdateRef = useRef<boolean>(false);
+    const fastUpdateTimeout = useRef<NodeJS.Timeout | null>(null);
+    useEffect(() => {
+        let fastSub = PubSub.get().subscribeFastUpdate(({ on, duration }) => {
+            console.log('fast sub triggered', on, duration)
+            if (!on) {
+                fastUpdateRef.current = false;
+                if (fastUpdateTimeout.current) clearTimeout(fastUpdateTimeout.current);
+            } else {
+                fastUpdateRef.current = true;
+                fastUpdateTimeout.current = setTimeout(() => {
+                    console.log('fastupdate timeout triggered')
+                    fastUpdateRef.current = false;
+                }, duration);
+            }
+        });
+        return () => { PubSub.get().unsubscribe(fastSub); };
+    }, []);
+
     // Default to open if editing and empty
     const [collapseOpen, setCollapseOpen] = useState<boolean>(isEditing && (node?.data as NodeDataRoutineList)?.routines?.length === 0);
     const handleNodeClick = useCallback((event: any) => {
-        if (isLinked && (!canDrag || shouldCollapse(event.target.id))) setCollapseOpen(!collapseOpen);
+        if (isLinked && (!canDrag || shouldCollapse(event.target.id))) {
+            PubSub.get().publishFastUpdate({ duration: 1000 });
+            setCollapseOpen(!collapseOpen);
+        }
     }, [canDrag, collapseOpen, isLinked]);
     /**
      * When not dragging, DraggableNode onClick will not be triggered. So 
@@ -71,6 +95,8 @@ export const RoutineListNode = ({
      */
     const handleNodeMouseUp = useCallback((event: any) => {
         if (isLinked && !canDrag && shouldCollapse(event.target.id)) {
+            console.log('toggleing collapse');
+            PubSub.get().publishFastUpdate({ duration: 1000 });
             setCollapseOpen(!collapseOpen);
         }
     }, [canDrag, isLinked, collapseOpen]);
@@ -293,9 +319,9 @@ export const RoutineListNode = ({
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
     const openContext = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
-        console.log('in open context');
-        // Ignore if not linked or editing
-        if (!canDrag || !isLinked || !isEditing || isLabelDialogOpen.current) return;
+        console.log('in open context', fastUpdateRef.current);
+        // Ignore if not linked, not editing, or in the middle of an event (drag, collapse, move, etc.)
+        if (!canDrag || !isLinked || !isEditing || isLabelDialogOpen.current || fastUpdateRef.current) return;
         ev.preventDefault();
         setContextAnchor(ev.currentTarget ?? ev.target)
     }, [canDrag, isEditing, isLinked, isLabelDialogOpen]);
