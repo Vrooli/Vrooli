@@ -6,12 +6,22 @@ import { multiLineEllipsis } from 'styles';
 import { APP_LINKS, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
 
+function determineLink(typename?: string) {
+    switch (typename) {
+        case 'Organization': return APP_LINKS.Organization;
+        case 'Routine': return APP_LINKS.Routine;
+        case 'Standard': return APP_LINKS.Standard;
+        default:
+            console.error('Invalid typename');
+            return '';
+    }
+}
+
 export const ReportButton = ({
     reportsCount = 0,
     object,
     tooltipPlacement = "left",
 }: ReportButtonProps) => {
-
     const [, setLocation] = useLocation();
 
     // When clicked, navigate to reports page
@@ -19,7 +29,7 @@ export const ReportButton = ({
         // Do not want the click to propogate to the routine list item, which would cause the routine page to open.
         event.stopPropagation();
 
-        setLocation(`${APP_LINKS.Routine}/reports/${object?.id}`)
+        setLocation(`${determineLink(object?.__typename)}/reports/${object?.id}`)
     }, [setLocation]);
 
     return (

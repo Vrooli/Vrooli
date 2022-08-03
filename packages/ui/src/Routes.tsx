@@ -1,8 +1,7 @@
 import { Suspense, useCallback } from 'react';
 import { lazily } from 'react-lazily';
 import { Route, Switch } from 'wouter';
-import { BUSINESS_NAME, ROLES } from '@local/shared';
-import { APP_LINKS as LINKS } from '@local/shared';
+import { APP_LINKS as LINKS, BUSINESS_NAME, ROLES } from '@local/shared';
 // import { Sitemap } from 'Sitemap';
 import {
     ForgotPasswordForm,
@@ -156,13 +155,6 @@ export const AllRoutes = (props: CommonProps) => {
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.Routine}/reports/:id`}>
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <ReportsViewPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
                 {/* ========= #endregion Routine Routes ========= */}
 
                 {/* ========= #region Views Routes ========= */}
@@ -249,6 +241,59 @@ export const AllRoutes = (props: CommonProps) => {
                     )}
                 </Route>
                 {/* =========  #endregion ========= */}
+
+                {/* ========= #region Report Routes ========= */}
+                <Route path={`${LINKS.Comment}/reports/:id`}>
+                    <Suspense fallback={Fallback}>
+                        <Page {...props}>
+                            <ReportsViewPage session={props.session} type='comment' />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route path={`${LINKS.Organization}/reports/:id`}>
+                    <Suspense fallback={Fallback}>
+                        <Page {...props}>
+                            <ReportsViewPage session={props.session} type='organization' />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route path={`${LINKS.Project}/reports/:id`}>
+                    <Suspense fallback={Fallback}>
+                        <Page {...props}>
+                            <ReportsViewPage session={props.session} type='project' />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route path={`${LINKS.Routine}/reports/:id`}>
+                    <Suspense fallback={Fallback}>
+                        <Page {...props}>
+                            <ReportsViewPage session={props.session} type='routine' />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route path={`${LINKS.Standard}/reports/:id`}>
+                    <Suspense fallback={Fallback}>
+                        <Page {...props}>
+                            <ReportsViewPage session={props.session} type='standard' />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route path={`${LINKS.Tag}/reports/:id`}>
+                    <Suspense fallback={Fallback}>
+                        <Page {...props}>
+                            <ReportsViewPage session={props.session} type='tag' />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route path={`${LINKS.User}/reports/:id`}>
+                    <Suspense fallback={Fallback}>
+                        <Page {...props}>
+                            <ReportsViewPage session={props.session} type='user' />
+                        </Page>
+                    </Suspense>
+                </Route>
+                {/* ========= #endregion ========= */}
+
                 <Route path={LINKS.Settings}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Settings')} {...props} restrictedToRoles={[ROLES.Actor]}>

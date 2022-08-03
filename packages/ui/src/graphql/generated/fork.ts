@@ -76,6 +76,7 @@ export interface fork_fork_organization {
   isStarred: boolean;
   role: MemberRole | null;
   stars: number;
+  reportsCount: number;
   resourceLists: fork_fork_organization_resourceLists[];
   tags: fork_fork_organization_tags[];
   translations: fork_fork_organization_translations[];

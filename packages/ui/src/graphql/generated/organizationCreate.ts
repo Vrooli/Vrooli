@@ -76,6 +76,7 @@ export interface organizationCreate_organizationCreate {
   isStarred: boolean;
   role: MemberRole | null;
   stars: number;
+  reportsCount: number;
   resourceLists: organizationCreate_organizationCreate_resourceLists[];
   tags: organizationCreate_organizationCreate_tags[];
   translations: organizationCreate_organizationCreate_translations[];

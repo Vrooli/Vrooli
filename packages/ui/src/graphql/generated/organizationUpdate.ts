@@ -76,6 +76,7 @@ export interface organizationUpdate_organizationUpdate {
   isStarred: boolean;
   role: MemberRole | null;
   stars: number;
+  reportsCount: number;
   resourceLists: organizationUpdate_organizationUpdate_resourceLists[];
   tags: organizationUpdate_organizationUpdate_tags[];
   translations: organizationUpdate_organizationUpdate_translations[];

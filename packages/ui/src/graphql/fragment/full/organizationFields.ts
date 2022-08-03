@@ -43,6 +43,7 @@ export const organizationFields = gql`
         isStarred
         role
         stars
+        reportsCount
         resourceLists {
             ...organizationResourceListFields
         }

@@ -157,6 +157,8 @@ export const ReportDialog = ({
                 <Stack direction="column" spacing={2} sx={{ padding: 2 }}>
                     {/* Text displaying what you are reporting */}
                     <Selector
+                        id="reasonSelector"
+                        name="reasonSelector"
                         disabled={loading}
                         options={Object.keys(ReportReasons)}
                         getOptionLabel={(r) => ReportReasons[r]}

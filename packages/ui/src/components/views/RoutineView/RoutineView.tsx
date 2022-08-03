@@ -1,4 +1,4 @@
-import { Box, Button, CircularProgress, Dialog, Grid, IconButton, LinearProgress, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material"
+import { Box, Button, CircularProgress, Dialog, Grid, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, VoteFor } from "@local/shared";
 import { useMutation, useLazyQuery } from "@apollo/client";
@@ -13,7 +13,7 @@ import {
     MoreHoriz as EllipsisIcon,
     PlayCircle as StartIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, BuildView, HelpButton, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition, UpvoteDownvote } from "components";
+import { BaseObjectActionDialog, BuildView, HelpButton, LinkButton, ReportsLink, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition, UpvoteDownvote } from "components";
 import { RoutineViewProps } from "../types";
 import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, PubSub, standardToFieldData, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
 import { Node, NodeLink, Routine, Run } from "types";
@@ -45,7 +45,6 @@ export const RoutineView = ({
     // Fetch data
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
     const [routine, setRoutine] = useState<Routine | null>(null);
-    console.log(routine);
     useEffect(() => {
         if (id && uuidValidate(id)) { getData({ variables: { input: { id } } }); }
     }, [getData, id])
@@ -716,12 +715,13 @@ export const RoutineView = ({
                             onChange={(isStar: boolean) => { routine && setRoutine({ ...routine, isStarred: isStar }) }}
                             tooltipPlacement="bottom"
                         />
-                        <Link href="#" underline="hover">
-                            Reports ({routine?.reportsCount})
-                        </Link>
+                        <ReportsLink 
+                            href={`${APP_LINKS.Routine}/reports/${routine?.id}`}
+                            reports={routine?.reportsCount}
+                        />
                         <Tooltip title="More options">
                             <IconButton
-                                 aria-label="More"
+                                aria-label="More"
                                 size="small"
                                 onClick={openMoreMenu}
                                 sx={{

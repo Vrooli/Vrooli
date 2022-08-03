@@ -76,6 +76,7 @@ export interface organizationFields {
   isStarred: boolean;
   role: MemberRole | null;
   stars: number;
+  reportsCount: number;
   resourceLists: organizationFields_resourceLists[];
   tags: organizationFields_tags[];
   translations: organizationFields_translations[];

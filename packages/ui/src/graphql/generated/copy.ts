@@ -190,6 +190,7 @@ export interface copy_copy_organization {
   isStarred: boolean;
   role: MemberRole | null;
   stars: number;
+  reportsCount: number;
   resourceLists: copy_copy_organization_resourceLists[];
   tags: copy_copy_organization_tags[];
   translations: copy_copy_organization_translations[];
