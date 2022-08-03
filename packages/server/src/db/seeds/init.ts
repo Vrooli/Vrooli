@@ -31,6 +31,11 @@ export async function init(prisma: PrismaType) {
             members: {
                 select: {
                     id: true,
+                    user: {
+                        select: {
+                            id: true,
+                        }
+                    }
                 }
             },
             _count: {
@@ -40,6 +45,7 @@ export async function init(prisma: PrismaType) {
             }
         }
     });
+    console.log('orgs with members', JSON.stringify(orgs), '\n\n');
     for (let i = 0; i < orgs.length; i++) {
         const org = orgs[i];
         // Create new role titled 'Admin'
@@ -56,22 +62,25 @@ export async function init(prisma: PrismaType) {
                 organizationId: org.id,
             }
         })
+        console.log('upserted role', org.id, JSON.stringify(role), '\n\n');
         // Apply role to every member
         for (let j = 0; j < org.members.length; j++) {
             const member = org.members[j];
-            const exists = prisma.user_roles.findUnique({
+            const exists = await prisma.user_roles.findUnique({
                 where: {
                     user_roles_userid_roleid_unique: {
-                        userId: member.id,
+                        userId: member.user.id,
                         roleId: role.id,
                     }
                 }
             })
+            console.log('exists', JSON.stringify(exists), '\n\n');
             if (!Boolean(exists)) {
+                console.log('creating user_roles', member.user.id, role.id, '\n\n');
                 await prisma.user_roles.create({
                     data: {
-                        userId: member.id,
-                        roleId: role.id,
+                        user: { connect: { id: member.user.id } },
+                        role: { connect: { id: role.id } },
                     }
                 })
             }

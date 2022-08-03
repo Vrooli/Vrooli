@@ -14,6 +14,7 @@ import { ViewModel } from "./view";
 import { randomString } from "../../auth/walletAuth";
 import { sortify } from "../../utils/objectTools";
 import { ResourceListModel } from "./resourceList";
+import { v4 as uuid } from 'uuid';
 
 //==============================================================
 /* #region Custom Components */
@@ -322,6 +323,7 @@ export const standardMutater = (prisma: PrismaType) => ({
             tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Standard'),
             translations,
             version: data.version ?? '1.0.0',
+            versionGroupId: uuid(),
         }
     },
     async toDBShapeUpdate(userId: string | null, data: StandardUpdateInput): Promise<any> {

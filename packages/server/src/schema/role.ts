@@ -26,7 +26,31 @@ export const typeDef = gql`
         translations: [RoleTranslation!]!
         organization: Organization!
         assignees: [UserRole!]
+        # permissions: [Permission!]!
     }
+
+    #type Permission {
+    #    members: MemberPermission!
+    #    organizations: OrganizationPermission!
+    #    projects: ProjectPermission!
+    #    roles: RolePermission!
+    #    routines: RoutinePermission!
+    #    standards: StandardPermission!
+    #    users: UserPermission!
+    #}
+
+    #type MemberPermission {
+    #    invite: Boolean!
+    #    remove: Boolean!
+    #}
+
+    #type OrganizationPermission {
+    #    create: Boolean
+    #    read: Boolean
+    #    update: Boolean
+    #    delete: Boolean
+    #}
+
 
     input RoleTranslationCreateInput {
         id: ID!

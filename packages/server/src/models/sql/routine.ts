@@ -761,9 +761,10 @@ export const routineMutater = (prisma: PrismaType) => ({
         }
         // Find role for every organization
         const roles = await OrganizationModel.query(prisma).hasRole(userId ?? '', organizationIds);
+        console.log('got roles', JSON.stringify(roles), '\n', JSON.stringify(organizationIds), '\n\n')
         // If any role is undefined, the user is not authorized to delete one or more objects
         if (roles.some(role => !role))
-            throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0095') })
+            throw new CustomError(CODE.Unauthorized, 'Not authorized.', { code: genErrorCode('0095') })
     },
     /**
      * Performs adds, updates, and deletes of routines. First validates that every action is allowed.
@@ -805,7 +806,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             for (const input of updateMany) {
                 // Call createData helper function
                 let data = await this.toDBShape(userId, input.data, false);
-                // console.log('routine update todbshapeeee', JSON.stringify(data), '\n\n')
+                console.log('routine update todbshapeeee', JSON.stringify(data), '\n\n')
                 // Find object
                 let object = await prisma.routine.findFirst({ where: input.where })
                 if (!object)

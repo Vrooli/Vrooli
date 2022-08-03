@@ -49,6 +49,7 @@ export const StartNode = ({
     const contextOpen = Boolean(contextAnchor);
     const openContext = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
         if (!isEditing) return;
+        ev.preventDefault();
         setContextAnchor(ev.currentTarget ?? ev.target)
     }, [isEditing]);
     const closeContext = useCallback(() => setContextAnchor(null), []);

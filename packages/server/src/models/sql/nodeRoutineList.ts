@@ -29,6 +29,7 @@ export const nodeRoutineListMutater = (prisma: PrismaType) => ({
         }
     },
     async toDBShapeUpdate(userId: string | null, data: NodeRoutineListUpdateInput): Promise<any> {
+        console.log('ordered should work if hit here', JSON.stringify(data), '\n\n');
         return {
             isOrdered: data.isOrdered,
             isOptional: data.isOptional,
@@ -103,7 +104,7 @@ export const nodeRoutineListMutater = (prisma: PrismaType) => ({
             // Check for valid arguments
             nodeRoutineListCreate.validateSync(create, { abortEarly: false });
             // Convert nested relationships
-            formattedInput.create = this.toDBShapeCreate(userId, create);
+            formattedInput.create = await this.toDBShapeCreate(userId, create);
         }
         // Validate update
         if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
@@ -111,7 +112,7 @@ export const nodeRoutineListMutater = (prisma: PrismaType) => ({
             // Check for valid arguments
             nodeRoutineListUpdate.validateSync(update, { abortEarly: false });
             // Convert nested relationships
-            formattedInput.update = this.toDBShapeUpdate(userId, update);
+            formattedInput.update = await this.toDBShapeUpdate(userId, update);
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },

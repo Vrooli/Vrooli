@@ -141,6 +141,7 @@ export const BuildInfoDialog = ({
         });
     }, [formik, translations]);
     const handleLanguageSelect = useCallback((newLanguage: string) => {
+        console.log('handle language select', newLanguage);
         // Update old select
         updateTranslation(language, {
             id: uuid(),
@@ -155,10 +156,12 @@ export const BuildInfoDialog = ({
         handleLanguageChange(newLanguage);
     }, [formik.values.description, formik.values.instructions, formik.values.title, handleLanguageChange, language, updateFormikTranslation, updateTranslation]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
+        console.log('handleaddlanguage', newLanguage);
         setLanguages([...languages, newLanguage]);
         handleLanguageSelect(newLanguage);
     }, [handleLanguageSelect, languages, setLanguages]);
     const handleLanguageDelete = useCallback((language: string) => {
+        console.log('handlelanguagedelete', language);
         const newLanguages = [...languages.filter(l => l !== language)]
         if (newLanguages.length === 0) return;
         deleteTranslation(language);
@@ -221,12 +224,12 @@ export const BuildInfoDialog = ({
         const results: [BaseObjectAction, string, any, string | null][] = [];
         // If signed in and not editing, show vote/star options
         if (session?.isLoggedIn === true && !isEditing) {
-            results.push(routine?.isUpvoted ? 
-                [BaseObjectAction.Downvote, 'Downvote', DownvoteIcon, null] : 
+            results.push(routine?.isUpvoted ?
+                [BaseObjectAction.Downvote, 'Downvote', DownvoteIcon, null] :
                 [BaseObjectAction.Upvote, 'Upvote', UpvoteIcon, null]
             );
-            results.push(routine?.isStarred ? 
-                [BaseObjectAction.Unstar, 'Unstar', UnstarIcon, null] : 
+            results.push(routine?.isStarred ?
+                [BaseObjectAction.Unstar, 'Unstar', UnstarIcon, null] :
                 [BaseObjectAction.Star, 'Star', StarIcon, null]
             );
         }
@@ -333,6 +336,30 @@ export const BuildInfoDialog = ({
         }
     }, [handleCopy, handleFork, handleStar, handleVote, openDelete]);
 
+    const languageComponent = useMemo(() => {
+        if (isEditing) return (
+            <LanguageInput
+                currentLanguage={language}
+                handleAdd={handleAddLanguage}
+                handleDelete={handleLanguageDelete}
+                handleCurrent={handleLanguageSelect}
+                selectedLanguages={languages}
+                session={session}
+                zIndex={zIndex}
+            />
+        )
+        return (
+            <SelectLanguageDialog
+                availableLanguages={availableLanguages}
+                canDropdownOpen={availableLanguages.length > 1}
+                currentLanguage={language}
+                handleCurrent={handleLanguageSelect}
+                session={session}
+                zIndex={zIndex}
+            />
+        )
+    }, [availableLanguages, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, isEditing, language, languages, session, zIndex]);
+
     return (
         <>
             {/* Delete routine confirmation dialog */}
@@ -412,24 +439,7 @@ export const BuildInfoDialog = ({
                 {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
                 <Stack direction="column" spacing={2} padding={1}>
                     {/* Language */}
-                    {
-                        isEditing ? <LanguageInput
-                            currentLanguage={language}
-                            handleAdd={handleAddLanguage}
-                            handleDelete={handleLanguageDelete}
-                            handleCurrent={handleLanguageSelect}
-                            selectedLanguages={languages}
-                            session={session}
-                            zIndex={zIndex}
-                        /> : <SelectLanguageDialog
-                            availableLanguages={availableLanguages}
-                            canDropdownOpen={availableLanguages.length > 1}
-                            currentLanguage={language}
-                            handleCurrent={handleLanguageSelect}
-                            session={session}
-                            zIndex={zIndex}
-                        />
-                    }
+                    {languageComponent}
                     {/* Resources */}
                     {resourceList}
                     {/* Description */}

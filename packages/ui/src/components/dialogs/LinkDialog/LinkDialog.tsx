@@ -22,9 +22,10 @@ import { Node, NodeLink } from 'types';
 import { getTranslation, PubSub } from 'utils';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { v4 as uuid } from 'uuid';
+import { noSelect } from 'styles';
 
 const helpText =
-`This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.
+    `This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.
 
 In the future, links will also be able to specify conditions, which must be true in order for the path to be available.`;
 
@@ -85,13 +86,15 @@ export const LinkDialog = ({
      */
     const titleBar = useMemo(() => (
         <Box sx={{
+            ...noSelect,
             background: palette.primary.dark,
             color: palette.primary.contrastText,
             display: 'flex',
-            alignItems: 'center',
+            alignItems: 'left',
             justifyContent: 'space-between',
+            padding: 1,
         }}>
-            <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
+            <Typography component="h2" variant="h4" alignSelf='center' sx={{ marginLeft: 2, marginRight: 'auto' }}>
                 {isAdd ? 'Add Link' : 'Edit Link'}
                 <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
             </Typography>
@@ -100,7 +103,7 @@ export const LinkDialog = ({
                     edge="start"
                     onClick={(e) => { onClose() }}
                 >
-                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
+                    <CloseIcon sx={{ fill: palette.primary.contrastText, marginLeft: 'auto' }} />
                 </IconButton>
             </Box>
         </Box>

@@ -296,6 +296,7 @@ export const RoutineListNode = ({
         console.log('in open context');
         // Ignore if not linked or editing
         if (!canDrag || !isLinked || !isEditing || isLabelDialogOpen.current) return;
+        ev.preventDefault();
         setContextAnchor(ev.currentTarget ?? ev.target)
     }, [canDrag, isEditing, isLinked, isLabelDialogOpen]);
     const closeContext = useCallback(() => setContextAnchor(null), []);

@@ -8,7 +8,7 @@ import {
     Delete as DeleteIcon,
     Language as LanguageIcon,
 } from '@mui/icons-material';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { AllLanguages, getUserLanguages } from 'utils';
 import { FixedSizeList } from 'react-window';
 
@@ -66,11 +66,11 @@ export const SelectLanguageDialog = ({
 
     // Popup for selecting language
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-    const anchorRef = useRef<HTMLElement | null>(null);
     const open = Boolean(anchorEl);
-    const onOpen = useCallback((event: React.MouseEvent) => {
-        if (canDropdownOpen) setAnchorEl(anchorRef.current);
-        // Force parent to save current translation
+    const onOpen = useCallback((event: MouseEvent<HTMLDivElement>) => {
+        console.log('onOpen', currentLanguage);
+        if (canDropdownOpen) setAnchorEl(event.currentTarget);
+        // Force parent to save current translation TODO this causes infinite render in multi-step routine. not sure why
         if (currentLanguage) handleCurrent(currentLanguage);
     }, [canDropdownOpen, currentLanguage, handleCurrent]);
     const onClose = useCallback(() => {
@@ -79,7 +79,7 @@ export const SelectLanguageDialog = ({
         setAnchorEl(null)
     }, []);
 
-    const onDelete = useCallback((e: React.MouseEvent, language: string) => {
+    const onDelete = useCallback((e: MouseEvent<HTMLButtonElement>, language: string) => {
         e.preventDefault();
         e.stopPropagation();
         if (handleDelete) handleDelete(language);
@@ -242,7 +242,7 @@ export const SelectLanguageDialog = ({
             </Popover>
             {/* Selected language label */}
             <Tooltip title={AllLanguages[currentLanguage] ?? ''} placement="top">
-                <Stack direction="row" ref={anchorRef} spacing={0} onClick={onOpen} sx={{
+                <Stack direction="row"  spacing={0} onClick={onOpen} sx={{
                     ...(sxs?.root ?? {}),
                     display: availableLanguages === undefined || availableLanguages.length > 0 ? 'flex' : 'none',
                     justifyContent: 'center',

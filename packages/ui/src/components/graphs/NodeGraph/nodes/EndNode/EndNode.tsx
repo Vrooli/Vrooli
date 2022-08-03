@@ -55,6 +55,7 @@ export const EndNode = ({
     const openContext = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
         // Ignore if not linked or editing
         if (!canDrag || !isLinked || !isEditing) return;
+        ev.preventDefault();
         setContextAnchor(ev.currentTarget ?? ev.target)
     }, [canDrag, isLinked, isEditing]);
     const closeContext = useCallback(() => setContextAnchor(null), []);

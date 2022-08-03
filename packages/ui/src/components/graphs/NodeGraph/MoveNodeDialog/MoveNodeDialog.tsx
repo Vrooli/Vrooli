@@ -50,7 +50,7 @@ export const MoveNodeMenu = ({
         if (node) {
             const { columnIndex, rowIndex } = node;
             setFromColumnIndex(columnIndex ?? 0);
-            setToColumnIndex(columnIndex ?? 0);
+            setToColumnIndex((columnIndex ?? 0) + 1);
             setFromRowIndex(rowIndex ?? 0);
             setToRowIndex(rowIndex ?? 0);
         }
@@ -71,6 +71,15 @@ export const MoveNodeMenu = ({
             .filter(rowIndex => nodesInColumn.every(node => node.rowIndex !== rowIndex));
         return availableRows;
     }, [fromColumnIndex, routine.nodes]);
+
+    // Update to row index when available rows change
+    useEffect(() => {
+        if (availableRows.length > 0) {
+            setToRowIndex(availableRows[0]);
+        } else {
+            setToRowIndex(0);
+        }
+    }, [availableRows, setToRowIndex]);
 
     /**
      * Before closing, clear inputs
@@ -100,11 +109,12 @@ export const MoveNodeMenu = ({
             background: palette.primary.dark,
             color: palette.primary.contrastText,
             display: 'flex',
-            alignItems: 'center',
+            alignItems: 'left',
             justifyContent: 'space-between',
+            padding: 1,
         }}>
-            <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
-                'Move Node'
+            <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 2, marginRight: 'auto' }}>
+                Move Node
                 <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
             </Typography>
             <Box sx={{ marginLeft: 'auto' }}>
@@ -122,10 +132,10 @@ export const MoveNodeMenu = ({
      * Container that displays "From" and "To" sections, with right arrow inbetween
      */
     const formContent = useMemo(() => (
-        <Stack direction="row" justifyContent="center" alignItems="center">
+        <Stack direction="row" justifyContent="center" alignItems="center" sx={{ color: palette.background.textPrimary }}>
             {/* "From" stack */}
-            <Stack direction="column" justifyContent="center" alignItems="center">
-                <Typography variant="h6" sx={{ color: palette.primary.contrastText }}>
+            <Stack direction="column" spacing={2} justifyContent="center" alignItems="center">
+                <Typography variant="h6">
                     From
                 </Typography>
                 {/* Column TextField (Disabled) */}
@@ -133,16 +143,16 @@ export const MoveNodeMenu = ({
                     fullWidth
                     disabled
                     id="node-from-column"
-                    label="From"
-                    value={fromColumnIndex}
+                    label="Column"
+                    value={fromColumnIndex + 1}
                 />
                 {/* Row TextField (Disabled) */}
                 <TextField
                     fullWidth
                     disabled
-                    id="node-to-column"
-                    label="To"
-                    value={toColumnIndex}
+                    id="node-from-row"
+                    label="Row"
+                    value={fromRowIndex + 1}
                 />
             </Stack>
             {/* Right arrow */}
@@ -159,8 +169,8 @@ export const MoveNodeMenu = ({
                 </Typography>
             </Box>
             {/* "To" stack */}
-            <Stack direction="column" justifyContent="center" alignItems="center">
-                <Typography variant="h6" sx={{ color: palette.primary.contrastText }}>
+            <Stack direction="column" spacing={2} justifyContent="center" alignItems="center">
+                <Typography variant="h6">
                     To
                 </Typography>
                 {/* Column selector */}
@@ -193,7 +203,7 @@ export const MoveNodeMenu = ({
                 />
             </Stack>
         </Stack>
-    ), [palette.primary.contrastText, fromColumnIndex, toColumnIndex, availableRows, availableColumns, toRowIndex, handleToRowSelect, handleToColumnSelect]);
+    ), [palette.background.textPrimary, fromColumnIndex, fromRowIndex, availableColumns, toColumnIndex, availableRows, toRowIndex, handleToColumnSelect, handleToRowSelect]);
 
     return (
         <Dialog

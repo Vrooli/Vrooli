@@ -996,6 +996,7 @@ export const BuildView = ({
      */
     const handleSubroutineUpdate = useCallback((updatedSubroutine: NodeDataRoutineListItem) => {
         if (!changedRoutine) return;
+        console.log('handlesubroutineupdate', updatedSubroutine);
         // Update routine
         setChangedRoutine({
             ...changedRoutine,

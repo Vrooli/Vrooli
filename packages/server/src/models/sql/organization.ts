@@ -173,9 +173,30 @@ export const organizationQuerier = (prisma: PrismaType) => ({
             where: {
                 title,
                 organization: { id: { in: idsToQuery } },
-                assignees: { some: { id: userId } }
+                assignees: { some: { user: { id: userId } } }
             }
         })
+        console.log('in hasrole queried roles', JSON.stringify(roles), '\n\n')
+        const temp = await prisma.role.findMany({
+            where: {
+                organization: { id: { in: idsToQuery } },
+            },
+            select: {
+                id: true,
+                title: true,
+                assignees: {
+                    select: {
+                        user: {
+                            select: {
+                                id: true,
+                                name: true,
+                            }
+                        }
+                    }
+                }
+            }
+        }) 
+        console.log('is hasrole roles without title', JSON.stringify(temp), '\n\n')
         // Create an array of the same length as the input, with the role data or undefined
         return organizationIds.map(id => roles.find(({ organizationId }) => organizationId === id));
     },

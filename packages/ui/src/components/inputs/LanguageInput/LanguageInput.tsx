@@ -17,11 +17,13 @@ export const LanguageInput = ({
     session,
     zIndex,
 }: LanguageInputProps) => {
+    console.log('rendering LanguageInput', AllLanguages);
     /**
      * When a language is selected, call handleCurrent and add it to the list of selected languages.
      * Do not delete if already selected, as that is done separately.
      */
     const selectLanguage = useCallback((language: string) => {
+        console.log('selectLanguage boop', language);
         if (selectedLanguages.indexOf(language) === -1) {
             handleAdd(language);
         }
