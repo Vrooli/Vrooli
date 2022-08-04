@@ -1,4 +1,8 @@
-import { Routine } from "types";
+import { RunInputCreateInput, RunInputUpdateInput } from "graphql/generated/globalTypes";
+import { Routine, RunInput } from "types";
+import { v4 as uuid } from "uuid";
+import { hasObjectChanged, shapeRunInputCreate, shapeRunInputUpdate } from "./shape";
+import { shapeUpdateList } from "./shape/shapeTools";
 
 /**
  * Calculates the percentage of the run that has been completed.
@@ -48,4 +52,82 @@ export const routineHasSubroutines = (routine: Partial<Routine>): boolean => {
     if (routine.simplicity && routine.inputs) return routine.simplicity > routine.inputs.length + 1;
     // If these cases fail, there is no other information we can use to determine if the routine has subroutines
     return false;
+}
+
+/**
+ * Converts formik into object with run input data
+ * @param values The formik values object
+ * @returns object where keys are inputIds, and values are the run input data
+ */
+export const formikToRunInputs = (values: { [x: string]: string }): { [x: string]: string } => {
+    const result: { [x: string]: string } = {};
+    // Get user inputs, and ignore empty values and blank strings.
+    const inputValues = Object.entries(values).filter(([key, value]) =>
+        key.startsWith('inputs-') &&
+        typeof value === 'string' && 
+        value.length > 0);
+    // Input keys are in the form of inputs-<inputId>. We need the inputId
+    for (const [key, value] of inputValues) {
+        const inputId = key.substring(key.indexOf('-')+1)
+        result[inputId] = JSON.stringify(value);
+    }
+    return result;
+}
+
+/**
+ * Updates formik values with run input data
+ * @param runInputs The run input data
+ * @returns Object to pass into formik setValues function
+ */
+export const runInputsToFormik = (runInputs: RunInput[]): { [x: string]: string } => {
+    const result: { [x: string]: string } = {};
+    for (const runInput of runInputs) {
+        result[`inputs-${runInput.input.id}`] = JSON.parse(runInput.data);
+    }
+    return result;
+}
+
+/**
+ * Converts a run inputs object to a run input create object
+ * @param runInputs The run inputs object
+ * @returns The run input create input object
+ */
+export const runInputsCreate = (runInputs: { [x: string]: string }): { inputsCreate: RunInputCreateInput[] } => {
+    return {
+        inputsCreate: Object.entries(runInputs).map(([inputId, data]) => ({
+            id: uuid(),
+            data,
+            inputId
+        }))
+    }
+}
+
+/**
+ * Converts a run inputs object to a run input update object
+ * @param original RunInputs[] array of existing run inputs data
+ * @param updated Run input object with updated data
+ * @returns The run input update input object
+ */
+export const runInputsUpdate = (
+    original: RunInput[],
+    updated: { [x: string]: string },
+): { 
+    inputsCreate?: RunInputCreateInput[],
+    inputsUpdate?: RunInputUpdateInput[],
+    inputsDelete?: string[],
+} => {
+    // Convert user inputs object to RunInput[]
+    const updatedInputs = Object.entries(updated).map(([inputId, data]) => ({
+        id: uuid(),
+        data,
+        input: { id: inputId }
+    }))
+    // Loop through original run inputs. Where input id is in updated inputs, update id
+    for (const currOriginal of original) {
+        const currUpdated = updatedInputs.findIndex((input) => input.input.id === currOriginal.input.id);
+        if (currUpdated !== -1) {
+            updatedInputs[currUpdated].id = currOriginal.id;
+        }
+    }
+    return shapeUpdateList({ inputs: original }, { inputs: updatedInputs }, 'inputs', hasObjectChanged, shapeRunInputCreate, shapeRunInputUpdate, 'id');
 }

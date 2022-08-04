@@ -54,6 +54,7 @@ export const profileFormatter = (): FormatConverter<User, any> => ({
         'routinesCreated': 'Routine',
         'starredBy': 'User',
         'starred': 'Star',
+        'starredTags': 'Tag',
         'hiddenTags': 'TagHidden',
         'sentReports': 'Report',
         'reports': 'Report',
@@ -329,6 +330,7 @@ const profileQuerier = (prisma: PrismaType) => ({
         const partial = toPartialGraphQLInfo(info, profileFormatter().relationshipMap);
         if (!partial)
             throw new CustomError(CODE.InternalError, 'Could not convert info to partial select.', { code: genErrorCode('0190') });
+        console.log('findprofile partial', JSON.stringify(partial), '\n\n');
         // Query profile data and tags
         const profileData = await readOneHelper<any>({
             info,
@@ -337,11 +339,16 @@ const profileQuerier = (prisma: PrismaType) => ({
             prisma,
             userId,
         })
+        console.log('got profile data', JSON.stringify(profileData), '\n\n');
         const { starredTags, hiddenTags } = await this.myTags(userId, partial);
+        console.log('got starred tags', JSON.stringify(starredTags), '\n\n');
+        console.log('got hidden tags', JSON.stringify(hiddenTags), '\n\n');
         // Format for GraphQL
         let formatted = modelToGraphQL(profileData, partial) as RecursivePartial<Profile>;
+        console.log('profile formatted', JSON.stringify(formatted), '\n\n');
         // Return with supplementalfields added
         const data = (await addSupplementalFields(prisma, userId, [formatted], partial))[0] as RecursivePartial<Profile>;
+        console.log('profile addsupp result', JSON.stringify(data), '\n\n');
         return {
             ...data,
             starredTags,
@@ -368,10 +375,18 @@ const profileQuerier = (prisma: PrismaType) => ({
                 },
                 select: { tag: padSelect(tagSelect) }
             })).map((star: any) => star.tag)
+            console.log('queried starred tags', JSON.stringify(data), '\n\n');
             // Format for GraphQL
             const formatted: any[] = data.map(d => modelToGraphQL(d, partial.starredTags as PartialGraphQLInfo));
+            console.log('starred tags formatted', JSON.stringify(formatted), '\n\n');
             // Return with supplementalfields added
-            starredTags = await (TagModel.format as any).addSupplementalFields(prisma, userId, formatted, partial.starredTags as PartialGraphQLInfo) as Tag[];
+            starredTags = await TagModel.format.addSupplementalFields!({
+                objects: formatted,
+                partial: partial.starredTags as PartialGraphQLInfo,
+                prisma,
+                userId,
+            }) as Tag[];
+            console.log('starred tags addsupp result', JSON.stringify(starredTags), '\n\n');
         }
         if (partial.hiddenTags) {
             // Query hidden tags
@@ -383,16 +398,24 @@ const profileQuerier = (prisma: PrismaType) => ({
                     tag: padSelect(tagSelect)
                 }
             }));
+            console.log('queried hidden tags', JSON.stringify(data), '\n\n');
             // Format for GraphQL
             const formatted: any[] = data.map(d => modelToGraphQL(d, partial.hiddenTags as PartialGraphQLInfo));
+            console.log('hidden tags formatted', JSON.stringify(formatted), '\n\n');
             // Call addsupplementalFields on tags of hidden data
-            const tags = await (TagModel.format as any).addSupplementalFields(prisma, userId, formatted.map(f => f.tag), (partial as any).hiddenTags.tag as PartialGraphQLInfo) as Tag[];
-            // const tags = (await addSupplementalFields(prisma, userId, formatted.map(f => f.tag), partial.hiddenTags as PartialGraphQLInfo)) as Tag[];
+            const tags = await TagModel.format.addSupplementalFields!({
+                objects: formatted.map(f => f.tag),
+                partial: (partial as any).hiddenTags.tag as PartialGraphQLInfo,
+                prisma,
+                userId,
+            }) as Tag[];
+            console.log('hidden tags addsupp result', JSON.stringify(tags), '\n\n');
             hiddenTags = data.map((d: any) => ({
                 id: d.id,
                 isBlur: d.isBlur,
                 tag: tags.find(t => t.id === d.tag.id)
             }))
+            console.log('hidden tags shaped', JSON.stringify(hiddenTags), '\n\n');
         }
         return { starredTags, hiddenTags };
     },
@@ -415,52 +438,40 @@ const profileMutater = (prisma: PrismaType) => ({
         if (!partial)
             throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0067') });
         // Handle starred tags
-        const tagsToCreate: TagCreateInput[] = [];
-        const tagsToConnect: string[] = [];
-        if (input.starredTagsConnect) {
-            // Check if tags exist
-            const tags = await prisma.tag.findMany({
-                where: { id: { in: input.starredTagsConnect } },
-            })
-            const connectTags = tags.map(t => t.id);
-            const createTags = input.starredTagsConnect.filter(t => !connectTags.includes(t));
-            // Add existing tags to tagsToConnect
-            tagsToConnect.push(...connectTags);
-            // Add new tags to tagsToCreate
-            tagsToCreate.push(...createTags.map((t) => typeof t === 'string' ? ({ tag: t }) : t));
-        }
-        if (input.starredTagsCreate) {
-            // Check if tags exist
-            const tags = await prisma.tag.findMany({
-                where: { tag: { in: input.starredTagsCreate.map(c => c.tag) } },
-            })
-            const connectTags = tags.map(t => t.id);
-            const createTags = input.starredTagsCreate.filter(t => !connectTags.includes(t.tag));
-            // Add existing tags to tagsToConnect
-            tagsToConnect.push(...connectTags);
-            // Add new tags to tagsToCreate
-            tagsToCreate.push(...createTags);
-        }
+        const tagsToCreate: TagCreateInput[] = [
+            ...(input.starredTagsCreate ?? []),
+            ...((input.starredTagsConnect ?? []).map(t => ({
+                tag: t
+            }))),
+        ];
         // Create new tags
         const createTagsData = await Promise.all(tagsToCreate.map(async (tag: TagCreateInput) => await TagModel.mutate(prisma).toDBShape(userId, tag)));
         const createdTags = await prisma.$transaction(
-            createTagsData.map((data) => prisma.tag.create({ data })),
+            createTagsData.map((data) =>
+                prisma.tag.upsert({
+                    where: { tag: data.tag },
+                    create: data,
+                    update: { tag: data.tag }
+                })
+            ),
         );
         // Combine connect IDs and created IDs
-        const tagIds = [...tagsToConnect, ...createdTags.map(t => t.id)];
+        const tagIds = createdTags.map(t => t.id);
         // Convert tagIds to star creates
         const starredCreate = tagIds.map(tagId => ({ tagId }));
         // Convert starredTagsDisconnect to star deletes
+        console.log('checking tag disconnect', JSON.stringify(input.starredTagsDisconnect), '\n\n');
         const starredDelete = input.starredTagsDisconnect ? await prisma.star.findMany({
             where: {
                 AND: [
-                    { byId: userId },
-                    { tagId: { in: input.starredTagsDisconnect } },
-                    { NOT: { tagId: null } }
+                    { by: { id: userId } },
+                    { tag: { tag: { in: input.starredTagsDisconnect } } },
+                    { NOT: { tagId: null } },
                 ]
             },
             select: { id: true }
         }) : [];
+        console.log('got starred delete', JSON.stringify(starredDelete), '\n\n');
         //Create user data
         let userData: { [x: string]: any } = {
             handle: input.handle,
@@ -485,6 +496,7 @@ const profileMutater = (prisma: PrismaType) => ({
         let formatted = modelToGraphQL(profileData, partial) as RecursivePartial<Profile>;
         // Return with supplementalfields added
         const data = (await addSupplementalFields(prisma, userId, [formatted], partial))[0] as RecursivePartial<Profile>;
+        console.log('update profile finished', JSON.stringify(data), '\n\n');
         return {
             ...data,
             starredTags,

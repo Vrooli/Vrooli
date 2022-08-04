@@ -66,7 +66,7 @@ export interface runCancel_runCancel_inputs {
   __typename: "RunInput";
   id: string;
   data: string;
-  input: runCancel_runCancel_inputs_input[] | null;
+  input: runCancel_runCancel_inputs_input;
 }
 
 export interface runCancel_runCancel_routine_inputs_translations {

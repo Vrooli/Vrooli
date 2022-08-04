@@ -1,6 +1,6 @@
 import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeRoutineListItem, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemCreateInput, RoutinePermission } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, addSupplementalFieldsHelper, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, FormatConverter, modelToGraphQL, PartialGraphQLInfo, Permissioner, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, addSupplementalFieldsHelper, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, PartialGraphQLInfo, Permissioner, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { CODE, DeleteOneType, inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, omit, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routinesUpdate, routineTranslationCreate, routineTranslationUpdate } from "@local/shared";
 import { hasProfanity } from "../../utils/censor";
@@ -124,48 +124,6 @@ export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> 
             ]
         });
     }
-    // // Query for role
-    // if (partial.role) {
-    //     // console.log('checking routine roles', ids);
-    //     let organizationIds: string[] = [];
-    //     // Collect owner data
-    //     let ownerData: any = objects.map(x => x.owner).filter(x => x);
-    //     // If no owner data was found, then owner data was not queried. In this case, query for owner data.
-    //     if (ownerData.length === 0) {
-    //         const ownerDataUnformatted = await prisma.routine.findMany({
-    //             where: { id: { in: ids } },
-    //             select: {
-    //                 id: true,
-    //                 user: { select: { id: true } },
-    //                 organization: { select: { id: true } },
-    //             },
-    //         });
-    //         organizationIds = ownerDataUnformatted.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
-    //         // Inject owner data into "objects"
-    //         objects = objects.map((x, i) => {
-    //             const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
-    //             return ({ ...x, owner: unformatted?.user || unformatted?.organization })
-    //         });
-    //     } else {
-    //         organizationIds = objects
-    //             .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
-    //             .map(x => x.owner.id)
-    //             .filter(x => Boolean(x)) as string[];
-    //     }
-    //     // If owned by user, set role to owner if userId matches
-    //     // If owned by organization, set role user's role in organization
-    //     const roles = userId
-    //         ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
-    //         : [];
-    //     // console.log('got routine roles', roles)
-    //     objects = objects.map((x) => {
-    //         const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
-    //         if (orgRoleIndex >= 0) {
-    //             return { ...x, role: roles[orgRoleIndex] };
-    //         }
-    //         return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
-    //     }) as any;
-    // }
 })
 
 export const routinePermissioner = (prisma: PrismaType): Permissioner<RoutinePermission, RoutineSearchInput> => ({
@@ -174,17 +132,67 @@ export const routinePermissioner = (prisma: PrismaType): Permissioner<RoutinePer
         permissions,
         userId,
     }) {
-        //TODO
-        return objects.map((o) => ({
+        // Initialize result with ID
+        const result: Partial<RoutinePermission>[] = objects.map((o) => ({
             canComment: true,
-            canDelete: true,
-            canEdit: true,
+            canDelete: false,
+            canEdit: false,
             canReport: true,
             canRun: true,
             canStar: true,
             canView: true,
             canVote: true,
         }));
+        const ids = objects.map(x => x.id);
+        let ownerData: { 
+            id: string, 
+            user?: { id: string } | null | undefined, 
+            organization?: { id: string } | null | undefined
+        }[] = [];
+        // If some owner data missing, query for owner data.
+        if (objects.map(x => x.owner).filter(x => x).length < objects.length) {
+            ownerData = await prisma.routine.findMany({
+                where: { id: { in: ids } },
+                select: {
+                    id: true,
+                    user: { select: { id: true } },
+                    organization: { select: { id: true } },
+                },
+            });
+        } else {
+            ownerData = objects.map((x) => {
+                const isOrg = Boolean(Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name);
+                return ({
+                    id: x.id,
+                    user: isOrg ? null : x.owner,
+                    organization: isOrg ? x.owner : null,
+                });
+            });
+        }
+        // Find permissions for every organization
+        const organizationIds: string[] = ownerData.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
+        const orgPermissions = await OrganizationModel.permissions(prisma).get({ 
+            objects: organizationIds.map(x => ({ id: x })),
+            userId 
+        });
+        // Find which objects have ownership permissions
+        for (let i = 0; i < objects.length; i++) {
+            const unformatted = ownerData.find(y => y.id === objects[i].id);
+            if (!unformatted) continue;
+            // Check if user owns object directly, or through organization
+            if (unformatted.user?.id !== userId) {
+                const orgIdIndex = organizationIds.findIndex(id => id === unformatted?.organization?.id);
+                if (orgIdIndex < 0) continue;
+                if (!orgPermissions[orgIdIndex].canEdit) continue;
+            }
+            // Set owner permissions
+            result[i].canDelete = true;
+            result[i].canEdit = true;
+            result[i].canView = true;
+        }
+        // TODO isPrivate view check
+        // TODO check relationships for permissions
+        return result as RoutinePermission[];
     },
     async canSearch({
         input,
@@ -216,13 +224,14 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
-        return ({
-            OR: [
-                { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-                { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
-                { tags: { some: { tag: { tag: { ...insensitive } } } } },
-            ]
+        return getSearchStringQueryHelper({ searchString,
+            resolver: ({ insensitive }) => ({ 
+                OR: [
+                    { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
+                    { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
+                    { tags: { some: { tag: { tag: { ...insensitive } } } } },
+                ]
+            })
         })
     },
     customQueries(input: RoutineSearchInput): { [x: string]: any } {

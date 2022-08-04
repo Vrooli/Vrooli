@@ -66,7 +66,7 @@ export interface runCreate_runCreate_inputs {
   __typename: "RunInput";
   id: string;
   data: string;
-  input: runCreate_runCreate_inputs_input[] | null;
+  input: runCreate_runCreate_inputs_input;
 }
 
 export interface runCreate_runCreate_routine_inputs_translations {

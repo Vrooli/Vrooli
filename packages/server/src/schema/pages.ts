@@ -466,13 +466,16 @@ export const resolvers = {
                 input: { take, ...input, sortBy: ViewSortBy.LastViewedDesc },
                 model: ViewModel,
             });
+            console.log('pages got recentlyviewed', JSON.stringify(recentlyViewed), '\n\n')
             // Query recently starred objects (of any type). Make sure to ignore tags
             const recentlyStarred = await readManyAsFeed({
                 ...commonReadParams,
+                additionalQueries: { userId },
                 info: partial.recentlyStarred as PartialGraphQLInfo,
-                input: { take, ...input, sortBy: UserSortBy.DateCreatedDesc },
+                input: { take, ...input, sortBy: UserSortBy.DateCreatedDesc, excludeTags: true },
                 model: StarModel,
             });
+            console.log('pages finished recentlystarred query', JSON.stringify(recentlyStarred), '\n\n');
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [activeRuns, completedRuns, recentlyViewed, recentlyStarred],
@@ -481,6 +484,7 @@ export const resolvers = {
                 userId,
                 prisma,
             )
+            console.log('history f', JSON.stringify(withSupplemental), '\n\n');
             // Return results
             return {
                 activeRuns: withSupplemental['ar'],

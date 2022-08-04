@@ -9,6 +9,18 @@ import { RunStatus, RunStepStatus } from "./globalTypes";
 // GraphQL fragment: routineRunFields
 // ====================================================
 
+export interface routineRunFields_inputs_input {
+  __typename: "InputItem";
+  id: string;
+}
+
+export interface routineRunFields_inputs {
+  __typename: "RunInput";
+  id: string;
+  data: string;
+  input: routineRunFields_inputs_input;
+}
+
 export interface routineRunFields_steps_node {
   __typename: "Node";
   id: string;
@@ -33,6 +45,7 @@ export interface routineRunFields {
   id: string;
   completedComplexity: number;
   contextSwitches: number;
+  inputs: routineRunFields_inputs[];
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;

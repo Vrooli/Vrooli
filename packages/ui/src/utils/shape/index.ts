@@ -10,6 +10,7 @@ export * from './profileShapes';
 export * from './projectShapes';
 export * from './resourceShapes';
 export * from './routineShapes';
+export * from './runShapes';
 export * from './schemaTools';
 export * from './standardShapes';
 export * from './tagShapes';

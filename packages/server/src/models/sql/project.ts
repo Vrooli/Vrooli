@@ -2,7 +2,7 @@ import { CODE, omit, projectsCreate, projectsUpdate, projectTranslationCreate, p
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
 import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor, ProjectPermission, OrganizationPermission } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFieldsHelper, CUDInput, CUDResult, FormatConverter, modelToGraphQL, Permissioner, permissionsCheck, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFieldsHelper, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, Permissioner, permissionsCheck, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -168,7 +168,7 @@ export const projectPermissioner = (prisma: PrismaType): Permissioner<ProjectPer
                 prisma,
                 userId,
             })
-            if (!isMember) return 'none';
+            if (isMember) return 'full';
         }
         if (input.parentId) {
             const canEdit = await permissionsCheck({
@@ -178,12 +178,12 @@ export const projectPermissioner = (prisma: PrismaType): Permissioner<ProjectPer
                 prisma,
                 userId,
             })
-            if (!canEdit) return 'none';
+            if (canEdit) return 'full';
         }
         if (input.userId) {
-            if (input.userId !== userId) return 'none';
+            if (input.userId === userId) return 'full';
         }
-        if (input.organizationId || input.userId || input.parentId) return 'full';
+        if (input.organizationId || input.userId || input.parentId) return 'public';
         return 'public';
     }
 })
@@ -209,14 +209,15 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
-        return ({
-            OR: [
-                { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-                { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
-                { tags: { some: { tag: { tag: { ...insensitive } } } } },
-            ]
-        })
+        return getSearchStringQueryHelper({ searchString,
+            resolver: ({ insensitive }) => ({ 
+                OR: [
+                    { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
+                    { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
+                    { tags: { some: { tag: { tag: { ...insensitive } } } } },
+                ]
+            })
+        }) 
     },
     customQueries(input: ProjectSearchInput): { [x: string]: any } {
         // isComplete routines may be set to true or false generally, and also set exceptions

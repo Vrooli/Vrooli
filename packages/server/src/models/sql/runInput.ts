@@ -1,4 +1,4 @@
-import { CODE, inputsCreate, inputsUpdate } from "@local/shared";
+import { CODE, runInputsCreate, runInputsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, RunInputCreateInput, RunInputUpdateInput, RunInput } from "../../schema/types";
 import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
@@ -72,7 +72,8 @@ export const runInputMutater = (prisma: PrismaType) => ({
     async toDBShapeAdd(userId: string, data: RunInputCreateInput): Promise<any> {
         return {
             id: data.id,
-            data: data.data
+            data: data.data,
+            inputId: data.inputId,
         }
     },
     async toDBShapeUpdate(userId: string, data: RunInputUpdateInput): Promise<any> {
@@ -127,11 +128,11 @@ export const runInputMutater = (prisma: PrismaType) => ({
         if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0176') });
         if (createMany) {
-            inputsCreate.validateSync(createMany, { abortEarly: false });
+            runInputsCreate.validateSync(createMany, { abortEarly: false });
             runInputVerifier().profanityCheck(createMany);
         }
         if (updateMany) {
-            inputsUpdate.validateSync(updateMany.map(u => ({ ...u.data, id: u.where.id })), { abortEarly: false });
+            runInputsUpdate.validateSync(updateMany.map(u => ({ ...u.data, id: u.where.id })), { abortEarly: false });
             runInputVerifier().profanityCheck(updateMany.map(u => u.data));
             // Check that user owns each input
             //TODO

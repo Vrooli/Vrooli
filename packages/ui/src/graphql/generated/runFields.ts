@@ -66,7 +66,7 @@ export interface runFields_inputs {
   __typename: "RunInput";
   id: string;
   data: string;
-  input: runFields_inputs_input[] | null;
+  input: runFields_inputs_input;
 }
 
 export interface runFields_routine_inputs_translations {

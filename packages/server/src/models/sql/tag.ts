@@ -1,6 +1,6 @@
 import { Count, Tag, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { addJoinTablesHelper, addSupplementalFieldsHelper, CUDInput, CUDResult, FormatConverter, joinRelationshipToPrisma, modelToGraphQL, PartialGraphQLInfo, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addJoinTablesHelper, addSupplementalFieldsHelper, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, joinRelationshipToPrisma, modelToGraphQL, PartialGraphQLInfo, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { CODE, omit, tagsCreate, tagsUpdate, tagTranslationCreate, tagTranslationUpdate } from "@local/shared";
 import { validateProfanity } from "../../utils/censor";
@@ -27,10 +27,11 @@ export const tagFormatter = (): FormatConverter<Tag, any> => ({
     },
     removeSupplementalFields: (partial) => {
         const omitted = omit(partial, supplementalFields);
-        // Add createdByUserId field so we can calculate isOwn
-        return { ...omitted, createdByUserId: true }
+        // Add createdByUserId field so we can calculate isOwn, and id field for add supplemental groupbyid
+        return { ...omitted, createdByUserId: true, id: true }
     },
     async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Tag>[]> {
+        console.log('in tag adddsupp fields', objects)
         return addSupplementalFieldsHelper({
             objects,
             partial,
@@ -55,12 +56,13 @@ export const tagSearcher = (): Searcher<TagSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
-        return ({
-            OR: [
-                { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-                { tag: { ...insensitive } },
-            ]
+        return getSearchStringQueryHelper({ searchString,
+            resolver: ({ insensitive }) => ({ 
+                OR: [
+                    { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
+                    { tag: { ...insensitive } },
+                ]
+            })
         })
     },
     customQueries(input: TagSearchInput): { [x: string]: any } {
@@ -82,7 +84,7 @@ export const tagVerifier = () => ({
 export const tagMutater = (prisma: PrismaType) => ({
     async toDBShape(userId: string | null, data: TagCreateInput | TagUpdateInput): Promise<any> {
         return {
-            name: data.tag,
+            tag: data.tag,
             createdByUserId: userId,
             translations: TranslationModel.relationshipBuilder(userId, data, { create: tagTranslationCreate, update: tagTranslationUpdate }, false),
         }

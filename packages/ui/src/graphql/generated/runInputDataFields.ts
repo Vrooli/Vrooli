@@ -64,5 +64,5 @@ export interface runInputDataFields {
   __typename: "RunInput";
   id: string;
   data: string;
-  input: runInputDataFields_input[] | null;
+  input: runInputDataFields_input;
 }

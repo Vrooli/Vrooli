@@ -456,6 +456,18 @@ export interface routine_routine_resourceLists {
   resources: routine_routine_resourceLists_resources[];
 }
 
+export interface routine_routine_runs_inputs_input {
+  __typename: "InputItem";
+  id: string;
+}
+
+export interface routine_routine_runs_inputs {
+  __typename: "RunInput";
+  id: string;
+  data: string;
+  input: routine_routine_runs_inputs_input;
+}
+
 export interface routine_routine_runs_steps_node {
   __typename: "Node";
   id: string;
@@ -480,6 +492,7 @@ export interface routine_routine_runs {
   id: string;
   completedComplexity: number;
   contextSwitches: number;
+  inputs: routine_routine_runs_inputs[];
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;

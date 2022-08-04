@@ -1543,6 +1543,7 @@ export type Query = {
   standard?: Maybe<Standard>;
   standards: StandardSearchResult;
   standardsCount: Scalars['Int'];
+  stars: StarSearchResult;
   statisticsPage: StatisticsPageResult;
   tag?: Maybe<Tag>;
   tags: TagSearchResult;
@@ -1715,6 +1716,11 @@ export type QueryStandardsArgs = {
 
 export type QueryStandardsCountArgs = {
   input: StandardCountInput;
+};
+
+
+export type QueryStarsArgs = {
+  input: StarSearchInput;
 };
 
 
@@ -2352,6 +2358,9 @@ export type RunCompleteInput = {
   finalStepCreate?: InputMaybe<RunStepCreateInput>;
   finalStepUpdate?: InputMaybe<RunStepUpdateInput>;
   id: Scalars['ID'];
+  inputsCreate?: InputMaybe<Array<RunInputCreateInput>>;
+  inputsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  inputsUpdate?: InputMaybe<Array<RunInputUpdateInput>>;
   title: Scalars['String'];
   version: Scalars['String'];
   wasSuccessful?: InputMaybe<Scalars['Boolean']>;
@@ -2382,12 +2391,13 @@ export type RunInput = {
   __typename?: 'RunInput';
   data: Scalars['String'];
   id: Scalars['ID'];
-  input?: Maybe<Array<InputItem>>;
+  input: InputItem;
 };
 
 export type RunInputCreateInput = {
   data: Scalars['String'];
   id: Scalars['ID'];
+  inputId: Scalars['ID'];
 };
 
 export type RunInputEdge = {
@@ -2692,6 +2702,12 @@ export type Star = {
   to: StarTo;
 };
 
+export type StarEdge = {
+  __typename?: 'StarEdge';
+  cursor: Scalars['String'];
+  node: Star;
+};
+
 export enum StarFor {
   Comment = 'Comment',
   Organization = 'Organization',
@@ -2707,6 +2723,25 @@ export type StarInput = {
   isStar: Scalars['Boolean'];
   starFor: StarFor;
 };
+
+export type StarSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  excludeTags?: InputMaybe<Scalars['Boolean']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  sortBy?: InputMaybe<StarSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type StarSearchResult = {
+  __typename?: 'StarSearchResult';
+  edges: Array<StarEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum StarSortBy {
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
 
 export type StarTo = Comment | Organization | Project | Routine | Standard | Tag | User;
 

@@ -66,7 +66,7 @@ export interface runUpdate_runUpdate_inputs {
   __typename: "RunInput";
   id: string;
   data: string;
-  input: runUpdate_runUpdate_inputs_input[] | null;
+  input: runUpdate_runUpdate_inputs_input;
 }
 
 export interface runUpdate_runUpdate_routine_inputs_translations {

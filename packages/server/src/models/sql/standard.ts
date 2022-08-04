@@ -2,7 +2,7 @@ import { CODE, DeleteOneType, omit, standardsCreate, standardsUpdate, standardTr
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count, StandardPermission } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addSupplementalFieldsHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, modelToGraphQL, PartialGraphQLInfo, Permissioner, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addSupplementalFieldsHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, PartialGraphQLInfo, Permissioner, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { validateProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -73,46 +73,6 @@ export const standardFormatter = (): FormatConverter<Standard, StandardPermissio
             ]
         });
     }
-    // if (partial.role) {
-    //     let organizationIds: string[] = [];
-    //     // Collect owner data
-    //     let ownerData: any = objects.map(x => x.owner).filter(x => x);
-    //     // If no owner data was found, then owner data was not queried. In this case, query for owner data.
-    //     if (ownerData.length === 0) {
-    //         const ownerDataUnformatted = await prisma.standard.findMany({
-    //             where: { id: { in: ids } },
-    //             select: {
-    //                 id: true,
-    //                 createdByUser: { select: { id: true } },
-    //                 createdByOrganization: { select: { id: true } },
-    //             },
-    //         });
-    //         organizationIds = ownerDataUnformatted.map(x => x.createdByOrganization?.id).filter(x => Boolean(x)) as string[];
-    //         // Inject owner data into "objects"
-    //         objects = objects.map((x, i) => {
-    //             const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
-    //             return ({ ...x, owner: unformatted?.createdByUser || unformatted?.createdByOrganization })
-    //         });
-    //     } else {
-    //         organizationIds = objects
-    //             .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
-    //             .map(x => x.owner.id)
-    //             .filter(x => Boolean(x)) as string[];
-    //     }
-    //     // If owned by user, set role to owner if userId matches
-    //     // If owned by organization, set role user's role in organization
-    //     const roles = userId
-    //         ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
-    //         : [];
-    //     objects = objects.map((x) => {
-    //         const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
-    //         if (orgRoleIndex >= 0) {
-    //             return { ...x, role: roles[orgRoleIndex] };
-    //         }
-    //         return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
-    //     }) as any;
-    // }
-    // Convert Prisma objects to GraphQL objects
 })
 
 export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardPermission, StandardSearchInput> => ({
@@ -121,16 +81,71 @@ export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardP
         permissions,
         userId,
     }) {
-        //TODO
-        return objects.map((o) => ({
+        console.log('standard permissioner a', JSON.stringify(objects), '\n\n')
+        // Initialize result with ID
+        const result: Partial<StandardPermission>[] = objects.map((o) => ({
             canComment: true,
-            canDelete: true,
-            canEdit: true,
+            canDelete: false,
+            canEdit: false,
             canReport: true,
             canStar: true,
             canView: true,
             canVote: true,
         }));
+        const ids = objects.map(x => x.id);
+        let creatorData: { 
+            id: string, 
+            user?: { id: string } | null | undefined, 
+            organization?: { id: string } | null | undefined
+        }[] = [];
+        // If some creator data missing, query for creator data.
+        if (objects.map(x => x.creator).filter(x => x).length < objects.length) {
+            console.log('standard permissioner before break?', ids, '\n')
+            creatorData = await prisma.standard.findMany({
+                where: { id: { in: ids } },
+                select: {
+                    id: true,
+                    createdByUser: { select: { id: true } },
+                    createdByOrganization: { select: { id: true } },
+                },
+            });
+            console.log('didnt break!', JSON.stringify(creatorData), '\n\n')
+        } else {
+            console.log('standard permissioner m')
+            creatorData = objects.map((x) => {
+                const isOrg = Boolean(Array.isArray(x.creator?.translations) && x.creator.translations.length > 0 && x.creator.translations[0].name);
+                return ({
+                    id: x.id,
+                    user: isOrg ? null : x.creator,
+                    organization: isOrg ? x.creator : null,
+                });
+            });
+            console.log('standard permissioner n')
+        }
+        // Find permissions for every organization
+        const organizationIds: string[] = creatorData.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
+        const orgPermissions = await OrganizationModel.permissions(prisma).get({ 
+            objects: organizationIds.map(x => ({ id: x })),
+            userId 
+        });
+        // Find which objects have ownership permissions
+        for (let i = 0; i < objects.length; i++) {
+            const unformatted = creatorData.find(y => y.id === objects[i].id);
+            if (!unformatted) continue;
+            // Check if user owns object directly, or through organization
+            if (unformatted.user?.id !== userId) {
+                const orgIdIndex = organizationIds.findIndex(id => id === unformatted?.organization?.id);
+                if (orgIdIndex < 0) continue;
+                if (!orgPermissions[orgIdIndex].canEdit) continue;
+            }
+            // Set creator permissions
+            result[i].canDelete = true;
+            result[i].canEdit = true;
+            result[i].canView = true;
+        }
+        // TODO isPrivate view check
+        // TODO check relationships for permissions
+        return result as StandardPermission[];
     },
     async canSearch({
         input,
@@ -158,13 +173,14 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
-        return ({
-            OR: [
-                { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-                { name: { ...insensitive } },
-                { tags: { some: { tag: { tag: { ...insensitive } } } } },
-            ]
+        return getSearchStringQueryHelper({ searchString,
+            resolver: ({ insensitive }) => ({ 
+                OR: [
+                    { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
+                    { name: { ...insensitive } },
+                    { tags: { some: { tag: { tag: { ...insensitive } } } } },
+                ]
+            })
         })
     },
     customQueries(input: StandardSearchInput): { [x: string]: any } {

@@ -114,6 +114,7 @@ export const InputOutputListItem = ({
     }, language));
 
     const handleInputTypeSelect = useCallback((event: any) => {
+        console.log('handleinputtypeselect', event.target.value)
         if (event.target.value !== item.standard?.type) {
             const newType = event.target.value?.value ?? InputTypeOptions[0].value;
             const existingStandard = item.standard ?? defaultStandard(item);
@@ -128,9 +129,12 @@ export const InputOutputListItem = ({
     }, [item, language, schemaKey]);
 
     useEffect(() => {
+        console.log('in useeffect for external standard generated schema')
         if (item.standard && item.standard.isInternal === false) {
+            console.log('setting external standard')
             setExternalStandard(item.standard)
         } else {
+            console.log('setting generated standard')
             setGeneratedSchema(toFieldData(schemaKey, item, language))
         }
     }, [item, language, schemaKey, setExternalStandard]);
@@ -201,6 +205,7 @@ export const InputOutputListItem = ({
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(isExternal);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
     const onSwitchChange = useCallback((s: Standard | null) => {
+        console.log('on switch change')
         setIsPreviewOn(Boolean(s));
         if (s && s.isInternal === false) {
             setExternalStandard(s)

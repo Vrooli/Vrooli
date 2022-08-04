@@ -66,7 +66,7 @@ export interface runComplete_runComplete_inputs {
   __typename: "RunInput";
   id: string;
   data: string;
-  input: runComplete_runComplete_inputs_input[] | null;
+  input: runComplete_runComplete_inputs_input;
 }
 
 export interface runComplete_runComplete_routine_inputs_translations {

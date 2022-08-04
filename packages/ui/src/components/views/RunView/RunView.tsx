@@ -11,12 +11,12 @@ import {
     DoneAll as CompleteIcon,
 } from '@mui/icons-material';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getRunPercentComplete, getTranslation, getUserLanguages, locationArraysMatch, PubSub, routineHasSubroutines, RoutineStepType, TERTIARY_COLOR, updateArray, useReactSearch } from "utils";
+import { getRunPercentComplete, getTranslation, getUserLanguages, locationArraysMatch, PubSub, routineHasSubroutines, RoutineStepType, runInputsUpdate, TERTIARY_COLOR, updateArray, useReactSearch } from "utils";
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { validate as uuidValidate } from 'uuid';
-import { DecisionStep, Node, NodeDataEnd, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, RunStep, SubroutineStep } from "types";
+import { DecisionStep, Node, NodeDataEnd, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, Run, RunInput, RunStep, SubroutineStep } from "types";
 import { parseSearchParams, stringifySearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
 import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
@@ -104,10 +104,12 @@ export const RunView = ({
             testMode: params.run === 'test',
         }
     }, [params])
-    const run = useMemo(() => {
-        if (!routine) return undefined;
-        return routine.runs.find(run => run.id === runId);
-    }, [routine, runId]);
+    const [run, setRun] = useState<Run | undefined>(undefined);
+    useEffect(() => {
+        if (!routine?.runs) return undefined;
+        const run = routine.runs.find(run => run.id === runId);
+        setRun(run);
+    }, [routine.runs, runId]);
 
     /**
      * Updates step location in the URL
@@ -294,6 +296,23 @@ export const RunView = ({
         const runStep = run?.steps?.find((s: RunStep) => locationArraysMatch(s.step, currStepLocation));
         return runStep;
     }, [run?.steps, currStepLocation]);
+
+    /**
+     * Stores user inputs, which are uploaded to the run's data
+     */
+    const currUserInputs = useRef<{ [inputId: string]: string }>({});
+    const handleUserInputsUpdate = useCallback((inputs: { [inputId: string]: string }) => {
+        console.log('handleuserinputsupdate', inputs);
+        currUserInputs.current = inputs;
+    }, []);
+    useEffect(() => {
+        if (!run?.inputs || !Array.isArray(run?.inputs)) return;
+        const inputs: { [inputId: string]: string } = run.inputs.map((input: RunInput) => ({ [input.input.id]: input.data }));
+        if (JSON.stringify(inputs) !== JSON.stringify(currUserInputs.current)) {
+            console.log('goop', inputs, currUserInputs.current);
+            handleUserInputsUpdate(inputs);
+        }
+    }, [run?.inputs, handleUserInputsUpdate]);
 
     // Track user behavior during step (time elapsed, context switches)
     /**
@@ -530,13 +549,12 @@ export const RunView = ({
                         //TODO - fetch subroutine data
                         // result.push(1);
                         // currNextStep = findStep(result);
-                        // console.log('NEXT STEP BOOP', currNextStep)
+                        // console.log('NEXT STEP', currNextStep)
                     }
                     break;
             }
         }
         // Return result
-        console.log('NEXT STEP RESULT', result)
         return result;
     }, [currStepLocation, currentStep, findStep]);
 
@@ -607,16 +625,19 @@ export const RunView = ({
         }];
         // If a next step exists, update
         if (nextStep) {
-            logRunUpdate({
-                variables: {
-                    input: {
-                        id: run.id,
-                        completedComplexity: newlyCompletedComplexity,
-                        stepsCreate,
-                        stepsUpdate,
-                    }
+            mutationWrapper({
+                mutation: logRunUpdate,
+                input: {
+                    id: run.id,
+                    completedComplexity: newlyCompletedComplexity,
+                    stepsCreate,
+                    stepsUpdate,
+                    ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),
+                },
+                onSuccess: ({ data }) => {
+                    setRun(data.runUpdate);
                 }
-            });
+            })
         } else {
             mutationWrapper({
                 mutation: logRunComplete,
@@ -629,6 +650,7 @@ export const RunView = ({
                     title: getTranslation(routine, 'title', getUserLanguages(session), true) ?? 'Unnamed Routine',
                     version: routine.version ?? '',
                     wasSuccessful: true, //TODO
+                    ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),
                 },
                 successMessage: () => 'Routine completed!🎉',
                 onSuccess: () => {
@@ -671,6 +693,7 @@ export const RunView = ({
                 title: getTranslation(routine, 'title', getUserLanguages(session), true) ?? 'Unnamed Routine',
                 version: routine.version ?? '',
                 wasSuccessful: success,
+                ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),
             },
             successMessage: () => 'Routine completed!🎉',
             onSuccess: () => {
@@ -694,14 +717,17 @@ export const RunView = ({
             contextSwitches: currStepRunData.contextSwitches + contextSwitches,
         } : undefined
         // Send data to server
-        logRunUpdate({
-            variables: {
-                input: {
-                    id: run.id,
-                    stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
-                }
+        mutationWrapper({
+            mutation: logRunUpdate,
+            input: {
+                id: run.id,
+                stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
+                ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),
+            },
+            onSuccess: ({ data }) => {
+                setRun(data.runUpdate);
             }
-        });
+        })
     }, [contextSwitches, currStepRunData, logRunUpdate, run, testMode, timeElapsed]);
 
     /**
@@ -739,9 +765,11 @@ export const RunView = ({
             case RoutineStepType.Subroutine:
                 return <SubroutineView
                     session={session}
-                    data={(currentStep as SubroutineStep).routine}
+                    handleUserInputsUpdate={handleUserInputsUpdate}
                     handleSaveProgress={saveProgress}
                     owner={routine.owner}
+                    routine={(currentStep as SubroutineStep).routine}
+                    run={run}
                     loading={subroutineLoading}
                     zIndex={zIndex}
                 />
@@ -754,7 +782,7 @@ export const RunView = ({
                     zIndex={zIndex}
                 />
         }
-    }, [currentStep, routine?.nodes, routine.owner, saveProgress, session, subroutineLoading, toDecision, zIndex]);
+    }, [currentStep, handleUserInputsUpdate, routine?.nodes, routine.owner, run, saveProgress, session, subroutineLoading, toDecision, zIndex]);
 
     return (
         <Box sx={{ minHeight: '100vh' }}>

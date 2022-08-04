@@ -3,7 +3,7 @@ import { CustomError } from "../../error";
 import { Count, Report, ReportCreateInput, ReportSearchInput, ReportSortBy, ReportUpdateInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
 import { validateProfanity } from "../../utils/censor";
-import { addSupplementalFieldsHelper, CUDInput, CUDResult, FormatConverter, modelToGraphQL, PartialGraphQLInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addSupplementalFieldsHelper, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, PartialGraphQLInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
 
 //==============================================================
@@ -45,12 +45,13 @@ export const reportSearcher = (): Searcher<ReportSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string): any => {
-        const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
-        return ({
-            OR: [
-                { reason: { ...insensitive } },
-                { details: { ...insensitive } },
-            ]
+        return getSearchStringQueryHelper({ searchString,
+            resolver: ({ insensitive }) => ({ 
+                OR: [
+                    { reason: { ...insensitive } },
+                    { details: { ...insensitive } },
+                ]
+            })
         })
     },
     customQueries(input: ReportSearchInput): { [x: string]: any } {

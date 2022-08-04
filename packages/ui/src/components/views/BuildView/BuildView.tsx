@@ -340,8 +340,6 @@ export const BuildView = ({
      * Mutates routine data
      */
     const updateRoutine = useCallback(() => {
-        console.log('original', routine);
-        console.log('changed', changedRoutine);
         if (!changedRoutine || isEqual(routine, changedRoutine)) {
             PubSub.get().publishSnack({ message: 'No changes detected', severity: 'error' });
             return;

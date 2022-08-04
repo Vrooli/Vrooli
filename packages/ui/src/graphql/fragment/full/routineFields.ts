@@ -234,6 +234,13 @@ export const routineFields = gql`
         id
         completedComplexity
         contextSwitches
+        inputs {
+            id
+            data
+            input {
+                id
+            }
+        }
         timeStarted
         timeElapsed
         timeCompleted

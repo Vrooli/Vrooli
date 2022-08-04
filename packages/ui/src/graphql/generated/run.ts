@@ -66,7 +66,7 @@ export interface run_run_inputs {
   __typename: "RunInput";
   id: string;
   data: string;
-  input: run_run_inputs_input[] | null;
+  input: run_run_inputs_input;
 }
 
 export interface run_run_routine_inputs_translations {

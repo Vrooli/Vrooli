@@ -320,7 +320,6 @@ export const resolvers = {
     Mutation: {
         routineCreate: async (_parent: undefined, { input }: IWrap<RoutineCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             await rateLimit({ info, max: 500, byAccountOrKey: true, req });
-            console.log('routien create start')
             return createHelper({ info, input, model: RoutineModel, prisma, userId: req.userId });
         },
         routineUpdate: async (_parent: undefined, { input }: IWrap<RoutineUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {

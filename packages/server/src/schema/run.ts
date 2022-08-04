@@ -148,6 +148,9 @@ export const typeDef = gql`
         title: String! # Title of routine, so run name stays consistent even if routine updates/deletes
         finalStepCreate: RunStepCreateInput
         finalStepUpdate: RunStepUpdateInput
+        inputsDelete: [ID!]
+        inputsCreate: [RunInputCreateInput!]
+        inputsUpdate: [RunInputUpdateInput!]
         version: String! # Version of routine which was ran
         wasSuccessful: Boolean
     }

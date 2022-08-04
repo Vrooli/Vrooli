@@ -1100,6 +1100,9 @@ export interface RunCompleteInput {
   title: string;
   finalStepCreate?: RunStepCreateInput | null;
   finalStepUpdate?: RunStepUpdateInput | null;
+  inputsDelete?: string[] | null;
+  inputsCreate?: RunInputCreateInput[] | null;
+  inputsUpdate?: RunInputUpdateInput[] | null;
   version: string;
   wasSuccessful?: boolean | null;
 }
@@ -1122,6 +1125,7 @@ export interface RunCreateInput {
 export interface RunInputCreateInput {
   id: string;
   data: string;
+  inputId: string;
 }
 
 export interface RunInputSearchInput {

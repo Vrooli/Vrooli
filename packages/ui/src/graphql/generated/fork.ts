@@ -666,6 +666,18 @@ export interface fork_fork_routine_resourceLists {
   resources: fork_fork_routine_resourceLists_resources[];
 }
 
+export interface fork_fork_routine_runs_inputs_input {
+  __typename: "InputItem";
+  id: string;
+}
+
+export interface fork_fork_routine_runs_inputs {
+  __typename: "RunInput";
+  id: string;
+  data: string;
+  input: fork_fork_routine_runs_inputs_input;
+}
+
 export interface fork_fork_routine_runs_steps_node {
   __typename: "Node";
   id: string;
@@ -690,6 +702,7 @@ export interface fork_fork_routine_runs {
   id: string;
   completedComplexity: number;
   contextSwitches: number;
+  inputs: fork_fork_routine_runs_inputs[];
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;

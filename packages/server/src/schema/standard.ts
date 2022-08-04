@@ -136,13 +136,11 @@ export const typeDef = gql`
         userId: ID
     }
 
-    # Return type for search result
     type StandardSearchResult {
         pageInfo: PageInfo!
         edges: [StandardEdge!]!
     }
 
-    # Return type for search result edge
     type StandardEdge {
         cursor: String!
         node: Standard!

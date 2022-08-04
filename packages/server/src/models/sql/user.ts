@@ -1,5 +1,5 @@
 import { User, UserSortBy, UserSearchInput, ResourceListUsedFor, } from "../../schema/types";
-import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, FormatConverter, PartialGraphQLInfo, removeCountFieldsHelper, removeJoinTablesHelper, Searcher } from "./base";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, FormatConverter, getSearchStringQueryHelper, PartialGraphQLInfo, removeCountFieldsHelper, removeJoinTablesHelper, Searcher } from "./base";
 import { PrismaType, RecursivePartial } from "../../types";
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
@@ -62,13 +62,14 @@ export const userSearcher = (): Searcher<UserSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
-        return ({
-            OR: [
-                { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },
-                { name: { ...insensitive } },
-                { handle: { ...insensitive } },
-            ]
+        return getSearchStringQueryHelper({ searchString,
+            resolver: ({ insensitive }) => ({ 
+                OR: [
+                    { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },
+                    { name: { ...insensitive } },
+                    { handle: { ...insensitive } },
+                ]
+            })
         })
     },
     customQueries(input: UserSearchInput): { [x: string]: any } {

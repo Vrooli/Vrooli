@@ -2,7 +2,7 @@ import { CODE, runsCreate, runsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, LogType, Run, RunCancelInput, RunCompleteInput, RunCreateInput, RunSearchInput, RunSortBy, RunStatus, RunUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, ValidateMutationsInput, Permissioner } from "./base";
+import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, ValidateMutationsInput, Permissioner, getSearchStringQueryHelper } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { RunStepModel } from "./runStep";
@@ -39,21 +39,22 @@ export const runSearcher = (): Searcher<RunSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
-        return ({
-            OR: [
-                {
-                    routine: {
-                        translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } },
-                    }
-                },
-                {
-                    routine: {
-                        translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } },
-                    }
-                },
-                { title: { ...insensitive } }
-            ]
+        return getSearchStringQueryHelper({ searchString,
+            resolver: ({ insensitive }) => ({ 
+                OR: [
+                    {
+                        routine: {
+                            translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } },
+                        }
+                    },
+                    {
+                        routine: {
+                            translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } },
+                        }
+                    },
+                    { title: { ...insensitive } }
+                ]
+            })
         })
     },
     customQueries(input: RunSearchInput): { [x: string]: any } {

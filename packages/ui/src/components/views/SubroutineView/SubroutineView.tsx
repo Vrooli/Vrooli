@@ -5,9 +5,9 @@ import {
 } from "@mui/icons-material";
 import { HelpButton, LinkButton, ResourceListHorizontal } from "components";
 import Markdown from "markdown-to-jsx";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { containerShadow } from "styles";
-import { getOwnedByString, getTranslation, getUserLanguages, PubSub, standardToFieldData, toOwnedBy } from "utils";
+import { formikToRunInputs, getOwnedByString, getTranslation, getUserLanguages, PubSub, runInputsToFormik, standardToFieldData, toOwnedBy } from "utils";
 import { useLocation } from "wouter";
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
@@ -16,9 +16,11 @@ import { useFormik } from "formik";
 
 export const SubroutineView = ({
     loading,
-    data,
+    handleUserInputsUpdate,
     handleSaveProgress,
     owner,
+    routine,
+    run,
     session,
     zIndex,
 }: SubroutineViewProps) => {
@@ -28,18 +30,18 @@ export const SubroutineView = ({
     const { description, instructions, title } = useMemo(() => {
         const languages = session.languages ?? navigator.languages;
         return {
-            description: getTranslation(data, 'description', languages, true),
-            instructions: getTranslation(data, 'instructions', languages, true),
-            title: getTranslation(data, 'title', languages, true),
+            description: getTranslation(routine, 'description', languages, true),
+            instructions: getTranslation(routine, 'instructions', languages, true),
+            title: getTranslation(routine, 'title', languages, true),
         }
-    }, [data, session.languages]);
+    }, [routine, session.languages]);
 
     const ownedBy = useMemo<string | null>(() => {
-        if (!data) return null;
+        if (!routine) return null;
         // If isInternal, owner is same as overall routine owner
-        const ownerObject = data.isInternal ? { owner } : data;
+        const ownerObject = routine.isInternal ? { owner } : routine;
         return getOwnedByString(ownerObject, getUserLanguages(session))
-    }, [data, owner, session]);
+    }, [routine, owner, session]);
     const toOwner = useCallback(() => {
         // Confirmation dialog for leaving routine
         PubSub.get().publishAlertDialog({
@@ -50,34 +52,35 @@ export const SubroutineView = ({
                         // Save progress
                         handleSaveProgress();
                         // Navigate to owner
-                        const ownerObject = data?.isInternal ? { owner } : data;
+                        const ownerObject = routine?.isInternal ? { owner } : routine;
                         toOwnedBy(ownerObject, setLocation)
                     }
                 },
                 { text: 'Cancel' },
             ]
         });
-    }, [data, handleSaveProgress, owner, setLocation]);
+    }, [routine, handleSaveProgress, owner, setLocation]);
 
     // The schema and formik keys for the form
     const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {
-        if (!data) return null;
+        if (!routine) return null;
         const schemas: { [fieldName: string]: FieldData } = {};
-        for (let i = 0; i < data.inputs?.length; i++) {
+        for (let i = 0; i < routine.inputs?.length; i++) {
+            const currInput = routine.inputs[i];
             const currSchema = standardToFieldData({
-                description: getTranslation(data.inputs[i], 'description', getUserLanguages(session), false) ?? getTranslation(data.inputs[i].standard, 'description', getUserLanguages(session), false),
-                fieldName: `inputs-${i}`,
-                props: data.inputs[i].standard?.props ?? '',
-                name: data.inputs[i].name ?? data.inputs[i].standard?.name ?? '',
-                type: data.inputs[i].standard?.type ?? '',
-                yup: data.inputs[i].standard?.yup ?? null,
+                description: getTranslation(currInput, 'description', getUserLanguages(session), false) ?? getTranslation(currInput.standard, 'description', getUserLanguages(session), false),
+                fieldName: `inputs-${currInput.id}`,
+                props: currInput.standard?.props ?? '',
+                name: currInput.name ?? currInput.standard?.name ?? '',
+                type: currInput.standard?.type ?? '',
+                yup: currInput.standard?.yup ?? null,
             });
             if (currSchema) {
                 schemas[currSchema.fieldName] = currSchema;
             }
         }
         return schemas;
-    }, [data, session]);
+    }, [routine, session]);
     const previewFormik = useFormik({
         initialValues: Object.entries(formValueMap ?? {}).reduce((acc, [key, value]) => {
             acc[key] = value.props.defaultValue ?? '';
@@ -86,6 +89,26 @@ export const SubroutineView = ({
         enableReinitialize: true,
         onSubmit: () => { },
     });
+
+    /**
+     * Update formik values with the current user inputs
+     */
+    useEffect(() => {
+        if (!run?.inputs || !Array.isArray(run?.inputs)) return;
+        const updatedValues = runInputsToFormik(run.inputs);
+        previewFormik.setValues(updatedValues);
+    }, 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [previewFormik.setValues, run.inputs]);
+
+    /**
+     * Update run with updated user inputs
+     */
+    useEffect(() => {
+        if (!previewFormik.values) return;
+        const updatedValues = formikToRunInputs(previewFormik.values);
+        handleUserInputsUpdate(updatedValues);
+    }, [handleUserInputsUpdate, previewFormik.values, run?.inputs]);
 
     /**
      * Copy current value of input to clipboard
@@ -102,20 +125,20 @@ export const SubroutineView = ({
     }, [previewFormik]);
 
     const resourceList = useMemo(() => {
-        if (!data ||
-            !Array.isArray(data.resourceLists) ||
-            data.resourceLists.length < 1 ||
-            data.resourceLists[0].resources.length < 1) return null;
+        if (!routine ||
+            !Array.isArray(routine.resourceLists) ||
+            routine.resourceLists.length < 1 ||
+            routine.resourceLists[0].resources.length < 1) return null;
         return <ResourceListHorizontal
             title={'Resources'}
-            list={(data as any).resourceLists[0]}
+            list={(routine as any).resourceLists[0]}
             canEdit={false}
             handleUpdate={() => { }} // Intentionally blank
             loading={loading}
             session={session}
             zIndex={zIndex}
         />
-    }, [data, loading, session, zIndex]);
+    }, [routine, loading, session, zIndex]);
 
     if (loading) return (
         <Box sx={{
@@ -171,7 +194,7 @@ export const SubroutineView = ({
                             text={ownedBy}
                         />
                     ) : null}
-                    <Typography variant="body1"> - {data?.version}</Typography>
+                    <Typography variant="body1"> - {routine?.version}</Typography>
                 </Stack>
             </Stack>
             {/* Stack that shows routine info, such as resources, description, inputs/outputs */}

@@ -11,7 +11,6 @@ import { v4 as uuid } from 'uuid';
 const { AccountStatus, NodeType, ResourceUsedFor, ResourceListUsedFor } = pkg;
 
 export async function init(prisma: PrismaType) {
-    console.log('a')
     // TODO currently stick migration code here. Once the production database is updated, this stuff
     // can be removed
     // 1. internalizes standards that start with one of the input types
@@ -45,7 +44,6 @@ export async function init(prisma: PrismaType) {
             }
         }
     });
-    console.log('orgs with members', JSON.stringify(orgs), '\n\n');
     for (let i = 0; i < orgs.length; i++) {
         const org = orgs[i];
         // Create new role titled 'Admin'
@@ -62,7 +60,6 @@ export async function init(prisma: PrismaType) {
                 organizationId: org.id,
             }
         })
-        console.log('upserted role', org.id, JSON.stringify(role), '\n\n');
         // Apply role to every member
         for (let j = 0; j < org.members.length; j++) {
             const member = org.members[j];
@@ -74,9 +71,7 @@ export async function init(prisma: PrismaType) {
                     }
                 }
             })
-            console.log('exists', JSON.stringify(exists), '\n\n');
             if (!Boolean(exists)) {
-                console.log('creating user_roles', member.user.id, role.id, '\n\n');
                 await prisma.user_roles.create({
                     data: {
                         user: { connect: { id: member.user.id } },
@@ -187,7 +182,6 @@ export async function init(prisma: PrismaType) {
     //==============================================================
     /* #region Create Admin */
     //==============================================================
-    console.log('h');
     const adminId = '3f038f3b-f8f9-4f9b-8f9b-c8f4b8f9b8d2'
     const admin = await prisma.user.upsert({
         where: {
@@ -230,7 +224,6 @@ export async function init(prisma: PrismaType) {
             }
         },
     })
-    console.log('i');
     //==============================================================
     /* #endregion Create Admin */
     //==============================================================
@@ -250,7 +243,6 @@ export async function init(prisma: PrismaType) {
             ]
         }
     })
-    console.log('j');
     if (!vrooli) {
         logger.log(LogLevel.info, '🏗 Creating Vrooli organization');
         vrooli = await prisma.organization.create({
@@ -305,7 +297,6 @@ export async function init(prisma: PrismaType) {
                 }
             }
         })
-        console.log('k');
         const vrooliAdminRole = await prisma.role.upsert({
             where: {
                 role_organizationId_title_unique: {
@@ -323,7 +314,6 @@ export async function init(prisma: PrismaType) {
                 }
             }
         })
-        console.log('l');
         // Assign admin role to admin
         await prisma.user.update({
             where: {
@@ -337,9 +327,7 @@ export async function init(prisma: PrismaType) {
                 }
             }
         })
-        console.log('m');
     }
-    console.log('n');
     //==============================================================
     /* #endregion Create Organizations */
     //==============================================================

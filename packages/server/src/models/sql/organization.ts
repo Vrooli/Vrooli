@@ -1,6 +1,6 @@
 import { PrismaType, RecursivePartial } from "../../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor, OrganizationPermission } from "../../schema/types";
-import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, Permissioner } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, Permissioner, getSearchStringQueryHelper } from "./base";
 import { CustomError } from "../../error";
 import { CODE, omit, organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@local/shared";
 import { organization_users, role } from "@prisma/client";
@@ -60,13 +60,6 @@ export const organizationFormatter = (): FormatConverter<Organization, Organizat
             ]
         });
     }
-    // // Query for role
-    // if (partial.role) {
-    //     const roles = userId
-    //         ? await OrganizationModel.query(prisma).getRoles(userId, ids)
-    //         : Array(ids.length).fill(null);
-    //     objects = objects.map((x, i) => ({ ...x, role: roles[i] })) as any;
-    // }
 })
 
 export const organizationPermissioner = (prisma: PrismaType): Permissioner<OrganizationPermission, OrganizationSearchInput> => ({
@@ -75,16 +68,32 @@ export const organizationPermissioner = (prisma: PrismaType): Permissioner<Organ
         permissions,
         userId,
     }) {
-        //TODO
-        return objects.map((o) => ({
+        // Initialize result with ID
+        const result: Partial<OrganizationPermission>[] = objects.map((o) => ({
             canAddMembers: true,
-            canDelete: true,
-            canEdit: true,
+            canDelete: false,
+            canEdit: false,
             canReport: true,
             canStar: true,
             canView: true,
-            isMember: true,
+            isMember: false,
         }));
+        const ids = objects.map(x => x.id);
+        // Get user's admin roles for each organization
+        const roles = await OrganizationModel.query(prisma).hasRole(userId ?? '', ids);
+        // Find which organizations the user has admin roles for
+        for (let i = 0; i < objects.length; i++) {
+            const role = roles[i];
+            if (!role) continue;
+            // Set owner permissions
+            result[i].canDelete = true;
+            result[i].canEdit = true;
+            result[i].canView = true;
+            result[i].isMember = true;
+        }
+        // TODO isPrivate view check
+        // TODO check relationships for permissions
+        return result as OrganizationPermission[];
     },
     async canSearch({
         input,
@@ -108,13 +117,14 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
-        return ({
-            OR: [
-                { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },
-                { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
-                { tags: { some: { tag: { tag: { ...insensitive } } } } },
-            ]
+        return getSearchStringQueryHelper({ searchString,
+            resolver: ({ insensitive }) => ({ 
+                OR: [
+                    { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },
+                    { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
+                    { tags: { some: { tag: { tag: { ...insensitive } } } } },
+                ]
+            })
         })
     },
     customQueries(input: OrganizationSearchInput): { [x: string]: any } {
@@ -127,8 +137,7 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
             ...(input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
             ...(input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
             ...(input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
-            //TODO
-            // ...(input.userId !== undefined ? { members: { some: { userId: input.userId, role: { in: [MemberRole.Admin, MemberRole.Owner] } } } } : {}),
+            ...(input.userId !== undefined ? { members: { some: { userId: input.userId } } } : {}),
             ...(input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
             ...(input.standardId !== undefined ? { standards: { some: { id: input.standardId } } } : {}),
             ...(input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
@@ -137,26 +146,6 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
 })
 
 export const organizationQuerier = (prisma: PrismaType) => ({
-    /**
-     * Finds the roles a users has for a list of organizations
-     * @param userId The user's id
-     * @param organizationIds The list of organization ids
-     * @returns An array in the same order as the ids, with either a role or undefined
-     */
-    async getRoles(userId: string, organizationIds: (string | null | undefined)[]): Promise<Array<any | undefined>> {
-        //TODO
-        return Array(organizationIds.length).fill(undefined);
-        // if (organizationIds.length === 0) return [];
-        // // Take out nulls
-        // const idsToQuery = organizationIds.filter(x => x) as string[];
-        // // Query member data for each ID
-        // const memberData = await prisma.organization_users.findMany({
-        //     where: { organization: { id: { in: idsToQuery } }, user: { id: userId } },
-        //     select: { organizationId: true, role: true }
-        // });
-        // // Create an array of the same length as the input, with the member data or undefined
-        // return organizationIds.map(id => memberData.find(({ organizationId }) => organizationId === id)).map((o) => o?.role) as Array<MemberRole | undefined>;
-    },
     /**
      * Determines if a user has a role of a list of organizations
      * @param userId The user's ID
@@ -175,28 +164,7 @@ export const organizationQuerier = (prisma: PrismaType) => ({
                 organization: { id: { in: idsToQuery } },
                 assignees: { some: { user: { id: userId } } }
             }
-        })
-        console.log('in hasrole queried roles', JSON.stringify(roles), '\n\n')
-        const temp = await prisma.role.findMany({
-            where: {
-                organization: { id: { in: idsToQuery } },
-            },
-            select: {
-                id: true,
-                title: true,
-                assignees: {
-                    select: {
-                        user: {
-                            select: {
-                                id: true,
-                                name: true,
-                            }
-                        }
-                    }
-                }
-            }
-        }) 
-        console.log('is hasrole roles without title', JSON.stringify(temp), '\n\n')
+        });
         // Create an array of the same length as the input, with the role data or undefined
         return organizationIds.map(id => roles.find(({ organizationId }) => organizationId === id));
     },
@@ -204,11 +172,13 @@ export const organizationQuerier = (prisma: PrismaType) => ({
 
 export const organizationMutater = (prisma: PrismaType) => ({
     async toDBShapeAdd(userId: string | null, data: OrganizationCreateInput | OrganizationUpdateInput): Promise<any> {
-        // Add yourself as member
-        //TODO
-        // let members = { members: { create: { userId, role: MemberRole.Owner as any } } };
+        // Add yourself as a member
+        const members = { members: { create: { user: { connect: { id: userId ?? '' } } } } };
+        // Create an Admin role assignment for yourself
+        const roles = { roles: { create: { title: 'Admin', assignees: { create: { user: { connect: { id: userId ?? '' } } } } } } };
         return {
-            // ...members,
+            ...members,
+            ...roles,
             id: data.id,
             handle: (data as OrganizationUpdateInput).handle ?? null,
             isOpenToNewMembers: data.isOpenToNewMembers,

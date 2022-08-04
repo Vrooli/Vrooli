@@ -6,6 +6,7 @@ const data = yup.string().max(8192);
 export const runInputCreate = yup.object().shape({
     id: id.required(),
     data: data.required(),
+    inputId: id.required(),
 })
 
 export const runInputUpdate = yup.object().shape({

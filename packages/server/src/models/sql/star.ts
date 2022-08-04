@@ -1,11 +1,17 @@
 import { CODE, isObject, StarFor } from "@local/shared";
 import { CustomError } from "../../error";
-import { LogType, Star, StarInput } from "../../schema/types";
+import { LogType, Star, StarInput, StarSearchInput, StarSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { deconstructUnion, FormatConverter, GraphQLModelType, ModelLogic, ObjectMap, PartialGraphQLInfo, readManyHelper } from "./base";
+import { deconstructUnion, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, ModelLogic, ObjectMap, PartialGraphQLInfo, readManyHelper, Searcher } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { resolveStarTo } from "../../schema/resolvers";
+import { OrganizationModel } from "./organization";
+import { ProjectModel } from "./project";
+import { RoutineModel } from "./routine";
+import { StandardModel } from "./standard";
+import { TagModel } from "./tag";
+import { CommentModel } from "./comment";
 
 //==============================================================
 /* #region Custom Components */
@@ -26,6 +32,7 @@ export const starFormatter = (): FormatConverter<Star, any> => ({
         }
     },
     constructUnions: (data) => {
+        console.log('star construct unionnnnnnnn', JSON.stringify(data), '\n\n')
         let { comment, organization, project, routine, standard, tag, user, ...modified } = data;
         if (comment) modified.to = comment;
         else if (organization) modified.to = organization;
@@ -49,10 +56,12 @@ export const starFormatter = (): FormatConverter<Star, any> => ({
         return modified;
     },
     async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Star>[]> {
+        console.log('start add supp start', JSON.stringify(objects), '\n\n')
         // Query for data that star is applied to
         if (isObject(partial.to)) {
-            const toTypes: GraphQLModelType[] = objects.map(o => resolveStarTo(o.to))
+            const toTypes: GraphQLModelType[] = objects.map(o => resolveStarTo(o.to)).filter(t => t);
             const toIds = objects.map(x => x.to?.id ?? '') as string[];
+            console.log('star isobject', JSON.stringify(toTypes), JSON.stringify(toIds), '\n\n')
             // Group ids by types
             const toIdsByType: { [x: string]: string[] } = {};
             toTypes.forEach((type, i) => {
@@ -63,7 +72,7 @@ export const starFormatter = (): FormatConverter<Star, any> => ({
             const tos: any[] = [];
             for (const type of Object.keys(toIdsByType)) {
                 const validTypes: Array<keyof typeof GraphQLModelType> = [
-                    'Comment', 
+                    'Comment',
                     'Organization',
                     'Project',
                     'Routine',
@@ -75,6 +84,7 @@ export const starFormatter = (): FormatConverter<Star, any> => ({
                     throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0185') });
                 }
                 const model: ModelLogic<any, any, any> = ObjectMap[type as keyof typeof GraphQLModelType] as ModelLogic<any, any, any>;
+                console.log('star before readmany helper', JSON.stringify(toIdsByType[type]), '\n\n')
                 const paginated = await readManyHelper({
                     info: partial.to[type],
                     input: { ids: toIdsByType[type] },
@@ -95,6 +105,36 @@ export const starFormatter = (): FormatConverter<Star, any> => ({
     },
 })
 
+export const starSearcher = (): Searcher<StarSearchInput> => ({
+    defaultSort: StarSortBy.DateUpdatedDesc,
+    getSortQuery: (sortBy: string): any => {
+        return {
+            [StarSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
+            [StarSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
+        }[sortBy]
+    },
+    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
+        return getSearchStringQueryHelper({ searchString,
+            resolver: () => ({ 
+                OR: [
+                    { organization: OrganizationModel.search.getSearchStringQuery(searchString, languages) },
+                    { project: ProjectModel.search.getSearchStringQuery(searchString, languages) },
+                    { routine: RoutineModel.search.getSearchStringQuery(searchString, languages) },
+                    { standard: StandardModel.search.getSearchStringQuery(searchString, languages) },
+                    { tag: TagModel.search.getSearchStringQuery(searchString, languages) },
+                    { comment: CommentModel.search.getSearchStringQuery(searchString, languages) },
+                ]
+            })
+        })
+    },
+    customQueries(input: StarSearchInput): { [x: string]: any } {
+        console.log("IN STAR CUSTOM QUERIES", JSON.stringify(input))
+        return {
+            ...(input.excludeTags === true ? { tagId: null } : {}),
+        }
+    },
+})
+
 const forMapper = {
     [StarFor.Comment]: 'comment',
     [StarFor.Organization]: 'organization',
@@ -107,6 +147,11 @@ const forMapper = {
 
 const starMutater = (prisma: PrismaType) => ({
     async star(userId: string, input: StarInput): Promise<boolean> {
+        prisma.star.findMany({
+            where: {
+                tagId: null
+            }
+        })
         // Define prisma type for object being starred
         const prismaFor = (prisma[forMapper[input.starFor] as keyof PrismaType] as any);
         // Check if object being starred exists
@@ -207,6 +252,7 @@ export const StarModel = ({
     format: starFormatter(),
     mutate: starMutater,
     query: starQuerier,
+    search: starSearcher(),
 })
 
 //==============================================================

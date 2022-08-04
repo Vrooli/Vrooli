@@ -10,7 +10,6 @@ import { genErrorCode } from "../../logger";
 /* #region Custom Components */
 //==============================================================
 
-const joinMapper = { handles: 'handle' };
 export const walletFormatter = (): FormatConverter<Wallet, any> => ({
     relationshipMap: {
         '__typename': 'Wallet',
@@ -18,12 +17,6 @@ export const walletFormatter = (): FormatConverter<Wallet, any> => ({
         'user': 'User',
         'organization': 'Organization',
         'project': 'Project',
-    },
-    addJoinTables: (partial) => {
-        return addJoinTablesHelper(partial, joinMapper);
-    },
-    removeJoinTables: (data) => {
-        return removeJoinTablesHelper(data, joinMapper);
     },
 })
 

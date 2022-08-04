@@ -17,7 +17,7 @@ export const typeDef = gql`
     type RunInput {
         id: ID!
         data: String!
-        input: [InputItem!]
+        input: InputItem!
     }
 
     input RunInputSearchInput {
@@ -44,6 +44,7 @@ export const typeDef = gql`
     input RunInputCreateInput {
         id: ID!
         data: String!
+        inputId: ID!
     }
 
     input RunInputUpdateInput {

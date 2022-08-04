@@ -473,6 +473,7 @@ model routine_input {
   routine      routine                     @relation(fields: [routineId], references: [id], onDelete: Cascade)
   standard     standard?                   @relation(fields: [standardId], references: [id], onDelete: SetNull)
   translations routine_input_translation[]
+  runInputs   run_input[]                
 }
 
 model routine_input_translation {
@@ -539,7 +540,9 @@ model run {
 model run_input {
     id           String  @id @default(uuid()) @db.Uuid
     data         String  @db.VarChar(8192)
+    inputId      String  @db.Uuid
     runId        String  @db.Uuid
+    input        routine_input @relation(fields: [inputId], references: [id], onDelete: Cascade)
     run          run     @relation("run_input_run", fields: [runId], references: [id], onDelete: Cascade)
 }
 

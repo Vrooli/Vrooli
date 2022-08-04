@@ -15,7 +15,7 @@ import {
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, BuildView, HelpButton, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition, UpvoteDownvote } from "components";
 import { RoutineViewProps } from "../types";
-import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, PubSub, standardToFieldData, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
+import { formikToRunInputs, getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, PubSub, runInputsCreate, standardToFieldData, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
 import { Node, NodeLink, Routine, Run } from "types";
 import Markdown from "markdown-to-jsx";
 import { runCompleteMutation } from "graphql/mutation";
@@ -82,25 +82,6 @@ export const RoutineView = ({
 
     const ownedBy = useMemo<string | null>(() => getOwnedByString(routine, [language]), [routine, language]);
     const toOwner = useCallback(() => { toOwnedBy(routine, setLocation) }, [routine, setLocation]);
-
-    const [runComplete] = useMutation<runComplete, runCompleteVariables>(runCompleteMutation);
-    const markAsComplete = useCallback(() => {
-        if (!routine) return;
-        mutationWrapper({
-            mutation: runComplete,
-            input: {
-                id: routine.id,
-                exists: false,
-                title: title ?? 'Unnamed Routine',
-                version: routine?.version ?? '',
-            },
-            successMessage: () => 'Routine completed!🎉',
-            onSuccess: () => {
-                PubSub.get().publishCelebration();
-                setLocation(APP_LINKS.Home)
-            },
-        })
-    }, [routine, runComplete, setLocation, title]);
 
     const [isBuildOpen, setIsBuildOpen] = useState<boolean>(Boolean(parseSearchParams(window.location.search)?.build));
     /**
@@ -329,6 +310,55 @@ export const RoutineView = ({
         }
     }, [routine, setLocation]);
 
+    // The schema and formik keys for the form
+    const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {
+        if (!routine) return null;
+        const schemas: { [fieldName: string]: FieldData } = {};
+        for (let i = 0; i < routine.inputs?.length; i++) {
+            const currInput = routine.inputs[i];
+            const currSchema = standardToFieldData({
+                description: getTranslation(currInput, 'description', getUserLanguages(session), false) ?? getTranslation(currInput.standard, 'description', getUserLanguages(session), false),
+                fieldName: `inputs-${currInput.id}`,
+                props: currInput.standard?.props ?? '',
+                name: currInput.name ?? currInput.standard?.name ?? '',
+                type: currInput.standard?.type ?? '',
+                yup: currInput.standard?.yup ?? null,
+            });
+            if (currSchema) {
+                schemas[currSchema.fieldName] = currSchema;
+            }
+        }
+        return schemas;
+    }, [routine, session]);
+    const previewFormik = useFormik({
+        initialValues: Object.entries(formValueMap ?? {}).reduce((acc, [key, value]) => {
+            acc[key] = value.props.defaultValue ?? '';
+            return acc;
+        }, {}),
+        enableReinitialize: true,
+        onSubmit: () => { },
+    });
+
+    const [runComplete] = useMutation<runComplete, runCompleteVariables>(runCompleteMutation);
+    const markAsComplete = useCallback(() => {
+        if (!routine) return;
+        mutationWrapper({
+            mutation: runComplete,
+            input: {
+                id: routine.id,
+                exists: false,
+                title: title ?? 'Unnamed Routine',
+                version: routine?.version ?? '',
+                ...runInputsCreate(formikToRunInputs(previewFormik.values)),
+            },
+            successMessage: () => 'Routine completed!🎉',
+            onSuccess: () => {
+                PubSub.get().publishCelebration();
+                setLocation(APP_LINKS.Home)
+            },
+        })
+    }, [previewFormik.values, routine, runComplete, setLocation, title]);
+
     /**
      * If routine has nodes (i.e. is not just this page), display "View Graph" and "Start" (or "Continue") buttons. 
      * Otherwise, display "Mark as Complete" button.
@@ -362,34 +392,6 @@ export const RoutineView = ({
             </Grid>
         )
     }, [routine, viewGraph, runRoutine, session?.id, markAsComplete]);
-
-    // The schema and formik keys for the form
-    const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {
-        if (!routine) return null;
-        const schemas: { [fieldName: string]: FieldData } = {};
-        for (let i = 0; i < routine.inputs?.length; i++) {
-            const currSchema = standardToFieldData({
-                description: getTranslation(routine.inputs[i], 'description', getUserLanguages(session), false) ?? getTranslation(routine.inputs[i].standard, 'description', getUserLanguages(session), false),
-                fieldName: `inputs-${i}`,
-                props: routine.inputs[i].standard?.props ?? '',
-                name: routine.inputs[i].name ?? routine.inputs[i].standard?.name ?? '',
-                type: routine.inputs[i].standard?.type ?? '',
-                yup: routine.inputs[i].standard?.yup ?? null,
-            });
-            if (currSchema) {
-                schemas[currSchema.fieldName] = currSchema;
-            }
-        }
-        return schemas;
-    }, [routine, session]);
-    const previewFormik = useFormik({
-        initialValues: Object.entries(formValueMap ?? {}).reduce((acc, [key, value]) => {
-            acc[key] = value.props.defaultValue ?? '';
-            return acc;
-        }, {}),
-        enableReinitialize: true,
-        onSubmit: () => { },
-    });
 
     /**
      * Copy current value of input to clipboard
