@@ -4,10 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getTranslation, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub } from 'utils';
+import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getTranslation, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine } from 'utils';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
 import { useLocation } from 'wouter';
-import { APP_LINKS, isEqual, uniqBy } from '@local/shared';
+import { APP_LINKS, isEqual } from '@local/shared';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { BaseObjectAction } from 'components/dialogs/types';
 import { BuildViewProps } from '../types';
@@ -127,29 +127,21 @@ export const BuildView = ({
      */
     const { columns, nodesOffGraph, nodesById } = useMemo(() => {
         if (!changedRoutine) return { columns: [], nodesOffGraph: [], nodesById: {} };
-        const nodesOnGraph: Node[] = [];
-        const nodesOffGraph: Node[] = [];
-        const nodesById: { [id: string]: Node } = {};
-        const statuses: [Status, string][] = []; // Holds all status messages, so multiple can be displayed
-        // Loop through nodes and add to appropriate array (and also populate nodesById dictionary)
-        for (const node of changedRoutine.nodes) {
-            if ((node.columnIndex !== null && node.columnIndex !== undefined) && (node.rowIndex !== null && node.rowIndex !== undefined)) {
-                nodesOnGraph.push(node);
-            } else {
-                nodesOffGraph.push(node);
-            }
-            nodesById[node.id] = node;
+        const { messages, nodesById, nodesOnGraph, nodesOffGraph, status } = getRoutineStatus(changedRoutine);
+        // Check for critical errors
+        if (messages.includes('No node or link data found')) {
+            // Create new routine data
+            const initialized = initializeRoutine(language);
+            // Set empty nodes and links
+            setChangedRoutine({
+                ...changedRoutine,
+                nodes: initialized.nodes,
+                nodeLinks: initialized.nodeLinks,
+            });
+            return { columns: [], nodesOffGraph: [], nodesById: {} };
         }
-        // Now, perform a few checks to make sure that the columnIndexes and rowIndexes are valid
-        // 1. Check that (columnIndex, rowIndex) pairs are all unique
-        // First check
-        // Remove duplicate values from positions dictionary
-        const uniqueDict = uniqBy(nodesOnGraph, (n) => `${n.columnIndex}-${n.rowIndex}`);
-        // Check if length of removed duplicates is equal to the length of the original positions dictionary
-        if (uniqueDict.length !== Object.values(nodesOnGraph).length) {
-            // Push to status
-            setStatus({ status: Status.Invalid, messages: ['Ran into error determining node positions'] });
-            // This is a critical error, so we'll remove all node positions and links
+        if (messages.includes('Ran into error determining node positions')) {
+            // Remove all node positions and links
             setChangedRoutine({
                 ...changedRoutine,
                 nodes: changedRoutine.nodes.map(n => ({ ...n, columnIndex: null, rowIndex: null })),
@@ -157,57 +149,8 @@ export const BuildView = ({
             })
             return { columns: [], nodesOffGraph: changedRoutine.nodes, nodesById: {} };
         }
-        // Now perform checks to see if the routine can be run
-        // 1. There is only one start node
-        // 2. There is only one linked node which has no incoming edges, and it is the start node
-        // 3. Every node that has no outgoing edges is an end node
-        // 4. Validate loop TODO
-        // 5. Validate redirects TODO
-        // Check 1
-        const startNodes = changedRoutine.nodes.filter(node => node.type === NodeType.Start);
-        if (startNodes.length === 0) {
-            statuses.push([Status.Invalid, 'No start node found']);
-        }
-        else if (startNodes.length > 1) {
-            statuses.push([Status.Invalid, 'More than one start node found']);
-        }
-        // Check 2
-        const nodesWithoutIncomingEdges = nodesOnGraph.filter(node => changedRoutine.nodeLinks.every(link => link.toId !== node.id));
-        if (nodesWithoutIncomingEdges.length === 0) {
-            //TODO this would be fine with a redirect link
-            statuses.push([Status.Invalid, 'Error determining start node']);
-        }
-        else if (nodesWithoutIncomingEdges.length > 1) {
-            statuses.push([Status.Invalid, 'Nodes are not fully connected']);
-        }
-        // Check 3
-        const nodesWithoutOutgoingEdges = nodesOnGraph.filter(node => changedRoutine.nodeLinks.every(link => link.fromId !== node.id));
-        if (nodesWithoutOutgoingEdges.length >= 0) {
-            // Check that every node without outgoing edges is an end node
-            if (nodesWithoutOutgoingEdges.some(node => node.type !== NodeType.End)) {
-                statuses.push([Status.Invalid, 'Not all paths end with an end node']);
-            }
-        }
-        // Performs checks which make the routine incomplete, but not invalid
-        // 1. There are unpositioned nodes
-        // 2. Every routine list has at least one subroutine
-        // Check 1
-        if (nodesOffGraph.length > 0) {
-            statuses.push([Status.Incomplete, 'Some nodes are not linked']);
-        }
-        // Check 2
-        if (nodesOnGraph.some(node => node.type === NodeType.RoutineList && (node.data as NodeDataRoutineList).routines.length === 0)) {
-            statuses.push([Status.Incomplete, 'At least one routine list is empty']);
-        }
-        // Before returning, send the statuses to the status object
-        if (statuses.length > 0) {
-            // Status sent is the worst status
-            let status = Status.Incomplete;
-            if (statuses.some(status => status[0] === Status.Invalid)) status = Status.Invalid;
-            setStatus({ status, messages: statuses.map(status => status[1]) });
-        } else {
-            setStatus({ status: Status.Valid, messages: ['Routine is fully connected'] });
-        }
+        // Update status
+        setStatus({ status, messages });
         // Remove any links which reference unlinked nodes
         const goodLinks = changedRoutine.nodeLinks.filter(link => !nodesOffGraph.some(node => node.id === link.fromId || node.id === link.toId));
         // If routine was mutated, update the routine
@@ -242,7 +185,7 @@ export const BuildView = ({
         columns.push([]);
         // Return
         return { columns, nodesOffGraph, nodesById };
-    }, [changedRoutine]);
+    }, [changedRoutine, language]);
 
     // Subroutine info drawer
     const [openedSubroutine, setOpenedSubroutine] = useState<{ node: NodeDataRoutineList, routineItemId: string } | null>(null);

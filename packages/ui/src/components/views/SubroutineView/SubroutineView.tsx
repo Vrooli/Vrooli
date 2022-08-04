@@ -99,7 +99,7 @@ export const SubroutineView = ({
         previewFormik.setValues(updatedValues);
     }, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [previewFormik.setValues, run.inputs]);
+    [previewFormik.setValues, run?.inputs]);
 
     /**
      * Update run with updated user inputs
@@ -225,7 +225,6 @@ export const SubroutineView = ({
                         padding: 1,
                         borderRadius: 1,
                     }}>
-                        <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Inputs</Typography>
                         {
                             Object.values(formValueMap ?? {}).map((field: FieldData, i: number) => (
                                 <Box key={i} sx={{

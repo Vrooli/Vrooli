@@ -13,17 +13,17 @@ import {
     MoreHoriz as EllipsisIcon,
     PlayCircle as StartIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, BuildView, HelpButton, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition, UpvoteDownvote } from "components";
+import { BaseObjectActionDialog, BuildView, HelpButton, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, StatusButton, UpTransition, UpvoteDownvote } from "components";
 import { RoutineViewProps } from "../types";
-import { formikToRunInputs, getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, PubSub, runInputsCreate, standardToFieldData, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
-import { Node, NodeLink, Routine, Run } from "types";
+import { formikToRunInputs, getLanguageSubtag, getOwnedByString, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, standardToFieldData, Status, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
+import { Routine, Run } from "types";
 import Markdown from "markdown-to-jsx";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
 import { CommentFor, NodeType, StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
-import { validate as uuidValidate, v4 as uuid } from 'uuid';
+import { validate as uuidValidate } from 'uuid';
 import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
 import { useFormik } from "formik";
 import { FieldData } from "forms/types";
@@ -65,14 +65,17 @@ export const RoutineView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { canStar, canVote, title, description, instructions } = useMemo(() => {
+    const { canStar, canVote, title, description, instructions, status, statusMessages } = useMemo(() => {
         const permissions = routine?.permissionsRoutine;
+        const { messages: statusMessages, status } = getRoutineStatus(routine ?? partialData);
         return {
             canStar: permissions?.canStar === true,
             canVote: permissions?.canVote === true,
             title: getTranslation(routine, 'title', [language]) ?? getTranslation(partialData, 'title', [language]),
             description: getTranslation(routine, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
             instructions: getTranslation(routine, 'instructions', [language]) ?? getTranslation(partialData, 'instructions', [language]),
+            status,
+            statusMessages,
         };
     }, [routine, language, partialData]);
 
@@ -89,67 +92,7 @@ export const RoutineView = ({
      */
     useEffect(() => {
         if (!id || !uuidValidate(id)) {
-            const startNode: Node = {
-                id: uuid(),
-                type: NodeType.Start,
-                columnIndex: 0,
-                rowIndex: 0,
-            } as Node;
-            const routineListNode: Node = {
-                __typename: 'Node',
-                id: uuid(),
-                type: NodeType.RoutineList,
-                columnIndex: 1,
-                rowIndex: 0,
-                data: {
-                    __typename: 'NodeRoutineList',
-                    id: uuid(),
-                    isOptional: false,
-                    isOrdered: false,
-                    routines: [],
-                } as Node['data'],
-                translations: [{
-                    id: uuid(),
-                    language,
-                    title: 'Subroutine 1',
-                }] as Node['translations'],
-            } as Node;
-            const endNode: Node = {
-                __typename: 'Node',
-                id: uuid(),
-                type: NodeType.End,
-                columnIndex: 2,
-                rowIndex: 0,
-            } as Node;
-            const link1: NodeLink = {
-                __typename: 'NodeLink',
-                id: uuid(),
-                fromId: startNode.id,
-                toId: routineListNode.id,
-                whens: [],
-                operation: null,
-            }
-            const link2: NodeLink = {
-                __typename: 'NodeLink',
-                id: uuid(),
-                fromId: routineListNode.id,
-                toId: endNode.id,
-                whens: [],
-                operation: null,
-            }
-            setRoutine({
-                inputs: [],
-                outputs: [],
-                nodes: [startNode, routineListNode, endNode],
-                nodeLinks: [link1, link2],
-                translations: [{
-                    id: uuid(),
-                    language,
-                    title: 'New Routine',
-                    instructions: 'Enter instructions here',
-                    description: '',
-                }]
-            } as any)
+            setRoutine(initializeRoutine(language))
         }
     }, [id, language]);
     const viewGraph = useCallback(() => {
@@ -383,15 +326,15 @@ export const RoutineView = ({
                     <Button startIcon={<GraphIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button>
                 </Grid>
                 {/* Show continue if routine already has progress TODO */}
-                <Grid item xs={12} sm={6}>
+                {status === Status.Valid && <Grid item xs={12} sm={6}>
                     {routine && routine.runs?.length > 0 ?
                         <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Continue</Button> :
                         <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
                     }
-                </Grid>
+                </Grid>}
             </Grid>
         )
-    }, [routine, viewGraph, runRoutine, session?.id, markAsComplete]);
+    }, [routine, viewGraph, status, runRoutine, session?.id, markAsComplete]);
 
     /**
      * Copy current value of input to clipboard
@@ -466,7 +409,6 @@ export const RoutineView = ({
                             padding: 1,
                             borderRadius: 1,
                         }}>
-                            <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Inputs</Typography>
                             {
                                 Object.values(formValueMap ?? {}).map((field: FieldData, i: number) => (
                                     <Box key={i} sx={{
@@ -596,7 +538,7 @@ export const RoutineView = ({
                 <Box sx={{
                     ...containerShadow,
                     background: palette.background.paper,
-                    minWidth: 'min(100%, 700px)',
+                    width: 'min(100%, 700px)',
                     borderRadius: 1,
                     overflow: 'overlay',
                 }}>
@@ -616,7 +558,7 @@ export const RoutineView = ({
                             color: palette.primary.contrastText,
                         }}>
                             {/* Title */}
-                            <Box>
+                            <Stack direction="row" textAlign="center">
                                 {loading ?
                                     <LinearProgress color="inherit" sx={{
                                         borderRadius: 1,
@@ -626,8 +568,22 @@ export const RoutineView = ({
                                         marginBottom: '12px !important',
                                         maxWidth: '300px',
                                     }} /> :
-                                    <Typography variant="h5" sx={{ textAlign: 'center' }}>{title}</Typography>}
-                            </Box>
+                                    <>
+                                        <Typography variant="h5">{title}</Typography>
+                                        {
+                                            Array.isArray(routine?.nodes) && routine!.nodes.length > 0 && <StatusButton
+                                                status={status}
+                                                messages={statusMessages}
+                                                sx={{
+                                                    marginTop: 'auto',
+                                                    marginBottom: 'auto',
+                                                    marginLeft: 2,
+                                                }}
+                                            />
+                                        }
+                                    </>
+                                }
+                            </Stack>
                             <Stack direction="row" spacing={1} sx={{
                                 display: 'flex',
                                 alignItems: 'center',
