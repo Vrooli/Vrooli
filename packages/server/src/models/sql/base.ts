@@ -387,7 +387,7 @@ export function uppercaseFirstLetter(str: string): string {
 }
 
 /**
- * Helper function for adding join tables between 
+ * Idempotent helper function for adding join tables between 
  * many-to-many relationship parents and children
  * @param partialInfo - GraphQL-shaped object
  * @param map - Mapping of many-to-many relationship names to join table names
@@ -398,9 +398,23 @@ export const addJoinTablesHelper = (partialInfo: PartialGraphQLInfo, map: JoinMa
     let result: any = {};
     // Iterate over join map
     for (const [key, value] of Object.entries(map)) {
-        // If the key is in the object, pad with the join table name
+        // If the key is in the object, 
         if (partialInfo[key]) {
-            // Otherwise, pad
+            // Skip if already padded with join table name
+            if (isRelationshipArray(partialInfo[key])) {
+                if ((partialInfo[key] as any).every((o: any) => isRelationshipObject(o) && Object.keys(o).length === 1 && Object.keys(o)[0] !== 'id')) {
+                    console.log('skipping join table a', key, JSON.stringify(partialInfo[key]), '\n\n');
+                    result[key] = partialInfo[key];
+                    continue;
+                }
+            } else if (isRelationshipObject(partialInfo[key])) {
+                if (Object.keys(partialInfo[key] as any).length === 1 && Object.keys(partialInfo[key] as any)[0] !== 'id') {
+                    console.log('skipping join table b', key, JSON.stringify(partialInfo[key]), '\n\n');
+                    result[key] = partialInfo[key];
+                    continue
+                }
+            }
+            // Otherwise, pad with the join table name
             result[key] = { [value]: partialInfo[key] };
         }
     }
@@ -411,7 +425,7 @@ export const addJoinTablesHelper = (partialInfo: PartialGraphQLInfo, map: JoinMa
 }
 
 /**
- * Helper function for removing join tables between
+ * Idempotent helper function for removing join tables between
  * many-to-many relationship parents and children
  * @param obj - DB-shaped object
  * @param map - Mapping of many-to-many relationship names to join table names
@@ -426,11 +440,17 @@ export const removeJoinTablesHelper = (obj: any, map: JoinMap | undefined): any 
         if (obj[key]) {
             // If the value is an array
             if (Array.isArray(obj[key])) {
-                // Remove the join table from each item in the array
-                result[key] = obj[key].map((item: any) => item[value]);
+                // Check if the join should be applied (i.e. elements are objects with one non-ID key)
+                if (obj[key].every((o: any) => isRelationshipObject(o) && Object.keys(o).length === 1 && Object.keys(o)[0] !== 'id')) {
+                    // Remove the join table from each item in the array
+                    result[key] = obj[key].map((item: any) => item[value]);
+                }
             } else {
-                // Otherwise, remove the join table from the object
-                result[key] = obj[key][value];
+                // Check if the join should be applied (i.e. element is an object with one non-ID key)
+                if (isRelationshipObject(obj[key]) && Object.keys(obj[key]).length === 1 && Object.keys(obj[key])[0] !== 'id') {
+                    // Otherwise, remove the join table from the object
+                    result[key] = obj[key][value];
+                }
             }
         }
     }
@@ -703,6 +723,7 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
     // this after shaping "data" because we need to know the type of the union. 
     // To account for this, we call modelToGraphQL on each union, to check which one matches "data"
     if (Object.keys(partialInfo).every(k => k[0] === k[0].toUpperCase())) {
+        //console.log('modeltographql is union', JSON.stringify(partialInfo), '\n\n', JSON.stringify(data), '\n\n');
         // Find the union type which matches the shape of value. 
         let matchingType: string | undefined;
         for (const unionType of Object.keys(partialInfo)) {
@@ -717,6 +738,7 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
     }
     // Convert data to usable shape
     const type: string | undefined = partialInfo?.__typename;
+    //console.log('modeltographql type', type, JSON.stringify(partialInfo), '\n\n', JSON.stringify(data), '\n\n')
     const formatter: FormatConverter<GraphQLModel, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
     if (formatter) {
         if (formatter.constructUnions) data = formatter.constructUnions(data);
@@ -993,7 +1015,7 @@ export const deconstructUnion = (partialInfo: PartialGraphQLInfo, unionField: st
  * @returns True if obj matches query
  */
 const subsetsMatch = (obj: any, query: any): boolean => {
-    console.log('subsets match start', JSON.stringify(obj), '\n', JSON.stringify(query), '\n\n');
+    //console.log('subsets match start', JSON.stringify(obj), '\n', JSON.stringify(query), '\n\n');
     // Check that both params are valid objects
     if (obj === null || typeof obj !== 'object' || query === null || typeof query !== 'object') return false;
     // Check if query type is in FormatterMap. 
@@ -1004,7 +1026,7 @@ const subsetsMatch = (obj: any, query: any): boolean => {
     if (formatter) {
         // Remove calculated fields from query, since these will not be in obj
         formattedQuery = formatter?.removeSupplementalFields ? formatter.removeSupplementalFields(query) : query;
-    } else console.log('no subste formatter', JSON.stringify(query), '\n\n');
+    } //else console.log('no subste formatter', JSON.stringify(query), '\n\n');
     // First, check if obj is a join table. If this is the case, what we want to check 
     // is actually one layer down
     let formattedObj = obj;
@@ -1051,7 +1073,7 @@ const subsetsMatch = (obj: any, query: any): boolean => {
  */
 const groupIdsByType = (data: { [x: string]: any }, partialInfo: PartialGraphQLInfo): [{ [x: string]: string[] }, { [x: string]: any }] => {
     if (!data || !partialInfo) return [{}, {}];
-    console.log('groupIdsByType', JSON.stringify(data), '\n', JSON.stringify(partialInfo), '\n\n');
+    //console.log('groupIdsByType', JSON.stringify(data), '\n', JSON.stringify(partialInfo), '\n\n');
     let objectIdsDict: { [x: string]: string[] } = {};
     let selectFieldsDict: { [x: string]: { [x: string]: { [x: string]: any } } } = {};
     // Loop through each key/value pair in data
@@ -1250,6 +1272,7 @@ export const addSupplementalFields = async (
         // Find the data for each id in ids. Since the data parameter is an array,
         // we must loop through each element in it and call pickObjectById
         const objectData = ids.map((id: string) => pickObjectById(data, id));
+        console.log('objectDATAAAAAAA', type, JSON.stringify(objectData), '\n\n');
         // Now that we have the data for each object, we can add the supplemental fields
         const formatter: FormatConverter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
         const valuesWithSupplements = formatter?.addSupplementalFields ?
@@ -1391,6 +1414,7 @@ export async function readOneHelper<GraphQLModel>({
     if (!object)
         throw new CustomError(CODE.NotFound, `${objectType} not found`, { code: genErrorCode('0022') });
     // Return formatted for GraphQL
+    console.log('read one before format', JSON.stringify(object), '\n\n', 'pp', JSON.stringify(partialInfo), '\n\n');
     let formatted = modelToGraphQL(object, partialInfo) as RecursivePartial<GraphQLModel>;
     console.log('read one formatted', JSON.stringify(formatted), '\n\n')
     // If logged in and object has view count, handle it
