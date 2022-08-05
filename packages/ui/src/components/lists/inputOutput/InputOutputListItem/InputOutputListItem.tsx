@@ -1,7 +1,7 @@
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { InputOutputListItemProps } from '../types';
 import { inputCreate, InputType, outputCreate } from '@local/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { containerShadow } from 'styles';
 import {
     Delete as DeleteIcon,
@@ -100,20 +100,32 @@ export const InputOutputListItem = ({
     const [schemaKey] = useState(`input-output-schema-${Math.random().toString(36).substring(2, 15)}`);
 
     const [standard, setStandard] = useState<StandardShape>(item.standard ?? defaultStandard(item));
+    useEffect(() => {
+        setStandard(item.standard ?? defaultStandard(item));
+    }, [item])
+
+    const canEditStandard = useMemo(() => standard.isInternal === true, [standard.isInternal]);
 
     /**
      * Schema only available when defining custom (internal) standard
      */
-    const [generatedSchema, setGeneratedSchema] = useState<FieldData | null>(toFieldData(schemaKey, {
-        ...item,
-        standard
-    }, language));
+    const [generatedSchema, setGeneratedSchema] = useState<FieldData | null>(null);
+
+    // Handle standard schema
+    const handleSchemaUpdate = useCallback((schema: FieldData) => {
+        if (!canEditStandard) return;
+        console.log('handleschemaupdate', schema)
+        setGeneratedSchema(schema);
+    }, [canEditStandard]);
+
+    useEffect(() => { console.log('generated schema', generatedSchema) }, [generatedSchema])
 
     const handleInputTypeSelect = useCallback((event: any) => {
         console.log('handleinputtypeselect', event.target.value)
         if (event.target.value !== item.standard?.type) {
             const newType = event.target.value?.value ?? InputTypeOptions[0].value;
             const existingStandard = item.standard ?? defaultStandard(item);
+            console.log('setting generated schema in handleinputtypeselect')
             setGeneratedSchema(toFieldData(schemaKey, {
                 ...item,
                 standard: {
@@ -123,23 +135,6 @@ export const InputOutputListItem = ({
             }, language));
         }
     }, [item, language, schemaKey]);
-
-    useEffect(() => {
-        console.log('in useeffect for external standard generated schema')
-        if (item.standard && item.standard.isInternal === false) {
-            console.log('setting external standard')
-            setStandard(item.standard)
-        } else {
-            console.log('setting generated standard')
-            setGeneratedSchema(toFieldData(schemaKey, item, language))
-        }
-    }, [item, language, schemaKey, setStandard]);
-
-    // Handle standard schema
-    const handleSchemaUpdate = useCallback((schema: FieldData) => {
-        console.log('handleschemaupdate', schema)
-        setGeneratedSchema(schema);
-    }, []);
 
     type Translation = InputTranslationShape | OutputTranslationShape;
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
@@ -173,7 +168,7 @@ export const InputOutputListItem = ({
                 name: values.name,
                 isRequired: isInput ? values.isRequired : undefined,
                 translations: allTranslations,
-                standard: standard.isInternal === false ? standard : defaultStandard(item, generatedSchema),
+                standard: !canEditStandard ? standard : defaultStandard(item, generatedSchema),
             });
         },
     });
@@ -186,20 +181,18 @@ export const InputOutputListItem = ({
         else handleOpen(index);
     }, [isOpen, handleOpen, index, formik, handleClose]);
 
-    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(standard.isInternal === false);
+    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(!canEditStandard);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
     const onSwitchChange = useCallback((s: Standard | null) => {
         console.log('on switch change')
-        setIsPreviewOn(Boolean(s));
         if (s && s.isInternal === false) {
             setStandard(s)
+            setIsPreviewOn(true);
         } else {
-            setGeneratedSchema(toFieldData(schemaKey, {
-                ...item,
-                standard: s,
-            }, language))
+            setStandard(defaultStandard(item))
+            setIsPreviewOn(false);
         }
-    }, [item, language, schemaKey]);
+    }, [item]);
 
     return (
         <Box
@@ -254,7 +247,7 @@ export const InputOutputListItem = ({
                 )}
                 {/* Show name and description if closed */}
                 {!isOpen && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', overflow: 'hidden', marginRight: 'auto' }}>
                         <Typography variant="h6" sx={{
                             fontWeight: 'bold',
                             margin: '0',
@@ -278,8 +271,8 @@ export const InputOutputListItem = ({
                     </Box>
                 )}
                 {isOpen ?
-                    <ExpandLessIcon sx={{ marginLeft: 'auto' }} /> :
-                    <ExpandMoreIcon sx={{ marginLeft: 'auto' }} />
+                    <ExpandLessIcon /> :
+                    <ExpandMoreIcon />
                 }
             </Container>
             <Collapse in={isOpen} sx={{
@@ -322,22 +315,22 @@ export const InputOutputListItem = ({
                         <StandardSelectSwitch
                             disabled={!isEditing}
                             session={session}
-                            selected={standard.isInternal === false ? { name: standard.name ?? '' } : null}
+                            selected={!canEditStandard ? { name: standard.name ?? '' } : null}
                             onChange={onSwitchChange}
                             zIndex={zIndex}
                         />
                     </Grid>
                     {/* Standard build/preview */}
                     <Grid item xs={12}>
-                        <PreviewSwitch
+                        {canEditStandard && <PreviewSwitch
                             isPreviewOn={isPreviewOn}
                             onChange={onPreviewChange}
                             sx={{
                                 marginBottom: 2
                             }}
-                        />
+                        />}
                         {
-                            isPreviewOn ?
+                            (isPreviewOn || !canEditStandard) ?
                                 ((standard || generatedSchema) && generateInputComponent({
                                     data: standard ?
                                         standardToFieldData({
@@ -358,7 +351,6 @@ export const InputOutputListItem = ({
                                 // Only editable if standard not selected and is editing
                                 <Box>
                                     <Selector
-                                        disabled={!isEditing || standard.isInternal === false}
                                         fullWidth
                                         options={InputTypeOptions}
                                         selected={InputTypeOptions.find(option => option.value === generatedSchema?.type) ?? InputTypeOptions[0]}
@@ -373,7 +365,7 @@ export const InputOutputListItem = ({
                                     <BaseStandardInput
                                         fieldName={schemaKey}
                                         inputType={(generatedSchema?.type as InputType) ?? InputTypeOptions[0].value}
-                                        isEditing={isEditing && standard.isInternal === true}
+                                        isEditing={isEditing}
                                         schema={generatedSchema}
                                         onChange={handleSchemaUpdate}
                                         storageKey={schemaKey}

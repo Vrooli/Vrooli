@@ -376,18 +376,18 @@ export const toTextField = ({
     return (
         <TextField
             key={`field-${data.fieldName}-${index}`}
-            fullWidth
-            autoFocus={index === 0}
-            tabIndex={index}
-            placeholder={data.description ?? data.fieldName}
-            id={data.fieldName}
-            name={data.fieldName}
-            required={data.yup?.required}
             autoComplete={props.autoComplete}
-            label={data.label}
+            autoFocus={index === 0}
+            fullWidth
+            id={data.fieldName}
+            InputLabelProps={{ shrink: true }}
+            name={data.fieldName}
+            placeholder={data.description ?? data.fieldName}
+            required={data.yup?.required}
             value={formik.values[data.fieldName]}
             onBlur={formik.handleBlur}
             onChange={formik.handleChange}
+            tabIndex={index}
             error={formik.touched[data.fieldName] && Boolean(formik.errors[data.fieldName])}
             helperText={formik.touched[data.fieldName] && formik.errors[data.fieldName]}
             {...multiLineProps}

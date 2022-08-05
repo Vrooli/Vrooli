@@ -56,7 +56,9 @@ export function RunListItem({
         const completedComplexity = data?.completedComplexity ?? null;
         const totalComplexity = data?.routine?.complexity ?? null;
         const percentComplete = data?.status === RunStatus.Completed ? 100 :
-            (completedComplexity && totalComplexity) ? Math.round(completedComplexity / totalComplexity * 100) : 0
+            (completedComplexity && totalComplexity) ? 
+            Math.min(Math.round(completedComplexity / totalComplexity * 100), 100) : 
+            0
         return {
             canStar: routinePermissions?.canStar === true,
             bio: getTranslation(data?.routine, 'bio', languages, true),

@@ -64,3 +64,21 @@ export interface BuildBottomContainerProps {
     runState: BuildRunState
     zIndex: number;
 }
+
+export interface ContentCollapseProps {
+    helpText?: string;
+    isOpen?: boolean;
+    onOpenChange?: (isOpen: boolean) => void;
+    showOnNoText?: boolean;
+    title?: string | null;
+    children?: JSX.Element | JSX.Element[] | null;
+}
+
+export interface TextCollapseProps {
+    helpText?: string;
+    isOpen?: boolean;
+    onOpenChange?: (isOpen: boolean) => void;
+    showOnNoText?: boolean;
+    title?: string | null;
+    text?: string | null;
+}

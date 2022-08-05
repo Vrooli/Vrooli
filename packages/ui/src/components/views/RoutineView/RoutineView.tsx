@@ -17,7 +17,6 @@ import { BaseObjectActionDialog, BuildView, HelpButton, LinkButton, ResourceList
 import { RoutineViewProps } from "../types";
 import { formikToRunInputs, getLanguageSubtag, getOwnedByString, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, standardToFieldData, Status, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
 import { Routine, Run } from "types";
-import Markdown from "markdown-to-jsx";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
 import { CommentFor, NodeType, StarFor } from "graphql/generated/globalTypes";
@@ -28,7 +27,7 @@ import { runComplete, runCompleteVariables } from "graphql/generated/runComplete
 import { useFormik } from "formik";
 import { FieldData } from "forms/types";
 import { generateInputComponent } from "forms/generators";
-import { CommentContainer } from "components/containers";
+import { CommentContainer, ContentCollapse, TextCollapse } from "components/containers";
 
 const statsHelpText =
     `Statistics are calculated to measure various aspects of a routine. 
@@ -398,26 +397,13 @@ export const RoutineView = ({
         return (
             <>
                 {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
-                <Stack direction="column" spacing={2} padding={1}>
+                <Stack direction="column" spacing={1} padding={1}>
                     {/* Resources */}
                     {resourceList}
                     {/* Description */}
-                    {Boolean(description) && <Box sx={{
-                        padding: 1,
-                        color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary,
-                    }}>
-                        <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Description</Typography>
-                        <Typography variant="body1">{description}</Typography>
-                    </Box>}
+                    <TextCollapse title="Description" text={description} />
                     {/* Instructions */}
-                    <Box sx={{
-                        padding: 1,
-                        borderRadius: 1,
-                        color: Boolean(instructions) ? palette.background.textPrimary : palette.background.textSecondary,
-                    }}>
-                        <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Instructions</Typography>
-                        <Markdown>{instructions ?? 'No instructions'}</Markdown>
-                    </Box>
+                    <TextCollapse title="Instructions" text={instructions} />
                     {/* Auto-generated inputs */}
                     {
                         Object.keys(previewFormik.values).length > 0 && <Box>
@@ -453,25 +439,19 @@ export const RoutineView = ({
                         </Box>
                     }
                     {/* Stats */}
-                    {Array.isArray(routine?.nodes) && (routine as any).nodes.length > 0 && <Box sx={{
-                        padding: 1,
-                        borderRadius: 1,
-                    }}>
-                        <Stack direction="row" marginRight="auto" alignItems="center">
-                            {/* Title */}
-                            <Typography variant="h6" textAlign="left">Stats</Typography>
-                            {/* Help button */}
-                            <HelpButton markdown={statsHelpText} />
-                        </Stack>
-                        <Typography variant="body1">Complexity: {routine?.complexity}</Typography>
-                        <Typography variant="body1">Simplicity: {routine?.simplicity}</Typography>
-                    </Box>}
+                    {
+                        Array.isArray(routine?.nodes) && (routine as any).nodes.length > 0 &&
+                        <ContentCollapse title="Stats" helpText={statsHelpText}>
+                            <Typography variant="body1">Complexity: {routine?.complexity}</Typography>
+                            <Typography variant="body1">Simplicity: {routine?.simplicity}</Typography>
+                        </ContentCollapse>
+                    }
                 </Stack>
                 {/* Actions */}
                 {actions}
             </>
         )
-    }, [loading, resourceList, description, palette.background.textPrimary, palette.background.textSecondary, instructions, previewFormik, formValueMap, routine, actions, session, zIndex, copyInput]);
+    }, [loading, resourceList, description, palette.background.textPrimary, instructions, previewFormik, formValueMap, routine, actions, session, zIndex, copyInput]);
 
     return (
         <>

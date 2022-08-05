@@ -1276,6 +1276,9 @@ export const BuildView = ({
                     color="inherit"
                     sx={{
                         marginLeft: 'auto',
+                        marginRight: 1,
+                        marginTop: 'auto',
+                        marginBottom: 'auto',
                     }}
                 >
                     <CloseIcon sx={{
@@ -1372,7 +1375,7 @@ export const BuildView = ({
                         loading={loading}
                         routine={changedRoutine}
                         session={session}
-                        sxs={{ icon: { fill: TERTIARY_COLOR, marginRight: 1 } }}
+                        sxs={{ icon: { fill: TERTIARY_COLOR }, iconButton: { marginRight: 1 } }}
                         zIndex={zIndex + 1}
                     />
                 </Box>

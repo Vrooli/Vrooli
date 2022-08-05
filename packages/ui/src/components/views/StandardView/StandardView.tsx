@@ -9,7 +9,7 @@ import {
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, BaseStandardInput, CommentContainer, LinkButton, ResourceListHorizontal, SelectLanguageDialog, StarButton } from "components";
+import { BaseObjectActionDialog, BaseStandardInput, CommentContainer, LinkButton, ResourceListHorizontal, SelectLanguageDialog, StarButton, TextCollapse } from "components";
 import { StandardViewProps } from "../types";
 import { getCreatedByString, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData, TERTIARY_COLOR, toCreatedBy } from "utils";
 import { Standard } from "types";
@@ -138,14 +138,7 @@ export const StandardView = ({
                     {/* Resources */}
                     {resourceList}
                     {/* Description */}
-                    {Boolean(description) && <Box sx={{
-                        padding: 1,
-                        borderRadius: 1,
-                        color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary,
-                    }}>
-                        <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Description</Typography>
-                        <Typography variant="body1">{description}</Typography>
-                    </Box>}
+                    <TextCollapse title="Description" text={description} />
                     {/* Build/Preview switch */}
                     <PreviewSwitch
                         isPreviewOn={isPreviewOn}
@@ -181,7 +174,7 @@ export const StandardView = ({
                 </Stack>
             </>
         )
-    }, [loading, resourceList, description, palette.background.textPrimary, palette.background.textSecondary, isPreviewOn, onPreviewChange, schema, previewFormik, session, zIndex]);
+    }, [loading, resourceList, description, isPreviewOn, onPreviewChange, schema, previewFormik, session, zIndex]);
 
     return (
         <Box sx={{

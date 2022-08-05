@@ -3,8 +3,7 @@ import {
     ContentCopy as CopyIcon,
     MoreHoriz as EllipsisIcon,
 } from "@mui/icons-material";
-import { HelpButton, LinkButton, ResourceListHorizontal } from "components";
-import Markdown from "markdown-to-jsx";
+import { HelpButton, LinkButton, ResourceListHorizontal, TextCollapse } from "components";
 import { useCallback, useEffect, useMemo } from "react";
 import { containerShadow } from "styles";
 import { formikToRunInputs, getOwnedByString, getTranslation, getUserLanguages, PubSub, runInputsToFormik, standardToFieldData, toOwnedBy } from "utils";
@@ -238,27 +237,13 @@ export const SubroutineView = ({
                 </Stack>
             </Stack>
             {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
-            <Stack direction="column" spacing={2} padding={1}>
+            <Stack direction="column" spacing={1} padding={1}>
                 {/* Resources */}
                 {resourceList}
                 {/* Description */}
-                {Boolean(description) && <Box sx={{
-                    padding: 1,
-                    borderRadius: 1,
-                    color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary,
-                }}>
-                    <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Description</Typography>
-                    <Typography variant="body1">{description}</Typography>
-                </Box>}
+                <TextCollapse title="Description" text={description} />
                 {/* Instructions */}
-                <Box sx={{
-                    padding: 1,
-                    borderRadius: 1,
-                    color: Boolean(instructions) ? palette.background.textPrimary : palette.background.textSecondary
-                }}>
-                    <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Instructions</Typography>
-                    <Markdown>{instructions ?? 'No instructions'}</Markdown>
-                </Box>
+                <TextCollapse title="Instructions" text={instructions} />
                 {inputComponents}
             </Stack>
         </Box>

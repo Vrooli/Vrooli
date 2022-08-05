@@ -368,7 +368,7 @@ export const BuildInfoDialog = ({
                 handleClose={handleDeleteClose}
                 zIndex={zIndex + 3}
             />
-            <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
+            <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen} sx={sxs?.iconButton}>
                 <InfoIcon sx={sxs?.icon} />
             </IconButton>
             <SwipeableDrawer

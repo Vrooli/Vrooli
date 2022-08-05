@@ -204,7 +204,7 @@ export interface BuildInfoDialogProps {
     loading: boolean;
     routine: Routine | null;
     session: Session;
-    sxs?: { icon: any };
+    sxs?: { icon: any, iconButton: any };
     zIndex: number;
 }
 

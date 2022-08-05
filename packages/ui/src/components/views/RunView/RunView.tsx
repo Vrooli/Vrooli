@@ -661,6 +661,7 @@ export const RunView = ({
             const currNodeId = currStepRunData?.node?.id;
             const currNode = routine.nodes?.find(n => n.id === currNodeId);
             const wasSuccessful = (currNode?.data as NodeDataEnd)?.wasSuccessful ?? true;
+            console.log('wasuccessful', wasSuccessful, currNode?.data)
             mutationWrapper({
                 mutation: logRunComplete,
                 input: {
