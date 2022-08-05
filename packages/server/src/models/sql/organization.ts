@@ -69,7 +69,7 @@ export const organizationPermissioner = (prisma: PrismaType): Permissioner<Organ
         userId,
     }) {
         // Initialize result with ID
-        const result: Partial<OrganizationPermission>[] = objects.map((o) => ({
+        const result = objects.map((o) => ({
             canAddMembers: true,
             canDelete: false,
             canEdit: false,
@@ -78,6 +78,7 @@ export const organizationPermissioner = (prisma: PrismaType): Permissioner<Organ
             canView: true,
             isMember: false,
         }));
+        if (!userId) return result;
         const ids = objects.map(x => x.id);
         // Get user's admin roles for each organization
         const roles = await OrganizationModel.query(prisma).hasRole(userId ?? '', ids);
@@ -93,7 +94,7 @@ export const organizationPermissioner = (prisma: PrismaType): Permissioner<Organ
         }
         // TODO isPrivate view check
         // TODO check relationships for permissions
-        return result as OrganizationPermission[];
+        return result;
     },
     async canSearch({
         input,

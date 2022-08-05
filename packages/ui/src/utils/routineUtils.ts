@@ -221,7 +221,7 @@ export const getRoutineStatus = (routine?: Partial<Routine> | null): GetRoutineS
         statuses.push([Status.Incomplete, 'Some nodes are not linked']);
     }
     // Check 2
-    if (nodesOnGraph.some(node => node.type === NodeType.RoutineList && (node.data as NodeDataRoutineList).routines.length === 0)) {
+    if (nodesOnGraph.some(node => node.type === NodeType.RoutineList && (node.data as NodeDataRoutineList)?.routines?.length === 0)) {
         statuses.push([Status.Incomplete, 'At least one routine list is empty']);
     }
     // Return statuses, or valid if no statuses

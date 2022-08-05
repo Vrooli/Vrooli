@@ -1,10 +1,13 @@
 import { CODE, resourceCreate, resourcesCreate, resourcesUpdate, resourceUpdate } from "@local/shared";
 import { Resource, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Count } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, ModelLogic, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
+import { OrganizationModel } from "./organization";
+import { ProjectModel } from "./project";
+import { RoutineModel } from "./routine";
 
 //==============================================================
 /* #region Custom Components */
@@ -45,67 +48,6 @@ export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
     },
 })
 
-// // Maps resource for type to correct field
-// const forMap = {
-//     [ResourceFor.Organization]: 'organizationId',
-//     [ResourceFor.Project]: 'projectId',
-//     [ResourceFor.Routine]: 'routineId',
-//     [ResourceFor.User]: 'userId',
-// }
-
-// Queries for finding resource ownership
-const userOwnerQuery = { user: { select: { id: true } } }
-const organizationOwnerQuery = { organization: { select: { members: { select: { userId: true, role: true } } } } }
-const projectOwnerQuery = { project: { select: { ...userOwnerQuery, ...organizationOwnerQuery } } };
-const routineOwnerQuery = { routine: { select: { ...userOwnerQuery, ...organizationOwnerQuery } } };
-
-/**
- * Uses user ownership query to check if user is owner of resource
- * @param userId ID of user performing request
- * @param data Data shaped in the same way as userOwnerQuery
- * @returns True if user is owner of resource
- */
-const isUserOwner = (userId: string, data: any) => {
-    if (!data.user) return false;
-    return data.user.id === userId;
-}
-
-/**
- * Uses organization ownership query to check if user is owner of resource
- * @param userId ID of user performing request
- * @param data Data shaped in the same way as organizationOwnerQuery
- * @returns True if user is owner of resource
- */
-const isOrganizationOwner = (userId: string, data: any) => {
-    //TODO
-    return false;
-    // if (!data.organization) return false;
-    // const member = data.organization.members.find((m: any) => m.userId === userId && [MemberRole.Admin, MemberRole.Owner].includes(m.role));
-    // return Boolean(member);
-}
-
-/**
- * Uses project ownership query to check if user is owner of resource
- * @param userId ID of user performing request
- * @param data Data shaped in the same way as projectOwnerQuery
- * @returns True if user is owner of resource
- */
-const isProjectOwner = (userId: string, data: any) => {
-    if (!data.project) return false;
-    return isUserOwner(userId, data) || isOrganizationOwner(userId, data);
-}
-
-/**
- * Uses routine ownership query to check if user is owner of resource
- * @param userId ID of user performing request
- * @param data Data shaped in the same way as routineOwnerQuery
- * @returns True if user is owner of resource
- */
-const isRoutineOwner = (userId: string, data: any) => {
-    if (!data.routine) return false;
-    return isUserOwner(userId, data) || isOrganizationOwner(userId, data);
-}
-
 export const resourceMutater = (prisma: PrismaType) => ({
     /**
      * Verify that the user can add these resources to the given project
@@ -124,18 +66,33 @@ export const resourceMutater = (prisma: PrismaType) => ({
                 id: true,
                 list: {
                     select: {
-                        ...userOwnerQuery,
-                        ...organizationOwnerQuery,
-                        ...projectOwnerQuery,
-                        ...routineOwnerQuery,
+                        organization: { select: { id: true } },
+                        project: { select: { id: true } },
+                        routine: { select: { id: true } },
+                        user: { select: { id: true } },
                     }
                 }
             }
         })
         // Check if user is owner of all resources
-        const isOwner = (userId: string, data: any) => {
+        const isOwner = async (userId: string, data: any) => {
             if (!data.list) return false;
-            return isUserOwner(userId, data.list) || isOrganizationOwner(userId, data.list) || isProjectOwner(userId, data.list) || isRoutineOwner(userId, data.list);
+            if (data.list.organization) {
+                const permissions = await OrganizationModel.permissions(prisma).get({ objects: [data.list.organization], userId });
+                return permissions[0].canEdit;
+            }
+            else if (data.list.project) {
+                const permissions = await ProjectModel.permissions(prisma).get({ objects: [data.list.project], userId });
+                return permissions[0].canEdit
+            }
+            else if (data.list.routine) {
+                const permissions = await RoutineModel.permissions(prisma).get({ objects: [data.list.routine], userId });
+                return permissions[0].canEdit;
+            }
+            else if (data.list.user) {
+                return data.list.user.id === userId;
+            }
+            return false;
         }
         if (!existingResources.some(r => isOwner(userId, r)))
             throw new CustomError(CODE.Unauthorized, 'You do not own the resource, or are not an admin of its organization', { code: genErrorCode('0086') });

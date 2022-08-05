@@ -38,7 +38,7 @@ export const ProjectView = ({
     const [, params2] = useRoute(`${APP_LINKS.SearchProjects}/view/:id`);
     const id: string = useMemo(() => params?.id ?? params2?.id ?? '', [params, params2]);
     // Fetch data
-    const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery);
+    const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery, { errorPolicy: 'all'});
     const [project, setProject] = useState<Project | null | undefined>(null);
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { input: { id } } })

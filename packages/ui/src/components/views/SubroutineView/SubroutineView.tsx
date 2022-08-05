@@ -67,13 +67,15 @@ export const SubroutineView = ({
         const schemas: { [fieldName: string]: FieldData } = {};
         for (let i = 0; i < routine.inputs?.length; i++) {
             const currInput = routine.inputs[i];
+            console.log('currinputttttttt', currInput);
+            if (!currInput.standard) continue;
             const currSchema = standardToFieldData({
                 description: getTranslation(currInput, 'description', getUserLanguages(session), false) ?? getTranslation(currInput.standard, 'description', getUserLanguages(session), false),
                 fieldName: `inputs-${currInput.id}`,
-                props: currInput.standard?.props ?? '',
-                name: currInput.name ?? currInput.standard?.name ?? '',
-                type: currInput.standard?.type ?? '',
-                yup: currInput.standard?.yup ?? null,
+                props: currInput.standard.props,
+                name: currInput.name ?? currInput.standard.name,
+                type: currInput.standard.type,
+                yup: currInput.standard.yup,
             });
             if (currSchema) {
                 schemas[currSchema.fieldName] = currSchema;

@@ -47,7 +47,7 @@ export function SettingsPage({
     }), [searchParams]);
 
     // Fetch profile data
-    const [getData, { data, loading }] = useLazyQuery<profile>(profileQuery);
+    const [getData, { data, loading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all'});
     useEffect(() => {
         if (session?.id) getData();
     }, [getData, session])

@@ -71,8 +71,8 @@ export const shapeRoutineCreate = (item: RoutineShape): RoutineCreateInput => ({
 export const shapeRoutineUpdate = (
     original: RoutineShape,
     updated: RoutineShape
-): RoutineUpdateInput | undefined => 
-    shapeUpdate(original, updated, (o, u) => ({
+): RoutineUpdateInput | undefined => { console.log('shapeRoutineUpdate', original, updated, shapeUpdateList(original, updated, 'inputs', hasObjectChanged, shapeInputCreate, shapeInputUpdate, 'id')); 
+return shapeUpdate(original, updated, (o, u) => ({
         id: o.id,
         isAutomatable: u.isAutomatable,
         isComplete: u.isComplete,
@@ -93,4 +93,4 @@ export const shapeRoutineUpdate = (
         ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeRoutineTranslationCreate, shapeRoutineTranslationUpdate, 'id'),
         ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate, 'id'),
         ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate, 'tag', true, true),
-    }), 'id')
+    }), 'id') }

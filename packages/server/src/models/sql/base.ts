@@ -94,7 +94,7 @@ export type ModelLogic<GraphQLModel, SearchInput, PermissionObject> = {
     prismaObject: (prisma: PrismaType) => PrismaType[keyof PrismaType];
     search?: Searcher<SearchInput>;
     mutate?: (prisma: PrismaType) => Mutater<GraphQLModel>;
-    permission?: (prisma: PrismaType) => Permissioner<PermissionObject, SearchInput>;
+    permissions?: (prisma: PrismaType) => Permissioner<PermissionObject, SearchInput>;
     verify?: { [x: string]: any };
     query?: (prisma: PrismaType) => Querier;
 }
@@ -1335,9 +1335,11 @@ export async function permissionsCheck<PermissionObject>({
     prisma,
     userId,
 }: PermissionsHelper<PermissionObject>): Promise<boolean> {
-    if (!model.permission) return true;
+    console.log('permissionscheck a', actions, JSON.stringify(object), '\n\n');
+    if (!model.permissions) return true;
     // Query object's permissions
-    const perms = await model.permission(prisma).get({ objects: [object], userId });
+    const perms = await model.permissions(prisma).get({ objects: [object], userId });
+    console.log('permissionscheck b', JSON.stringify(perms), '\n\n');
     for (const action of actions) {
         if (!perms[0][action as keyof PermissionObject]) {
             return false;
@@ -1377,7 +1379,7 @@ export async function readOneHelper<GraphQLModel>({
     const authorized = await permissionsCheck({
         model,
         object: { id: input.id || input.handle },
-        actions: ['canRead'],
+        actions: ['canView'],
         prisma,
         userId,
     });
@@ -1390,6 +1392,7 @@ export async function readOneHelper<GraphQLModel>({
         throw new CustomError(CODE.NotFound, `${objectType} not found`, { code: genErrorCode('0022') });
     // Return formatted for GraphQL
     let formatted = modelToGraphQL(object, partialInfo) as RecursivePartial<GraphQLModel>;
+    console.log('read one formatted', JSON.stringify(formatted), '\n\n')
     // If logged in and object has view count, handle it
     if (userId && objectType in ViewFor) {
         ViewModel.mutate(prisma).view(userId, { forId: object.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language

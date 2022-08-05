@@ -133,7 +133,7 @@ export const routinePermissioner = (prisma: PrismaType): Permissioner<RoutinePer
         userId,
     }) {
         // Initialize result with ID
-        const result: Partial<RoutinePermission>[] = objects.map((o) => ({
+        const result = objects.map((o) => ({
             canComment: true,
             canDelete: false,
             canEdit: false,
@@ -143,6 +143,7 @@ export const routinePermissioner = (prisma: PrismaType): Permissioner<RoutinePer
             canView: true,
             canVote: true,
         }));
+        if (!userId) return result;
         const ids = objects.map(x => x.id);
         let ownerData: { 
             id: string, 
@@ -192,7 +193,7 @@ export const routinePermissioner = (prisma: PrismaType): Permissioner<RoutinePer
         }
         // TODO isPrivate view check
         // TODO check relationships for permissions
-        return result as RoutinePermission[];
+        return result;
     },
     async canSearch({
         input,

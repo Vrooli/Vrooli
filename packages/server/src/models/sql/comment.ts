@@ -135,9 +135,10 @@ export const commentSearcher = (): Searcher<CommentSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({ searchString,
-            resolver: ({ insensitive }) => ({ 
-                translations: { some: { language: languages ? { in: languages } : undefined, text: { ...insensitive } } } 
+        return getSearchStringQueryHelper({
+            searchString,
+            resolver: ({ insensitive }) => ({
+                translations: { some: { language: languages ? { in: languages } : undefined, text: { ...insensitive } } }
             })
         })
     },
@@ -161,16 +162,65 @@ export const commentPermissioner = (prisma: PrismaType): Permissioner<CommentPer
         permissions,
         userId,
     }) {
-        //TODO
-        return objects.map((o) => ({
-            canDelete: true,
-            canEdit: true,
+        // Initialize result with ID
+        const result = objects.map((o) => ({
+            canDelete: false,
+            canEdit: false,
             canStar: true,
             canReply: true,
             canReport: true,
             canView: true,
             canVote: true,
         }));
+        if (!userId) return result;
+        const ids = objects.map(x => x.id);
+        let ownerData: {
+            id: string,
+            user?: { id: string } | null | undefined,
+            organization?: { id: string } | null | undefined
+        }[] = [];
+        // If some owner data missing, query for owner data.
+        if (objects.map(x => x.owner).filter(x => x).length < objects.length) {
+            ownerData = await prisma.comment.findMany({
+                where: { id: { in: ids } },
+                select: {
+                    id: true,
+                    user: { select: { id: true } },
+                    organization: { select: { id: true } },
+                },
+            });
+        } else {
+            ownerData = objects.map((x) => {
+                const isOrg = Boolean(Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name);
+                return ({
+                    id: x.id,
+                    user: isOrg ? null : x.owner,
+                    organization: isOrg ? x.owner : null,
+                });
+            });
+        }
+        // Find permissions for every organization
+        const organizationIds: string[] = ownerData.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
+        const orgPermissions = await OrganizationModel.permissions(prisma).get({
+            objects: organizationIds.map(x => ({ id: x })),
+            userId
+        });
+        // Find which objects have ownership permissions
+        for (let i = 0; i < objects.length; i++) {
+            const unformatted = ownerData.find(y => y.id === objects[i].id);
+            if (!unformatted) continue;
+            // Check if user owns object directly, or through organization
+            if (unformatted.user?.id !== userId) {
+                const orgIdIndex = organizationIds.findIndex(id => id === unformatted?.organization?.id);
+                if (orgIdIndex < 0) continue;
+                if (!orgPermissions[orgIdIndex].canEdit) continue;
+            }
+            // Set owner permissions
+            result[i].canDelete = true;
+            result[i].canEdit = true;
+            result[i].canView = true;
+        }
+        return result;
     },
 })
 

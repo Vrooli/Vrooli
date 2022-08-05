@@ -7,7 +7,7 @@ import {
 } from '@mui/icons-material';
 import { InputShape, OutputShape, updateArray } from 'utils';
 import { InputOutputListItem } from '../InputOutputListItem/InputOutputListItem';
-import { RoutineInput, RoutineInputList, RoutineOutput } from 'types';
+import { RoutineInput, RoutineOutput } from 'types';
 import { v4 as uuid } from 'uuid';
 
 const inputHelpText =
@@ -133,8 +133,9 @@ export const InputOutputContainer = ({
     }, [handleUpdate, list]);
 
     const onDelete = useCallback((index: number) => {
+        console.log('container ondelete', index, list.filter((_, i) => i !== index));
         setIsOpenArray(isOpenArray.filter((_, i) => i !== index));
-        handleUpdate((list as RoutineInputList).filter((_, i) => i !== index));
+        handleUpdate([...list.filter((_, i) => i !== index)]);
     }, [handleUpdate, list, isOpenArray]);
 
     return (

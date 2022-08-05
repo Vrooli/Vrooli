@@ -83,7 +83,7 @@ export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardP
     }) {
         console.log('standard permissioner a', JSON.stringify(objects), '\n\n')
         // Initialize result with ID
-        const result: Partial<StandardPermission>[] = objects.map((o) => ({
+        const result = objects.map((o) => ({
             canComment: true,
             canDelete: false,
             canEdit: false,
@@ -92,6 +92,7 @@ export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardP
             canView: true,
             canVote: true,
         }));
+        if (!userId) return result;
         const ids = objects.map(x => x.id);
         let creatorData: { 
             id: string, 
@@ -145,7 +146,7 @@ export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardP
         }
         // TODO isPrivate view check
         // TODO check relationships for permissions
-        return result as StandardPermission[];
+        return result;
     },
     async canSearch({
         input,

@@ -1,7 +1,7 @@
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { InputOutputListItemProps } from '../types';
 import { inputCreate, InputType, outputCreate } from '@local/shared';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { containerShadow } from 'styles';
 import {
     Delete as DeleteIcon,
@@ -55,14 +55,14 @@ export const InputTypeOptions: InputTypeOption[] = [
     },
 ]
 
-const defaultStandard = (item: InputOutputListItemProps['item']): StandardShape => ({
+const defaultStandard = (item: InputOutputListItemProps['item'], generatedSchema?: FieldData | null): StandardShape => ({
     __typename: 'Standard',
     id: uuid(),
-    default: null,
+    default: JSON.stringify(generatedSchema?.props?.defaultValue ?? null),
     isInternal: true,
-    type: InputTypeOptions[0].value,
-    props: '{}',
-    yup: '{}',
+    type: generatedSchema?.type ?? InputTypeOptions[0].value,
+    props: JSON.stringify(generatedSchema?.props ?? '{}'),
+    yup: JSON.stringify(generatedSchema?.yup ?? '{}'),
     name: `${item.name}-schema`,
     tags: [],
     translations: [],
@@ -99,18 +99,14 @@ export const InputOutputListItem = ({
     const { palette } = useTheme();
     const [schemaKey] = useState(`input-output-schema-${Math.random().toString(36).substring(2, 15)}`);
 
-    const [externalStandard, setExternalStandard] = useState<StandardShape | null>(item.standard);
-    // True if using existing standard
-    const isExternal = useMemo<boolean>(() => externalStandard ? externalStandard.isInternal === false : false, [externalStandard]);
+    const [standard, setStandard] = useState<StandardShape>(item.standard ?? defaultStandard(item));
 
     /**
      * Schema only available when defining custom (internal) standard
      */
     const [generatedSchema, setGeneratedSchema] = useState<FieldData | null>(toFieldData(schemaKey, {
         ...item,
-        standard: {
-            ...(item.standard || defaultStandard(item)),
-        }
+        standard
     }, language));
 
     const handleInputTypeSelect = useCallback((event: any) => {
@@ -132,12 +128,12 @@ export const InputOutputListItem = ({
         console.log('in useeffect for external standard generated schema')
         if (item.standard && item.standard.isInternal === false) {
             console.log('setting external standard')
-            setExternalStandard(item.standard)
+            setStandard(item.standard)
         } else {
             console.log('setting generated standard')
             setGeneratedSchema(toFieldData(schemaKey, item, language))
         }
-    }, [item, language, schemaKey, setExternalStandard]);
+    }, [item, language, schemaKey, setStandard]);
 
     // Handle standard schema
     const handleSchemaUpdate = useCallback((schema: FieldData) => {
@@ -172,24 +168,12 @@ export const InputOutputListItem = ({
                 language,
                 description: values.description,
             })
-            const standard: StandardShape = (isExternal && externalStandard) ? externalStandard : {
-                __typename: 'Standard',
-                id: uuid(),
-                default: generatedSchema?.props?.defaultValue ?? null,
-                isInternal: true,
-                type: generatedSchema?.type ?? InputTypeOptions[0].value,
-                props: JSON.stringify(generatedSchema?.props ?? '{}'),
-                yup: JSON.stringify(generatedSchema?.yup ?? '{}'),
-                name: `${item.name}-standard`,
-                tags: [],
-                translations: [],
-            }
             handleUpdate(index, {
                 ...item,
                 name: values.name,
                 isRequired: isInput ? values.isRequired : undefined,
                 translations: allTranslations,
-                standard,
+                standard: standard.isInternal === false ? standard : defaultStandard(item, generatedSchema),
             });
         },
     });
@@ -202,13 +186,13 @@ export const InputOutputListItem = ({
         else handleOpen(index);
     }, [isOpen, handleOpen, index, formik, handleClose]);
 
-    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(isExternal);
+    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(standard.isInternal === false);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
     const onSwitchChange = useCallback((s: Standard | null) => {
         console.log('on switch change')
         setIsPreviewOn(Boolean(s));
         if (s && s.isInternal === false) {
-            setExternalStandard(s)
+            setStandard(s)
         } else {
             setGeneratedSchema(toFieldData(schemaKey, {
                 ...item,
@@ -338,7 +322,7 @@ export const InputOutputListItem = ({
                         <StandardSelectSwitch
                             disabled={!isEditing}
                             session={session}
-                            selected={isExternal ? { name: externalStandard?.name ?? '' } : null}
+                            selected={standard.isInternal === false ? { name: standard.name ?? '' } : null}
                             onChange={onSwitchChange}
                             zIndex={zIndex}
                         />
@@ -354,15 +338,15 @@ export const InputOutputListItem = ({
                         />
                         {
                             isPreviewOn ?
-                                ((externalStandard || generatedSchema) && generateInputComponent({
-                                    data: externalStandard ?
+                                ((standard || generatedSchema) && generateInputComponent({
+                                    data: standard ?
                                         standardToFieldData({
                                             fieldName: schemaKey,
-                                            description: getTranslation(item, 'description', [language]) ?? getTranslation(externalStandard, 'description', [language]),
-                                            props: externalStandard?.props ?? '',
-                                            name: externalStandard?.name ?? '',
-                                            type: externalStandard?.type ?? InputTypeOptions[0].value,
-                                            yup: externalStandard.yup ?? null,
+                                            description: getTranslation(item, 'description', [language]) ?? getTranslation(standard, 'description', [language]),
+                                            props: standard?.props ?? '',
+                                            name: standard?.name ?? '',
+                                            type: standard?.type ?? InputTypeOptions[0].value,
+                                            yup: standard.yup ?? null,
                                         }) as FieldData :
                                         generatedSchema as FieldData,
                                     disabled: true,
@@ -374,7 +358,7 @@ export const InputOutputListItem = ({
                                 // Only editable if standard not selected and is editing
                                 <Box>
                                     <Selector
-                                        disabled={!isEditing || isExternal}
+                                        disabled={!isEditing || standard.isInternal === false}
                                         fullWidth
                                         options={InputTypeOptions}
                                         selected={InputTypeOptions.find(option => option.value === generatedSchema?.type) ?? InputTypeOptions[0]}
@@ -389,7 +373,7 @@ export const InputOutputListItem = ({
                                     <BaseStandardInput
                                         fieldName={schemaKey}
                                         inputType={(generatedSchema?.type as InputType) ?? InputTypeOptions[0].value}
-                                        isEditing={isEditing && !isExternal}
+                                        isEditing={isEditing && standard.isInternal === true}
                                         schema={generatedSchema}
                                         onChange={handleSchemaUpdate}
                                         storageKey={schemaKey}

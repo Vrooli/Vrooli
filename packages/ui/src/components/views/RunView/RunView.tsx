@@ -353,7 +353,7 @@ export const RunView = ({
     const progressPercentage = useMemo(() => getRunPercentComplete(completedComplexity, routine.complexity), [completedComplexity, routine]);
 
     // Query current subroutine, if needed. Main routine may have the data
-    const [getSubroutine, { data: subroutineData, loading: subroutineLoading }] = useLazyQuery<routine, routineVariables>(routineQuery);
+    const [getSubroutine, { data: subroutineData, loading: subroutineLoading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all'});
     const [currentStep, setCurrentStep] = useState<RoutineStep | null>(null);
     useEffect(() => {
         // If no steps, redirect to first step

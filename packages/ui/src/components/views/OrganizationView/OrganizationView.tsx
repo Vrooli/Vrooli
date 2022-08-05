@@ -44,7 +44,7 @@ export const OrganizationView = ({
     const [, params2] = useRoute(`${APP_LINKS.SearchOrganizations}/view/:id`);
     const id: string = useMemo(() => params?.id ?? params2?.id ?? '', [params, params2]);
     // Fetch data
-    const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery);
+    const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery, { errorPolicy: 'all'});
     const [organization, setOrganization] = useState<Organization | null | undefined>(null);
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { input: { id } } })

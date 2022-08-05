@@ -239,6 +239,7 @@ export const shapeUpdateList = <
 ): ShapeUpdateList<RelField, OutputCreate, OutputUpdate> => {
     const o = original[relationshipField];
     const u = updated[relationshipField];
+    console.log('shapeupdatelist', o, u, !Boolean(u));
     if (!u) return {};
     // If no original items, treat all as created/connected
     if (!o || !Array.isArray(o)) {
@@ -254,7 +255,7 @@ export const shapeUpdateList = <
             return shapeCreateList(updated as { [key in RelField]: Input[] }, relationshipField, formatForCreate) as ShapeUpdateList<RelField, OutputCreate, OutputUpdate>;
         }
     }
-    if (Array.isArray(u) && u.length > 0) {
+    if (Array.isArray(u)) {
         return {
             [`${relationshipField}Update`]: findUpdatedItems(o, u, hasObjectChanged, formatForUpdate, idField),
             [`${relationshipField}Create`]: !treatLikeConnects ? findCreatedItems(o, u, formatForCreate, idField) : undefined,

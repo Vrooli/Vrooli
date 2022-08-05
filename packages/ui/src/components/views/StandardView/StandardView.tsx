@@ -33,7 +33,7 @@ export const StandardView = ({
     const [, params2] = useRoute(`${APP_LINKS.SearchStandards}/view/:id`);
     const id = params?.id ?? params2?.id;
     // Fetch data
-    const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery);
+    const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery, { errorPolicy: 'all'});
     useEffect(() => {
         if (id && uuidValidate(id)) getData({ variables: { input: { id } } });
     }, [getData, id])
@@ -48,14 +48,14 @@ export const StandardView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const schema = useMemo<FieldData | null>(() => (standardToFieldData({
+    const schema = useMemo<FieldData | null>(() => (standard ? standardToFieldData({
         fieldName: 'preview',
         description: getTranslation(standard, 'description', [language]),
-        props: standard?.props ?? '',
-        name: standard?.name ?? '',
-        type: standard?.type ?? '',
-        yup: standard?.yup ?? null,
-    })), [language, standard]);
+        props: standard.props,
+        name: standard.name,
+        type: standard.type,
+        yup: standard.yup,
+    }) : null), [language, standard]);
     const previewFormik = useFormik({
         initialValues: {
             preview: JSON.stringify((schema as FieldDataJSON)?.props?.format),

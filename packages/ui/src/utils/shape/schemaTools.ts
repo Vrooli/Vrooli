@@ -14,8 +14,6 @@ export interface StandardToFieldDataProps {
 /**
  * Converts Standard object to a FieldData shape. 
  * This can be used to generate input objects
- * @param standard Standard object
- * @param fieldName Name of the field
  * @returns FieldData shape
  */
 export const standardToFieldData = ({

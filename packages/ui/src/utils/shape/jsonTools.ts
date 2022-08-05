@@ -291,3 +291,15 @@ export const isEqualJSON = (
         return false;
     }
 }
+
+/**
+ * Stringifies an object, only if it is not already stringified.
+ * @param value The object to stringify.
+ * @returns The stringified object.
+ */
+export const safeStringify = (value: any): string => {
+    if (typeof value === 'string' && value.length > 1 && value[0] === '{' && value[value.length - 1] === '}') {
+        return value;
+    }
+    return JSON.stringify(value);
+}

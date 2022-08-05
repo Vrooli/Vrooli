@@ -42,7 +42,7 @@ export const RoutineView = ({
     const [, params2] = useRoute(`${APP_LINKS.SearchRoutines}/view/:id`);
     const id = params?.id ?? params2?.id;
     // Fetch data
-    const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
+    const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all'});
     const [routine, setRoutine] = useState<Routine | null>(null);
     useEffect(() => {
         if (id && uuidValidate(id)) { getData({ variables: { input: { id } } }); }
@@ -259,13 +259,15 @@ export const RoutineView = ({
         const schemas: { [fieldName: string]: FieldData } = {};
         for (let i = 0; i < routine.inputs?.length; i++) {
             const currInput = routine.inputs[i];
+            console.log('formvaluemap currinput', currInput);
+            if (!currInput.standard) continue;
             const currSchema = standardToFieldData({
                 description: getTranslation(currInput, 'description', getUserLanguages(session), false) ?? getTranslation(currInput.standard, 'description', getUserLanguages(session), false),
                 fieldName: `inputs-${currInput.id}`,
-                props: currInput.standard?.props ?? '',
-                name: currInput.name ?? currInput.standard?.name ?? '',
-                type: currInput.standard?.type ?? '',
-                yup: currInput.standard?.yup ?? null,
+                props: currInput.standard.props,
+                name: currInput.name ?? currInput.standard?.name,
+                type: currInput.standard.type,
+                yup: currInput.standard.yup,
             });
             if (currSchema) {
                 schemas[currSchema.fieldName] = currSchema;
@@ -281,6 +283,10 @@ export const RoutineView = ({
         enableReinitialize: true,
         onSubmit: () => { },
     });
+
+    useEffect(() => {
+        console.log('formvaluemap', formValueMap);
+    }, [formValueMap]);
 
     const [runComplete] = useMutation<runComplete, runCompleteVariables>(runCompleteMutation);
     const markAsComplete = useCallback(() => {

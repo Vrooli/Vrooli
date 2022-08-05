@@ -87,7 +87,7 @@ export const projectPermissioner = (prisma: PrismaType): Permissioner<ProjectPer
         userId,
     }) {
         // Initialize result with ID
-        const result: Partial<ProjectPermission>[] = objects.map((o) => ({
+        const result = objects.map((o) => ({
             canComment: true,
             canDelete: false,
             canEdit: false,
@@ -96,6 +96,7 @@ export const projectPermissioner = (prisma: PrismaType): Permissioner<ProjectPer
             canVote: true,
             canView: true,
         }));
+        if (!userId) return result;
         const ids = objects.map(x => x.id);
         let ownerData: { 
             id: string, 
@@ -145,7 +146,7 @@ export const projectPermissioner = (prisma: PrismaType): Permissioner<ProjectPer
         }
         // TODO isPrivate view check
         // TODO check relationships for permissions
-        return result as ProjectPermission[];
+        return result;
     },
     async canSearch({
         input,

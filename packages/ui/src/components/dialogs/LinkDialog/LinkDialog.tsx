@@ -115,7 +115,7 @@ export const LinkDialog = ({
     const { fromOptions, toOptions } = useMemo(() => {
         if (!routine) return { fromOptions: [], toOptions: [] };
         // Initialize options
-        let fromNodes: Node[] = routine.nodes;
+        let fromNodes: Node[] = routine.nodes.filter((node: Node) => node.type === NodeType.End); // Can't link from end nodes
         let toNodes: Node[] = routine.nodes.filter((node: Node) => node.type !== NodeType.Start); // Can't link to start node
         const existingLinks = routine.nodeLinks;
         // If from node is already selected

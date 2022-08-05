@@ -3,7 +3,6 @@
  */
 import { Box, Button, CircularProgress, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { CommentContainerProps } from '../types';
-import { containerShadow } from 'styles';
 import { commentCreateForm as validationSchema } from '@local/shared';
 import { useLazyQuery, useMutation } from '@apollo/client';
 import { commentCreate, commentCreateVariables } from 'graphql/generated/commentCreate';
@@ -93,7 +92,8 @@ export function CommentContainer({
                 [`${objectType.toLowerCase()}Id`]: objectId,
                 ...advancedSearchParams
             }
-        } as any)
+        } as any),
+        errorPolicy: 'all',
     });
     const [allData, setAllData] = useState<ThreadType[]>([]);
 

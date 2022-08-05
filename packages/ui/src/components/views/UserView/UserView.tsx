@@ -47,7 +47,7 @@ export const UserView = ({
     }, [isProfile, params1, params2, session]);
     const isOwn: boolean = useMemo(() => Boolean(session?.id && session.id === id), [id, session]);
     // Fetch data
-    const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery);
+    const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery, { errorPolicy: 'all'});
     const [user, setUser] = useState<User | null | undefined>(null);
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { input: { id } } })
