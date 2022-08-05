@@ -62,8 +62,9 @@ export const SubroutineView = ({
     }, [routine, handleSaveProgress, owner, setLocation]);
 
     // The schema and formik keys for the form
-    const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {
-        if (!routine) return null;
+    const formValueMap = useMemo<{ [fieldName: string]: FieldData }>(() => {
+        console.log('calculating formvaluemap')
+        if (!routine) return {};
         const schemas: { [fieldName: string]: FieldData } = {};
         for (let i = 0; i < routine.inputs?.length; i++) {
             const currInput = routine.inputs[i];
@@ -84,7 +85,7 @@ export const SubroutineView = ({
         return schemas;
     }, [routine, session]);
     const previewFormik = useFormik({
-        initialValues: Object.entries(formValueMap ?? {}).reduce((acc, [key, value]) => {
+        initialValues: Object.entries(formValueMap).reduce((acc, [key, value]) => {
             acc[key] = value.props.defaultValue ?? '';
             return acc;
         }, {}),
@@ -93,15 +94,17 @@ export const SubroutineView = ({
     });
 
     /**
-     * Update formik values with the current user inputs
+     * Update formik values with the current user inputs, if any
      */
     useEffect(() => {
-        if (!run?.inputs || !Array.isArray(run?.inputs)) return;
+        console.log('calculating preview formik values', run)
+        if (!run?.inputs || !Array.isArray(run?.inputs) || run.inputs.length === 0) return;
+        console.log('calling runInputsToFormik', run.inputs)
         const updatedValues = runInputsToFormik(run.inputs);
         previewFormik.setValues(updatedValues);
-    }, 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [previewFormik.setValues, run?.inputs]);
+    },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [previewFormik.setValues, run?.inputs]);
 
     /**
      * Update run with updated user inputs
@@ -141,6 +144,41 @@ export const SubroutineView = ({
             zIndex={zIndex}
         />
     }, [routine, loading, session, zIndex]);
+
+    const inputComponents = useMemo(() => {
+        if (!routine?.inputs || !Array.isArray(routine?.inputs) || routine.inputs.length === 0) return null;
+        return (
+            <Box>
+                {Object.values(formValueMap).map((field: FieldData, i: number) => (
+                    <Box key={i} sx={{
+                        padding: 1,
+                        borderRadius: 1,
+                    }}>
+                        {/* Label, help button, and copy iput icon */}
+                        <Stack direction="row" spacing={0} sx={{ alignItems: 'center' }}>
+                            <Tooltip title="Copy to clipboard">
+                                <IconButton onClick={() => copyInput(field.fieldName)}>
+                                    <CopyIcon />
+                                </IconButton>
+                            </Tooltip>
+                            <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>{field.label ?? `Input ${i + 1}`}</Typography>
+                            {field.description && <HelpButton markdown={field.description} />}
+                        </Stack>
+                        {
+                            generateInputComponent({
+                                data: field,
+                                disabled: false,
+                                formik: previewFormik,
+                                session,
+                                onUpload: () => { },
+                                zIndex,
+                            })
+                        }
+                    </Box>
+                ))}
+            </Box>
+        )
+    }, [copyInput, formValueMap, palette.background.textPrimary, previewFormik, routine?.inputs, session, zIndex]);
 
     if (loading) return (
         <Box sx={{
@@ -221,40 +259,7 @@ export const SubroutineView = ({
                     <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Instructions</Typography>
                     <Markdown>{instructions ?? 'No instructions'}</Markdown>
                 </Box>
-                {/* Auto-generated inputs */}
-                {
-                    Object.keys(previewFormik.values).length > 0 && <Box>
-                        {
-                            Object.values(formValueMap ?? {}).map((field: FieldData, i: number) => (
-                                <Box key={i} sx={{
-                                    padding: 1,
-                                    borderRadius: 1,
-                                }}>
-                                    {/* Label, help button, and copy iput icon */}
-                                    <Stack direction="row" spacing={0} sx={{ alignItems: 'center' }}>
-                                        <Tooltip title="Copy to clipboard">
-                                            <IconButton onClick={() => copyInput(field.fieldName)}>
-                                                <CopyIcon />
-                                            </IconButton>
-                                        </Tooltip>
-                                        <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>{field.label ?? `Input ${i + 1}`}</Typography>
-                                        {field.description && <HelpButton markdown={field.description} />}
-                                    </Stack>
-                                    {
-                                        generateInputComponent({
-                                            data: field,
-                                            disabled: false,
-                                            formik: previewFormik,
-                                            session,
-                                            onUpload: () => { },
-                                            zIndex,
-                                        })
-                                    }
-                                </Box>
-                            ))
-                        }
-                    </Box>
-                }
+                {inputComponents}
             </Stack>
         </Box>
     )

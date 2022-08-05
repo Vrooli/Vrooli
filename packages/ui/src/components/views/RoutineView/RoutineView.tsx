@@ -133,7 +133,7 @@ export const RoutineView = ({
         else {
             setLocation(stringifySearchParams({
                 run: run.id,
-                step: run.steps.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
+                step: run.steps?.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
             }), { replace: true });
         }
         setIsRunOpen(true);

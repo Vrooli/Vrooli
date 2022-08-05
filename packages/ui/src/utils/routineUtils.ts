@@ -75,11 +75,13 @@ export const formikToRunInputs = (values: { [x: string]: string }): { [x: string
  * @param runInputs The run input data
  * @returns Object to pass into formik setValues function
  */
-export const runInputsToFormik = (runInputs: RunInput[]): { [x: string]: string } => {
+export const runInputsToFormik = (runInputs: { input: { id: string }, data: string }[]): { [x: string]: string } => {
     const result: { [x: string]: string } = {};
+    console.log('in runinputstoformik');
     for (const runInput of runInputs) {
         result[`inputs-${runInput.input.id}`] = JSON.parse(runInput.data);
     }
+    console.log('returning formik inputs result', result);
     return result;
 }
 

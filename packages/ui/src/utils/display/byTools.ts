@@ -9,7 +9,7 @@ import { getTranslation } from "./translationTools";
  * @returns String of owner, or empty string if no owner
  */
 export const getOwnedByString = (
-    object: { owner: Project['owner'] | Routine['owner'] } | null | undefined,
+    object: { owner: Project['owner'] | Routine['owner'] | null | undefined } | null | undefined,
     languages: readonly string[]
 ): string => {
     if (!object || !object.owner) return '';
@@ -46,7 +46,7 @@ export const getCreatedByString = (
  * @params setLocation Function to set location in history
  */
 export const toOwnedBy = (
-    object: { owner: Project['owner'] | Routine['owner'] } | null | undefined,
+    object: { owner: Project['owner'] | Routine['owner'] | null | undefined } | null | undefined,
     setLocation: SetLocation,
 ): void => {
     if (!object || !object.owner) {

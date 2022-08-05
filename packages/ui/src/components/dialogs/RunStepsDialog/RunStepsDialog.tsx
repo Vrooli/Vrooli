@@ -222,7 +222,6 @@ export const RunStepsDialog = ({
                     zIndex: zIndex + 1,
                     '& .MuiDrawer-paper': {
                         background: palette.background.default,
-                        borderRight: `1px solid ${palette.text.primary}`,
                         minHeight: '100vh',
                         minWidth: '300px',
                         overflowY: 'auto',

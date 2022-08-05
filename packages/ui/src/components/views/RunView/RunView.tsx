@@ -116,6 +116,7 @@ export const RunView = ({
      * @param newLocation The new step params, as an array
      */
     const setCurrStepLocation = useCallback((newLocation: number[]) => {
+        console.log('setting location in currsteplocation')
         setLocation(stringifySearchParams({
             ...params,
             step: newLocation,
@@ -147,6 +148,7 @@ export const RunView = ({
     useEffect(() => {
         // Check for required data to calculate steps
         if (!routine || !routine.nodes || !routine.nodeLinks) {
+            console.log('setting step list null')
             setStepList(null)
             return;
         }
@@ -204,6 +206,7 @@ export const RunView = ({
                 steps: [...subroutineSteps, ...decisionSteps] as Array<SubroutineStep | DecisionStep>
             });
         }
+        console.log('setting step list full')
         // Main routine acts like routine list
         setStepList({
             type: RoutineStepType.RoutineList,
@@ -285,7 +288,7 @@ export const RunView = ({
     /**
      * Current step run data
      */
-    const currStepRunData = useMemo(() => {
+    const currStepRunData = useMemo<RunStep | undefined>(() => {
         const runStep = run?.steps?.find((s: RunStep) => locationArraysMatch(s.step, currStepLocation));
         return runStep;
     }, [run?.steps, currStepLocation]);
@@ -304,7 +307,10 @@ export const RunView = ({
     }, []);
     useEffect(() => {
         if (!run?.inputs || !Array.isArray(run?.inputs)) return;
-        const inputs: { [inputId: string]: string } = run.inputs.map((input: RunInput) => ({ [input.input.id]: input.data }));
+        const inputs: { [inputId: string]: string } = {};
+        for (const input of run.inputs) {
+            inputs[input.input.id] = input.data;
+        }
         if (JSON.stringify(inputs) !== JSON.stringify(currUserInputs.current)) {
             console.log('goop', inputs, currUserInputs.current);
             handleUserInputsUpdate(inputs);
@@ -575,6 +581,7 @@ export const RunView = ({
         const params = parseSearchParams(window.location.search);
         delete params.run;
         delete params.step;
+        console.log('CLEARING SEARCH PARAMS', params);
         setLocation(`${window.location.pathname}${stringifySearchParams(params)}`, { replace: true });
     }, [setLocation]);
 
@@ -584,6 +591,7 @@ export const RunView = ({
     const toPrevious = useCallback(() => {
         if (!previousStep) return;
         // Update current step
+        console.log('toprevious')
         setCurrStepLocation(previousStep);
     }, [previousStep, setCurrStepLocation]);
 
@@ -599,7 +607,8 @@ export const RunView = ({
         // Calculate new progress and percent complete
         let newProgress = Array.isArray(progress) ? [...progress] : [];
         let newlyCompletedComplexity: number = (currStep ? getStepComplexity(currStep) : 0);
-        const alreadyComplete = newProgress.find(p => locationArraysMatch(p, currStepLocation));
+        const alreadyComplete: boolean = Boolean(newProgress.find(p => locationArraysMatch(p, currStepLocation)));
+        console.log('newprogress', newProgress, currStepLocation, alreadyComplete, newlyCompletedComplexity)
         // If step was not already completed, update progress
         if (!alreadyComplete) {
             newProgress.push(currStepLocation);
@@ -607,6 +616,7 @@ export const RunView = ({
             setCompletedComplexity(c => c + newlyCompletedComplexity);
         }
         // Update current step
+        console.log('tonext')
         if (nextStep) setCurrStepLocation(nextStep);
         // If in test mode return
         if (testMode || !run) return
@@ -635,7 +645,7 @@ export const RunView = ({
                 mutation: logRunUpdate,
                 input: {
                     id: run.id,
-                    completedComplexity: newlyCompletedComplexity,
+                    completedComplexity: alreadyComplete ? undefined : newlyCompletedComplexity,
                     stepsCreate,
                     stepsUpdate,
                     ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),
@@ -644,18 +654,24 @@ export const RunView = ({
                     setRun(data.runUpdate);
                 }
             })
-        } else {
+        } 
+        // Otherwise, mark as complete
+        else {
+            // Find node data
+            const currNodeId = currStepRunData?.node?.id;
+            const currNode = routine.nodes?.find(n => n.id === currNodeId);
+            const wasSuccessful = (currNode?.data as NodeDataEnd)?.wasSuccessful ?? true;
             mutationWrapper({
                 mutation: logRunComplete,
                 input: {
                     id: run.id,
                     exists: true,
-                    completedComplexity: newlyCompletedComplexity,
+                    completedComplexity: alreadyComplete ? undefined : newlyCompletedComplexity,
                     finalStepCreate: stepsCreate ? stepsCreate[0] : undefined,
                     finalStepUpdate: stepsUpdate ? stepsUpdate[0] : undefined,
                     title: getTranslation(routine, 'title', getUserLanguages(session), true) ?? 'Unnamed Routine',
                     version: routine.version ?? '',
-                    wasSuccessful: true, //TODO
+                    wasSuccessful,
                     ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),
                 },
                 successMessage: () => 'Routine completed!🎉',
@@ -759,6 +775,7 @@ export const RunView = ({
         const locationArray = findLocationArray(selectedNode.id, stepList);
         if (!locationArray) return;
         // Navigate to current step
+        console.log('todecision', locationArray);
         setCurrStepLocation(locationArray);
     }, [reachedEndNode, setCurrStepLocation, stepList]);
 
