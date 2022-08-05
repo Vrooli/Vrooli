@@ -238,9 +238,8 @@ export const BuildView = ({
         setScale(newScale) 
     };
     const handleScaleDelta = useCallback((delta: number) => {
-        console.log('handlesacledelta', delta)
         PubSub.get().publishFastUpdate({ duration: 1000 });
-        setScale(s => { const boop = Math.max(0.25, Math.min(1, s + delta)); console.log('beep', boop, s); return boop; });
+        setScale(s => Math.max(0.25, Math.min(1, s + delta)));
     }, []);
 
     const handleRunDelete = useCallback((run: Run) => {
@@ -564,7 +563,6 @@ export const BuildView = ({
      * Drops or unlinks a node
      */
     const handleNodeDrop = useCallback((nodeId: string, columnIndex: number | null, rowIndex: number | null) => {
-        console.log('handleNodeDrop', nodeId, columnIndex, rowIndex);
         if (!changedRoutine) return;
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
         if (nodeIndex === -1) return;
@@ -607,17 +605,14 @@ export const BuildView = ({
         }
         // If dropped into the same column the node started in, either shift or swap
         else if (columnIndex === changedRoutine.nodes[nodeIndex].columnIndex) {
-            console.log('dropping into same column', updatedNodes.map(n => n.columnIndex + ' ' + n.rowIndex));
             // Find and order nodes in the same column, which are above (or at the same position as) the dropped node
             const nodesAbove = changedRoutine.nodes.filter(n =>
                 n.columnIndex === columnIndex &&
                 n.rowIndex !== null &&
                 n.rowIndex <= rowIndex
             ).sort((a, b) => (a.rowIndex ?? 0) - (b.rowIndex ?? 0));
-            console.log('nodes above', nodesAbove.map(n => n.columnIndex + ' ' + n.rowIndex));
             // If no nodes above, then shift everything in the column down by 1
             if (nodesAbove.length === 0) {
-                console.log('shifting down');
                 updatedNodes = updatedNodes.map(n => {
                     if (n.rowIndex === null || n.columnIndex !== columnIndex) return n;
                     return {
@@ -625,11 +620,9 @@ export const BuildView = ({
                         rowIndex: n.rowIndex + 1,
                     }
                 });
-                console.log('after shift', updatedNodes.map(n => n.columnIndex + ' ' + n.rowIndex));
             }
             // Otherwise, swap with the last node in the above list
             else {
-                console.log('swapping');
                 updatedNodes = updatedNodes.map(n => {
                     if (n.rowIndex === null || n.columnIndex !== columnIndex) return n;
                     if (n.id === nodeId) return {
@@ -642,12 +635,10 @@ export const BuildView = ({
                     }
                     return n;
                 });
-                console.log('after swap', updatedNodes.map(n => n.columnIndex + ' ' + n.rowIndex));
             }
         }
         // Otherwise, treat as a normal drop
         else {
-            console.log('Dropped into normal column', updatedNodes.map(n => n.columnIndex + ' ' + n.rowIndex));
             // If dropped into an existing column, shift rows in dropped column that are below the dropped node
             if (changedRoutine.nodes.some(n => n.columnIndex === columnIndex)) {
                 updatedNodes = updatedNodes.map(n => {
@@ -657,19 +648,16 @@ export const BuildView = ({
                     return n;
                 });
             }
-            console.log('rows shifted', updatedNodes.map(n => n.columnIndex + ' ' + n.rowIndex));
             // If the column the node was from is now empty, then shift all columns after it.
             const originalColumnIndex = changedRoutine.nodes[nodeIndex].columnIndex;
             const isRemovingColumn = originalColumnIndex !== null && changedRoutine.nodes.filter(n => n.columnIndex === originalColumnIndex).length === 1;
             if (isRemovingColumn) {
-                console.log('isremovingcolumn start', updatedNodes.map(n => n.columnIndex + ' ' + n.rowIndex));
                 updatedNodes = updatedNodes.map(n => {
                     if (n.columnIndex !== null && n.columnIndex > originalColumnIndex) {
                         return { ...n, columnIndex: n.columnIndex - 1 }
                     }
                     return n;
                 });
-                console.log('isremovingcolumn end', updatedNodes.map(n => n.columnIndex + ' ' + n.rowIndex));
             }
             updatedNodes = updateArray(updatedNodes, nodeIndex, {
                 ...changedRoutine.nodes[nodeIndex],
@@ -678,7 +666,6 @@ export const BuildView = ({
                     columnIndex,
                 rowIndex,
             })
-            console.log('updated dropped node', updatedNodes.map(n => n.columnIndex + ' ' + n.rowIndex));
         }
         // Update the routine
         setChangedRoutine({
@@ -755,7 +742,6 @@ export const BuildView = ({
      */
     const handleBranchInsert = useCallback((link: NodeLink) => {
         if (!changedRoutine) return;
-        console.log('handleBranchInsert start', changedRoutine.nodes.map(n => n.columnIndex + ' ' + n.rowIndex));
         // Find "to" node. New node will be placed in its column
         const toNode = changedRoutine.nodes.find(n => n.id === link.toId);
         if (!toNode) {
@@ -765,10 +751,8 @@ export const BuildView = ({
         // Find the largest row index in the column. New node will be placed in the next row
         const maxRowIndex = changedRoutine.nodes.filter(n => n.columnIndex === toNode.columnIndex).map(n => n.rowIndex).reduce((a, b) => Math.max(a ?? 0, b ?? 0), 0);
         const newNode: Omit<NodeShape, 'routineId'> = createRoutineListNode(toNode.columnIndex, (maxRowIndex ?? toNode.rowIndex ?? 0) + 1);
-        console.log('newNode', newNode.columnIndex + ' ' + newNode.rowIndex);
         // Since this is a new branch, we also need to add an end node after the new node
         const newEndNode: Omit<NodeShape, 'routineId'> = createEndNode((toNode.columnIndex ?? 0) + 1, (maxRowIndex ?? toNode.rowIndex ?? 0) + 1);
-        console.log('newEndNode', newEndNode.columnIndex + ' ' + newEndNode.rowIndex);
         // Create new link, going from the "from" node to the new node
         const newLink: NodeLinkShape = generateNewLink(link.fromId, newNode.id);
         // Create new link, going from the new node to the end node
@@ -849,7 +833,6 @@ export const BuildView = ({
      * Add a new end node AFTER a node
      */
     const handleAddEndAfter = useCallback((nodeId: string) => {
-        console.log('handleaddendafter start', nodeId);
         if (!changedRoutine) return;
         // Find links where this node is the "from" node
         const links = changedRoutine.nodeLinks.filter(l => l.fromId === nodeId);
@@ -944,7 +927,6 @@ export const BuildView = ({
      */
     const handleSubroutineUpdate = useCallback((updatedSubroutine: NodeDataRoutineListItem) => {
         if (!changedRoutine) return;
-        console.log('handlesubroutineupdate', updatedSubroutine);
         // Update routine
         setChangedRoutine({
             ...changedRoutine,

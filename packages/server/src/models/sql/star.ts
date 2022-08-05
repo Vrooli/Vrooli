@@ -32,7 +32,6 @@ export const starFormatter = (): FormatConverter<Star, any> => ({
         }
     },
     constructUnions: (data) => {
-        console.log('star construct unionnnnnnnn', JSON.stringify(data), '\n\n')
         let { comment, organization, project, routine, standard, tag, user, ...modified } = data;
         if (comment) modified.to = comment;
         else if (organization) modified.to = organization;
@@ -56,12 +55,10 @@ export const starFormatter = (): FormatConverter<Star, any> => ({
         return modified;
     },
     async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Star>[]> {
-        console.log('start add supp start', JSON.stringify(objects), '\n\n')
         // Query for data that star is applied to
         if (isObject(partial.to)) {
             const toTypes: GraphQLModelType[] = objects.map(o => resolveStarTo(o.to)).filter(t => t);
             const toIds = objects.map(x => x.to?.id ?? '') as string[];
-            console.log('star isobject', JSON.stringify(toTypes), JSON.stringify(toIds), '\n\n')
             // Group ids by types
             const toIdsByType: { [x: string]: string[] } = {};
             toTypes.forEach((type, i) => {
@@ -84,7 +81,6 @@ export const starFormatter = (): FormatConverter<Star, any> => ({
                     throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0185') });
                 }
                 const model: ModelLogic<any, any, any> = ObjectMap[type as keyof typeof GraphQLModelType] as ModelLogic<any, any, any>;
-                console.log('star before readmany helper', JSON.stringify(toIdsByType[type]), '\n\n')
                 const paginated = await readManyHelper({
                     info: partial.to[type],
                     input: { ids: toIdsByType[type] },
@@ -128,7 +124,6 @@ export const starSearcher = (): Searcher<StarSearchInput> => ({
         })
     },
     customQueries(input: StarSearchInput): { [x: string]: any } {
-        console.log("IN STAR CUSTOM QUERIES", JSON.stringify(input))
         return {
             ...(input.excludeTags === true ? { tagId: null } : {}),
         }

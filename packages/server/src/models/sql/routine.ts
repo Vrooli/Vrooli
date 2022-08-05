@@ -719,7 +719,6 @@ export const routineMutater = (prisma: PrismaType) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<RoutineCreateInput, RoutineUpdateInput>): Promise<void> {
-        console.log('in routine validatemutations')
         if (!createMany && !updateMany && !deleteMany) return;
         if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0093') });
@@ -772,7 +771,6 @@ export const routineMutater = (prisma: PrismaType) => ({
         }
         // Find role for every organization
         const roles = await OrganizationModel.query(prisma).hasRole(userId ?? '', organizationIds);
-        console.log('got roles', JSON.stringify(roles), '\n', JSON.stringify(organizationIds), '\n\n')
         // If any role is undefined, the user is not authorized to delete one or more objects
         if (roles.some(role => !role))
             throw new CustomError(CODE.Unauthorized, 'Not authorized.', { code: genErrorCode('0095') })
@@ -781,7 +779,6 @@ export const routineMutater = (prisma: PrismaType) => ({
      * Performs adds, updates, and deletes of routines. First validates that every action is allowed.
      */
     async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<RoutineCreateInput, RoutineUpdateInput>): Promise<CUDResult<Routine>> {
-        console.log('before validatemuatations break', this)
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -817,7 +814,6 @@ export const routineMutater = (prisma: PrismaType) => ({
             for (const input of updateMany) {
                 // Call createData helper function
                 let data = await this.toDBShape(userId, input.data, false);
-                console.log('routine update todbshapeeee', JSON.stringify(data), '\n\n')
                 // Find object
                 let object = await prisma.routine.findFirst({ where: input.where })
                 if (!object)

@@ -115,7 +115,6 @@ export const resolvers = {
                 'users': 'User',
             }) as PartialGraphQLInfo;
             const userId = req.userId;
-            console.log('home page 1')
             const MinimumStars = 0; // Minimum stars required to show up in results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
@@ -131,7 +130,6 @@ export const resolvers = {
                 input: { ...input, take, sortBy: OrganizationSortBy.StarsDesc },
                 model: OrganizationModel,
             });
-            console.log('home page 2')
             // Query projects
             const projects = await readManyAsFeed({
                 ...commonReadParams,
@@ -160,7 +158,6 @@ export const resolvers = {
                 input: { ...input, take, sortBy: UserSortBy.StarsDesc },
                 model: UserModel,
             });
-            console.log('home page 3')
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [organizations, projects, routines, standards, users],
@@ -169,7 +166,6 @@ export const resolvers = {
                 userId,
                 prisma,
             )
-            console.log('home page 4')
             // Return results
             return {
                 organizations: withSupplemental['o'],
@@ -470,7 +466,6 @@ export const resolvers = {
                 input: { take, ...input, sortBy: ViewSortBy.LastViewedDesc },
                 model: ViewModel,
             });
-            console.log('pages got recentlyviewed', JSON.stringify(recentlyViewed), '\n\n')
             // Query recently starred objects (of any type). Make sure to ignore tags
             const recentlyStarred = await readManyAsFeed({
                 ...commonReadParams,
@@ -479,7 +474,6 @@ export const resolvers = {
                 input: { take, ...input, sortBy: UserSortBy.DateCreatedDesc, excludeTags: true },
                 model: StarModel,
             });
-            console.log('pages finished recentlystarred query', JSON.stringify(recentlyStarred), '\n\n');
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [activeRuns, completedRuns, recentlyViewed, recentlyStarred],
@@ -488,7 +482,6 @@ export const resolvers = {
                 userId,
                 prisma,
             )
-            console.log('history f', JSON.stringify(withSupplemental), '\n\n');
             // Return results
             return {
                 activeRuns: withSupplemental['ar'],

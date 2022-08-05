@@ -31,7 +31,6 @@ export const tagFormatter = (): FormatConverter<Tag, any> => ({
         return { ...omitted, createdByUserId: true, id: true }
     },
     async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Tag>[]> {
-        console.log('in tag adddsupp fields', objects)
         return addSupplementalFieldsHelper({
             objects,
             partial,

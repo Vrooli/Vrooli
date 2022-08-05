@@ -141,7 +141,6 @@ export const BuildInfoDialog = ({
         });
     }, [formik, translations]);
     const handleLanguageSelect = useCallback((newLanguage: string) => {
-        console.log('handle language select', newLanguage);
         // Update old select
         updateTranslation(language, {
             id: uuid(),
@@ -156,12 +155,10 @@ export const BuildInfoDialog = ({
         handleLanguageChange(newLanguage);
     }, [formik.values.description, formik.values.instructions, formik.values.title, handleLanguageChange, language, updateFormikTranslation, updateTranslation]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
-        console.log('handleaddlanguage', newLanguage);
         setLanguages([...languages, newLanguage]);
         handleLanguageSelect(newLanguage);
     }, [handleLanguageSelect, languages, setLanguages]);
     const handleLanguageDelete = useCallback((language: string) => {
-        console.log('handlelanguagedelete', language);
         const newLanguages = [...languages.filter(l => l !== language)]
         if (newLanguages.length === 0) return;
         deleteTranslation(language);

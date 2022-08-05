@@ -138,7 +138,6 @@ export const nodeMutater = (prisma: PrismaType) => ({
             if (data.loopCreate) nodeData.loop = this.relationshipBuilderLoop(userId, data, true);
             else if ((data as NodeUpdateInput)?.loopUpdate) nodeData.loop = this.relationshipBuilderLoop(userId, data, false);
         }
-        console.log('SHAPED NODE', JSON.stringify(nodeData), '\n\n');
         return nodeData;
     },
     /**

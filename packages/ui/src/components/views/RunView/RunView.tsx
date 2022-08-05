@@ -59,12 +59,9 @@ const findLocationArray = (nodeId: string, step: RoutineStep, location: number[]
  * @returns True if the subroutine step needs additional queries, false otherwise
  */
 const subroutineNeedsQuerying = (step: RoutineStep | null | undefined): boolean => {
-    console.log('subroutineneedsquerying 1', step);
     // Check for valid parameters
     if (!step || step.type !== RoutineStepType.Subroutine) return false;
-    console.log('subroutineneedsquerying 2', step);
     const currSubroutine: Partial<Routine> = (step as SubroutineStep).routine;
-    console.log('subroutineneedsquerying 3', routineHasSubroutines(currSubroutine));
     // If routine has its own subrotines, then it needs querying (since it would be a RoutineList 
     // if it was loaded)
     return routineHasSubroutines(currSubroutine);
@@ -148,18 +145,15 @@ export const RunView = ({
      * Calculate the known subroutines. 
      */
     useEffect(() => {
-        console.log('step list 1', routine);
         // Check for required data to calculate steps
         if (!routine || !routine.nodes || !routine.nodeLinks) {
             setStepList(null)
             return;
         }
         // Find all nodes that are routine lists
-        let routineListNodes = routine.nodes.filter((node: Node) => Boolean((node.data as NodeDataRoutineList)?.routines));
-        console.log('step list 2', routineListNodes);
+        let routineListNodes: Node[] = routine.nodes.filter((node: Node) => node.data?.__typename === 'NodeRoutineList');
         // Also find the start node
         const startNode = routine.nodes.find((node: Node) => node.type === NodeType.Start);
-        console.log('step list 3', startNode);
         // Sort by column, then row
         routineListNodes = routineListNodes.sort((a, b) => {
             const aCol = a.columnIndex ?? 0;
@@ -169,14 +163,11 @@ export const RunView = ({
             const bRow = b.rowIndex ?? 0;
             return aRow - bRow;
         })
-        console.log('step list 4', routineListNodes);
         // Create result steps array
         let resultSteps: RoutineStep[] = [];
         // If multiple links from start node, create decision step
         const startLinks = routine.nodeLinks.filter((link: NodeLink) => link.fromId === startNode?.id);
-        console.log('step list 5', startLinks);
         if (startLinks.length > 1) {
-            console.log('step list 6', startLinks);
             resultSteps.push({
                 type: RoutineStepType.Decision,
                 links: startLinks,
@@ -186,37 +177,24 @@ export const RunView = ({
         }
         // Loop through all nodes
         for (const node of routineListNodes) {
-            console.log('step list 7', node);
-            // Find all subroutine steps
-            let subroutineSteps: SubroutineStep[] = (node.data as NodeDataRoutineList).routines.map((item: NodeDataRoutineListItem) => ({
-                type: RoutineStepType.Subroutine,
-                index: item.index,
-                routine: item.routine as any,
-                title: getTranslation(item.routine, 'title', languages, true) ?? 'Untitled',
-                description: getTranslation(item.routine, 'description', languages, true) ?? 'Description not found matching selected language',
-            }));
-            console.log('step list 8', subroutineSteps);
-            // Sort subroutine steps
-            // If list is ordered, sort by index
-            if ((node.data as NodeDataRoutineList).isOrdered) {
-                // If the step is a routine step, sort by its index. 
-                // Otherwise, step is a decision. This goes at the end of the list.
-                subroutineSteps = subroutineSteps.sort((a: SubroutineStep, b: SubroutineStep) => a.index - b.index);
-            }
-            // Otherwise, sort by name
-            else {
-                subroutineSteps = subroutineSteps.sort((a: SubroutineStep, b: SubroutineStep) => (a.title.localeCompare(b.title)));
-            }
+            // Find all subroutine steps, and sort by index
+            const subroutineSteps: SubroutineStep[] = [...(node.data as NodeDataRoutineList).routines]
+                .sort((r1, r2) => r1.index - r2.index)
+                .map((item: NodeDataRoutineListItem) => ({
+                    type: RoutineStepType.Subroutine,
+                    index: item.index,
+                    routine: item.routine as any,
+                    title: getTranslation(item.routine, 'title', languages, true) ?? 'Untitled',
+                    description: getTranslation(item.routine, 'description', languages, true) ?? 'Description not found matching selected language',
+                }))
             // Find decision step
             const links = routine.nodeLinks.filter((link: NodeLink) => link.fromId === node.id);
-            console.log('step list 9', links);
             const decisionSteps: DecisionStep[] = links.length > 1 ? [{
                 type: RoutineStepType.Decision,
                 links,
                 title: 'Decision',
                 description: 'Select a subroutine to run next',
             }] : [];
-            console.log('step list 10', decisionSteps);
             resultSteps.push({
                 type: RoutineStepType.RoutineList,
                 nodeId: node.id,
@@ -225,16 +203,7 @@ export const RunView = ({
                 description: getTranslation(node, 'description', languages, true) ?? 'Description not found matching selected language',
                 steps: [...subroutineSteps, ...decisionSteps] as Array<SubroutineStep | DecisionStep>
             });
-            console.log('step list 11', resultSteps);
         }
-        console.log('step list 12', {
-            type: RoutineStepType.RoutineList,
-            nodeId: '',
-            isOrdered: true,
-            title: getTranslation(routine, 'title', languages, true) ?? 'Untitled',
-            description: getTranslation(routine, 'description', languages, true) ?? 'Description not found matching selected language',
-            steps: resultSteps,
-        });
         // Main routine acts like routine list
         setStepList({
             type: RoutineStepType.RoutineList,
@@ -298,13 +267,15 @@ export const RunView = ({
      * The number of steps in the current-level node, or -1 if not found.
      */
     const stepsInCurrentNode = useMemo(() => {
+        console.log('calculating stepsincurrentnode', currStepLocation, stepList)
         if (!currStepLocation || !stepList) return -1;
         // For each step in ids array (except for the last id), find the nested step in the steps array.
         // If it doesn't exist, return -1;
         let currNestedSteps: RoutineStep = stepList;
         for (let i = 0; i < currStepLocation.length - 1; i++) {
             if (currNestedSteps.type === RoutineStepType.RoutineList) {
-                const curr = currNestedSteps.steps.length > currStepLocation[i] ? currNestedSteps.steps[currStepLocation[i]] : null;
+                const currStepNum = Math.max(0, currStepLocation[i] - 1);
+                const curr = currNestedSteps.steps.length > currStepNum ? currNestedSteps.steps[currStepNum] : null;
                 if (curr) currNestedSteps = curr;
             }
         }
@@ -868,7 +839,7 @@ export const RunView = ({
                             history={progress}
                             percentComplete={progressPercentage}
                             stepList={stepList}
-                            sxs={{ icon: { marginLeft: 1, width: '32px', height: '32px' } }}
+                            sxs={{ icon: { width: '32px', height: '32px' } }}
                             zIndex={zIndex + 3}
                         />
                     </Box>

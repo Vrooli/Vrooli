@@ -29,7 +29,6 @@ export const nodeRoutineListMutater = (prisma: PrismaType) => ({
         }
     },
     async toDBShapeUpdate(userId: string | null, data: NodeRoutineListUpdateInput): Promise<any> {
-        console.log('ordered should work if hit here', JSON.stringify(data), '\n\n');
         return {
             isOrdered: data.isOrdered,
             isOptional: data.isOptional,

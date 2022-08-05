@@ -81,7 +81,6 @@ export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardP
         permissions,
         userId,
     }) {
-        console.log('standard permissioner a', JSON.stringify(objects), '\n\n')
         // Initialize result with ID
         const result = objects.map((o) => ({
             canComment: true,
@@ -101,7 +100,6 @@ export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardP
         }[] = [];
         // If some creator data missing, query for creator data.
         if (objects.map(x => x.creator).filter(x => x).length < objects.length) {
-            console.log('standard permissioner before break?', ids, '\n')
             creatorData = await prisma.standard.findMany({
                 where: { id: { in: ids } },
                 select: {
@@ -110,9 +108,7 @@ export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardP
                     createdByOrganization: { select: { id: true } },
                 },
             });
-            console.log('didnt break!', JSON.stringify(creatorData), '\n\n')
         } else {
-            console.log('standard permissioner m')
             creatorData = objects.map((x) => {
                 const isOrg = Boolean(Array.isArray(x.creator?.translations) && x.creator.translations.length > 0 && x.creator.translations[0].name);
                 return ({
@@ -121,7 +117,6 @@ export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardP
                     organization: isOrg ? x.creator : null,
                 });
             });
-            console.log('standard permissioner n')
         }
         // Find permissions for every organization
         const organizationIds: string[] = creatorData.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];

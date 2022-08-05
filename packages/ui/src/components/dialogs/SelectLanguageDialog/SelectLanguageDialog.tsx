@@ -68,7 +68,6 @@ export const SelectLanguageDialog = ({
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const open = Boolean(anchorEl);
     const onOpen = useCallback((event: MouseEvent<HTMLDivElement>) => {
-        console.log('onOpen', currentLanguage);
         if (canDropdownOpen) setAnchorEl(event.currentTarget);
         // Force parent to save current translation TODO this causes infinite render in multi-step routine. not sure why
         if (currentLanguage) handleCurrent(currentLanguage);

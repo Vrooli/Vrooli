@@ -239,7 +239,6 @@ export const shapeUpdateList = <
 ): ShapeUpdateList<RelField, OutputCreate, OutputUpdate> => {
     const o = original[relationshipField];
     const u = updated[relationshipField];
-    console.log('shapeupdatelist', o, u, !Boolean(u));
     if (!u) return {};
     // If no original items, treat all as created/connected
     if (!o || !Array.isArray(o)) {

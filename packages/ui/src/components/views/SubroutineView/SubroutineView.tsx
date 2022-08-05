@@ -223,10 +223,7 @@ export const SubroutineView = ({
                 </Box>
                 {/* Auto-generated inputs */}
                 {
-                    Object.keys(previewFormik.values).length > 0 && <Box sx={{
-                        padding: 1,
-                        borderRadius: 1,
-                    }}>
+                    Object.keys(previewFormik.values).length > 0 && <Box>
                         {
                             Object.values(formValueMap ?? {}).map((field: FieldData, i: number) => (
                                 <Box key={i} sx={{

@@ -403,13 +403,11 @@ export const addJoinTablesHelper = (partialInfo: PartialGraphQLInfo, map: JoinMa
             // Skip if already padded with join table name
             if (isRelationshipArray(partialInfo[key])) {
                 if ((partialInfo[key] as any).every((o: any) => isRelationshipObject(o) && Object.keys(o).length === 1 && Object.keys(o)[0] !== 'id')) {
-                    console.log('skipping join table a', key, JSON.stringify(partialInfo[key]), '\n\n');
                     result[key] = partialInfo[key];
                     continue;
                 }
             } else if (isRelationshipObject(partialInfo[key])) {
                 if (Object.keys(partialInfo[key] as any).length === 1 && Object.keys(partialInfo[key] as any)[0] !== 'id') {
-                    console.log('skipping join table b', key, JSON.stringify(partialInfo[key]), '\n\n');
                     result[key] = partialInfo[key];
                     continue
                 }
@@ -723,7 +721,6 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
     // this after shaping "data" because we need to know the type of the union. 
     // To account for this, we call modelToGraphQL on each union, to check which one matches "data"
     if (Object.keys(partialInfo).every(k => k[0] === k[0].toUpperCase())) {
-        //console.log('modeltographql is union', JSON.stringify(partialInfo), '\n\n', JSON.stringify(data), '\n\n');
         // Find the union type which matches the shape of value. 
         let matchingType: string | undefined;
         for (const unionType of Object.keys(partialInfo)) {
@@ -738,7 +735,6 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
     }
     // Convert data to usable shape
     const type: string | undefined = partialInfo?.__typename;
-    //console.log('modeltographql type', type, JSON.stringify(partialInfo), '\n\n', JSON.stringify(data), '\n\n')
     const formatter: FormatConverter<GraphQLModel, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
     if (formatter) {
         if (formatter.constructUnions) data = formatter.constructUnions(data);
@@ -1015,7 +1011,6 @@ export const deconstructUnion = (partialInfo: PartialGraphQLInfo, unionField: st
  * @returns True if obj matches query
  */
 const subsetsMatch = (obj: any, query: any): boolean => {
-    //console.log('subsets match start', JSON.stringify(obj), '\n', JSON.stringify(query), '\n\n');
     // Check that both params are valid objects
     if (obj === null || typeof obj !== 'object' || query === null || typeof query !== 'object') return false;
     // Check if query type is in FormatterMap. 
@@ -1026,7 +1021,7 @@ const subsetsMatch = (obj: any, query: any): boolean => {
     if (formatter) {
         // Remove calculated fields from query, since these will not be in obj
         formattedQuery = formatter?.removeSupplementalFields ? formatter.removeSupplementalFields(query) : query;
-    } //else console.log('no subste formatter', JSON.stringify(query), '\n\n');
+    }
     // First, check if obj is a join table. If this is the case, what we want to check 
     // is actually one layer down
     let formattedObj = obj;
@@ -1073,7 +1068,6 @@ const subsetsMatch = (obj: any, query: any): boolean => {
  */
 const groupIdsByType = (data: { [x: string]: any }, partialInfo: PartialGraphQLInfo): [{ [x: string]: string[] }, { [x: string]: any }] => {
     if (!data || !partialInfo) return [{}, {}];
-    //console.log('groupIdsByType', JSON.stringify(data), '\n', JSON.stringify(partialInfo), '\n\n');
     let objectIdsDict: { [x: string]: string[] } = {};
     let selectFieldsDict: { [x: string]: { [x: string]: { [x: string]: any } } } = {};
     // Loop through each key/value pair in data
@@ -1243,7 +1237,6 @@ export const addSupplementalFields = async (
     data: ({ [x: string]: any } | null | undefined)[],
     partialInfo: PartialGraphQLInfo | PartialGraphQLInfo[],
 ): Promise<{ [x: string]: any }[]> => {
-    console.log('add supp start', JSON.stringify(data), '\n\n');
     if (data.length === 0) return [];
     // Group data IDs and select fields by type. This is needed to reduce the number of times 
     // the database is called, as we can query all objects of the same type at once
@@ -1265,14 +1258,12 @@ export const addSupplementalFields = async (
 
     // Dictionary to store objects by ID, instead of type. This is needed to combineSupplements
     const objectsById: { [x: string]: any } = {};
-    console.log('objectIdsDicct', JSON.stringify(objectIdsDict));
 
     // Loop through each type in objectIdsDict
     for (const [type, ids] of Object.entries(objectIdsDict)) {
         // Find the data for each id in ids. Since the data parameter is an array,
         // we must loop through each element in it and call pickObjectById
         const objectData = ids.map((id: string) => pickObjectById(data, id));
-        console.log('objectDATAAAAAAA', type, JSON.stringify(objectData), '\n\n');
         // Now that we have the data for each object, we can add the supplemental fields
         const formatter: FormatConverter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
         const valuesWithSupplements = formatter?.addSupplementalFields ?
@@ -1285,7 +1276,6 @@ export const addSupplementalFields = async (
     }
     // Convert objectsById dictionary back into shape of data
     let result = data.map(d => (d === null || d === undefined) ? d : combineSupplements(d, objectsById));
-    console.log('add supp end', JSON.stringify(result), '\n\n');
     return result
 }
 
@@ -1305,10 +1295,8 @@ export const addSupplementalFieldsMultiTypes = async (
     userId: string | null,
     prisma: PrismaType,
 ): Promise<{ [x: string]: any[] }> => {
-    console.log('multi a');
     // Flatten data array
     const combinedData = flatten(data);
-    console.log('multi b');
     // Create an array of partials, that match the data array
     let combinedPartialInfo: PartialGraphQLInfo[] = [];
     for (let i = 0; i < data.length; i++) {
@@ -1318,10 +1306,8 @@ export const addSupplementalFieldsMultiTypes = async (
             combinedPartialInfo.push(currPartial);
         }
     }
-    console.log('multi c');
     // Call addSupplementalFields
     const combinedResult = await addSupplementalFields(prisma, userId, combinedData, combinedPartialInfo);
-    console.log('multi d');
     // Convert combinedResult into object with keys equal to objectTypes, and values equal to arrays of those types
     const formatted: { [y: string]: any[] } = {};
     let start = 0;
@@ -1331,7 +1317,6 @@ export const addSupplementalFieldsMultiTypes = async (
         formatted[currKey] = combinedResult.slice(start, end);
         start = end;
     }
-    console.log('multi e');
     return formatted;
 }
 
@@ -1358,11 +1343,9 @@ export async function permissionsCheck<PermissionObject>({
     prisma,
     userId,
 }: PermissionsHelper<PermissionObject>): Promise<boolean> {
-    console.log('permissionscheck a', actions, JSON.stringify(object), '\n\n');
     if (!model.permissions) return true;
     // Query object's permissions
     const perms = await model.permissions(prisma).get({ objects: [object], userId });
-    console.log('permissionscheck b', JSON.stringify(perms), '\n\n');
     for (const action of actions) {
         if (!perms[0][action as keyof PermissionObject]) {
             return false;
@@ -1414,9 +1397,7 @@ export async function readOneHelper<GraphQLModel>({
     if (!object)
         throw new CustomError(CODE.NotFound, `${objectType} not found`, { code: genErrorCode('0022') });
     // Return formatted for GraphQL
-    console.log('read one before format', JSON.stringify(object), '\n\n', 'pp', JSON.stringify(partialInfo), '\n\n');
     let formatted = modelToGraphQL(object, partialInfo) as RecursivePartial<GraphQLModel>;
-    console.log('read one formatted', JSON.stringify(formatted), '\n\n')
     // If logged in and object has view count, handle it
     if (userId && objectType in ViewFor) {
         ViewModel.mutate(prisma).view(userId, { forId: object.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language
@@ -1459,7 +1440,6 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0023') });
     // Make sure ID is in partialInfo, since this is required for cursor-based search
     partialInfo.id = true;
-    console.log('readManyHelper a', JSON.stringify(selectHelper(partialInfo)), '\n', JSON.stringify(input), '\n\n');
     // Check permissions
     // TODO need different permissions than readonehelper. Needs to use requested fields to determine which permissions to check.
     // For example, a routines query with a specified organizationId input must check read permission on the organizationId, 
@@ -1479,16 +1459,6 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     // Determine sort order
     const orderBy = model.search?.getSortQuery ? model.search.getSortQuery(input.sortBy ?? model.search.defaultSort) : undefined;
     // Find requested search array
-    console.log('getting search results', JSON.stringify({
-        where,
-        orderBy,
-        take: input.take ?? 20,
-        skip: input.after ? 1 : undefined, // First result on cursored requests is the cursor, so skip it
-        cursor: input.after ? {
-            id: input.after
-        } : undefined,
-        ...selectHelper(partialInfo)
-    }))
     const searchResults = await (model.prismaObject(prisma) as any).findMany({
         where,
         orderBy,
@@ -1499,7 +1469,6 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
         } : undefined,
         ...selectHelper(partialInfo)
     });
-    console.log('got search results', JSON.stringify(searchResults), '\n\n')
     // If there are results
     let paginatedResults: PaginatedSearchResult;
     if (searchResults.length > 0) {
@@ -1877,7 +1846,6 @@ export async function forkHelper({
         prisma,
         userId,
     })
-    console.log('forkhelper result', JSON.stringify(fullObject), '\n\n')
     return fullObject;
 }
 
@@ -1927,10 +1895,8 @@ export async function addSupplementalFieldsHelper<GraphQLModel>({
     for (const [field, resolver] of resolvers) {
         // If not in partial, skip
         if (!partial[field]) continue;
-        console.log('before resolve', field, ids)
         const supplemental = await resolver(ids);
         objects = objects.map((x, i) => ({ ...x, [field]: supplemental[i] }));
-        console.log('after resolve', field)
     }
     return objects;
 }

@@ -379,6 +379,7 @@ export const toTextField = ({
             fullWidth
             autoFocus={index === 0}
             tabIndex={index}
+            placeholder={data.description ?? data.fieldName}
             id={data.fieldName}
             name={data.fieldName}
             required={data.yup?.required}
@@ -464,5 +465,6 @@ export const generateInputComponent = ({
     session,
     zIndex,
 }: InputGeneratorProps): React.ReactElement | null => {
+    console.log('generateinputcomponent', data)
     return typeMap[data.type]({ data, disabled, formik, index, onUpload, session, zIndex });
 }

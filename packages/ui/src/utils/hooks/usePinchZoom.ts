@@ -33,7 +33,6 @@ export const usePinchZoom = ({
         const handleTouchStart = (e: TouchEvent) => {
             // Find the target
             const targetId = (e as any)?.target?.id;
-            console.log('touch targetId', targetId);
             if (!targetId) return;
             if (!validTargetIds.some(id => targetId.startsWith(id))) return;
             // Pinch requires two touches
@@ -80,7 +79,6 @@ export const usePinchZoom = ({
             if (Number.isInteger(e.deltaY)) return;
             const moveBy = e.deltaY / 200;
             const targetId = (e as any)?.target?.id;
-            console.log('handleWheel', e.deltaX, e.deltaY, targetId);
             if (!targetId) return;
             if (!validTargetIds.some(id => targetId.startsWith(id))) return;
             if (e.deltaY > 0) {

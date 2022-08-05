@@ -64,7 +64,6 @@ export const BaseObjectActionDialog = ({
     title,
     zIndex,
 }: BaseObjectActionDialogProps) => {
-    console.log('permissions', permissions);
     // States
     const [deleteOpen, setDeleteOpen] = useState<boolean>(false);
     const [donateOpen, setDonateOpen] = useState<boolean>(false);
@@ -186,7 +185,6 @@ export const BaseObjectActionDialog = ({
      * Actions that are available for the object, from top to bottom
      */
     const availableActions: BaseObjectAction[] = useMemo(() => {
-        console.log('calculating available actions', permissions)
         if (!permissions) return [];
         const isLoggedIn = session?.isLoggedIn === true;
         let options: BaseObjectAction[] = [];

@@ -276,7 +276,6 @@ export const profileVerifier = () => ({
      * @returns Session object
      */
     async toSession(user: RecursivePartial<user>, prisma: PrismaType): Promise<Session> {
-        console.log('e1')
         if (!user.id)
             throw new CustomError(CODE.ErrorUnknown, 'User ID not found', { code: genErrorCode('0064') });
         // Update user's lastSessionVerified
@@ -284,7 +283,6 @@ export const profileVerifier = () => ({
             where: { id: user.id },
             data: { lastSessionVerified: new Date().toISOString() }
         })
-        console.log('e2');
         // Return shaped session object
         return {
             id: user.id,
@@ -330,7 +328,6 @@ const profileQuerier = (prisma: PrismaType) => ({
         const partial = toPartialGraphQLInfo(info, profileFormatter().relationshipMap);
         if (!partial)
             throw new CustomError(CODE.InternalError, 'Could not convert info to partial select.', { code: genErrorCode('0190') });
-        console.log('findprofile partial', JSON.stringify(partial), '\n\n');
         // Query profile data and tags
         const profileData = await readOneHelper<any>({
             info,
@@ -339,16 +336,11 @@ const profileQuerier = (prisma: PrismaType) => ({
             prisma,
             userId,
         })
-        console.log('got profile data', JSON.stringify(profileData), '\n\n');
         const { starredTags, hiddenTags } = await this.myTags(userId, partial);
-        console.log('got starred tags', JSON.stringify(starredTags), '\n\n');
-        console.log('got hidden tags', JSON.stringify(hiddenTags), '\n\n');
         // Format for GraphQL
         let formatted = modelToGraphQL(profileData, partial) as RecursivePartial<Profile>;
-        console.log('profile formatted', JSON.stringify(formatted), '\n\n');
         // Return with supplementalfields added
         const data = (await addSupplementalFields(prisma, userId, [formatted], partial))[0] as RecursivePartial<Profile>;
-        console.log('profile addsupp result', JSON.stringify(data), '\n\n');
         return {
             ...data,
             starredTags,
@@ -375,10 +367,8 @@ const profileQuerier = (prisma: PrismaType) => ({
                 },
                 select: { tag: padSelect(tagSelect) }
             })).map((star: any) => star.tag)
-            console.log('queried starred tags', JSON.stringify(data), '\n\n');
             // Format for GraphQL
             const formatted: any[] = data.map(d => modelToGraphQL(d, partial.starredTags as PartialGraphQLInfo));
-            console.log('starred tags formatted', JSON.stringify(formatted), '\n\n');
             // Return with supplementalfields added
             starredTags = await TagModel.format.addSupplementalFields!({
                 objects: formatted,
@@ -386,7 +376,6 @@ const profileQuerier = (prisma: PrismaType) => ({
                 prisma,
                 userId,
             }) as Tag[];
-            console.log('starred tags addsupp result', JSON.stringify(starredTags), '\n\n');
         }
         if (partial.hiddenTags) {
             // Query hidden tags
@@ -398,10 +387,8 @@ const profileQuerier = (prisma: PrismaType) => ({
                     tag: padSelect(tagSelect)
                 }
             }));
-            console.log('queried hidden tags', JSON.stringify(data), '\n\n');
             // Format for GraphQL
             const formatted: any[] = data.map(d => modelToGraphQL(d, partial.hiddenTags as PartialGraphQLInfo));
-            console.log('hidden tags formatted', JSON.stringify(formatted), '\n\n');
             // Call addsupplementalFields on tags of hidden data
             const tags = await TagModel.format.addSupplementalFields!({
                 objects: formatted.map(f => f.tag),
@@ -409,13 +396,11 @@ const profileQuerier = (prisma: PrismaType) => ({
                 prisma,
                 userId,
             }) as Tag[];
-            console.log('hidden tags addsupp result', JSON.stringify(tags), '\n\n');
             hiddenTags = data.map((d: any) => ({
                 id: d.id,
                 isBlur: d.isBlur,
                 tag: tags.find(t => t.id === d.tag.id)
             }))
-            console.log('hidden tags shaped', JSON.stringify(hiddenTags), '\n\n');
         }
         return { starredTags, hiddenTags };
     },
@@ -460,7 +445,6 @@ const profileMutater = (prisma: PrismaType) => ({
         // Convert tagIds to star creates
         const starredCreate = tagIds.map(tagId => ({ tagId }));
         // Convert starredTagsDisconnect to star deletes
-        console.log('checking tag disconnect', JSON.stringify(input.starredTagsDisconnect), '\n\n');
         const starredDelete = input.starredTagsDisconnect ? await prisma.star.findMany({
             where: {
                 AND: [
@@ -471,7 +455,6 @@ const profileMutater = (prisma: PrismaType) => ({
             },
             select: { id: true }
         }) : [];
-        console.log('got starred delete', JSON.stringify(starredDelete), '\n\n');
         //Create user data
         let userData: { [x: string]: any } = {
             handle: input.handle,
@@ -496,7 +479,6 @@ const profileMutater = (prisma: PrismaType) => ({
         let formatted = modelToGraphQL(profileData, partial) as RecursivePartial<Profile>;
         // Return with supplementalfields added
         const data = (await addSupplementalFields(prisma, userId, [formatted], partial))[0] as RecursivePartial<Profile>;
-        console.log('update profile finished', JSON.stringify(data), '\n\n');
         return {
             ...data,
             starredTags,
