@@ -19,6 +19,7 @@ export interface copy_copy_node_data_NodeRoutineList_routines_routine_permission
   __typename: "RoutinePermission";
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;
@@ -520,6 +521,7 @@ export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_p
   canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;
@@ -840,6 +842,7 @@ export interface copy_copy_routine_permissionsRoutine {
   canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;

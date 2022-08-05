@@ -30,6 +30,15 @@ import { FieldData } from "forms/types";
 import { generateInputComponent } from "forms/generators";
 import { CommentContainer } from "components/containers";
 
+const statsHelpText =
+    `Statistics are calculated to measure various aspects of a routine. 
+    
+**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.
+
+**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.
+
+There will be many more statistics in the near future.`
+
 export const RoutineView = ({
     partialData,
     session,
@@ -42,7 +51,7 @@ export const RoutineView = ({
     const [, params2] = useRoute(`${APP_LINKS.SearchRoutines}/view/:id`);
     const id = params?.id ?? params2?.id;
     // Fetch data
-    const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all'});
+    const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
     const [routine, setRoutine] = useState<Routine | null>(null);
     useEffect(() => {
         if (id && uuidValidate(id)) { getData({ variables: { input: { id } } }); }
@@ -451,12 +460,14 @@ export const RoutineView = ({
                         padding: 1,
                         borderRadius: 1,
                     }}>
-                        {/* TODO click to view */}
-                        <Typography variant="h6">Stats</Typography>
+                        <Stack direction="row" marginRight="auto" alignItems="center">
+                            {/* Title */}
+                            <Typography variant="h6" textAlign="left">Stats</Typography>
+                            {/* Help button */}
+                            <HelpButton markdown={statsHelpText} />
+                        </Stack>
                         <Typography variant="body1">Complexity: {routine?.complexity}</Typography>
                         <Typography variant="body1">Simplicity: {routine?.simplicity}</Typography>
-                        <Typography variant="body1">Score: {routine?.score}</Typography>
-                        <Typography variant="body1">Stars: {routine?.stars}</Typography>
                     </Box>}
                 </Stack>
                 {/* Actions */}

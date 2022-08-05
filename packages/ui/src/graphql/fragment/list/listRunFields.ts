@@ -31,6 +31,7 @@ export const listRunFields = gql`
         permissionsRoutine {
             canDelete
             canEdit
+            canFork
             canStar
             canReport
             canRun

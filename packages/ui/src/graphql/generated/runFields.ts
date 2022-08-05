@@ -284,6 +284,7 @@ export interface runFields_routine_nodes_data_NodeRoutineList_routines_routine_p
   __typename: "RoutinePermission";
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;
@@ -571,6 +572,7 @@ export interface runFields_routine_permissionsRoutine {
   __typename: "RoutinePermission";
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;

@@ -122,6 +122,7 @@ export interface routineNodeFields_data_NodeRoutineList_routines_routine_permiss
   canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;

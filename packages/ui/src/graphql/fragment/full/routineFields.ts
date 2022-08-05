@@ -120,6 +120,7 @@ export const routineFields = gql`
                             canComment
                             canDelete
                             canEdit
+                            canFork
                             canStar
                             canReport
                             canRun
@@ -311,6 +312,7 @@ export const routineFields = gql`
             canComment
             canDelete
             canEdit
+            canFork
             canStar
             canReport
             canRun

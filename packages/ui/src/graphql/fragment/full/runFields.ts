@@ -123,6 +123,7 @@ export const runFields = gql`
                         permissionsRoutine {
                             canDelete
                             canEdit
+                            canFork
                             canStar
                             canReport
                             canRun
@@ -276,6 +277,7 @@ export const runFields = gql`
         permissionsRoutine {
             canDelete
             canEdit
+            canFork
             canStar
             canReport
             canRun

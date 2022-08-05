@@ -116,6 +116,7 @@ export interface homePage_homePage_routines_permissionsRoutine {
   canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;

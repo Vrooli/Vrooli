@@ -50,6 +50,7 @@ export const NavList = ({
     session,
     sessionChecked,
 }: NavListProps) => {
+    console.log('navlist session', session, sessionChecked)
     const classes = useStyles();
     const { breakpoints } = useTheme();
     const [, setLocation] = useLocation();

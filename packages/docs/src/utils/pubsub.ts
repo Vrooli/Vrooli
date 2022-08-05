@@ -12,7 +12,6 @@ export const Pubs = {
     ...COOKIE,
     Celebration: "celebration",
     Loading: "loading",
-    LogOut: "logout",
     AlertDialog: "alertDialog",
     Snack: "snack",
     ArrowMenuOpen: "arrowMenuOpen",
@@ -47,9 +46,6 @@ export class PubSub {
     publishLoading(spinnerDelay: number | false) {
         this.publish(Pubs.Loading, spinnerDelay);
     }
-    publishLogOut() {
-        this.publish(Pubs.LogOut);
-    }
     publishAlertDialog(data: AlertDialogState) {
         this.publish(Pubs.AlertDialog, data);
     }
@@ -83,9 +79,6 @@ export class PubSub {
     }
     subscribeLoading(subscriber: (spinnerDelay: number | false) => void) {
         return this.subscribe(Pubs.Loading, subscriber);
-    }
-    subscribeLogOut(subscriber: () => void) {
-        return this.subscribe(Pubs.LogOut, subscriber);
     }
     subscribeAlertDialog(subscriber: (data: AlertDialogState) => void) {
         return this.subscribe(Pubs.AlertDialog, subscriber);

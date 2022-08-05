@@ -20,6 +20,7 @@ export const nodeFields = gql`
         permissionsRoutine {
             canDelete
             canEdit
+            canFork
             canStar
             canReport
             canRun

@@ -186,6 +186,7 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routine_permi
   canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;
@@ -506,6 +507,7 @@ export interface routineFields_permissionsRoutine {
   canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;

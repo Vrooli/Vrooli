@@ -2210,6 +2210,7 @@ export type RoutinePermission = {
   canComment: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
+  canFork: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
   canRun: Scalars['Boolean'];
   canStar: Scalars['Boolean'];

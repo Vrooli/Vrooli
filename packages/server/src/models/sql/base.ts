@@ -1764,8 +1764,7 @@ export async function copyHelper({
 }: CopyHelperProps<any>): Promise<any> {
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to copy object', { code: genErrorCode('0229') });
-    const duplicate = model.mutate ? model.mutate(prisma).duplicate : undefined;
-    if (!duplicate)
+    if (!model.mutate || !model.mutate(prisma).duplicate)
         throw new CustomError(CODE.InternalError, 'Model does not support copy', { code: genErrorCode('0230') });
     // Check permissions
     //TODO
@@ -1780,7 +1779,7 @@ export async function copyHelper({
     }));
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0231') });
-    const { object } = await duplicate({ userId, objectId: input.id, isFork: false, createCount: 0 });
+    const { object } = await model.mutate(prisma).duplicate!({ userId, objectId: input.id, isFork: false, createCount: 0 });
     // If not a node, log for stats
     if (input.objectType !== CopyType.Node) {
         // No need to await this, since it is not needed for the response
@@ -1823,8 +1822,7 @@ export async function forkHelper({
 }: ForkHelperProps<any>): Promise<any> {
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to fork object', { code: genErrorCode('0233') });
-    const duplicate = model.mutate ? model.mutate(prisma).duplicate : undefined;
-    if (!duplicate)
+    if (!model.mutate || !model.mutate(prisma).duplicate)
         throw new CustomError(CODE.InternalError, 'Model does not support fork', { code: genErrorCode('0234') });
     // Check permissions
     //TODO
@@ -1838,7 +1836,7 @@ export async function forkHelper({
     }));
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0235') });
-    const { object } = await duplicate({ userId, objectId: input.id, isFork: false, createCount: 0 });
+    const { object } = await model.mutate(prisma).duplicate!({ userId, objectId: input.id, isFork: false, createCount: 0 });
     // Log for stats
     // No need to await this, since it is not needed for the response
     Log.collection.insertOne({
@@ -1855,6 +1853,7 @@ export async function forkHelper({
         prisma,
         userId,
     })
+    console.log('forkhelper result', JSON.stringify(fullObject), '\n\n')
     return fullObject;
 }
 

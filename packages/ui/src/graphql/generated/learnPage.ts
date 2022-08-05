@@ -63,6 +63,7 @@ export interface learnPage_learnPage_tutorials_permissionsRoutine {
   canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;

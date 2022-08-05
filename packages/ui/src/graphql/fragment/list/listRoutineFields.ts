@@ -34,6 +34,7 @@ export const listRoutineFields = gql`
             canComment
             canDelete
             canEdit
+            canFork
             canStar
             canReport
             canRun

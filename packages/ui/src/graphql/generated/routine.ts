@@ -186,6 +186,7 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_per
   canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;
@@ -506,6 +507,7 @@ export interface routine_routine_permissionsRoutine {
   canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;

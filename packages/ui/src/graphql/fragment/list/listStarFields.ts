@@ -140,6 +140,7 @@ export const listStarFields = gql`
         permissionsRoutine {
             canDelete
             canEdit
+            canFork
             canStar
             canReport
             canRun

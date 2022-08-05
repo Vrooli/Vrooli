@@ -137,6 +137,7 @@ export const routinePermissioner = (prisma: PrismaType): Permissioner<RoutinePer
             canComment: true,
             canDelete: false,
             canEdit: false,
+            canFork: true,
             canReport: true,
             canRun: true,
             canStar: true,
@@ -1108,6 +1109,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                 isAutomatable: newRoutine.isAutomatable,
                 isInternal: newRoutine.isInternal,
                 simplicity: newRoutine.simplicity,
+                versionGroupId: uuid(),
                 nodes: newRoutine.nodes ? {
                     create: newRoutine.nodes.map((node: any) => ({
                         id: node.id,

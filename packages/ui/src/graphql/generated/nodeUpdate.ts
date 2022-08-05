@@ -19,6 +19,7 @@ export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine_per
   __typename: "RoutinePermission";
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;

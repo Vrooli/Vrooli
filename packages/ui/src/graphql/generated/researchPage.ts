@@ -12,6 +12,7 @@ export interface researchPage_researchPage_processes_permissionsRoutine {
   canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;
@@ -124,6 +125,7 @@ export interface researchPage_researchPage_newlyCompleted_Routine_permissionsRou
   canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;

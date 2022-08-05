@@ -13,6 +13,7 @@ export interface historyPage_historyPage_activeRuns_routine_permissionsRoutine {
   __typename: "RoutinePermission";
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;
@@ -85,6 +86,7 @@ export interface historyPage_historyPage_completedRuns_routine_permissionsRoutin
   __typename: "RoutinePermission";
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;
@@ -250,6 +252,7 @@ export interface historyPage_historyPage_recentlyViewed_to_Routine_permissionsRo
   __typename: "RoutinePermission";
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;
@@ -564,6 +567,7 @@ export interface historyPage_historyPage_recentlyStarred_to_Routine_permissionsR
   __typename: "RoutinePermission";
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;

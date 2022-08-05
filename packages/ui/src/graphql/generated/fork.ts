@@ -396,6 +396,7 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_p
   canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;
@@ -716,6 +717,7 @@ export interface fork_fork_routine_permissionsRoutine {
   canComment: boolean;
   canDelete: boolean;
   canEdit: boolean;
+  canFork: boolean;
   canStar: boolean;
   canReport: boolean;
   canRun: boolean;

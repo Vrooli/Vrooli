@@ -47,12 +47,6 @@ export const routineHasSubroutines = (routine: Partial<Routine>): boolean => {
     if (routine.nodes && routine.nodes.length > 0) return true;
     if (routine.nodeLinks && routine.nodeLinks.length > 0) return true;
     if ((routine as any).nodesCount && (routine as any).nodesCount > 0) return true;
-    // Complexity is calculated from nodes and inputs, so a complexity > the number of inputs + 1
-    // indicates that the routine has multiple steps
-    if (routine.complexity && routine.inputs) return routine.complexity > routine.inputs.length + 1;
-    // Can do the same with simplicity, if complexity not provided
-    if (routine.simplicity && routine.inputs) return routine.simplicity > routine.inputs.length + 1;
-    // If these cases fail, there is no other information we can use to determine if the routine has subroutines
     return false;
 }
 
