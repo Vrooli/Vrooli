@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "target": "es6",
-    "baseUrl": "./src",
     "rootDir": "./src",
     "outDir": "./dist",
     "lib": [

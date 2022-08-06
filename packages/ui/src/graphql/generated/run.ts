@@ -3,11 +3,71 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, RunStatus, NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor, RunStepStatus } from "./globalTypes";
+import { FindByIdInput, RunStatus, NodeType, ResourceListUsedFor, ResourceUsedFor, RunStepStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: run
 // ====================================================
+
+export interface run_run_inputs_input_translations {
+  __typename: "InputItemTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface run_run_inputs_input_standard_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface run_run_inputs_input_standard_tags {
+  __typename: "Tag";
+  tag: string;
+  translations: run_run_inputs_input_standard_tags_translations[];
+}
+
+export interface run_run_inputs_input_standard_translations {
+  __typename: "StandardTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface run_run_inputs_input_standard {
+  __typename: "Standard";
+  id: string;
+  default: string | null;
+  isDeleted: boolean;
+  isInternal: boolean;
+  isPrivate: boolean;
+  name: string;
+  type: string;
+  props: string;
+  yup: string | null;
+  tags: run_run_inputs_input_standard_tags[];
+  translations: run_run_inputs_input_standard_translations[];
+  version: string;
+  versionGroupId: string;
+}
+
+export interface run_run_inputs_input {
+  __typename: "InputItem";
+  id: string;
+  isRequired: boolean | null;
+  name: string | null;
+  translations: run_run_inputs_input_translations[];
+  standard: run_run_inputs_input_standard | null;
+}
+
+export interface run_run_inputs {
+  __typename: "RunInput";
+  id: string;
+  data: string;
+  input: run_run_inputs_input;
+}
 
 export interface run_run_routine_inputs_translations {
   __typename: "InputItemTranslation";
@@ -40,7 +100,9 @@ export interface run_run_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
@@ -48,6 +110,7 @@ export interface run_run_routine_inputs_standard {
   tags: run_run_routine_inputs_standard_tags[];
   translations: run_run_routine_inputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface run_run_routine_inputs {
@@ -120,7 +183,9 @@ export interface run_run_routine_nodes_data_NodeRoutineList_routines_routine_inp
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
@@ -128,6 +193,7 @@ export interface run_run_routine_nodes_data_NodeRoutineList_routines_routine_inp
   tags: run_run_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags[];
   translations: run_run_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface run_run_routine_nodes_data_NodeRoutineList_routines_routine_inputs {
@@ -170,7 +236,9 @@ export interface run_run_routine_nodes_data_NodeRoutineList_routines_routine_out
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
@@ -178,6 +246,7 @@ export interface run_run_routine_nodes_data_NodeRoutineList_routines_routine_out
   tags: run_run_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags[];
   translations: run_run_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface run_run_routine_nodes_data_NodeRoutineList_routines_routine_outputs {
@@ -210,6 +279,17 @@ export interface run_run_routine_nodes_data_NodeRoutineList_routines_routine_own
 }
 
 export type run_run_routine_nodes_data_NodeRoutineList_routines_routine_owner = run_run_routine_nodes_data_NodeRoutineList_routines_routine_owner_Organization | run_run_routine_nodes_data_NodeRoutineList_routines_routine_owner_User;
+
+export interface run_run_routine_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
+}
 
 export interface run_run_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists_translations {
   __typename: "ResourceListTranslation";
@@ -276,16 +356,19 @@ export interface run_run_routine_nodes_data_NodeRoutineList_routines_routine {
   complexity: number;
   inputs: run_run_routine_nodes_data_NodeRoutineList_routines_routine_inputs[];
   isComplete: boolean;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   nodesCount: number | null;
-  role: MemberRole | null;
   outputs: run_run_routine_nodes_data_NodeRoutineList_routines_routine_outputs[];
   owner: run_run_routine_nodes_data_NodeRoutineList_routines_routine_owner | null;
+  permissionsRoutine: run_run_routine_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine;
   resourceLists: run_run_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists[];
   simplicity: number;
   tags: run_run_routine_nodes_data_NodeRoutineList_routines_routine_tags[];
   translations: run_run_routine_nodes_data_NodeRoutineList_routines_routine_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
 }
 
 export interface run_run_routine_nodes_data_NodeRoutineList_routines_translations {
@@ -391,7 +474,9 @@ export interface run_run_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
@@ -399,6 +484,7 @@ export interface run_run_routine_outputs_standard {
   tags: run_run_routine_outputs_standard_tags[];
   translations: run_run_routine_outputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface run_run_routine_outputs {
@@ -482,6 +568,17 @@ export interface run_run_routine_resourceLists {
   resources: run_run_routine_resourceLists_resources[];
 }
 
+export interface run_run_routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
+}
+
 export interface run_run_routine_tags_translations {
   __typename: "TagTranslation";
   id: string;
@@ -513,7 +610,9 @@ export interface run_run_routine {
   inputs: run_run_routine_inputs[];
   isAutomatable: boolean | null;
   isComplete: boolean;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
   nodeLinks: run_run_routine_nodeLinks[];
@@ -525,11 +624,12 @@ export interface run_run_routine {
   score: number;
   simplicity: number;
   stars: number;
-  role: MemberRole | null;
+  permissionsRoutine: run_run_routine_permissionsRoutine;
   tags: run_run_routine_tags[];
   translations: run_run_routine_translations[];
   updated_at: any;
-  version: string | null;
+  version: string;
+  versionGroupId: string;
 }
 
 export interface run_run_steps_node {
@@ -556,11 +656,13 @@ export interface run_run {
   id: string;
   completedComplexity: number;
   contextSwitches: number;
+  isPrivate: boolean;
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
   title: string;
   status: RunStatus;
+  inputs: run_run_inputs[];
   routine: run_run_routine | null;
   steps: run_run_steps[];
 }

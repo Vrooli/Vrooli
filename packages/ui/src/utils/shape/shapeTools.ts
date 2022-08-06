@@ -167,7 +167,6 @@ export const shapeCreateList = <
     relationshipField: RelField,
     formatForCreate: (item: Input) => Output | undefined
 ): ShapeListCreateField<RelField, Output> => {
-    console.log('shapeCreateList', relationshipField, items);
     const creates: Input[] | null | undefined = items[relationshipField];
     if (!creates) return {};
     const formatted: Output[] = [];
@@ -238,7 +237,6 @@ export const shapeUpdateList = <
     treatLikeConnects: boolean = false,
     treatLikeDisconnects: boolean = false,
 ): ShapeUpdateList<RelField, OutputCreate, OutputUpdate> => {
-    console.log('shapeupdatelist', original, updated, relationshipField)
     const o = original[relationshipField];
     const u = updated[relationshipField];
     if (!u) return {};
@@ -256,7 +254,7 @@ export const shapeUpdateList = <
             return shapeCreateList(updated as { [key in RelField]: Input[] }, relationshipField, formatForCreate) as ShapeUpdateList<RelField, OutputCreate, OutputUpdate>;
         }
     }
-    if (Array.isArray(u) && u.length > 0) {
+    if (Array.isArray(u)) {
         return {
             [`${relationshipField}Update`]: findUpdatedItems(o, u, hasObjectChanged, formatForUpdate, idField),
             [`${relationshipField}Create`]: !treatLikeConnects ? findCreatedItems(o, u, formatForCreate, idField) : undefined,

@@ -1,0 +1,31 @@
+# Force all line endings to be LF, since the project is
+# always ran in a Unix-based environment.
+* text=auto
+* text eol=lf
+
+#
+# The above will handle all files NOT found below
+#
+# These files are text and should be normalized (Convert crlf => lf)
+*.css           text
+*.html          text
+*.java          text
+*.js            text
+*.json          text
+*.properties    text
+*.sh            text
+*.ts            text
+*.txt           text
+*.xml           text
+
+# These files are binary and should be left untouched
+# (binary is macro for -text -diff)
+*.class         binary
+*.jar           binary
+*.gif           binary
+*.jpg           binary
+*.png           binary
+*.rlib          binary
+*.rmeta         binary
+*.wasm          binary
+*.dylib         binary

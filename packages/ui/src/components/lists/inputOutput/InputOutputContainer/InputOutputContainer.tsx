@@ -1,13 +1,13 @@
 import { Box, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import { BaseEdge, HelpButton } from 'components';
 import { InputOutputContainerProps } from '../types';
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
     Add as AddIcon,
 } from '@mui/icons-material';
 import { InputShape, OutputShape, updateArray } from 'utils';
 import { InputOutputListItem } from '../InputOutputListItem/InputOutputListItem';
-import { RoutineInput, RoutineInputList, RoutineOutput } from 'types';
+import { RoutineInput, RoutineOutput } from 'types';
 import { v4 as uuid } from 'uuid';
 
 const inputHelpText =
@@ -78,6 +78,7 @@ export const InputOutputContainer = ({
     session,
     zIndex,
 }: InputOutputContainerProps) => {
+    const type = useMemo(() => isInput ? 'input' : 'output', [isInput]);
     // Store open/close state of each list item
     const [isOpenArray, setIsOpenArray] = useState<boolean[]>([]);
     useEffect(() => {
@@ -126,18 +127,17 @@ export const InputOutputContainer = ({
     }, [list, language, isInput, handleUpdate]);
 
     const onUpdate = useCallback((index: number, updatedItem: InputShape | OutputShape) => {
-        console.log('container onupdate', index, updatedItem, updateArray(list, index, updatedItem));
         handleUpdate(updateArray(list, index, updatedItem));
     }, [handleUpdate, list]);
 
     const onDelete = useCallback((index: number) => {
         setIsOpenArray(isOpenArray.filter((_, i) => i !== index));
-        handleUpdate((list as RoutineInputList).filter((_, i) => i !== index));
+        handleUpdate([...list.filter((_, i) => i !== index)]);
     }, [handleUpdate, list, isOpenArray]);
 
     return (
         <Box
-            id={`${isInput ? 'input' : 'output'}-container`}
+            id={`${type}-container`}
             sx={{
                 position: 'relative',
                 maxWidth: '500px',
@@ -155,8 +155,14 @@ export const InputOutputContainer = ({
                 {/* List of inputs. If editing, display delete icon next to each and an add button at the bottom */}
                 {list.map((item, index) => (
                     <Fragment key={index}>
+                        {isEditing && <AddButton
+                            key={`add-${type}-item-${index}`}
+                            index={index}
+                            isInput={isInput}
+                            handleAdd={onAdd}
+                        />}
                         <InputOutputListItem
-                            key={`input-item-${item.id}`}
+                            key={`${type}-item-${item.id}`}
                             index={index}
                             isInput={isInput}
                             isOpen={isOpenArray.length > index && isOpenArray[index]}
@@ -170,16 +176,11 @@ export const InputOutputContainer = ({
                             session={session}
                             zIndex={zIndex}
                         />
-                        {isEditing && <AddButton
-                            key={`add-input-item-${index}`}
-                            index={index}
-                            isInput={isInput}
-                            handleAdd={onAdd}
-                        />}
                     </Fragment>
                 ))}
-                {/* If no items to display, still show add button */}
-                {list.length === 0 && isEditing && <AddButton
+                {/* Show add button at bottom of list */}
+                {isEditing && <AddButton
+                key={`add-${type}-item-${list.length}`}
                     index={list.length}
                     isInput={isInput}
                     handleAdd={onAdd}
@@ -188,12 +189,12 @@ export const InputOutputContainer = ({
             {/* Edges displayed between items (and add button) is actually one edge, since it will be a 
                 straight line anyway */}
             {((isEditing && list.length > 0) || (!isEditing && list.length > 1)) && <BaseEdge
-                containerId={`${isInput ? 'input' : 'output'}-container`}
-                fromId={`${isInput ? 'input' : 'output'}-item-0`}
+                containerId={`${type}-container`}
+                fromId={`add-${type}-item-0`}
                 isEditing={isEditing}
                 thiccness={30}
                 timeBetweenDraws={100}
-                toId={`add-${isInput ? 'input' : 'output'}-item-${list.length - 1}`}
+                toId={`add-${type}-item-${list.length}`}
             />}
         </Box>
     )

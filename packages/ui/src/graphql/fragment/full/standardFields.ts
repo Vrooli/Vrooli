@@ -37,15 +37,24 @@ export const standardFields = gql`
     }
     fragment standardFields on Standard {
         id
+        isDeleted
         isInternal
+        isPrivate
         name
-        role
         type
         type
         props
         yup
         default
         created_at
+        permissionsStandard {
+            canComment
+            canDelete
+            canEdit
+            canStar
+            canReport
+            canVote
+        }
         resourceLists {
             ...standardResourceListFields
         }
@@ -79,5 +88,6 @@ export const standardFields = gql`
         score
         isUpvoted
         version
+        versionGroupId
     }
 `

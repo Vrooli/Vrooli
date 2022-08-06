@@ -14,23 +14,35 @@ export type Forms = ValueOf<typeof Forms>;
  * A general status state for an object
  */
  export enum Status {
-    Incomplete = 'Incomplete', // Routine would be valid, except there are unlinked nodes
-    Invalid = 'Invalid', // Something is wrong with the routine (e.g. no end node)
-    Valid = 'Valid', // The routine is valid, and all nodes are linked
+    /**
+     * Routine would be valid, except there are unlinked nodes
+     */
+    Incomplete = 'Incomplete',
+    /**
+     * Something is wrong with the routine (e.g. no end node)
+     */
+    Invalid = 'Invalid',
+    /**
+     * The routine is valid, and all nodes are linked
+     */
+    Valid = 'Valid',
 }
 
 /**
  * Prompts Build page to open a specific dialog
  */
 export enum BuildAction {
+    AddIncomingLink = 'AddIncomingLink',
+    AddOutgoingLink = 'AddOutgoingLink',
     AddSubroutine = 'AddSubroutine',
     EditSubroutine = 'EditSubroutine',
     DeleteSubroutine = 'DeleteSubroutine',
     OpenSubroutine = 'OpenSubroutine',
     DeleteNode = 'DeleteNode',
     UnlinkNode = 'UnlinkNode',
-    AddAfterNode = 'AddAfterNode',
-    AddBeforeNode = 'AddBeforeNode',
+    AddEndAfterNode = 'AddEndAfterNode',
+    AddListAfterNode = 'AddListAfterNode',
+    AddListBeforeNode = 'AddListBeforeNode',
     MoveNode = 'MoveNode',
 }
 

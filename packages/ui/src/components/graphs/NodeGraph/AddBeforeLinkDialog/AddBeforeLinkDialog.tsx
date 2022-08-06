@@ -5,7 +5,7 @@ import { AddBeforeLinkDialogProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { useCallback, useMemo } from 'react';
 import { NodeLink } from 'types';
-import { Box, Dialog, IconButton, List, ListItem, ListItemText, Typography, useTheme } from '@mui/material';
+import { Box, Dialog, DialogContent, IconButton, List, ListItem, ListItemText, Typography, useTheme } from '@mui/material';
 import {
     Close as CloseIcon,
 } from '@mui/icons-material';
@@ -38,7 +38,7 @@ export const AddBeforeLinkDialog = ({
     const linkOptions = useMemo<NodeLink[]>(() => links.filter(l => l.toId === nodeId), [links, nodeId]);
 
     const listOptions: ListMenuItemData<NodeLink>[] = linkOptions.map(o => ({
-        label: `${getNodeName(o.toId)} ⟵ ${getNodeName(o.fromId)}`,
+        label: `${getNodeName(o.fromId)} ⟶ ${getNodeName(o.toId)}`,
         value: o as NodeLink,
     }));
 
@@ -53,33 +53,39 @@ export const AddBeforeLinkDialog = ({
             <Box
                 sx={{
                     ...noSelect,
+                    background: palette.primary.dark,
+                    color: palette.primary.contrastText,
                     display: 'flex',
-                    alignItems: 'center',
+                    alignItems: 'left',
+                    justifyContent: 'space-between',
                     padding: 1,
-                    background: palette.primary.dark
                 }}
             >
                 <Typography
                     variant="h6"
-                    textAlign="center"
-                    sx={{ width: '-webkit-fill-available', color: palette.primary.contrastText }}
+                    alignSelf='center'
+                    sx={{ marginLeft: 2, marginRight: 'auto' }}
                 >
                     Select Link
                 </Typography>
-                <IconButton
-                    edge="end"
-                    onClick={handleClose}
-                >
-                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
-                </IconButton>
+                <Box sx={{ marginLeft: 'auto' }}>
+                    <IconButton
+                        edge="start"
+                        onClick={handleClose}
+                    >
+                        <CloseIcon sx={{ fill: palette.primary.contrastText }} />
+                    </IconButton>
+                </Box>
             </Box>
-            <List>
-                {listOptions.map(({ label, value }, index) => (
-                    <ListItem button onClick={() => { handleSelect(value); handleClose(); }} key={index}>
-                        <ListItemText primary={label} />
-                    </ListItem>
-                ))}
-            </List>
+            <DialogContent>
+                <List>
+                    {listOptions.map(({ label, value }, index) => (
+                        <ListItem button onClick={() => { handleSelect(value); handleClose(); }} key={index}>
+                            <ListItemText primary={label} />
+                        </ListItem>
+                    ))}
+                </List>
+            </DialogContent>
         </Dialog>
     )
 }

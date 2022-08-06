@@ -12,8 +12,8 @@ import { EmailLogInInput } from "./globalTypes";
 export interface emailLogIn_emailLogIn {
   __typename: "Session";
   id: string | null;
-  theme: string;
-  roles: string[];
+  theme: string | null;
+  isLoggedIn: boolean;
   languages: string[] | null;
 }
 

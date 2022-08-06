@@ -35,7 +35,7 @@ export const LearnPage = ({
     session,
 }: LearnPageProps) => {
     const [, setLocation] = useLocation();
-    const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
+    const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all'});
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
     const [resourceList, setResourceList] = useState<ResourceList | null>(null);
     useEffect(() => {
@@ -47,7 +47,7 @@ export const LearnPage = ({
         setResourceList(updatedList);
     }, []);
 
-    const { data: learnPageData, loading: learnPageLoading } = useQuery<learnPage>(learnPageQuery);
+    const { data: learnPageData, loading: learnPageLoading } = useQuery<learnPage>(learnPageQuery, { errorPolicy: 'all'});
 
     /**
      * Opens page for list item
@@ -127,10 +127,10 @@ export const LearnPage = ({
             </Stack>
             <Stack direction="column" spacing={10}>
                 {/* Resources */}
-                {session?.id && <ResourceListHorizontal
-                    title={Boolean(session?.id) ? '📌 Resources' : 'Example Resources'}
+                {session?.isLoggedIn && <ResourceListHorizontal
+                    title={'📌 Resources'}
                     list={resourceList}
-                    canEdit={Boolean(session?.id)}
+                    canEdit={true}
                     handleUpdate={handleResourcesUpdate}
                     loading={resourcesLoading}
                     mutate={true}

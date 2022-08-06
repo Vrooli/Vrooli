@@ -15,7 +15,7 @@ import {
 /**
  * Create new option
  */
-const emptyOption = (index: number) => ({
+ const emptyOption = (index: number) => ({
     label: `Enter option ${index + 1}`,
     // Random string for value
     value: Math.random().toString(36).substring(2, 15),
@@ -103,9 +103,8 @@ export const RadioStandardInput = ({
             options: options ?? [emptyOption(0)],
             row: row ?? false,
         },
-        enableReinitialize: true,
         validationSchema,
-        onSubmit: () => { },
+        onSubmit: () => { onPropsChange(formik.values) },
     });
 
     const handleOptionAdd = useCallback(() => {
@@ -141,14 +140,12 @@ export const RadioStandardInput = ({
     }, [formik]);
 
     useEffect(() => {
+        // Call onPropsChange callback
         // If default value is not set, try setting it to the first available option
-        if (!(typeof formik.values.defaultValue === 'string') || formik.values.defaultValue.length === 0) {
-            if (formik.values.options.length > 0) {
-                formik.setFieldValue('defaultValue', formik.values.options[0].value);
-            }
-        }
+        const firstValue = formik.values.options.length > 0 ? formik.values.options[0].value : undefined;
         onPropsChange({
             ...formik.values,
+            defaultValue: formik.values.defaultValue ?? firstValue,
         });
     }, [formik, onPropsChange]);
 

@@ -141,7 +141,7 @@ export const RunStepsDialog = ({
                     // We can't know if it is complete until it is loaded
                     return false;
                 }
-                // If simple routine (complexity = 1)
+                // If simple routine
                 return history.some(h => locationArraysMatch(h, location));
             // If decision
             case RoutineStepType.Decision:
@@ -179,16 +179,16 @@ export const RunStepsDialog = ({
                 return <StyledTreeItem nodeId={locationLabel} label={`${realLocationLabel}. Decision`} onToStep={toLocation} isComplete={completed} />
             // A subroutine may have children, but they may not be loaded
             case RoutineStepType.Subroutine:
-                // If complexity = 1, there are no further steps
-                if (step.routine.complexity === 1) {
-                    return <StyledTreeItem nodeId={locationLabel} label={`${realLocationLabel}. ${step.title}`} onToStep={toLocation} isComplete={completed} />
+                // If there are further steps, add a "Loaging" node
+                if (routineHasSubroutines(step.routine)) {
+                    return (
+                        <StyledTreeItem nodeId={locationLabel} label={`${realLocationLabel}. ${step.title}`} onToStep={toLocation}>
+                            <StyledTreeItem nodeId={`${locationLabel}-loading`} label="Loading..." onOpen={() => { handleLoadSubroutine(step.routine.id) }} />
+                        </StyledTreeItem>
+                    )
                 }
-                // Otherwise, Add a "Loading" node that will be replaced with queried data if opened
-                return (
-                    <StyledTreeItem nodeId={locationLabel} label={`${realLocationLabel}. ${step.title}`} onToStep={toLocation}>
-                        <StyledTreeItem nodeId={`${locationLabel}-loading`} label="Loading..." onOpen={() => { handleLoadSubroutine(step.routine.id) }} />
-                    </StyledTreeItem>
-                )
+                return <StyledTreeItem nodeId={locationLabel} label={`${realLocationLabel}. ${step.title}`} onToStep={toLocation} isComplete={completed} />
+
             // A routine list always has children
             default:
                 let stepItems = step.steps;
@@ -222,7 +222,6 @@ export const RunStepsDialog = ({
                     zIndex: zIndex + 1,
                     '& .MuiDrawer-paper': {
                         background: palette.background.default,
-                        borderRight: `1px solid ${palette.text.primary}`,
                         minHeight: '100vh',
                         minWidth: '300px',
                         overflowY: 'auto',

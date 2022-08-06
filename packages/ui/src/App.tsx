@@ -127,7 +127,7 @@ export function App() {
             }
             // If error is something else, notify user
             if (!isInvalidSession) {
-                PubSub.get().publishSnack({ message: 'Failed to connect to server.', severity: 'error'});
+                PubSub.get().publishSnack({ message: 'Failed to connect to server.', severity: 'error' });
             }
             // If not logged in as guest and failed to log in as user, set empty object
             if (!session) setSession({})
@@ -157,7 +157,14 @@ export function App() {
             setTimeout(() => setCelebrating(false), duration);
         });
         let sessionSub = PubSub.get().subscribeSession((session) => {
-            setSession(s => (session === undefined ? undefined : { ...s, ...session }));
+            // If undefined or empty, set session to published data
+            if (session === undefined || Object.keys(session).length === 0) {
+                setSession(session);
+            } 
+            // Otherwise, combine existing session data with published data
+            else {
+                setSession(s => ({ ...s, ...session }));
+            }
         });
         let themeSub = PubSub.get().subscribeTheme((data) => setTheme(themes[data] ?? themes.light));
         return (() => {

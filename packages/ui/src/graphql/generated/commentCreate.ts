@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { CommentCreateInput, MemberRole } from "./globalTypes";
+import { CommentCreateInput } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: commentCreate
@@ -69,6 +69,16 @@ export interface commentCreate_commentCreate_creator_User {
 
 export type commentCreate_commentCreate_creator = commentCreate_commentCreate_creator_Organization | commentCreate_commentCreate_creator_User;
 
+export interface commentCreate_commentCreate_permissionsComment {
+  __typename: "CommentPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReply: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
+
 export interface commentCreate_commentCreate_translations {
   __typename: "CommentTranslation";
   id: string;
@@ -83,10 +93,10 @@ export interface commentCreate_commentCreate {
   updated_at: any;
   score: number;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   isStarred: boolean;
   commentedOn: commentCreate_commentCreate_commentedOn;
   creator: commentCreate_commentCreate_creator | null;
+  permissionsComment: commentCreate_commentCreate_permissionsComment | null;
   translations: commentCreate_commentCreate_translations[];
 }
 

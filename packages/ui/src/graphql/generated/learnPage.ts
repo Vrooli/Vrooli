@@ -3,11 +3,19 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole } from "./globalTypes";
-
 // ====================================================
 // GraphQL query operation: learnPage
 // ====================================================
+
+export interface learnPage_learnPage_courses_permissionsProject {
+  __typename: "ProjectPermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
 
 export interface learnPage_learnPage_courses_tags_translations {
   __typename: "TagTranslation";
@@ -39,14 +47,27 @@ export interface learnPage_learnPage_courses {
   id: string;
   commentsCount: number;
   handle: string | null;
-  role: MemberRole | null;
   score: number;
   stars: number;
+  isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
   reportsCount: number;
+  permissionsProject: learnPage_learnPage_courses_permissionsProject;
   tags: learnPage_learnPage_courses_tags[];
   translations: learnPage_learnPage_courses_translations[];
+}
+
+export interface learnPage_learnPage_tutorials_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
 }
 
 export interface learnPage_learnPage_tutorials_tags_translations {
@@ -82,18 +103,21 @@ export interface learnPage_learnPage_tutorials {
   complexity: number;
   created_at: any;
   isAutomatable: boolean | null;
+  isDeleted: boolean;
   isInternal: boolean | null;
   isComplete: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
   reportsCount: number;
-  role: MemberRole | null;
   score: number;
   simplicity: number;
   stars: number;
+  permissionsRoutine: learnPage_learnPage_tutorials_permissionsRoutine;
   tags: learnPage_learnPage_tutorials_tags[];
   translations: learnPage_learnPage_tutorials_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
 }
 
 export interface learnPage_learnPage {

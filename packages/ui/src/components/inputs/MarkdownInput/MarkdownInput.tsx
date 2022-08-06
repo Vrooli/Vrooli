@@ -382,6 +382,7 @@ export const MarkdownInput = ({
                             value={value}
                             onChange={(e) => { onChange(e.target.value) }}
                             style={{
+                                padding: '16.5px 14px',
                                 minWidth: '-webkit-fill-available',
                                 maxWidth: '-webkit-fill-available',
                                 minHeight: '50px',

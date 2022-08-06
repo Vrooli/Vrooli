@@ -1,7 +1,7 @@
 import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { ROLES, routineCreateForm as validationSchema } from '@local/shared';
+import { routineCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { routineCreateMutation } from "graphql/mutation";
 import { getUserLanguages, InputShape, OutputShape, RoutineTranslationShape, shapeRoutineCreate, TagShape, updateArray, useReactSearch } from "utils";
@@ -16,7 +16,7 @@ import { LanguageInput, MarkdownInput, ResourceListHorizontal, TagSelector, User
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { Organization, ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { v4 as uuid } from 'uuid';
+import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { routineCreate, routineCreateVariables } from "graphql/generated/routineCreate";
 
@@ -198,9 +198,9 @@ export const RoutineCreate = ({
     }, [deleteTranslation, languages, updateFormikTranslation]);
 
     const actions: DialogActionItem[] = useMemo(() => {
-        const correctRole = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
+        const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
         return [
-            ['Create', CreateIcon, Boolean(!correctRole || formik.isSubmitting), true, () => { }],
+            ['Create', CreateIcon, Boolean(!loggedIn || formik.isSubmitting), true, () => { }],
             ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
         ] as DialogActionItem[]
     }, [formik, onCancel, session]);

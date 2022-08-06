@@ -3,11 +3,22 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { HistoryPageInput, RunStatus, MemberRole } from "./globalTypes";
+import { HistoryPageInput, RunStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: historyPage
 // ====================================================
+
+export interface historyPage_historyPage_activeRuns_routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
+}
 
 export interface historyPage_historyPage_activeRuns_routine_tags_translations {
   __typename: "TagTranslation";
@@ -41,17 +52,20 @@ export interface historyPage_historyPage_activeRuns_routine {
   complexity: number;
   created_at: any;
   isAutomatable: boolean | null;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   score: number;
   simplicity: number;
   stars: number;
+  permissionsRoutine: historyPage_historyPage_activeRuns_routine_permissionsRoutine;
   tags: historyPage_historyPage_activeRuns_routine_tags[];
   translations: historyPage_historyPage_activeRuns_routine_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
 }
 
 export interface historyPage_historyPage_activeRuns {
@@ -59,12 +73,24 @@ export interface historyPage_historyPage_activeRuns {
   id: string;
   completedComplexity: number;
   contextSwitches: number;
+  isPrivate: boolean;
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
   title: string;
   status: RunStatus;
   routine: historyPage_historyPage_activeRuns_routine | null;
+}
+
+export interface historyPage_historyPage_completedRuns_routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
 }
 
 export interface historyPage_historyPage_completedRuns_routine_tags_translations {
@@ -99,17 +125,20 @@ export interface historyPage_historyPage_completedRuns_routine {
   complexity: number;
   created_at: any;
   isAutomatable: boolean | null;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   score: number;
   simplicity: number;
   stars: number;
+  permissionsRoutine: historyPage_historyPage_completedRuns_routine_permissionsRoutine;
   tags: historyPage_historyPage_completedRuns_routine_tags[];
   translations: historyPage_historyPage_completedRuns_routine_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
 }
 
 export interface historyPage_historyPage_completedRuns {
@@ -117,12 +146,23 @@ export interface historyPage_historyPage_completedRuns {
   id: string;
   completedComplexity: number;
   contextSwitches: number;
+  isPrivate: boolean;
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
   title: string;
   status: RunStatus;
   routine: historyPage_historyPage_completedRuns_routine | null;
+}
+
+export interface historyPage_historyPage_recentlyViewed_to_Organization_permissionsOrganization {
+  __typename: "OrganizationPermission";
+  canAddMembers: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  isMember: boolean;
 }
 
 export interface historyPage_historyPage_recentlyViewed_to_Organization_tags_translations {
@@ -154,10 +194,20 @@ export interface historyPage_historyPage_recentlyViewed_to_Organization {
   id: string;
   handle: string | null;
   stars: number;
+  isPrivate: boolean;
   isStarred: boolean;
-  role: MemberRole | null;
+  permissionsOrganization: historyPage_historyPage_recentlyViewed_to_Organization_permissionsOrganization | null;
   tags: historyPage_historyPage_recentlyViewed_to_Organization_tags[];
   translations: historyPage_historyPage_recentlyViewed_to_Organization_translations[];
+}
+
+export interface historyPage_historyPage_recentlyViewed_to_Project_permissionsProject {
+  __typename: "ProjectPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
 }
 
 export interface historyPage_historyPage_recentlyViewed_to_Project_tags_translations {
@@ -188,13 +238,25 @@ export interface historyPage_historyPage_recentlyViewed_to_Project {
   __typename: "Project";
   id: string;
   handle: string | null;
-  role: MemberRole | null;
   score: number;
   stars: number;
+  isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
+  permissionsProject: historyPage_historyPage_recentlyViewed_to_Project_permissionsProject;
   tags: historyPage_historyPage_recentlyViewed_to_Project_tags[];
   translations: historyPage_historyPage_recentlyViewed_to_Project_translations[];
+}
+
+export interface historyPage_historyPage_recentlyViewed_to_Routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
 }
 
 export interface historyPage_historyPage_recentlyViewed_to_Routine_tags_translations {
@@ -228,17 +290,29 @@ export interface historyPage_historyPage_recentlyViewed_to_Routine {
   complexity: number;
   created_at: any;
   isAutomatable: boolean | null;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   score: number;
   simplicity: number;
   stars: number;
+  permissionsRoutine: historyPage_historyPage_recentlyViewed_to_Routine_permissionsRoutine;
   tags: historyPage_historyPage_recentlyViewed_to_Routine_tags[];
   translations: historyPage_historyPage_recentlyViewed_to_Routine_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
+}
+
+export interface historyPage_historyPage_recentlyViewed_to_Standard_permissionsStandard {
+  __typename: "StandardPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
 }
 
 export interface historyPage_historyPage_recentlyViewed_to_Standard_tags_translations {
@@ -270,12 +344,16 @@ export interface historyPage_historyPage_recentlyViewed_to_Standard {
   id: string;
   score: number;
   stars: number;
+  isDeleted: boolean;
+  isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
   name: string;
-  role: MemberRole | null;
+  permissionsStandard: historyPage_historyPage_recentlyViewed_to_Standard_permissionsStandard;
   tags: historyPage_historyPage_recentlyViewed_to_Standard_tags[];
   translations: historyPage_historyPage_recentlyViewed_to_Standard_translations[];
+  version: string;
+  versionGroupId: string;
 }
 
 export interface historyPage_historyPage_recentlyViewed_to_User {
@@ -359,6 +437,16 @@ export interface historyPage_historyPage_recentlyStarred_to_Comment_creator_User
 
 export type historyPage_historyPage_recentlyStarred_to_Comment_creator = historyPage_historyPage_recentlyStarred_to_Comment_creator_Organization | historyPage_historyPage_recentlyStarred_to_Comment_creator_User;
 
+export interface historyPage_historyPage_recentlyStarred_to_Comment_permissionsComment {
+  __typename: "CommentPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReply: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
+
 export interface historyPage_historyPage_recentlyStarred_to_Comment_translations {
   __typename: "CommentTranslation";
   id: string;
@@ -373,11 +461,21 @@ export interface historyPage_historyPage_recentlyStarred_to_Comment {
   updated_at: any;
   score: number;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   isStarred: boolean;
   commentedOn: historyPage_historyPage_recentlyStarred_to_Comment_commentedOn;
   creator: historyPage_historyPage_recentlyStarred_to_Comment_creator | null;
+  permissionsComment: historyPage_historyPage_recentlyStarred_to_Comment_permissionsComment | null;
   translations: historyPage_historyPage_recentlyStarred_to_Comment_translations[];
+}
+
+export interface historyPage_historyPage_recentlyStarred_to_Organization_permissionsOrganization {
+  __typename: "OrganizationPermission";
+  canAddMembers: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  isMember: boolean;
 }
 
 export interface historyPage_historyPage_recentlyStarred_to_Organization_tags_translations {
@@ -410,10 +508,20 @@ export interface historyPage_historyPage_recentlyStarred_to_Organization {
   id: string;
   handle: string | null;
   stars: number;
+  isPrivate: boolean;
   isStarred: boolean;
-  role: MemberRole | null;
+  permissionsOrganization: historyPage_historyPage_recentlyStarred_to_Organization_permissionsOrganization | null;
   tags: historyPage_historyPage_recentlyStarred_to_Organization_tags[];
   translations: historyPage_historyPage_recentlyStarred_to_Organization_translations[];
+}
+
+export interface historyPage_historyPage_recentlyStarred_to_Project_permissionsProject {
+  __typename: "ProjectPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
 }
 
 export interface historyPage_historyPage_recentlyStarred_to_Project_tags_translations {
@@ -445,13 +553,25 @@ export interface historyPage_historyPage_recentlyStarred_to_Project {
   __typename: "Project";
   id: string;
   handle: string | null;
-  role: MemberRole | null;
   score: number;
   stars: number;
+  isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
+  permissionsProject: historyPage_historyPage_recentlyStarred_to_Project_permissionsProject;
   tags: historyPage_historyPage_recentlyStarred_to_Project_tags[];
   translations: historyPage_historyPage_recentlyStarred_to_Project_translations[];
+}
+
+export interface historyPage_historyPage_recentlyStarred_to_Routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
 }
 
 export interface historyPage_historyPage_recentlyStarred_to_Routine_tags_translations {
@@ -486,17 +606,29 @@ export interface historyPage_historyPage_recentlyStarred_to_Routine {
   complexity: number;
   created_at: any;
   isAutomatable: boolean | null;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   score: number;
   simplicity: number;
   stars: number;
+  permissionsRoutine: historyPage_historyPage_recentlyStarred_to_Routine_permissionsRoutine;
   tags: historyPage_historyPage_recentlyStarred_to_Routine_tags[];
   translations: historyPage_historyPage_recentlyStarred_to_Routine_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
+}
+
+export interface historyPage_historyPage_recentlyStarred_to_Standard_permissionsStandard {
+  __typename: "StandardPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
 }
 
 export interface historyPage_historyPage_recentlyStarred_to_Standard_tags_translations {
@@ -528,12 +660,16 @@ export interface historyPage_historyPage_recentlyStarred_to_Standard {
   id: string;
   score: number;
   stars: number;
+  isDeleted: boolean;
+  isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
   name: string;
-  role: MemberRole | null;
+  permissionsStandard: historyPage_historyPage_recentlyStarred_to_Standard_permissionsStandard;
   tags: historyPage_historyPage_recentlyStarred_to_Standard_tags[];
   translations: historyPage_historyPage_recentlyStarred_to_Standard_translations[];
+  version: string;
+  versionGroupId: string;
 }
 
 export interface historyPage_historyPage_recentlyStarred_to_User {

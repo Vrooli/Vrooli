@@ -32,6 +32,14 @@ export const projectOptionLabel = (o: ListProject, languages: readonly string[])
 export const routineOptionLabel = (o: ListRoutine, languages: readonly string[]) => getTranslation(o, 'title', languages, true) ?? '';
 
 /**
+ * Gets label for run, from its title
+ * @param o Run object
+ * @param languages User languages
+ * @returns label
+ */
+export const runOptionLabel = (o: ListRun, languages: readonly string[]) => o.title ?? getTranslation(o.routine, 'title', languages, true) ?? '';
+
+/**
 * Gets label for routine, from its name
 * @param o Standard object
 * @param languages User languages
@@ -50,14 +58,14 @@ export const userOptionLabel = (o: ListUser, languages: readonly string[]) => o.
 
 /**
  * Gets label for a single object
- * @param object Either an Organization, Project, Routine, Standard or User
+ * @param object A searchable object
  * @param languages User languages
  * @returns label
  */
 export const getListItemLabel = (
-    object: ListOrganization | ListProject | ListRoutine | ListStandard | ListUser,
+    object: ListOrganization | ListProject | ListRoutine | ListRun | ListStandard | ListStar | ListUser | ListView,
     languages?: readonly string[]
-) => {
+): string => {
     const lang = languages ?? getUserLanguages();
     switch (object.__typename) {
         case 'Organization':
@@ -66,18 +74,49 @@ export const getListItemLabel = (
             return projectOptionLabel(object, lang);
         case 'Routine':
             return routineOptionLabel(object, lang);
+        case 'Run':
+            return runOptionLabel(object, lang);
         case 'Standard':
             return standardOptionLabel(object, lang);
+        case 'Star':
+            return getListItemLabel(object.to as any, lang);
         case 'User':
             return userOptionLabel(object, lang);
+        case 'View':
+            return (object.title.length > 0) ? object.title : getListItemLabel(object.to as any, lang);
         default:
             return '';
     }
 };
 
 /**
+ * Gets stars for a single object
+ * @param object A searchable object
+ * @returns stars
+ */
+export const getListItemStars = (
+    object: ListOrganization | ListProject | ListRoutine | ListRun | ListStandard | ListStar | ListUser | ListView,
+): number => {
+    switch (object.__typename) {
+        case 'Organization':
+        case 'Project':
+        case 'Routine':
+        case 'Standard':
+        case 'User':
+            return object.stars;
+        case 'Run':
+            return object.routine?.stars ?? 0;
+        case 'Star': 
+        case 'View':
+            return getListItemStars(object.to as any);
+        default:
+            return 0;
+    }
+}
+
+/**
  * Converts a list of GraphQL objects to a list of autocomplete information.
- * @param objects The list of Organizations, Projects, Routines, Standards, and/or Users.
+ * @param objects The list of search results
  * @param languages User languages
  * @returns The list of autocomplete information. Each object has the following shape: 
  * {
@@ -87,14 +126,14 @@ export const getListItemLabel = (
  * }
  */
 export function listToAutocomplete(
-    objects: readonly (ListOrganization | ListProject | ListRoutine | ListStandard | ListUser)[],
+    objects: readonly (ListOrganization | ListProject | ListRoutine | ListRun | ListStandard | ListStar | ListUser | ListView)[],
     languages: readonly string[]
 ): AutocompleteOption[] {
     return objects.map(o => ({
         __typename: o.__typename,
         id: o.id,
         label: getListItemLabel(o, languages),
-        stars: o.stars ?? 0
+        stars: getListItemStars(o)
     }));
 }
 

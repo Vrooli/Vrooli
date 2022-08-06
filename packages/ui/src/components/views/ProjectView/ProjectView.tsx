@@ -16,11 +16,9 @@ import { BaseObjectActionDialog, ResourceListVertical, SearchList, SelectLanguag
 import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
 import { Project, ResourceList } from "types";
-import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
 import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, PubSub } from "utils";
 import { validate as uuidValidate } from 'uuid';
-import { owns } from "utils/authentication";
 
 enum TabOptions {
     Resources = "Resources",
@@ -40,7 +38,7 @@ export const ProjectView = ({
     const [, params2] = useRoute(`${APP_LINKS.SearchProjects}/view/:id`);
     const id: string = useMemo(() => params?.id ?? params2?.id ?? '', [params, params2]);
     // Fetch data
-    const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery);
+    const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery, { errorPolicy: 'all'});
     const [project, setProject] = useState<Project | null | undefined>(null);
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { input: { id } } })
@@ -49,7 +47,7 @@ export const ProjectView = ({
     useEffect(() => {
         setProject(data?.project);
     }, [data]);
-    const canEdit = useMemo<boolean>(() => owns(project?.role), [project]);
+    const canEdit = useMemo<boolean>(() => project?.permissionsProject?.canEdit === true, [project?.permissionsProject?.canEdit]);
 
     const availableLanguages = useMemo<string[]>(() => (project?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [project?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -58,9 +56,11 @@ export const ProjectView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { name, description, handle, resourceList } = useMemo(() => {
+    const { canStar, name, description, handle, resourceList } = useMemo(() => {
+        const permissions = project?.permissionsProject;
         const resourceList: ResourceList | undefined = Array.isArray(project?.resourceLists) ? project?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
         return {
+            canStar: permissions?.canStar === true,
             name: getTranslation(project, 'name', [language]) ?? getTranslation(partialData, 'name', [language]),
             description: getTranslation(project, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
             handle: project?.handle ?? partialData?.handle,
@@ -119,24 +119,6 @@ export const ProjectView = ({
         // Depends on if we're in a search popup or a normal page
         setLocation(Boolean(params?.id) ? `${APP_LINKS.Project}/edit/${id}` : `${APP_LINKS.SearchProjects}/edit/${id}`);
     }, [setLocation, params?.id, id]);
-
-    // Determine options available to object, in order
-    const moreOptions: BaseObjectAction[] = useMemo(() => {
-        // Initialize
-        let options: BaseObjectAction[] = [];
-        if (session && !canEdit) {
-            options.push(project?.isUpvoted ? BaseObjectAction.Downvote : BaseObjectAction.Upvote);
-            options.push(project?.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
-        }
-        options.push(BaseObjectAction.Donate, BaseObjectAction.Share)
-        if (session?.id) {
-            options.push(BaseObjectAction.Report);
-        }
-        if (canEdit) {
-            options.push(BaseObjectAction.Delete);
-        }
-        return options;
-    }, [session, canEdit, project?.isStarred, project?.isUpvoted]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -291,21 +273,19 @@ export const ProjectView = ({
                             <ShareIcon />
                         </IconButton>
                     </Tooltip>
-                    {
-                        !canEdit ? <StarButton
-                            session={session}
-                            objectId={project?.id ?? ''}
-                            starFor={StarFor.Project}
-                            isStar={project?.isStarred ?? false}
-                            stars={project?.stars ?? 0}
-                            onChange={(isStar: boolean) => { }}
-                            tooltipPlacement="bottom"
-                        /> : null
-                    }
+                    {canStar && <StarButton
+                        session={session}
+                        objectId={project?.id ?? ''}
+                        starFor={StarFor.Project}
+                        isStar={project?.isStarred ?? false}
+                        stars={project?.stars ?? 0}
+                        onChange={(isStar: boolean) => { }}
+                        tooltipPlacement="bottom"
+                    />}
                 </Stack>
             </Stack>
         </Box>
-    ), [palette, openMoreMenu, loading, canEdit, name, onEdit, handle, project?.created_at, project?.id, project?.isStarred, project?.stars, description, shareLink, session]);
+    ), [palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.mode, palette.primary.main, palette.secondary.light, palette.secondary.dark, openMoreMenu, loading, canEdit, name, onEdit, handle, project?.created_at, project?.id, project?.isStarred, project?.stars, description, shareLink, canStar, session]);
 
     /**
     * Opens add new page
@@ -327,15 +307,17 @@ export const ProjectView = ({
             <BaseObjectActionDialog
                 handleActionComplete={() => { }} //TODO
                 handleEdit={onEdit}
+                isUpvoted={project?.isUpvoted}
+                isStarred={project?.isStarred}
                 objectId={id}
                 objectName={name ?? ''}
                 objectType={ObjectType.Project}
                 anchorEl={moreMenuAnchor}
                 title='Project Options'
-                availableOptions={moreOptions}
                 onClose={closeMoreMenu}
+                permissions={project?.permissionsProject}
                 session={session}
-                zIndex={zIndex+1}
+                zIndex={zIndex + 1}
             />
             <Box sx={{
                 display: 'flex',

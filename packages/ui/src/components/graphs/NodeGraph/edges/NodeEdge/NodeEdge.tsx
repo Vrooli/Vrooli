@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { NodeEdgeProps } from '../types';
 import {
     Add as AddIcon,
+    AltRoute as BranchIcon,
     Edit as EditIcon,
     Delete as DeleteIcon,
 } from '@mui/icons-material';
@@ -13,14 +14,15 @@ import { BaseEdge } from '../BaseEdge/BaseEdge';
  * If in editing mode, displays a clickable button to edit the link or inserting a node
  */
 export const NodeEdge = ({
+    fastUpdate,
     handleAdd,
+    handleBranch,
     handleDelete,
     handleEdit,
     isEditing,
     isFromRoutineList,
     isToRoutineList,
     link,
-    dragId,
     scale,
 }: NodeEdgeProps) => {
     const { palette } = useTheme();
@@ -33,14 +35,6 @@ export const NodeEdge = ({
     const handleEditClick = useCallback(() => {
         handleEdit(link);
     }, [handleEdit, link]);
-
-    /**
-     * Redraw edge quickly while dragging, and slowly while not dragging
-     */
-    const timeBetweenDraws = useMemo(() => {
-        if (dragId && (dragId === link.fromId || dragId === link.toId)) return 15;
-        return 1000;
-    }, [dragId, link.fromId, link.toId]);
 
     /**
      * Place button along bezier to display "Add Node" button
@@ -78,6 +72,26 @@ export const NodeEdge = ({
                         }}
                     >
                         <AddIcon id="insert-node-on-edge-button-icon" sx={{ fill: 'white' }} />
+                    </IconButton>
+                </Tooltip>
+                {/* Insert Branch */}
+                <Tooltip title='Insert branch'>
+                    <IconButton
+                        id="insert-branch-on-edge-button"
+                        size="small"
+                        onClick={() => { handleBranch(link) }}
+                        aria-label='Insert branch on edge'
+                        sx={{
+                            background: '#248791',
+                            transition: 'brightness 0.2s ease-in-out',
+                            '&:hover': {
+                                filter: `brightness(105%)`,
+                                background: '#248791',
+                            },
+                        }}
+                    >
+                        {/* Branch icon should be rotated 90 degrees */}
+                        <BranchIcon id="insert-branch-on-edge-button-icon" sx={{ fill: 'white', transform: 'rotate(90deg)' }} />
                     </IconButton>
                 </Tooltip>
                 {/* Edit Link */}
@@ -120,7 +134,7 @@ export const NodeEdge = ({
                 </Tooltip>
             </Stack>
         );
-    }, [isEditing, palette.secondary.main, palette.error.main, handleEditClick, handleAdd, link, handleDelete]);
+    }, [isEditing, palette.secondary.main, palette.error.main, handleEditClick, handleAdd, link, handleBranch, handleDelete]);
 
     return <BaseEdge
         containerId='graph-root'
@@ -129,7 +143,7 @@ export const NodeEdge = ({
         popoverComponent={popoverComponent}
         popoverT={popoverT}
         thiccness={thiccness}
-        timeBetweenDraws={timeBetweenDraws}
+        timeBetweenDraws={fastUpdate ? 15 : 1000}
         toId={`node-${link.toId}`}
     />
 }

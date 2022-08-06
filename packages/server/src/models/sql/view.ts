@@ -1,16 +1,12 @@
-import { CODE, isObject, MemberRole, ViewFor } from "@local/shared";
+import { CODE, isObject, ViewFor } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, LogType, User, ViewSearchInput, ViewSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { deconstructUnion, FormatConverter, GraphQLModelType, PartialGraphQLInfo, readManyHelper, Searcher, timeFrameToPrisma } from "./base";
+import { deconstructUnion, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, ModelLogic, ObjectMap, PartialGraphQLInfo, readManyHelper, Searcher, timeFrameToPrisma } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { OrganizationModel } from "./organization";
 import { initializeRedis } from "../../redisConn";
-import { ProjectModel } from "./project";
-import { RoutineModel } from "./routine";
-import { StandardModel } from "./standard";
-import { UserModel } from "./user";
 import { resolveProjectOrOrganizationOrRoutineOrStandardOrUser } from "../../schema/resolvers";
 
 //==============================================================
@@ -23,16 +19,16 @@ export interface View {
     to: ViewFor;
 }
 
-export const viewFormatter = (): FormatConverter<View> => ({
+export const viewFormatter = (): FormatConverter<View, any> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.View,
-        'from': GraphQLModelType.User,
+        '__typename': 'View',
+        'from': 'User',
         'to': {
-            'Organization': GraphQLModelType.Organization,
-            'Project': GraphQLModelType.Project,
-            'Routine': GraphQLModelType.Routine,
-            'Standard': GraphQLModelType.Standard,
-            'User': GraphQLModelType.User,
+            'Organization': 'Organization',
+            'Project': 'Project',
+            'Routine': 'Routine',
+            'Standard': 'Standard',
+            'User': 'User',
         }
     },
     constructUnions: (data) => {
@@ -46,20 +42,15 @@ export const viewFormatter = (): FormatConverter<View> => ({
     },
     deconstructUnions: (partial) => {
         let modified = deconstructUnion(partial, 'to', [
-            [GraphQLModelType.Organization, 'organization'],
-            [GraphQLModelType.Project, 'project'],
-            [GraphQLModelType.Routine, 'routine'],
-            [GraphQLModelType.Standard, 'standard'],
-            [GraphQLModelType.User, 'user'],
+            ['Organization', 'organization'],
+            ['Project', 'project'],
+            ['Routine', 'routine'],
+            ['Standard', 'standard'],
+            ['User', 'user'],
         ]);
         return modified;
     },
-    async addSupplementalFields(
-        prisma: PrismaType,
-        userId: string | null, // Of the user making the request
-        objects: RecursivePartial<any>[],
-        partial: PartialGraphQLInfo,
-    ): Promise<RecursivePartial<View>[]> {
+    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<View>[]> {
         // Query for data that view is applied to
         if (isObject(partial.to)) {
             const toTypes: GraphQLModelType[] = objects.map(o => resolveProjectOrOrganizationOrRoutineOrStandardOrUser(o.to))
@@ -73,27 +64,24 @@ export const viewFormatter = (): FormatConverter<View> => ({
             // Query for each type
             const tos: any[] = [];
             for (const type of Object.keys(toIdsByType)) {
-                let typeModel: any; 
-                switch (type) {
-                    case GraphQLModelType.Organization:
-                        typeModel = OrganizationModel(prisma);
-                        break;
-                    case GraphQLModelType.Project:
-                        typeModel = ProjectModel(prisma);
-                        break;
-                    case GraphQLModelType.Routine:
-                        typeModel = RoutineModel(prisma);
-                        break;
-                    case GraphQLModelType.Standard:
-                        typeModel = StandardModel(prisma);
-                        break;
-                    case GraphQLModelType.User:
-                        typeModel = UserModel(prisma);
-                        break;
-                    default:
-                        throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0186') });
+                const validTypes: Array<keyof typeof GraphQLModelType> = [
+                    'Organization',
+                    'Project',
+                    'Routine',
+                    'Standard',
+                    'User',
+                ];
+                if (!validTypes.includes(type as keyof typeof GraphQLModelType)) {
+                    throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0186') });
                 }
-                const paginated = await readManyHelper(userId, { ids: toIdsByType[type] }, partial.to[type], typeModel);
+                const model = ObjectMap[type as keyof typeof GraphQLModelType] as ModelLogic<any, any, any>;
+                const paginated = await readManyHelper({
+                    info: partial.to[type],
+                    input: { ids: toIdsByType[type] },
+                    model,
+                    prisma,
+                    userId,
+                })
                 tos.push(...paginated.edges.map(x => x.node));
             }
             // Apply each "to" to the "to" property of each object
@@ -103,7 +91,7 @@ export const viewFormatter = (): FormatConverter<View> => ({
                 object.to = to;
             }
         }
-        return objects;
+        return objects as RecursivePartial<View>[];
     },
 })
 
@@ -130,9 +118,10 @@ export const viewSearcher = (): Searcher<ViewSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
-        return ({
-            title: { ...insensitive }
+        return getSearchStringQueryHelper({ searchString,
+            resolver: ({ insensitive }) => ({ 
+                title: { ...insensitive }
+            })
         })
     },
     customQueries(input: ViewSearchInput): { [x: string]: any } {
@@ -142,12 +131,35 @@ export const viewSearcher = (): Searcher<ViewSearchInput> => ({
     },
 })
 
+const viewQuerier = (prisma: PrismaType) => ({
+    async getIsVieweds(
+        userId: string | null,
+        ids: string[],
+        viewFor: keyof typeof ViewFor
+    ): Promise<Array<boolean | null>> {
+        // Create result array that is the same length as ids
+        const result = new Array(ids.length).fill(null);
+        // If userId not provided, return result
+        if (!userId) return result;
+        // Filter out nulls and undefineds from ids
+        const idsFiltered = ids.filter(id => id !== null && id !== undefined);
+        const fieldName = `${viewFor.toLowerCase()}Id`;
+        const isViewedArray = await prisma.view.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
+        // Replace the nulls in the result array with true if viewed
+        for (let i = 0; i < ids.length; i++) {
+            // Try to find this id in the isViewed array
+            result[i] = Boolean(isViewedArray.find((view: any) => view[fieldName] === ids[i]));
+        }
+        return result;
+    },
+})
+
 /**
  * Marks objects as viewed. If view exists, updates last viewed time.
  * A user may view their own objects, but it does not count towards its view count.
  * @returns True if view updated correctly
  */
-const viewer = (prisma: PrismaType) => ({
+const viewMutater = (prisma: PrismaType) => ({
     async view(userId: string, input: ViewInput): Promise<boolean> {
         // Define prisma type for viewed object
         const prismaFor = (prisma[forMapper[input.viewFor] as keyof PrismaType] as any);
@@ -187,86 +199,89 @@ const viewer = (prisma: PrismaType) => ({
         switch (input.viewFor) {
             case ViewFor.Organization:
                 // Check if user is an admin or owner of the organization
-                const memberData = await OrganizationModel(prisma).isOwnerOrAdmin(userId, [input.forId]);
-                isOwn = Boolean(memberData[0]);
+                const roles = await OrganizationModel.query(prisma).hasRole(userId, [input.forId]);
+                isOwn = Boolean(roles[0]);
                 break;
             case ViewFor.Project:
                 // Check if project is owned by this user or by an organization they are a member of
-                const project = await prisma.project.findFirst({
-                    where: {
-                        AND: [
-                            { id: input.forId },
-                            {
-                                OR: [
-                                    { user: { id: userId } },
-                                    {
-                                        organization: {
-                                            members: {
-                                                some: {
-                                                    id: userId,
-                                                    role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
-                                                }
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                })
-                if (project) isOwn = true;
+                //TODO
+                // const project = await prisma.project.findFirst({
+                //     where: {
+                //         AND: [
+                //             { id: input.forId },
+                //             {
+                //                 OR: [
+                //                     { user: { id: userId } },
+                //                     {
+                //                         organization: {
+                //                             members: {
+                //                                 some: {
+                //                                     id: userId,
+                //                                     role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
+                //                                 }
+                //                             }
+                //                         }
+                //                     }
+                //                 ]
+                //             }
+                //         ]
+                //     }
+                // })
+                // if (project) isOwn = true;
                 break;
             case ViewFor.Routine:
                 // Check if routine is owned by this user or by an organization they are a member of
-                const routine = await prisma.routine.findFirst({
-                    where: {
-                        AND: [
-                            { id: input.forId },
-                            {
-                                OR: [
-                                    { user: { id: userId } },
-                                    {
-                                        organization: {
-                                            members: {
-                                                some: {
-                                                    id: userId,
-                                                    role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
-                                                }
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                })
-                if (routine) isOwn = true;
+                //TODO
+                // const routine = await prisma.routine.findFirst({
+                //     where: {
+                //         AND: [
+                //             { id: input.forId },
+                //             {
+                //                 OR: [
+                //                     { user: { id: userId } },
+                //                     {
+                //                         organization: {
+                //                             members: {
+                //                                 some: {
+                //                                     id: userId,
+                //                                     role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
+                //                                 }
+                //                             }
+                //                         }
+                //                     }
+                //                 ]
+                //             }
+                //         ]
+                //     }
+                // })
+                // if (routine) isOwn = true;
                 break;
             case ViewFor.Standard:
                 // Check if standard is owned by this user or by an organization they are a member of
-                const standard = await prisma.standard.findFirst({
-                    where: {
-                        AND: [
-                            { id: input.forId },
-                            {
-                                OR: [
-                                    { createdByUser: { id: userId } },
-                                    {
-                                        createdByOrganization: {
-                                            members: {
-                                                some: {
-                                                    id: userId,
-                                                    role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
-                                                }
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                })
-                if (standard) isOwn = true;
+                //TODO
+                // const standard = await prisma.standard.findFirst({
+                //     where: {
+                //         AND: [
+                //             { id: input.forId },
+                //             {
+                //                 OR: [
+                //                     { createdByUser: { id: userId } },
+                //                     {
+                //                         createdByOrganization: {
+                //                             members: {
+                //                                 some: {
+                //                                     id: userId,
+                //                                     role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
+                //                                 }
+                //                             }
+                //                         }
+                //                     }
+                //                 ]
+                //             }
+                //         ]
+                //     }
+                // })
+                // if (standard) isOwn = true;
                 break;
             case ViewFor.User:
                 isOwn = userId === input.forId;
@@ -318,24 +333,6 @@ const viewer = (prisma: PrismaType) => ({
             where: { byId: userId }
         })
     },
-    async getIsVieweds(
-        userId: string,
-        ids: string[],
-        viewFor: keyof typeof ViewFor
-    ): Promise<Array<boolean | null>> {
-        // Create result array that is the same length as ids
-        const result = new Array(ids.length).fill(null);
-        // Filter out nulls and undefineds from ids
-        const idsFiltered = ids.filter(id => id !== null && id !== undefined);
-        const fieldName = `${viewFor.toLowerCase()}Id`;
-        const isViewedArray = await prisma.view.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
-        // Replace the nulls in the result array with true if viewed
-        for (let i = 0; i < ids.length; i++) {
-            // Try to find this id in the isViewed array
-            result[i] = Boolean(isViewedArray.find((view: any) => view[fieldName] === ids[i]));
-        }
-        return result;
-    },
 })
 
 //==============================================================
@@ -346,19 +343,13 @@ const viewer = (prisma: PrismaType) => ({
 /* #region Model */
 //==============================================================
 
-export function ViewModel(prisma: PrismaType) {
-    const prismaObject = prisma.view;
-    const format = viewFormatter();
-    const search = viewSearcher();
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...search,
-        ...viewer(prisma),
-    }
-}
+export const ViewModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.view,
+    mutate: viewMutater,
+    format: viewFormatter(),
+    search: viewSearcher(),
+    query: viewQuerier,
+})
 
 //==============================================================
 /* #endregion Model */

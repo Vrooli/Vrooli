@@ -3,11 +3,21 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole } from "./globalTypes";
-
 // ====================================================
 // GraphQL fragment: listRoutineFields
 // ====================================================
+
+export interface listRoutineFields_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
+}
 
 export interface listRoutineFields_tags_translations {
   __typename: "TagTranslation";
@@ -42,16 +52,19 @@ export interface listRoutineFields {
   complexity: number;
   created_at: any;
   isAutomatable: boolean | null;
+  isDeleted: boolean;
   isInternal: boolean | null;
   isComplete: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
   reportsCount: number;
-  role: MemberRole | null;
   score: number;
   simplicity: number;
   stars: number;
+  permissionsRoutine: listRoutineFields_permissionsRoutine;
   tags: listRoutineFields_tags[];
   translations: listRoutineFields_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
 }

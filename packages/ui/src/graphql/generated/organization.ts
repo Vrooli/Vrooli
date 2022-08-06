@@ -3,11 +3,21 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdOrHandleInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { FindByIdOrHandleInput, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: organization
 // ====================================================
+
+export interface organization_organization_permissionsOrganization {
+  __typename: "OrganizationPermission";
+  canAddMembers: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  isMember: boolean;
+}
 
 export interface organization_organization_resourceLists_translations {
   __typename: "ResourceListTranslation";
@@ -46,6 +56,22 @@ export interface organization_organization_resourceLists {
   resources: organization_organization_resourceLists_resources[];
 }
 
+export interface organization_organization_roles_translations {
+  __typename: "RoleTranslation";
+  id: string;
+  language: string;
+  description: string;
+}
+
+export interface organization_organization_roles {
+  __typename: "Role";
+  id: string;
+  created_at: any;
+  updated_at: any;
+  title: string;
+  translations: organization_organization_roles_translations[];
+}
+
 export interface organization_organization_tags_translations {
   __typename: "TagTranslation";
   id: string;
@@ -73,10 +99,12 @@ export interface organization_organization {
   created_at: any;
   handle: string | null;
   isOpenToNewMembers: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
-  role: MemberRole | null;
   stars: number;
+  permissionsOrganization: organization_organization_permissionsOrganization | null;
   resourceLists: organization_organization_resourceLists[];
+  roles: organization_organization_roles[] | null;
   tags: organization_organization_tags[];
   translations: organization_organization_translations[];
 }

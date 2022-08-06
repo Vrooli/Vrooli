@@ -3,8 +3,6 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole } from "./globalTypes";
-
 // ====================================================
 // GraphQL fragment: threadComment
 // ====================================================
@@ -69,6 +67,16 @@ export interface threadComment_creator_User {
 
 export type threadComment_creator = threadComment_creator_Organization | threadComment_creator_User;
 
+export interface threadComment_permissionsComment {
+  __typename: "CommentPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReply: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
+
 export interface threadComment_translations {
   __typename: "CommentTranslation";
   id: string;
@@ -83,9 +91,9 @@ export interface threadComment {
   updated_at: any;
   score: number;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   isStarred: boolean;
   commentedOn: threadComment_commentedOn;
   creator: threadComment_creator | null;
+  permissionsComment: threadComment_permissionsComment | null;
   translations: threadComment_translations[];
 }

@@ -1,4 +1,4 @@
-import { APP_LINKS, ROLES } from "@local/shared";
+import { APP_LINKS } from "@local/shared";
 import { RoutineDialog, ListMenu } from "components";
 import { routinesQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useState } from "react";
@@ -8,6 +8,7 @@ import { BaseSearchPage } from "./BaseSearchPage";
 import { SearchRoutinesPageProps } from "./types";
 import { useLocation } from "wouter";
 import { ListMenuItemData } from "components/dialogs/types";
+import { validate as uuidValidate } from "uuid";
 
 export const SearchRoutinesPage = ({
     session
@@ -33,8 +34,8 @@ export const SearchRoutinesPage = ({
     // Menu for picking which routine type to add
     const [addAnchor, setAddAnchor] = useState<any>(null);
     const openAdd = useCallback((ev: MouseEvent<HTMLDivElement>) => {
-        const canAdd = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
-        if (canAdd) {
+        const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
+        if (loggedIn) {
             setAddAnchor(ev.currentTarget)
         }
         else {
@@ -43,7 +44,7 @@ export const SearchRoutinesPage = ({
                 redirect: APP_LINKS.SearchRoutines
             })}`);
         }
-    }, [session?.roles, setLocation]);
+    }, [session?.id, session?.isLoggedIn, setLocation]);
     const closeAdd = useCallback(() => setAddAnchor(null), []);
     const handleAddSelect = useCallback((option: any) => {
         if (option === 'basic') setLocation(`${APP_LINKS.SearchRoutines}/add`)

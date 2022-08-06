@@ -42,7 +42,7 @@ export const shapeStandardTranslationUpdate = (
         jsonVariable: u.jsonVariable !== o.jsonVariable ? u.jsonVariable : undefined,
     }), 'id')
 
-export const shapeStandardCreate = (item: StandardShape): StandardCreateInput => { console.log('shapestandardcreate!', item); return ({
+export const shapeStandardCreate = (item: StandardShape): StandardCreateInput => ({
     id: item.id,
     default: item.default + '', // Make sure default is a string
     isInternal: item.isInternal,
@@ -57,7 +57,7 @@ export const shapeStandardCreate = (item: StandardShape): StandardCreateInput =>
     ...shapeCreateList(item, 'translations', shapeStandardTranslationCreate),
     ...shapeCreateList(item, 'resourceLists', shapeResourceListCreate),
     ...shapeCreateList(item, 'tags', shapeTagCreate),
-}) }
+})
 
 export const shapeStandardUpdate = (
     original: StandardShapeUpdate,

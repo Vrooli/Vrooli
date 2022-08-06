@@ -3,11 +3,22 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { RunStatus, MemberRole } from "./globalTypes";
+import { RunStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: listRunFields
 // ====================================================
+
+export interface listRunFields_routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
+}
 
 export interface listRunFields_routine_tags_translations {
   __typename: "TagTranslation";
@@ -41,17 +52,20 @@ export interface listRunFields_routine {
   complexity: number;
   created_at: any;
   isAutomatable: boolean | null;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   score: number;
   simplicity: number;
   stars: number;
+  permissionsRoutine: listRunFields_routine_permissionsRoutine;
   tags: listRunFields_routine_tags[];
   translations: listRunFields_routine_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
 }
 
 export interface listRunFields {
@@ -59,6 +73,7 @@ export interface listRunFields {
   id: string;
   completedComplexity: number;
   contextSwitches: number;
+  isPrivate: boolean;
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;

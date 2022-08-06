@@ -82,15 +82,12 @@ export const getInstalledWalletProviders = (): [string, WalletProviderInfo][] =>
         if (!obj.hasOwnProperty('isEnabled')) return false;
         return true;
     }) as [string, WalletProviderInfo][];
-    console.log('providers here', providers);
     // Filter out duplicate names and excluded
     providers = providers.filter(([key, value], index) => {
         const currName = value.name;
         const nextName = providers.slice(index + 1).find(([, next]) => next.name === currName);
-        console.log('currname', currName, 'nextname', nextName);
         return !nextName && !exclude.includes(key);
     });
-    console.log('providers there', providers);
     return providers;
 }
 

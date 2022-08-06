@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { NodeType, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: routineNodeFields
@@ -34,13 +34,16 @@ export interface routineNodeFields_data_NodeRoutineList_routines_routine_inputs_
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   translations: routineNodeFields_data_NodeRoutineList_routines_routine_inputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface routineNodeFields_data_NodeRoutineList_routines_routine_inputs {
@@ -71,13 +74,16 @@ export interface routineNodeFields_data_NodeRoutineList_routines_routine_outputs
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   translations: routineNodeFields_data_NodeRoutineList_routines_routine_outputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface routineNodeFields_data_NodeRoutineList_routines_routine_outputs {
@@ -110,6 +116,18 @@ export interface routineNodeFields_data_NodeRoutineList_routines_routine_owner_U
 }
 
 export type routineNodeFields_data_NodeRoutineList_routines_routine_owner = routineNodeFields_data_NodeRoutineList_routines_routine_owner_Organization | routineNodeFields_data_NodeRoutineList_routines_routine_owner_User;
+
+export interface routineNodeFields_data_NodeRoutineList_routines_routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
+}
 
 export interface routineNodeFields_data_NodeRoutineList_routines_routine_resourceLists_translations {
   __typename: "ResourceListTranslation";
@@ -175,17 +193,20 @@ export interface routineNodeFields_data_NodeRoutineList_routines_routine {
   id: string;
   complexity: number;
   isComplete: boolean;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   inputs: routineNodeFields_data_NodeRoutineList_routines_routine_inputs[];
   nodesCount: number | null;
-  role: MemberRole | null;
   outputs: routineNodeFields_data_NodeRoutineList_routines_routine_outputs[];
   owner: routineNodeFields_data_NodeRoutineList_routines_routine_owner | null;
+  permissionsRoutine: routineNodeFields_data_NodeRoutineList_routines_routine_permissionsRoutine;
   resourceLists: routineNodeFields_data_NodeRoutineList_routines_routine_resourceLists[];
   simplicity: number;
   tags: routineNodeFields_data_NodeRoutineList_routines_routine_tags[];
   translations: routineNodeFields_data_NodeRoutineList_routines_routine_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
 }
 
 export interface routineNodeFields_data_NodeRoutineList_routines_translations {

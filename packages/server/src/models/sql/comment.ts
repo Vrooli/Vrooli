@@ -1,14 +1,13 @@
 import { CODE, commentsCreate, CommentSortBy, commentsUpdate, commentTranslationCreate, commentTranslationUpdate, omit } from "@local/shared";
 import { CustomError } from "../../error";
-import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, Count } from "../../schema/types";
-import { PrismaType, RecursivePartial } from "types";
-import { addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, GraphQLModelType, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper } from "./base";
-import { OrganizationModel, organizationVerifier } from "./organization";
-import pkg from '@prisma/client';
+import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, Count } from "../../schema/types";
+import { PrismaType, RecursivePartial } from "../../types";
+import { addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, Querier, addSupplementalFieldsHelper, Permissioner, permissionsCheck, getSearchStringQueryHelper } from "./base";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
 import { StarModel } from "./star";
-const { MemberRole } = pkg;
+import { VoteModel } from "./vote";
+import { OrganizationModel } from "./organization";
 
 //==============================================================
 /* #region Custom Components */
@@ -16,25 +15,22 @@ const { MemberRole } = pkg;
 
 const joinMapper = { starredBy: 'user' };
 const countMapper = { reportsCount: 'reports' };
-const calculatedFields = ['isStarred', 'isUpvoted', 'role'];
-export const commentFormatter = (): FormatConverter<Comment> => ({
+const supplementalFields = ['isStarred', 'isUpvoted', 'permissionsComment'];
+export const commentFormatter = (): FormatConverter<Comment, CommentPermission> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Comment,
+        '__typename': 'Comment',
         'creator': {
-            'User': GraphQLModelType.User,
-            'Organization': GraphQLModelType.Organization,
+            'User': 'User',
+            'Organization': 'Organization',
         },
         'commentedOn': {
-            'Project': GraphQLModelType.Project,
-            'Routine': GraphQLModelType.Routine,
-            'Standard': GraphQLModelType.Standard,
+            'Project': 'Project',
+            'Routine': 'Routine',
+            'Standard': 'Standard',
         },
-        'reports': GraphQLModelType.Report,
-        'starredBy': GraphQLModelType.User,
-        'votes': GraphQLModelType.Vote,
-    },
-    removeCalculatedFields: (partial) => {
-        return omit(partial, calculatedFields);
+        'reports': 'Report',
+        'starredBy': 'User',
+        'votes': 'Vote',
     },
     constructUnions: (data) => {
         let { organization, project, routine, standard, user, ...modified } = data;
@@ -47,13 +43,13 @@ export const commentFormatter = (): FormatConverter<Comment> => ({
     },
     deconstructUnions: (partial) => {
         let modified = deconstructUnion(partial, 'creator', [
-            [GraphQLModelType.User, 'user'],
-            [GraphQLModelType.Organization, 'organization'],
+            ['User', 'user'],
+            ['Organization', 'organization'],
         ]);
         modified = deconstructUnion(modified, 'commentedOn', [
-            [GraphQLModelType.Project, 'project'],
-            [GraphQLModelType.Routine, 'routine'],
-            [GraphQLModelType.Standard, 'standard'],
+            ['Project', 'project'],
+            ['Routine', 'routine'],
+            ['Standard', 'standard'],
         ]);
         return modified;
     },
@@ -69,62 +65,59 @@ export const commentFormatter = (): FormatConverter<Comment> => ({
     removeCountFields: (data) => {
         return removeCountFieldsHelper(data, countMapper);
     },
-    async addSupplementalFields(
-        prisma: PrismaType,
-        userId: string | null, // Of the user making the request
-        objects: RecursivePartial<any>[],
-        partial: PartialGraphQLInfo,
-    ): Promise<RecursivePartial<Comment>[]> {
-        // Get all of the ids
-        const ids = objects.map(x => x.id) as string[];
-        // Query for isStarred
-        if (partial.isStarred) {
-            const isStarredArray = userId
-                ? await StarModel(prisma).getIsStarreds(userId, ids, GraphQLModelType.Comment)
-                : Array(ids.length).fill(false);
-            objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
-        }
-        if (partial.role) {
-            let organizationIds: string[] = [];
-            // Collect owner data
-            let ownerData: any = objects.map(x => x.owner).filter(x => x);
-            // If no owner data was found, then owner data was not queried. In this case, query for owner data.
-            if (ownerData.length === 0) {
-                const ownerDataUnformatted = await prisma.comment.findMany({
-                    where: { id: { in: ids } },
-                    select: {
-                        id: true,
-                        user: { select: { id: true } },
-                        organization: { select: { id: true } },
-                    },
-                });
-                organizationIds = ownerDataUnformatted.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
-                // Inject owner data into "objects"
-                objects = objects.map((x, i) => { 
-                    const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
-                    return ({ ...x, owner: unformatted?.user || unformatted?.organization })
-                });
-            } else {
-                organizationIds = objects
-                    .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
-                    .map(x => x.owner.id)
-                    .filter(x => Boolean(x)) as string[];
-            }
-            // If owned by user, set role to owner if userId matches
-            // If owned by organization, set role user's role in organization
-            const roles = userId
-                ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
-                : [];
-            objects = objects.map((x) => {
-                const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
-                if (orgRoleIndex >= 0) {
-                    return { ...x, role: roles[orgRoleIndex] };
-                }
-                return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
-            }) as any;
-        }
-        return objects as RecursivePartial<Comment>[];
+    removeSupplementalFields: (partial) => {
+        return omit(partial, supplementalFields);
     },
+    async addSupplementalFields({ objects, partial, permissions, prisma, userId }): Promise<RecursivePartial<Comment>[]> {
+        return addSupplementalFieldsHelper({
+            objects,
+            partial,
+            resolvers: [
+                ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Comment')],
+                ['isUpvoted', async (ids) => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Routine')],
+                ['permissionsComment', async () => await CommentModel.permissions(prisma).get({ objects, permissions, userId })],
+            ]
+        });
+    },
+    // if (partial.role) {
+    //     let organizationIds: string[] = [];
+    //     // Collect owner data
+    //     let ownerData: any = objects.map(x => x.owner).filter(x => x);
+    //     // If no owner data was found, then owner data was not queried. In this case, query for owner data.
+    //     if (ownerData.length === 0) {
+    //         const ownerDataUnformatted = await prisma.comment.findMany({
+    //             where: { id: { in: ids } },
+    //             select: {
+    //                 id: true,
+    //                 user: { select: { id: true } },
+    //                 organization: { select: { id: true } },
+    //             },
+    //         });
+    //         organizationIds = ownerDataUnformatted.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
+    //         // Inject owner data into "objects"
+    //         objects = objects.map((x, i) => { 
+    //             const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
+    //             return ({ ...x, owner: unformatted?.user || unformatted?.organization })
+    //         });
+    //     } else {
+    //         organizationIds = objects
+    //             .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
+    //             .map(x => x.owner.id)
+    //             .filter(x => Boolean(x)) as string[];
+    //     }
+    //     // If owned by user, set role to owner if userId matches
+    //     // If owned by organization, set role user's role in organization
+    //     const roles = userId
+    //         ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
+    //         : [];
+    //     objects = objects.map((x) => {
+    //         const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
+    //         if (orgRoleIndex >= 0) {
+    //             return { ...x, role: roles[orgRoleIndex] };
+    //         }
+    //         return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
+    //     }) as any;
+    // }
 })
 
 export const commentSearcher = (): Searcher<CommentSearchInput> => ({
@@ -142,8 +135,12 @@ export const commentSearcher = (): Searcher<CommentSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
-        return ({ translations: { some: { language: languages ? { in: languages } : undefined, text: { ...insensitive } } } });
+        return getSearchStringQueryHelper({
+            searchString,
+            resolver: ({ insensitive }) => ({
+                translations: { some: { language: languages ? { in: languages } : undefined, text: { ...insensitive } } }
+            })
+        })
     },
     customQueries(input: CommentSearchInput): { [x: string]: any } {
         return {
@@ -159,7 +156,75 @@ export const commentSearcher = (): Searcher<CommentSearchInput> => ({
     },
 })
 
-export const commentQuerier = (prisma: PrismaType) => ({
+export const commentPermissioner = (prisma: PrismaType): Permissioner<CommentPermission, CommentSearchInput> => ({
+    async get({
+        objects,
+        permissions,
+        userId,
+    }) {
+        // Initialize result with ID
+        const result = objects.map((o) => ({
+            canDelete: false,
+            canEdit: false,
+            canStar: true,
+            canReply: true,
+            canReport: true,
+            canView: true,
+            canVote: true,
+        }));
+        if (!userId) return result;
+        const ids = objects.map(x => x.id);
+        let ownerData: {
+            id: string,
+            user?: { id: string } | null | undefined,
+            organization?: { id: string } | null | undefined
+        }[] = [];
+        // If some owner data missing, query for owner data.
+        if (objects.map(x => x.owner).filter(x => x).length < objects.length) {
+            ownerData = await prisma.comment.findMany({
+                where: { id: { in: ids } },
+                select: {
+                    id: true,
+                    user: { select: { id: true } },
+                    organization: { select: { id: true } },
+                },
+            });
+        } else {
+            ownerData = objects.map((x) => {
+                const isOrg = Boolean(Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name);
+                return ({
+                    id: x.id,
+                    user: isOrg ? null : x.owner,
+                    organization: isOrg ? x.owner : null,
+                });
+            });
+        }
+        // Find permissions for every organization
+        const organizationIds: string[] = ownerData.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
+        const orgPermissions = await OrganizationModel.permissions(prisma).get({
+            objects: organizationIds.map(x => ({ id: x })),
+            userId
+        });
+        // Find which objects have ownership permissions
+        for (let i = 0; i < objects.length; i++) {
+            const unformatted = ownerData.find(y => y.id === objects[i].id);
+            if (!unformatted) continue;
+            // Check if user owns object directly, or through organization
+            if (unformatted.user?.id !== userId) {
+                const orgIdIndex = organizationIds.findIndex(id => id === unformatted?.organization?.id);
+                if (orgIdIndex < 0) continue;
+                if (!orgPermissions[orgIdIndex].canEdit) continue;
+            }
+            // Set owner permissions
+            result[i].canDelete = true;
+            result[i].canEdit = true;
+            result[i].canView = true;
+        }
+        return result;
+    },
+})
+
+export const commentQuerier = (prisma: PrismaType): Querier => ({
     /**
      * Custom search query for querying comment threads
      */
@@ -346,12 +411,12 @@ export const commentMutater = (prisma: PrismaType) => ({
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0038') });
         if (createMany) {
             commentsCreate.validateSync(createMany, { abortEarly: false });
-            TranslationModel().profanityCheck(createMany)
+            TranslationModel.profanityCheck(createMany)
             // TODO check limits on comments to prevent spam
         }
         if (updateMany) {
             commentsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            TranslationModel().profanityCheck(updateMany.map(u => u.data))
+            TranslationModel.profanityCheck(updateMany.map(u => u.data))
         }
         if (deleteMany) {
             // Check that user created each comment
@@ -369,12 +434,13 @@ export const commentMutater = (prisma: PrismaType) => ({
             if (notCreatedByThisUser.some(c => c.organizationId === null))
                 throw new CustomError(CODE.Unauthorized, 'Some comments were not created by this user', { code: genErrorCode('0039') });
             // Of the remaining comments, check that user is an admin of the organization
-            const organizationIds = notCreatedByThisUser.map(c => c.organizationId).filter(id => id !== null) as string[];
-            const roles = userId
-                ? await organizationVerifier(prisma).getRoles(userId, organizationIds)
-                : Array(deleteMany.length).fill(null);
-            if (roles.some((role: any) => role !== MemberRole.Owner && role !== MemberRole.Admin))
-                throw new CustomError(CODE.Unauthorized, 'User must be an admin of the organization to delete comments', { code: genErrorCode('0040') });
+            //TODO
+            // const organizationIds = notCreatedByThisUser.map(c => c.organizationId).filter(id => id !== null) as string[];
+            // const roles = userId
+            //     ? await organizationVerifier(prisma).getRoles(userId, organizationIds)
+            //     : Array(deleteMany.length).fill(null);
+            // if (roles.some((role: any) => role !== MemberRole.Owner && role !== MemberRole.Admin))
+            //     throw new CustomError(CODE.Unauthorized, 'User must be an admin of the organization to delete comments', { code: genErrorCode('0040') });
         }
     },
     /**
@@ -391,7 +457,7 @@ export const commentMutater = (prisma: PrismaType) => ({
                 const currCreated = await prisma.comment.create({
                     data: {
                         id: input.id,
-                        translations: TranslationModel().relationshipBuilder(userId, input, { create: commentTranslationCreate, update: commentTranslationUpdate }, false),
+                        translations: TranslationModel.relationshipBuilder(userId, input, { create: commentTranslationCreate, update: commentTranslationUpdate }, false),
                         userId,
                         [forMapper[input.createdFor]]: input.forId,
                         parentId: input.parentId ?? null,
@@ -415,7 +481,7 @@ export const commentMutater = (prisma: PrismaType) => ({
                 const currUpdated = await prisma.comment.update({
                     where: input.where,
                     data: {
-                        translations: TranslationModel().relationshipBuilder(userId, input.data, { create: commentTranslationCreate, update: commentTranslationUpdate }, false),
+                        translations: TranslationModel.relationshipBuilder(userId, input.data, { create: commentTranslationCreate, update: commentTranslationUpdate }, false),
                     },
                     ...selectHelper(partialInfo)
                 });
@@ -446,22 +512,14 @@ export const commentMutater = (prisma: PrismaType) => ({
 /* #region Model */
 //==============================================================
 
-export function CommentModel(prisma: PrismaType) {
-    const prismaObject = prisma.comment;
-    const format = commentFormatter();
-    const search = commentSearcher();
-    const mutater = commentMutater(prisma);
-    const query = commentQuerier(prisma);
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...search,
-        ...mutater,
-        ...query
-    }
-}
+export const CommentModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.comment,
+    format: commentFormatter(),
+    mutate: commentMutater,
+    permissions: commentPermissioner,
+    query: commentQuerier,
+    search: commentSearcher(),
+})
 
 //==============================================================
 /* #endregion Model */

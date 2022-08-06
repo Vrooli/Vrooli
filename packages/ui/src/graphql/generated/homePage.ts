@@ -3,11 +3,21 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { HomePageInput, MemberRole } from "./globalTypes";
+import { HomePageInput } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: homePage
 // ====================================================
+
+export interface homePage_homePage_organizations_permissionsOrganization {
+  __typename: "OrganizationPermission";
+  canAddMembers: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  isMember: boolean;
+}
 
 export interface homePage_homePage_organizations_tags_translations {
   __typename: "TagTranslation";
@@ -41,11 +51,23 @@ export interface homePage_homePage_organizations {
   handle: string | null;
   stars: number;
   isOpenToNewMembers: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
+  membersCount: number;
   reportsCount: number;
-  role: MemberRole | null;
+  permissionsOrganization: homePage_homePage_organizations_permissionsOrganization | null;
   tags: homePage_homePage_organizations_tags[];
   translations: homePage_homePage_organizations_translations[];
+}
+
+export interface homePage_homePage_projects_permissionsProject {
+  __typename: "ProjectPermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
 }
 
 export interface homePage_homePage_projects_tags_translations {
@@ -78,14 +100,27 @@ export interface homePage_homePage_projects {
   id: string;
   commentsCount: number;
   handle: string | null;
-  role: MemberRole | null;
   score: number;
   stars: number;
+  isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
   reportsCount: number;
+  permissionsProject: homePage_homePage_projects_permissionsProject;
   tags: homePage_homePage_projects_tags[];
   translations: homePage_homePage_projects_translations[];
+}
+
+export interface homePage_homePage_routines_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
 }
 
 export interface homePage_homePage_routines_tags_translations {
@@ -121,18 +156,31 @@ export interface homePage_homePage_routines {
   complexity: number;
   created_at: any;
   isAutomatable: boolean | null;
+  isDeleted: boolean;
   isInternal: boolean | null;
   isComplete: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
   reportsCount: number;
-  role: MemberRole | null;
   score: number;
   simplicity: number;
   stars: number;
+  permissionsRoutine: homePage_homePage_routines_permissionsRoutine;
   tags: homePage_homePage_routines_tags[];
   translations: homePage_homePage_routines_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
+}
+
+export interface homePage_homePage_standards_permissionsStandard {
+  __typename: "StandardPermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
 }
 
 export interface homePage_homePage_standards_tags_translations {
@@ -167,17 +215,20 @@ export interface homePage_homePage_standards {
   default: string | null;
   score: number;
   stars: number;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
   name: string;
   props: string;
   reportsCount: number;
-  role: MemberRole | null;
+  permissionsStandard: homePage_homePage_standards_permissionsStandard;
   tags: homePage_homePage_standards_tags[];
   translations: homePage_homePage_standards_translations[];
   type: string;
   version: string;
+  versionGroupId: string;
   yup: string | null;
 }
 

@@ -115,7 +115,8 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 ...where,
                 ...advancedSearchParams
             }
-        } as any)
+        } as any),
+        errorPolicy: 'all',
     });
     const [allData, setAllData] = useState<DataType[]>([]);
 

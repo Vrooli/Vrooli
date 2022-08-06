@@ -1,7 +1,7 @@
 import { CODE, resourceListsCreate, resourceListsUpdate, resourceListTranslationsCreate, resourceListTranslationsUpdate } from "@local/shared";
 import { ResourceList, ResourceListCreateInput, ResourceListUpdateInput, Count, ResourceListSortBy, ResourceListSearchInput } from "../../schema/types";
-import { PrismaType } from "types";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { PrismaType } from "../../types";
+import { CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { TranslationModel } from "./translation";
 import { ResourceModel } from "./resource";
@@ -11,10 +11,10 @@ import { genErrorCode } from "../../logger";
 /* #region Custom Components */
 //==============================================================
 
-export const resourceListFormatter = (): FormatConverter<ResourceList> => ({
+export const resourceListFormatter = (): FormatConverter<ResourceList, any> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.ResourceList,
-        'resources': GraphQLModelType.Resource,
+        '__typename': 'ResourceList',
+        'resources': 'Resource',
     },
 })
 
@@ -31,12 +31,13 @@ export const resourceListSearcher = (): Searcher<ResourceListSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
-        return ({
-            OR: [
-                { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-                { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
-            ]
+        return getSearchStringQueryHelper({ searchString,
+            resolver: ({ insensitive }) => ({ 
+                OR: [
+                    { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
+                    { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
+                ]
+            })
         })
     },
     customQueries(input: ResourceListSearchInput): { [x: string]: any } {
@@ -46,16 +47,6 @@ export const resourceListSearcher = (): Searcher<ResourceListSearchInput> => ({
     },
 })
 
-// /**
-//  * Maps object type to Id field
-//  */
-//  const resourceListMapper = {
-//     [GraphQLModelType.Organization]: 'organizationId',
-//     [GraphQLModelType.Project]: 'projectId',
-//     [GraphQLModelType.Routine]: 'routineId',
-//     [GraphQLModelType.User]: 'userId',
-// }
-
 export const resourceListMutater = (prisma: PrismaType) => ({
     async toDBShape(userId: string | null, data: ResourceListCreateInput | ResourceListUpdateInput, isAdd: boolean): Promise<any> {
         return {
@@ -64,8 +55,8 @@ export const resourceListMutater = (prisma: PrismaType) => ({
             projectId: data.projectId ?? undefined,
             routineId: data.routineId ?? undefined,
             userId: data.userId ?? undefined,
-            resources: await ResourceModel(prisma).relationshipBuilder(userId, data, isAdd),
-            translations: TranslationModel().relationshipBuilder(userId, data, { create: resourceListTranslationsCreate, update: resourceListTranslationsUpdate }, isAdd),
+            resources: await ResourceModel.mutate(prisma).relationshipBuilder(userId, data, isAdd),
+            translations: TranslationModel.relationshipBuilder(userId, data, { create: resourceListTranslationsCreate, update: resourceListTranslationsUpdate }, isAdd),
         };
     },
     async relationshipBuilder(
@@ -111,17 +102,17 @@ export const resourceListMutater = (prisma: PrismaType) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ResourceListCreateInput, ResourceListUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId) 
+        if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0089') });
         // TODO check that user can add resource to this forId, like in node validateMutations
         if (createMany) {
             resourceListsCreate.validateSync(createMany, { abortEarly: false });
-            TranslationModel().profanityCheck(createMany);
+            TranslationModel.profanityCheck(createMany);
             // Check for max resources on object TODO
         }
         if (updateMany) {
             resourceListsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            TranslationModel().profanityCheck(updateMany.map(u => u.data));
+            TranslationModel.profanityCheck(updateMany.map(u => u.data));
         }
     },
     async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<ResourceListCreateInput, ResourceListUpdateInput>): Promise<CUDResult<ResourceList>> {
@@ -149,7 +140,7 @@ export const resourceListMutater = (prisma: PrismaType) => ({
                 let object = await prisma.report.findFirst({
                     where: { ...input.where, userId }
                 })
-                if (!object) 
+                if (!object)
                     throw new CustomError(CODE.ErrorUnknown, 'Object not found', { code: genErrorCode('0090') });
                 // Update object
                 const currUpdated = await prisma.resource_list.update({
@@ -189,20 +180,12 @@ export const resourceListMutater = (prisma: PrismaType) => ({
 /* #region Model */
 //==============================================================
 
-export function ResourceListModel(prisma: PrismaType) {
-    const prismaObject = prisma.resource_list;
-    const format = resourceListFormatter();
-    const search = resourceListSearcher();
-    const mutate = resourceListMutater(prisma);
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...search,
-        ...mutate,
-    }
-}
+export const ResourceListModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.resource_list,
+    format: resourceListFormatter(),
+    mutate: resourceListMutater,
+    search: resourceListSearcher(),
+})
 
 //==============================================================
 /* #endregion Model */

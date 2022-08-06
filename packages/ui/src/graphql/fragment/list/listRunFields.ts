@@ -19,14 +19,24 @@ export const listRunFields = gql`
         complexity
         created_at
         isAutomatable
+        isDeleted
         isInternal
+        isPrivate
         isComplete
         isStarred
         isUpvoted
-        role
         score
         simplicity
         stars
+        permissionsRoutine {
+            canDelete
+            canEdit
+            canFork
+            canStar
+            canReport
+            canRun
+            canVote
+        }
         tags {
             ...listRunTagFields
         }
@@ -37,11 +47,13 @@ export const listRunFields = gql`
             title
         }
         version
+        versionGroupId
     }
     fragment listRunFields on Run {
         id
         completedComplexity
         contextSwitches
+        isPrivate
         timeStarted
         timeElapsed
         timeCompleted

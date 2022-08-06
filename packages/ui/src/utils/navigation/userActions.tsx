@@ -17,9 +17,9 @@ import {
     ListItemIcon,
     ListItemText,
 } from '@mui/material';
-import { ROLES, ValueOf } from '@local/shared';
+import { ValueOf } from '@local/shared';
 import { openLink } from 'utils';
-import { SetLocation } from 'types';
+import { Session, SetLocation } from 'types';
 
 export const ACTION_TAGS = {
     Home: 'home',
@@ -43,10 +43,10 @@ export interface Action {
 
 // Returns navigational actions available to the user
 interface GetUserActionsProps {
-    roles: string[];
-    exclude?: ACTION_TAGS[] | undefined;
+    session?: Session | null | undefined;
+    exclude?: ACTION_TAGS[] | null | undefined;
 }
-export function getUserActions({ roles, exclude = [] }: GetUserActionsProps): Action[] {
+export function getUserActions({ session = {}, exclude = [] }: GetUserActionsProps): Action[] {
     // Home action always available
     let actions: ActionArray[] = [['Home', ACTION_TAGS.Home, LINKS.Home, null, HomeIcon, 0]];
     // Available for all users
@@ -56,15 +56,13 @@ export function getUserActions({ roles, exclude = [] }: GetUserActionsProps): Ac
         ['Develop', ACTION_TAGS.Develop, LINKS.Develop, null, DevelopIcon, 0],
     );
     // Log in/out
-    if (!roles?.includes(ROLES.Actor)) {
-        actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, null, RegisterIcon, 0]);
+    if (session?.isLoggedIn === true) {
+        actions.push(['Profile', ACTION_TAGS.Profile, LINKS.Profile, null, ProfileIcon, 0])
     } else {
-        actions.push(
-            ['Profile', ACTION_TAGS.Profile, LINKS.Profile, null, ProfileIcon, 0],
-        );
+        actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, null, RegisterIcon, 0]);
     }
 
-    return actions.map(a => createAction(a)).filter(a => !exclude.includes(a.value));
+    return actions.map(a => createAction(a)).filter(a => !(exclude ?? []).includes(a.value));
 }
 
 // Factory for creating action objects

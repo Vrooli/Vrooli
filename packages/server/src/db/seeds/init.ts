@@ -2,22 +2,121 @@
  * Adds initial data to the database. (i.e. data that should be included in production). 
  * This is written so that it can be called multiple times without duplicating data.
  */
-import { InputType, ROLES } from '@local/shared';
+import { InputType } from '@local/shared';
 import { ProfileModel } from '../../models';
 import { PrismaType } from '../../types';
 import pkg from '@prisma/client';
 import { genErrorCode, logger, LogLevel } from '../../logger';
-const { AccountStatus, MemberRole, NodeType, ResourceUsedFor, ResourceListUsedFor } = pkg;
+import { v4 as uuid } from 'uuid';
+const { AccountStatus, NodeType, ResourceUsedFor, ResourceListUsedFor } = pkg;
 
 export async function init(prisma: PrismaType) {
-    // TODO temporary for standard update: internalizes standards that start with 
-    // one of the input types
-    const boops = ['Checkbox ','Dropzone ','JSON ','LanguageInput ','Markdown ','Radio ','Selector ','Slider ','Switch ','TagSelector ','TextField ','QuantityBox '];
+    // TODO currently stick migration code here. Once the production database is updated, this stuff
+    // can be removed
+    // 1. internalizes standards that start with one of the input types
+    const boops = ['Checkbox ', 'Dropzone ', 'JSON ', 'LanguageInput ', 'Markdown ', 'Radio ', 'Selector ', 'Slider ', 'Switch ', 'TagSelector ', 'TextField ', 'QuantityBox '];
     for (let i = 0; i < boops.length; i++) {
         const boop = boops[i];
         await prisma.standard.updateMany({
             where: { name: { startsWith: boop } },
             data: { isInternal: true },
+        })
+    }
+    // 2. For every organization that has no roles, add a new 'Admin' role
+    // and apply it to every member
+    const orgs = await prisma.organization.findMany({
+        select: {
+            id: true,
+            members: {
+                select: {
+                    id: true,
+                    user: {
+                        select: {
+                            id: true,
+                        }
+                    }
+                }
+            },
+            _count: {
+                select: {
+                    roles: true
+                }
+            }
+        }
+    });
+    for (let i = 0; i < orgs.length; i++) {
+        const org = orgs[i];
+        // Create new role titled 'Admin'
+        const role = await prisma.role.upsert({
+            where: {
+                role_organizationId_title_unique: {
+                    title: 'Admin',
+                    organizationId: org.id,
+                }
+            },
+            update: {},
+            create: {
+                title: 'Admin',
+                organizationId: org.id,
+            }
+        })
+        // Apply role to every member
+        for (let j = 0; j < org.members.length; j++) {
+            const member = org.members[j];
+            const exists = await prisma.user_roles.findUnique({
+                where: {
+                    user_roles_userid_roleid_unique: {
+                        userId: member.user.id,
+                        roleId: role.id,
+                    }
+                }
+            })
+            if (!Boolean(exists)) {
+                await prisma.user_roles.create({
+                    data: {
+                        user: { connect: { id: member.user.id } },
+                        role: { connect: { id: role.id } },
+                    }
+                })
+            }
+        }
+    }
+    // For every routine that has a null versionGroupId, set it to a new ID
+    const routinesWithoutVersionGroupId = await prisma.routine.findMany({
+        where: {
+            versionGroupId: null
+        },
+        select: {
+            id: true,
+        }
+    })
+    for (let i = 0; i < routinesWithoutVersionGroupId.length; i++) {
+        await prisma.routine.update({
+            where: {
+                id: routinesWithoutVersionGroupId[i].id,
+            },
+            data: {
+                versionGroupId: uuid(),
+            }
+        })
+    }
+    // For every standard that has a null versionGroupId, set it to a new ID
+    const standardsWithoutVersionGroupId = await prisma.standard.findMany({
+        where: {
+            versionGroupId: null
+        },
+        select: {
+            id: true,
+        }
+    })
+    for (let i = 0; i < standardsWithoutVersionGroupId.length; i++) {
+        await prisma.standard.update({
+            where: {
+                id: standardsWithoutVersionGroupId[i].id,
+            },
+            data: {
+                versionGroupId: uuid(),
+            }
         })
     }
 
@@ -34,22 +133,8 @@ export async function init(prisma: PrismaType) {
 
     const EN = 'en';
 
-    // Initialize models
-    const profileModel = ProfileModel(prisma);
     //==============================================================
     /* #endregion Initialization */
-    //==============================================================
-
-    //==============================================================
-    /* #region Create Roles */
-    //==============================================================
-    const actorRole = await prisma.role.upsert({
-        where: { title: ROLES.Actor },
-        update: {},
-        create: { title: ROLES.Actor, description: 'This role allows a user to create routines and save their progress.' },
-    })
-    //==============================================================
-    /* #endregion Create Roles*/
     //==============================================================
 
     //==============================================================
@@ -106,7 +191,7 @@ export async function init(prisma: PrismaType) {
         create: {
             id: adminId,
             name: 'Matt Halloran',
-            password: profileModel.hashPassword(process.env.ADMIN_PASSWORD ?? ''),
+            password: ProfileModel.verify.hashPassword(process.env.ADMIN_PASSWORD ?? ''),
             status: AccountStatus.Unlocked,
             emails: {
                 create: [
@@ -117,9 +202,6 @@ export async function init(prisma: PrismaType) {
                 create: [
                     { stakingAddress: process.env.ADMIN_WALLET ?? '', verified: true } as any,
                 ]
-            },
-            roles: {
-                create: [{ roleId: actorRole.id }]
             },
             languages: {
                 create: [{ language: EN }],
@@ -176,7 +258,7 @@ export async function init(prisma: PrismaType) {
                 },
                 members: {
                     create: [
-                        { userId: admin.id, role: MemberRole.Owner },
+                        { userId: admin.id },
                     ]
                 },
                 tags: {
@@ -212,6 +294,36 @@ export async function init(prisma: PrismaType) {
                             }
                         }
                     ]
+                }
+            }
+        })
+        const vrooliAdminRole = await prisma.role.upsert({
+            where: {
+                role_organizationId_title_unique: {
+                    title: 'Admin',
+                    organizationId: vrooli.id,
+                }
+            },
+            update: {},
+            create: {
+                title: 'Admin',
+                organization: {
+                    connect: {
+                        id: vrooli.id
+                    }
+                }
+            }
+        })
+        // Assign admin role to admin
+        await prisma.user.update({
+            where: {
+                id: admin.id
+            },
+            data: {
+                roles: {
+                    connect: {
+                        id: vrooliAdminRole.id
+                    }
                 }
             }
         })

@@ -15,18 +15,19 @@ import {
     useTheme
 } from '@mui/material';
 import { HelpButton } from 'components';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LinkDialogProps } from '../types';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { Node, NodeLink } from 'types';
 import { getTranslation, PubSub } from 'utils';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { v4 as uuid } from 'uuid';
+import { noSelect } from 'styles';
 
 const helpText =
     `This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.
-    
-    In the future, links will also be able to specify conditions, which must be true in order for the path to be available.`;
+
+In the future, links will also be able to specify conditions, which must be true in order for the path to be available.`;
 
 export const LinkDialog = ({
     handleClose,
@@ -35,20 +36,24 @@ export const LinkDialog = ({
     isOpen,
     language,
     link,
+    nodeFrom,
+    nodeTo,
     routine,
     zIndex,
 }: LinkDialogProps) => {
     const { palette } = useTheme();
 
     // Selected "From" and "To" nodes
-    const [fromNode, setFromNode] = useState<Node | null>(null);
+    const [fromNode, setFromNode] = useState<Node | null>(nodeFrom ?? null);
     const handleFromSelect = useCallback((node: Node) => {
         setFromNode(node);
     }, [setFromNode]);
-    const [toNode, setToNode] = useState<Node | null>(null);
+    const [toNode, setToNode] = useState<Node | null>(nodeTo ?? null);
     const handleToSelect = useCallback((node: Node) => {
         setToNode(node);
     }, [setToNode]);
+    useEffect(() => { setFromNode(nodeFrom ?? null); }, [nodeFrom, setFromNode]);
+    useEffect(() => { setToNode(nodeTo ?? null); }, [nodeTo, setToNode]);
 
     /**
      * Before closing, clear inputs
@@ -81,13 +86,15 @@ export const LinkDialog = ({
      */
     const titleBar = useMemo(() => (
         <Box sx={{
+            ...noSelect,
             background: palette.primary.dark,
             color: palette.primary.contrastText,
             display: 'flex',
-            alignItems: 'center',
+            alignItems: 'left',
             justifyContent: 'space-between',
+            padding: 1,
         }}>
-            <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
+            <Typography component="h2" variant="h4" alignSelf='center' sx={{ marginLeft: 2, marginRight: 'auto' }}>
                 {isAdd ? 'Add Link' : 'Edit Link'}
                 <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
             </Typography>
@@ -96,7 +103,7 @@ export const LinkDialog = ({
                     edge="start"
                     onClick={(e) => { onClose() }}
                 >
-                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
+                    <CloseIcon sx={{ fill: palette.primary.contrastText, marginLeft: 'auto' }} />
                 </IconButton>
             </Box>
         </Box>
@@ -108,7 +115,7 @@ export const LinkDialog = ({
     const { fromOptions, toOptions } = useMemo(() => {
         if (!routine) return { fromOptions: [], toOptions: [] };
         // Initialize options
-        let fromNodes: Node[] = routine.nodes;
+        let fromNodes: Node[] = routine.nodes.filter((node: Node) => node.type === NodeType.End); // Can't link from end nodes
         let toNodes: Node[] = routine.nodes.filter((node: Node) => node.type !== NodeType.Start); // Can't link to start node
         const existingLinks = routine.nodeLinks;
         // If from node is already selected
@@ -151,6 +158,7 @@ export const LinkDialog = ({
                 options={fromOptions}
                 getOptionLabel={(option: Node) => getNodeTitle(option)}
                 onChange={(_, value) => handleFromSelect(value as Node)}
+                value={fromNode}
                 sx={{
                     minWidth: 200,
                     maxWidth: 350,
@@ -177,6 +185,7 @@ export const LinkDialog = ({
                 options={toOptions}
                 getOptionLabel={(option: Node) => getNodeTitle(option)}
                 onChange={(_, value) => handleToSelect(value as Node)}
+                value={toNode}
                 sx={{
                     minWidth: 200,
                     maxWidth: 350
@@ -184,7 +193,7 @@ export const LinkDialog = ({
                 renderInput={(params) => <TextField {...params} label="To" />}
             />
         </Stack>
-    ), [fromOptions, toOptions, getNodeTitle, handleFromSelect, handleToSelect]);
+    ), [fromOptions, fromNode, toOptions, toNode, getNodeTitle, handleFromSelect, handleToSelect]);
 
     /**
      * Container for creating link conditions.

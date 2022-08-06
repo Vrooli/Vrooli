@@ -442,7 +442,7 @@ export const getLanguageSubtag = (language: string): string => {
  * @param session Session data
  * @returns Array of user-preferred language subtags
  */
-export const getUserLanguages = (session?: Session): string[] => {
+export const getUserLanguages = (session?: { languages?: Session['languages'] }): string[] => {
     if (session?.languages && session.languages.length > 0) {
         return session.languages.map(getLanguageSubtag);
     }

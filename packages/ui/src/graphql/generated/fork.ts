@@ -3,11 +3,21 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ForkInput, MemberRole, ResourceListUsedFor, ResourceUsedFor, NodeType, RunStatus, RunStepStatus } from "./globalTypes";
+import { ForkInput, ResourceListUsedFor, ResourceUsedFor, NodeType, RunStatus, RunStepStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: fork
 // ====================================================
+
+export interface fork_fork_organization_permissionsOrganization {
+  __typename: "OrganizationPermission";
+  canAddMembers: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  isMember: boolean;
+}
 
 export interface fork_fork_organization_resourceLists_translations {
   __typename: "ResourceListTranslation";
@@ -46,6 +56,22 @@ export interface fork_fork_organization_resourceLists {
   resources: fork_fork_organization_resourceLists_resources[];
 }
 
+export interface fork_fork_organization_roles_translations {
+  __typename: "RoleTranslation";
+  id: string;
+  language: string;
+  description: string;
+}
+
+export interface fork_fork_organization_roles {
+  __typename: "Role";
+  id: string;
+  created_at: any;
+  updated_at: any;
+  title: string;
+  translations: fork_fork_organization_roles_translations[];
+}
+
 export interface fork_fork_organization_tags_translations {
   __typename: "TagTranslation";
   id: string;
@@ -73,12 +99,24 @@ export interface fork_fork_organization {
   created_at: any;
   handle: string | null;
   isOpenToNewMembers: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
-  role: MemberRole | null;
   stars: number;
+  permissionsOrganization: fork_fork_organization_permissionsOrganization | null;
   resourceLists: fork_fork_organization_resourceLists[];
+  roles: fork_fork_organization_roles[] | null;
   tags: fork_fork_organization_tags[];
   translations: fork_fork_organization_translations[];
+}
+
+export interface fork_fork_project_permissionsProject {
+  __typename: "ProjectPermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
 }
 
 export interface fork_fork_project_resourceLists_translations {
@@ -169,11 +207,12 @@ export interface fork_fork_project {
   created_at: any;
   handle: string | null;
   isComplete: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   score: number;
   stars: number;
+  permissionsProject: fork_fork_project_permissionsProject;
   resourceLists: fork_fork_project_resourceLists[] | null;
   tags: fork_fork_project_tags[];
   translations: fork_fork_project_translations[];
@@ -199,13 +238,16 @@ export interface fork_fork_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   translations: fork_fork_routine_inputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface fork_fork_routine_inputs {
@@ -266,13 +308,16 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_i
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_inputs {
@@ -303,13 +348,16 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_o
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_outputs {
@@ -342,6 +390,18 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_o
 }
 
 export type fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_owner = fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_owner_Organization | fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_owner_User;
+
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
+}
 
 export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists_translations {
   __typename: "ResourceListTranslation";
@@ -407,17 +467,20 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine {
   id: string;
   complexity: number;
   isComplete: boolean;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   inputs: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_inputs[];
   nodesCount: number | null;
-  role: MemberRole | null;
   outputs: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_outputs[];
   owner: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_owner | null;
+  permissionsRoutine: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine;
   resourceLists: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists[];
   simplicity: number;
   tags: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_tags[];
   translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
 }
 
 export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_translations {
@@ -511,13 +574,16 @@ export interface fork_fork_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   translations: fork_fork_routine_outputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface fork_fork_routine_outputs {
@@ -601,6 +667,18 @@ export interface fork_fork_routine_resourceLists {
   resources: fork_fork_routine_resourceLists_resources[];
 }
 
+export interface fork_fork_routine_runs_inputs_input {
+  __typename: "InputItem";
+  id: string;
+}
+
+export interface fork_fork_routine_runs_inputs {
+  __typename: "RunInput";
+  id: string;
+  data: string;
+  input: fork_fork_routine_runs_inputs_input;
+}
+
 export interface fork_fork_routine_runs_steps_node {
   __typename: "Node";
   id: string;
@@ -625,12 +703,25 @@ export interface fork_fork_routine_runs {
   id: string;
   completedComplexity: number;
   contextSwitches: number;
+  inputs: fork_fork_routine_runs_inputs[];
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
   title: string;
   status: RunStatus;
   steps: fork_fork_routine_runs_steps[];
+}
+
+export interface fork_fork_routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
 }
 
 export interface fork_fork_routine_tags_translations {
@@ -664,7 +755,9 @@ export interface fork_fork_routine {
   inputs: fork_fork_routine_inputs[];
   isAutomatable: boolean | null;
   isComplete: boolean;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
   nodeLinks: fork_fork_routine_nodeLinks[];
@@ -677,11 +770,22 @@ export interface fork_fork_routine {
   score: number;
   simplicity: number;
   stars: number;
-  role: MemberRole | null;
+  permissionsRoutine: fork_fork_routine_permissionsRoutine;
   tags: fork_fork_routine_tags[];
   translations: fork_fork_routine_translations[];
   updated_at: any;
-  version: string | null;
+  version: string;
+  versionGroupId: string;
+}
+
+export interface fork_fork_standard_permissionsStandard {
+  __typename: "StandardPermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
 }
 
 export interface fork_fork_standard_resourceLists_translations {
@@ -768,14 +872,16 @@ export type fork_fork_standard_creator = fork_fork_standard_creator_Organization
 export interface fork_fork_standard {
   __typename: "Standard";
   id: string;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
-  role: MemberRole | null;
   type: string;
   props: string;
   yup: string | null;
   default: string | null;
   created_at: any;
+  permissionsStandard: fork_fork_standard_permissionsStandard;
   resourceLists: fork_fork_standard_resourceLists[];
   tags: fork_fork_standard_tags[];
   translations: fork_fork_standard_translations[];
@@ -785,6 +891,7 @@ export interface fork_fork_standard {
   score: number;
   isUpvoted: boolean | null;
   version: string;
+  versionGroupId: string;
 }
 
 export interface fork_fork {

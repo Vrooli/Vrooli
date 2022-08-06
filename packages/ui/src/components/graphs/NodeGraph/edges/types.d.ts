@@ -52,12 +52,21 @@ export interface BaseEdgeProps {
 }
 
 export interface NodeEdgeProps {
+    /**
+     * True if edges should be updated quickly (e.g. moving node, collapsing node, deleting node)
+     */
+    fastUpdate: boolean;
     link: NodeLink;
     /**
      * Adding a node always creates a routine list node. 
      * Other node types are created automatically in other places.
      */
     handleAdd: (link: NodeLink) => void;
+    /**
+     * Creates a new node in the same column as the "to" node. 
+     * This creates a new branch
+     */
+    handleBranch: (link: NodeLink) => void;
     /**
      * Deletes a link and its conditions. 
      * Does not delete any nodes
@@ -76,11 +85,6 @@ export interface NodeEdgeProps {
      * If true, puts edit button further to the left
      */
     isToRoutineList: boolean;
-    /**
-     * ID of node being dragged. Used to determine if edge position should be 
-     * updated quickly or slowly
-     */
-    dragId: string | null; // ID of node being dragged. Used to determine if 
     /**
      * Line thickness changes with scale
      */

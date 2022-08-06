@@ -43,7 +43,7 @@ export const HistoryPage = ({
     }, [searchParams]);
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
 
-    const { data, refetch, loading } = useQuery<historyPage, historyPageVariables>(historyPageQuery, { variables: { input: { searchString } } });
+    const { data, refetch, loading } = useQuery<historyPage, historyPageVariables>(historyPageQuery, { variables: { input: { searchString } }, errorPolicy: 'all' });
     useEffect(() => { refetch() }, [refetch]);
 
     // Handle tabs

@@ -6,9 +6,23 @@ import { Maybe } from 'schema/types';
 declare global {
     namespace Express {
         interface Request {
+            /**
+             * Public API token, if present
+             */
+             apiToken?: boolean;
+            /**
+             * True if the request is coming from a safe origin (e.g. our own frontend)
+             */
+            fromSafeOrigin?: boolean;
+            /**
+             * True if user is logged in. False if not, or if token is invalid or for an API token
+             */
             isLoggedIn?: boolean;
             languages: string[] | null;
             roles?: string[];
+            /**
+             * ID of the logged in user, or the user that owns the API token
+             */
             userId: string | null;
             validToken?: boolean;
         }

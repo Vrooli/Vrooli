@@ -29,6 +29,7 @@ export const typeDef = gql`
         isAutomatable: Boolean
         isComplete: Boolean
         isInternal: Boolean
+        isPrivate: Boolean
         version: String
         parentId: ID
         projectId: ID
@@ -48,6 +49,7 @@ export const typeDef = gql`
         isAutomatable: Boolean
         isComplete: Boolean
         isInternal: Boolean
+        isPrivate: Boolean
         version: String
         userId: ID
         organizationId: ID
@@ -81,16 +83,18 @@ export const typeDef = gql`
         updated_at: Date!
         isAutomatable: Boolean
         isComplete: Boolean!
+        isDeleted: Boolean!
         isInternal: Boolean
+        isPrivate: Boolean!
         isStarred: Boolean!
-        role: MemberRole
         isUpvoted: Boolean
         isViewed: Boolean!
         score: Int!
         simplicity: Int!
         stars: Int!
         views: Int!
-        version: String
+        version: String!
+        versionGroupId: ID!
         comments: [Comment!]!
         commentsCount: Int!
         creator: Contributor
@@ -103,6 +107,7 @@ export const typeDef = gql`
         outputs: [OutputItem!]!
         owner: Contributor
         parent: Routine
+        permissionsRoutine: RoutinePermission!
         project: Project
         reports: [Report!]!
         reportsCount: Int!
@@ -111,6 +116,18 @@ export const typeDef = gql`
         starredBy: [User!]!
         tags: [Tag!]!
         translations: [RoutineTranslation!]!
+    }
+
+    type RoutinePermission {
+        canComment: Boolean!
+        canDelete: Boolean!
+        canEdit: Boolean!
+        canFork: Boolean!
+        canStar: Boolean!
+        canReport: Boolean!
+        canRun: Boolean!
+        canView: Boolean!
+        canVote: Boolean!
     }
 
     input RoutineTranslationCreateInput {
@@ -225,6 +242,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
+        includePrivate: Boolean
         isComplete: Boolean
         isCompleteExceptions: [BooleanSearchException!]
         isInternal: Boolean
@@ -287,32 +305,31 @@ export const typeDef = gql`
 export const resolvers = {
     RoutineSortBy: RoutineSortBy,
     Query: {
-        routine: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
-            await rateLimit({ context, info, max: 1000 });
-            const routine =  readOneHelper(context.req.userId, input, info, RoutineModel(context.prisma));
-            return routine;
+        routine: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
+            await rateLimit({ info, max: 1000, req });
+            return readOneHelper({ info, input, model: RoutineModel, prisma, userId: req.userId });
         },
-        routines: async (_parent: undefined, { input }: IWrap<RoutineSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<RoutineSearchResult> => {
-            await rateLimit({ context, info, max: 1000 });
-            return readManyHelper(context.req.userId, input, info, RoutineModel(context.prisma));
+        routines: async (_parent: undefined, { input }: IWrap<RoutineSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RoutineSearchResult> => {
+            await rateLimit({ info, max: 1000, req });
+            return readManyHelper({ info, input, model: RoutineModel, prisma, userId: req.userId });
         },
-        routinesCount: async (_parent: undefined, { input }: IWrap<RoutineCountInput>, context: Context, info: GraphQLResolveInfo): Promise<number> => {
-            await rateLimit({ context, info, max: 1000 });
-            return countHelper(input, RoutineModel(context.prisma));
+        routinesCount: async (_parent: undefined, { input }: IWrap<RoutineCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
+            await rateLimit({ info, max: 1000, req });
+            return countHelper({ input, model: RoutineModel, prisma });
         },
     },
     Mutation: {
-        routineCreate: async (_parent: undefined, { input }: IWrap<RoutineCreateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
-            await rateLimit({ context, info, max: 500, byAccount: true });
-            return createHelper(context.req.userId, input, info, RoutineModel(context.prisma));
+        routineCreate: async (_parent: undefined, { input }: IWrap<RoutineCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
+            await rateLimit({ info, max: 500, byAccountOrKey: true, req });
+            return createHelper({ info, input, model: RoutineModel, prisma, userId: req.userId });
         },
-        routineUpdate: async (_parent: undefined, { input }: IWrap<RoutineUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
-            await rateLimit({ context, info, max: 1000, byAccount: true });
-            return updateHelper(context.req.userId, input, info, RoutineModel(context.prisma));
+        routineUpdate: async (_parent: undefined, { input }: IWrap<RoutineUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
+            await rateLimit({ info, max: 1000, byAccountOrKey: true, req });
+            return updateHelper({ info, input, model: RoutineModel, prisma, userId: req.userId });
         },
-        routineDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            await rateLimit({ context, info, max: 250, byAccount: true });
-            return deleteOneHelper(context.req.userId, input, RoutineModel(context.prisma));
+        routineDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
+            await rateLimit({ info, max: 250, byAccountOrKey: true, req });
+            return deleteOneHelper({ input, model: RoutineModel, prisma, userId: req.userId });
         },
     }
 }

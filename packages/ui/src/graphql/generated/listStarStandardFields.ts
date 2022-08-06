@@ -3,11 +3,18 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole } from "./globalTypes";
-
 // ====================================================
 // GraphQL fragment: listStarStandardFields
 // ====================================================
+
+export interface listStarStandardFields_permissionsStandard {
+  __typename: "StandardPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
 
 export interface listStarStandardFields_tags_translations {
   __typename: "TagTranslation";
@@ -38,10 +45,14 @@ export interface listStarStandardFields {
   id: string;
   score: number;
   stars: number;
+  isDeleted: boolean;
+  isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
   name: string;
-  role: MemberRole | null;
+  permissionsStandard: listStarStandardFields_permissionsStandard;
   tags: listStarStandardFields_tags[];
   translations: listStarStandardFields_translations[];
+  version: string;
+  versionGroupId: string;
 }

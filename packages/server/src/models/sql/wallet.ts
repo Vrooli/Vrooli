@@ -1,8 +1,8 @@
-import { CODE, walletsUpdate, walletUpdate } from "@local/shared";
+import { CODE, walletsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
-import { PrismaType } from "types";
+import { PrismaType } from "../../types";
 import { Count, Wallet, WalletUpdateInput } from "../../schema/types";
-import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, removeJoinTablesHelper, selectHelper, ValidateMutationsInput } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, removeJoinTablesHelper, selectHelper, ValidateMutationsInput } from "./base";
 import { hasProfanity } from "../../utils/censor";
 import { genErrorCode } from "../../logger";
 
@@ -10,20 +10,13 @@ import { genErrorCode } from "../../logger";
 /* #region Custom Components */
 //==============================================================
 
-const joinMapper = { handles: 'handle' };
-export const walletFormatter = (): FormatConverter<Wallet> => ({
+export const walletFormatter = (): FormatConverter<Wallet, any> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Wallet,
-        'handles': GraphQLModelType.Handle,
-        'user': GraphQLModelType.User,
-        'organization': GraphQLModelType.Organization,
-        'project': GraphQLModelType.Project,
-    },
-    addJoinTables: (partial) => {
-        return addJoinTablesHelper(partial, joinMapper);
-    },
-    removeJoinTables: (data) => {
-        return removeJoinTablesHelper(data, joinMapper);
+        '__typename': 'Wallet',
+        'handles': 'Handle',
+        'user': 'User',
+        'organization': 'Organization',
+        'project': 'Project',
     },
 })
 
@@ -32,9 +25,9 @@ export const walletVerifier = (prisma: PrismaType) => ({
      * Maps GraphQLModelType to wallet relationship field
      */
     walletOwnerMap: {
-        [GraphQLModelType.User]: 'userId',
-        [GraphQLModelType.Organization]: 'organizationId',
-        [GraphQLModelType.Project]: 'projectId',
+        'User': 'userId',
+        'Organization': 'organizationId',
+        'Project': 'projectId',
     },
     /**
      * Verify that a handle is owned by a wallet, that is owned by an object. 
@@ -44,7 +37,7 @@ export const walletVerifier = (prisma: PrismaType) => ({
      * @params forId The ID of the object that the wallet is owned by
      * @params handle The handle to verify
      */
-    async verifyHandle(forType: GraphQLModelType.User | GraphQLModelType.Organization | GraphQLModelType.Project, forId: string, handle: string | null | undefined): Promise<void> {
+    async verifyHandle(forType: 'User' | 'Organization' | 'Project', forId: string, handle: string | null | undefined): Promise<void> {
         if (!handle) return;
         // Check that handle belongs to one of user's wallets
         const wallets = await prisma.wallet.findMany({
@@ -58,10 +51,10 @@ export const walletVerifier = (prisma: PrismaType) => ({
             }
         });
         const found = Boolean(wallets.find(w => w.handles.find(h => h.handle === handle)));
-        if (!found) 
+        if (!found)
             throw new CustomError(CODE.InvalidArgs, 'Selected handle cannot be verified.', { code: genErrorCode('0119') });
         // Check for censored words
-        if (hasProfanity(handle)) 
+        if (hasProfanity(handle))
             throw new CustomError(CODE.BannedWord, 'Handle contains banned word', { code: genErrorCode('0120') });
     }
 })
@@ -90,7 +83,7 @@ export const walletMutater = (prisma: PrismaType) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<unknown, WalletUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId) 
+        if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0121') });
         if (createMany) {
             // Not allowed to create wallets this way
@@ -107,7 +100,7 @@ export const walletMutater = (prisma: PrismaType) => ({
                     ],
                 },
             });
-            if (wallets.length !== updateMany.length) 
+            if (wallets.length !== updateMany.length)
                 throw new CustomError(CODE.NotYourWallet, 'At least one of these wallets is not yours', { code: genErrorCode('0123') });
         }
     },
@@ -131,7 +124,7 @@ export const walletMutater = (prisma: PrismaType) => ({
                         ]
                     }
                 })
-                if (!object) 
+                if (!object)
                     throw new CustomError(CODE.NotFound, "Wallet not found", { code: genErrorCode('0125') });
                 // Update
                 object = await prisma.wallet.update({
@@ -159,7 +152,7 @@ export const walletMutater = (prisma: PrismaType) => ({
                     verified: true,
                 }
             })
-            if (!wallets) 
+            if (!wallets)
                 throw new CustomError(CODE.NotFound, "Wallet not found", { code: genErrorCode('0126') });
             // Check if user has at least one verified authentication method, besides the one being deleted
             const numberOfVerifiedWalletDeletes = wallets.filter(wallet => wallet.verified).length;
@@ -171,7 +164,7 @@ export const walletMutater = (prisma: PrismaType) => ({
             })
             const wontHaveVerifiedEmail = verifiedEmailsCount <= 0;
             const wontHaveVerifiedWallet = numberOfVerifiedWalletDeletes >= verifiedWalletsCount;
-            if (wontHaveVerifiedEmail || wontHaveVerifiedWallet) 
+            if (wontHaveVerifiedEmail || wontHaveVerifiedWallet)
                 throw new CustomError(CODE.InternalError, "Cannot delete all verified authentication methods", { code: genErrorCode('0127') });
             // Delete
             deleted = await prisma.wallet.deleteMany({
@@ -194,20 +187,12 @@ export const walletMutater = (prisma: PrismaType) => ({
 /* #region Model */
 //==============================================================
 
-export function WalletModel(prisma: PrismaType) {
-    const prismaObject = prisma.wallet;
-    const format = walletFormatter();
-    const mutate = walletMutater(prisma);
-    const verify = walletVerifier(prisma);
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...mutate,
-        ...verify,
-    }
-}
+export const WalletModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.wallet,
+    format: walletFormatter(),
+    mutate: walletMutater,
+    verify: walletVerifier,
+})
 
 //==============================================================
 /* #endregion Model */

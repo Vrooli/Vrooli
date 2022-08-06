@@ -30,12 +30,6 @@ const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
     });
     // Determine origin of API server
     let uri: string;
-    console.log('YEEEEEEET');
-    console.log(process.env.REACT_APP_PORT_SERVER);
-    console.log(process.env.REACT_APP_SITE_IP);
-    console.log('yoted')
-    console.log(process.env);
-    console.log('boop')
     // If running locally
     if (window.location.host.includes('localhost') || window.location.host.includes('192.168.0.')) {
         uri = `http://${window.location.hostname}:${process.env.REACT_APP_PORT_SERVER ?? '5329'}/api/v1`;
@@ -47,7 +41,6 @@ const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
             `http://${process.env.REACT_APP_SITE_IP}:${process.env.REACT_APP_PORT_SERVER ?? '5329'}/api/v1`;
     }
     // Define link for handling file uploads
-    console.log('CREATING UPLOAD LINK', uri, process.env.REACT_APP_PORT_SERVER);
     const uploadLink = createUploadLink({
         uri,
         credentials: 'include'

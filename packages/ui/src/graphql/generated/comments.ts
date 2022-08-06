@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { CommentSearchInput, MemberRole } from "./globalTypes";
+import { CommentSearchInput } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: comments
@@ -69,6 +69,16 @@ export interface comments_comments_threads_childThreads_childThreads_comment_cre
 
 export type comments_comments_threads_childThreads_childThreads_comment_creator = comments_comments_threads_childThreads_childThreads_comment_creator_Organization | comments_comments_threads_childThreads_childThreads_comment_creator_User;
 
+export interface comments_comments_threads_childThreads_childThreads_comment_permissionsComment {
+  __typename: "CommentPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReply: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
+
 export interface comments_comments_threads_childThreads_childThreads_comment_translations {
   __typename: "CommentTranslation";
   id: string;
@@ -83,10 +93,10 @@ export interface comments_comments_threads_childThreads_childThreads_comment {
   updated_at: any;
   score: number;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   isStarred: boolean;
   commentedOn: comments_comments_threads_childThreads_childThreads_comment_commentedOn;
   creator: comments_comments_threads_childThreads_childThreads_comment_creator | null;
+  permissionsComment: comments_comments_threads_childThreads_childThreads_comment_permissionsComment | null;
   translations: comments_comments_threads_childThreads_childThreads_comment_translations[];
 }
 
@@ -157,6 +167,16 @@ export interface comments_comments_threads_childThreads_comment_creator_User {
 
 export type comments_comments_threads_childThreads_comment_creator = comments_comments_threads_childThreads_comment_creator_Organization | comments_comments_threads_childThreads_comment_creator_User;
 
+export interface comments_comments_threads_childThreads_comment_permissionsComment {
+  __typename: "CommentPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReply: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
+
 export interface comments_comments_threads_childThreads_comment_translations {
   __typename: "CommentTranslation";
   id: string;
@@ -171,10 +191,10 @@ export interface comments_comments_threads_childThreads_comment {
   updated_at: any;
   score: number;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   isStarred: boolean;
   commentedOn: comments_comments_threads_childThreads_comment_commentedOn;
   creator: comments_comments_threads_childThreads_comment_creator | null;
+  permissionsComment: comments_comments_threads_childThreads_comment_permissionsComment | null;
   translations: comments_comments_threads_childThreads_comment_translations[];
 }
 
@@ -246,6 +266,16 @@ export interface comments_comments_threads_comment_creator_User {
 
 export type comments_comments_threads_comment_creator = comments_comments_threads_comment_creator_Organization | comments_comments_threads_comment_creator_User;
 
+export interface comments_comments_threads_comment_permissionsComment {
+  __typename: "CommentPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReply: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
+
 export interface comments_comments_threads_comment_translations {
   __typename: "CommentTranslation";
   id: string;
@@ -260,10 +290,10 @@ export interface comments_comments_threads_comment {
   updated_at: any;
   score: number;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   isStarred: boolean;
   commentedOn: comments_comments_threads_comment_commentedOn;
   creator: comments_comments_threads_comment_creator | null;
+  permissionsComment: comments_comments_threads_comment_permissionsComment | null;
   translations: comments_comments_threads_comment_translations[];
 }
 

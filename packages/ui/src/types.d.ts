@@ -15,14 +15,15 @@ import { RoutineStepType } from 'utils';
 import { FetchResult } from "@apollo/client";
 import { comment_comment } from 'graphql/generated/comment';
 import { comments_comments_threads } from 'graphql/generated/comments';
+import { run_run_inputs, run_run_steps } from 'graphql/generated/run';
 
 // Top-level props that can be passed into any routed component
 export type SessionChecked = boolean;
 export type Session = {
     id?: string | null;
+    isLoggedIn?: boolean;
     languages?: string[] | null;
-    roles?: string[] | null;
-    theme?: string;
+    theme?: string | null;
 }
 export interface CommonProps {
     session: Session;
@@ -65,8 +66,9 @@ export type ResourceList = profile_profile_resourceLists;
 export type ResourceListTranslation = profile_profile_resourceLists_translations;
 export type Routine = routine_routine;
 export type RoutineTranslation = routine_routine_translations;
-export type Run = routine_routine_runs[0];
-export type RunStep = Run['steps'][0];
+export type Run = routine_routine_runs;
+export type RunInput = run_run_inputs;
+export type RunStep = run_run_steps;
 export type RoutineInput = routine_routine_inputs;
 export type RoutineInputTranslation = routine_routine_inputs_translations;
 export type RoutineInputList = RoutineInput[];
@@ -119,7 +121,15 @@ export interface SubroutineStep extends BaseStep {
     routine: Routine
 }
 export interface RoutineListStep extends BaseStep {
-    nodeId: string,
+    routineId: string,
+    /**
+     * Node's ID if object was created from a node
+     */
+    nodeId?: string | null,
+    /**
+     * Subroutine's ID if object was created from a subroutine
+     */
+    routineId?: string | null,
     isOrdered: boolean,
     type: RoutineStepType.RoutineList,
     steps: RoutineStep[],

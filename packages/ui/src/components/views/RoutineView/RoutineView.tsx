@@ -13,23 +13,30 @@ import {
     MoreHoriz as EllipsisIcon,
     PlayCircle as StartIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, BuildView, HelpButton, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, UpTransition, UpvoteDownvote } from "components";
+import { BaseObjectActionDialog, BuildView, HelpButton, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, StatusButton, UpTransition, UpvoteDownvote } from "components";
 import { RoutineViewProps } from "../types";
-import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, parseSearchParams, PubSub, standardToFieldData, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
-import { Node, NodeLink, Routine, Run } from "types";
-import Markdown from "markdown-to-jsx";
+import { formikToRunInputs, getLanguageSubtag, getOwnedByString, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, standardToFieldData, Status, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
+import { Routine, Run } from "types";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
 import { CommentFor, NodeType, StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
-import { validate as uuidValidate, v4 as uuid } from 'uuid';
+import { validate as uuidValidate } from 'uuid';
 import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
-import { owns } from "utils/authentication";
 import { useFormik } from "formik";
 import { FieldData } from "forms/types";
 import { generateInputComponent } from "forms/generators";
-import { CommentContainer } from "components/containers";
+import { CommentContainer, ContentCollapse, TextCollapse } from "components/containers";
+
+const statsHelpText =
+    `Statistics are calculated to measure various aspects of a routine. 
+    
+**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.
+
+**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.
+
+There will be many more statistics in the near future.`
 
 export const RoutineView = ({
     partialData,
@@ -43,7 +50,7 @@ export const RoutineView = ({
     const [, params2] = useRoute(`${APP_LINKS.SearchRoutines}/view/:id`);
     const id = params?.id ?? params2?.id;
     // Fetch data
-    const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
+    const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
     const [routine, setRoutine] = useState<Routine | null>(null);
     useEffect(() => {
         if (id && uuidValidate(id)) { getData({ variables: { input: { id } } }); }
@@ -52,9 +59,7 @@ export const RoutineView = ({
         if (!data) return;
         setRoutine(data.routine);
     }, [data]);
-    const updateRoutine = useCallback((newRoutine: Routine) => { console.log('updateroutine', newRoutine); setRoutine(newRoutine); }, [setRoutine]);
-
-    const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine?.role]);
+    const updateRoutine = useCallback((newRoutine: Routine) => { setRoutine(newRoutine); }, [setRoutine]);
 
     const search = useReactSearch(null);
     const { runId } = useMemo(() => ({
@@ -68,11 +73,17 @@ export const RoutineView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { title, description, instructions } = useMemo(() => {
+    const { canStar, canVote, title, description, instructions, status, statusMessages } = useMemo(() => {
+        const permissions = routine?.permissionsRoutine;
+        const { messages: statusMessages, status } = getRoutineStatus(routine ?? partialData);
         return {
+            canStar: permissions?.canStar === true,
+            canVote: permissions?.canVote === true,
             title: getTranslation(routine, 'title', [language]) ?? getTranslation(partialData, 'title', [language]),
             description: getTranslation(routine, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
             instructions: getTranslation(routine, 'instructions', [language]) ?? getTranslation(partialData, 'instructions', [language]),
+            status,
+            statusMessages,
         };
     }, [routine, language, partialData]);
 
@@ -83,92 +94,13 @@ export const RoutineView = ({
     const ownedBy = useMemo<string | null>(() => getOwnedByString(routine, [language]), [routine, language]);
     const toOwner = useCallback(() => { toOwnedBy(routine, setLocation) }, [routine, setLocation]);
 
-    const [runComplete] = useMutation<runComplete, runCompleteVariables>(runCompleteMutation);
-    const markAsComplete = useCallback(() => {
-        if (!routine) return;
-        mutationWrapper({
-            mutation: runComplete,
-            input: {
-                id: routine.id,
-                exists: false,
-                title: title ?? 'Unnamed Routine',
-                version: routine?.version ?? '',
-            },
-            successMessage: () => 'Routine completed!🎉',
-            onSuccess: () => {
-                PubSub.get().publishCelebration();
-                setLocation(APP_LINKS.Home)
-            },
-        })
-    }, [routine, runComplete, setLocation, title]);
-
     const [isBuildOpen, setIsBuildOpen] = useState<boolean>(Boolean(parseSearchParams(window.location.search)?.build));
     /**
      * If routine ID is not valid, create default routine data
      */
     useEffect(() => {
         if (!id || !uuidValidate(id)) {
-            const startNode: Node = {
-                id: uuid(),
-                type: NodeType.Start,
-                columnIndex: 0,
-                rowIndex: 0,
-            } as Node;
-            const routineListNode: Node = {
-                __typename: 'Node',
-                id: uuid(),
-                type: NodeType.RoutineList,
-                columnIndex: 1,
-                rowIndex: 0,
-                data: {
-                    __typename: 'NodeRoutineList',
-                    id: uuid(),
-                    isOptional: false,
-                    isOrdered: false,
-                    routines: [],
-                } as Node['data'],
-                translations: [{
-                    id: uuid(),
-                    language,
-                    title: 'Subroutine 1',
-                }] as Node['translations'],
-            } as Node;
-            const endNode: Node = {
-                __typename: 'Node',
-                id: uuid(),
-                type: NodeType.End,
-                columnIndex: 2,
-                rowIndex: 0,
-            } as Node;
-            const link1: NodeLink = {
-                __typename: 'NodeLink',
-                id: uuid(),
-                fromId: startNode.id,
-                toId: routineListNode.id,
-                whens: [],
-                operation: null,
-            }
-            const link2: NodeLink = {
-                __typename: 'NodeLink',
-                id: uuid(),
-                fromId: routineListNode.id,
-                toId: endNode.id,
-                whens: [],
-                operation: null,
-            }
-            setRoutine({
-                inputs: [],
-                outputs: [],
-                nodes: [startNode, routineListNode, endNode],
-                nodeLinks: [link1, link2],
-                translations: [{
-                    id: uuid(),
-                    language,
-                    title: 'New Routine',
-                    instructions: 'Enter instructions here',
-                    description: '',
-                }]
-            } as any)
+            setRoutine(initializeRoutine(language))
         }
     }, [id, language]);
     const viewGraph = useCallback(() => {
@@ -200,7 +132,7 @@ export const RoutineView = ({
         else {
             setLocation(stringifySearchParams({
                 run: run.id,
-                step: run.steps.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
+                step: run.steps?.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
             }), { replace: true });
         }
         setIsRunOpen(true);
@@ -272,33 +204,6 @@ export const RoutineView = ({
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
-    // Determine options available to object, in order
-    const moreOptions: BaseObjectAction[] = useMemo(() => {
-        // Initialize
-        let options: BaseObjectAction[] = [];
-        if (canEdit) {
-            options.push(BaseObjectAction.Edit);
-        }
-        options.push(BaseObjectAction.Stats);
-        if (session && !canEdit) {
-            options.push(routine?.isUpvoted ? BaseObjectAction.Downvote : BaseObjectAction.Upvote);
-            options.push(routine?.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
-        }
-        options.push(
-            BaseObjectAction.Donate,
-            BaseObjectAction.Share,
-            BaseObjectAction.Fork,
-            BaseObjectAction.Copy,
-        )
-        if (session?.id) {
-            options.push(BaseObjectAction.Report);
-        }
-        if (canEdit) {
-            options.push(BaseObjectAction.Delete);
-        }
-        return options;
-    }, [routine, canEdit, session]);
-
     const handleMoreActionComplete = useCallback((action: BaseObjectAction, data: any) => {
         switch (action) {
             case BaseObjectAction.Edit:
@@ -356,6 +261,56 @@ export const RoutineView = ({
         }
     }, [routine, setLocation]);
 
+    // The schema and formik keys for the form
+    const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {
+        if (!routine) return null;
+        const schemas: { [fieldName: string]: FieldData } = {};
+        for (let i = 0; i < routine.inputs?.length; i++) {
+            const currInput = routine.inputs[i];
+            if (!currInput.standard) continue;
+            const currSchema = standardToFieldData({
+                description: getTranslation(currInput, 'description', getUserLanguages(session), false) ?? getTranslation(currInput.standard, 'description', getUserLanguages(session), false),
+                fieldName: `inputs-${currInput.id}`,
+                props: currInput.standard.props,
+                name: currInput.name ?? currInput.standard?.name,
+                type: currInput.standard.type,
+                yup: currInput.standard.yup,
+            });
+            if (currSchema) {
+                schemas[currSchema.fieldName] = currSchema;
+            }
+        }
+        return schemas;
+    }, [routine, session]);
+    const formik = useFormik({
+        initialValues: Object.entries(formValueMap ?? {}).reduce((acc, [key, value]) => {
+            acc[key] = value.props.defaultValue ?? '';
+            return acc;
+        }, {}),
+        enableReinitialize: true,
+        onSubmit: () => { },
+    });
+
+    const [runComplete] = useMutation<runComplete, runCompleteVariables>(runCompleteMutation);
+    const markAsComplete = useCallback(() => {
+        if (!routine) return;
+        mutationWrapper({
+            mutation: runComplete,
+            input: {
+                id: routine.id,
+                exists: false,
+                title: title ?? 'Unnamed Routine',
+                version: routine?.version ?? '',
+                ...runInputsCreate(formikToRunInputs(formik.values)),
+            },
+            successMessage: () => 'Routine completed!🎉',
+            onSuccess: () => {
+                PubSub.get().publishCelebration();
+                setLocation(APP_LINKS.Home)
+            },
+        })
+    }, [formik.values, routine, runComplete, setLocation, title]);
+
     /**
      * If routine has nodes (i.e. is not just this page), display "View Graph" and "Start" (or "Continue") buttons. 
      * Otherwise, display "Mark as Complete" button.
@@ -380,57 +335,29 @@ export const RoutineView = ({
                     <Button startIcon={<GraphIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button>
                 </Grid>
                 {/* Show continue if routine already has progress TODO */}
-                <Grid item xs={12} sm={6}>
+                {status === Status.Valid && <Grid item xs={12} sm={6}>
                     {routine && routine.runs?.length > 0 ?
                         <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Continue</Button> :
                         <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
                     }
-                </Grid>
+                </Grid>}
             </Grid>
         )
-    }, [routine, viewGraph, runRoutine, session?.id, markAsComplete]);
-
-    // The schema and formik keys for the form
-    const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {
-        if (!routine) return null;
-        const schemas: { [fieldName: string]: FieldData } = {};
-        for (let i = 0; i < routine.inputs?.length; i++) {
-            const currSchema = standardToFieldData({
-                description: getTranslation(routine.inputs[i], 'description', getUserLanguages(session), false) ?? getTranslation(routine.inputs[i].standard, 'description', getUserLanguages(session), false),
-                fieldName: `inputs-${i}`,
-                props: routine.inputs[i].standard?.props ?? '',
-                name: routine.inputs[i].name ?? routine.inputs[i].standard?.name ?? '',
-                type: routine.inputs[i].standard?.type ?? '',
-                yup: routine.inputs[i].standard?.yup ?? null,
-            });
-            if (currSchema) {
-                schemas[currSchema.fieldName] = currSchema;
-            }
-        }
-        return schemas;
-    }, [routine, session]);
-    const previewFormik = useFormik({
-        initialValues: Object.entries(formValueMap ?? {}).reduce((acc, [key, value]) => {
-            acc[key] = value.props.defaultValue ?? '';
-            return acc;
-        }, {}),
-        enableReinitialize: true,
-        onSubmit: () => { },
-    });
+    }, [routine, viewGraph, status, runRoutine, session?.id, markAsComplete]);
 
     /**
      * Copy current value of input to clipboard
      * @param fieldName Name of input
      */
     const copyInput = useCallback((fieldName: string) => {
-        const input = previewFormik.values[fieldName];
+        const input = formik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
             PubSub.get().publishSnack({ message: 'Copied to clipboard.', severity: 'success' });
         } else {
             PubSub.get().publishSnack({ message: 'Input is empty.', severity: 'error' });
         }
-    }, [previewFormik]);
+    }, [formik]);
 
     const resourceList = useMemo(() => {
         if (!routine ||
@@ -465,33 +392,16 @@ export const RoutineView = ({
         return (
             <>
                 {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
-                <Stack direction="column" spacing={2} padding={1}>
+                <Stack direction="column" spacing={1} padding={1}>
                     {/* Resources */}
                     {resourceList}
                     {/* Description */}
-                    {Boolean(description) && <Box sx={{
-                        padding: 1,
-                        color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary,
-                    }}>
-                        <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Description</Typography>
-                        <Typography variant="body1">{description}</Typography>
-                    </Box>}
+                    <TextCollapse title="Description" text={description} />
                     {/* Instructions */}
-                    <Box sx={{
-                        padding: 1,
-                        borderRadius: 1,
-                        color: Boolean(instructions) ? palette.background.textPrimary : palette.background.textSecondary,
-                    }}>
-                        <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Instructions</Typography>
-                        <Markdown>{instructions ?? 'No instructions'}</Markdown>
-                    </Box>
+                    <TextCollapse title="Instructions" text={instructions} />
                     {/* Auto-generated inputs */}
                     {
-                        Object.keys(previewFormik.values).length > 0 && <Box sx={{
-                            padding: 1,
-                            borderRadius: 1,
-                        }}>
-                            <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Inputs</Typography>
+                        Object.keys(formik.values).length > 0 && <Box>
                             {
                                 Object.values(formValueMap ?? {}).map((field: FieldData, i: number) => (
                                     <Box key={i} sx={{
@@ -512,7 +422,7 @@ export const RoutineView = ({
                                             generateInputComponent({
                                                 data: field,
                                                 disabled: false,
-                                                formik: previewFormik,
+                                                formik: formik,
                                                 session,
                                                 onUpload: () => { },
                                                 zIndex,
@@ -524,23 +434,19 @@ export const RoutineView = ({
                         </Box>
                     }
                     {/* Stats */}
-                    {Array.isArray(routine?.nodes) && (routine as any).nodes.length > 0 && <Box sx={{
-                        padding: 1,
-                        borderRadius: 1,
-                    }}>
-                        {/* TODO click to view */}
-                        <Typography variant="h6">Stats</Typography>
-                        <Typography variant="body1">Complexity: {routine?.complexity}</Typography>
-                        <Typography variant="body1">Simplicity: {routine?.simplicity}</Typography>
-                        <Typography variant="body1">Score: {routine?.score}</Typography>
-                        <Typography variant="body1">Stars: {routine?.stars}</Typography>
-                    </Box>}
+                    {
+                        Array.isArray(routine?.nodes) && (routine as any).nodes.length > 0 &&
+                        <ContentCollapse title="Stats" helpText={statsHelpText}>
+                            <Typography variant="body1">Complexity: {routine?.complexity}</Typography>
+                            <Typography variant="body1">Simplicity: {routine?.simplicity}</Typography>
+                        </ContentCollapse>
+                    }
                 </Stack>
                 {/* Actions */}
                 {actions}
             </>
         )
-    }, [loading, resourceList, description, palette.background.textPrimary, palette.background.textSecondary, instructions, previewFormik, formValueMap, routine, actions, session, zIndex, copyInput]);
+    }, [loading, resourceList, description, palette.background.textPrimary, instructions, formik, formValueMap, routine, actions, session, zIndex, copyInput]);
 
     return (
         <>
@@ -596,13 +502,15 @@ export const RoutineView = ({
             <BaseObjectActionDialog
                 handleActionComplete={handleMoreActionComplete}
                 handleEdit={onEdit}
+                isUpvoted={routine?.isUpvoted}
+                isStarred={routine?.isStarred}
                 objectId={id ?? ''}
                 objectName={title ?? ''}
                 objectType={ObjectType.Routine}
                 anchorEl={moreMenuAnchor}
                 title='Routine Options'
-                availableOptions={moreOptions}
                 onClose={closeMoreMenu}
+                permissions={routine?.permissionsRoutine}
                 session={session}
                 zIndex={zIndex + 1}
             />
@@ -619,7 +527,7 @@ export const RoutineView = ({
                 <Box sx={{
                     ...containerShadow,
                     background: palette.background.paper,
-                    minWidth: 'min(100%, 700px)',
+                    width: 'min(100%, 700px)',
                     borderRadius: 1,
                     overflow: 'overlay',
                 }}>
@@ -639,7 +547,7 @@ export const RoutineView = ({
                             color: palette.primary.contrastText,
                         }}>
                             {/* Title */}
-                            <Box>
+                            <Stack direction="row" textAlign="center">
                                 {loading ?
                                     <LinearProgress color="inherit" sx={{
                                         borderRadius: 1,
@@ -649,8 +557,22 @@ export const RoutineView = ({
                                         marginBottom: '12px !important',
                                         maxWidth: '300px',
                                     }} /> :
-                                    <Typography variant="h5" sx={{ textAlign: 'center' }}>{title}</Typography>}
-                            </Box>
+                                    <>
+                                        <Typography variant="h5">{title}</Typography>
+                                        {
+                                            Array.isArray(routine?.nodes) && routine!.nodes.length > 0 && <StatusButton
+                                                status={status}
+                                                messages={statusMessages}
+                                                sx={{
+                                                    marginTop: 'auto',
+                                                    marginBottom: 'auto',
+                                                    marginLeft: 2,
+                                                }}
+                                            />
+                                        }
+                                    </>
+                                }
+                            </Stack>
                             <Stack direction="row" spacing={1} sx={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -671,7 +593,7 @@ export const RoutineView = ({
                                     session={session}
                                     zIndex={zIndex}
                                 />
-                                {canEdit && <Tooltip title="Edit routine">
+                                {routine?.permissionsRoutine?.canEdit && <Tooltip title="Edit routine">
                                     <IconButton
                                         aria-label="Edit routine"
                                         size="small"
@@ -696,7 +618,7 @@ export const RoutineView = ({
                         alignItems: 'center',
                         padding: 2,
                     }}>
-                        <UpvoteDownvote
+                        {canVote && <UpvoteDownvote
                             direction="row"
                             session={session}
                             objectId={routine?.id ?? ''}
@@ -704,8 +626,8 @@ export const RoutineView = ({
                             isUpvoted={routine?.isUpvoted}
                             score={routine?.score}
                             onChange={(isUpvote) => { routine && setRoutine({ ...routine, isUpvoted: isUpvote }); }}
-                        />
-                        <StarButton
+                        />}
+                        {canStar && <StarButton
                             session={session}
                             objectId={routine?.id ?? ''}
                             showStars={false}
@@ -714,7 +636,7 @@ export const RoutineView = ({
                             stars={routine?.stars ?? 0}
                             onChange={(isStar: boolean) => { routine && setRoutine({ ...routine, isStarred: isStar }) }}
                             tooltipPlacement="bottom"
-                        />
+                        />}
                         <Tooltip title="More options">
                             <IconButton
                                 aria-label="More"

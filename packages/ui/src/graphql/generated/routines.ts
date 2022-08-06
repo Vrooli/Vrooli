@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { RoutineSearchInput, MemberRole } from "./globalTypes";
+import { RoutineSearchInput } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: routines
@@ -13,6 +13,18 @@ export interface routines_routines_pageInfo {
   __typename: "PageInfo";
   endCursor: string | null;
   hasNextPage: boolean;
+}
+
+export interface routines_routines_edges_node_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
 }
 
 export interface routines_routines_edges_node_tags_translations {
@@ -48,18 +60,21 @@ export interface routines_routines_edges_node {
   complexity: number;
   created_at: any;
   isAutomatable: boolean | null;
+  isDeleted: boolean;
   isInternal: boolean | null;
   isComplete: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
   reportsCount: number;
-  role: MemberRole | null;
   score: number;
   simplicity: number;
   stars: number;
+  permissionsRoutine: routines_routines_edges_node_permissionsRoutine;
   tags: routines_routines_edges_node_tags[];
   translations: routines_routines_edges_node_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
 }
 
 export interface routines_routines_edges {

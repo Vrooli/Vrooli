@@ -3,8 +3,6 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole } from "./globalTypes";
-
 // ====================================================
 // GraphQL fragment: listStarCommentFields
 // ====================================================
@@ -67,6 +65,16 @@ export interface listStarCommentFields_creator_User {
 
 export type listStarCommentFields_creator = listStarCommentFields_creator_Organization | listStarCommentFields_creator_User;
 
+export interface listStarCommentFields_permissionsComment {
+  __typename: "CommentPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReply: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
+
 export interface listStarCommentFields_translations {
   __typename: "CommentTranslation";
   id: string;
@@ -81,9 +89,9 @@ export interface listStarCommentFields {
   updated_at: any;
   score: number;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   isStarred: boolean;
   commentedOn: listStarCommentFields_commentedOn;
   creator: listStarCommentFields_creator | null;
+  permissionsComment: listStarCommentFields_permissionsComment | null;
   translations: listStarCommentFields_translations[];
 }

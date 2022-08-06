@@ -3,8 +3,6 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole } from "./globalTypes";
-
 // ====================================================
 // GraphQL fragment: listStarFields
 // ====================================================
@@ -71,6 +69,16 @@ export interface listStarFields_to_Comment_creator_User {
 
 export type listStarFields_to_Comment_creator = listStarFields_to_Comment_creator_Organization | listStarFields_to_Comment_creator_User;
 
+export interface listStarFields_to_Comment_permissionsComment {
+  __typename: "CommentPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReply: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
+
 export interface listStarFields_to_Comment_translations {
   __typename: "CommentTranslation";
   id: string;
@@ -85,11 +93,21 @@ export interface listStarFields_to_Comment {
   updated_at: any;
   score: number;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   isStarred: boolean;
   commentedOn: listStarFields_to_Comment_commentedOn;
   creator: listStarFields_to_Comment_creator | null;
+  permissionsComment: listStarFields_to_Comment_permissionsComment | null;
   translations: listStarFields_to_Comment_translations[];
+}
+
+export interface listStarFields_to_Organization_permissionsOrganization {
+  __typename: "OrganizationPermission";
+  canAddMembers: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  isMember: boolean;
 }
 
 export interface listStarFields_to_Organization_tags_translations {
@@ -122,10 +140,20 @@ export interface listStarFields_to_Organization {
   id: string;
   handle: string | null;
   stars: number;
+  isPrivate: boolean;
   isStarred: boolean;
-  role: MemberRole | null;
+  permissionsOrganization: listStarFields_to_Organization_permissionsOrganization | null;
   tags: listStarFields_to_Organization_tags[];
   translations: listStarFields_to_Organization_translations[];
+}
+
+export interface listStarFields_to_Project_permissionsProject {
+  __typename: "ProjectPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
 }
 
 export interface listStarFields_to_Project_tags_translations {
@@ -157,13 +185,25 @@ export interface listStarFields_to_Project {
   __typename: "Project";
   id: string;
   handle: string | null;
-  role: MemberRole | null;
   score: number;
   stars: number;
+  isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
+  permissionsProject: listStarFields_to_Project_permissionsProject;
   tags: listStarFields_to_Project_tags[];
   translations: listStarFields_to_Project_translations[];
+}
+
+export interface listStarFields_to_Routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
 }
 
 export interface listStarFields_to_Routine_tags_translations {
@@ -198,17 +238,29 @@ export interface listStarFields_to_Routine {
   complexity: number;
   created_at: any;
   isAutomatable: boolean | null;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   score: number;
   simplicity: number;
   stars: number;
+  permissionsRoutine: listStarFields_to_Routine_permissionsRoutine;
   tags: listStarFields_to_Routine_tags[];
   translations: listStarFields_to_Routine_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
+}
+
+export interface listStarFields_to_Standard_permissionsStandard {
+  __typename: "StandardPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
 }
 
 export interface listStarFields_to_Standard_tags_translations {
@@ -240,12 +292,16 @@ export interface listStarFields_to_Standard {
   id: string;
   score: number;
   stars: number;
+  isDeleted: boolean;
+  isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
   name: string;
-  role: MemberRole | null;
+  permissionsStandard: listStarFields_to_Standard_permissionsStandard;
   tags: listStarFields_to_Standard_tags[];
   translations: listStarFields_to_Standard_translations[];
+  version: string;
+  versionGroupId: string;
 }
 
 export interface listStarFields_to_User {

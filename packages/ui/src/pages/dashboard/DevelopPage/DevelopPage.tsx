@@ -36,7 +36,7 @@ export const DevelopPage = ({
     session
 }: DevelopPageProps) => {
     const [, setLocation] = useLocation();
-    const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
+    const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all'});
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
     const [resourceList, setResourceList] = useState<ResourceList | null>(null);
     useEffect(() => {
@@ -48,7 +48,7 @@ export const DevelopPage = ({
         setResourceList(updatedList);
     }, []);
 
-    const { data: developPageData, loading: developPageLoading } = useQuery<developPage>(developPageQuery);
+    const { data: developPageData, loading: developPageLoading } = useQuery<developPage>(developPageQuery, { errorPolicy: 'all'});
 
     /**
      * Opens page for list item
@@ -106,16 +106,16 @@ export const DevelopPage = ({
             <Stack direction="column" spacing={10}>
                 {/* TODO my organizations list */}
                 {/* Resources */}
-                <ResourceListHorizontal
-                    title={Boolean(session?.id) ? '📌 Resources' : 'Example Resources'}
+                {session?.isLoggedIn && <ResourceListHorizontal
+                    title={'📌 Resources'}
                     list={resourceList}
-                    canEdit={Boolean(session?.id)}
+                    canEdit={true}
                     handleUpdate={handleResourcesUpdate}
                     loading={resourcesLoading}
                     mutate={true}
                     session={session}
                     zIndex={1}
-                />
+                />}
                 <ListTitleContainer
                     title={"In Progress"}
                     helpText={inProgressText}

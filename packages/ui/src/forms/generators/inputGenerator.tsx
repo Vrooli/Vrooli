@@ -376,17 +376,18 @@ export const toTextField = ({
     return (
         <TextField
             key={`field-${data.fieldName}-${index}`}
-            fullWidth
-            autoFocus={index === 0}
-            tabIndex={index}
-            id={data.fieldName}
-            name={data.fieldName}
-            required={data.yup?.required}
             autoComplete={props.autoComplete}
-            label={data.label}
+            autoFocus={index === 0}
+            fullWidth
+            id={data.fieldName}
+            InputLabelProps={{ shrink: true }}
+            name={data.fieldName}
+            placeholder={data.description ?? data.fieldName}
+            required={data.yup?.required}
             value={formik.values[data.fieldName]}
             onBlur={formik.handleBlur}
             onChange={formik.handleChange}
+            tabIndex={index}
             error={formik.touched[data.fieldName] && Boolean(formik.errors[data.fieldName])}
             helperText={formik.touched[data.fieldName] && formik.errors[data.fieldName]}
             {...multiLineProps}
@@ -450,10 +451,6 @@ const typeMap: { [key in InputType]: (props: InputGeneratorProps) => any } = {
  * - Slider
  * - Switch
  * - TextField
- * @param data The data to convert
- * @param formik The formik object
- * @param index The index of the component (for autoFocus & tabIndex)
- * @param onUpload Callback for uploading files
  */
 export const generateInputComponent = ({
     data,

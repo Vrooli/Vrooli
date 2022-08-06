@@ -1,4 +1,4 @@
-import { APP_LINKS, ROLES } from "@local/shared";
+import { APP_LINKS } from "@local/shared";
 import { ShareDialog } from "components";
 import { OrganizationDialog } from "components/dialogs/OrganizationDialog/OrganizationDialog";
 import { organizationsQuery } from "graphql/query";
@@ -8,6 +8,7 @@ import { ObjectType, PubSub, stringifySearchParams } from "utils";
 import { useLocation } from "wouter";
 import { BaseSearchPage } from "./BaseSearchPage";
 import { SearchOrganizationsPageProps } from "./types";
+import { validate as uuidValidate } from 'uuid';
 
 export const SearchOrganizationsPage = ({
     session,
@@ -32,8 +33,8 @@ export const SearchOrganizationsPage = ({
 
     // Handles dialog when adding a new organization
     const handleAddDialogOpen = useCallback(() => {
-        const canAdd = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
-        if (canAdd) {
+        const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
+        if (loggedIn) {
             setLocation(`${APP_LINKS.SearchOrganizations}/add`)
         }
         else {
@@ -42,7 +43,7 @@ export const SearchOrganizationsPage = ({
                 redirect: APP_LINKS.SearchOrganizations
             })}`);
         }
-    }, [session?.roles, setLocation]);
+    }, [session?.id, session?.isLoggedIn, setLocation]);
 
     // Handles dialog for the button that appears after scrolling a certain distance
     const [surpriseDialogOpen, setSurpriseDialogOpen] = useState(false);
