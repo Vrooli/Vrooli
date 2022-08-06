@@ -202,7 +202,7 @@ export const InputOutputListItem = ({
                 zIndex: 1,
                 borderRadius: '8px',
                 background: 'white',
-                overflow: 'overlay',
+                overflow: 'hidden',
                 flexGrow: 1,
                 marginBottom: 2,
             }}
@@ -247,7 +247,7 @@ export const InputOutputListItem = ({
                 )}
                 {/* Show name and description if closed */}
                 {!isOpen && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', overflow: 'hidden', marginRight: 'auto' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
                         <Typography variant="h6" sx={{
                             fontWeight: 'bold',
                             margin: '0',
@@ -271,8 +271,8 @@ export const InputOutputListItem = ({
                     </Box>
                 )}
                 {isOpen ?
-                    <ExpandLessIcon /> :
-                    <ExpandMoreIcon />
+                    <ExpandLessIcon sx={{ marginLeft: 'auto' }} /> :
+                    <ExpandMoreIcon sx={{ marginLeft: 'auto' }} />
                 }
             </Container>
             <Collapse in={isOpen} sx={{

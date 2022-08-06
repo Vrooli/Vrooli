@@ -100,7 +100,6 @@ export const CheckboxStandardInput = ({
             options: options ?? [emptyOption(0)],
             row: row ?? false,
         },
-        enableReinitialize: true,
         validationSchema,
         onSubmit: () => { },
     });

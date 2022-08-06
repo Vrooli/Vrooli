@@ -253,7 +253,7 @@ export const runMutater = (prisma: PrismaType) => ({
                 data: {
                     completedComplexity: completedComplexity + (input.completedComplexity ?? 0),
                     contextSwitches: contextSwitches + (input.finalStepCreate?.contextSwitches ?? input.finalStepUpdate?.contextSwitches ?? 0),
-                    status: input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed,
+                    status: input.wasSuccessful === false ? RunStatus.Failed : RunStatus.Completed,
                     timeCompleted: new Date(),
                     timeElapsed: (timeElapsed ?? 0) + (input.finalStepCreate?.timeElapsed ?? input.finalStepUpdate?.timeElapsed ?? 0),
                     steps: {
@@ -262,13 +262,13 @@ export const runMutater = (prisma: PrismaType) => ({
                             title: input.finalStepCreate.title ?? '',
                             contextSwitches: input.finalStepCreate.contextSwitches ?? 0,
                             timeElapsed: input.finalStepCreate.timeElapsed,
-                            status: input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed,
+                            status: input.wasSuccessful === false ? RunStatus.Failed : RunStatus.Completed,
                         } as any : undefined,
                         update: input.finalStepUpdate ? {
                             id: input.finalStepUpdate.id,
                             contextSwitches: input.finalStepUpdate.contextSwitches ?? 0,
                             timeElapsed: input.finalStepUpdate.timeElapsed,
-                            status: input.finalStepUpdate.status ?? (input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed),
+                            status: input.finalStepUpdate.status ?? (input.wasSuccessful === false ? RunStatus.Failed : RunStatus.Completed),
                         } as any : undefined,
                     }
                     //TODO
