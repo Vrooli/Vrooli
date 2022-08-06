@@ -102,7 +102,6 @@ export const InputOutputContainer = ({
     }, [isOpenArray]);
 
     const onAdd = useCallback((index: number, newItem: RoutineInput | RoutineOutput) => {
-        console.log('on add', index)
         const newIsOpenArray = new Array(list.length + 1).fill(false);
         newIsOpenArray[Math.min(index + 1, list.length)] = true;
         setIsOpenArray(newIsOpenArray);
@@ -128,12 +127,10 @@ export const InputOutputContainer = ({
     }, [list, language, isInput, handleUpdate]);
 
     const onUpdate = useCallback((index: number, updatedItem: InputShape | OutputShape) => {
-        console.log('container onupdate', index, updatedItem, updateArray(list, index, updatedItem));
         handleUpdate(updateArray(list, index, updatedItem));
     }, [handleUpdate, list]);
 
     const onDelete = useCallback((index: number) => {
-        console.log('container ondelete', index, list.filter((_, i) => i !== index));
         setIsOpenArray(isOpenArray.filter((_, i) => i !== index));
         handleUpdate([...list.filter((_, i) => i !== index)]);
     }, [handleUpdate, list, isOpenArray]);

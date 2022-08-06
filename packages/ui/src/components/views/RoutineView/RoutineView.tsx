@@ -59,7 +59,7 @@ export const RoutineView = ({
         if (!data) return;
         setRoutine(data.routine);
     }, [data]);
-    const updateRoutine = useCallback((newRoutine: Routine) => { console.log('updateroutine', newRoutine); setRoutine(newRoutine); }, [setRoutine]);
+    const updateRoutine = useCallback((newRoutine: Routine) => { setRoutine(newRoutine); }, [setRoutine]);
 
     const search = useReactSearch(null);
     const { runId } = useMemo(() => ({
@@ -267,7 +267,6 @@ export const RoutineView = ({
         const schemas: { [fieldName: string]: FieldData } = {};
         for (let i = 0; i < routine.inputs?.length; i++) {
             const currInput = routine.inputs[i];
-            console.log('formvaluemap currinput', currInput);
             if (!currInput.standard) continue;
             const currSchema = standardToFieldData({
                 description: getTranslation(currInput, 'description', getUserLanguages(session), false) ?? getTranslation(currInput.standard, 'description', getUserLanguages(session), false),
@@ -291,10 +290,6 @@ export const RoutineView = ({
         enableReinitialize: true,
         onSubmit: () => { },
     });
-
-    useEffect(() => {
-        console.log('formvaluemap', formValueMap);
-    }, [formValueMap]);
 
     const [runComplete] = useMutation<runComplete, runCompleteVariables>(runCompleteMutation);
     const markAsComplete = useCallback(() => {
@@ -630,7 +625,7 @@ export const RoutineView = ({
                             voteFor={VoteFor.Routine}
                             isUpvoted={routine?.isUpvoted}
                             score={routine?.score}
-                            onChange={(isUpvote) => { console.log('upvote triggered routinechange') }}// { routine && setRoutine({ ...routine, isUpvoted: isUpvote }); }}
+                            onChange={(isUpvote) => { routine && setRoutine({ ...routine, isUpvoted: isUpvote }); }}
                         />}
                         {canStar && <StarButton
                             session={session}
@@ -639,7 +634,7 @@ export const RoutineView = ({
                             starFor={StarFor.Routine}
                             isStar={routine?.isStarred ?? false}
                             stars={routine?.stars ?? 0}
-                            onChange={(isStar: boolean) => { console.log('star triggered routinechange') }}// { routine && setRoutine({ ...routine, isStarred: isStar }) }}
+                            onChange={(isStar: boolean) => { routine && setRoutine({ ...routine, isStarred: isStar }) }}
                             tooltipPlacement="bottom"
                         />}
                         <Tooltip title="More options">

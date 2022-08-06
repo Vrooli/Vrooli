@@ -71,26 +71,25 @@ export const shapeRoutineCreate = (item: RoutineShape): RoutineCreateInput => ({
 export const shapeRoutineUpdate = (
     original: RoutineShape,
     updated: RoutineShape
-): RoutineUpdateInput | undefined => { console.log('shapeRoutineUpdate', original, updated, shapeUpdateList(original, updated, 'inputs', hasObjectChanged, shapeInputCreate, shapeInputUpdate, 'id')); 
-return shapeUpdate(original, updated, (o, u) => ({
-        id: o.id,
-        isAutomatable: u.isAutomatable,
-        isComplete: u.isComplete,
-        isInternal: u.isInternal,
-        version: u.version,
-        parentId: u.parent?.id,
-        // projectId: u.p
-        userId: u.owner?.__typename === ObjectType.User ? u.owner.id : undefined,
-        organizationId: u.owner?.__typename === ObjectType.Organization ? u.owner.id : undefined,
-        ...shapeUpdateList({
-            nodes: o.nodes?.map(n => ({ ...n, routineId: o.id }))
-        }, {
-            nodes: u.nodes?.map(n => ({ ...n, routineId: u.id }))
-        }, 'nodes', hasObjectChanged, shapeNodeCreate, shapeNodeUpdate, 'id'),
-        ...shapeUpdateList(o, u, 'nodeLinks', hasObjectChanged, shapeNodeLinkCreate, shapeNodeLinkUpdate, 'id'),
-        ...shapeUpdateList(o, u, 'inputs', hasObjectChanged, shapeInputCreate, shapeInputUpdate, 'id'),
-        ...shapeUpdateList(o, u, 'outputs', hasObjectChanged, shapeOutputCreate, shapeOutputUpdate, 'id'),
-        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeRoutineTranslationCreate, shapeRoutineTranslationUpdate, 'id'),
-        ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate, 'id'),
-        ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate, 'tag', true, true),
-    }), 'id') }
+): RoutineUpdateInput | undefined => shapeUpdate(original, updated, (o, u) => ({
+    id: o.id,
+    isAutomatable: u.isAutomatable,
+    isComplete: u.isComplete,
+    isInternal: u.isInternal,
+    version: u.version,
+    parentId: u.parent?.id,
+    // projectId: u.p
+    userId: u.owner?.__typename === ObjectType.User ? u.owner.id : undefined,
+    organizationId: u.owner?.__typename === ObjectType.Organization ? u.owner.id : undefined,
+    ...shapeUpdateList({
+        nodes: o.nodes?.map(n => ({ ...n, routineId: o.id }))
+    }, {
+        nodes: u.nodes?.map(n => ({ ...n, routineId: u.id }))
+    }, 'nodes', hasObjectChanged, shapeNodeCreate, shapeNodeUpdate, 'id'),
+    ...shapeUpdateList(o, u, 'nodeLinks', hasObjectChanged, shapeNodeLinkCreate, shapeNodeLinkUpdate, 'id'),
+    ...shapeUpdateList(o, u, 'inputs', hasObjectChanged, shapeInputCreate, shapeInputUpdate, 'id'),
+    ...shapeUpdateList(o, u, 'outputs', hasObjectChanged, shapeOutputCreate, shapeOutputUpdate, 'id'),
+    ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeRoutineTranslationCreate, shapeRoutineTranslationUpdate, 'id'),
+    ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate, 'id'),
+    ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate, 'tag', true, true),
+}), 'id')

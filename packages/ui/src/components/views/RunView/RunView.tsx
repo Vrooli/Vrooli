@@ -256,10 +256,9 @@ export const RunView = ({
     const [, setLocation] = useLocation();
 
     // Find data in URL (e.g. current step, runID, whether or not this is a test run)
-    const params = useReactSearch();
-    const { currStepLocation, runId, testMode } = useMemo(() => {
+    const params = useReactSearch(null);
+    const { runId, testMode } = useMemo(() => {
         return {
-            currStepLocation: Array.isArray(params.step) ? params.step as number[] : [],
             runId: typeof params.run === 'string' && uuidValidate(params.run) ? params.run : undefined,
             testMode: params.run === 'test',
         }
@@ -271,17 +270,16 @@ export const RunView = ({
         setRun(run);
     }, [routine.runs, runId]);
 
+    const [currStepLocation, setCurrStepLocation] = useState<number[]>(Array.isArray(params.step) ? params.step as number[] : [])
     /**
-     * Updates step location in the URL
-     * @param newLocation The new step params, as an array
+     * Update URL when currStepLocation changes
      */
-    const setCurrStepLocation = useCallback((newLocation: number[]) => {
-        console.log('setting location in currsteplocation')
+    useEffect(() => {
         setLocation(stringifySearchParams({
             ...params,
-            step: newLocation,
+            step: currStepLocation,
         }), { replace: true });
-    }, [params, setLocation]);
+    }, [currStepLocation, params, setLocation]);
 
     /**
      * The amount of routine completed so far, measured in complexity. 

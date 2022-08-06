@@ -96,10 +96,11 @@ export const SubroutineView = ({
      * Update formik values with the current user inputs, if any
      */
     useEffect(() => {
-        console.log('calculating preview formik values', run)
+        console.log('useeffect1 calculating preview formik values', run)
         if (!run?.inputs || !Array.isArray(run?.inputs) || run.inputs.length === 0) return;
-        console.log('calling runInputsToFormik', run.inputs)
+        console.log('useeffect 1calling runInputsToFormik', run.inputs)
         const updatedValues = runInputsToFormik(run.inputs);
+        console.log('useeffect1 updating formik, values', updatedValues)
         formik.setValues(updatedValues);
     },
         // eslint-disable-next-line react-hooks/exhaustive-deps

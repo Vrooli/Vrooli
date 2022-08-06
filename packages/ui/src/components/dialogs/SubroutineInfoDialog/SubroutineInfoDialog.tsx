@@ -60,7 +60,6 @@ export const SubroutineInfoDialog = ({
     // Handle inputs
     const [inputsList, setInputsList] = useState<InputShape[]>([]);
     const handleInputsUpdate = useCallback((updatedList: InputShape[]) => {
-        console.log('handleInputsUpdate', updatedList);
         setInputsList(updatedList);
     }, [setInputsList]);
 
@@ -165,7 +164,6 @@ export const SubroutineInfoDialog = ({
                 instructions: values.instructions,
                 title: values.title,
             })
-            console.log('formik submit', values.index - 1)
             handleUpdate({
                 ...subroutine,
                 index: Math.max(values.index - 1, 0), // Formik index starts at 1, for user convenience
@@ -184,8 +182,6 @@ export const SubroutineInfoDialog = ({
             } as any);
         },
     });
-
-    console.log('formik reender', formik.values.index, subroutine)
 
     // Handle languages
     const [language, setLanguage] = useState<string>(defaultLanguage);
@@ -361,7 +357,6 @@ export const SubroutineInfoDialog = ({
                                         tooltip="The order of this subroutine in its parent routine"
                                         value={formik.values.index}
                                         handleChange={(value: number) => { 
-                                            console.log('quantity changed', value);
                                             formik.setFieldValue('index', value);
                                             handleReorder(data?.node?.id ?? '', subroutine?.index ?? 0, value - 1);
                                         }}

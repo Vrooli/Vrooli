@@ -95,7 +95,6 @@ export const InputOutputListItem = ({
     session,
     zIndex,
 }: InputOutputListItemProps) => {
-    console.log('rendering item')
     const { palette } = useTheme();
     const [schemaKey] = useState(`input-output-schema-${Math.random().toString(36).substring(2, 15)}`);
 
@@ -114,18 +113,13 @@ export const InputOutputListItem = ({
     // Handle standard schema
     const handleSchemaUpdate = useCallback((schema: FieldData) => {
         if (!canEditStandard) return;
-        console.log('handleschemaupdate', schema)
         setGeneratedSchema(schema);
     }, [canEditStandard]);
 
-    useEffect(() => { console.log('generated schema', generatedSchema) }, [generatedSchema])
-
     const handleInputTypeSelect = useCallback((event: any) => {
-        console.log('handleinputtypeselect', event.target.value)
         if (event.target.value !== item.standard?.type) {
             const newType = event.target.value?.value ?? InputTypeOptions[0].value;
             const existingStandard = item.standard ?? defaultStandard(item);
-            console.log('setting generated schema in handleinputtypeselect')
             setGeneratedSchema(toFieldData(schemaKey, {
                 ...item,
                 standard: {
@@ -156,7 +150,6 @@ export const InputOutputListItem = ({
         enableReinitialize: true,
         validationSchema: isInput ? inputCreate : outputCreate,
         onSubmit: (values) => {
-            console.log('on formik submit', values)
             // Update translations
             const allTranslations = getTranslationsUpdate(language, {
                 id: uuid(),
@@ -184,7 +177,6 @@ export const InputOutputListItem = ({
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(!canEditStandard);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
     const onSwitchChange = useCallback((s: Standard | null) => {
-        console.log('on switch change')
         if (s && s.isInternal === false) {
             setStandard(s)
             setIsPreviewOn(true);
