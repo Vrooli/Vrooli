@@ -83,7 +83,7 @@ export const SubroutineView = ({
         }
         return schemas;
     }, [routine, session]);
-    const previewFormik = useFormik({
+    const formik = useFormik({
         initialValues: Object.entries(formValueMap).reduce((acc, [key, value]) => {
             acc[key] = value.props.defaultValue ?? '';
             return acc;
@@ -100,33 +100,33 @@ export const SubroutineView = ({
         if (!run?.inputs || !Array.isArray(run?.inputs) || run.inputs.length === 0) return;
         console.log('calling runInputsToFormik', run.inputs)
         const updatedValues = runInputsToFormik(run.inputs);
-        previewFormik.setValues(updatedValues);
+        formik.setValues(updatedValues);
     },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [previewFormik.setValues, run?.inputs]);
+        [formik.setValues, run?.inputs]);
 
     /**
      * Update run with updated user inputs
      */
     useEffect(() => {
-        if (!previewFormik.values) return;
-        const updatedValues = formikToRunInputs(previewFormik.values);
+        if (!formik.values) return;
+        const updatedValues = formikToRunInputs(formik.values);
         handleUserInputsUpdate(updatedValues);
-    }, [handleUserInputsUpdate, previewFormik.values, run?.inputs]);
+    }, [handleUserInputsUpdate, formik.values, run?.inputs]);
 
     /**
      * Copy current value of input to clipboard
      * @param fieldName Name of input
      */
     const copyInput = useCallback((fieldName: string) => {
-        const input = previewFormik.values[fieldName];
+        const input = formik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
             PubSub.get().publishSnack({ message: 'Copied to clipboard.', severity: 'success' });
         } else {
             PubSub.get().publishSnack({ message: 'Input is empty.', severity: 'error' });
         }
-    }, [previewFormik]);
+    }, [formik.values]);
 
     const resourceList = useMemo(() => {
         if (!routine ||
@@ -145,6 +145,7 @@ export const SubroutineView = ({
     }, [routine, loading, session, zIndex]);
 
     const inputComponents = useMemo(() => {
+        console.log('rendering input components', formik.values)
         if (!routine?.inputs || !Array.isArray(routine?.inputs) || routine.inputs.length === 0) return null;
         return (
             <Box>
@@ -167,7 +168,7 @@ export const SubroutineView = ({
                             generateInputComponent({
                                 data: field,
                                 disabled: false,
-                                formik: previewFormik,
+                                formik: formik,
                                 session,
                                 onUpload: () => { },
                                 zIndex,
@@ -177,7 +178,19 @@ export const SubroutineView = ({
                 ))}
             </Box>
         )
-    }, [copyInput, formValueMap, palette.background.textPrimary, previewFormik, routine?.inputs, session, zIndex]);
+    }, [copyInput, formValueMap, palette.background.textPrimary, formik, routine?.inputs, session, zIndex]);
+
+    useEffect(() => {
+        console.log('formValueMap changed', formValueMap)
+    }, [formValueMap])
+
+    useEffect(() => {
+        console.log('formik changed', formik)
+    }, [formik])
+
+    useEffect(() => {
+        console.log('routine?.inputs changed', routine?.inputs)
+    }, [routine?.inputs])
 
     if (loading) return (
         <Box sx={{
@@ -244,6 +257,7 @@ export const SubroutineView = ({
                 <TextCollapse title="Description" text={description} />
                 {/* Instructions */}
                 <TextCollapse title="Instructions" text={instructions} />
+                {/* Inputs */}
                 {inputComponents}
             </Stack>
         </Box>

@@ -283,7 +283,7 @@ export const RoutineView = ({
         }
         return schemas;
     }, [routine, session]);
-    const previewFormik = useFormik({
+    const formik = useFormik({
         initialValues: Object.entries(formValueMap ?? {}).reduce((acc, [key, value]) => {
             acc[key] = value.props.defaultValue ?? '';
             return acc;
@@ -306,7 +306,7 @@ export const RoutineView = ({
                 exists: false,
                 title: title ?? 'Unnamed Routine',
                 version: routine?.version ?? '',
-                ...runInputsCreate(formikToRunInputs(previewFormik.values)),
+                ...runInputsCreate(formikToRunInputs(formik.values)),
             },
             successMessage: () => 'Routine completed!🎉',
             onSuccess: () => {
@@ -314,7 +314,7 @@ export const RoutineView = ({
                 setLocation(APP_LINKS.Home)
             },
         })
-    }, [previewFormik.values, routine, runComplete, setLocation, title]);
+    }, [formik.values, routine, runComplete, setLocation, title]);
 
     /**
      * If routine has nodes (i.e. is not just this page), display "View Graph" and "Start" (or "Continue") buttons. 
@@ -355,14 +355,14 @@ export const RoutineView = ({
      * @param fieldName Name of input
      */
     const copyInput = useCallback((fieldName: string) => {
-        const input = previewFormik.values[fieldName];
+        const input = formik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
             PubSub.get().publishSnack({ message: 'Copied to clipboard.', severity: 'success' });
         } else {
             PubSub.get().publishSnack({ message: 'Input is empty.', severity: 'error' });
         }
-    }, [previewFormik]);
+    }, [formik]);
 
     const resourceList = useMemo(() => {
         if (!routine ||
@@ -406,7 +406,7 @@ export const RoutineView = ({
                     <TextCollapse title="Instructions" text={instructions} />
                     {/* Auto-generated inputs */}
                     {
-                        Object.keys(previewFormik.values).length > 0 && <Box>
+                        Object.keys(formik.values).length > 0 && <Box>
                             {
                                 Object.values(formValueMap ?? {}).map((field: FieldData, i: number) => (
                                     <Box key={i} sx={{
@@ -427,7 +427,7 @@ export const RoutineView = ({
                                             generateInputComponent({
                                                 data: field,
                                                 disabled: false,
-                                                formik: previewFormik,
+                                                formik: formik,
                                                 session,
                                                 onUpload: () => { },
                                                 zIndex,
@@ -451,7 +451,7 @@ export const RoutineView = ({
                 {actions}
             </>
         )
-    }, [loading, resourceList, description, palette.background.textPrimary, instructions, previewFormik, formValueMap, routine, actions, session, zIndex, copyInput]);
+    }, [loading, resourceList, description, palette.background.textPrimary, instructions, formik, formValueMap, routine, actions, session, zIndex, copyInput]);
 
     return (
         <>
@@ -630,7 +630,7 @@ export const RoutineView = ({
                             voteFor={VoteFor.Routine}
                             isUpvoted={routine?.isUpvoted}
                             score={routine?.score}
-                            onChange={(isUpvote) => { routine && setRoutine({ ...routine, isUpvoted: isUpvote }); }}
+                            onChange={(isUpvote) => { console.log('upvote triggered routinechange') }}// { routine && setRoutine({ ...routine, isUpvoted: isUpvote }); }}
                         />}
                         {canStar && <StarButton
                             session={session}
@@ -639,7 +639,7 @@ export const RoutineView = ({
                             starFor={StarFor.Routine}
                             isStar={routine?.isStarred ?? false}
                             stars={routine?.stars ?? 0}
-                            onChange={(isStar: boolean) => { routine && setRoutine({ ...routine, isStarred: isStar }) }}
+                            onChange={(isStar: boolean) => { console.log('star triggered routinechange') }}// { routine && setRoutine({ ...routine, isStarred: isStar }) }}
                             tooltipPlacement="bottom"
                         />}
                         <Tooltip title="More options">

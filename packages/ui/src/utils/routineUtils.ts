@@ -127,7 +127,6 @@ export const runInputsUpdate = (
             updatedInputs[currUpdated].id = currOriginal.id;
         }
     }
-    console.log('yeeeeeet', original, updatedInputs)
     return shapeUpdateList(
         { inputs: original },
         { inputs: updatedInputs },

@@ -451,10 +451,6 @@ const typeMap: { [key in InputType]: (props: InputGeneratorProps) => any } = {
  * - Slider
  * - Switch
  * - TextField
- * @param data The data to convert
- * @param formik The formik object
- * @param index The index of the component (for autoFocus & tabIndex)
- * @param onUpload Callback for uploading files
  */
 export const generateInputComponent = ({
     data,
