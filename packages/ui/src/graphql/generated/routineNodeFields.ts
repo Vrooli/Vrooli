@@ -20,6 +20,7 @@ export interface routineNodeFields_data_NodeRoutineList_routines_routine_inputs_
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface routineNodeFields_data_NodeRoutineList_routines_routine_inputs_standard_translations {
@@ -60,6 +61,7 @@ export interface routineNodeFields_data_NodeRoutineList_routines_routine_outputs
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface routineNodeFields_data_NodeRoutineList_routines_routine_outputs_standard_translations {

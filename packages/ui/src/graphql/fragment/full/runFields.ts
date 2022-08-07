@@ -17,6 +17,7 @@ export const runFields = gql`
             id
             language
             description
+            helpText
         }
         standard {
             id
@@ -47,6 +48,7 @@ export const runFields = gql`
             id
             language
             description
+            helpText
         }
         standard {
             id

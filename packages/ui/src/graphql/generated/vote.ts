@@ -11,7 +11,7 @@ import { VoteInput } from "./globalTypes";
 
 export interface vote_vote {
   __typename: "Success";
-  success: boolean | null;
+  success: boolean;
 }
 
 export interface vote {

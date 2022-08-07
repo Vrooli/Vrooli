@@ -41,8 +41,12 @@ export function randomString(
     return result.join('');
 }
 
-// Generate signable nonce, which includes human-readable description
-// Returns hex string
+/**
+ * Generates signable nonce, which includes human-readable description
+ * @param description Description to include with nonce, which (depending on the wallet extension) will be displayed to the user
+ * @param length Length of nonce to generate
+ * @returns Hex string of nonce
+ */
 export const generateNonce = async (
     description: string = 'Please sign this message so we can verify your wallet:',
     length: number = 64,

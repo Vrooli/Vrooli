@@ -17,6 +17,7 @@ export const runInputFields = gql`
             id
             language
             description
+            helpText
         }
         standard {
             id

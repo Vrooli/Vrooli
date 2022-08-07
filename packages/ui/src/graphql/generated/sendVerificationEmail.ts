@@ -11,7 +11,7 @@ import { SendVerificationEmailInput } from "./globalTypes";
 
 export interface sendVerificationEmail_sendVerificationEmail {
   __typename: "Success";
-  success: boolean | null;
+  success: boolean;
 }
 
 export interface sendVerificationEmail {

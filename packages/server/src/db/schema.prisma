@@ -479,6 +479,7 @@ model routine_input {
 model routine_input_translation {
   id             String        @id @default(uuid()) @db.Uuid
   description    String?       @db.VarChar(2048)
+  helpText       String?       @db.VarChar(2048)
   routineInputId String        @db.Uuid
   language       String        @db.VarChar(3)
   routineInput   routine_input @relation(fields: [routineInputId], references: [id], onDelete: Cascade)
@@ -499,6 +500,7 @@ model routine_output {
 model routine_output_translation {
   id              String         @id @default(uuid()) @db.Uuid
   description     String?        @db.VarChar(2048)
+  helpText        String?        @db.VarChar(2048)
   routineOutputId String         @db.Uuid
   language        String         @db.VarChar(3)
   routineOutput   routine_output @relation(fields: [routineOutputId], references: [id], onDelete: Cascade)

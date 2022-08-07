@@ -32,12 +32,12 @@ export const typeDef = gql`
     # Return type for delete mutations,
     # which return the number of affected rows
     type Count {
-        count: Int
+        count: Int!
     }
     # Return type for mutations with a success boolean
     # Could return just the boolean, but this makes it clear what the result means
     type Success {
-        success: Boolean
+        success: Boolean!
     }
     # Return type for error messages
     type Response {

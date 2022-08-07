@@ -612,6 +612,7 @@ export const standardMutater = (prisma: PrismaType) => ({
                             isInternal: false
                         }
                     });
+                    deleted.count++;
                 }
             }
         }

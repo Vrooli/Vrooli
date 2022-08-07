@@ -50,18 +50,18 @@ export function hasObjectChanged(original: any, updated: any, fields: string[] =
     const fieldsToCheck = fields.length > 0 ? fields : Object.keys(original);
     for (let i = 0; i < fieldsToCheck.length; i++) {
         const field = fieldsToCheck[i];
-        // If object, call hasChanged on it
-        if (isObject(original[field])) {
-            if (hasObjectChanged(original[field], updated[field])) return true;
-        }
         // If array, check if any values have changed
-        else if (Array.isArray(original[field])) {
+        if (Array.isArray(original[field])) {
             // Check lengths first
             if (original[field].length !== updated[field].length) return true;
             // Check if any values have changed
             for (let j = 0; j < original[field].length; j++) {
                 if (hasObjectChanged(original[field][j], updated[field][j])) return true;
             }
+        }
+        // If object, call hasChanged on it
+        else if (isObject(original[field])) {
+            if (hasObjectChanged(original[field], updated[field])) return true;
         }
         // Otherwise, check if the values have changed
         else if (original[field] !== updated[field]) return true;

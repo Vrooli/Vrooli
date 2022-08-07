@@ -14,6 +14,7 @@ export interface runRoutineFields_inputs_translations {
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface runRoutineFields_inputs_standard_tags_translations {
@@ -97,6 +98,7 @@ export interface runRoutineFields_nodes_data_NodeRoutineList_routines_routine_in
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface runRoutineFields_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags_translations {
@@ -150,6 +152,7 @@ export interface runRoutineFields_nodes_data_NodeRoutineList_routines_routine_ou
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface runRoutineFields_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags_translations {
@@ -388,6 +391,7 @@ export interface runRoutineFields_outputs_translations {
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface runRoutineFields_outputs_standard_tags_translations {

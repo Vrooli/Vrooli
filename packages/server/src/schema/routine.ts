@@ -185,16 +185,19 @@ export const typeDef = gql`
         id: ID!
         language: String!
         description: String
+        helpText: String
     }
     input InputItemTranslationUpdateInput {
         id: ID!
         language: String
         description: String
+        helpText: String
     }
     type InputItemTranslation {
         id: ID!
         language: String!
         description: String
+        helpText: String
     }
 
     input OutputItemCreateInput {
@@ -225,16 +228,19 @@ export const typeDef = gql`
         id: ID!
         language: String!
         description: String
+        helpText: String
     }
     input OutputItemTranslationUpdateInput {
         id: ID!
         language: String
         description: String
+        helpText: String
     }
     type OutputItemTranslation {
         id: ID!
         language: String!
         description: String
+        helpText: String
     }
 
     input RoutineSearchInput {

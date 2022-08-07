@@ -12,6 +12,7 @@ export interface routineInputFields_translations {
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface routineInputFields_standard_translations {

@@ -12,6 +12,7 @@ export interface runInputItemFields_translations {
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface runInputItemFields_standard_tags_translations {

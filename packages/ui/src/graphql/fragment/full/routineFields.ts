@@ -17,6 +17,7 @@ export const routineFields = gql`
             id
             language
             description
+            helpText
         }
         standard {
             id
@@ -45,6 +46,7 @@ export const routineFields = gql`
             id
             language
             description
+            helpText
         }
         standard {
             id

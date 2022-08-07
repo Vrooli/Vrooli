@@ -9,7 +9,7 @@
 
 export interface logOut_logOut {
   __typename: "Success";
-  success: boolean | null;
+  success: boolean;
 }
 
 export interface logOut {

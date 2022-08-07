@@ -11,7 +11,7 @@ import { StarInput } from "./globalTypes";
 
 export interface star_star {
   __typename: "Success";
-  success: boolean | null;
+  success: boolean;
 }
 
 export interface star {

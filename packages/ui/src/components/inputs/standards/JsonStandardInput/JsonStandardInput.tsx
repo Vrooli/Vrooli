@@ -133,7 +133,7 @@ export const JsonStandardInput = ({
                         name="format"
                         disabled={!isEditing}
                         placeholder={"Enter JSON format. Click the '?' button for help."}
-                        rows={10}
+                        multiline
                         value={formik.values.format}
                         onChange={formik.handleChange}
                         style={{

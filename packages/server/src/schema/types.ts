@@ -179,7 +179,7 @@ export enum CopyType {
 
 export type Count = {
   __typename?: 'Count';
-  count?: Maybe<Scalars['Int']>;
+  count: Scalars['Int'];
 };
 
 export type DeleteManyInput = {
@@ -355,18 +355,21 @@ export type InputItemCreateInput = {
 export type InputItemTranslation = {
   __typename?: 'InputItemTranslation';
   description?: Maybe<Scalars['String']>;
+  helpText?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
 };
 
 export type InputItemTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
+  helpText?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
 };
 
 export type InputItemTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
+  helpText?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   language?: InputMaybe<Scalars['String']>;
 };
@@ -1256,18 +1259,21 @@ export type OutputItemCreateInput = {
 export type OutputItemTranslation = {
   __typename?: 'OutputItemTranslation';
   description?: Maybe<Scalars['String']>;
+  helpText?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
 };
 
 export type OutputItemTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
+  helpText?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
 };
 
 export type OutputItemTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
+  helpText?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   language?: InputMaybe<Scalars['String']>;
 };
@@ -2771,7 +2777,7 @@ export type StatisticsTimeFrame = {
 
 export type Success = {
   __typename?: 'Success';
-  success?: Maybe<Scalars['Boolean']>;
+  success: Scalars['Boolean'];
 };
 
 export type Tag = {

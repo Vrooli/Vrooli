@@ -7,13 +7,12 @@ import { routineQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     AccountTree as GraphIcon,
-    ContentCopy as CopyIcon,
     DoneAll as MarkAsCompleteIcon,
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
     PlayCircle as StartIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, BuildView, HelpButton, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, StatusButton, UpTransition, UpvoteDownvote } from "components";
+import { BaseObjectActionDialog, BuildView, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, StatusButton, UpTransition, UpvoteDownvote } from "components";
 import { RoutineViewProps } from "../types";
 import { formikToRunInputs, getLanguageSubtag, getOwnedByString, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, standardToFieldData, Status, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
 import { Routine, Run } from "types";
@@ -26,7 +25,7 @@ import { validate as uuidValidate } from 'uuid';
 import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
 import { useFormik } from "formik";
 import { FieldData } from "forms/types";
-import { generateInputComponent } from "forms/generators";
+import { generateInputWithLabel } from "forms/generators";
 import { CommentContainer, ContentCollapse, TextCollapse } from "components/containers";
 
 const statsHelpText =
@@ -271,6 +270,7 @@ export const RoutineView = ({
             const currSchema = standardToFieldData({
                 description: getTranslation(currInput, 'description', getUserLanguages(session), false) ?? getTranslation(currInput.standard, 'description', getUserLanguages(session), false),
                 fieldName: `inputs-${currInput.id}`,
+                helpText: getTranslation(currInput, 'helpText', getUserLanguages(session), false),
                 props: currInput.standard.props,
                 name: currInput.name ?? currInput.standard?.name,
                 type: currInput.standard.type,
@@ -403,32 +403,18 @@ export const RoutineView = ({
                     {
                         Object.keys(formik.values).length > 0 && <Box>
                             {
-                                Object.values(formValueMap ?? {}).map((field: FieldData, i: number) => (
-                                    <Box key={i} sx={{
-                                        padding: 1,
-                                        borderRadius: 1,
-                                    }}>
-                                        {/* Label, help button, and copy iput icon */}
-                                        <Stack direction="row" spacing={0} sx={{ alignItems: 'center' }}>
-                                            <Tooltip title="Copy to clipboard">
-                                                <IconButton onClick={() => copyInput(field.fieldName)}>
-                                                    <CopyIcon />
-                                                </IconButton>
-                                            </Tooltip>
-                                            <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>{field.label ?? `Input ${i + 1}`}</Typography>
-                                            {field.description && <HelpButton markdown={field.description} />}
-                                        </Stack>
-                                        {
-                                            generateInputComponent({
-                                                data: field,
-                                                disabled: false,
-                                                formik: formik,
-                                                session,
-                                                onUpload: () => { },
-                                                zIndex,
-                                            })
-                                        }
-                                    </Box>
+                                Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
+                                    generateInputWithLabel({
+                                        copyInput,
+                                        disabled: false,
+                                        fieldData,
+                                        formik: formik,
+                                        index,
+                                        session,
+                                        textPrimary: palette.background.textPrimary,
+                                        onUpload: () => { },
+                                        zIndex,
+                                    })
                                 ))
                             }
                         </Box>

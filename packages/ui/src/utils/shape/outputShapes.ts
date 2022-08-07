@@ -7,6 +7,7 @@ export type OutputTranslationShape = Omit<ShapeWrapper<RoutineOutputTranslation>
     id: string;
     language: OutputItemTranslationCreateInput['language'];
     description: OutputItemTranslationCreateInput['description'];
+    helpText: OutputItemTranslationCreateInput['helpText'];
 }
 
 export type OutputShape = Omit<ShapeWrapper<RoutineInput>, 'translations' | 'standard'> & {
@@ -19,6 +20,7 @@ export const shapeOutputTranslationCreate = (item: OutputTranslationShape): Outp
     id: item.id,
     language: item.language,
     description: item.description,
+    helpText: item.helpText,
 })
 
 export const shapeOutputTranslationUpdate = (
@@ -28,6 +30,7 @@ export const shapeOutputTranslationUpdate = (
     shapeUpdate(original, updated, (o, u) => ({
         id: u.id,
         description: u.description !== o.description ? u.description : undefined,
+        helpText: u.helpText !== o.helpText ? u.helpText : undefined,
     }), 'id')
 
 export const shapeOutputCreate = (item: OutputShape): OutputItemCreateInput => {

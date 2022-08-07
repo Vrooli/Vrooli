@@ -34,6 +34,11 @@ export const DeleteDialog = ({
     // Stores user-inputted name of object to be deleted
     const [nameInput, setNameInput] = useState<string>('');
 
+    const close = useCallback((wasDeleted?: boolean) => {
+        setNameInput('');
+        handleClose(wasDeleted ?? false);
+    }, [handleClose]);
+
     const [deleteOne] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation);
     const handleDelete = useCallback(() => {
         mutationWrapper({
@@ -46,19 +51,19 @@ export const DeleteDialog = ({
                 } else {
                     PubSub.get().publishSnack({ message: `Error deleting ${objectName}.`, severity: 'error' });
                 }
-                handleClose(true);
+                close(true);
             },
             onError: () => {
                 PubSub.get().publishSnack({ message: `Failed to delete ${objectName}.` });
-                handleClose(false);
+                close(false);
             }
         })
-    }, [deleteOne, handleClose, objectId, objectName, objectType, setLocation]);
+    }, [close, deleteOne, objectId, objectName, objectType, setLocation]);
 
     return (
         <Dialog
             open={isOpen}
-            onClose={handleClose}
+            onClose={() => { close(); }}
             aria-labelledby="delete-object-dialog-title"
             aria-describedby="delete-object-dialog-description"
             sx={{
@@ -73,7 +78,7 @@ export const DeleteDialog = ({
                 justifyContent: 'space-between',
             }}>
                 <Typography variant="h6" sx={{ marginLeft: 'auto' }}>Delete {objectName}</Typography>
-                <IconButton onClick={() => { handleClose(false) }} sx={{
+                <IconButton onClick={() => { close(); }} sx={{
                     justifyContent: 'end',
                     flexDirection: 'row-reverse',
                     marginLeft: 'auto',

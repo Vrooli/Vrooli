@@ -14,6 +14,7 @@ export interface routineFields_inputs_translations {
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface routineFields_inputs_standard_translations {
@@ -84,6 +85,7 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routine_input
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface routineFields_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations {
@@ -124,6 +126,7 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routine_outpu
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface routineFields_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations {
@@ -350,6 +353,7 @@ export interface routineFields_outputs_translations {
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface routineFields_outputs_standard_translations {

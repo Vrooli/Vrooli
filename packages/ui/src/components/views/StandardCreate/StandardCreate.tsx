@@ -327,8 +327,8 @@ export const StandardCreate = ({
                     {
                         isPreviewOn ?
                             (schema && generateInputComponent({
-                                data: schema,
                                 disabled: true,
+                                fieldData: schema,
                                 formik: previewFormik,
                                 session,
                                 onUpload: () => { },
