@@ -33,7 +33,7 @@ export const StandardView = ({
     const [, params2] = useRoute(`${APP_LINKS.SearchStandards}/view/:id`);
     const id = params?.id ?? params2?.id;
     // Fetch data
-    const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery, { errorPolicy: 'all'});
+    const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery, { errorPolicy: 'all' });
     useEffect(() => {
         if (id && uuidValidate(id)) getData({ variables: { input: { id } } });
     }, [getData, id])
@@ -51,6 +51,7 @@ export const StandardView = ({
     const schema = useMemo<FieldData | null>(() => (standard ? standardToFieldData({
         fieldName: 'preview',
         description: getTranslation(standard, 'description', [language]),
+        helpText: null,
         props: standard.props,
         name: standard.name,
         type: standard.type,
@@ -147,8 +148,8 @@ export const StandardView = ({
                     {
                         isPreviewOn ?
                             schema ? generateInputComponent({
-                                data: schema,
                                 disabled: true,
+                                fieldData: schema,
                                 formik: previewFormik,
                                 session,
                                 onUpload: () => { },
@@ -307,18 +308,18 @@ export const StandardView = ({
                     }}>
                         {body}
                     </Box>
+                    {/* Comments Container */}
+                    <CommentContainer
+                        language={language}
+                        objectId={id ?? ''}
+                        objectType={CommentFor.Standard}
+                        session={session}
+                        sxs={{
+                            root: { width: 'min(100%, 600px)' }
+                        }}
+                        zIndex={zIndex}
+                    />
                 </Box>
-                {/* Comments Container */}
-                <CommentContainer
-                    language={language}
-                    objectId={id ?? ''}
-                    objectType={CommentFor.Standard}
-                    session={session}
-                    sxs={{
-                        root: { width: 'min(100%, 600px)' }
-                    }}
-                    zIndex={zIndex}
-                />
             </Stack>
         </Box >
     )

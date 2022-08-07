@@ -11,7 +11,7 @@ import {
 import { getTranslation, InputTranslationShape, jsonToString, OutputTranslationShape, StandardShape, standardToFieldData, updateArray } from 'utils';
 import { useFormik } from 'formik';
 import { Standard } from 'types';
-import { BaseStandardInput, PreviewSwitch, Selector, StandardSelectSwitch } from 'components';
+import { BaseStandardInput, MarkdownInput, PreviewSwitch, Selector, StandardSelectSwitch } from 'components';
 import { FieldData } from 'forms/types';
 import { generateInputComponent } from 'forms/generators';
 import { v4 as uuid } from 'uuid';
@@ -73,9 +73,10 @@ const toFieldData = (schemaKey: string, item: InputOutputListItemProps['item'], 
     return standardToFieldData({
         fieldName: schemaKey,
         description: getTranslation(item, 'description', [language]) ?? getTranslation(item.standard, 'description', [language]),
-        props: item.standard?.props ?? '',
-        name: item.standard?.name ?? '',
-        type: item.standard?.type ?? InputTypeOptions[0].value,
+        helpText: getTranslation(item, 'helpText', [language], false),
+        props: item.standard.props ?? '',
+        name: item.standard.name ?? '',
+        type: item.standard.type ?? InputTypeOptions[0].value,
         yup: item.standard.yup ?? null,
     })
 }
@@ -288,21 +289,30 @@ export const InputOutputListItem = ({
                         /> : <Typography variant="h6">{`Name: ${formik.values.name}`}</Typography>}
                     </Grid>
                     <Grid item xs={12}>
-                        <Grid item xs={12}>
-                            {isEditing ? <TextField
-                                fullWidth
-                                id="description"
-                                name="description"
-                                label="description"
-                                value={formik.values.description}
-                                multiline
-                                maxRows={3}
-                                onBlur={(e) => { formik.handleBlur(e); formik.handleSubmit() }}
-                                onChange={formik.handleChange}
-                                error={formik.touched.description && Boolean(formik.errors.description)}
-                                helperText={formik.touched.description && formik.errors.description}
-                            /> : <Typography variant="body2">{`Description: ${formik.values.description}`}</Typography>}
-                        </Grid>
+                        {isEditing ? <TextField
+                            fullWidth
+                            id="description"
+                            name="description"
+                            placeholder="Short description (optional)"
+                            value={formik.values.description}
+                            multiline
+                            maxRows={3}
+                            onBlur={(e) => { formik.handleBlur(e); formik.handleSubmit() }}
+                            onChange={formik.handleChange}
+                            error={formik.touched.description && Boolean(formik.errors.description)}
+                            helperText={formik.touched.description && formik.errors.description}
+                        /> : <Typography variant="body2">{`Description: ${formik.values.description}`}</Typography>}
+                    </Grid>
+                    <Grid item xs={12}>
+                        <MarkdownInput
+                            id="helpText"
+                            placeholder="Detailed information (optional)"
+                            value={formik.values.helpText}
+                            minRows={3}
+                            onChange={(newText: string) => formik.setFieldValue('helpText', newText)}
+                            error={formik.touched.helpText && Boolean(formik.errors.helpText)}
+                            helperText={formik.touched.helpText ? formik.errors.helpText as string : null}
+                        />
                     </Grid>
                     {/* Select standard */}
                     <Grid item xs={12}>
@@ -326,17 +336,18 @@ export const InputOutputListItem = ({
                         {
                             (isPreviewOn || !canEditStandard) ?
                                 ((standard || generatedSchema) && generateInputComponent({
-                                    data: standard ?
+                                    disabled: true,
+                                    fieldData: standard ?
                                         standardToFieldData({
                                             fieldName: schemaKey,
                                             description: getTranslation(item, 'description', [language]) ?? getTranslation(standard, 'description', [language]),
+                                            helpText: getTranslation(item, 'helpText', [language], false),
                                             props: standard?.props ?? '',
                                             name: standard?.name ?? '',
                                             type: standard?.type ?? InputTypeOptions[0].value,
                                             yup: standard.yup ?? null,
                                         }) as FieldData :
                                         generatedSchema as FieldData,
-                                    disabled: true,
                                     formik,
                                     session,
                                     onUpload: () => { },

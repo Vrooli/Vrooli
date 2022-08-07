@@ -1,16 +1,15 @@
 import { Box, CircularProgress, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import {
-    ContentCopy as CopyIcon,
     MoreHoriz as EllipsisIcon,
 } from "@mui/icons-material";
-import { HelpButton, LinkButton, ResourceListHorizontal, TextCollapse } from "components";
+import { LinkButton, ResourceListHorizontal, TextCollapse } from "components";
 import { useCallback, useEffect, useMemo } from "react";
 import { containerShadow } from "styles";
 import { formikToRunInputs, getOwnedByString, getTranslation, getUserLanguages, PubSub, runInputsToFormik, standardToFieldData, toOwnedBy } from "utils";
 import { useLocation } from "wouter";
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
-import { generateInputComponent } from 'forms/generators';
+import { generateInputWithLabel } from 'forms/generators';
 import { useFormik } from "formik";
 
 export const SubroutineView = ({
@@ -72,6 +71,7 @@ export const SubroutineView = ({
             const currSchema = standardToFieldData({
                 description: getTranslation(currInput, 'description', getUserLanguages(session), false) ?? getTranslation(currInput.standard, 'description', getUserLanguages(session), false),
                 fieldName: `inputs-${currInput.id}`,
+                helpText: getTranslation(currInput, 'helpText', getUserLanguages(session), false),
                 props: currInput.standard.props,
                 name: currInput.name ?? currInput.standard.name,
                 type: currInput.standard.type,
@@ -150,32 +150,18 @@ export const SubroutineView = ({
         if (!routine?.inputs || !Array.isArray(routine?.inputs) || routine.inputs.length === 0) return null;
         return (
             <Box>
-                {Object.values(formValueMap).map((field: FieldData, i: number) => (
-                    <Box key={i} sx={{
-                        padding: 1,
-                        borderRadius: 1,
-                    }}>
-                        {/* Label, help button, and copy iput icon */}
-                        <Stack direction="row" spacing={0} sx={{ alignItems: 'center' }}>
-                            <Tooltip title="Copy to clipboard">
-                                <IconButton onClick={() => copyInput(field.fieldName)}>
-                                    <CopyIcon />
-                                </IconButton>
-                            </Tooltip>
-                            <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>{field.label ?? `Input ${i + 1}`}</Typography>
-                            {field.description && <HelpButton markdown={field.description} />}
-                        </Stack>
-                        {
-                            generateInputComponent({
-                                data: field,
-                                disabled: false,
-                                formik: formik,
-                                session,
-                                onUpload: () => { },
-                                zIndex,
-                            })
-                        }
-                    </Box>
+                {Object.values(formValueMap).map((fieldData: FieldData, index: number) => (
+                    generateInputWithLabel({
+                        copyInput,
+                        disabled: false,
+                        fieldData,
+                        formik: formik,
+                        index,
+                        session,
+                        textPrimary: palette.background.textPrimary,
+                        onUpload: () => { },
+                        zIndex,
+                    })
                 ))}
             </Box>
         )

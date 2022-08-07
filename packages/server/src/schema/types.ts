@@ -179,7 +179,7 @@ export enum CopyType {
 
 export type Count = {
   __typename?: 'Count';
-  count?: Maybe<Scalars['Int']>;
+  count: Scalars['Int'];
 };
 
 export type DeleteManyInput = {
@@ -2777,7 +2777,7 @@ export type StatisticsTimeFrame = {
 
 export type Success = {
   __typename?: 'Success';
-  success?: Maybe<Scalars['Boolean']>;
+  success: Scalars['Boolean'];
 };
 
 export type Tag = {

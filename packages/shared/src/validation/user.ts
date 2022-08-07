@@ -33,7 +33,7 @@ export const emailSignUpSchema = yup.object().shape({
 export const userTranslationCreate = yup.object().shape({
     id: id.required(),
     language: language.required(),
-    bio: bio.required(),
+    bio: bio.notRequired().default(undefined),
 });
 export const userTranslationUpdate = yup.object().shape({
     id: id.required(),

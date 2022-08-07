@@ -101,7 +101,7 @@ export const InputOutputContainer = ({
         setIsOpenArray(isOpenArray.map((_) => false));
     }, [isOpenArray]);
 
-    const onAdd = useCallback((index: number, newItem: RoutineInput | RoutineOutput) => {
+    const onItemAdd = useCallback((index: number, newItem: RoutineInput | RoutineOutput) => {
         const newIsOpenArray = new Array(list.length + 1).fill(false);
         newIsOpenArray[Math.min(index + 1, list.length)] = true;
         setIsOpenArray(newIsOpenArray);
@@ -126,11 +126,11 @@ export const InputOutputContainer = ({
         handleUpdate(combined as any);
     }, [list, language, isInput, handleUpdate]);
 
-    const onUpdate = useCallback((index: number, updatedItem: InputShape | OutputShape) => {
+    const onItemUpdate = useCallback((index: number, updatedItem: InputShape | OutputShape) => {
         handleUpdate(updateArray(list, index, updatedItem));
     }, [handleUpdate, list]);
 
-    const onDelete = useCallback((index: number) => {
+    const onItemDelete = useCallback((index: number) => {
         setIsOpenArray(isOpenArray.filter((_, i) => i !== index));
         handleUpdate([...list.filter((_, i) => i !== index)]);
     }, [handleUpdate, list, isOpenArray]);
@@ -159,7 +159,7 @@ export const InputOutputContainer = ({
                             key={`add-${type}-item-${index}`}
                             index={index}
                             isInput={isInput}
-                            handleAdd={onAdd}
+                            handleAdd={onItemAdd}
                         />}
                         <InputOutputListItem
                             key={`${type}-item-${item.id}`}
@@ -170,8 +170,8 @@ export const InputOutputContainer = ({
                             isEditing={isEditing}
                             handleOpen={handleOpen}
                             handleClose={handleClose}
-                            handleDelete={onDelete}
-                            handleUpdate={onUpdate}
+                            handleDelete={onItemDelete}
+                            handleUpdate={onItemUpdate}
                             language={language}
                             session={session}
                             zIndex={zIndex}
@@ -183,7 +183,7 @@ export const InputOutputContainer = ({
                 key={`add-${type}-item-${list.length}`}
                     index={list.length}
                     isInput={isInput}
-                    handleAdd={onAdd}
+                    handleAdd={onItemAdd}
                 />}
             </Stack>
             {/* Edges displayed between items (and add button) is actually one edge, since it will be a 

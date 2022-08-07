@@ -1,37 +1,48 @@
 import React from 'react'
 import {
+    Box,
     Checkbox,
     FormControl,
     FormControlLabel,
     FormGroup,
     FormHelperText,
     FormLabel,
+    IconButton,
     Radio,
     RadioGroup,
     Slider,
     Stack,
     Switch,
     TextField,
+    Tooltip,
     Typography
 } from '@mui/material'
-import { Dropzone, JsonInput, LanguageInput, MarkdownInput, QuantityBox, Selector, TagSelector } from 'components'
+import { Dropzone, HelpButton, JsonInput, LanguageInput, MarkdownInput, QuantityBox, Selector, TagSelector } from 'components'
 import { DropzoneProps, QuantityBoxProps, SelectorProps } from 'components/inputs/types'
 import { CheckboxProps, FieldData, JSONProps, MarkdownProps, RadioProps, SliderProps, SwitchProps, TextFieldProps } from 'forms/types'
 import { TagShape, updateArray } from 'utils'
 import { InputType, isObject } from '@local/shared'
 import { Session } from 'types'
+import {
+    ContentCopy as CopyIcon,
+} from "@mui/icons-material";
 
 /**
  * Function signature shared between all input components
  */
 export interface InputGeneratorProps {
-    data: FieldData,
-    disabled?: boolean,
-    formik: any,
-    index?: number,
-    onUpload: (fieldName: string, files: string[]) => void,
+    disabled?: boolean;
+    fieldData: FieldData;
+    formik: any;
+    index?: number;
+    onUpload: (fieldName: string, files: string[]) => void;
     session: Session;
-    zIndex: number
+    zIndex: number;
+}
+
+export interface GenerateInputWithLabelProps extends InputGeneratorProps {
+    copyInput?: (fieldName: string) => void;
+    textPrimary: string;
 }
 
 /**
@@ -39,35 +50,35 @@ export interface InputGeneratorProps {
  * Uses formik for validation and onChange.
  */
 export const toCheckbox = ({
-    data,
     disabled,
+    fieldData,
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
-    const props = data.props as CheckboxProps;
-    const hasError: boolean = formik.touched[data.fieldName] && Boolean(formik.errors[data.fieldName]);
-    const errorText: string | null = hasError ? formik.errors[data.fieldName] : null;
+    const props = fieldData.props as CheckboxProps;
+    const hasError: boolean = formik.touched[fieldData.fieldName] && Boolean(formik.errors[fieldData.fieldName]);
+    const errorText: string | null = hasError ? formik.errors[fieldData.fieldName] : null;
     return (
         <FormControl
-            key={`field-${data.fieldName}-${index}`}
+            key={`field-${fieldData.fieldName}-${index}`}
             disabled={disabled}
-            required={data.yup?.required}
+            required={fieldData.yup?.required}
             error={hasError}
             component="fieldset"
             variant="standard"
             sx={{ m: 3 }}
         >
-            <FormLabel component="legend">{data.label}</FormLabel>
+            <FormLabel component="legend">{fieldData.label}</FormLabel>
             <FormGroup row={props.row ?? false}>
                 {
                     props.options.map((option, index) => (
                         <FormControlLabel
                             control={
                                 <Checkbox
-                                    checked={(Array.isArray(formik.values[data.fieldName]) && formik.values[data.fieldName].length > index) ? formik.values[data.fieldName][index] === props.options[index] : false}
-                                    onChange={(event) => { formik.setFieldValue(data.fieldName, updateArray(formik.values[data.fieldName], index, !props.options[index])) }}
-                                    name={`${data.fieldName}-${index}`}
-                                    id={`${data.fieldName}-${index}`}
+                                    checked={(Array.isArray(formik.values[fieldData.fieldName]) && formik.values[fieldData.fieldName].length > index) ? formik.values[fieldData.fieldName][index] === props.options[index] : false}
+                                    onChange={(event) => { formik.setFieldValue(fieldData.fieldName, updateArray(formik.values[fieldData.fieldName], index, !props.options[index])) }}
+                                    name={`${fieldData.fieldName}-${index}`}
+                                    id={`${fieldData.fieldName}-${index}`}
                                     value={props.options[index]}
                                 />
                             }
@@ -85,15 +96,15 @@ export const toCheckbox = ({
  * Converts JSON into a Dropzone component.
  */
 export const toDropzone = ({
-    data,
     disabled,
+    fieldData,
     index,
     onUpload,
 }: InputGeneratorProps): React.ReactElement => {
-    const props = data.props as DropzoneProps;
+    const props = fieldData.props as DropzoneProps;
     return (
-        <Stack direction="column" key={`field-${data.fieldName}-${index}`} spacing={1}>
-            <Typography variant="h5" textAlign="center">{data.label}</Typography>
+        <Stack direction="column" key={`field-${fieldData.fieldName}-${index}`} spacing={1}>
+            <Typography variant="h5" textAlign="center">{fieldData.label}</Typography>
             <Dropzone
                 acceptedFileTypes={props.acceptedFileTypes}
                 disabled={disabled}
@@ -102,7 +113,7 @@ export const toDropzone = ({
                 cancelText={props.cancelText}
                 maxFiles={props.maxFiles}
                 showThumbs={props.showThumbs}
-                onUpload={(files) => { onUpload(data.fieldName, files) }}
+                onUpload={(files) => { onUpload(fieldData.fieldName, files) }}
             />
         </Stack>
     );
@@ -115,24 +126,24 @@ export const toDropzone = ({
  * Uses formik for validation and onChange.
  */
 export const toJSON = ({
-    data,
     disabled,
+    fieldData,
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
-    const props = data.props as JSONProps;
+    const props = fieldData.props as JSONProps;
     return (
         <JsonInput
-            id={data.fieldName}
+            id={fieldData.fieldName}
             disabled={disabled}
             format={props.format}
             variables={props.variables}
-            placeholder={props.placeholder ?? data.label}
-            value={formik.values[data.fieldName]}
+            placeholder={props.placeholder ?? fieldData.label}
+            value={formik.values[fieldData.fieldName]}
             minRows={props.minRows}
-            onChange={(newText: string) => formik.setFieldValue(data.fieldName, newText)}
-            error={formik.touched[data.fieldName] && Boolean(formik.errors[data.fieldName])}
-            helperText={formik.touched[data.fieldName] && formik.errors[data.fieldName]}
+            onChange={(newText: string) => formik.setFieldValue(fieldData.fieldName, newText)}
+            error={formik.touched[fieldData.fieldName] && Boolean(formik.errors[fieldData.fieldName])}
+            helperText={formik.touched[fieldData.fieldName] && formik.errors[fieldData.fieldName]}
         />
     )
 }
@@ -142,23 +153,23 @@ export const toJSON = ({
  * Uses formik for validation and onChange.
  */
 export const toLanguageInput = ({
-    data,
     disabled,
+    fieldData,
     formik,
     index,
     session,
     zIndex,
 }: InputGeneratorProps): React.ReactElement => {
     let languages: string[] = [];
-    if (isObject(formik.values) && Array.isArray(formik.values[data.fieldName]) && data.fieldName in formik.values) {
-        languages = formik.values[data.fieldName] as string[];
+    if (isObject(formik.values) && Array.isArray(formik.values[fieldData.fieldName]) && fieldData.fieldName in formik.values) {
+        languages = formik.values[fieldData.fieldName] as string[];
     }
     const addLanguage = (lang: string) => {
-        formik.setFieldValue(data.fieldName, [...languages, lang]);
+        formik.setFieldValue(fieldData.fieldName, [...languages, lang]);
     };
     const deleteLanguage = (lang: string) => {
         const newLanguages = [...languages.filter(l => l !== lang)]
-        formik.setFieldValue(data.fieldName, newLanguages);
+        formik.setFieldValue(fieldData.fieldName, newLanguages);
     }
     return (
         <LanguageInput
@@ -166,7 +177,7 @@ export const toLanguageInput = ({
             disabled={disabled}
             handleAdd={addLanguage}
             handleDelete={deleteLanguage}
-            handleCurrent={() => {}} //TODO
+            handleCurrent={() => { }} //TODO
             selectedLanguages={languages}
             session={session}
             zIndex={zIndex}
@@ -179,22 +190,22 @@ export const toLanguageInput = ({
  * Uses formik for validation and onChange.
  */
 export const toMarkdown = ({
-    data,
     disabled,
+    fieldData,
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
-    const props = data.props as MarkdownProps;
+    const props = fieldData.props as MarkdownProps;
     return (
         <MarkdownInput
-            id={data.fieldName}
+            id={fieldData.fieldName}
             disabled={disabled}
-            placeholder={props.placeholder ?? data.label}
-            value={formik.values[data.fieldName]}
+            placeholder={props.placeholder ?? fieldData.label}
+            value={formik.values[fieldData.fieldName]}
             minRows={props.minRows}
-            onChange={(newText: string) => formik.setFieldValue(data.fieldName, newText)}
-            error={formik.touched[data.fieldName] && Boolean(formik.errors[data.fieldName])}
-            helperText={formik.touched[data.fieldName] && formik.errors[data.fieldName]}
+            onChange={(newText: string) => formik.setFieldValue(fieldData.fieldName, newText)}
+            error={formik.touched[fieldData.fieldName] && Boolean(formik.errors[fieldData.fieldName])}
+            helperText={formik.touched[fieldData.fieldName] && formik.errors[fieldData.fieldName]}
         />
     )
 }
@@ -204,21 +215,21 @@ export const toMarkdown = ({
  * Uses formik for validation and onChange.
  */
 export const toRadio = ({
-    data,
     disabled,
+    fieldData,
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
-    const props = data.props as RadioProps;
+    const props = fieldData.props as RadioProps;
     return (
-        <FormControl component="fieldset" disabled={disabled} key={`field-${data.fieldName}-${index}`}>
-            <FormLabel component="legend">{data.label}</FormLabel>
+        <FormControl component="fieldset" disabled={disabled} key={`field-${fieldData.fieldName}-${index}`}>
+            <FormLabel component="legend">{fieldData.label}</FormLabel>
             <RadioGroup
-                aria-label={data.fieldName}
+                aria-label={fieldData.fieldName}
                 row={props.row}
-                id={data.fieldName}
-                name={data.fieldName}
-                value={formik.values[data.fieldName] ?? props.defaultValue}
+                id={fieldData.fieldName}
+                name={fieldData.fieldName}
+                value={formik.values[fieldData.fieldName] ?? props.defaultValue}
                 defaultValue={props.defaultValue}
                 onBlur={formik.handleBlur}
                 onChange={formik.handleChange}
@@ -245,26 +256,26 @@ export const toRadio = ({
  * Uses formik for validation and onChange.
  */
 export const toSelector = ({
-    data,
     disabled,
+    fieldData,
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
-    const props = data.props as SelectorProps;
+    const props = fieldData.props as SelectorProps;
     return (
         <Selector
-            key={`field-${data.fieldName}-${index}`}
+            key={`field-${fieldData.fieldName}-${index}`}
             disabled={disabled}
             options={props.options}
             getOptionLabel={props.getOptionLabel}
-            selected={formik.values[data.fieldName]}
+            selected={formik.values[fieldData.fieldName]}
             onBlur={formik.handleBlur}
             handleChange={formik.handleChange}
             fullWidth
             multiple={props.multiple}
-            inputAriaLabel={`select-input-${data.fieldName}`}
+            inputAriaLabel={`select-input-${fieldData.fieldName}`}
             noneOption={props.noneOption}
-            label={data.label}
+            label={fieldData.label}
             color={props.color}
             tabIndex={index}
         />
@@ -276,22 +287,22 @@ export const toSelector = ({
  * Uses formik for validation and onChange.
  */
 export const toSlider = ({
-    data,
     disabled,
+    fieldData,
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
-    const props = data.props as SliderProps;
+    const props = fieldData.props as SliderProps;
     return (
         <Slider
-            aria-label={data.fieldName}
+            aria-label={fieldData.fieldName}
             disabled={disabled}
-            key={`field-${data.fieldName}-${index}`}
+            key={`field-${fieldData.fieldName}-${index}`}
             min={props.min}
             max={props.max}
             step={props.step}
             valueLabelDisplay={props.valueLabelDisplay}
-            value={formik.values[data.fieldName]}
+            value={formik.values[fieldData.fieldName]}
             onBlur={formik.handleBlur}
             onChange={formik.handleChange}
             tabIndex={index}
@@ -304,27 +315,27 @@ export const toSlider = ({
  * Uses formik for validation and onChange.
  */
 export const toSwitch = ({
-    data,
     disabled,
+    fieldData,
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
-    const props = data.props as SwitchProps;
+    const props = fieldData.props as SwitchProps;
     return (
-        <FormGroup key={`field-${data.fieldName}-${index}`}>
+        <FormGroup key={`field-${fieldData.fieldName}-${index}`}>
             <FormControlLabel control={(
                 <Switch
                     disabled={disabled}
                     size={props.size}
                     color={props.color}
                     tabIndex={index}
-                    checked={formik.values[data.fieldName]}
+                    checked={formik.values[fieldData.fieldName]}
                     onBlur={formik.handleBlur}
                     onChange={formik.handleChange}
-                    name={data.fieldName}
-                    inputProps={{ 'aria-label': data.fieldName }}
+                    name={fieldData.fieldName}
+                    inputProps={{ 'aria-label': fieldData.fieldName }}
                 />
-            )} label={data.fieldName} />
+            )} label={fieldData.fieldName} />
         </FormGroup>
     );
 }
@@ -334,25 +345,26 @@ export const toSwitch = ({
  * Uses formik for validation and onChange.
  */
 export const toTagSelector = ({
-    data,
     disabled,
+    fieldData,
     formik,
     index,
+    session,
 }: InputGeneratorProps): React.ReactElement => {
-    const tags = formik.values[data.fieldName] as TagShape[];
+    const tags = formik.values[fieldData.fieldName] as TagShape[];
     const addTag = (tag: TagShape) => {
-        formik.setFieldValue(data.fieldName, [...tags, tag]);
+        formik.setFieldValue(fieldData.fieldName, [...tags, tag]);
     };
     const removeTag = (tag: TagShape) => {
-        formik.setFieldValue(data.fieldName, tags.filter((t) => t.tag !== tag.tag));
+        formik.setFieldValue(fieldData.fieldName, tags.filter((t) => t.tag !== tag.tag));
     };
     const clearTags = () => {
-        formik.setFieldValue(data.fieldName, []);
+        formik.setFieldValue(fieldData.fieldName, []);
     };
     return (
         <TagSelector
             disabled={disabled}
-            session={{}} //TODO
+            session={session}
             tags={tags}
             onTagAdd={addTag}
             onTagRemove={removeTag}
@@ -367,30 +379,30 @@ export const toTagSelector = ({
  * If this component is first in the list, it will be focused.
  */
 export const toTextField = ({
-    data,
+    fieldData,
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
-    const props = data.props as TextFieldProps;
+    const props = fieldData.props as TextFieldProps;
     const multiLineProps = props.maxRows ? { multiline: true, rows: props.maxRows } : {};
-    const hasDescription = typeof data.description === 'string' && data.description.trim().length > 0;
+    const hasDescription = typeof fieldData.description === 'string' && fieldData.description.trim().length > 0;
     return (
         <TextField
-            key={`field-${data.fieldName}-${index}`}
+            key={`field-${fieldData.fieldName}-${index}`}
             autoComplete={props.autoComplete}
             autoFocus={index === 0}
             fullWidth
-            id={data.fieldName}
+            id={fieldData.fieldName}
             InputLabelProps={{ shrink: true }}
-            name={data.fieldName}
-            placeholder={hasDescription ? data.description : `${data.label}...`}
-            required={data.yup?.required}
-            value={formik.values[data.fieldName]}
+            name={fieldData.fieldName}
+            placeholder={hasDescription ? fieldData.description as string : `${fieldData.label}...`}
+            required={fieldData.yup?.required}
+            value={formik.values[fieldData.fieldName]}
             onBlur={formik.handleBlur}
             onChange={formik.handleChange}
             tabIndex={index}
-            error={formik.touched[data.fieldName] && Boolean(formik.errors[data.fieldName])}
-            helperText={formik.touched[data.fieldName] && formik.errors[data.fieldName]}
+            error={formik.touched[fieldData.fieldName] && Boolean(formik.errors[fieldData.fieldName])}
+            helperText={formik.touched[fieldData.fieldName] && formik.errors[fieldData.fieldName]}
             {...multiLineProps}
         />
     );
@@ -402,25 +414,25 @@ export const toTextField = ({
  * If this component is first in the list, it will be focused.
  */
 export const toQuantityBox = ({
-    data,
+    fieldData,
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
-    const props = data.props as QuantityBoxProps;
+    const props = fieldData.props as QuantityBoxProps;
     return (
         <QuantityBox
             autoFocus={index === 0}
-            key={`field-${data.fieldName}-${index}`}
+            key={`field-${fieldData.fieldName}-${index}`}
             tabIndex={index}
-            id={data.fieldName}
-            label={data.label}
+            id={fieldData.fieldName}
+            label={fieldData.label}
             min={props.min ?? 0}
             tooltip={props.tooltip ?? ''}
-            value={formik.values[data.fieldName]}
+            value={formik.values[fieldData.fieldName]}
             onBlur={formik.handleBlur}
-            handleChange={(value: number) => formik.setFieldValue(data.fieldName, value)}
-            error={formik.touched[data.fieldName] && Boolean(formik.errors[data.fieldName])}
-            helperText={formik.touched[data.fieldName] && formik.errors[data.fieldName]}
+            handleChange={(value: number) => formik.setFieldValue(fieldData.fieldName, value)}
+            error={formik.touched[fieldData.fieldName] && Boolean(formik.errors[fieldData.fieldName])}
+            helperText={formik.touched[fieldData.fieldName] && formik.errors[fieldData.fieldName]}
         />
     );
 }
@@ -454,13 +466,54 @@ const typeMap: { [key in InputType]: (props: InputGeneratorProps) => any } = {
  * - TextField
  */
 export const generateInputComponent = ({
-    data,
     disabled,
+    fieldData,
     formik,
     index,
     onUpload,
     session,
     zIndex,
-}: InputGeneratorProps): React.ReactElement | null => {
-    return typeMap[data.type]({ data, disabled, formik, index, onUpload, session, zIndex });
+}: InputGeneratorProps): React.ReactElement | null =>
+    typeMap[fieldData.type]({ disabled, fieldData, formik, index, onUpload, session, zIndex });
+
+/**
+ * Generates an input component, with a copy button, label, and help button
+ */
+export const generateInputWithLabel = ({
+    copyInput,
+    disabled,
+    fieldData,
+    formik,
+    index,
+    onUpload,
+    session,
+    textPrimary,
+    zIndex,
+}: GenerateInputWithLabelProps): React.ReactElement | null => {
+    return (<Box key={index} sx={{
+        padding: 1,
+        borderRadius: 1,
+    }}>
+        {/* Label, help button, and copy iput icon */}
+        <Stack direction="row" spacing={0} sx={{ alignItems: 'center' }}>
+            <Tooltip title="Copy to clipboard">
+                <IconButton onClick={() => copyInput && copyInput(fieldData.fieldName)}>
+                    <CopyIcon />
+                </IconButton>
+            </Tooltip>
+            <Typography variant="h6" sx={{ color: textPrimary }}>{fieldData.label ?? (index && `Input ${index + 1}`) ?? 'Input'}</Typography>
+            {fieldData.helpText && <HelpButton markdown={fieldData.helpText} />}
+        </Stack>
+        {
+            generateInputComponent({
+                fieldData,
+                disabled: false,
+                formik: formik,
+                index,
+                session,
+                onUpload: () => { },
+                zIndex,
+            })
+        }
+    </Box>)
 }

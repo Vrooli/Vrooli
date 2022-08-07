@@ -11,7 +11,7 @@ import { FeedbackInput } from "./globalTypes";
 
 export interface feedbackCreate_feedbackCreate {
   __typename: "Success";
-  success: boolean | null;
+  success: boolean;
 }
 
 export interface feedbackCreate {

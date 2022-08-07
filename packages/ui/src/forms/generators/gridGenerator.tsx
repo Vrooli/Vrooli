@@ -90,10 +90,10 @@ export const generateGrid = ({
         const currFields: FieldData[] = splitFields[i];
         const currLayout: GridContainer = containers[i];
         // Generate component for each field in the grid, and wrap it in a grid item
-        const gridItems: Array<React.ReactElement | null> = currFields.map((field, index) => {
+        const gridItems: Array<React.ReactElement | null> = currFields.map((fieldData, index) => {
             const inputComponent = generateInputComponent({
-                data: field,
                 formik,
+                fieldData,
                 index,
                 onUpload,
                 session,

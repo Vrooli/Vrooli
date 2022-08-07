@@ -11,7 +11,7 @@ import { UserDeleteInput } from "./globalTypes";
 
 export interface userDeleteOne_userDeleteOne {
   __typename: "Success";
-  success: boolean | null;
+  success: boolean;
 }
 
 export interface userDeleteOne {
