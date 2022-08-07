@@ -66,8 +66,9 @@ export const UserView = ({
 
     const { bio, name, handle, resourceList } = useMemo(() => {
         const resourceList: ResourceList | undefined = Array.isArray(user?.resourceLists) ? user?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
+        const bioText = getTranslation(user, 'bio', [language]) ?? getTranslation(partialData, 'bio', [language])
         return {
-            bio: getTranslation(user, 'bio', [language]) ?? getTranslation(partialData, 'bio', [language]),
+            bio: bioText && bioText.trim().length > 0 ? bioText : undefined,
             name: user?.name ?? partialData?.name,
             handle: user?.handle ?? partialData?.handle,
             resourceList,

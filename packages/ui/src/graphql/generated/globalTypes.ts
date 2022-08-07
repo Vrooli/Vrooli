@@ -407,12 +407,14 @@ export interface InputItemTranslationCreateInput {
   id: string;
   language: string;
   description?: string | null;
+  helpText?: string | null;
 }
 
 export interface InputItemTranslationUpdateInput {
   id: string;
   language?: string | null;
   description?: string | null;
+  helpText?: string | null;
 }
 
 export interface InputItemUpdateInput {
@@ -723,12 +725,14 @@ export interface OutputItemTranslationCreateInput {
   id: string;
   language: string;
   description?: string | null;
+  helpText?: string | null;
 }
 
 export interface OutputItemTranslationUpdateInput {
   id: string;
   language?: string | null;
   description?: string | null;
+  helpText?: string | null;
 }
 
 export interface OutputItemUpdateInput {

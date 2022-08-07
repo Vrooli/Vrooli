@@ -14,6 +14,7 @@ export interface runCreate_runCreate_inputs_input_translations {
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface runCreate_runCreate_inputs_input_standard_tags_translations {
@@ -74,6 +75,7 @@ export interface runCreate_runCreate_routine_inputs_translations {
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface runCreate_runCreate_routine_inputs_standard_tags_translations {
@@ -157,6 +159,7 @@ export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags_translations {
@@ -210,6 +213,7 @@ export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags_translations {
@@ -448,6 +452,7 @@ export interface runCreate_runCreate_routine_outputs_translations {
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface runCreate_runCreate_routine_outputs_standard_tags_translations {

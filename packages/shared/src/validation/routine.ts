@@ -1,4 +1,4 @@
-import { description, idArray, id, name, title, language, tagArray } from './base';
+import { description, idArray, id, name, title, language, tagArray, helpText } from './base';
 import { nodeLinksCreate, nodeLinksUpdate, nodesCreate, nodesUpdate } from './node';
 import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 import { standardCreate } from './standard';
@@ -17,11 +17,13 @@ export const inputTranslationCreate = yup.object().shape({
     id: id.required(),
     language: language.required(),
     description: description.notRequired().default(undefined),
+    helpText: helpText.notRequired().default(undefined),
 });
 export const inputTranslationUpdate = yup.object().shape({
     id: id.required(),
     language: language.notRequired().default(undefined),
     description: description.notRequired().default(undefined),
+    helpText: helpText.notRequired().default(undefined),
 });
 export const inputTranslationsCreate = yup.array().of(inputTranslationCreate.required())
 export const inputTranslationsUpdate = yup.array().of(inputTranslationUpdate.required())
@@ -48,11 +50,13 @@ export const outputTranslationCreate = yup.object().shape({
     id: id.required(),
     language: language.required(),
     description: description.notRequired().default(undefined),
+    helpText: helpText.notRequired().default(undefined),
 });
 export const outputTranslationUpdate = yup.object().shape({
     id: id.required(),
     language: language.notRequired().default(undefined),
     description: description.notRequired().default(undefined),
+    helpText: helpText.notRequired().default(undefined),
 });
 export const outputTranslationsCreate = yup.array().of(outputTranslationCreate.required())
 export const outputTranslationsUpdate = yup.array().of(outputTranslationUpdate.required())

@@ -20,6 +20,7 @@ export interface runNodeFields_data_NodeRoutineList_routines_routine_inputs_tran
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface runNodeFields_data_NodeRoutineList_routines_routine_inputs_standard_tags_translations {
@@ -73,6 +74,7 @@ export interface runNodeFields_data_NodeRoutineList_routines_routine_outputs_tra
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface runNodeFields_data_NodeRoutineList_routines_routine_outputs_standard_tags_translations {

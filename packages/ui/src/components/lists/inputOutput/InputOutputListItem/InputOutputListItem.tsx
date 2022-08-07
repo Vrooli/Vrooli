@@ -142,6 +142,7 @@ export const InputOutputListItem = ({
         initialValues: {
             id: item.id,
             description: getTranslation(item, 'description', [language]) ?? '',
+            helpText: getTranslation(item, 'helpText', [language]) ?? '',
             isRequired: true,
             name: item.name ?? '' as string,
             // Value of generated input component preview
@@ -155,6 +156,7 @@ export const InputOutputListItem = ({
                 id: uuid(),
                 language,
                 description: values.description,
+                helpText: values.helpText,
             })
             handleUpdate(index, {
                 ...item,

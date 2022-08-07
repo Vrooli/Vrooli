@@ -389,6 +389,8 @@ export async function init(prisma: PrismaType) {
                         }
                     ]
                 },
+                version: '1.0.0',
+                versionGroupId: uuid(),
                 createdByUserId: admin.id,
                 tags: {
                     create: [
@@ -432,6 +434,7 @@ export async function init(prisma: PrismaType) {
                 isAutomatable: false,
                 isInternal: false,
                 version: '1.0.0',
+                versionGroupId: uuid(),
                 createdByOrganization: { connect: { id: vrooli.id } },
                 organization: { connect: { id: vrooli.id } },
                 inputs: {}, //TODO
@@ -489,6 +492,7 @@ export async function init(prisma: PrismaType) {
                 isAutomatable: false,
                 isInternal: false,
                 version: '1.0.0',
+                versionGroupId: uuid(),
                 createdByOrganization: { connect: { id: vrooli.id } },
                 organization: { connect: { id: vrooli.id } },
                 inputs: {}, //TODO
@@ -554,6 +558,7 @@ export async function init(prisma: PrismaType) {
                 isAutomatable: true,
                 isInternal: false,
                 version: '1.0.0',
+                versionGroupId: uuid(),
                 createdByOrganization: { connect: { id: vrooli.id } },
                 organization: { connect: { id: vrooli.id } },
                 inputs: {}, //TODO

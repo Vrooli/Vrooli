@@ -373,6 +373,7 @@ export const toTextField = ({
 }: InputGeneratorProps): React.ReactElement => {
     const props = data.props as TextFieldProps;
     const multiLineProps = props.maxRows ? { multiline: true, rows: props.maxRows } : {};
+    const hasDescription = typeof data.description === 'string' && data.description.trim().length > 0;
     return (
         <TextField
             key={`field-${data.fieldName}-${index}`}
@@ -382,7 +383,7 @@ export const toTextField = ({
             id={data.fieldName}
             InputLabelProps={{ shrink: true }}
             name={data.fieldName}
-            placeholder={data.description ?? data.fieldName}
+            placeholder={hasDescription ? data.description : `${data.label}...`}
             required={data.yup?.required}
             value={formik.values[data.fieldName]}
             onBlur={formik.handleBlur}
