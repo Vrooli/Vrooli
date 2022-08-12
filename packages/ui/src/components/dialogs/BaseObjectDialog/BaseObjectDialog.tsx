@@ -12,7 +12,6 @@ import {
 import {
     Close as CloseIcon,
 } from '@mui/icons-material';
-import { UpTransition } from 'components';
 import { useCallback, useState } from 'react';
 import { BaseObjectDialogProps, ObjectDialogAction } from '../types';
 
@@ -39,7 +38,6 @@ export const BaseObjectDialog = ({
             fullScreen
             open={open}
             onClose={onClose}
-            TransitionComponent={UpTransition}
             sx={{
                 zIndex,
             }}

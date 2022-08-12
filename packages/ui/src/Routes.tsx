@@ -25,13 +25,7 @@ const { WelcomePage } = lazily(() => import('./pages/WelcomePage/WelcomePage'));
 const { SettingsPage } = lazily(() => import('./pages/SettingsPage/SettingsPage'));
 const { StartPage } = lazily(() => import('./pages/StartPage/StartPage'));
 const { StatsPage } = lazily(() => import('./pages/dashboard/StatsPage/StatsPage'));
-const {
-    SearchOrganizationsPage,
-    SearchProjectsPage,
-    SearchRoutinesPage,
-    SearchStandardsPage,
-    SearchUsersPage,
-} = lazily(() => import('./pages/search'));
+const { SearchPage } = lazily(() => import('./pages/SearchPage/SearchPage'));
 const { OrganizationViewPage } = lazily(() => import('./pages/view/OrganizationViewPage'));
 const { ProjectViewPage } = lazily(() => import('./pages/view/ProjectViewPage'));
 const { StandardViewPage } = lazily(() => import('./pages/view/StandardViewPage'));
@@ -102,38 +96,10 @@ export const AllRoutes = (props: CommonProps) => {
                 {/* ========= #endregion Dashboard Routes ========= */}
 
                 {/* ========= #region Search Routes ========= */}
-                <Route path={`${LINKS.SearchOrganizations}/:params*`}>
+                <Route path={`${LINKS.Search}/:params*`}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Organizations Search')} {...props}>
-                            <SearchOrganizationsPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route path={`${LINKS.SearchProjects}/:params*`}>
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Projects Search')} {...props}>
-                            <SearchProjectsPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route path={`${LINKS.SearchRoutines}/:params*`}>
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Routines Search')} {...props}>
-                            <SearchRoutinesPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route path={`${LINKS.SearchStandards}/:params*`}>
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Standards Search')} {...props}>
-                            <SearchStandardsPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route path={`${LINKS.SearchUsers}/:params*`}>
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Users Search')} {...props}>
-                            <SearchUsersPage session={props.session} />
+                        <Page {...props}>
+                            <SearchPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>

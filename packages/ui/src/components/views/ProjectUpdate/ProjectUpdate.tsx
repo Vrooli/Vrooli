@@ -31,8 +31,7 @@ export const ProjectUpdate = ({
 }: ProjectUpdateProps) => {
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Project}/edit/:id`);
-    const [, params2] = useRoute(`${APP_LINKS.SearchProjects}/edit/:id`);
-    const id = params?.id ?? params2?.id;
+    const id = params?.id;
     // Fetch existing data
     const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery);
     useEffect(() => {

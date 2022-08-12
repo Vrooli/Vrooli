@@ -14,11 +14,7 @@ export const APP_LINKS = {
     Research: '/research', // Research dashboard
     Routine: '/routine', // Displays a UI corresponding to the current subroutine
     ResetPassword: '/password-reset', // Page to reset password, after clicking on password reset link in email
-    SearchOrganizations: '/search/organization', // Search organizations
-    SearchProjects: '/search/project', // Search projects
-    SearchRoutines: '/search/routine', // Search routines
-    SearchStandards: '/search/standard', // Search standards
-    SearchUsers: '/search/user', // Search users
+    Search: '/search', // Search page for all objects
     Settings: '/settings', // View or update profile/settings
     Standard: '/standard', // View or update specific standard
     Start: '/start', // Provides options for entering application

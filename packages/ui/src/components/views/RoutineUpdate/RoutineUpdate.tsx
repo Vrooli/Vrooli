@@ -32,8 +32,7 @@ export const RoutineUpdate = ({
 }: RoutineUpdateProps) => {
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Routine}/edit/:id`);
-    const [, params2] = useRoute(`${APP_LINKS.SearchRoutines}/edit/:id`);
-    const id = params?.id ?? params2?.id;
+    const id = params?.id;
     // Fetch existing data
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
     useEffect(() => {

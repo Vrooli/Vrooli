@@ -40,11 +40,10 @@ export const UserView = ({
     const profileColors = useMemo(() => placeholderColor(), []);
     // Get URL params
     const [isProfile] = useRoute(`${APP_LINKS.Profile}`);
-    const [, params1] = useRoute(`${APP_LINKS.Profile}/:id`);
-    const [, params2] = useRoute(`${APP_LINKS.SearchUsers}/view/:id`);
+    const [, params] = useRoute(`${APP_LINKS.Profile}/:id`);
     const id: string = useMemo(() => {
-        return isProfile ? (session.id ?? '') : (params1?.id ?? params2?.id ?? '');
-    }, [isProfile, params1, params2, session]);
+        return isProfile ? (session.id ?? '') : (params?.id ?? '');
+    }, [isProfile, params, session]);
     const isOwn: boolean = useMemo(() => Boolean(session?.id && session.id === id), [id, session]);
     // Fetch data
     const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery, { errorPolicy: 'all'});
@@ -125,9 +124,8 @@ export const UserView = ({
     }, [id]);
 
     const onEdit = useCallback(() => {
-        // Depends on if we're in a search popup or a normal organization page
-        setLocation(isProfile ? `${APP_LINKS.Settings}?page="profile"` : `${APP_LINKS.SearchUsers}/edit/${id}`);
-    }, [id, isProfile, setLocation]);
+        setLocation(`${APP_LINKS.Settings}?page="profile"`);
+    }, [setLocation]);
 
     // Create search data
     const { objectType, itemKeyPrefix, placeholder, searchQuery, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {

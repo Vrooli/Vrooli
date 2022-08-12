@@ -30,8 +30,7 @@ export const StandardUpdate = ({
 }: StandardUpdateProps) => {
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Standard}/edit/:id`);
-    const [, params2] = useRoute(`${APP_LINKS.SearchStandards}/edit/:id`);
-    const id = params?.id ?? params2?.id;
+    const id = params?.id;
     // Fetch existing data
     const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery);
     useEffect(() => {

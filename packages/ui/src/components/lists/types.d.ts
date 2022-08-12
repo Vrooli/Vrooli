@@ -86,7 +86,7 @@ export interface SearchListProps {
     hideRoles?: boolean;
     itemKeyPrefix: string;
     searchPlaceholder?: string;
-    query: DocumentNode;
+    query: any;
     take?: number; // Number of items to fetch per page
     objectType: ObjectType;
     onObjectSelect: (objectData: any) => void; // Passes all object data to the parent, so the known information can be displayed while more details are queried

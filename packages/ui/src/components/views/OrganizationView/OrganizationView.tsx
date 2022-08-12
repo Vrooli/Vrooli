@@ -41,8 +41,7 @@ export const OrganizationView = ({
     const profileColors = useMemo(() => placeholderColor(), []);
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Organization}/:id`);
-    const [, params2] = useRoute(`${APP_LINKS.SearchOrganizations}/view/:id`);
-    const id: string = useMemo(() => params?.id ?? params2?.id ?? '', [params, params2]);
+    const id: string = useMemo(() => params?.id ?? '', [params]);
     // Fetch data
     const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery, { errorPolicy: 'all'});
     const [organization, setOrganization] = useState<Organization | null | undefined>(null);
@@ -125,9 +124,8 @@ export const OrganizationView = ({
     }, [id]);
 
     const onEdit = useCallback(() => {
-        // Depends on if we're in a search popup or a normal organization page
-        setLocation(Boolean(params?.id) ? `${APP_LINKS.Organization}/edit/${id}` : `${APP_LINKS.SearchOrganizations}/edit/${id}`);
-    }, [setLocation, params?.id, id]);
+        setLocation(`${APP_LINKS.Organization}/edit/${id}`);
+    }, [setLocation, id]);
 
     // Create search data
     const { objectType, itemKeyPrefix, placeholder, searchQuery, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {

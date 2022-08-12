@@ -10,12 +10,12 @@ export const Page = ({
     redirect = APP_LINKS.Start,
     session,
     sessionChecked,
-    title = '',
+    title,
 }: PageProps) => {
     const [location] = useLocation();
 
     useEffect(() => {
-        document.title = title;
+        if (title) document.title = title;
     }, [title]);
 
     // If this page has restricted access

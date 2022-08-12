@@ -46,8 +46,7 @@ export const RoutineView = ({
     const [, setLocation] = useLocation();
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Routine}/:id`);
-    const [, params2] = useRoute(`${APP_LINKS.SearchRoutines}/view/:id`);
-    const id = params?.id ?? params2?.id;
+    const id = params?.id;
     // Fetch data
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
     const [routine, setRoutine] = useState<Routine | null>(null);
@@ -191,9 +190,9 @@ export const RoutineView = ({
         }
         // Otherwise, edit as single step
         else {
-            setLocation(Boolean(params?.id) ? `${APP_LINKS.Routine}/edit/${id}` : `${APP_LINKS.SearchRoutines}/edit/${id}`);
+            setLocation(`${APP_LINKS.Routine}/edit/${id}`);
         }
-    }, [routine?.nodes, routine?.nodeLinks, setLocation, id, params?.id]);
+    }, [routine?.nodes, routine?.nodeLinks, setLocation, id]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);

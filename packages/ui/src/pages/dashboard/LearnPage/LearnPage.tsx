@@ -8,7 +8,7 @@ import { profile } from 'graphql/generated/profile';
 import { learnPageQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ResourceList } from 'types';
-import { listToListItems, openObject, OpenObjectProps, stringifySearchParams } from 'utils';
+import { listToListItems, ObjectType, openObject, OpenObjectProps, stringifySearchParams } from 'utils';
 import { useLocation } from 'wouter';
 import { LearnPageProps } from '../types';
 
@@ -79,7 +79,7 @@ export const LearnPage = ({
      */
     const toSeeAllCourses = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.SearchProjects}${stringifySearchParams({ tags: ['Learn'] })}`);
+        setLocation(`/search${stringifySearchParams({ tags: ['Learn'], type: ObjectType.Project })}`);
     }, [setLocation]);
 
     /**
@@ -87,7 +87,7 @@ export const LearnPage = ({
      */
     const toSeeAllTutorials = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.SearchRoutines}${stringifySearchParams({ tags: ['Learn'] })}`);
+        setLocation(`/search${stringifySearchParams({ tags: ['Learn'], type: ObjectType.Routine })}`);
     }, [setLocation]);
 
     const courses = useMemo(() => listToListItems({

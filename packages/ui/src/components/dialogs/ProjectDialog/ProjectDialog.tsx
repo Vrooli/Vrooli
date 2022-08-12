@@ -3,8 +3,7 @@ import { useCallback, useMemo } from 'react';
 import { BaseObjectDialog } from '..';
 import { ProjectUpdate } from 'components/views/ProjectUpdate/ProjectUpdate';
 import { ProjectDialogProps, ObjectDialogAction } from 'components/dialogs/types';
-import { useLocation, useRoute } from 'wouter';
-import { APP_LINKS } from '@local/shared';
+import { useRoute } from 'wouter';
 import { ProjectCreate } from 'components/views/ProjectCreate/ProjectCreate';
 import { Project } from 'types';
 
@@ -13,33 +12,20 @@ export const ProjectDialog = ({
     session,
     zIndex,
 }: ProjectDialogProps) => {
-    const [, setLocation] = useLocation();
-    const [, params] = useRoute(`${APP_LINKS.SearchProjects}/:params*`);
-    const [state, id] = useMemo(() => Boolean(params?.params) ? (params?.params as string).split("/") : [undefined, undefined], [params]);
+    const [, params] = useRoute(`/search:params*`);
+    const [state] = useMemo(() => Boolean(params?.params) ? (params?.params as string).split("/") : [undefined, undefined], [params]);
 
     const onAction = useCallback((action: ObjectDialogAction, data?: any) => {
         switch (action) {
             case ObjectDialogAction.Add:
-                if (data?.id) setLocation(`${APP_LINKS.SearchProjects}/view/${data?.id}`, { replace: true });
-                break;
             case ObjectDialogAction.Cancel:
-                window.history.back();
-                break;
             case ObjectDialogAction.Close:
-                window.history.back();
-                break;
             case ObjectDialogAction.Edit:
-                setLocation(`${APP_LINKS.SearchProjects}/edit/${id}`);
-                break;
-            case ObjectDialogAction.Next:
-                break;
-            case ObjectDialogAction.Previous:
-                break;
             case ObjectDialogAction.Save:
                 window.history.back();
                 break;
         }
-    }, [id, setLocation]);
+    }, []);
 
     const title = useMemo(() => {
         switch (state) {

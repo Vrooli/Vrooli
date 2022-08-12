@@ -31,8 +31,7 @@ export const OrganizationUpdate = ({
 }: OrganizationUpdateProps) => {
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Organization}/edit/:id`);
-    const [, params2] = useRoute(`${APP_LINKS.SearchOrganizations}/edit/:id`);
-    const id = params?.id ?? params2?.id;
+    const id = params?.id;
     // Fetch existing data
     const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery);
     useEffect(() => {

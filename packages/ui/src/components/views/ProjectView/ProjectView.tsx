@@ -35,8 +35,7 @@ export const ProjectView = ({
     const [, setLocation] = useLocation();
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Project}/:id`);
-    const [, params2] = useRoute(`${APP_LINKS.SearchProjects}/view/:id`);
-    const id: string = useMemo(() => params?.id ?? params2?.id ?? '', [params, params2]);
+    const id: string = useMemo(() => params?.id ?? '', [params]);
     // Fetch data
     const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery, { errorPolicy: 'all'});
     const [project, setProject] = useState<Project | null | undefined>(null);
@@ -116,9 +115,8 @@ export const ProjectView = ({
     }, [id]);
 
     const onEdit = useCallback(() => {
-        // Depends on if we're in a search popup or a normal page
-        setLocation(Boolean(params?.id) ? `${APP_LINKS.Project}/edit/${id}` : `${APP_LINKS.SearchProjects}/edit/${id}`);
-    }, [setLocation, params?.id, id]);
+        setLocation(`${APP_LINKS.Project}/edit/${id}`);
+    }, [setLocation, id]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);

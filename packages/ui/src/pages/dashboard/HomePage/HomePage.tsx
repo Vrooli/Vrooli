@@ -13,7 +13,7 @@ import {
     Add as CreateIcon,
     Search as SearchIcon,
 } from '@mui/icons-material';
-import { listToAutocomplete, listToListItems, ObjectType, openObject, OpenObjectProps, openSearchPage, useReactSearch } from 'utils';
+import { listToAutocomplete, listToListItems, ObjectType, openObject, OpenObjectProps, useReactSearch } from 'utils';
 import { AutocompleteOption } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 
@@ -64,11 +64,11 @@ If you would like to contribute to the development of Vrooli, please contact us!
 `
 
 const advancedSearchPopupOptions: ListMenuItemData<string>[] = [
-    { label: 'Organization', value: `${APP_LINKS.SearchOrganizations}?advanced=true` },
-    { label: 'Project', value: `${APP_LINKS.SearchProjects}?advanced=true` },
-    { label: 'Routine', value: `${APP_LINKS.SearchRoutines}?advanced=true` },
-    { label: 'Standard', value: `${APP_LINKS.SearchStandards}?advanced=true` },
-    { label: 'User', value: `${APP_LINKS.SearchUsers}?advanced=true` },
+    { label: 'Organization', value: `/search?type=${ObjectType.Organization}&advanced=true` },
+    { label: 'Project', value: `/search?type=${ObjectType.Project}&advanced=true` },
+    { label: 'Routine', value: `/search?type=${ObjectType.Routine}&advanced=true` },
+    { label: 'Standard', value: `/search?type=${ObjectType.Standard}&advanced=true` },
+    { label: 'User', value: `/search?type=${ObjectType.User}&advanced=true` },
 ]
 
 const createNewPopupOptions: ListMenuItemData<string>[] = [
@@ -137,43 +137,43 @@ const shortcuts: ShortcutItem[] = [
     },
     {
         label: 'Search organizations',
-        link: `${APP_LINKS.SearchOrganizations}`,
+        link: `/search?type=${ObjectType.Organization}`,
     },
     {
         label: 'Search projects',
-        link: `${APP_LINKS.SearchProjects}`,
+        link: `/search?type=${ObjectType.Project}`,
     },
     {
         label: 'Search routines',
-        link: `${APP_LINKS.SearchRoutines}`,
+        link: `/search?type=${ObjectType.Routine}`,
     },
     {
         label: 'Search standards',
-        link: `${APP_LINKS.SearchStandards}`,
+        link: `/search?type=${ObjectType.Routine}`,
     },
     {
         label: 'Search users',
-        link: `${APP_LINKS.SearchUsers}`,
+        link: `/search?type=${ObjectType.User}`,
     },
     {
         label: 'Search organizations advanced',
-        link: `${APP_LINKS.SearchOrganizations}?advanced=true`,
+        link: `/search?type=${ObjectType.Organization}&advanced=true`,
     },
     {
         label: 'Search projects advanced',
-        link: `${APP_LINKS.SearchProjects}?advanced=true`,
+        link: `/search?type=${ObjectType.Project}&advanced=true`,
     },
     {
         label: 'Search routines advanced',
-        link: `${APP_LINKS.SearchRoutines}?advanced=true`,
+        link: `/search?type=${ObjectType.Routine}&advanced=true`,
     },
     {
         label: 'Search standards advanced',
-        link: `${APP_LINKS.SearchStandards}?advanced=true`,
+        link: `/search?type=${ObjectType.Standard}&advanced=true`,
     },
     {
         label: 'Search users advanced',
-        link: `${APP_LINKS.SearchUsers}?advanced=true`,
+        link: `/search?type=${ObjectType.User}&advanced=true`,
     },
     {
         label: `Beginner's Guide`,
@@ -279,7 +279,7 @@ export const HomePage = ({
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
         // Navigate to search page
-        openSearchPage(objectType, setLocation);
+        setLocation(`/search?type=${objectType}`);
     }, [searchString, setLocation]);
 
     /**

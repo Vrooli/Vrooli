@@ -280,6 +280,7 @@ export interface AdvancedSearchDialogProps {
     handleClose: () => any;
     handleSearch: (searchQuery: { [x: string]: any }) => any;
     isOpen: boolean;
+    objectType: ObjectType;   
     session: Session;
     zIndex: number;
 }

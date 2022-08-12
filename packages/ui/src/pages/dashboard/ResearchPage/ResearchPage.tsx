@@ -7,7 +7,7 @@ import { researchPage } from 'graphql/generated/researchPage';
 import { profileQuery, researchPageQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ResourceList } from 'types';
-import { listToListItems, openObject, OpenObjectProps, stringifySearchParams } from 'utils';
+import { listToListItems, ObjectType, openObject, OpenObjectProps, stringifySearchParams } from 'utils';
 import { useLocation } from 'wouter';
 import { ResearchPageProps } from '../types';
 
@@ -148,7 +148,7 @@ export const ResearchPage = ({
      */
     const toSeeAllProcesses = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.SearchRoutines}${stringifySearchParams({ tags: ['Research'] })}`);
+        setLocation(`/search${stringifySearchParams({ tags: ['Research'], type: ObjectType.Routine })}`);
     }, [setLocation]);
 
     /**
@@ -156,9 +156,10 @@ export const ResearchPage = ({
      */
     const toSeeAllNewlyCompleted = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.SearchProjects}${stringifySearchParams({
+        setLocation(`/search${stringifySearchParams({
             isComplete: true,
-            sort: 'DateUpdatedDesc'
+            sort: 'DateUpdatedDesc',
+            type: ObjectType.Project,
         })}`);
     }, [setLocation]);
 
@@ -167,8 +168,9 @@ export const ResearchPage = ({
      */
      const toSeeAllJoinATeam = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.SearchOrganizations}${stringifySearchParams({
-            isOpenToNewMembers: true
+        setLocation(`/search${stringifySearchParams({
+            isOpenToNewMembers: true,
+            type: ObjectType.Organization,
         })}`);
     }, [setLocation]);
 

@@ -16,7 +16,7 @@ export const UserDialog = ({
     zIndex,
 }: UserDialogProps) => {
     const [, setLocation] = useLocation();
-    const [, params] = useRoute(`${APP_LINKS.SearchUsers}/:params*`);
+    const [, params] = useRoute(`/search:params*`);
     const [state] = useMemo(() => Boolean(params?.params) ? (params?.params as string).split("/") : [undefined, undefined], [params]);
 
     const [update] = useMutation<user, userVariables>(profileUpdateMutation);
@@ -24,8 +24,6 @@ export const UserDialog = ({
     const onAction = useCallback((action: ObjectDialogAction) => {
         switch (action) {
             case ObjectDialogAction.Cancel:
-                setLocation(`${APP_LINKS.SearchUsers}/view`, { replace: true });
-                break;
             case ObjectDialogAction.Close:
                 window.history.back();
                 break;
@@ -36,19 +34,19 @@ export const UserDialog = ({
                 break;
             case ObjectDialogAction.Previous:
                 break;
-            case ObjectDialogAction.Save:
-                mutationWrapper({
-                    mutation: update,
-                    input: {},
-                    onSuccess: ({ data }) => {
-                        const id = data?.user?.id;
-                        if (id) setLocation(`${APP_LINKS.SearchUsers}/view/${id}`, { replace: true });
-                    },
-                    onError: (response) => {
-                        PubSub.get().publishSnack({ message: 'Error occurred.', severity: 'error', data: { error: response } });
-                    }
-                })
-                break;
+            // case ObjectDialogAction.Save: TODO
+            //     mutationWrapper({
+            //         mutation: update,
+            //         input: {},
+            //         onSuccess: ({ data }) => {
+            //             const id = data?.user?.id;
+            //             if (id) setLocation(`${APP_LINKS.SearchUsers}/view/${id}`, { replace: true });
+            //         },
+            //         onError: (response) => {
+            //             PubSub.get().publishSnack({ message: 'Error occurred.', severity: 'error', data: { error: response } });
+            //         }
+            //     })
+            //     break;
         }
     }, [setLocation, update]);
 

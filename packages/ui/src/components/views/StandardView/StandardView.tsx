@@ -30,8 +30,7 @@ export const StandardView = ({
     const [, setLocation] = useLocation();
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Standard}/:id`);
-    const [, params2] = useRoute(`${APP_LINKS.SearchStandards}/view/:id`);
-    const id = params?.id ?? params2?.id;
+    const id = params?.id;
     // Fetch data
     const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery, { errorPolicy: 'all' });
     useEffect(() => {
@@ -87,9 +86,8 @@ export const StandardView = ({
     const toCreator = useCallback(() => { toCreatedBy(standard, setLocation) }, [standard, setLocation]);
 
     const onEdit = useCallback(() => {
-        // Depends on if we're in a search popup or a normal organization page
-        setLocation(Boolean(params?.id) ? `${APP_LINKS.Standard}/edit/${id}` : `${APP_LINKS.SearchStandards}/edit/${id}`);
-    }, [setLocation, params?.id, id]);
+        setLocation(`${APP_LINKS.Standard}/edit/${id}`);
+    }, [setLocation, id]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);

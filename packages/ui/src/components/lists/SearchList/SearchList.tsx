@@ -321,6 +321,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 handleClose={handleAdvancedSearchDialogClose}
                 handleSearch={handleAdvancedSearchDialogSubmit}
                 isOpen={advancedSearchDialogOpen}
+                objectType={objectType}
                 session={session}
                 zIndex={zIndex + 1}
             />

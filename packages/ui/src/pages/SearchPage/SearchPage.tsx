@@ -1,53 +1,98 @@
-import { APP_LINKS } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material";
 import { SearchList } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
 import { useLocation } from "wouter";
-import { BaseSearchPageProps } from "./types";
+import { SearchPageProps } from "../types";
 import { Add as AddIcon } from '@mui/icons-material';
+import { ObjectType, parseSearchParams, stringifySearchParams } from "utils";
+import { organizationsQuery, projectsQuery, routinesQuery, standardsQuery, usersQuery } from "graphql/query";
+import { lazily } from "react-lazily";
+import { Organization, Project, Routine, Standard, User } from "types";
 
-const tabOptions = [
-    ['Organizations', APP_LINKS.SearchOrganizations],
-    ['Projects', APP_LINKS.SearchProjects],
-    ['Routines', APP_LINKS.SearchRoutines],
-    ['Standards', APP_LINKS.SearchStandards],
-    ['Users', APP_LINKS.SearchUsers],
+type BaseParams = {
+    itemKeyPrefix: string;
+    objectType: ObjectType | undefined;
+    query: any | undefined;
+    title: string;
+}
+
+type SearchObject = Organization | Project | Routine | Standard | User;
+
+const tabOptions: [string, ObjectType][] = [
+    ['Organizations', ObjectType.Organization],
+    ['Projects', ObjectType.Project],
+    ['Routines', ObjectType.Routine],
+    ['Standards', ObjectType.Standard],
+    ['Users', ObjectType.User],
 ];
 
-export function BaseSearchPage({
-    itemKeyPrefix,
-    title = 'Search',
-    searchPlaceholder = 'Search...',
-    query,
-    take = 20,
-    objectType,
-    onObjectSelect,
-    showAddButton = true,
-    onAddClick = () => { },
-    popupButtonText,
-    popupButtonTooltip = "Couldn't find what you were looking for? Try creating your own!",
-    onPopupButtonClick,
+/**
+ * Maps object types to queries.
+ */
+const queryMap = {
+    [ObjectType.Organization]: organizationsQuery,
+    [ObjectType.Project]: projectsQuery,
+    [ObjectType.Routine]: routinesQuery,
+    [ObjectType.Standard]: standardsQuery,
+    [ObjectType.User]: usersQuery,
+}
+
+/**
+ * Maps object types to titles
+ */
+const titleMap = {
+    [ObjectType.Organization]: 'Organizations',
+    [ObjectType.Project]: 'Projects',
+    [ObjectType.Routine]: 'Routines',
+    [ObjectType.Standard]: 'Standards',
+    [ObjectType.User]: 'Users',
+}
+
+export function SearchPage({
     session,
-    where,
-}: BaseSearchPageProps) {
+}: SearchPageProps) {
     const [, setLocation] = useLocation();
 
-    // Handle tabs
-    const tabIndex = useMemo(() => {
-        const index = tabOptions.findIndex(t => window.location.pathname.startsWith(t[1]));
-        return Math.max(index, 0);
+    // Handles item add/select/edit
+    const [selectedItem, setSelectedItem] = useState<SearchObject | undefined>(undefined);
+    const handleSelected = useCallback((selected: SearchObject) => {
+        setSelectedItem(selected);
     }, []);
-    const handleTabChange = (_e, newIndex) => {
-        setLocation(tabOptions[newIndex][1], { replace: true });
-    };
+
+    // Handle tabs
+    const [tabIndex, setTabIndex] = useState<number>(() => {
+        const searchParams = parseSearchParams(window.location.search);
+        const availableTypes: string[] = tabOptions.map(t => t[1]);
+        const objectType: ObjectType | undefined = availableTypes.includes(searchParams.type as string) ? searchParams.type as ObjectType : undefined;
+        const index = tabOptions.findIndex(t => t[1] === objectType);
+        return Math.max(0, index);
+    });
+    const handleTabChange = (_e, newIndex: number) => { setTabIndex(newIndex) };
+
+    // On tab change, update BaseParams, document title, and URL
+    const { itemKeyPrefix, objectType, query, title } = useMemo<BaseParams>(() => {
+        // Update tab title
+        document.title = `Search ${tabOptions[tabIndex][0]}`;
+        // Get object type
+        const objectType: ObjectType = tabOptions[tabIndex][1];
+        // Update URL
+        const params = parseSearchParams(window.location.search);
+        params.type = objectType;
+        setLocation(stringifySearchParams(params), { replace: true });
+        // Get other BaseParams
+        const itemKeyPrefix = `${objectType}-list-item`;
+        const query = queryMap[objectType];
+        const title = objectType ? titleMap[objectType] : 'Search';
+        return { itemKeyPrefix, objectType, query, title };
+    }, [setLocation, tabIndex]);
 
     // Popup button
     const [popupButton, setPopupButton] = useState<boolean>(false);
     const handleScrolledFar = useCallback(() => { setPopupButton(true) }, [])
     const popupButtonContainer = useMemo(() => (
         <Box sx={{ ...centeredDiv, paddingTop: 1 }}>
-            <Tooltip title={popupButtonTooltip}>
+            {/* <Tooltip title={popupButtonTooltip}>
                 <Button
                     onClick={onPopupButtonClick}
                     size="large"
@@ -64,9 +109,9 @@ export function BaseSearchPage({
                 >
                     {popupButtonText}
                 </Button>
-            </Tooltip>
+            </Tooltip> */}
         </Box>
-    ), [popupButton, popupButtonText, popupButtonTooltip, onPopupButtonClick]);
+    ), [popupButton]);
 
     return (
         <Box id='page' sx={{
@@ -101,7 +146,7 @@ export function BaseSearchPage({
             </Box>
             <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
                 <Typography component="h2" variant="h4">{title}</Typography>
-                {showAddButton ? <Tooltip title="Add new" placement="top">
+                {/* <Tooltip title="Add new" placement="top">
                     <IconButton
                         size="large"
                         onClick={onAddClick}
@@ -111,20 +156,19 @@ export function BaseSearchPage({
                     >
                         <AddIcon color="secondary" sx={{ width: '1.5em', height: '1.5em' }} />
                     </IconButton>
-                </Tooltip> : null}
+                </Tooltip> */}
             </Stack>
-            <SearchList
+            {objectType && <SearchList
                 itemKeyPrefix={itemKeyPrefix}
-                searchPlaceholder={searchPlaceholder}
+                searchPlaceholder={'Search...'}
                 query={query}
-                take={take}
+                take={20}
                 objectType={objectType}
-                onObjectSelect={onObjectSelect}
+                onObjectSelect={handleSelected}
                 onScrolledFar={handleScrolledFar}
                 session={session}
                 zIndex={200}
-                where={where}
-            />
+            />}
             {popupButtonContainer}
         </Box >
     )

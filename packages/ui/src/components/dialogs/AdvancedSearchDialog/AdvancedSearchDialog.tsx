@@ -21,21 +21,25 @@ import {
 import { useFormik } from 'formik';
 import { FieldData, FormSchema } from 'forms/types';
 import { organizationSearchSchema, projectSearchSchema, routineSearchSchema, standardSearchSchema, userSearchSchema } from './schemas';
-import { useReactPath } from 'utils';
-import { APP_LINKS } from '@local/shared';
+import { ObjectType } from 'utils';
 import { generateDefaultProps, generateGrid, generateYupSchema } from 'forms/generators';
 import { Tag } from 'types';
 
 /**
- * Maps routes to their corresponding search schemas
+ * Maps object types to their corresponding search schemas
  */
-const routeToSchema = {
-    [APP_LINKS.SearchOrganizations]: organizationSearchSchema,
-    [APP_LINKS.SearchProjects]: projectSearchSchema,
-    [APP_LINKS.SearchRoutines]: routineSearchSchema,
-    [APP_LINKS.SearchStandards]: standardSearchSchema,
-    [APP_LINKS.SearchUsers]: userSearchSchema,
+const objectToSchema: { [key in ObjectType]?: FormSchema } = {
+    [ObjectType.Organization]: organizationSearchSchema,
+    [ObjectType.Project]: projectSearchSchema,
+    [ObjectType.Routine]: routineSearchSchema,
+    [ObjectType.Standard]: standardSearchSchema,
+    [ObjectType.User]: userSearchSchema,
 };
+
+const getSchema = (objectType: ObjectType): FormSchema | undefined => {
+    if (objectType in objectToSchema) return objectToSchema[objectType];
+    return undefined;
+}
 
 const yesNoDontCareToSearch = (value: 'yes' | 'no' | 'dontCare'): boolean | undefined => {
     switch (value) {
@@ -104,34 +108,33 @@ const shapeFormikUser = (values: { [x: string]: any }) => ({
 })
 
 /**
- * Shapes formik values to match the search query
+ * Maps object types to their corresponding search queries
  */
 const shapeFormik = {
-    [APP_LINKS.SearchOrganizations]: shapeFormikOrganization,
-    [APP_LINKS.SearchProjects]: shapeFormikProject,
-    [APP_LINKS.SearchRoutines]: shapeFormikRoutine,
-    [APP_LINKS.SearchStandards]: shapeFormikStandard,
-    [APP_LINKS.SearchUsers]: shapeFormikUser,
+    [ObjectType.Organization]: shapeFormikOrganization,
+    [ObjectType.Project]: shapeFormikProject,
+    [ObjectType.Routine]: shapeFormikRoutine,
+    [ObjectType.Standard]: shapeFormikStandard,
+    [ObjectType.User]: shapeFormikUser,
+}
+
+const getFormik = (objectType: ObjectType): any => {
+    if (objectType in shapeFormik) return shapeFormik[objectType];
+    return undefined;
 }
 
 export const AdvancedSearchDialog = ({
     handleClose,
     handleSearch,
     isOpen,
+    objectType,
     session,
     zIndex,
 }: AdvancedSearchDialogProps) => {
     const theme = useTheme();
     // Search schema to use
-    const [schema, setSchema] = useState<FormSchema | null>(null);
-
-    // Use path to determine which form schema to use
-    const path = useReactPath();
-    useEffect(() => {
-        if (path in routeToSchema) {
-            setSchema(routeToSchema[path]);
-        }
-    }, [path]);
+    const [schema, setSchema] = useState<FormSchema | undefined>(getSchema(objectType));
+    useEffect(() => { setSchema(getSchema(objectType)) }, [objectType]);
 
     // Get field inputs from schema, and add default values
     const fieldInputs = useMemo<FieldData[]>(() => schema?.fields ? generateDefaultProps(schema.fields) : [], [schema?.fields]);
@@ -157,8 +160,11 @@ export const AdvancedSearchDialog = ({
         validationSchema,
         onSubmit: (values) => {
             // Shape values to match search query
-            const searchValues = shapeFormik[path](values);
-            handleSearch(searchValues);
+            const formikShape = getFormik(objectType);
+            if (formikShape) {
+                const searchValue = formikShape(values);
+                handleSearch(searchValue);
+            }
             handleClose();
         },
     });
