@@ -97,6 +97,36 @@ export function App() {
     useEffect(() => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         setLoading(false);
+        // Add help wanted to console logs
+        console.log(`
+               @@@                 @@@                  
+            @@     @@           @@     @@               
+           @@       @@         @@       @@              
+            @@     @@           @@     @@               
+               @@@   @@        @   @@@                  
+                        @   @@                   @@@      
+                         @@                   @@     @@
+                         @@             @@@@@@@       @@
+            @@           @@          @@       @@     @@
+    @@@  @@    @@    @@@    @@@   @@             @@@ 
+ @@     @@         @@          @@                     
+@@       @@       @@            @@                                  
+ @@     @@        @             @@@@@@@@@@                Consider developing with us!  
+    @@@           @@            @@        @@@@@           https://github.com/Vrooli/Vrooli
+                   @@          @@                @      
+                     @@@    @@@                  @      
+                         @@                     @@@   
+       @@@              @@@@                 @@     @@  
+    @@     @@@@@@@@@@@@      @@             @@       @@ 
+   @@       @@      @@        @@             @@     @@ 
+    @@     @@        @@      @@                 @@@           
+       @@@              @@@@                             
+                         @@ 
+                       @@@@@@                        
+                     @@      @@                        
+                     @@      @@                        
+                       @@@@@@  
+        `)
     }, []);
 
     useEffect(() => {
