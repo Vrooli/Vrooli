@@ -57,7 +57,7 @@ export const openObject = (object: OpenObjectProps['object'], setLocation: OpenO
         return; 
     }
     // Navigate to object page
-    setLocation(`${object.__typename}/${getObjectSlug(object)}`);
+    setLocation(`${getObjectUrlBase(object)}/${getObjectSlug(object)}`);
 }
 
 /**

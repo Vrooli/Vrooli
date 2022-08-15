@@ -1,20 +1,24 @@
 import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material";
-import { SearchList } from "components";
+import { SearchList, ShareDialog } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
 import { useLocation } from "wouter";
 import { SearchPageProps } from "../types";
 import { Add as AddIcon } from '@mui/icons-material';
-import { ObjectType, parseSearchParams, stringifySearchParams } from "utils";
+import { getObjectUrlBase, ObjectType, PubSub, parseSearchParams, stringifySearchParams, openObject } from "utils";
 import { organizationsQuery, projectsQuery, routinesQuery, standardsQuery, usersQuery } from "graphql/query";
-import { lazily } from "react-lazily";
 import { Organization, Project, Routine, Standard, User } from "types";
+import { validate as uuidValidate } from 'uuid';
+import { APP_LINKS } from "@local/shared";
 
 type BaseParams = {
     itemKeyPrefix: string;
     objectType: ObjectType | undefined;
+    popupTitle: string;
+    popupTooltip: string;
     query: any | undefined;
     title: string;
+    where: { [x: string]: any };
 }
 
 type SearchObject = Organization | Project | Routine | Standard | User;
@@ -26,6 +30,17 @@ const tabOptions: [string, ObjectType][] = [
     ['Standards', ObjectType.Standard],
     ['Users', ObjectType.User],
 ];
+
+/**
+ * Maps object types to popup titles and tooltips.
+ */
+const popupMap = {
+    [ObjectType.Organization]: ['Invite', `Can't find who you're looking for? Invite them!😊`],
+    [ObjectType.Project]: ['Add', `Can't find what you're looking for? Create it!😎`],
+    [ObjectType.Routine]: ['Add', `Can't find what you're looking for? Create it!😎`],
+    [ObjectType.Standard]: ['Add', `Can't find what you're looking for? Create it!😎`],
+    [ObjectType.User]: ['Invite', `Can't find who you're looking for? Invite them!😊`],
+}
 
 /**
  * Maps object types to queries.
@@ -49,16 +64,27 @@ const titleMap = {
     [ObjectType.User]: 'Users',
 }
 
+/**
+ * Maps object types to wheres (additional queries for search)
+ */
+const whereMap = {
+    [ObjectType.Project]: { isComplete: true },
+    [ObjectType.Routine]: { isComplete: true, isInternal: false },
+    [ObjectType.Standard]: { type: 'JSON' },
+}
+
 export function SearchPage({
     session,
 }: SearchPageProps) {
     const [, setLocation] = useLocation();
 
-    // Handles item add/select/edit
-    const [selectedItem, setSelectedItem] = useState<SearchObject | undefined>(undefined);
-    const handleSelected = useCallback((selected: SearchObject) => {
-        setSelectedItem(selected);
-    }, []);
+    const handleSelected = useCallback((selected: SearchObject) => { openObject(selected, setLocation) }, [setLocation]);
+
+    // Popup button, which opens either an add or invite dialog
+    const [popupButton, setPopupButton] = useState<boolean>(false);
+
+    const [shareDialogOpen, setShareDialogOpen] = useState(false);
+    const closeShareDialog = useCallback(() => setShareDialogOpen(false), []);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(() => {
@@ -70,8 +96,11 @@ export function SearchPage({
     });
     const handleTabChange = (_e, newIndex: number) => { setTabIndex(newIndex) };
 
-    // On tab change, update BaseParams, document title, and URL
-    const { itemKeyPrefix, objectType, query, title } = useMemo<BaseParams>(() => {
+    // On tab change, update BaseParams, document title, where, and URL
+    const { itemKeyPrefix, objectType, popupTitle, popupTooltip, query, title, where } = useMemo<BaseParams>(() => {
+        // Close dialogs if they're open
+        setPopupButton(false);
+        setShareDialogOpen(false);
         // Update tab title
         document.title = `Search ${tabOptions[tabIndex][0]}`;
         // Get object type
@@ -82,17 +111,42 @@ export function SearchPage({
         setLocation(stringifySearchParams(params), { replace: true });
         // Get other BaseParams
         const itemKeyPrefix = `${objectType}-list-item`;
+        const popupTitle = popupMap[objectType][0];
+        const popupTooltip = popupMap[objectType][1];
         const query = queryMap[objectType];
         const title = objectType ? titleMap[objectType] : 'Search';
-        return { itemKeyPrefix, objectType, query, title };
+        const where = whereMap[objectType];
+        return { itemKeyPrefix, objectType, popupTitle, popupTooltip, query, title, where };
     }, [setLocation, tabIndex]);
 
-    // Popup button
-    const [popupButton, setPopupButton] = useState<boolean>(false);
+    const onAddClick = useCallback(() => {
+        const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
+        const objectType: ObjectType = tabOptions[tabIndex][1];
+        const addUrl = `${getObjectUrlBase({ __typename: objectType })}/add`
+        if (loggedIn) {
+            setLocation(addUrl)
+        }
+        else {
+            PubSub.get().publishSnack({ message: 'Must be logged in.', severity: 'error' });
+            setLocation(`${APP_LINKS.Start}${stringifySearchParams({
+                redirect: addUrl
+            })}`);
+        }
+    }, [session?.id, session?.isLoggedIn, setLocation, tabIndex]);
+
+    const onPopupButtonClick = useCallback(() => {
+        const objectType = tabOptions[tabIndex][1];
+        if (objectType === ObjectType.Organization || objectType === ObjectType.User) {
+            setShareDialogOpen(true);
+        } else {
+            onAddClick();
+        }
+    }, [onAddClick, tabIndex])
+
     const handleScrolledFar = useCallback(() => { setPopupButton(true) }, [])
     const popupButtonContainer = useMemo(() => (
         <Box sx={{ ...centeredDiv, paddingTop: 1 }}>
-            {/* <Tooltip title={popupButtonTooltip}>
+            <Tooltip title={popupTooltip}>
                 <Button
                     onClick={onPopupButtonClick}
                     size="large"
@@ -107,17 +161,23 @@ export function SearchPage({
                         transition: 'transform 1s ease-in-out',
                     }}
                 >
-                    {popupButtonText}
+                    {popupTitle}
                 </Button>
-            </Tooltip> */}
+            </Tooltip>
         </Box>
-    ), [popupButton]);
+    ), [onPopupButtonClick, popupButton, popupTitle, popupTooltip]);
 
     return (
         <Box id='page' sx={{
             padding: '0.5em',
             paddingTop: { xs: '64px', md: '80px' },
         }}>
+            {/* Invite dialog for organizations and users */}
+            <ShareDialog
+                onClose={closeShareDialog}
+                open={shareDialogOpen}
+                zIndex={200}
+            />
             {/* Navigate between search pages */}
             <Box display="flex" justifyContent="center" width="100%">
                 <Tabs
@@ -146,7 +206,7 @@ export function SearchPage({
             </Box>
             <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
                 <Typography component="h2" variant="h4">{title}</Typography>
-                {/* <Tooltip title="Add new" placement="top">
+                <Tooltip title="Add new" placement="top">
                     <IconButton
                         size="large"
                         onClick={onAddClick}
@@ -156,7 +216,7 @@ export function SearchPage({
                     >
                         <AddIcon color="secondary" sx={{ width: '1.5em', height: '1.5em' }} />
                     </IconButton>
-                </Tooltip> */}
+                </Tooltip>
             </Stack>
             {objectType && <SearchList
                 itemKeyPrefix={itemKeyPrefix}
@@ -168,6 +228,7 @@ export function SearchPage({
                 onScrolledFar={handleScrolledFar}
                 session={session}
                 zIndex={200}
+                where={where}
             />}
             {popupButtonContainer}
         </Box >
