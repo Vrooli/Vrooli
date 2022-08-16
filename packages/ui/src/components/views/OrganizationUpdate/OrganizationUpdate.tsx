@@ -1,5 +1,5 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
-import { useRoute } from "wouter";
+import { useRoute } from '@local/route';
 import { APP_LINKS } from "@local/shared";
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { organization, organizationVariables } from "graphql/generated/organization";

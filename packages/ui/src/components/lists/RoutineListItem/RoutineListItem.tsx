@@ -3,7 +3,7 @@ import { RoutineListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { APP_LINKS, StarFor, VoteFor } from '@local/shared';
-import { useLocation } from 'wouter';
+import { useLocation } from '@local/route';
 import { CommentButton, ReportButton, StarButton, TagList, TextLoading, UpvoteDownvote } from '..';
 import { getTranslation, listItemColor } from 'utils';
 

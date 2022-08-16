@@ -1,6 +1,6 @@
 import { Suspense, useCallback } from 'react';
 import { lazily } from 'react-lazily';
-import { Route, Switch } from 'wouter';
+import { Route, Switch } from '@local/route';
 import { BUSINESS_NAME } from '@local/shared';
 // import { Sitemap } from 'Sitemap';
 import { ScrollToTop } from 'components';

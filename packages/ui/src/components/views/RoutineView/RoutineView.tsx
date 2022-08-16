@@ -1,5 +1,5 @@
 import { Box, Button, CircularProgress, Dialog, Grid, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
-import { useLocation, useRoute } from "wouter";
+import { useLocation, useRoute } from '@local/route';
 import { APP_LINKS, VoteFor } from "@local/shared";
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";

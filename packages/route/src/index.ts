@@ -1,6 +1,6 @@
 import locationHook, { BaseLocationHook, HookNavigationOptions, LocationHook, Path } from "./useLocation";
 import makeMatcher, { DefaultParams, Match, MatcherFn } from "./matcher";
-import { AnchorHTMLAttributes, FunctionComponent, useRef, useLayoutEffect, useContext, useCallback, createContext, isValidElement, cloneElement, createElement, Fragment, ReactElement, ReactNode } from "react";
+import { AnchorHTMLAttributes, cloneElement, createContext, createElement, Fragment, FunctionComponent, isValidElement, PropsWithChildren, useRef, useLayoutEffect, useContext, useCallback, ReactElement, ReactNode } from "react";
 
 export type ExtractRouteOptionalParam<PathType extends Path> =
     PathType extends `${infer Param}?`
@@ -173,7 +173,12 @@ export const Link = (props: LinkProps) => {
     return cloneElement(jsx, extraProps);
 };
 
-const flattenChildren = (children: any): any => {
+/**
+ * Recursively flattens an array
+ * @param children
+ * @returns 
+ */
+const flattenChildren = (children: Array<any> | any): any => {
     return Array.isArray(children)
         ? [].concat(
             ...children.map((c) =>

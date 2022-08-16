@@ -9,7 +9,8 @@
     "dependencies": {
         "@emotion/react": "^11.9.0",
         "@emotion/styled": "^11.8.1",
-        "@local/shared": "^1.0.0",
+        "@local/shared": "^1.2.0",
+        "@local/route": "^1.2.0",
         "@mui/icons-material": "5.8.2",
         "@mui/material": "5.8.2",
         "@mui/styles": "^5.8.0",
@@ -33,8 +34,7 @@
         "workbox-range-requests": "^6.3.0",
         "workbox-routing": "^6.3.0",
         "workbox-strategies": "^6.3.0",
-        "workbox-streams": "^6.3.0",
-        "wouter": "^2.8.0-alpha.2"
+        "workbox-streams": "^6.3.0"
     },
     "scripts": {
         "build": "react-scripts build --max-old-space-size=8192 --optimize_for_size --max_executable_size=4096 --stack_size=4096",

@@ -4,7 +4,7 @@ import { BaseObjectDialog } from '..';
 import { OrganizationCreate } from 'components/views/OrganizationCreate/OrganizationCreate';
 import { OrganizationUpdate } from 'components/views/OrganizationUpdate/OrganizationUpdate';
 import { OrganizationDialogProps, ObjectDialogAction } from 'components/dialogs/types';
-import { useRoute } from 'wouter';
+import { useRoute } from '@local/route';
 import { Organization } from 'types';
 
 export const OrganizationDialog = ({

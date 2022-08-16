@@ -1,5 +1,5 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
-import { useLocation, useRoute } from "wouter";
+import { useLocation, useRoute } from '@local/route';
 import { adaHandleRegex, APP_LINKS, ResourceListUsedFor, StarFor } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
 import { project, projectVariables } from "graphql/generated/project";

@@ -2,7 +2,7 @@ import { UserView } from 'components';
 import { useCallback, useMemo } from 'react';
 import { BaseObjectDialog } from '..';
 import { UserDialogProps, ObjectDialogAction } from 'components/dialogs/types';
-import { useLocation, useRoute } from 'wouter';
+import { useLocation, useRoute } from '@local/route';
 import { useMutation } from '@apollo/client';
 import { user, userVariables } from 'graphql/generated/user';
 import { profileUpdateMutation } from 'graphql/mutation';

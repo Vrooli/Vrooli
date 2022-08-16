@@ -4,7 +4,7 @@ import { BaseObjectDialog } from '..';
 import { StandardCreate } from 'components/views/StandardCreate/StandardCreate';
 import { StandardUpdate } from 'components/views/StandardUpdate/StandardUpdate';
 import { StandardDialogProps, ObjectDialogAction } from 'components/dialogs/types';
-import { useRoute } from 'wouter';
+import { useRoute } from '@local/route';
 import { Standard } from 'types';
 
 export const StandardDialog = ({

@@ -1,4 +1,4 @@
-import { useLocation } from 'wouter';
+import { useLocation } from '@local/route';
 import { makeStyles } from '@mui/styles';
 import { BottomNavigation, Theme } from '@mui/material';
 import { actionsToBottomNav, ACTION_TAGS, getUserActions } from 'utils';

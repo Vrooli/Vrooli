@@ -8,7 +8,7 @@ import { developPageQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ResourceList } from 'types';
 import { listToListItems, openObject, OpenObjectProps } from 'utils';
-import { useLocation } from 'wouter';
+import { useLocation } from '@local/route';
 import { DevelopPageProps } from '../types';
 
 const completedText =

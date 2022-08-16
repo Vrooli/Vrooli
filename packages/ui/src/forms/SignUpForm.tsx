@@ -16,7 +16,7 @@ import {
 import { Forms, PubSub } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { useLocation } from 'wouter';
+import { useLocation } from '@local/route';
 import { emailSignUp, emailSignUpVariables } from 'graphql/generated/emailSignUp';
 import { FormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';

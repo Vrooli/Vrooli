@@ -22,7 +22,7 @@ import { useLazyQuery } from '@apollo/client';
 import { standard, standardVariables } from 'graphql/generated/standard';
 import { StandardCreate } from 'components/views/StandardCreate/StandardCreate';
 import { ObjectType, parseSearchParams, stringifySearchParams } from 'utils';
-import { useLocation } from 'wouter';
+import { useLocation } from '@local/route';
 
 const helpText =
     `This dialog allows you to connect a new or existing standard to a routine input/output.

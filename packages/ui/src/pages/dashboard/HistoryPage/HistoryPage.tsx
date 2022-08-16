@@ -4,7 +4,7 @@ import { historyPage, historyPageVariables } from 'graphql/generated/historyPage
 import { useQuery } from '@apollo/client';
 import { historyPageQuery } from 'graphql/query';
 import { AutocompleteSearchBar, ListTitleContainer } from 'components';
-import { useLocation } from 'wouter';
+import { useLocation } from '@local/route';
 import { APP_LINKS } from '@local/shared';
 import { HistoryPageProps } from '../types';
 import { listToAutocomplete, listToListItems, openObject, OpenObjectProps, useReactSearch } from 'utils';

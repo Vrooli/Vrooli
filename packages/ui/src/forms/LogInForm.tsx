@@ -1,4 +1,4 @@
-import { useLocation } from 'wouter';
+import { useLocation } from '@local/route';
 import { emailLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { CODE, emailLogInForm } from '@local/shared';

@@ -3,7 +3,7 @@ import { useCallback, useMemo } from 'react';
 import { BaseObjectDialog } from '..';
 import { ProjectUpdate } from 'components/views/ProjectUpdate/ProjectUpdate';
 import { ProjectDialogProps, ObjectDialogAction } from 'components/dialogs/types';
-import { useRoute } from 'wouter';
+import { useRoute } from '@local/route';
 import { ProjectCreate } from 'components/views/ProjectCreate/ProjectCreate';
 import { Project } from 'types';
 
