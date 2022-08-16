@@ -3,6 +3,7 @@
     "author": "Vrooli",
     "license": "GPL-3.0",
     "version": "1.2.0",
+    "private": true,
     "main": "dist/index.js",
     "type": "module",
     "directories": {
@@ -25,7 +26,7 @@
         "@blockfrost/blockfrost-js": "^4.1.0",
         "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
         "@graphql-tools/schema": "^8.2.0",
-        "@local/shared": "^1.2.0",
+        "@local/shared": "*",
         "@prisma/client": "^3.14.0",
         "apollo-server-express": "^3.3.0",
         "bcrypt": "^5.0.1",

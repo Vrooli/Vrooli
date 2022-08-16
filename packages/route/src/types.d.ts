@@ -1,2 +1,2 @@
-declare module '@local/shared';
+declare module '@local/route';
 export * from '.';

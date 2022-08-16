@@ -10,5 +10,11 @@
     "type": "module",
     "scripts": {
         "build": "yarn tsc"
+    },
+    "dependencies": {
+        "react": "^18.0.0"
+    },
+    "devDependencies": {
+        "@types/react": "18.0.9"
     }
 }

@@ -9,7 +9,6 @@
     "typings": "src/types.d.ts",
     "type": "module",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1",
         "build": "yarn tsc"
     },
     "dependencies": {
