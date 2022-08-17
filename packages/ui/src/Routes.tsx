@@ -1,8 +1,7 @@
 import { Suspense, useCallback } from 'react';
 import { lazily } from 'react-lazily';
-import { Route, Switch } from '@local/shared';
-import { BUSINESS_NAME } from '@local/shared';
-import { APP_LINKS as LINKS } from '@local/shared';
+import { Route, Switch } from '@shared/route';
+import { APP_LINKS as LINKS, BUSINESS_NAME } from '@shared/consts';
 // import { Sitemap } from 'Sitemap';
 import {
     ForgotPasswordForm,

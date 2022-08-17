@@ -2,7 +2,7 @@
  * Adds initial data to the database. (i.e. data that should be included in production). 
  * This is written so that it can be called multiple times without duplicating data.
  */
-import { InputType } from '@local/shared';
+import { InputType } from '@shared/consts';
 import { ProfileModel } from '../../models';
 import { PrismaType } from '../../types';
 import pkg from '@prisma/client';

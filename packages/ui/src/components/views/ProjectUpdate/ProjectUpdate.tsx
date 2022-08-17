@@ -1,13 +1,13 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
-import { useRoute } from '@local/shared';
-import { APP_LINKS } from "@local/shared";
+import { useRoute } from '@shared/route';
+import { APP_LINKS } from "@shared/consts";
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { project, projectVariables } from "graphql/generated/project";
 import { projectQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ProjectUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { projectUpdateForm as validationSchema } from '@local/shared';
+import { projectUpdateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { projectUpdateMutation } from "graphql/mutation";
 import { ProjectTranslationShape, PubSub, shapeProjectUpdate, TagShape, updateArray } from "utils";

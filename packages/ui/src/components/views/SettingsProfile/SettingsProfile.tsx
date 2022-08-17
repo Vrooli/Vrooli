@@ -2,7 +2,8 @@ import { Autocomplete, Box, Container, Grid, IconButton, Stack, TextField, Typog
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
+import { profileUpdateSchema as validationSchema } from '@shared/validation';
+import { APP_LINKS } from '@shared/consts';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
 import { getUserLanguages, ProfileTranslationShape, shapeProfileUpdate, TERTIARY_COLOR, updateArray } from "utils";
@@ -14,7 +15,7 @@ import {
 import { DialogActionItem } from "components/containers/types";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { SettingsProfileProps } from "../types";
-import { useLocation } from '@local/shared';
+import { useLocation } from '@shared/route';
 import { LanguageInput } from "components/inputs";
 import { HelpButton } from "components/buttons";
 import { findHandles, findHandlesVariables } from "graphql/generated/findHandles";

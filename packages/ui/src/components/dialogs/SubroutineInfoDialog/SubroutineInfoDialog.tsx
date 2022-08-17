@@ -23,11 +23,12 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { useLocation } from '@local/shared';
+import { useLocation } from '@shared/route';
 import { SubroutineInfoDialogProps } from '../types';
 import { getOwnedByString, getTranslation, InputShape, OutputShape, RoutineTranslationShape, TagShape, toOwnedBy, updateArray } from 'utils';
 import Markdown from 'markdown-to-jsx';
-import { ResourceListUsedFor, routineUpdateForm as validationSchema } from '@local/shared';
+import { routineUpdateForm as validationSchema } from '@shared/validation';
+import { ResourceListUsedFor } from '@shared/consts';
 import { InputOutputContainer, LanguageInput, LinkButton, MarkdownInput, QuantityBox, ResourceListHorizontal, TagList, TagSelector, UserOrganizationSwitch } from 'components';
 import { useFormik } from 'formik';
 import { NodeDataRoutineListItem, Organization, ResourceList } from 'types';

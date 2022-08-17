@@ -1,6 +1,6 @@
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
-import { Router } from '@local/shared';
+import { Router } from '@shared/route';
 import { ApolloProvider } from '@apollo/client';
 import { initializeApollo } from 'graphql/utils/initialize';
 import * as serviceWorkerRegistration from './serviceWorkerRegistration';

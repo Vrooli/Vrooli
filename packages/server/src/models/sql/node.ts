@@ -1,7 +1,8 @@
 import { Count, Node, NodeCreateInput, NodeUpdateInput } from "../../schema/types";
 import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
-import { CODE, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeTranslationCreate, nodeTranslationUpdate, whilesCreate, whilesUpdate, whensCreate, whensUpdate, loopsCreate, loopsUpdate, nodesCreate, nodesUpdate } from "@local/shared";
+import { CODE } from "@shared/consts";
+import { nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeTranslationCreate, nodeTranslationUpdate, whilesCreate, whilesUpdate, whensCreate, whensUpdate, loopsCreate, loopsUpdate, nodesCreate, nodesUpdate } from "@shared/validation";
 import { PrismaType } from "../../types";
 import { validateProfanity } from "../../utils/censor";
 import { TranslationModel } from "./translation";

@@ -5,7 +5,7 @@ import { Context } from '../context';
 import { updateHelper, WalletModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 import { CustomError } from '../error';
-import { CODE } from '@local/shared';
+import { CODE } from '@shared/consts';
 import { serializedAddressToBech32 } from '../auth/walletAuth';
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
 import { rateLimit } from '../rateLimit';

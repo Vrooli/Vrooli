@@ -1,5 +1,5 @@
 {
-    "name": "@local/shared",
+    "name": "@shared/utils",
     "author": "Vrooli",
     "license": "GPL-3.0",
     "version": "1.2.0",

@@ -3,7 +3,7 @@
  */
 import { Box, Button, CircularProgress, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { CommentContainerProps } from '../types';
-import { commentCreateForm as validationSchema } from '@local/shared';
+import { commentCreateForm as validationSchema } from '@shared/validation';
 import { useLazyQuery, useMutation } from '@apollo/client';
 import { commentCreate, commentCreateVariables } from 'graphql/generated/commentCreate';
 import { MarkdownInput } from 'components/inputs';
@@ -14,7 +14,7 @@ import { objectToSearchInfo, ObjectType, parseSearchParams, PubSub, stringifySea
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TimeFrame } from 'graphql/generated/globalTypes';
 import { comments, commentsVariables } from 'graphql/generated/comments';
-import { useLocation } from '@local/shared';
+import { useLocation } from '@shared/route';
 import { commentsQuery } from 'graphql/query';
 import { Comment, CommentThread as ThreadType } from 'types';
 import { CommentThread } from 'components/lists/comment';

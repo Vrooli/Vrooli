@@ -1,4 +1,5 @@
-import { CODE, resourceCreate, resourcesCreate, resourcesUpdate, resourceUpdate } from "@local/shared";
+import { resourceCreate, resourcesCreate, resourcesUpdate, resourceUpdate } from "@shared/validation";
+import { CODE } from "@shared/consts";
 import { Resource, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Count } from "../../schema/types";
 import { PrismaType } from "../../types";
 import { CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, ModelLogic, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";

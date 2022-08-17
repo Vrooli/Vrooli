@@ -7,7 +7,7 @@ import {
     School as LearnIcon,
     Science as ResearchIcon,
 } from '@mui/icons-material';
-import { APP_LINKS as LINKS } from '@local/shared';
+import { APP_LINKS as LINKS, ValueOf } from '@shared/consts';
 import {
     Badge,
     BottomNavigationAction,
@@ -17,7 +17,6 @@ import {
     ListItemIcon,
     ListItemText,
 } from '@mui/material';
-import { ValueOf } from '@local/shared';
 import { openLink } from 'utils';
 import { Session, SetLocation } from 'types';
 

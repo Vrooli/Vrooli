@@ -1,6 +1,6 @@
 import { relationshipToPrisma, RelationshipTypes, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
-import { CODE } from "@local/shared";
+import { CODE } from "@shared/consts";
 import { hasProfanity } from "../../utils/censor";
 import { genErrorCode } from "../../logger";
 

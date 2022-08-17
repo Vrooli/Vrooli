@@ -1,6 +1,6 @@
 import { id, language } from './base';
 import * as yup from 'yup';
-import { ReportFor } from '../consts';
+import { ReportFor } from '@shared/consts';
 
 const createdFor = yup.string().oneOf(Object.values(ReportFor))
 const details = yup.string().max(1024)

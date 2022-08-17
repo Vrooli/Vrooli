@@ -5,7 +5,7 @@ import { star, starVariables } from 'graphql/generated/star';
 import { vote, voteVariables } from 'graphql/generated/vote';
 import { copyMutation, forkMutation, starMutation, voteMutation } from "graphql/mutation";
 import { useCallback, useMemo, useState } from "react";
-import { ReportFor, StarFor, VoteFor } from "@local/shared";
+import { ReportFor, StarFor, VoteFor } from "@shared/consts";
 import { DeleteDialog, ListMenu, ReportDialog } from "..";
 import { BaseObjectActionDialogProps, BaseObjectAction, ListMenuItemData } from "../types";
 import {

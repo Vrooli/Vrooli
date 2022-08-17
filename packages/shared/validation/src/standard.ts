@@ -1,7 +1,7 @@
 import { description, idArray, id, name, version, language, tagArray } from './base';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
-import { InputType } from '../consts';
+import { InputType } from '@shared/consts';
 import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 
 const standardDefault = yup.string().max(8192);

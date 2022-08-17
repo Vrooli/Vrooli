@@ -1,4 +1,5 @@
-import { CODE, runsCreate, runsUpdate } from "@local/shared";
+import { runsCreate, runsUpdate } from "@shared/validation";
+import { CODE } from "@shared/consts";
 import { CustomError } from "../../error";
 import { Count, LogType, Run, RunCancelInput, RunCompleteInput, RunCreateInput, RunSearchInput, RunSortBy, RunStatus, RunUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";

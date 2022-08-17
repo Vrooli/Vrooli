@@ -3,8 +3,9 @@ import { IconButton, ListItem, ListItemButton, ListItemText, Stack, Tooltip, use
 import { ResourceListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { adaHandleRegex, ResourceSortBy, ResourceUsedFor, urlRegex, walletAddressRegex } from '@local/shared';
-import { useLocation } from '@local/shared';
+import { ResourceSortBy, ResourceUsedFor } from '@shared/consts';
+import { adaHandleRegex, urlRegex, walletAddressRegex } from '@shared/validation';
+import { useLocation } from '@shared/route';
 import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, openLink, PubSub, ResourceType } from 'utils';
 import { Resource } from 'types';
 import { getResourceIcon } from '..';

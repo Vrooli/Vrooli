@@ -3,7 +3,7 @@
  * must match a certain schema.
  */
 import { SwitchStandardInputProps } from '../types';
-import { switchStandardInputForm as validationSchema } from '@local/shared';
+import { switchStandardInputForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { useEffect } from 'react';
 import { FormControlLabel, FormGroup, Switch } from '@mui/material';

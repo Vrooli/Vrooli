@@ -1,4 +1,4 @@
-import { InputType } from "@local/shared";
+import { InputType } from "@shared/consts";
 import { FieldData } from "forms/types";
 import { Standard } from "types";
 

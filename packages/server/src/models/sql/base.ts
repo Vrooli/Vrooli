@@ -17,7 +17,8 @@ import { StarModel } from './star';
 import { VoteModel } from './vote';
 import { EmailModel } from './email';
 import { CustomError } from '../../error';
-import { CODE, isObject, ViewFor } from '@local/shared';
+import { CODE, ViewFor } from '@shared/consts';
+import { isObject } from '@shared/utils';
 import { ProfileModel } from './profile';
 import { MemberModel } from './member';
 import { resolveGraphQLInfo } from '../../utils';
@@ -34,7 +35,7 @@ import { WalletModel } from './wallet';
 import { RunStepModel } from './runStep';
 import { NodeRoutineListModel } from './nodeRoutineList';
 import { RunInputModel } from './runInput';
-import { ValueOf } from '@local/shared';
+import { ValueOf } from '@shared/consts';
 import { validate as uuidValidate } from 'uuid';
 const { difference, flatten, merge } = pkg;
 

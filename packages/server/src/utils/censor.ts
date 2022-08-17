@@ -1,6 +1,7 @@
 import { CustomError } from '../error';
 import fs from 'fs';
-import { CODE, isObject } from '@local/shared';
+import { CODE } from '@shared/consts';
+import { isObject } from '@shared/utils';
 import { genErrorCode } from '../logger';
 import pkg from 'lodash';
 const { flatten } = pkg;

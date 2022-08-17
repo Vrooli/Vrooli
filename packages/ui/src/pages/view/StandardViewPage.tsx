@@ -3,8 +3,8 @@ import { Box } from "@mui/material"
 import { BaseObjectDialog, StandardView } from "components";
 import { StandardViewPageProps } from "./types";
 import { ObjectDialogAction } from "components/dialogs/types";
-import { useLocation, useRoute } from '@local/shared';
-import { APP_LINKS } from "@local/shared";
+import { useLocation, useRoute } from '@shared/route';
+import { APP_LINKS } from "@shared/consts";
 import { StandardCreate } from "components/views/StandardCreate/StandardCreate";
 import { Standard } from "types";
 import { StandardUpdate } from "components/views/StandardUpdate/StandardUpdate";

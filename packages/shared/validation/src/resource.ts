@@ -1,6 +1,6 @@
 import { description, id, idArray, language, title } from './base';
 import * as yup from 'yup';
-import { ResourceUsedFor } from '../consts';
+import { ResourceUsedFor } from '@shared/consts';
 
 // Regular expressions for validating links
 // URL (taken from here: https://stackoverflow.com/a/9284473/10240279)

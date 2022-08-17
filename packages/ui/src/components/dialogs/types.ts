@@ -1,7 +1,7 @@
 import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
-import { DeleteOneType } from '@local/shared';
+import { DeleteOneType } from '@shared/consts';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 import { ReportFor } from 'graphql/generated/globalTypes';
 import { ObjectType } from 'utils';

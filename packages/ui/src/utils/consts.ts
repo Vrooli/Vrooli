@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { ValueOf } from '@local/shared';
+import { ValueOf } from '@shared/consts';
 
 export const Forms = {
     ForgotPassword: 'forgot-password',

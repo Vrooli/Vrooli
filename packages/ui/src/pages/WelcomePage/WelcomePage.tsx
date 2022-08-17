@@ -1,4 +1,4 @@
-import { APP_LINKS } from '@local/shared';
+import { APP_LINKS } from '@shared/consts';
 import { Box, Button, Link, Stack, Typography, useTheme } from '@mui/material';
 import {
     Help as FAQIcon,
@@ -7,7 +7,7 @@ import {
     PlayCircle as ExampleIcon,
     YouTube as VideoIcon,
 } from '@mui/icons-material';
-import { useLocation } from '@local/shared';
+import { useLocation } from '@shared/route';
 import { clickSize } from 'styles';
 import { useEffect } from 'react';
 import { PubSub } from 'utils';

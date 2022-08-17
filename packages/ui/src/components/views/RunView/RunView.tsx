@@ -1,8 +1,8 @@
-import { RunStepStatus } from "@local/shared";
+import { RunStepStatus } from "@shared/consts";
 import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material"
 import { DecisionView, HelpButton, RunStepsDialog } from "components";
 import { SubroutineView } from "components/views/SubroutineView/SubroutineView";
-import { useLocation } from '@local/shared';
+import { useLocation } from '@shared/route';
 import { RunViewProps } from "../types";
 import {
     ArrowBack as PreviousIcon,

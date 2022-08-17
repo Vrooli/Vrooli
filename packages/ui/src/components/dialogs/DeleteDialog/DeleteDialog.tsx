@@ -16,8 +16,8 @@ import { mutationWrapper } from 'graphql/utils';
 import { useMutation } from '@apollo/client';
 import { deleteOneMutation } from 'graphql/mutation';
 import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
-import { APP_LINKS } from '@local/shared';
-import { useLocation } from '@local/shared';
+import { APP_LINKS } from '@shared/consts';
+import { useLocation } from '@shared/route';
 import { PubSub } from 'utils';
 
 export const DeleteDialog = ({

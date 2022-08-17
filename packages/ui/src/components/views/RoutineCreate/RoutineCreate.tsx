@@ -1,7 +1,7 @@
 import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { routineCreateForm as validationSchema } from '@local/shared';
+import { routineCreateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { routineCreateMutation } from "graphql/mutation";
 import { getUserLanguages, InputShape, OutputShape, RoutineTranslationShape, shapeRoutineCreate, TagShape, updateArray, useReactSearch } from "utils";

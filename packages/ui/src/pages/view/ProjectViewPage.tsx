@@ -3,8 +3,8 @@ import { Box } from "@mui/material"
 import { BaseObjectDialog, ProjectView } from "components";
 import { ProjectViewPageProps } from "./types";
 import { ObjectDialogAction } from "components/dialogs/types";
-import { useLocation, useRoute } from '@local/shared';
-import { APP_LINKS } from "@local/shared";
+import { useLocation, useRoute } from '@shared/route';
+import { APP_LINKS } from "@shared/consts";
 import { ProjectCreate } from "components/views/ProjectCreate/ProjectCreate";
 import { Project } from "types";
 import { ProjectUpdate } from "components/views/ProjectUpdate/ProjectUpdate";

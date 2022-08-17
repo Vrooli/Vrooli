@@ -21,7 +21,8 @@ import { Dropzone, HelpButton, JsonInput, LanguageInput, MarkdownInput, Quantity
 import { DropzoneProps, QuantityBoxProps, SelectorProps } from 'components/inputs/types'
 import { CheckboxProps, FieldData, JSONProps, MarkdownProps, RadioProps, SliderProps, SwitchProps, TextFieldProps } from 'forms/types'
 import { TagShape, updateArray } from 'utils'
-import { InputType, isObject } from '@local/shared'
+import { InputType } from '@shared/consts';
+import { isObject } from '@shared/utils';
 import { Session } from 'types'
 import {
     ContentCopy as CopyIcon,

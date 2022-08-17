@@ -3,7 +3,7 @@
  * must match a certain schema.
  */
 import { JsonStandardInputProps } from '../types';
-import { jsonStandardInputForm as validationSchema } from '@local/shared';
+import { jsonStandardInputForm as validationSchema } from '@shared/validation';
 import { useEffect, useMemo, useState } from 'react';
 import { useFormik } from 'formik';
 import { Box, IconButton, Stack, TextField, Tooltip, useTheme } from '@mui/material';

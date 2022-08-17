@@ -1,5 +1,5 @@
 import { useLazyQuery, useQuery } from '@apollo/client';
-import { APP_LINKS } from '@local/shared';
+import { APP_LINKS } from '@shared/consts';
 import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, ResourceListHorizontal, ListTitleContainer } from 'components';
 import { ResourceListUsedFor } from 'graphql/generated/globalTypes';
@@ -9,7 +9,7 @@ import { learnPageQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ResourceList } from 'types';
 import { listToListItems, ObjectType, openObject, OpenObjectProps, stringifySearchParams } from 'utils';
-import { useLocation } from '@local/shared';
+import { useLocation } from '@shared/route';
 import { LearnPageProps } from '../types';
 
 const courseText =

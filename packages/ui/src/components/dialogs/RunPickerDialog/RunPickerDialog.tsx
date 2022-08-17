@@ -18,7 +18,7 @@ import { runCreate, runCreateVariables } from "graphql/generated/runCreate";
 import { deleteOneMutation, runCreateMutation } from "graphql/mutation";
 import { Run } from "types";
 import { deleteOne, deleteOneVariables } from "graphql/generated/deleteOne";
-import { DeleteOneType } from "@local/shared";
+import { DeleteOneType } from "@shared/consts";
 import { v4 as uuid } from 'uuid';
 
 export const RunPickerDialog = ({

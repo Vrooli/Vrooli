@@ -1,4 +1,4 @@
-import { APP_LINKS } from '@local/shared';
+import { APP_LINKS } from '@shared/consts';
 import { Box, Button, Dialog, Stack, Typography } from '@mui/material';
 import { ShareDialogProps } from '../types';
 import {

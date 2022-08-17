@@ -3,7 +3,7 @@ import { IconButton, Button, Snackbar, Theme, SnackbarProps } from '@mui/materia
 import { Close as CloseIcon } from '@mui/icons-material';
 import { PubSub } from 'utils';
 import { makeStyles } from '@mui/styles';
-import { ValueOf } from '@local/shared';
+import { ValueOf } from '@shared/consts';
 
 export const SnackSeverity = {
     Default: "default",

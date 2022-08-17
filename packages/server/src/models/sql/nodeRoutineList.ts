@@ -1,6 +1,6 @@
 import { Node, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from "../../schema/types";
 import { FormatConverter, relationshipToPrisma, RelationshipTypes } from "./base";
-import { nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeRoutineListItemTranslationCreate, nodeRoutineListItemTranslationUpdate } from "@local/shared";
+import { nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeRoutineListItemTranslationCreate, nodeRoutineListItemTranslationUpdate } from "@shared/validation";
 import { PrismaType } from "../../types";
 import { RoutineModel } from "./routine";
 import { TranslationModel } from "./translation";

@@ -1,6 +1,6 @@
 import { id, title } from './base';
 import * as yup from 'yup';
-import { RunStepStatus } from '../consts';
+import { RunStepStatus } from '@shared/consts';
 
 const order = yup.number().integer().min(0);
 const contextSwitches = yup.number().integer().min(0);

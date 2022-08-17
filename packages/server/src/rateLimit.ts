@@ -2,7 +2,7 @@ import { Request } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import { initializeRedis } from "./redisConn";
 import { CustomError } from "./error";
-import { CODE } from "@local/shared";
+import { CODE } from "@shared/consts";
 import { genErrorCode, logger, LogLevel } from "./logger";
 
 export interface RateLimitProps {

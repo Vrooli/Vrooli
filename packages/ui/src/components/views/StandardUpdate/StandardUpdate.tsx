@@ -1,13 +1,13 @@
 import { Box, CircularProgress, Grid } from "@mui/material"
-import { useRoute } from '@local/shared';
-import { APP_LINKS, ResourceListUsedFor } from "@local/shared";
+import { useRoute } from '@shared/route';
+import { APP_LINKS, ResourceListUsedFor } from "@shared/consts";
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { standard, standardVariables } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StandardUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { standardUpdateForm as validationSchema } from '@local/shared';
+import { standardUpdateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";
 import { PubSub, shapeStandardUpdate, StandardTranslationShape, TagShape, updateArray } from "utils";

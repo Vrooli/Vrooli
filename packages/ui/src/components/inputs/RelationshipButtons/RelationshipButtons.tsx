@@ -90,75 +90,108 @@ export function RelationshipButtons({
         else openParentDialog();
     }, [disabled, isParentAvailable]);
 
+    // Current owner icon
+    
+
     return (
-        <>
-            {/* Popup for adding/connecting a new organization */}
-            <OrganizationSelectOrCreateDialog
-                isOpen={isCreateDialogOpen}
-                handleAdd={onChange}
-                handleClose={closeCreateDialog}
-                session={session}
-                zIndex={zIndex + 1}
-            />
-            {/* Main component */}
-            <Stack direction="row" spacing={1} justifyContent="center">
-                <Typography variant="h6" sx={{ ...noSelect }}>For:</Typography>
-                <Box component="span" sx={{
-                    display: 'inline-block',
-                    position: 'relative',
-                    width: '64px',
-                    height: '36px',
-                    padding: '8px',
-                }}>
-                    {/* Track */}
-                    <Box component="span" sx={{
-                        backgroundColor: palette.mode === 'dark' ? grey[800] : grey[400],
-                        borderRadius: '16px',
-                        width: '100%',
-                        height: '65%',
-                        display: 'block',
-                    }}>
-                        {/* Thumb */}
-                        
-                        <IconButton sx={{
-                            backgroundColor: palette.secondary.main,
-                            display: 'inline-flex',
-                            width: '30px',
-                            height: '30px',
-                            position: 'absolute',
-                            top: 0,
-                            transition: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)',
-                            transform: `translateX(${Boolean(selected) ? '24' : '0'}px)`,
-                        }}>
-                            <Icon sx={{
-                                position: 'absolute',
-                                display: 'block',
-                                fill: 'white',
-                                borderRadius: '8px',
-                            }} />
-                        </IconButton>
-                    </Box>
-                    {/* Input */}
-                    <input
-                        type="checkbox"
-                        checked={Boolean(selected)}
-                        disabled={disabled}
-                        aria-label="user-organization-toggle"
-                        onClick={handleClick}
-                        style={{
-                            position: 'absolute',
-                            width: '100%',
-                            height: '100%',
-                            top: '0',
-                            left: '0',
-                            opacity: '0',
-                            zIndex: '1',
-                            margin: '0',
-                            cursor: 'pointer',
-                        }} />
-                </Box >
-                <Typography variant="h6" sx={{ ...noSelect }}>{Boolean(selected) ? getTranslation(selected, 'name', languages, true) : 'Self'}</Typography>
-            </Stack>
-        </>
+        <Box sx={{
+            position: 'relative',
+            zIndex: zIndex,
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderRadius: '12px',
+            background: palette.background.paper,
+        }}>
+            {/* Owner button */}
+            <Box
+                width="50px"
+                minWidth="50px"
+                height="50px"
+                borderRadius='100%'
+                // bgcolor={profileColors[0]}
+                justifyContent='center'
+                alignItems='center'
+                sx={{
+                    display: 'flex',
+                }}
+            >
+                <OrganizationIcon sx={{
+                    fill: profileColors[1],
+                    width: '80%',
+                    height: '80%',
+                }} />
+            </Box>
+        </Box>
+        // <>
+        //     {/* Popup for adding/connecting a new organization */}
+        //     <OrganizationSelectOrCreateDialog
+        //         isOpen={isCreateDialogOpen}
+        //         handleAdd={onChange}
+        //         handleClose={closeCreateDialog}
+        //         session={session}
+        //         zIndex={zIndex + 1}
+        //     />
+        //     {/* Main component */}
+        //     <Stack direction="row" spacing={1} justifyContent="center">
+        //         <Typography variant="h6" sx={{ ...noSelect }}>For:</Typography>
+        //         <Box component="span" sx={{
+        //             display: 'inline-block',
+        //             position: 'relative',
+        //             width: '64px',
+        //             height: '36px',
+        //             padding: '8px',
+        //         }}>
+        //             {/* Track */}
+        //             <Box component="span" sx={{
+        //                 backgroundColor: palette.mode === 'dark' ? grey[800] : grey[400],
+        //                 borderRadius: '16px',
+        //                 width: '100%',
+        //                 height: '65%',
+        //                 display: 'block',
+        //             }}>
+        //                 {/* Thumb */}
+
+        //                 <IconButton sx={{
+        //                     backgroundColor: palette.secondary.main,
+        //                     display: 'inline-flex',
+        //                     width: '30px',
+        //                     height: '30px',
+        //                     position: 'absolute',
+        //                     top: 0,
+        //                     transition: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)',
+        //                     transform: `translateX(${Boolean(selected) ? '24' : '0'}px)`,
+        //                 }}>
+        //                     <Icon sx={{
+        //                         position: 'absolute',
+        //                         display: 'block',
+        //                         fill: 'white',
+        //                         borderRadius: '8px',
+        //                     }} />
+        //                 </IconButton>
+        //             </Box>
+        //             {/* Input */}
+        //             <input
+        //                 type="checkbox"
+        //                 checked={Boolean(selected)}
+        //                 disabled={disabled}
+        //                 aria-label="user-organization-toggle"
+        //                 onClick={handleClick}
+        //                 style={{
+        //                     position: 'absolute',
+        //                     width: '100%',
+        //                     height: '100%',
+        //                     top: '0',
+        //                     left: '0',
+        //                     opacity: '0',
+        //                     zIndex: '1',
+        //                     margin: '0',
+        //                     cursor: 'pointer',
+        //                 }} />
+        //         </Box >
+        //         <Typography variant="h6" sx={{ ...noSelect }}>{Boolean(selected) ? getTranslation(selected, 'name', languages, true) : 'Self'}</Typography>
+        //     </Stack>
+        // </>
     )
 }

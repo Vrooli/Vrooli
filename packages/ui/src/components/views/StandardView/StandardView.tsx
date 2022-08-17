@@ -1,6 +1,6 @@
 import { Box, CircularProgress, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
-import { useLocation, useRoute } from '@local/shared';
-import { APP_LINKS, InputType } from "@local/shared";
+import { useLocation, useRoute } from '@shared/route';
+import { APP_LINKS, InputType } from "@shared/consts";
 import { useLazyQuery } from "@apollo/client";
 import { standard, standardVariables } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";

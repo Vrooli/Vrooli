@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
-import { CODE, COOKIE } from '@local/shared';
+import { CODE, COOKIE } from '@shared/consts';
 import { CustomError } from '../error';
 import { Session } from '../schema/types';
 import { RecursivePartial } from '../types';

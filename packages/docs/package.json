@@ -9,10 +9,12 @@
     "dependencies": {
         "@emotion/react": "^11.9.0",
         "@emotion/styled": "^11.8.1",
-        "@local/shared": "*",
         "@mui/icons-material": "5.8.2",
         "@mui/material": "5.8.2",
         "@mui/styles": "^5.8.0",
+        "@shared/consts": "*",
+        "@shared/route": "*",
+        "@shared/utils": "*",
         "awesome-debounce-promise": "^2.1.0",
         "markdown-to-jsx": "^7.1.5",
         "react": "^18.0.0",

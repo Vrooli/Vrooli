@@ -1,7 +1,7 @@
 import { Box, Button, CircularProgress, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { CommentThreadItemProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
-import { useLocation } from '@local/shared';
+import { useLocation } from '@shared/route';
 import { StarButton, TextLoading, UpvoteDownvote } from '../..';
 import { displayDate, getCreatedByString, getTranslation, PubSub, toCreatedBy } from 'utils';
 import { LinkButton, MarkdownInput } from 'components/inputs';
@@ -13,8 +13,8 @@ import {
 } from '@mui/icons-material';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
-import { DeleteOneType, ReportFor, StarFor, VoteFor } from '@local/shared';
-import { commentCreateForm as validationSchema } from '@local/shared';
+import { DeleteOneType, ReportFor, StarFor, VoteFor } from '@shared/consts';
+import { commentCreateForm as validationSchema } from '@shared/validation';
 import { commentCreate, commentCreateVariables } from 'graphql/generated/commentCreate';
 import { commentCreateMutation, deleteOneMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';

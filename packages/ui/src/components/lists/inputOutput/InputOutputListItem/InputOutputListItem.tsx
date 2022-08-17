@@ -1,6 +1,7 @@
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { InputOutputListItemProps } from '../types';
-import { inputCreate, InputType, outputCreate } from '@local/shared';
+import { InputType } from '@shared/consts';
+import { inputCreate, outputCreate } from '@shared/validation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { containerShadow } from 'styles';
 import {

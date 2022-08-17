@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { APP_LINKS } from '@local/shared';
-import { useLocation, Redirect } from '@local/shared';
+import { APP_LINKS } from '@shared/consts';
+import { useLocation, Redirect } from '@shared/route';
 import { PageProps } from './types';
 import { PubSub } from 'utils';
 

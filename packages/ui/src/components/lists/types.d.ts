@@ -1,4 +1,4 @@
-import { StarFor, VoteFor } from '@local/shared';
+import { StarFor, VoteFor } from '@shared/consts';
 import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListUser, Session, Tag } from 'types';
 import { ObjectType } from 'utils';
 

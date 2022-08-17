@@ -15,7 +15,7 @@ import { validateSessionMutation } from 'graphql/mutation';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import { Session } from 'types';
 import Confetti from 'react-confetti';
-import { CODE } from '@local/shared';
+import { CODE } from '@shared/consts';
 
 const useStyles = makeStyles(() => ({
     "@global": {

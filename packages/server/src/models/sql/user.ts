@@ -3,7 +3,7 @@ import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper,
 import { PrismaType, RecursivePartial } from "../../types";
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
-import { omit } from "@local/shared";
+import { omit } from "@shared/utils";
 
 //==============================================================
 /* #region Custom Components */

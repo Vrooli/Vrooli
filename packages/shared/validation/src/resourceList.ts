@@ -1,7 +1,7 @@
 import { bio, description, id, idArray, language, title } from './base';
 import { resourcesCreate, resourcesUpdate } from './resource';
 import * as yup from 'yup';
-import { ResourceListUsedFor } from '../consts';
+import { ResourceListUsedFor } from '@shared/consts';
 
 const index = yup.number().integer().min(0)
 const usedFor = yup.string().oneOf(Object.values(ResourceListUsedFor))

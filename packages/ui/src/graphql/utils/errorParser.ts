@@ -1,4 +1,4 @@
-import { ApolloErrorCode, CODE } from "@local/shared";
+import { ApolloErrorCode, CODE } from "@shared/consts";
 import { ApolloError } from "types";
 
 /**

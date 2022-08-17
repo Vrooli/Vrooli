@@ -1,7 +1,7 @@
 import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { projectCreateForm as validationSchema } from '@local/shared';
+import { projectCreateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { projectCreateMutation } from "graphql/mutation";
 import { getUserLanguages, ProjectTranslationShape, shapeProjectCreate, TagShape, updateArray, useReactSearch } from "utils";

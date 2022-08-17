@@ -1,5 +1,5 @@
 import { useLazyQuery, useQuery } from '@apollo/client';
-import { APP_LINKS, ResourceListUsedFor } from '@local/shared';
+import { APP_LINKS, ResourceListUsedFor } from '@shared/consts';
 import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, ResourceListHorizontal, ListTitleContainer } from 'components';
 import { profile } from 'graphql/generated/profile';
@@ -8,7 +8,7 @@ import { profileQuery, researchPageQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ResourceList } from 'types';
 import { listToListItems, ObjectType, openObject, OpenObjectProps, stringifySearchParams } from 'utils';
-import { useLocation } from '@local/shared';
+import { useLocation } from '@shared/route';
 import { ResearchPageProps } from '../types';
 
 const donateOrInvestText =

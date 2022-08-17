@@ -1,4 +1,4 @@
-import { CODE, VoteFor } from "@local/shared";
+import { CODE, VoteFor } from "@shared/consts";
 import { CustomError } from "../../error";
 import { LogType, Vote, VoteInput } from "../../schema/types";
 import { PrismaType } from "../../types";

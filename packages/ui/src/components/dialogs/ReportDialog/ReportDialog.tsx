@@ -1,5 +1,5 @@
 import { useMutation } from '@apollo/client';
-import { reportCreateForm as validationSchema } from '@local/shared';
+import { reportCreateForm as validationSchema } from '@shared/validation';
 import { Box, Button, Dialog, Grid, IconButton, Stack, TextField, Typography, useTheme } from '@mui/material';
 import { HelpButton } from 'components/buttons';
 import { useFormik } from 'formik';

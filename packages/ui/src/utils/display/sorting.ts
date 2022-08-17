@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { ValueOf } from '@local/shared';
+import { ValueOf } from '@shared/consts';
 
 /**
  * Converts GraphQL sort values to User-Friendly labels

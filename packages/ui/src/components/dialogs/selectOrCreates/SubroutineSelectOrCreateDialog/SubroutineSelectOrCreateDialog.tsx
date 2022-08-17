@@ -23,7 +23,7 @@ import { routine, routineVariables } from 'graphql/generated/routine';
 import { RoutineCreate } from 'components/views/RoutineCreate/RoutineCreate';
 import { validate as uuidValidate } from 'uuid';
 import { ObjectType, parseSearchParams, stringifySearchParams } from 'utils';
-import { useLocation } from '@local/shared';
+import { useLocation } from '@shared/route';
 
 const helpText =
     `This dialog allows you to connect a new or existing subroutine. Each subroutine becomes a page when executing the routine (or if it contains its own subroutines, then those subroutines become pages).`

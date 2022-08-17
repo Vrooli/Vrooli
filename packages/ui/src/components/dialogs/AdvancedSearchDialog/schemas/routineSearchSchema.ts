@@ -9,7 +9,7 @@
  * - Languages - LanguageInput
  * - Tags - TagSelector
  */
-import { InputType } from "@local/shared";
+import { InputType } from "@shared/consts";
 import { FormSchema } from "forms/types";
 
 export const routineSearchSchema: FormSchema = {

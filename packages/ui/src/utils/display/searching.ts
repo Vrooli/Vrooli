@@ -1,4 +1,4 @@
-import { CommentSortBy, OrganizationSortBy, ProjectSortBy, RoutineSortBy, StandardSortBy, UserSortBy } from "@local/shared";
+import { CommentSortBy, OrganizationSortBy, ProjectSortBy, RoutineSortBy, StandardSortBy, UserSortBy } from "@shared/consts";
 import { commentSearchSchema, organizationSearchSchema, projectSearchSchema, routineSearchSchema, standardSearchSchema, userSearchSchema } from "components/dialogs/AdvancedSearchDialog/schemas";
 import { ObjectType } from "utils/navigation";
 

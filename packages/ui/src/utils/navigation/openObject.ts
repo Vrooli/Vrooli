@@ -2,7 +2,7 @@
  * Navigate to various objects and object search pages
  */
 
-import { APP_LINKS } from "@local/shared";
+import { APP_LINKS } from "@shared/consts";
 import { SetLocation } from "types";
 import { PubSub } from "utils/pubsub";
 

@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { CommentButtonProps } from '../types';
 import { Forum as CommentsIcon } from '@mui/icons-material';
 import { multiLineEllipsis } from 'styles';
-import { useLocation } from '@local/shared';
+import { useLocation } from '@shared/route';
 import { getObjectSlug, getObjectUrlBase } from 'utils';
 
 export const CommentButton = ({

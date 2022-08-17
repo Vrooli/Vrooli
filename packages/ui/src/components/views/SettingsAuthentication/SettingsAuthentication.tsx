@@ -2,7 +2,8 @@ import { Box, Button, Grid, Stack, TextField, Typography, useTheme } from "@mui/
 import { useMutation } from "@apollo/client";
 import { useCallback, useEffect } from "react";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
+import { profileUpdateSchema as validationSchema } from '@shared/validation';
+import { APP_LINKS } from '@shared/consts';
 import { useFormik } from 'formik';
 import { profileEmailUpdateMutation } from "graphql/mutation";
 import { PubSub, TERTIARY_COLOR } from "utils";
@@ -13,7 +14,7 @@ import {
     Save as SaveIcon,
 } from '@mui/icons-material';
 import { SettingsAuthenticationProps } from "../types";
-import { useLocation } from '@local/shared';
+import { useLocation } from '@shared/route';
 import { logOutMutation } from 'graphql/mutation';
 import { HelpButton } from "components/buttons";
 import { EmailList, WalletList } from "components/lists";

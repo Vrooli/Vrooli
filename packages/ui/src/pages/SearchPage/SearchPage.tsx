@@ -2,14 +2,14 @@ import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "
 import { SearchList, ShareDialog } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
-import { useLocation } from '@local/shared';
+import { useLocation } from '@shared/route';
 import { SearchPageProps } from "../types";
 import { Add as AddIcon } from '@mui/icons-material';
 import { getObjectUrlBase, ObjectType, PubSub, parseSearchParams, stringifySearchParams, openObject } from "utils";
 import { organizationsQuery, projectsQuery, routinesQuery, standardsQuery, usersQuery } from "graphql/query";
 import { Organization, Project, Routine, Standard, User } from "types";
 import { validate as uuidValidate } from 'uuid';
-import { APP_LINKS } from "@local/shared";
+import { APP_LINKS } from "@shared/consts";
 
 type BaseParams = {
     itemKeyPrefix: string;

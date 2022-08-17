@@ -1,4 +1,5 @@
-import { CODE, isObject, ViewFor } from "@local/shared";
+import { CODE, ViewFor } from "@shared/consts";
+import { isObject } from '@shared/utils'
 import { CustomError } from "../../error";
 import { Count, LogType, User, ViewSearchInput, ViewSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";

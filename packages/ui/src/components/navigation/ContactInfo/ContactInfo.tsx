@@ -1,4 +1,4 @@
-import { SOCIALS } from '@local/shared';
+import { SOCIALS } from '@shared/consts';
 import {
     BottomNavigation,
     BottomNavigationAction,

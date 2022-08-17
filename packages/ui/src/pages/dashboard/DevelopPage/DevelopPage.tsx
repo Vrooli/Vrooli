@@ -1,5 +1,5 @@
 import { useLazyQuery, useQuery } from '@apollo/client';
-import { ResourceListUsedFor } from '@local/shared';
+import { ResourceListUsedFor } from '@shared/consts';
 import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, ListTitleContainer, ResourceListHorizontal } from 'components';
 import { developPage } from 'graphql/generated/developPage';
@@ -8,7 +8,7 @@ import { developPageQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ResourceList } from 'types';
 import { listToListItems, openObject, OpenObjectProps } from 'utils';
-import { useLocation } from '@local/shared';
+import { useLocation } from '@shared/route';
 import { DevelopPageProps } from '../types';
 
 const completedText =

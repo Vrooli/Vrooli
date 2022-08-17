@@ -1,4 +1,6 @@
-import { CODE, commentsCreate, CommentSortBy, commentsUpdate, commentTranslationCreate, commentTranslationUpdate, omit } from "@local/shared";
+import { CODE, CommentSortBy } from "@shared/consts";
+import { commentsCreate, commentsUpdate, commentTranslationCreate, commentTranslationUpdate } from "@shared/validation";
+import { omit } from '@shared/utils';
 import { CustomError } from "../../error";
 import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, Count } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";

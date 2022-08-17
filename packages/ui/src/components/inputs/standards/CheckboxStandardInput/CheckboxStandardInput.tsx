@@ -3,7 +3,7 @@
  * must match a certain schema.
  */
 import { CheckboxStandardInputProps } from '../types';
-import { checkboxStandardInputForm as validationSchema } from '@local/shared';
+import { checkboxStandardInputForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { useCallback, useEffect } from 'react';
 import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
