@@ -8,7 +8,7 @@ import {
 } from '@mui/material';
 import { getTranslation, openLink, PubSub, ResourceType } from 'utils';
 import { useCallback, useMemo } from 'react';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { ResourceCardProps } from '../../../cards/types';
 import { cardRoot } from '../../../cards/styles';
 import { multiLineEllipsis, noSelect } from 'styles';

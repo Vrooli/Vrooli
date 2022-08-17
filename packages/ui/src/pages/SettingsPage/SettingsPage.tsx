@@ -10,7 +10,7 @@ import {
 } from '@mui/icons-material';
 import { useLazyQuery } from '@apollo/client';
 import { APP_LINKS } from '@local/shared';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { SettingsProfile } from 'components/views/SettingsProfile/SettingsProfile';
 import { profile, profile_profile } from 'graphql/generated/profile';
 import { profileQuery } from 'graphql/query';

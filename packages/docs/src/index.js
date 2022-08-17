@@ -1,6 +1,6 @@
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
-import { Router } from '@local/route';
+import { Router } from '@local/shared';
 import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 import reportWebVitals from './reportWebVitals';
 

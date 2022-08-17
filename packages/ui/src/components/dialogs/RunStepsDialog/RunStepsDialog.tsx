@@ -22,7 +22,7 @@ import { RunStepsDialogProps } from '../types';
 import { TreeItem, treeItemClasses, TreeView } from '@mui/lab';
 import { RoutineStep } from 'types';
 import { locationArraysMatch, parseSearchParams, routineHasSubroutines, RoutineStepType, stringifySearchParams } from 'utils';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 
 function MinusSquare(props) {
     return (

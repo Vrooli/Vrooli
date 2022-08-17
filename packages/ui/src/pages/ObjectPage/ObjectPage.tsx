@@ -3,7 +3,7 @@ import { Box } from "@mui/material"
 import { BaseObjectDialog } from "components";
 import { ObjectPageProps } from "../types";
 import { ObjectDialogAction } from "components/dialogs/types";
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { APP_LINKS } from "@local/shared";
 
 enum PageType {

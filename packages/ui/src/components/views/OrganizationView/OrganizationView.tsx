@@ -1,5 +1,5 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
-import { useLocation, useRoute } from '@local/route';
+import { useLocation, useRoute } from '@local/shared';
 import { adaHandleRegex, APP_LINKS, StarFor } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
 import { organization, organizationVariables } from "graphql/generated/organization";

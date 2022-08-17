@@ -7,7 +7,7 @@ import {
     PlayCircle as ExampleIcon,
     YouTube as VideoIcon,
 } from '@mui/icons-material';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { clickSize } from 'styles';
 import { useEffect } from 'react';
 import { PubSub } from 'utils';

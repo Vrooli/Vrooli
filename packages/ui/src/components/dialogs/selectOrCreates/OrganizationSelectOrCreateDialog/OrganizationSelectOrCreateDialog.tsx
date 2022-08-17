@@ -22,7 +22,7 @@ import { useLazyQuery } from '@apollo/client';
 import { organization, organizationVariables } from 'graphql/generated/organization';
 import { OrganizationCreate } from 'components/views/OrganizationCreate/OrganizationCreate';
 import { ObjectType, parseSearchParams, stringifySearchParams } from 'utils';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 
 const helpText =
     `This dialog allows you to connect a new or existing organization to an object.

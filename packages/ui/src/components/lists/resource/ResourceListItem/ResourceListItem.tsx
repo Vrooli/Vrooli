@@ -4,7 +4,7 @@ import { ResourceListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { adaHandleRegex, ResourceSortBy, ResourceUsedFor, urlRegex, walletAddressRegex } from '@local/shared';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, openLink, PubSub, ResourceType } from 'utils';
 import { Resource } from 'types';
 import { getResourceIcon } from '..';

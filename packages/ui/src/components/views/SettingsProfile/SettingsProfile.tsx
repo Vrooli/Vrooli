@@ -14,7 +14,7 @@ import {
 import { DialogActionItem } from "components/containers/types";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { SettingsProfileProps } from "../types";
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { LanguageInput } from "components/inputs";
 import { HelpButton } from "components/buttons";
 import { findHandles, findHandlesVariables } from "graphql/generated/findHandles";

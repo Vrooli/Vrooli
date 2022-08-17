@@ -3,7 +3,7 @@ import { ProjectListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { APP_LINKS, StarFor, VoteFor } from '@local/shared';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { CommentButton, ReportButton, StarButton, TagList, TextLoading, UpvoteDownvote } from 'components';
 import { getTranslation, listItemColor } from 'utils';
 

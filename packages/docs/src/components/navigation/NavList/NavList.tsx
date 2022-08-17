@@ -4,7 +4,7 @@ import {
 } from 'components';
 import { Container, Theme, useTheme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { useCallback, useEffect, useState } from 'react';
 
 const useStyles = makeStyles((theme: Theme) => ({

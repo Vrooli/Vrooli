@@ -4,7 +4,7 @@ import { BaseObjectDialog } from '..';
 import { RoutineCreate } from 'components/views/RoutineCreate/RoutineCreate';
 import { RoutineUpdate } from 'components/views/RoutineUpdate/RoutineUpdate';
 import { RoutineDialogProps, ObjectDialogAction } from 'components/dialogs/types';
-import { useRoute } from '@local/route';
+import { useRoute } from '@local/shared';
 import { Routine } from 'types';
 
 export const RoutineDialog = ({

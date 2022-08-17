@@ -9,7 +9,7 @@ import { learnPageQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ResourceList } from 'types';
 import { listToListItems, ObjectType, openObject, OpenObjectProps, stringifySearchParams } from 'utils';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { LearnPageProps } from '../types';
 
 const courseText =

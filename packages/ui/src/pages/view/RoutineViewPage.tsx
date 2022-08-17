@@ -3,7 +3,7 @@ import { Box } from "@mui/material"
 import { BaseObjectDialog, RoutineView } from "components";
 import { RoutineViewPageProps } from "./types";
 import { ObjectDialogAction } from "components/dialogs/types";
-import { useLocation, useRoute } from '@local/route';
+import { useLocation, useRoute } from '@local/shared';
 import { APP_LINKS } from "@local/shared";
 import { RoutineCreate } from "components/views/RoutineCreate/RoutineCreate";
 import { Routine } from "types";

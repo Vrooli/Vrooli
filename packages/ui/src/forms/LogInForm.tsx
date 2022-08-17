@@ -1,4 +1,4 @@
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { emailLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { CODE, emailLogInForm } from '@local/shared';

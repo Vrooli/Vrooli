@@ -13,7 +13,7 @@ import {
     Save as SaveIcon,
 } from '@mui/icons-material';
 import { SettingsAuthenticationProps } from "../types";
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { logOutMutation } from 'graphql/mutation';
 import { HelpButton } from "components/buttons";
 import { EmailList, WalletList } from "components/lists";

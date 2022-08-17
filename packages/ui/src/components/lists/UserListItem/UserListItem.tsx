@@ -3,7 +3,7 @@ import { UserListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { APP_LINKS, StarFor } from '@local/shared';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { ReportButton, StarButton } from '..';
 import { getTranslation, listItemColor, placeholderColor } from 'utils';
 import { Person as PersonIcon } from '@mui/icons-material';

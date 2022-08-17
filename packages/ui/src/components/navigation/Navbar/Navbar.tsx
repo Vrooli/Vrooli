@@ -3,7 +3,7 @@ import Logo from 'assets/img/Logo-128x128.png';
 import { BUSINESS_NAME, APP_LINKS } from '@local/shared';
 import { AppBar, Toolbar, Typography, Box, useTheme } from '@mui/material';
 import { NavList } from '../NavList/NavList';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { NavbarProps } from '../types';
 import { HideOnScroll } from '..';
 

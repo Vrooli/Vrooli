@@ -13,7 +13,7 @@ import {
 import { APP_LINKS } from '@local/shared';
 import { Forms } from 'utils';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { emailRequestPasswordChange, emailRequestPasswordChangeVariables } from 'graphql/generated/emailRequestPasswordChange';
 import { FormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';

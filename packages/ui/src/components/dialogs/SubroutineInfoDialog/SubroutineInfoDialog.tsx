@@ -23,7 +23,7 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { SubroutineInfoDialogProps } from '../types';
 import { getOwnedByString, getTranslation, InputShape, OutputShape, RoutineTranslationShape, TagShape, toOwnedBy, updateArray } from 'utils';
 import Markdown from 'markdown-to-jsx';

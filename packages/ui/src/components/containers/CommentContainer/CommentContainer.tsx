@@ -14,7 +14,7 @@ import { objectToSearchInfo, ObjectType, parseSearchParams, PubSub, stringifySea
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TimeFrame } from 'graphql/generated/globalTypes';
 import { comments, commentsVariables } from 'graphql/generated/comments';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { commentsQuery } from 'graphql/query';
 import { Comment, CommentThread as ThreadType } from 'types';
 import { CommentThread } from 'components/lists/comment';

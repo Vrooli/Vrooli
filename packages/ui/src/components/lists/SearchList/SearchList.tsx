@@ -14,7 +14,7 @@ import {
 } from '@mui/icons-material';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
 import { getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, objectToSearchInfo, parseSearchParams, SortValueToLabelMap, stringifySearchParams, useReactSearch } from "utils";
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { AutocompleteOption } from "types";
 
 type TimeFrame = {

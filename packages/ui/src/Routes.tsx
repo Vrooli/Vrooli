@@ -1,6 +1,6 @@
 import { Suspense, useCallback } from 'react';
 import { lazily } from 'react-lazily';
-import { Route, Switch } from '@local/route';
+import { Route, Switch } from '@local/shared';
 import { BUSINESS_NAME } from '@local/shared';
 import { APP_LINKS as LINKS } from '@local/shared';
 // import { Sitemap } from 'Sitemap';

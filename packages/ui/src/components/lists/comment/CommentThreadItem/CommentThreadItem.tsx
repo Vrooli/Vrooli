@@ -1,7 +1,7 @@
 import { Box, Button, CircularProgress, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { CommentThreadItemProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { StarButton, TextLoading, UpvoteDownvote } from '../..';
 import { displayDate, getCreatedByString, getTranslation, PubSub, toCreatedBy } from 'utils';
 import { LinkButton, MarkdownInput } from 'components/inputs';

@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import { DiscordIcon, GitHubIcon, TwitterIcon } from 'assets/img';
 import { CopyrightBreadcrumbs } from 'components';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { openLink } from 'utils';
 import { useMemo } from 'react';
 import { SvgProps } from 'assets/img/types';

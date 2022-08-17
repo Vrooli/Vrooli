@@ -1,4 +1,4 @@
-import { Link } from '@local/route';
+import { Link } from '@local/shared';
 import { Box, Button } from '@mui/material';
 import { APP_LINKS } from '@local/shared';
 

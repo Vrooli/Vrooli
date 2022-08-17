@@ -6,7 +6,7 @@ import { LinkButton, ResourceListHorizontal, TextCollapse } from "components";
 import { useCallback, useEffect, useMemo } from "react";
 import { containerShadow } from "styles";
 import { formikToRunInputs, getOwnedByString, getTranslation, getUserLanguages, PubSub, runInputsToFormik, standardToFieldData, toOwnedBy } from "utils";
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
 import { generateInputWithLabel } from 'forms/generators';

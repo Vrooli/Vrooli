@@ -1,5 +1,5 @@
 import { Box, Checkbox, CircularProgress, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material"
-import { useRoute } from '@local/route';
+import { useRoute } from '@local/shared';
 import { APP_LINKS } from "@local/shared";
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";

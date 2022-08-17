@@ -9,7 +9,7 @@ import {
 } from '@mui/material';
 import { APP_LINKS } from '@local/shared';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { emailResetPassword, emailResetPasswordVariables } from 'graphql/generated/emailResetPassword';
 import { ResetPasswordFormProps } from './types';
 import { formPaper, formSubmit } from './styles';

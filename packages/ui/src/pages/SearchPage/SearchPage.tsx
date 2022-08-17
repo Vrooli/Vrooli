@@ -2,7 +2,7 @@ import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "
 import { SearchList, ShareDialog } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { SearchPageProps } from "../types";
 import { Add as AddIcon } from '@mui/icons-material';
 import { getObjectUrlBase, ObjectType, PubSub, parseSearchParams, stringifySearchParams, openObject } from "utils";

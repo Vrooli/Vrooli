@@ -6,7 +6,7 @@ import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getTranslation, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine } from 'utils';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { APP_LINKS, isEqual } from '@local/shared';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { BaseObjectAction } from 'components/dialogs/types';

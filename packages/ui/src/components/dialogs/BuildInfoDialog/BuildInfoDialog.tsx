@@ -39,7 +39,7 @@ import { BaseObjectAction, BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { DeleteDialog, EditableLabel, LanguageInput, LinkButton, MarkdownInput, ResourceListHorizontal } from 'components';
 import { AllLanguages, getLanguageSubtag, getOwnedByString, getTranslation, PubSub, RoutineTranslationShape, toOwnedBy, updateArray } from 'utils';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { useFormik } from 'formik';
 import { APP_LINKS, CopyType, DeleteOneType, ForkType, routineUpdateForm as validationSchema, StarFor, VoteFor } from '@local/shared';
 import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';

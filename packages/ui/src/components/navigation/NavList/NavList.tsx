@@ -8,7 +8,7 @@ import {
 import { Action, actionsToMenu, ACTION_TAGS, getUserActions, openLink } from 'utils';
 import { Button, Container, IconButton, Theme, useTheme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NavListProps } from '../types';
 import { APP_LINKS } from '@local/shared';

@@ -5,7 +5,7 @@ import { homePage, homePageVariables } from 'graphql/generated/homePage';
 import { useQuery } from '@apollo/client';
 import { homePageQuery } from 'graphql/query';
 import { AutocompleteSearchBar, ListTitleContainer, TitleContainer, ListMenu } from 'components';
-import { useLocation } from '@local/route';
+import { useLocation } from '@local/shared';
 import { APP_LINKS } from '@local/shared';
 import { HomePageProps } from '../types';
 import Markdown from 'markdown-to-jsx';
