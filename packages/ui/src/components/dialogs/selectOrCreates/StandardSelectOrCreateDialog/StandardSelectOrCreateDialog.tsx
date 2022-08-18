@@ -20,7 +20,7 @@ import { SearchList } from 'components/lists';
 import { standardQuery, standardsQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { standard, standardVariables } from 'graphql/generated/standard';
-import { StandardCreate } from 'components/views/StandardCreate/StandardCreate';
+import { StandardCreate } from 'components/views/Standard/StandardCreate/StandardCreate';
 import { ObjectType, parseSearchParams, stringifySearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 

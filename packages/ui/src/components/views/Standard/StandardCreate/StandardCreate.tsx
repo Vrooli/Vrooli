@@ -2,10 +2,9 @@ import { Box, Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { standardCreateForm as validationSchema } from '@shared/validation';
-import { InputType } from '@shared/consts';
 import { useFormik } from 'formik';
 import { standardCreateMutation } from "graphql/mutation";
-import { getUserLanguages, shapeStandardCreate, StandardTranslationShape, TagShape, updateArray, useReactSearch } from "utils";
+import { getUserLanguages, InputTypeOption, InputTypeOptions, shapeStandardCreate, StandardTranslationShape, TagShape, updateArray, useReactSearch } from "utils";
 import { StandardCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";
@@ -22,45 +21,6 @@ import { FieldData } from "forms/types";
 import { BaseStandardInput, PreviewSwitch } from "components/inputs";
 import { generateInputComponent, generateYupSchema } from "forms/generators";
 import { standardCreate, standardCreateVariables } from "graphql/generated/standardCreate";
-
-type InputTypeOption = { label: string, value: InputType }
-/**
- * Supported input types
- */
-export const InputTypeOptions: InputTypeOption[] = [
-    {
-        label: 'Text',
-        value: InputType.TextField,
-    },
-    {
-        label: 'JSON',
-        value: InputType.JSON,
-    },
-    {
-        label: 'Integer',
-        value: InputType.QuantityBox
-    },
-    {
-        label: 'Radio (Select One)',
-        value: InputType.Radio,
-    },
-    {
-        label: 'Checkbox (Select any)',
-        value: InputType.Checkbox,
-    },
-    {
-        label: 'Switch (On/Off)',
-        value: InputType.Switch,
-    },
-    // {
-    //     label: 'File Upload',
-    //     value: InputType.Dropzone,
-    // },
-    {
-        label: 'Markdown',
-        value: InputType.Markdown
-    },
-]
 
 export const StandardCreate = ({
     onCreated,

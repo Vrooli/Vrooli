@@ -25,10 +25,7 @@ const { SettingsPage } = lazily(() => import('./pages/SettingsPage/SettingsPage'
 const { StartPage } = lazily(() => import('./pages/StartPage/StartPage'));
 const { StatsPage } = lazily(() => import('./pages/dashboard/StatsPage/StatsPage'));
 const { SearchPage } = lazily(() => import('./pages/SearchPage/SearchPage'));
-const { OrganizationViewPage } = lazily(() => import('./pages/view/OrganizationViewPage'));
-const { ProjectViewPage } = lazily(() => import('./pages/view/ProjectViewPage'));
-const { StandardViewPage } = lazily(() => import('./pages/view/StandardViewPage'));
-const { RoutineViewPage } = lazily(() => import('./pages/view/RoutineViewPage'));
+const { ObjectPage } = lazily(() => import('./pages/ObjectPage/ObjectPage'));
 const { UserViewPage } = lazily(() => import('./pages/view/UserViewPage'));
 const { FormPage } = lazily(() => import('./pages/wrapper/FormPage'));
 const { NotFoundPage } = lazily(() => import('./pages/NotFoundPage'));
@@ -104,66 +101,33 @@ export const AllRoutes = (props: CommonProps) => {
                 </Route>
                 {/* ========= #endregion Search Routes ========= */}
 
-                {/* ========= #region Routine Routes ========= */}
-                {/* Pages for creating and running routines */}
-                <Route path={`${LINKS.Routine}/:id`}>
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <RoutineViewPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route path={`${LINKS.Routine}/edit/:id`}>
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <RoutineViewPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                {/* ========= #endregion Routine Routes ========= */}
-
                 {/* ========= #region Views Routes ========= */}
                 {/* Views for main Vrooli components (i.e. organizations, projects, routines, standards, users) */}
-                {/* Opens objects as their own page, as opposed to the search routes which open them as popup dialogs */}
-                <Route path={`${LINKS.Organization}/:id?`}>
+                <Route path={`${LINKS.Organization}/:params*`}>
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
-                            <OrganizationViewPage session={props.session} />
+                            <ObjectPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.Organization}/edit/:id?`}>
+                <Route path={`${LINKS.Project}/:params*`}>
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
-                            <OrganizationViewPage session={props.session} />
+                            <ObjectPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.Project}/:id?`}>
+                <Route path={`${LINKS.Routine}/:params*`}>
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
-                            <ProjectViewPage session={props.session} />
+                            <ObjectPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.Project}/edit/:id?`}>
+                <Route path={`${LINKS.Standard}/:params*`}>
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
-                            <ProjectViewPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route path={`${LINKS.Standard}/:id?`}>
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <StandardViewPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route path={`${LINKS.Standard}/edit/:id?`}>
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <StandardViewPage session={props.session} />
+                            <ObjectPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>

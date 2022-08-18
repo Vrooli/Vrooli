@@ -14,15 +14,6 @@ export const Page = ({
 }: PageProps) => {
     const [location] = useLocation();
 
-    // Set sessionStorage with current URL, 
-    // so we can see what the previous page was
-    useEffect(() => {
-        const pathname = window.location.pathname;
-        PubSub.get().publishSnack({ message: `Current page: ${pathname}` });
-        sessionStorage.setItem('previousPage', window.location.pathname);
-        return () => { sessionStorage.removeItem('previousPage'); }
-    } , []);
-
     useEffect(() => {
         if (title) document.title = title;
     }, [title]);

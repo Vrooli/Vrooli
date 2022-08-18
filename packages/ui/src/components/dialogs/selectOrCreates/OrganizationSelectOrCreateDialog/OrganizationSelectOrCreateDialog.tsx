@@ -20,7 +20,7 @@ import { SearchList } from 'components/lists';
 import { organizationQuery, organizationsQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { organization, organizationVariables } from 'graphql/generated/organization';
-import { OrganizationCreate } from 'components/views/OrganizationCreate/OrganizationCreate';
+import { OrganizationCreate } from 'components/views/Organization/OrganizationCreate/OrganizationCreate';
 import { ObjectType, parseSearchParams, stringifySearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 

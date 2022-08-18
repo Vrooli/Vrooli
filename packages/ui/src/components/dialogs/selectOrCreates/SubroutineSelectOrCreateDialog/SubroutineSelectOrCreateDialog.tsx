@@ -20,7 +20,7 @@ import { SearchList } from 'components/lists';
 import { routineQuery, routinesQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { routine, routineVariables } from 'graphql/generated/routine';
-import { RoutineCreate } from 'components/views/RoutineCreate/RoutineCreate';
+import { RoutineCreate } from 'components/views/Routine/RoutineCreate/RoutineCreate';
 import { validate as uuidValidate } from 'uuid';
 import { ObjectType, parseSearchParams, stringifySearchParams } from 'utils';
 import { useLocation } from '@shared/route';

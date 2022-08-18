@@ -20,19 +20,19 @@ const grey = {
 };
 
 export function RelationshipButtons({
-    session,
-    onChange,
-    disabled,
+    disabled = false,
     objectType,
+    onOwnerChange,
+    onProjectChange,
+    onParentChange,
+    owner,
+    parent,
+    project,
+    session,
     zIndex,
 }: RelationshipButtonsProps) {
     const { palette } = useTheme();
     const languages = useMemo(() => getUserLanguages(session), [session])
-
-    // Relationships
-    const [owner, setOwner] = useState<Organization | 'Self' | null>('Self');
-    const [project, setProject] = useState<Project | null>(null);
-    const [parent, setParent] = useState<Project | Routine>(null);
 
     // Owner dialog (select self or organization)
     const [isOwnerDialogOpen, setOwnerDialogOpen] = useState<boolean>(false);
@@ -70,25 +70,25 @@ export function RelationshipButtons({
         if (disabled || !isOwnerAvailable) return;
         // No matter what the owner value was, open the owner select dialog
         openOwnerDialog();
-    }, [disabled, isOwnerAvailable]);
+    }, [disabled, isOwnerAvailable, openOwnerDialog]);
 
     // Handle project click
     const handleProjectClick = useCallback((ev: React.MouseEvent<any>) => {
         if (disabled || !isProjectAvailable) return;
         // If project was set, remove
-        if (project) setProject(null);
+        if (project) onProjectChange(null);
         // Otherwise, open project select dialog
         else openProjectDialog();
-    }, [disabled, isProjectAvailable]);
+    }, [disabled, isProjectAvailable, onProjectChange, openProjectDialog, project]);
 
     // Handle parent click
     const handleParentClick = useCallback((ev: React.MouseEvent<any>) => {
         if (disabled || !isParentAvailable) return;
         // If parent was set, remove
-        if (parent) setParent(null);
+        if (parent) onParentChange(null);
         // Otherwise, open parent select dialog
         else openParentDialog();
-    }, [disabled, isParentAvailable]);
+    }, [disabled, isParentAvailable, onParentChange, openParentDialog, parent]);
 
     // Current owner icon
     
@@ -118,7 +118,7 @@ export function RelationshipButtons({
                 }}
             >
                 <OrganizationIcon sx={{
-                    fill: profileColors[1],
+                    // fill: profileColors[1],
                     width: '80%',
                     height: '80%',
                 }} />

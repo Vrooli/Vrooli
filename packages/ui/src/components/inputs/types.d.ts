@@ -1,8 +1,8 @@
 import { BoxProps, InputProps, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
 import { JSONVariable } from 'forms/types';
 import { ChangeEvent } from 'react';
-import { Organization, Session, Standard, Tag } from 'types';
-import { TagShape } from 'utils';
+import { Organization, Project, Routine, Session, Standard, Tag } from 'types';
+import { ObjectType, TagShape } from 'utils';
 
 export interface AutocompleteSearchBarProps extends SearchBarProps {
     debounce?: number;
@@ -243,6 +243,19 @@ export interface QuantityBoxProps extends BoxProps {
     step?: number;
     tooltip?: string;
     value: number;
+}
+
+export interface RelationshipButtonsProps {
+    disabled?: boolean;
+    objectType: ObjectType;
+    onOwnerChange: (newOwner: Organization | 'Self' | null) => void;
+    onProjectChange: (newProject: Project | null) => void;
+    onParentChange: (newParent: Project | Routine | null) => void;
+    owner: Organization | 'Self' | null;
+    parent: Project | Routine | null;
+    project: Project | null;
+    session: Session;
+    zIndex: number;
 }
 
 export interface SearchBarProps extends InputProps {

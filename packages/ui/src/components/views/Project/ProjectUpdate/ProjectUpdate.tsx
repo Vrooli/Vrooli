@@ -5,7 +5,6 @@ import { useMutation, useLazyQuery } from "@apollo/client";
 import { project, projectVariables } from "graphql/generated/project";
 import { projectQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ProjectUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { projectUpdateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
@@ -22,6 +21,7 @@ import { Organization, ResourceList } from "types";
 import { v4 as uuid } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { projectUpdate, projectUpdateVariables } from "graphql/generated/projectUpdate";
+import { ProjectUpdateProps } from "../types";
 
 export const ProjectUpdate = ({
     onCancel,

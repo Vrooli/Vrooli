@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { ValueOf } from '@shared/consts';
+import { InputType, ValueOf } from '@shared/consts';
 
 export const Forms = {
     ForgotPassword: 'forgot-password',
@@ -69,3 +69,42 @@ export enum ResourceType {
     Wallet = 'Wallet',
     Handle = 'Handle',
 }
+
+export type InputTypeOption = { label: string, value: InputType }
+/**
+ * Supported input types
+ */
+export const InputTypeOptions: InputTypeOption[] = [
+    {
+        label: 'Text',
+        value: InputType.TextField,
+    },
+    {
+        label: 'JSON',
+        value: InputType.JSON,
+    },
+    {
+        label: 'Integer',
+        value: InputType.QuantityBox
+    },
+    {
+        label: 'Radio (Select One)',
+        value: InputType.Radio,
+    },
+    {
+        label: 'Checkbox (Select any)',
+        value: InputType.Checkbox,
+    },
+    {
+        label: 'Switch (On/Off)',
+        value: InputType.Switch,
+    },
+    // {
+    //     label: 'File Upload',
+    //     value: InputType.Dropzone,
+    // },
+    {
+        label: 'Markdown',
+        value: InputType.Markdown
+    },
+]

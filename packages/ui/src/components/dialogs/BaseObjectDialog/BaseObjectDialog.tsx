@@ -65,7 +65,7 @@ export const BaseObjectDialog = ({
                             onClick={onClose}
                             aria-label="close"
                             sx={{
-                                marginLeft: 'auto',
+                                marginLeft: 'auto'
                             }}
                         >
                             <CloseIcon />
