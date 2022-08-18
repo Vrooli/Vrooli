@@ -1,4 +1,5 @@
-import { ReportFor, reportsCreate, reportsUpdate } from "@shared/validation";
+import { reportsCreate, reportsUpdate } from "@shared/validation";
+import { ReportFor } from '@shared/consts';
 import { CODE } from "@shared/consts";
 import { omit } from '@shared/utils'; 
 import { CustomError } from "../../error";

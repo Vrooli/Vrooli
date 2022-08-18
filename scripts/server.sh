@@ -1,4 +1,6 @@
 #!/bin/sh
+HERE=`dirname $0`
+source "${HERE}/shared.sh"
 
 # Before backend can start, it must first wait for the database and redis to finish initializing
 ${PROJECT_DIR}/scripts/wait-for.sh ${DB_CONN} -t 120 -- echo 'Database is up'
@@ -10,18 +12,14 @@ PRISMA_SCHEMA_FILE="src/db/schema.prisma"
 cd ${PROJECT_DIR}/packages/server
 if [ "${DB_PULL}" = true ]; then
     echo 'Generating schema.prisma file from database'
-    prisma db pull
+    yarn prisma db pull
 else 
     echo 'Running migrations'
-    prisma migrate deploy
+    yarn prisma migrate deploy
 fi
 
 echo 'Generating Prisma schema'
-prisma generate
-
-echo 'Converting shared directory to javascript'
-cd ${PROJECT_DIR}/packages/shared
-yarn build
+yarn prisma generate
 
 echo 'Starting server'
 cd ${PROJECT_DIR}/packages/server
