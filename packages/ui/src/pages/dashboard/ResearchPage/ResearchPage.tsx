@@ -159,7 +159,7 @@ export const ResearchPage = ({
         setLocation(`/search${stringifySearchParams({
             isComplete: true,
             sort: 'DateUpdatedDesc',
-            type: ObjectType.Project,
+            type: ObjectType.Routine,
         })}`);
     }, [setLocation]);
 

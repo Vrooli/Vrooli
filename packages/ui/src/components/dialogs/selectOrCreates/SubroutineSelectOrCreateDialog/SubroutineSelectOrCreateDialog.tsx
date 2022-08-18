@@ -162,7 +162,6 @@ export const SubroutineSelectOrCreateDialog = ({
             <BaseObjectDialog
                 onAction={handleCreateClose}
                 open={isCreateOpen}
-                title={"Create Routine"}
                 zIndex={zIndex + 1}
             >
                 <RoutineCreate

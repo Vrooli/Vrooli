@@ -135,7 +135,6 @@ export const StandardSelectOrCreateDialog = ({
             <BaseObjectDialog
                 onAction={handleCreateClose}
                 open={isCreateOpen}
-                title={"Create Standard"}
                 zIndex={zIndex + 1}
             >
                 <StandardCreate

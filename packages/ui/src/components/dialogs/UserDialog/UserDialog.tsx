@@ -50,20 +50,10 @@ export const UserDialog = ({
         }
     }, [setLocation, update]);
 
-    const title = useMemo(() => {
-        switch (state) {
-            case 'edit':
-                return 'Edit Profile';
-            default:
-                return '';
-        }
-    }, [state]);
-
     return (
         <BaseObjectDialog
             onAction={onAction}
             open={Boolean(params?.params)}
-            title={title}
             zIndex={zIndex}
         >
             <UserView 

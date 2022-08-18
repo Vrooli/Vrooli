@@ -13,7 +13,7 @@ export interface BaseObjectDialogProps extends DialogProps {
      */
     onAction: (state: ObjectDialogAction) => any;
     open: boolean;
-    title: string;
+    title?: string;
     zIndex: number;
 };
 

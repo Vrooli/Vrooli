@@ -23,7 +23,7 @@ export const BaseObjectDialog = ({
     children,
     onAction,
     open = true,
-    title,
+    title = '',
     zIndex,
 }: BaseObjectDialogProps) => {
     const { palette } = useTheme();

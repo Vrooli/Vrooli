@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Grid, TextField } from "@mui/material"
+import { Box, CircularProgress, Grid, TextField, Typography } from "@mui/material"
 import { useRoute } from '@shared/route';
 import { APP_LINKS } from "@shared/consts";
 import { useLazyQuery, useMutation } from "@apollo/client";
@@ -178,6 +178,16 @@ export const OrganizationUpdate = ({
 
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
+            <Grid item xs={12}>
+                <Typography
+                    component="h1"
+                    variant="h3"
+                    sx={{
+                        textAlign: 'center',
+                        sx: { marginTop: 2, marginBottom: 2 },
+                    }}
+                >Update Organization</Typography>
+            </Grid>
             <Grid item xs={12}>
                 <LanguageInput
                     currentLanguage={language}

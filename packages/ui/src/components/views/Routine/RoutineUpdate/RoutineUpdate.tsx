@@ -1,4 +1,4 @@
-import { Box, Checkbox, CircularProgress, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material"
+import { Box, Checkbox, CircularProgress, FormControlLabel, Grid, TextField, Tooltip, Typography } from "@mui/material"
 import { useRoute } from '@shared/route';
 import { APP_LINKS } from "@shared/consts";
 import { useMutation, useLazyQuery } from "@apollo/client";
@@ -226,6 +226,16 @@ export const RoutineUpdate = ({
 
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
+            <Grid item xs={12}>
+                <Typography
+                    component="h1"
+                    variant="h3"
+                    sx={{
+                        textAlign: 'center',
+                        sx: { marginTop: 2, marginBottom: 2 },
+                    }}
+                >Update Routine</Typography>
+            </Grid>
             <Grid item xs={12}>
                 <UserOrganizationSwitch
                     session={session}

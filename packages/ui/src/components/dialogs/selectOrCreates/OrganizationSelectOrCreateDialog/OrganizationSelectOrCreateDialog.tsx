@@ -137,7 +137,6 @@ export const OrganizationSelectOrCreateDialog = ({
             <BaseObjectDialog
                 onAction={handleCreateClose}
                 open={isCreateOpen}
-                title={"Create Organization"}
                 zIndex={zIndex + 1}
             >
                 <OrganizationCreate

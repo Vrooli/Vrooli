@@ -9,8 +9,16 @@ type ParseSearchParamsResult = { [x: string]: Primitive | Primitive[] | ParseSea
  */
 export const parseSearchParams = (searchParams: string): ParseSearchParamsResult => {
     if (searchParams.length <= 1 || !searchParams.startsWith('?')) return {};
-    const search = searchParams.substring(1);
+    let search = searchParams.substring(1);
     try {
+        // First, loop through and wrap all strings in quotes (if not already). 
+        // This is required to parse as a valid JSON object.
+        // Find every substring that's between a "=" and a "&" (or the end of the string).
+        // If it's not already wrapped in quotes, and it doesn't contain any URL encoded characters, and it is not a boolean, wrap it in quotes.
+        search = search.replace(/([^&=]+)=([^&]*)/g, (match, key, value) => {
+            if (value.startsWith('"') || value.includes('%') || value === 'true' || value === 'false') return match;
+            return `${key}="${value}"`;
+        });
         // Decode and parse the search params
         const parsed = JSON.parse('{"'
         + decodeURI(search)
@@ -36,6 +44,7 @@ export const parseSearchParams = (searchParams: string): ParseSearchParamsResult
         });
         return parsed;
     } catch (error) {
+        console.log('caused error', error);
         return {};
     }
 }
