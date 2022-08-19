@@ -7,6 +7,8 @@ import { ValueOf } from '@shared/consts';
  export const SortValueToLabelMap = {
     'CommentsAsc': 'Comments ↑',
     'CommentsDesc': 'Comments ↓',
+    'LastViewedAsc': 'Viewed ↑',
+    'LastViewedDesc': 'Viewed ↓',
     'StarsAsc': 'Stars ↑',
     'StarsDesc': 'Stars ↓',
     'VotesAsc': 'Votes ↑',
@@ -15,6 +17,8 @@ import { ValueOf } from '@shared/consts';
     'ForksDesc': 'Forks ↓',
     'DateCreatedAsc': 'Old',
     'DateCreatedDesc': 'New',
+    'DateStartedAsc': 'Started ↑',
+    'DateStartedDesc': 'Started ↓',
     'DateUpdatedAsc': 'Recent ↑',
     'DateUpdatedDesc': 'Recent ↓',
 }

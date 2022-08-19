@@ -20,7 +20,7 @@ import {
 } from '@mui/icons-material';
 import { useFormik } from 'formik';
 import { FieldData, FormSchema } from 'forms/types';
-import { organizationSearchSchema, projectSearchSchema, routineSearchSchema, standardSearchSchema, userSearchSchema } from './schemas';
+import { organizationSearchSchema, projectSearchSchema, routineSearchSchema, runSearchSchema, standardSearchSchema, userSearchSchema } from './schemas';
 import { ObjectType } from 'utils';
 import { generateDefaultProps, generateGrid, generateYupSchema } from 'forms/generators';
 import { Tag } from 'types';
@@ -32,6 +32,7 @@ const objectToSchema: { [key in ObjectType]?: FormSchema } = {
     [ObjectType.Organization]: organizationSearchSchema,
     [ObjectType.Project]: projectSearchSchema,
     [ObjectType.Routine]: routineSearchSchema,
+    [ObjectType.Run]: runSearchSchema,
     [ObjectType.Standard]: standardSearchSchema,
     [ObjectType.User]: userSearchSchema,
 };
@@ -95,6 +96,10 @@ const shapeFormikRoutine = (values: { [x: string]: any }) => ({
     tags: tagsToSearch(values.tags),
 })
 
+const shapeFormikRun = (values: { [x: string]: any }) => ({
+    status: values.status,
+})
+
 const shapeFormikStandard = (values: { [x: string]: any }) => ({
     minScore: values.minScore,
     minStars: values.minStars,
@@ -114,6 +119,7 @@ const shapeFormik = {
     [ObjectType.Organization]: shapeFormikOrganization,
     [ObjectType.Project]: shapeFormikProject,
     [ObjectType.Routine]: shapeFormikRoutine,
+    [ObjectType.Run]: shapeFormikRun,
     [ObjectType.Standard]: shapeFormikStandard,
     [ObjectType.User]: shapeFormikUser,
 }

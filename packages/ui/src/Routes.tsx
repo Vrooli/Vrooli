@@ -25,6 +25,7 @@ const { SettingsPage } = lazily(() => import('./pages/SettingsPage/SettingsPage'
 const { StartPage } = lazily(() => import('./pages/StartPage/StartPage'));
 const { StatsPage } = lazily(() => import('./pages/dashboard/StatsPage/StatsPage'));
 const { SearchPage } = lazily(() => import('./pages/SearchPage/SearchPage'));
+const { HistorySearchPage } = lazily(() => import('./pages/HistorySearchPage/HistorySearchPage'));
 const { ObjectPage } = lazily(() => import('./pages/ObjectPage/ObjectPage'));
 const { UserViewPage } = lazily(() => import('./pages/view/UserViewPage'));
 const { FormPage } = lazily(() => import('./pages/wrapper/FormPage'));
@@ -96,6 +97,13 @@ export const AllRoutes = (props: CommonProps) => {
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
                             <SearchPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route path={`${LINKS.HistorySearch}/:params*`}>
+                    <Suspense fallback={Fallback}>
+                        <Page {...props}>
+                            <HistorySearchPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>

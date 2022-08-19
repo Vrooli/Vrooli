@@ -7,9 +7,10 @@ import { AutocompleteSearchBar, ListTitleContainer } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { HistoryPageProps } from '../types';
-import { listToAutocomplete, listToListItems, openObject, OpenObjectProps, useReactSearch } from 'utils';
+import { listToAutocomplete, listToListItems, ObjectType, openObject, OpenObjectProps, stringifySearchParams, useReactSearch } from 'utils';
 import { AutocompleteOption } from 'types';
 import { centeredDiv } from 'styles';
+import { RunStatus } from 'graphql/generated/globalTypes';
 
 const activeRoutinesText = `Routines that you've started to execute, and have not finished.`;
 
@@ -117,6 +118,26 @@ export const HistoryPage = ({
         openObject(newValue, setLocation);
     }, [searchString, setLocation]);
 
+    const toSeeAllActiveRuns = useCallback((event: any) => {
+        event?.stopPropagation();
+        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ type: ObjectType.Run, status: RunStatus.InProgress })}`);
+    }, [setLocation]);
+
+    const toSeeAllCompletedRuns = useCallback((event: any) => {
+        event?.stopPropagation();
+        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ type: ObjectType.Run, status: RunStatus.Completed })}`);
+    }, [setLocation]);
+
+    const toSeeAllViewed = useCallback((event: any) => {
+        event?.stopPropagation();
+        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ type: ObjectType.View })}`);
+    } , [setLocation]);
+
+    const toSeeAllStarred = useCallback((event: any) => {
+        event?.stopPropagation();
+        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ type: ObjectType.Star })}`);
+    } , [setLocation]);
+
     return (
         <Box id='page' sx={{
             padding: '0.5em',
@@ -175,7 +196,7 @@ export const HistoryPage = ({
                     helpText={activeRoutinesText}
                     isEmpty={activeRuns.length === 0}
                     onClick={() => { }}
-                    options={[['See all', () => { }]]}
+                    options={[['See all', toSeeAllActiveRuns]]}
                 >
                     {activeRuns}
                 </ListTitleContainer>
@@ -184,7 +205,7 @@ export const HistoryPage = ({
                     helpText={completedRoutinesText}
                     isEmpty={completedRuns.length === 0}
                     onClick={() => { }}
-                    options={[['See all', () => { }]]}
+                    options={[['See all', toSeeAllCompletedRuns]]}
                 >
                     {completedRuns}
                 </ListTitleContainer>
@@ -193,7 +214,7 @@ export const HistoryPage = ({
                     helpText={recentText}
                     isEmpty={recent.length === 0}
                     onClick={() => { }}
-                    options={[['See all', () => { }]]}
+                    options={[['See all', toSeeAllViewed]]}
                 >
                     {recent}
                 </ListTitleContainer>
@@ -202,7 +223,7 @@ export const HistoryPage = ({
                     helpText={starredText}
                     isEmpty={starred.length === 0}
                     onClick={() => { }}
-                    options={[['See all', () => { }]]}
+                    options={[['See all', toSeeAllStarred]]}
                 >
                     {starred}
                 </ListTitleContainer>

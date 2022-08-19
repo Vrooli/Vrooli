@@ -6,6 +6,7 @@ export const APP_LINKS = {
     FAQ: '/#faq', // FAQ section of home page
     ForgotPassword: '/forgot-password', // Page for sending password reset request emails
     History: '/history', // History section of home page. Displays saved, upvoted, recently viewed, completed, and upcoming routines
+    HistorySearch: '/history-search', // Search page for history objects
     Home: '/', // Main dashboard for logged in users
     Learn: '/learn', // Learn dashboard
     Organization: '/organization', // View or update specific organization

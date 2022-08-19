@@ -11,8 +11,11 @@ export enum ObjectType {
     Organization = 'Organization',
     Project = 'Project',
     Routine = 'Routine',
+    Run = 'Run',
     Standard = 'Standard',
+    Star = 'Star',
     User = 'User',
+    View = 'View',
 }
 
 /**
@@ -36,11 +39,11 @@ export type OpenObjectProps = {
         id: string, 
         routine?: {
             id: string
-        },
+        } | null,
         to?: { 
             __typename: string,
             handle?: string | null,
-            id: string,
+            id?: string,
         }
     };
     setLocation: SetLocation;

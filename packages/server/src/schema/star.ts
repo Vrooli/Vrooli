@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
-import { CODE } from '@shared/consts';
+import { CODE, StarSortBy } from '@shared/consts';
 import { CustomError } from '../error';
-import { StarFor, StarInput, StarSearchInput, StarSearchResult, StarSortBy, Success } from './types';
+import { StarFor, StarInput, StarSearchInput, StarSearchResult, Success } from './types';
 import { IWrap } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';

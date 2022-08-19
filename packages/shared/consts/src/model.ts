@@ -164,6 +164,11 @@ export enum StandardSortBy {
     DateUpdatedAsc = "DateUpdatedAsc",
 }
 
+export enum StarSortBy {
+    DateUpdatedAsc = "DateUpdatedAsc",
+    DateUpdatedDesc = "DateUpdatedDesc",
+}
+
 export enum TagSortBy {
     StarsDesc = "StarsDesc",
     StarsAsc = "StarsAsc",
@@ -180,6 +185,11 @@ export enum UserSortBy {
     DateCreatedAsc = "DateCreatedAsc",
     DateUpdatedDesc = "DateUpdatedDesc",
     DateUpdatedAsc = "DateUpdatedAsc",
+}
+
+export enum ViewSortBy {
+    LastViewedAsc = "LastViewedAsc",
+    LastViewedDesc = "LastViewedDesc",
 }
 
 //==============================================================

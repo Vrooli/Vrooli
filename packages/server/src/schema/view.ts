@@ -1,4 +1,4 @@
-import { CODE } from '@shared/consts';
+import { CODE, ViewSortBy } from '@shared/consts';
 import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from 'graphql';
 import { Context } from '../context';
@@ -7,7 +7,7 @@ import { genErrorCode } from '../logger';
 import { readManyHelper, ViewModel } from '../models';
 import { rateLimit } from '../rateLimit';
 import { IWrap } from '../types';
-import { ViewSearchInput, ViewSearchResult, ViewSortBy } from './types';
+import { ViewSearchInput, ViewSearchResult } from './types';
 
 export const typeDef = gql`
     enum ViewSortBy {

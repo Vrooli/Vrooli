@@ -13,7 +13,7 @@ import {
     Sort as SortListIcon,
 } from '@mui/icons-material';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
-import { getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, objectToSearchInfo, parseSearchParams, SortValueToLabelMap, stringifySearchParams, useReactSearch } from "utils";
+import { getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, objectToSearchInfo, parseSearchParams, SortValueToLabelMap, stringifySearchParams } from "utils";
 import { useLocation } from '@shared/route';
 import { AutocompleteOption } from "types";
 
@@ -60,11 +60,18 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     const [sortBy, setSortBy] = useState<string>(defaultSortBy);
     const [searchString, setSearchString] = useState<string>('');
     const [timeFrame, setTimeFrame] = useState<TimeFrame | undefined>(undefined);
-    // Handle URL params
-    const searchParams = useReactSearch(null);
     useEffect(() => {
+        const searchParams = parseSearchParams(window.location.search)
         if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
-        if (typeof searchParams.sort === 'string') setSortBy(searchParams.sort);
+        if (typeof searchParams.sort === 'string') {
+            // Check if sortBy is valid
+            console.log('checking sortBy', searchParams.sort, sortByOptions, defaultSortBy)
+            if (searchParams.sort in sortByOptions) {
+                setSortBy(searchParams.sort);
+            } else {
+                setSortBy(defaultSortBy);
+            }
+        }
         if (typeof searchParams.time === 'object' &&
             !Array.isArray(searchParams.time) &&
             searchParams.time.hasOwnProperty('after') &&
@@ -74,7 +81,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 before: new Date((searchParams.time as any).before),
             });
         }
-    }, [searchParams]);
+    }, [defaultSortBy, objectType, sortByOptions]);
 
     const [sortAnchorEl, setSortAnchorEl] = useState(null);
     const [timeAnchorEl, setTimeAnchorEl] = useState(null);
@@ -85,22 +92,22 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
      * When sort and filter options change, update the URL
      */
     useEffect(() => {
-        const params = parseSearchParams(window.location.search);
-        if (searchString) params.search = searchString;
-        else delete params.search;
-        if (sortBy) params.sort = sortBy;
-        else delete params.sort;
+        const searchParams = parseSearchParams(window.location.search);
+        if (searchString) searchParams.search = searchString;
+        else delete searchParams.search;
+        if (sortBy) searchParams.sort = sortBy;
+        else delete searchParams.sort;
         if (timeFrame) {
-            params.time = {
-                after: timeFrame.after?.toISOString() ?? '',
-                before: timeFrame.before?.toISOString() ?? '',
-            }
+            searchParams.time = {
+                after: timeFrame.after?.toISOString() ?? undefined,
+                before: timeFrame.before?.toISOString() ?? undefined,
+            } as any;
         }
-        else delete params.time;
-        setLocation(stringifySearchParams(params), { replace: true });
+        else delete searchParams.time;
+        setLocation(stringifySearchParams(searchParams), { replace: true });
     }, [searchString, sortBy, timeFrame, setLocation]);
 
-    const [advancedSearchParams, setAdvancedSearchParams] = useState<object>({});
+    const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>(null);
     const [getPageData, { data: pageData, loading }] = useLazyQuery<Query, QueryVariables>(query, {
         variables: ({
             input: {
@@ -152,6 +159,11 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     // Handle advanced search
     useEffect(() => {
+        const searchParams = parseSearchParams(window.location.search)
+        if (!advancedSearchSchema?.fields) {
+            setAdvancedSearchParams(null);
+            return;
+        }
         // Open advanced search dialog, if needed
         if (typeof searchParams.advanced === 'boolean') setAdvancedSearchDialogOpen(searchParams.advanced);
         // Any search params that aren't advanced, search, sort, or time MIGHT be advanced search params
@@ -161,7 +173,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         // fields in both otherParams and allAdvancedSearchParams should be the new advanced search params
         const advancedData = Object.keys(otherParams).filter(k => allAdvancedSearchParams.includes(k));
         setAdvancedSearchParams(advancedData.reduce((acc, k) => ({ ...acc, [k]: otherParams[k] }), {}));
-    }, [advancedSearchSchema.fields, searchParams]);
+    }, [advancedSearchSchema?.fields]);
 
     // Handle advanced search dialog
     const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(false);
@@ -174,11 +186,11 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         const valuesWithoutBlanks = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== undefined && v !== 0));
         // Add advanced search params to url search params
         setLocation(stringifySearchParams({
-            ...searchParams,
+            ...parseSearchParams(window.location.search),
             ...valuesWithoutBlanks
         }));
         setAdvancedSearchParams(valuesWithoutBlanks);
-    }, [searchParams, setLocation]);
+    }, [setLocation]);
 
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
@@ -255,6 +267,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
      * Find sort by label when sortBy changes
      */
     const sortByLabel = useMemo(() => {
+        console.log('getting sort by label', sortBy);
         if (sortBy && sortBy in SortValueToLabelMap) return SortValueToLabelMap[sortBy];
         return '';
     }, [sortBy]);
@@ -369,7 +382,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         {timeFrameLabel}
                     </Box>
                 </Tooltip>
-                <Tooltip title="See all search settings" placement="top">
+                {advancedSearchParams && <Tooltip title="See all search settings" placement="top">
                     <Box
                         onClick={handleAdvancedSearchDialogOpen}
                         sx={{ ...searchButtonStyle }}
@@ -377,7 +390,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         <AdvancedIcon sx={{ fill: palette.secondary.main }} />
                         Advanced
                     </Box>
-                </Tooltip>
+                </Tooltip>}
             </Box>
             {searchResultContainer}
             {/* Add new button */}

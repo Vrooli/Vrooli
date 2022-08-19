@@ -9,7 +9,7 @@
 import { InputType } from "@shared/consts";
 import { FormSchema } from "forms/types";
 
- export const organizationSearchSchema: FormSchema = {
+export const organizationSearchSchema: FormSchema = {
     formLayout: {
         title: "Search Organizations",
         direction: "column",
