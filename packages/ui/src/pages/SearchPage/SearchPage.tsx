@@ -1,3 +1,6 @@
+/**
+ * Search page for organizations, projects, routines, standards, and users
+ */
 import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material";
 import { SearchList, ShareDialog } from "components";
 import { useCallback, useMemo, useState } from "react";
@@ -7,7 +10,7 @@ import { SearchPageProps } from "../types";
 import { Add as AddIcon } from '@mui/icons-material';
 import { getObjectUrlBase, ObjectType, PubSub, parseSearchParams, stringifySearchParams, openObject } from "utils";
 import { organizationsQuery, projectsQuery, routinesQuery, standardsQuery, usersQuery } from "graphql/query";
-import { Organization, Project, Routine, Standard, User } from "types";
+import { ListOrganization, ListProject, ListRoutine, ListStandard, ListUser } from "types";
 import { validate as uuidValidate } from 'uuid';
 import { APP_LINKS } from "@shared/consts";
 
@@ -21,7 +24,7 @@ type BaseParams = {
     where: { [x: string]: any };
 }
 
-type SearchObject = Organization | Project | Routine | Standard | User;
+type SearchObject = ListOrganization | ListProject | ListRoutine | ListStandard | ListUser;
 
 const tabOptions: [string, ObjectType][] = [
     ['Organizations', ObjectType.Organization],

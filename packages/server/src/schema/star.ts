@@ -77,7 +77,7 @@ export const resolvers = {
             if (!req.userId || req.apiToken) 
                 throw new CustomError(CODE.Unauthorized, 'Must be logged in to query stars', { code: genErrorCode('0252') });
             await rateLimit({ info, max: 2000, req });
-            return readManyHelper({ info, input, model: StarModel, prisma, userId: req.userId });
+            return readManyHelper({ info, input, model: StarModel, prisma, userId: req.userId, additionalQueries: { userId: req.userId } });
         },
     },
     Mutation: {

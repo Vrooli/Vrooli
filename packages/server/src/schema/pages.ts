@@ -448,6 +448,7 @@ export const resolvers = {
             // Query for incomplete runs
             const activeRuns = await readManyAsFeed({
                 ...commonReadParams,
+                additionalQueries: { userId },
                 info: partial.activeRuns as PartialGraphQLInfo,
                 input: { take, ...input, status: RunStatus.InProgress, sortBy: RunSortBy.DateUpdatedDesc },
                 model: RunModel,
@@ -455,6 +456,7 @@ export const resolvers = {
             // Query for complete runs
             const completedRuns = await readManyAsFeed({
                 ...commonReadParams,
+                additionalQueries: { userId },
                 info: partial.completedRuns as PartialGraphQLInfo,
                 input: { take, ...input, status: RunStatus.Completed, sortBy: RunSortBy.DateUpdatedDesc },
                 model: RunModel,
@@ -462,6 +464,7 @@ export const resolvers = {
             // Query recently viewed objects (of any type)
             const recentlyViewed = await readManyAsFeed({
                 ...commonReadParams,
+                additionalQueries: { userId },
                 info: partial.recentlyViewed as PartialGraphQLInfo,
                 input: { take, ...input, sortBy: ViewSortBy.LastViewedDesc },
                 model: ViewModel,

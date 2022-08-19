@@ -9,6 +9,10 @@ import { Log } from "../../models/nosql";
 import { OrganizationModel } from "./organization";
 import { initializeRedis } from "../../redisConn";
 import { resolveProjectOrOrganizationOrRoutineOrStandardOrUser } from "../../schema/resolvers";
+import { ProjectModel } from "./project";
+import { RoutineModel } from "./routine";
+import { UserModel } from "./user";
+import { StandardModel } from "./standard";
 
 //==============================================================
 /* #region Custom Components */
@@ -121,7 +125,14 @@ export const viewSearcher = (): Searcher<ViewSearchInput> => ({
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
         return getSearchStringQueryHelper({ searchString,
             resolver: ({ insensitive }) => ({ 
-                title: { ...insensitive }
+                OR: [
+                    { title: { ...insensitive } },
+                    { organization: OrganizationModel.search.getSearchStringQuery(searchString, languages) },
+                    { project: ProjectModel.search.getSearchStringQuery(searchString, languages) },
+                    { routine: RoutineModel.search.getSearchStringQuery(searchString, languages) },
+                    { standard: StandardModel.search.getSearchStringQuery(searchString, languages) },
+                    { user: UserModel.search.getSearchStringQuery(searchString, languages) },
+                ]
             })
         })
     },
