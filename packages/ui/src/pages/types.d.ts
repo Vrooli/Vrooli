@@ -1,5 +1,9 @@
 import { Session } from 'types';
 
+export interface DevelopSearchPageProps {
+    session: Session;
+}
+
 export interface HistorySearchPageProps {
     session: Session;
 }

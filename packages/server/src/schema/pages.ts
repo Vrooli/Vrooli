@@ -10,13 +10,8 @@ import { Context } from '../context';
 import { addSupplementalFieldsMultiTypes, OrganizationModel, PartialGraphQLInfo, ProjectModel, readManyAsFeed, RoutineModel, RunModel, StandardModel, StarModel, toPartialGraphQLInfo, UserModel, ViewModel } from '../models';
 import { CustomError } from '../error';
 import { rateLimit } from '../rateLimit';
-import { resolveProjectOrOrganization, resolveProjectOrOrganizationOrRoutineOrStandardOrUser, resolveProjectOrRoutine } from './resolvers';
 
 export const typeDef = gql`
-
-    union ProjectOrRoutine = Project | Routine
-    union ProjectOrOrganization = Project | Organization
-    union ProjectOrOrganizationOrRoutineOrStandardOrUser = Project | Organization | Routine | Standard | User
 
     input HomePageInput {
         searchString: String!
@@ -94,15 +89,6 @@ export const typeDef = gql`
  `
 
 export const resolvers = {
-    ProjectOrRoutine: {
-        __resolveType(obj: any) { return resolveProjectOrRoutine(obj) }
-    },
-    ProjectOrOrganization: {
-        __resolveType(obj: any) { return resolveProjectOrOrganization(obj) }
-    },
-    ProjectOrOrganizationOrRoutineOrStandardOrUser: {
-        __resolveType(obj: any) { return resolveProjectOrOrganizationOrRoutineOrStandardOrUser(obj) }
-    },
     Query: {
         homePage: async (_parent: undefined, { input }: IWrap<HomePageInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<HomePageResult> => {
             await rateLimit({ info, max: 5000, req });

@@ -21,6 +21,7 @@ import * as RunInput from './runInput';
 import * as Standard from './standard';
 import * as Star from './star';
 import * as Tag from './tag';
+import * as Unions from './unions';
 import * as User from './user';
 import * as View from './view';
 import * as Vote from './vote';
@@ -31,7 +32,7 @@ const { merge } = pkg;
 const models = [
     Root, Auth, Comment, DeleteOne, Duplicate, Email, Feedback, Log, Node,
     Organization, Pages, Project, Report, Resource, ResourceList, Role,
-    Routine, Run, RunInput, Standard, Star, Tag, User, View, Vote, Wallet
+    Routine, Run, RunInput, Standard, Star, Tag, Unions, User, View, Vote, Wallet
 ]
 
 export const schema = makeExecutableSchema({
