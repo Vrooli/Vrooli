@@ -8,7 +8,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { BaseObjectDialog, HelpButton, routineSearchSchema } from 'components';
+import { BaseObjectDialog, HelpButton } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SubroutineSelectOrCreateDialogProps } from '../types';
 import {
@@ -22,7 +22,7 @@ import { useLazyQuery } from '@apollo/client';
 import { routine, routineVariables } from 'graphql/generated/routine';
 import { RoutineCreate } from 'components/views/Routine/RoutineCreate/RoutineCreate';
 import { validate as uuidValidate } from 'uuid';
-import { parseSearchParams, stringifySearchParams, SearchType } from 'utils';
+import { parseSearchParams, stringifySearchParams, SearchType, routineSearchSchema } from 'utils';
 import { useLocation } from '@shared/route';
 
 const helpText =

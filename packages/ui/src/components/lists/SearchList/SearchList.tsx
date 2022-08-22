@@ -13,7 +13,7 @@ import {
     Sort as SortListIcon,
 } from '@mui/icons-material';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
-import { getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, parseSearchParams, searchTypeToParams, SortValueToLabelMap, stringifySearchParams } from "utils";
+import { getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, parseSearchParams, SearchParams, searchTypeToParams, SortValueToLabelMap, stringifySearchParams } from "utils";
 import { useLocation } from '@shared/route';
 import { AutocompleteOption } from "types";
 
@@ -54,7 +54,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const { advancedSearchSchema, defaultSortBy, sortByOptions, query } = useMemo(() => searchTypeToParams[searchType], [searchType]);
+    const { advancedSearchSchema, defaultSortBy, sortByOptions, query } = useMemo<SearchParams>(() => searchTypeToParams[searchType], [searchType]);
 
     const [sortBy, setSortBy] = useState<string>(defaultSortBy);
     const [searchString, setSearchString] = useState<string>('');
@@ -181,15 +181,21 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         setAdvancedSearchDialogOpen(false)
     }, []);
     const handleAdvancedSearchDialogSubmit = useCallback((values: any) => {
-        // Remove undefined and 0 values
-        const valuesWithoutBlanks = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== undefined && v !== 0));
-        // Add advanced search params to url search params
-        setLocation(stringifySearchParams({
-            ...parseSearchParams(window.location.search),
-            ...valuesWithoutBlanks
-        }));
+        console.log('handleAdvancedSearchDialogSubmit', values);
+        // Remove 0 values
+        const valuesWithoutBlanks: { [x: string]: any } = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== 0));
+        // Get current URL search params
+        let searchParams: { [x: string]: any } = parseSearchParams(window.location.search);
+        // Remove any search params of fields in advancedSearchSchema.fields
+        for (const field of advancedSearchSchema?.fields ?? []) {
+            delete searchParams[field.fieldName];
+        }
+        // Add new search params
+        searchParams = { ...searchParams, ...valuesWithoutBlanks };
+        // Set new search params
+        setLocation(stringifySearchParams(searchParams), { replace: true });
         setAdvancedSearchParams(valuesWithoutBlanks);
-    }, [setLocation]);
+    }, [advancedSearchSchema?.fields, setLocation]);
 
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {

@@ -1,5 +1,5 @@
 export * from './transitions';
-export * from './AdvancedSearchDialog';
+export * from './AdvancedSearchDialog/AdvancedSearchDialog';
 export * from './AlertDialog/AlertDialog';
 export * from './BaseObjectActionDialog/BaseObjectActionDialog';
 export * from './BaseObjectDialog/BaseObjectDialog';

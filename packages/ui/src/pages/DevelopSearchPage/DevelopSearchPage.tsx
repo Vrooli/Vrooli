@@ -58,7 +58,18 @@ export function DevelopSearchPage({
         const index = availableTypes.indexOf(searchParams.type as TabOption);
         return Math.max(0, index);
     });
-    const handleTabChange = (_e, newIndex: number) => { setTabIndex(newIndex) };
+    const handleTabChange = (_e, newIndex: number) => { 
+        // Update "type" in URL and remove all search params not shared by all tabs
+        const { search, sort, time } = parseSearchParams(window.location.search);
+        setLocation(stringifySearchParams({
+            search,
+            sort,
+            time,
+            type: tabOptions[tabIndex][1],
+        }), { replace: true })
+        // Update tab index
+        setTabIndex(newIndex) 
+    };
 
     // On tab change, update BaseParams, document title, where, and URL
     const { itemKeyPrefix, searchType, title, where } = useMemo<BaseParams>(() => {
@@ -66,13 +77,9 @@ export function DevelopSearchPage({
         document.title = `Search ${tabOptions[tabIndex][0]}`;
         // Get object type
         const searchType: TabOption = tabOptions[tabIndex][1];
-        // Update URL
-        const urlParams = parseSearchParams(window.location.search);
-        urlParams.type = searchType;
-        setLocation(stringifySearchParams(urlParams), { replace: true });
         // Return base params
         return tabParams[searchType]
-    }, [setLocation, tabIndex]);
+    }, [tabIndex]);
 
     return (
         <Box id='page' sx={{

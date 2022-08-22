@@ -133,7 +133,6 @@ export function CommentContainer({
         // Any search params that aren't advanced, search, sort, or time MIGHT be advanced search params
         const { advanced, search, sort, time, ...otherParams } = searchParams;
         // Find valid advanced search params
-        console.log('booooooop', advancedSearchSchema, searchTypeToParams.Comment)
         const allAdvancedSearchParams = advancedSearchSchema?.fields?.map(f => f.fieldName) ?? [];
         // fields in both otherParams and allAdvancedSearchParams should be the new advanced search params
         const advancedData = Object.keys(otherParams).filter(k => allAdvancedSearchParams.includes(k));

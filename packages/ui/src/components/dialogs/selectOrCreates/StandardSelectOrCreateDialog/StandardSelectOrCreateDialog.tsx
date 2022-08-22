@@ -8,7 +8,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { BaseObjectDialog, HelpButton, standardSearchSchema } from 'components';
+import { BaseObjectDialog, HelpButton } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StandardSelectOrCreateDialogProps } from '../types';
 import {
@@ -21,7 +21,7 @@ import { standardQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { standard, standardVariables } from 'graphql/generated/standard';
 import { StandardCreate } from 'components/views/Standard/StandardCreate/StandardCreate';
-import { parseSearchParams, stringifySearchParams, SearchType } from 'utils';
+import { parseSearchParams, stringifySearchParams, SearchType, standardSearchSchema } from 'utils';
 import { useLocation } from '@shared/route';
 
 const helpText =

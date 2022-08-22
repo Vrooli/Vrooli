@@ -8,7 +8,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { BaseObjectDialog, HelpButton, organizationSearchSchema } from 'components';
+import { BaseObjectDialog, HelpButton } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { OrganizationSelectOrCreateDialogProps } from '../types';
 import {
@@ -21,7 +21,7 @@ import { organizationQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { organization, organizationVariables } from 'graphql/generated/organization';
 import { OrganizationCreate } from 'components/views/Organization/OrganizationCreate/OrganizationCreate';
-import { parseSearchParams, stringifySearchParams, SearchType } from 'utils';
+import { parseSearchParams, stringifySearchParams, SearchType, organizationSearchSchema } from 'utils';
 import { useLocation } from '@shared/route';
 
 const helpText =

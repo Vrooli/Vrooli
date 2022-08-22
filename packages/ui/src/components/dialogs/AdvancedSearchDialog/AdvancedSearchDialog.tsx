@@ -21,7 +21,7 @@ import {
 import { useFormik } from 'formik';
 import { FieldData, FormSchema } from 'forms/types';
 import { generateDefaultProps, generateGrid, generateYupSchema } from 'forms/generators';
-import { convertFormikForSearch, searchTypeToParams } from 'utils';
+import { convertFormikForSearch, convertSearchForFormik, parseSearchParams, searchTypeToParams } from 'utils';
 
 export const AdvancedSearchDialog = ({
     handleClose,
@@ -36,17 +36,30 @@ export const AdvancedSearchDialog = ({
     const [schema, setSchema] = useState<FormSchema | null>(searchType in searchTypeToParams ? searchTypeToParams[searchType].advancedSearchSchema : null);
     useEffect(() => { setSchema(searchType in searchTypeToParams ? searchTypeToParams[searchType].advancedSearchSchema : null) }, [searchType]);
 
-    // Get field inputs from schema, and add default values
-    const fieldInputs = useMemo<FieldData[]>(() => schema?.fields ? generateDefaultProps(schema.fields) : [], [schema?.fields]);
-
-    // Parse default values from fieldInputs, to use in formik
+    // Parse default values to use in formik
     const initialValues = useMemo(() => {
+        // Calculate initial values from schema, to use if values not already in URL
+        const fieldInputs: FieldData[] = generateDefaultProps(schema?.fields ?? []);
+        // Parse search params from URL, and filter out search fields that are not in schema
+        const urlValues = schema ? convertSearchForFormik(parseSearchParams(window.location.search), schema) : {} as { [key: string]: any };
+        console.group('initialValues')
+        console.log('fieldInputs', fieldInputs);
+        console.log('urlValues', urlValues);
+        // Filter out search params that are not in schema
         let values: { [x: string]: any } = {};
+        // Add fieldInputs to values
         fieldInputs.forEach((field) => {
             values[field.fieldName] = field.props.defaultValue;
         });
+        // Add or replace urlValues to values
+        Object.keys(urlValues).forEach((key) => {
+            const currValue = urlValues[key];
+            if (currValue !== undefined) values[key] = currValue;
+        });
+        console.log('result', values);
+        console.groupEnd();
         return values;
-    }, [fieldInputs])
+    }, [schema])
 
     // Generate yup validation schema
     const validationSchema = useMemo(() => schema ? generateYupSchema(schema) : undefined, [schema]);
