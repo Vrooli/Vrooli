@@ -13,7 +13,7 @@ import {
     Sort as SortListIcon,
 } from '@mui/icons-material';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
-import { getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, objectToSearchInfo, parseSearchParams, SortValueToLabelMap, stringifySearchParams } from "utils";
+import { getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, parseSearchParams, searchTypeToParams, SortValueToLabelMap, stringifySearchParams } from "utils";
 import { useLocation } from '@shared/route';
 import { AutocompleteOption } from "types";
 
@@ -43,9 +43,8 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     itemKeyPrefix,
     noResultsText = 'No results',
     searchPlaceholder = 'Search...',
-    query,
     take = 20,
-    objectType,
+    searchType,
     onObjectSelect,
     onScrolledFar,
     where,
@@ -55,7 +54,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const { advancedSearchSchema, defaultSortBy, sortByOptions } = useMemo(() => objectToSearchInfo[objectType], [objectType]);
+    const { advancedSearchSchema, defaultSortBy, sortByOptions, query } = useMemo(() => searchTypeToParams[searchType], [searchType]);
 
     const [sortBy, setSortBy] = useState<string>(defaultSortBy);
     const [searchString, setSearchString] = useState<string>('');
@@ -81,7 +80,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 before: new Date((searchParams.time as any).before),
             });
         }
-    }, [defaultSortBy, objectType, sortByOptions]);
+    }, [defaultSortBy, searchType, sortByOptions]);
 
     const [sortAnchorEl, setSortAnchorEl] = useState(null);
     const [timeAnchorEl, setTimeAnchorEl] = useState(null);
@@ -215,14 +214,14 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     }, [allData, session]);
 
     const listItems = useMemo(() => listToListItems({
-        dummyItems: new Array(5).fill(objectType),
+        dummyItems: new Array(5).fill(searchType),
         hideRoles,
         items: allData as any,
         keyPrefix: itemKeyPrefix,
         loading,
         onClick: (item) => onObjectSelect(item),
         session: session,
-    }), [allData, hideRoles, itemKeyPrefix, loading, objectType, session, onObjectSelect])
+    }), [allData, hideRoles, itemKeyPrefix, loading, searchType, session, onObjectSelect])
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
@@ -334,7 +333,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 handleClose={handleAdvancedSearchDialogClose}
                 handleSearch={handleAdvancedSearchDialogSubmit}
                 isOpen={advancedSearchDialogOpen}
-                objectType={objectType}
+                searchType={searchType}
                 session={session}
                 zIndex={zIndex + 1}
             />

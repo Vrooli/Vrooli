@@ -104,14 +104,11 @@ export const resolvers = {
             const MinimumStars = 0; // Minimum stars required to show up in results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
-            const commonReadParams = {
-                additionalQueries: { ...starsQuery },
-                prisma,
-                userId,
-            }
+            const commonReadParams = { prisma, userId }
             // Query organizations
             const organizations = await readManyAsFeed({
                 ...commonReadParams,
+                additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.organizations as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: OrganizationSortBy.StarsDesc },
                 model: OrganizationModel,
@@ -119,6 +116,7 @@ export const resolvers = {
             // Query projects
             const projects = await readManyAsFeed({
                 ...commonReadParams,
+                additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.projects as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: ProjectSortBy.StarsDesc, isComplete: true },
                 model: ProjectModel,
@@ -126,6 +124,7 @@ export const resolvers = {
             // Query routines
             const routines = await readManyAsFeed({
                 ...commonReadParams,
+                additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.routines as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: RoutineSortBy.StarsDesc, isComplete: true, isInternal: false },
                 model: RoutineModel,
@@ -133,6 +132,7 @@ export const resolvers = {
             // Query standards
             const standards = await readManyAsFeed({
                 ...commonReadParams,
+                additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.standards as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: StandardSortBy.StarsDesc, type: 'JSON' },
                 model: StandardModel,
@@ -140,6 +140,7 @@ export const resolvers = {
             // Query users
             const users = await readManyAsFeed({
                 ...commonReadParams,
+                additionalQueries: { ...starsQuery },
                 info: partial.users as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: UserSortBy.StarsDesc },
                 model: UserModel,
@@ -175,14 +176,11 @@ export const resolvers = {
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
-            const commonReadParams = {
-                additionalQueries: { ...starsQuery },
-                prisma,
-                userId,
-            }
+            const commonReadParams = { prisma, userId }
             // Query courses
             const courses = await readManyAsFeed({
                 ...commonReadParams,
+                additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.courses as PartialGraphQLInfo,
                 input: { take, sortBy: ProjectSortBy.VotesDesc, tags: ['Learn'], isComplete: true, },
                 model: ProjectModel,
@@ -190,6 +188,7 @@ export const resolvers = {
             // Query tutorials
             const tutorials = await readManyAsFeed({
                 ...commonReadParams,
+                additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.tutorials as PartialGraphQLInfo,
                 input: { take, sortBy: ProjectSortBy.VotesDesc, tags: ['Learn'], isComplete: true, },
                 model: RoutineModel,
@@ -228,14 +227,11 @@ export const resolvers = {
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
-            const commonReadParams = {
-                additionalQueries: { ...starsQuery },
-                prisma,
-                userId,
-            }
+            const commonReadParams = { prisma, userId }
             // Query processes
             const processes = await readManyAsFeed({
                 ...commonReadParams,
+                additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.processes as PartialGraphQLInfo,
                 input: { take, sortBy: RoutineSortBy.VotesDesc, tags: ['Research'], isComplete: true, isInternal: false },
                 model: RoutineModel,
@@ -243,12 +239,14 @@ export const resolvers = {
             // Query newlyCompleted
             const newlyCompletedProjects = await readManyAsFeed({
                 ...commonReadParams,
+                additionalQueries: { ...starsQuery, isPrivate: false },
                 info: (partial.newlyCompleted as PartialGraphQLInfo)?.Project as PartialGraphQLInfo,
                 input: { take, sortBy: ProjectSortBy.DateCompletedAsc, isComplete: true },
                 model: ProjectModel,
             });
             const newlyCompletedRoutines = await readManyAsFeed({
                 ...commonReadParams,
+                additionalQueries: { ...starsQuery, isPrivate: false },
                 info: (partial.newlyCompleted as PartialGraphQLInfo)?.Routine as PartialGraphQLInfo,
                 input: { take, isComplete: true, isInternal: false, sortBy: RoutineSortBy.DateCompletedAsc },
                 model: RoutineModel,
@@ -256,6 +254,7 @@ export const resolvers = {
             // Query needVotes
             const needVotes = await readManyAsFeed({
                 ...commonReadParams,
+                additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.needVotes as PartialGraphQLInfo,
                 input: { take, isComplete: false, resourceTypes: [ResourceUsedFor.Proposal] },
                 model: ProjectModel,
@@ -263,6 +262,7 @@ export const resolvers = {
             // Query needInvestments
             const needInvestments = await readManyAsFeed({
                 ...commonReadParams,
+                additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.needInvestments as PartialGraphQLInfo,
                 input: { take, isComplete: false, resourceTypes: [ResourceUsedFor.Donation] },
                 model: ProjectModel,
@@ -329,11 +329,7 @@ export const resolvers = {
                 recent: [],
             }
             const take = 5;
-            const commonReadParams = {
-                additionalQueries: { },
-                prisma,
-                userId,
-            }
+            const commonReadParams = { prisma, userId }
             // Query for routines you've completed
             const completedRoutines = await readManyAsFeed({
                 ...commonReadParams,
@@ -427,10 +423,7 @@ export const resolvers = {
             }) as PartialGraphQLInfo;
             const userId = req.userId;
             const take = 5;
-            const commonReadParams = {
-                prisma,
-                userId,
-            }
+            const commonReadParams = { prisma, userId }
             // Query for incomplete runs
             const activeRuns = await readManyAsFeed({
                 ...commonReadParams,

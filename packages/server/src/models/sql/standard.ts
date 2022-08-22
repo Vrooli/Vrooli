@@ -4,7 +4,7 @@ import { omit } from '@shared/utils';
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count, StandardPermission } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addSupplementalFieldsHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, PartialGraphQLInfo, Permissioner, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addSupplementalFieldsHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { validateProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -48,21 +48,11 @@ export const standardFormatter = (): FormatConverter<Standard, StandardPermissio
         let modified = removeCreatorField(partial);
         return modified;
     },
-    addJoinTables: (partial) => {
-        return addJoinTablesHelper(partial, joinMapper)
-    },
-    removeJoinTables: (data) => {
-        return removeJoinTablesHelper(data, joinMapper)
-    },
-    addCountFields: (partial) => {
-        return addCountFieldsHelper(partial, countMapper);
-    },
-    removeCountFields: (data) => {
-        return removeCountFieldsHelper(data, countMapper);
-    },
-    removeSupplementalFields: (partial) => {
-        return omit(partial, supplementalFields);
-    },
+    addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
+    removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
+    addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
+    removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
+    removeSupplementalFields: (partial) => omit(partial, supplementalFields),
     async addSupplementalFields({ objects, partial, permissions, prisma, userId }): Promise<RecursivePartial<Standard>[]> {
         return addSupplementalFieldsHelper({
             objects,
@@ -101,7 +91,7 @@ export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardP
             organization?: { id: string } | null | undefined
         }[] = [];
         // If some creator data missing, query for creator data.
-        if (objects.map(x => x.creator).filter(x => x).length < objects.length) {
+        if (onlyValidIds(objects.map(x => x.creator)).length < objects.length) {
             creatorData = await prisma.standard.findMany({
                 where: { id: { in: ids } },
                 select: {
@@ -121,7 +111,7 @@ export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardP
             });
         }
         // Find permissions for every organization
-        const organizationIds: string[] = creatorData.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
+        const organizationIds = onlyValidIds(creatorData.map(x => x.organization?.id));
         const orgPermissions = await OrganizationModel.permissions(prisma).get({ 
             objects: organizationIds.map(x => ({ id: x })),
             userId 
@@ -151,7 +141,13 @@ export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardP
     }) {
         //TODO
         return 'full';
-    }
+    },
+    ownershipQuery: (userId) => ({
+        OR: [
+            { createdByOrganization: { roles: { some: { assignees: { some: { user: { id: userId } } } } } } },
+            { createdByUser: { id: userId } }
+        ]
+    }),
 })
 
 export const standardSearcher = (): Searcher<StandardSearchInput> => ({
@@ -451,7 +447,7 @@ export const standardMutater = (prisma: PrismaType) => ({
             standardsCreate.validateSync(createMany, { abortEarly: false });
             standardVerifier().profanityCheck(createMany);
             // Add createdByOrganizationIds to organizationIds array, if they are set
-            organizationIds.push(...createMany.map(input => input.createdByOrganizationId).filter(id => id));
+            organizationIds.push(...onlyValidIds(createMany.map(input => input.createdByOrganizationId)));
             // Check for max standards created by user TODO
         }
         if (updateMany) {

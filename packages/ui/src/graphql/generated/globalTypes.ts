@@ -98,6 +98,23 @@ export enum OrganizationSortBy {
   StarsDesc = "StarsDesc",
 }
 
+export enum ProjectOrRoutineSortBy {
+  CommentsAsc = "CommentsAsc",
+  CommentsDesc = "CommentsDesc",
+  DateCompletedAsc = "DateCompletedAsc",
+  DateCompletedDesc = "DateCompletedDesc",
+  DateCreatedAsc = "DateCreatedAsc",
+  DateCreatedDesc = "DateCreatedDesc",
+  DateUpdatedAsc = "DateUpdatedAsc",
+  DateUpdatedDesc = "DateUpdatedDesc",
+  ForksAsc = "ForksAsc",
+  ForksDesc = "ForksDesc",
+  StarsAsc = "StarsAsc",
+  StarsDesc = "StarsDesc",
+  VotesAsc = "VotesAsc",
+  VotesDesc = "VotesDesc",
+}
+
 export enum ProjectSortBy {
   CommentsAsc = "CommentsAsc",
   CommentsDesc = "CommentsDesc",
@@ -233,6 +250,11 @@ export enum StarFor {
   User = "User",
 }
 
+export enum StarSortBy {
+  DateUpdatedAsc = "DateUpdatedAsc",
+  DateUpdatedDesc = "DateUpdatedDesc",
+}
+
 export enum TagSortBy {
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
@@ -249,6 +271,11 @@ export enum UserSortBy {
   DateUpdatedDesc = "DateUpdatedDesc",
   StarsAsc = "StarsAsc",
   StarsDesc = "StarsDesc",
+}
+
+export enum ViewSortBy {
+  LastViewedAsc = "LastViewedAsc",
+  LastViewedDesc = "LastViewedDesc",
 }
 
 export enum VoteFor {
@@ -790,6 +817,41 @@ export interface ProjectCreateInput {
   translationsCreate?: ProjectTranslationCreateInput[] | null;
 }
 
+export interface ProjectOrRoutineSearchInput {
+  createdTimeFrame?: TimeFrame | null;
+  excludeIds?: string[] | null;
+  ids?: string[] | null;
+  includePrivate?: boolean | null;
+  isComplete?: boolean | null;
+  isCompleteExceptions?: BooleanSearchException[] | null;
+  languages?: string[] | null;
+  minScore?: number | null;
+  minStars?: number | null;
+  minViews?: number | null;
+  organizationId?: string | null;
+  parentId?: string | null;
+  projectAfter?: string | null;
+  reportId?: string | null;
+  resourceLists?: string[] | null;
+  resourceTypes?: ResourceUsedFor[] | null;
+  routineAfter?: string | null;
+  routineIsInternal?: boolean | null;
+  routineIsInternalExceptions?: BooleanSearchException[] | null;
+  routineMinComplexity?: number | null;
+  routineMaxComplexity?: number | null;
+  routineMinSimplicity?: number | null;
+  routineMaxSimplicity?: number | null;
+  routineMaxTimesCompleted?: number | null;
+  routineMinTimesCompleted?: number | null;
+  routineProjectId?: string | null;
+  searchString?: string | null;
+  sortBy?: ProjectOrRoutineSortBy | null;
+  tags?: string[] | null;
+  take?: number | null;
+  updatedTimeFrame?: TimeFrame | null;
+  userId?: string | null;
+}
+
 export interface ProjectSearchInput {
   after?: string | null;
   createdTimeFrame?: TimeFrame | null;
@@ -1280,6 +1342,14 @@ export interface StarInput {
   forId: string;
 }
 
+export interface StarSearchInput {
+  after?: string | null;
+  excludeTags?: boolean | null;
+  ids?: string[] | null;
+  sortBy?: StarSortBy | null;
+  take?: number | null;
+}
+
 export interface TagCountInput {
   createdTimeFrame?: TimeFrame | null;
   updatedTimeFrame?: TimeFrame | null;
@@ -1382,6 +1452,15 @@ export interface UserTranslationUpdateInput {
   id: string;
   language?: string | null;
   bio?: string | null;
+}
+
+export interface ViewSearchInput {
+  after?: string | null;
+  lastViewedTimeFrame?: TimeFrame | null;
+  ids?: string[] | null;
+  searchString?: string | null;
+  sortBy?: ViewSortBy | null;
+  take?: number | null;
 }
 
 export interface VoteInput {

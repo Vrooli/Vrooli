@@ -4,7 +4,7 @@ import { SvgIconComponent } from '@mui/icons-material';
 import { DeleteOneType } from '@shared/consts';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 import { ReportFor } from 'graphql/generated/globalTypes';
-import { ObjectType } from 'utils';
+import { ObjectType, SearchType } from 'utils';
 
 export interface BaseObjectDialogProps extends DialogProps {
     children: JSX.Element | JSX.Element[];
@@ -280,7 +280,7 @@ export interface AdvancedSearchDialogProps {
     handleClose: () => any;
     handleSearch: (searchQuery: { [x: string]: any }) => any;
     isOpen: boolean;
-    objectType: ObjectType;   
+    searchType: SearchType;   
     session: Session;
     zIndex: number;
 }

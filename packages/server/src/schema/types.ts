@@ -1417,7 +1417,6 @@ export type ProjectOrOrganizationEdge = {
 export type ProjectOrOrganizationOrRoutineOrStandardOrUser = Organization | Project | Routine | Standard | User;
 
 export type ProjectOrOrganizationSearchInput = {
-  after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
@@ -1425,9 +1424,11 @@ export type ProjectOrOrganizationSearchInput = {
   languages?: InputMaybe<Array<Scalars['String']>>;
   minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
+  organizationAfter?: InputMaybe<Scalars['String']>;
   organizationIsOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
   organizationProjectId?: InputMaybe<Scalars['ID']>;
   organizationRoutineId?: InputMaybe<Scalars['ID']>;
+  projectAfter?: InputMaybe<Scalars['String']>;
   projectIsComplete?: InputMaybe<Scalars['Boolean']>;
   projectIsCompleteExceptions?: InputMaybe<Array<BooleanSearchException>>;
   projectMinScore?: InputMaybe<Scalars['Int']>;
@@ -1437,7 +1438,7 @@ export type ProjectOrOrganizationSearchInput = {
   resourceLists?: InputMaybe<Array<Scalars['String']>>;
   resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
   searchString?: InputMaybe<Scalars['String']>;
-  sortBy?: InputMaybe<RoutineSortBy>;
+  sortBy?: InputMaybe<ProjectOrOrganizationSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
@@ -1450,6 +1451,15 @@ export type ProjectOrOrganizationSearchResult = {
   pageInfo: PageInfo;
 };
 
+export enum ProjectOrOrganizationSortBy {
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  StarsAsc = 'StarsAsc',
+  StarsDesc = 'StarsDesc'
+}
+
 export type ProjectOrRoutine = Project | Routine;
 
 export type ProjectOrRoutineEdge = {
@@ -1459,7 +1469,6 @@ export type ProjectOrRoutineEdge = {
 };
 
 export type ProjectOrRoutineSearchInput = {
-  after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
@@ -1472,9 +1481,11 @@ export type ProjectOrRoutineSearchInput = {
   minViews?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
+  projectAfter?: InputMaybe<Scalars['String']>;
   reportId?: InputMaybe<Scalars['ID']>;
   resourceLists?: InputMaybe<Array<Scalars['String']>>;
   resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
+  routineAfter?: InputMaybe<Scalars['String']>;
   routineIsInternal?: InputMaybe<Scalars['Boolean']>;
   routineIsInternalExceptions?: InputMaybe<Array<BooleanSearchException>>;
   routineMaxComplexity?: InputMaybe<Scalars['Int']>;
@@ -1485,7 +1496,7 @@ export type ProjectOrRoutineSearchInput = {
   routineMinTimesCompleted?: InputMaybe<Scalars['Int']>;
   routineProjectId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
-  sortBy?: InputMaybe<RoutineSortBy>;
+  sortBy?: InputMaybe<ProjectOrRoutineSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
@@ -1497,6 +1508,23 @@ export type ProjectOrRoutineSearchResult = {
   edges: Array<ProjectOrRoutineEdge>;
   pageInfo: PageInfo;
 };
+
+export enum ProjectOrRoutineSortBy {
+  CommentsAsc = 'CommentsAsc',
+  CommentsDesc = 'CommentsDesc',
+  DateCompletedAsc = 'DateCompletedAsc',
+  DateCompletedDesc = 'DateCompletedDesc',
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  ForksAsc = 'ForksAsc',
+  ForksDesc = 'ForksDesc',
+  StarsAsc = 'StarsAsc',
+  StarsDesc = 'StarsDesc',
+  VotesAsc = 'VotesAsc',
+  VotesDesc = 'VotesDesc'
+}
 
 export type ProjectPermission = {
   __typename?: 'ProjectPermission';

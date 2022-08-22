@@ -100,6 +100,32 @@ export enum ProjectSortBy {
     DateUpdatedAsc = "DateUpdatedAsc",
 }
 
+export enum ProjectOrOrganizationSortBy {
+    StarsDesc = "StarsDesc",
+    StarsAsc = "StarsAsc",
+    DateCreatedDesc = "DateCreatedDesc",
+    DateCreatedAsc = "DateCreatedAsc",
+    DateUpdatedDesc = "DateUpdatedDesc",
+    DateUpdatedAsc = "DateUpdatedAsc",
+}
+
+export enum ProjectOrRoutineSortBy {
+    VotesDesc = "VotesDesc",
+    VotesAsc = "VotesAsc",
+    StarsDesc = "StarsDesc",
+    StarsAsc = "StarsAsc",
+    ForksDesc = "ForksDesc",
+    ForksAsc = "ForksAsc",
+    CommentsDesc = "CommentsDesc",
+    CommentsAsc = "CommentsAsc",
+    DateCompletedDesc = "DateCompletedDesc",
+    DateCompletedAsc = "DateCompletedAsc",
+    DateCreatedDesc = "DateCreatedDesc",
+    DateCreatedAsc = "DateCreatedAsc",
+    DateUpdatedDesc = "DateUpdatedDesc",
+    DateUpdatedAsc = "DateUpdatedAsc",
+}
+
 export enum ReportSortBy {
     DateCreatedDesc = "DateCreatedDesc",
     DateCreatedAsc = "DateCreatedAsc",

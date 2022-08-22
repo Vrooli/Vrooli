@@ -27,6 +27,7 @@ export const runSearchSchema: FormSchema = {
                     { label: "Scheduled", value: RunStatus.Scheduled },
                     { label: "Failed", value: RunStatus.Failed },
                     { label: "Cancelled", value: RunStatus.Cancelled },
+                    { label: "Don't Care", value: 'undefined' },
                 ]
             }
         },

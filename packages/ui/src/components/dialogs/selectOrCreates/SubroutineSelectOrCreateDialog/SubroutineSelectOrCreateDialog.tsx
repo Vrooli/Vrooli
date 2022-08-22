@@ -17,12 +17,12 @@ import {
 } from '@mui/icons-material';
 import { IsCompleteInput, IsInternalInput, Routine } from 'types';
 import { SearchList } from 'components/lists';
-import { routineQuery, routinesQuery } from 'graphql/query';
+import { routineQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { routine, routineVariables } from 'graphql/generated/routine';
 import { RoutineCreate } from 'components/views/Routine/RoutineCreate/RoutineCreate';
 import { validate as uuidValidate } from 'uuid';
-import { ObjectType, parseSearchParams, stringifySearchParams } from 'utils';
+import { parseSearchParams, stringifySearchParams, SearchType } from 'utils';
 import { useLocation } from '@shared/route';
 
 const helpText =
@@ -189,9 +189,8 @@ export const SubroutineSelectOrCreateDialog = ({
                     <SearchList
                         itemKeyPrefix='routine-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
-                        objectType={ObjectType.Routine}
+                        searchType={SearchType.Routine}
                         onObjectSelect={(newValue) => handleRoutineSelect(newValue)}
-                        query={routinesQuery}
                         searchPlaceholder={'Select existing subroutine...'}
                         session={session}
                         take={20}

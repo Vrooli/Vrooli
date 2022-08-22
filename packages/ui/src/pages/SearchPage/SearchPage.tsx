@@ -8,73 +8,69 @@ import { centeredDiv } from "styles";
 import { useLocation } from '@shared/route';
 import { SearchPageProps } from "../types";
 import { Add as AddIcon } from '@mui/icons-material';
-import { getObjectUrlBase, ObjectType, PubSub, parseSearchParams, stringifySearchParams, openObject } from "utils";
-import { organizationsQuery, projectsQuery, routinesQuery, standardsQuery, usersQuery } from "graphql/query";
+import { getObjectUrlBase, PubSub, parseSearchParams, stringifySearchParams, openObject, SearchType, SearchPageTabOption as TabOption } from "utils";
 import { ListOrganization, ListProject, ListRoutine, ListStandard, ListUser } from "types";
 import { validate as uuidValidate } from 'uuid';
 import { APP_LINKS } from "@shared/consts";
 
+// Tab data type
 type BaseParams = {
     itemKeyPrefix: string;
-    objectType: ObjectType | undefined;
+    searchType: SearchType;
     popupTitle: string;
     popupTooltip: string;
-    query: any | undefined;
     title: string;
     where: { [x: string]: any };
 }
 
+// Data for each tab
+const tabParams: { [key in TabOption]: BaseParams } = {
+    [TabOption.Organizations]: {
+        itemKeyPrefix: 'organization-list-item',
+        popupTitle: 'Invite',
+        popupTooltip: `Can't find who you're looking for? Invite them!😊`,
+        searchType: SearchType.Organization,
+        title: 'Organizations',
+        where: { },
+    },
+    [TabOption.Projects]: {
+        itemKeyPrefix: 'project-list-item',
+        popupTitle: 'Add',
+        popupTooltip: `Can't find what you're looking for? Create it!😎`,
+        searchType: SearchType.Project,
+        title: 'Projects',
+        where: { },
+    },
+    [TabOption.Routines]: {
+        itemKeyPrefix: 'routine-list-item',
+        popupTitle: 'Add',
+        popupTooltip: `Can't find what you're looking for? Create it!😎`,
+        searchType: SearchType.Routine,
+        title: 'Routines',
+        where: { isInternal: false },
+    },
+    [TabOption.Standards]: {
+        itemKeyPrefix: 'standard-list-item',
+        popupTitle: 'Add',
+        popupTooltip: `Can't find what you're looking for? Create it!😎`,
+        searchType: SearchType.Standard,
+        title: 'Standards',
+        where: { },
+    },
+    [TabOption.Users]: {
+        itemKeyPrefix: 'user-list-item',
+        popupTitle: 'Invite',
+        popupTooltip: `Can't find who you're looking for? Invite them!😊`,
+        searchType: SearchType.User,
+        title: 'Users',
+        where: { },
+    },
+}
+
+// [title, searchType] for each tab
+const tabOptions: [string, TabOption][] = Object.entries(tabParams).map(([key, value]) => [value.title, key as TabOption]);
+
 type SearchObject = ListOrganization | ListProject | ListRoutine | ListStandard | ListUser;
-
-const tabOptions: [string, ObjectType][] = [
-    ['Organizations', ObjectType.Organization],
-    ['Projects', ObjectType.Project],
-    ['Routines', ObjectType.Routine],
-    ['Standards', ObjectType.Standard],
-    ['Users', ObjectType.User],
-];
-
-/**
- * Maps object types to popup titles and tooltips.
- */
-const popupMap = {
-    [ObjectType.Organization]: ['Invite', `Can't find who you're looking for? Invite them!😊`],
-    [ObjectType.Project]: ['Add', `Can't find what you're looking for? Create it!😎`],
-    [ObjectType.Routine]: ['Add', `Can't find what you're looking for? Create it!😎`],
-    [ObjectType.Standard]: ['Add', `Can't find what you're looking for? Create it!😎`],
-    [ObjectType.User]: ['Invite', `Can't find who you're looking for? Invite them!😊`],
-}
-
-/**
- * Maps object types to queries.
- */
-const queryMap = {
-    [ObjectType.Organization]: organizationsQuery,
-    [ObjectType.Project]: projectsQuery,
-    [ObjectType.Routine]: routinesQuery,
-    [ObjectType.Standard]: standardsQuery,
-    [ObjectType.User]: usersQuery,
-}
-
-/**
- * Maps object types to titles
- */
-const titleMap = {
-    [ObjectType.Organization]: 'Organizations',
-    [ObjectType.Project]: 'Projects',
-    [ObjectType.Routine]: 'Routines',
-    [ObjectType.Standard]: 'Standards',
-    [ObjectType.User]: 'Users',
-}
-
-/**
- * Maps object types to wheres (additional queries for search)
- */
-const whereMap = {
-    [ObjectType.Project]: { isComplete: true },
-    [ObjectType.Routine]: { isComplete: true, isInternal: false },
-    [ObjectType.Standard]: { type: 'JSON' },
-}
 
 export function SearchPage({
     session,
@@ -92,41 +88,31 @@ export function SearchPage({
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(() => {
         const searchParams = parseSearchParams(window.location.search);
-        console.log('finding tab index', window.location.search, searchParams)
-        const availableTypes: string[] = tabOptions.map(t => t[1]);
-        const objectType: ObjectType | undefined = availableTypes.includes(searchParams.type as string) ? searchParams.type as ObjectType : undefined;
-        const index = tabOptions.findIndex(t => t[1] === objectType);
+        const availableTypes: TabOption[] = tabOptions.map(t => t[1]);
+        const index = availableTypes.indexOf(searchParams.type as TabOption);
+        console.log('getting tab index', searchParams, availableTypes, index);
         return Math.max(0, index);
     });
     const handleTabChange = (_e, newIndex: number) => { setTabIndex(newIndex) };
 
     // On tab change, update BaseParams, document title, where, and URL
-    const { itemKeyPrefix, objectType, popupTitle, popupTooltip, query, title, where } = useMemo<BaseParams>(() => {
-        // Close dialogs if they're open
-        setPopupButton(false);
-        setShareDialogOpen(false);
+    const { itemKeyPrefix, popupTitle, popupTooltip, searchType, title, where } = useMemo<BaseParams>(() => {
         // Update tab title
         document.title = `Search ${tabOptions[tabIndex][0]}`;
         // Get object type
-        const objectType: ObjectType = tabOptions[tabIndex][1];
+        const searchType: TabOption = tabOptions[tabIndex][1];
         // Update URL
-        const params = parseSearchParams(window.location.search);
-        params.type = objectType;
-        setLocation(stringifySearchParams(params), { replace: true });
-        // Get other BaseParams
-        const itemKeyPrefix = `${objectType}-list-item`;
-        const popupTitle = popupMap[objectType][0];
-        const popupTooltip = popupMap[objectType][1];
-        const query = queryMap[objectType];
-        const title = objectType ? titleMap[objectType] : 'Search';
-        const where = whereMap[objectType];
-        return { itemKeyPrefix, objectType, popupTitle, popupTooltip, query, title, where };
+        const urlParams = parseSearchParams(window.location.search);
+        urlParams.type = searchType;
+        setLocation(stringifySearchParams(urlParams), { replace: true });
+        // Return base params
+        return tabParams[searchType]
     }, [setLocation, tabIndex]);
 
     const onAddClick = useCallback(() => {
         const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
-        const objectType: ObjectType = tabOptions[tabIndex][1];
-        const addUrl = `${getObjectUrlBase({ __typename: objectType })}/add`
+        const tabType: TabOption = tabOptions[tabIndex][1];
+        const addUrl = `${getObjectUrlBase({ __typename: tabType as string })}/add`
         if (loggedIn) {
             setLocation(addUrl)
         }
@@ -139,8 +125,8 @@ export function SearchPage({
     }, [session?.id, session?.isLoggedIn, setLocation, tabIndex]);
 
     const onPopupButtonClick = useCallback(() => {
-        const objectType = tabOptions[tabIndex][1];
-        if (objectType === ObjectType.Organization || objectType === ObjectType.User) {
+        const tabType = tabOptions[tabIndex][1];
+        if (tabType === TabOption.Organizations || tabType === TabOption.Users) {
             setShareDialogOpen(true);
         } else {
             onAddClick();
@@ -222,12 +208,11 @@ export function SearchPage({
                     </IconButton>
                 </Tooltip>
             </Stack>
-            {objectType && <SearchList
+            {searchType && <SearchList
                 itemKeyPrefix={itemKeyPrefix}
                 searchPlaceholder={'Search...'}
-                query={query}
                 take={20}
-                objectType={objectType}
+                searchType={searchType}
                 onObjectSelect={handleSelected}
                 onScrolledFar={handleScrolledFar}
                 session={session}

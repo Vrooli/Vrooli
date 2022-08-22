@@ -1,15 +1,16 @@
 import { useLazyQuery, useQuery } from '@apollo/client';
-import { ResourceListUsedFor } from '@shared/consts';
+import { APP_LINKS, ProjectOrRoutineSortBy, ResourceListUsedFor } from '@shared/consts';
 import { Box, Stack, Typography } from '@mui/material';
-import { HelpButton, ListTitleContainer, ResourceListHorizontal } from 'components';
+import { HelpButton, ListMenu, ListTitleContainer, ResourceListHorizontal } from 'components';
 import { developPage } from 'graphql/generated/developPage';
 import { profile } from 'graphql/generated/profile';
 import { developPageQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ResourceList } from 'types';
-import { listToListItems, openObject, OpenObjectProps } from 'utils';
+import { DevelopSearchPageTabOption, listToListItems, openObject, OpenObjectProps, stringifySearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { DevelopPageProps } from '../types';
+import { ListMenuItemData } from 'components/dialogs/types';
 
 const completedText =
     `Find projects and routines that you've recently completed
@@ -32,11 +33,17 @@ const inProgressText =
 const recentText =
     `Recently updated projects and routines`
 
+const createPopupOptions: ListMenuItemData<string>[] = [
+    { label: 'Project', value: `${APP_LINKS.Project}/add` },
+    { label: 'Routine (Single Step)', value: `${APP_LINKS.Routine}/add` },
+    { label: 'Routine (Multi Step)', value: `${APP_LINKS.Routine}/add?build=true` },
+]
+
 export const DevelopPage = ({
     session
 }: DevelopPageProps) => {
     const [, setLocation] = useLocation();
-    const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all'});
+    const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all' });
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
     const [resourceList, setResourceList] = useState<ResourceList | null>(null);
     useEffect(() => {
@@ -48,7 +55,7 @@ export const DevelopPage = ({
         setResourceList(updatedList);
     }, []);
 
-    const { data: developPageData, loading: developPageLoading } = useQuery<developPage>(developPageQuery, { errorPolicy: 'all'});
+    const { data: developPageData, loading: developPageLoading } = useQuery<developPage>(developPageQuery, { errorPolicy: 'all' });
 
     /**
      * Opens page for list item
@@ -86,6 +93,42 @@ export const DevelopPage = ({
         session,
     }), [developPageData?.developPage?.completed, developPageLoading, session, toItemPage])
 
+    const toSeeAllInProgress = useCallback((event: any) => {
+        event?.stopPropagation();
+        setLocation(`${APP_LINKS.DevelopSearch}${stringifySearchParams({
+            isComplete: false,
+            type: DevelopSearchPageTabOption.InProgress,
+            sort: ProjectOrRoutineSortBy.DateUpdatedDesc,
+        })}`);
+    }, [setLocation]);
+
+    const toSeeAllRecent = useCallback((event: any) => {
+        event?.stopPropagation();
+        setLocation(`${APP_LINKS.DevelopSearch}${stringifySearchParams({
+            type: DevelopSearchPageTabOption.Recent,
+            sort: ProjectOrRoutineSortBy.DateUpdatedDesc,
+        })}`);
+    }, [setLocation]);
+
+    const toSeeAllCompleted = useCallback((event: any) => {
+        event?.stopPropagation();
+        setLocation(`${APP_LINKS.DevelopSearch}${stringifySearchParams({
+            isComplete: true,
+            type: DevelopSearchPageTabOption.Completed,
+            sort: ProjectOrRoutineSortBy.DateUpdatedDesc,
+        })}`);
+    }, [setLocation]);
+
+    // Dialog for selecting whether to create a new project or routine
+    const [createAnchor, setCreateAnchor] = useState<any>(null);
+    const openCreateSelect = useCallback((ev: React.MouseEvent<any>) => {
+        setCreateAnchor(ev.currentTarget)
+    }, [setCreateAnchor]);
+    const closeCreateSelect = useCallback(() => setCreateAnchor(null), []);
+    const handleAdvancedSearchSelect = useCallback((path: string) => {
+        setLocation(path);
+    }, [setLocation]);
+
     return (
         <Box id='page' sx={{
             padding: '0.5em',
@@ -93,6 +136,16 @@ export const DevelopPage = ({
             width: 'min(100%, 700px)',
             margin: 'auto',
         }}>
+            {/* Create new dialog */}
+            <ListMenu
+                id={`create-project-or-routine-dialog`}
+                anchorEl={createAnchor}
+                title='Select Object Type'
+                data={createPopupOptions}
+                onSelect={handleAdvancedSearchSelect}
+                onClose={closeCreateSelect}
+                zIndex={200}
+            />
             {/* Title and help button */}
             <Stack
                 direction="row"
@@ -120,8 +173,8 @@ export const DevelopPage = ({
                     title={"In Progress"}
                     helpText={inProgressText}
                     isEmpty={inProgress.length === 0}
-                    onClick={() => { }}
-                    options={[['Create', () => { }], ['See all', () => { }]]}
+                    onClick={toSeeAllInProgress}
+                    options={[['Create', openCreateSelect], ['See all', toSeeAllInProgress]]}
                 >
                     {inProgress}
                 </ListTitleContainer>
@@ -129,8 +182,8 @@ export const DevelopPage = ({
                     title={"Recent"}
                     helpText={recentText}
                     isEmpty={recent.length === 0}
-                    onClick={() => { }}
-                    options={[['See all', () => { }]]}
+                    onClick={toSeeAllRecent}
+                    options={[['See all', toSeeAllRecent]]}
                 >
                     {recent}
                 </ListTitleContainer>
@@ -138,8 +191,8 @@ export const DevelopPage = ({
                     title={"Completed"}
                     helpText={completedText}
                     isEmpty={completed.length === 0}
-                    onClick={() => { }}
-                    options={[['See all', () => { }]]}
+                    onClick={toSeeAllCompleted}
+                    options={[['See all', toSeeAllCompleted]]}
                 >
                     {completed}
                 </ListTitleContainer>

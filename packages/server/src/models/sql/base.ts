@@ -65,6 +65,8 @@ export const GraphQLModelType = {
     OutputItem: 'OutputItem',
     Profile: 'Profile',
     Project: 'Project',
+    ProjectOrRoutineSearchResult: 'ProjectOrRoutineSearchResult',
+    ProjectOrOrganizationSearchResult: 'ProjectOrOrganizationSearchResult',
     Report: 'Report',
     ResearchPageResult: 'ResearchPageResult',
     Resource: 'Resource',
@@ -129,9 +131,11 @@ export type PartialPrismaSelect = { [x: string]: any };
  */
 export type PrismaSelect = { [x: string]: any };
 
+type NestedGraphQLModelType = GraphQLModelType | { [fieldName: string]: NestedGraphQLModelType };
+
 export type RelationshipMap = {
     __typename: GraphQLModelType;
-    [relationshipName: string]: GraphQLModelType | { [fieldName: string]: GraphQLModelType }
+    [relationshipName: string]: NestedGraphQLModelType
 };
 
 /**
@@ -231,6 +235,12 @@ export type Permissioner<PermissionObject, SearchInput> = {
         input: SearchInput,
         userId: string | null,
     }): Promise<'full' | 'public' | 'none'>
+    /**
+     * Query format for checking ownership of an object
+     * @param userId - ID to check ownership against
+     * @returns Prisma where clause for checking ownership
+     */
+    ownershipQuery(userId: string): { [x: string]: any }
 }
 
 /**
@@ -367,7 +377,7 @@ const isRelationshipArray = (obj: any): boolean => Array.isArray(obj) && obj.eve
  * @param ids - array of IDs to filter
  * @returns Array of valid IDs
  */
-const onlyValidIds = (ids: string[]): string[] => ids.filter(id => uuidValidate(id));
+export const onlyValidIds = (ids: (string | null | undefined)[]): string[] => ids.filter(id => typeof id === 'string' && uuidValidate(id)) as string[];
 
 /**
  * Lowercases the first letter of a string
@@ -1921,4 +1931,27 @@ export function getSearchStringQueryHelper({
     if (searchString.length === 0) return {};
     const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
     return resolver({ insensitive });
+}
+
+type ExistsArray = {
+    ids: (string | null | undefined)[],
+    prismaDelegate: any,
+    where: { [x: string]: any },
+}
+
+/**
+ * Helper function for querying a list of objects using a specified search query
+ * @returns Array in the same order as the ids, with a boolean indicating whether the object was found
+ */
+export async function existsArray({ ids, prismaDelegate, where }: ExistsArray): Promise<Array<boolean>> {
+    if (ids.length === 0) return [];
+    // Take out nulls
+    const idsToQuery = onlyValidIds(ids);
+    // Query
+    const objects = await prismaDelegate.findMany({
+        where,
+        select: { id: true },
+    })
+    // Convert to array of booleans
+    return idsToQuery.map(id => objects.some(({ id: objectId }: { id: string }) => objectId === id));
 }

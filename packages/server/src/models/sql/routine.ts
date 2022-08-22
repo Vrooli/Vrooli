@@ -1,6 +1,6 @@
 import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeRoutineListItem, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemCreateInput, RoutinePermission } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, addSupplementalFieldsHelper, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, PartialGraphQLInfo, Permissioner, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, addSupplementalFieldsHelper, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routinesUpdate, routineTranslationCreate, routineTranslationUpdate } from "@shared/validation";
 import { CODE, DeleteOneType } from "@shared/consts";
@@ -66,21 +66,11 @@ export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> 
         modified = removeOwnerField(modified);
         return modified;
     },
-    addJoinTables: (partial) => {
-        return addJoinTablesHelper(partial, joinMapper);
-    },
-    removeJoinTables: (data) => {
-        return removeJoinTablesHelper(data, joinMapper);
-    },
-    addCountFields: (partial) => {
-        return addCountFieldsHelper(partial, countMapper);
-    },
-    removeCountFields: (data) => {
-        return removeCountFieldsHelper(data, countMapper);
-    },
-    removeSupplementalFields: (partial) => {
-        return omit(partial, supplementalFields);
-    },
+    addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
+    removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
+    addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
+    removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
+    removeSupplementalFields: (partial) => omit(partial, supplementalFields),
     async addSupplementalFields({ objects, partial, permissions, prisma, userId }): Promise<RecursivePartial<Routine>[]> {
         return addSupplementalFieldsHelper({
             objects,
@@ -154,7 +144,7 @@ export const routinePermissioner = (prisma: PrismaType): Permissioner<RoutinePer
             organization?: { id: string } | null | undefined
         }[] = [];
         // If some owner data missing, query for owner data.
-        if (objects.map(x => x.owner).filter(x => x).length < objects.length) {
+        if (onlyValidIds(objects.map(x => x.owner)).length < objects.length) {
             ownerData = await prisma.routine.findMany({
                 where: { id: { in: ids } },
                 select: {
@@ -204,7 +194,13 @@ export const routinePermissioner = (prisma: PrismaType): Permissioner<RoutinePer
     }) {
         //TODO
         return 'full';
-    }
+    },
+    ownershipQuery: (userId) => ({
+        OR: [
+            { organization: { roles: { some: { assignees: { some: { user: { id: userId } } } } } } },
+            { user: { id: userId } }
+        ]
+    })
 })
 
 export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
@@ -730,7 +726,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             routinesCreate.validateSync(createMany, { abortEarly: false });
             TranslationModel.profanityCheck(createMany);
             // Add createdByOrganizationIds to organizationIds array, if they are set
-            organizationIds.push(...createMany.map(input => input.createdByOrganizationId).filter(id => id));
+            organizationIds.push(...onlyValidIds(createMany.map(input => input.createdByOrganizationId)));
             createMany.forEach(input => this.validateNodePositions(input));
             // Check if user will pass max routines limit
             //TODO

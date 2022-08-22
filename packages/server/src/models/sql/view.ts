@@ -3,7 +3,7 @@ import { isObject } from '@shared/utils'
 import { CustomError } from "../../error";
 import { Count, LogType, User, ViewSearchInput, ViewSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { deconstructUnion, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, ModelLogic, ObjectMap, PartialGraphQLInfo, readManyHelper, Searcher, timeFrameToPrisma } from "./base";
+import { deconstructUnion, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, ModelLogic, ObjectMap, onlyValidIds, PartialGraphQLInfo, readManyHelper, Searcher, timeFrameToPrisma } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { OrganizationModel } from "./organization";
@@ -154,7 +154,7 @@ const viewQuerier = (prisma: PrismaType) => ({
         // If userId not provided, return result
         if (!userId) return result;
         // Filter out nulls and undefineds from ids
-        const idsFiltered = ids.filter(id => id !== null && id !== undefined);
+        const idsFiltered = onlyValidIds(ids);
         const fieldName = `${viewFor.toLowerCase()}Id`;
         const isViewedArray = await prisma.view.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
         // Replace the nulls in the result array with true if viewed

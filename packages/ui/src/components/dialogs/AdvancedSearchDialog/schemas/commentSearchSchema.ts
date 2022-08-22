@@ -1,10 +1,5 @@
 /**
- * Advanced search form schema for organizations. 
- * Can search by: 
- * - Accepting new members? - Radio
- * - Minimum stars - QuantityBox
- * - Languages - LanguageInput
- * - Tags - TagSelector
+ * Advanced search form schema for comments. 
  */
  import { InputType } from "@shared/consts";
  import { FormSchema } from "forms/types";

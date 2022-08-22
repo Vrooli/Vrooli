@@ -11,6 +11,8 @@ export * from './organizations';
 export * from './organizationsCount';
 export * from './profile';
 export * from './project';
+export * from './projectOrOrganizations';
+export * from './projectOrRoutines';
 export * from './projects';
 export * from './projectsCount';
 export * from './readAssets';

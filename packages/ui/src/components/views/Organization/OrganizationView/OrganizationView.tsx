@@ -4,7 +4,7 @@ import { APP_LINKS, StarFor } from "@shared/consts";
 import { adaHandleRegex } from '@shared/validation';
 import { useLazyQuery } from "@apollo/client";
 import { organization, organizationVariables } from "graphql/generated/organization";
-import { usersQuery, projectsQuery, routinesQuery, standardsQuery, organizationQuery } from "graphql/query";
+import { organizationQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     Apartment as ProfileIcon,
@@ -19,7 +19,7 @@ import { containerShadow } from "styles";
 import { OrganizationViewProps } from "../types";
 import { Organization, ResourceList } from "types";
 import { SearchListGenerator } from "components/lists/types";
-import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, PubSub } from "utils";
+import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, PubSub, SearchType } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
@@ -129,56 +129,51 @@ export const OrganizationView = ({
     }, [setLocation, id]);
 
     // Create search data
-    const { objectType, itemKeyPrefix, placeholder, searchQuery, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
+    const { searchType, itemKeyPrefix, placeholder, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
         const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         switch (currTabType) {
             case TabOptions.Members:
                 return {
-                    objectType: ObjectType.User,
+                    searchType: SearchType.User,
                     itemKeyPrefix: 'member-list-item',
                     placeholder: "Search orgnization's members...",
                     noResultsText: "No members found",
-                    searchQuery: usersQuery,
                     where: { organizationId: id },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Profile, newValue.id),
                 };
             case TabOptions.Projects:
                 return {
-                    objectType: ObjectType.Project,
+                    searchType: SearchType.Project,
                     itemKeyPrefix: 'project-list-item',
                     placeholder: "Search organization's projects...",
                     noResultsText: "No projects found",
-                    searchQuery: projectsQuery,
                     where: { organizationId: id, isComplete: !canEdit ? true : undefined },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Project, newValue.id),
                 };
             case TabOptions.Routines:
                 return {
-                    objectType: ObjectType.Routine,
+                    searchType: SearchType.Routine,
                     itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search organization's routines...",
                     noResultsText: "No routines found",
-                    searchQuery: routinesQuery,
                     where: { organizationId: id, isComplete: !canEdit ? true : undefined, isInternal: false },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 };
             case TabOptions.Standards:
                 return {
-                    objectType: ObjectType.Standard,
+                    searchType: SearchType.Standard,
                     itemKeyPrefix: 'standard-list-item',
                     placeholder: "Search organization's standards...",
                     noResultsText: "No standards found",
-                    searchQuery: standardsQuery,
                     where: { organizationId: id },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
                 }
             default:
                 return {
-                    objectType: ObjectType.User,
+                    searchType: SearchType.User,
                     itemKeyPrefix: '',
                     placeholder: '',
                     noResultsText: '',
-                    searchQuery: null,
                     where: {},
                     onSearchSelect: (o: any) => { },
                 }
@@ -431,9 +426,8 @@ export const OrganizationView = ({
                                 hideRoles={true}
                                 itemKeyPrefix={itemKeyPrefix}
                                 noResultsText={noResultsText}
-                                objectType={objectType}
+                                searchType={searchType}
                                 onObjectSelect={onSearchSelect}
-                                query={searchQuery}
                                 searchPlaceholder={placeholder}
                                 session={session}
                                 take={20}

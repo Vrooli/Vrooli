@@ -66,7 +66,7 @@ export const projectOrRoutineSearchSchema: FormSchema = {
                 options: [
                     { label: "Project", value: 'project' },
                     { label: "Routine", value: 'routine' },
-                    { label: "Don't Care", value: 'dontCare' },
+                    { label: "Don't Care", value: 'undefined' },
                 ]
             }
         },
@@ -78,9 +78,9 @@ export const projectOrRoutineSearchSchema: FormSchema = {
                 defaultValue: 'dontCare',
                 row: true,
                 options: [
-                    { label: "Yes", value: 'yes' },
-                    { label: "No", value: 'no' },
-                    { label: "Don't Care", value: 'dontCare' },
+                    { label: "Yes", value: 'true' },
+                    { label: "No", value: 'false' },
+                    { label: "Don't Care", value: 'undefined' },
                 ]
             }
         },

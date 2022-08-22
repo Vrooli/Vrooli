@@ -48,9 +48,9 @@ export const projectSearchSchema: FormSchema = {
                 defaultValue: 'dontCare',
                 row: true,
                 options: [
-                    { label: "Yes", value: 'yes' },
-                    { label: "No", value: 'no' },
-                    { label: "Don't Care", value: 'dontCare' },
+                    { label: "Yes", value: 'true' },
+                    { label: "No", value: 'false' },
+                    { label: "Don't Care", value: 'undefined' },
                 ]
             }
         },

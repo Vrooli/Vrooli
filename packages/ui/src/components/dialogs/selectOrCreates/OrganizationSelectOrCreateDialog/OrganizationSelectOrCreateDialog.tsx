@@ -17,11 +17,11 @@ import {
 } from '@mui/icons-material';
 import { Organization } from 'types';
 import { SearchList } from 'components/lists';
-import { organizationQuery, organizationsQuery } from 'graphql/query';
+import { organizationQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { organization, organizationVariables } from 'graphql/generated/organization';
 import { OrganizationCreate } from 'components/views/Organization/OrganizationCreate/OrganizationCreate';
-import { ObjectType, parseSearchParams, stringifySearchParams } from 'utils';
+import { parseSearchParams, stringifySearchParams, SearchType } from 'utils';
 import { useLocation } from '@shared/route';
 
 const helpText =
@@ -165,8 +165,7 @@ export const OrganizationSelectOrCreateDialog = ({
                         itemKeyPrefix='organization-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
                         onObjectSelect={(newValue) => handleOrganizationSelect(newValue)}
-                        objectType={ObjectType.Organization}
-                        query={organizationsQuery}
+                        searchType={SearchType.Organization}
                         searchPlaceholder={'Select existing organization...'}
                         session={session}
                         take={20}

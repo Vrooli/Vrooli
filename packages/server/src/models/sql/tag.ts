@@ -21,12 +21,8 @@ export const tagFormatter = (): FormatConverter<Tag, any> => ({
         '__typename': 'Tag',
         'starredBy': 'User',
     },
-    addJoinTables: (partial) => {
-        return addJoinTablesHelper(partial, joinMapper);
-    },
-    removeJoinTables: (data) => {
-        return removeJoinTablesHelper(data, joinMapper);
-    },
+    addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
+    removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
     removeSupplementalFields: (partial) => {
         const omitted = omit(partial, supplementalFields);
         // Add createdByUserId field so we can calculate isOwn, and id field for add supplemental groupbyid

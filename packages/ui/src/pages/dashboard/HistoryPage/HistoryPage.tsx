@@ -7,7 +7,7 @@ import { AutocompleteSearchBar, ListTitleContainer } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { HistoryPageProps } from '../types';
-import { listToAutocomplete, listToListItems, ObjectType, openObject, OpenObjectProps, stringifySearchParams, useReactSearch } from 'utils';
+import { HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, OpenObjectProps, stringifySearchParams, useReactSearch } from 'utils';
 import { AutocompleteOption } from 'types';
 import { centeredDiv } from 'styles';
 import { RunStatus } from 'graphql/generated/globalTypes';
@@ -120,22 +120,32 @@ export const HistoryPage = ({
 
     const toSeeAllActiveRuns = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ type: ObjectType.Run, status: RunStatus.InProgress })}`);
+        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ 
+            type: HistorySearchPageTabOption.Runs, 
+            status: RunStatus.InProgress 
+        })}`);
     }, [setLocation]);
 
     const toSeeAllCompletedRuns = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ type: ObjectType.Run, status: RunStatus.Completed })}`);
+        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ 
+            type: HistorySearchPageTabOption.Runs,
+            status: RunStatus.Completed 
+        })}`);
     }, [setLocation]);
 
     const toSeeAllViewed = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ type: ObjectType.View })}`);
+        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ 
+            type: HistorySearchPageTabOption.Viewed,
+        })}`);
     } , [setLocation]);
 
     const toSeeAllStarred = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ type: ObjectType.Star })}`);
+        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ 
+            type: HistorySearchPageTabOption.Starred,
+        })}`);
     } , [setLocation]);
 
     return (
@@ -195,7 +205,7 @@ export const HistoryPage = ({
                     title={"Active Routines"}
                     helpText={activeRoutinesText}
                     isEmpty={activeRuns.length === 0}
-                    onClick={() => { }}
+                    onClick={toSeeAllActiveRuns}
                     options={[['See all', toSeeAllActiveRuns]]}
                 >
                     {activeRuns}
@@ -204,7 +214,7 @@ export const HistoryPage = ({
                     title={"Completed Routines"}
                     helpText={completedRoutinesText}
                     isEmpty={completedRuns.length === 0}
-                    onClick={() => { }}
+                    onClick={toSeeAllCompletedRuns}
                     options={[['See all', toSeeAllCompletedRuns]]}
                 >
                     {completedRuns}
@@ -213,7 +223,7 @@ export const HistoryPage = ({
                     title={"Recently Viewed"}
                     helpText={recentText}
                     isEmpty={recent.length === 0}
-                    onClick={() => { }}
+                    onClick={toSeeAllViewed}
                     options={[['See all', toSeeAllViewed]]}
                 >
                     {recent}
@@ -222,7 +232,7 @@ export const HistoryPage = ({
                     title={"Starred"}
                     helpText={starredText}
                     isEmpty={starred.length === 0}
-                    onClick={() => { }}
+                    onClick={toSeeAllStarred}
                     options={[['See all', toSeeAllStarred]]}
                 >
                     {starred}

@@ -62,15 +62,9 @@ export const profileFormatter = (): FormatConverter<User, any> => ({
         'reports': 'Report',
         'votes': 'Vote',
     },
-    addJoinTables: (partial) => {
-        return addJoinTablesHelper(partial, joinMapper);
-    },
-    removeJoinTables: (data) => {
-        return removeJoinTablesHelper(data, joinMapper);
-    },
-    removeSupplementalFields: (partial) => {
-        return omit(partial, supplementalFields);
-    },
+    addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
+    removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
+    removeSupplementalFields: (partial) => omit(partial, supplementalFields),
 })
 
 /**

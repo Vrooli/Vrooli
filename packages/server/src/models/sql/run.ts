@@ -93,7 +93,15 @@ export const runPermissioner = (prisma: PrismaType): Permissioner<{ canDelete: b
     }) {
         //TODO
         return 'full';
-    }
+    },
+    ownershipQuery: (userId) => ({
+        routine: {
+            OR: [
+                { organization: { roles: { some: { assignees: { some: { user: { id: userId } } } } } } },
+                { user: { id: userId } }
+            ]
+        }
+    })
 })
 
 /**

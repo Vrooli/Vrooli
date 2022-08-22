@@ -4,7 +4,7 @@ import { APP_LINKS, ResourceListUsedFor, StarFor } from "@shared/consts";
 import { adaHandleRegex } from "@shared/validation";
 import { useLazyQuery } from "@apollo/client";
 import { project, projectVariables } from "graphql/generated/project";
-import { routinesQuery, standardsQuery, projectQuery } from "graphql/query";
+import { projectQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     CardGiftcard as DonateIcon,
@@ -18,7 +18,7 @@ import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
 import { Project, ResourceList } from "types";
 import { SearchListGenerator } from "components/lists/types";
-import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, PubSub } from "utils";
+import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, PubSub, SearchType } from "utils";
 import { validate as uuidValidate } from 'uuid';
 
 enum TabOptions {
@@ -128,33 +128,31 @@ export const ProjectView = ({
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
     // Create search data
-    const { objectType, itemKeyPrefix, placeholder, searchQuery, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
+    const { searchType, itemKeyPrefix, placeholder, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
         const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         // The first tab doesn't have search results, as it is the project's set resources
         switch (currTabType) {
             case TabOptions.Routines:
                 return {
-                    objectType: ObjectType.Routine,
+                    searchType: SearchType.Routine,
                     itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search project's routines...",
                     noResultsText: "No routines found",
-                    searchQuery: routinesQuery,
                     where: { projectId: id, isComplete: !canEdit ? true : undefined, isInternal: false },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 };
             case TabOptions.Standards:
                 return {
-                    objectType: ObjectType.Standard,
+                    searchType: SearchType.Standard,
                     itemKeyPrefix: 'standard-list-item',
                     placeholder: "Search project's standards...",
                     noResultsText: "No standards found",
-                    searchQuery: standardsQuery,
                     where: { projectId: id },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
                 }
             default:
                 return {
-                    objectType: ObjectType.Routine,
+                    searchType: SearchType.Routine,
                     itemKeyPrefix: '',
                     placeholder: '',
                     noResultsText: '',
@@ -377,9 +375,8 @@ export const ProjectView = ({
                                 hideRoles={true}
                                 itemKeyPrefix={itemKeyPrefix}
                                 noResultsText={noResultsText}
-                                objectType={objectType}
+                                searchType={searchType}
                                 onObjectSelect={onSearchSelect}
-                                query={searchQuery}
                                 searchPlaceholder={placeholder}
                                 session={session}
                                 take={20}

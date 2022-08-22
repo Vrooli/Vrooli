@@ -13,7 +13,7 @@ import {
     Add as CreateIcon,
     Search as SearchIcon,
 } from '@mui/icons-material';
-import { listToAutocomplete, listToListItems, ObjectType, openObject, OpenObjectProps, useReactSearch } from 'utils';
+import { listToAutocomplete, listToListItems, openObject, OpenObjectProps, SearchType, useReactSearch } from 'utils';
 import { AutocompleteOption } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 
@@ -64,11 +64,11 @@ If you would like to contribute to the development of Vrooli, please contact us!
 `
 
 const advancedSearchPopupOptions: ListMenuItemData<string>[] = [
-    { label: 'Organization', value: `/search?type=${ObjectType.Organization}&advanced=true` },
-    { label: 'Project', value: `/search?type=${ObjectType.Project}&advanced=true` },
-    { label: 'Routine', value: `/search?type=${ObjectType.Routine}&advanced=true` },
-    { label: 'Standard', value: `/search?type=${ObjectType.Standard}&advanced=true` },
-    { label: 'User', value: `/search?type=${ObjectType.User}&advanced=true` },
+    { label: 'Organization', value: `${APP_LINKS.Search}?type=${SearchType.Organization}&advanced=true` },
+    { label: 'Project', value: `${APP_LINKS.Search}?type=${SearchType.Project}&advanced=true` },
+    { label: 'Routine', value: `${APP_LINKS.Search}?type=${SearchType.Routine}&advanced=true` },
+    { label: 'Standard', value: `${APP_LINKS.Search}?type=${SearchType.Standard}&advanced=true` },
+    { label: 'User', value: `${APP_LINKS.Search}?type=${SearchType.User}&advanced=true` },
 ]
 
 const createNewPopupOptions: ListMenuItemData<string>[] = [
@@ -137,43 +137,43 @@ const shortcuts: ShortcutItem[] = [
     },
     {
         label: 'Search organizations',
-        link: `/search?type=${ObjectType.Organization}`,
+        link: `${APP_LINKS.Search}?type=${SearchType.Organization}`,
     },
     {
         label: 'Search projects',
-        link: `/search?type=${ObjectType.Project}`,
+        link: `${APP_LINKS.Search}?type=${SearchType.Project}`,
     },
     {
         label: 'Search routines',
-        link: `/search?type=${ObjectType.Routine}`,
+        link: `${APP_LINKS.Search}?type=${SearchType.Routine}`,
     },
     {
         label: 'Search standards',
-        link: `/search?type=${ObjectType.Routine}`,
+        link: `${APP_LINKS.Search}?type=${SearchType.Routine}`,
     },
     {
         label: 'Search users',
-        link: `/search?type=${ObjectType.User}`,
+        link: `${APP_LINKS.Search}?type=${SearchType.User}`,
     },
     {
         label: 'Search organizations advanced',
-        link: `/search?type=${ObjectType.Organization}&advanced=true`,
+        link: `${APP_LINKS.Search}?type=${SearchType.Organization}&advanced=true`,
     },
     {
         label: 'Search projects advanced',
-        link: `/search?type=${ObjectType.Project}&advanced=true`,
+        link: `${APP_LINKS.Search}?type=${SearchType.Project}&advanced=true`,
     },
     {
         label: 'Search routines advanced',
-        link: `/search?type=${ObjectType.Routine}&advanced=true`,
+        link: `${APP_LINKS.Search}?type=${SearchType.Routine}&advanced=true`,
     },
     {
         label: 'Search standards advanced',
-        link: `/search?type=${ObjectType.Standard}&advanced=true`,
+        link: `${APP_LINKS.Search}?type=${SearchType.Standard}&advanced=true`,
     },
     {
         label: 'Search users advanced',
-        link: `/search?type=${ObjectType.User}&advanced=true`,
+        link: `${APP_LINKS.Search}?type=${SearchType.User}&advanced=true`,
     },
     {
         label: `Beginner's Guide`,
@@ -274,12 +274,12 @@ export const HomePage = ({
     /**
      * Opens search page for object type
      */
-    const toSearchPage = useCallback((event: any, objectType: ObjectType) => {
+    const toSearchPage = useCallback((event: any, searchType: SearchType) => {
         event?.stopPropagation();
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
         // Navigate to search page
-        setLocation(`/search?type=${objectType}`);
+        setLocation(`${APP_LINKS.Search}?type=${searchType}`);
     }, [searchString, setLocation]);
 
     /**
@@ -303,12 +303,12 @@ export const HomePage = ({
         // Helper method for checking if a word (NOT a substring) is in the search string
         const containsWord = (str: string, word: string) => str.toLowerCase().match(new RegExp("\\b" + `!${word}`.toLowerCase() + "\\b")) != null;
         // Set default order
-        let defaultOrder = [ObjectType.Routine, ObjectType.Project, ObjectType.Organization, ObjectType.Standard, ObjectType.User];
+        let defaultOrder = [SearchType.Routine, SearchType.Project, SearchType.Organization, SearchType.Standard, SearchType.User];
         // Loop through keywords, and move ones which appear in the search string to the front
         // A keyword is only counted as a match if it has an exclamation point (!) at the beginning
-        for (const keyword of Object.keys(ObjectType)) {
+        for (const keyword of Object.keys(SearchType)) {
             if (containsWord(searchString, keyword)) {
-                defaultOrder = [ObjectType[keyword], ...defaultOrder.filter(o => o !== ObjectType[keyword])];
+                defaultOrder = [SearchType[keyword], ...defaultOrder.filter(o => o !== SearchType[keyword])];
             }
         }
         return defaultOrder;
@@ -316,27 +316,27 @@ export const HomePage = ({
 
     const feeds = useMemo(() => {
         let listFeeds: JSX.Element[] = [];
-        for (const objectType of feedOrder) {
+        for (const searchType of feedOrder) {
             let currentList: any[] = [];
             let dummyType: string = '';
-            switch (objectType) {
-                case ObjectType.Organization:
+            switch (searchType) {
+                case SearchType.Organization:
                     currentList = data?.homePage?.organizations ?? [];
                     dummyType = 'Organization';
                     break;
-                case ObjectType.Project:
+                case SearchType.Project:
                     currentList = data?.homePage?.projects ?? [];
                     dummyType = 'Project';
                     break;
-                case ObjectType.Routine:
+                case SearchType.Routine:
                     currentList = data?.homePage?.routines ?? [];
                     dummyType = 'Routine';
                     break;
-                case ObjectType.Standard:
+                case SearchType.Standard:
                     currentList = data?.homePage?.standards ?? [];
                     dummyType = 'Standard';
                     break;
-                case ObjectType.User:
+                case SearchType.User:
                     currentList = data?.homePage?.users ?? [];
                     dummyType = 'User';
                     break;
@@ -344,7 +344,7 @@ export const HomePage = ({
             const listFeedItems: JSX.Element[] = listToListItems({
                 dummyItems: new Array(5).fill(dummyType),
                 items: currentList,
-                keyPrefix: `feed-list-item-${objectType}`,
+                keyPrefix: `feed-list-item-${searchType}`,
                 loading,
                 onClick: toItemPage,
                 session,
@@ -352,11 +352,11 @@ export const HomePage = ({
             if (loading || listFeedItems.length > 0) {
                 listFeeds.push((
                     <ListTitleContainer
-                        key={`feed-list-${objectType}`}
+                        key={`feed-list-${searchType}`}
                         isEmpty={listFeedItems.length === 0}
-                        title={getFeedTitle(`${objectType}s`)}
-                        onClick={(e) => toSearchPage(e, objectType)}
-                        options={[['See more results', (e) => { toSearchPage(e, objectType) }]]}
+                        title={getFeedTitle(`${searchType}s`)}
+                        onClick={(e) => toSearchPage(e, searchType)}
+                        options={[['See more results', (e) => { toSearchPage(e, searchType) }]]}
                     >
                         {listFeedItems}
                     </ListTitleContainer>

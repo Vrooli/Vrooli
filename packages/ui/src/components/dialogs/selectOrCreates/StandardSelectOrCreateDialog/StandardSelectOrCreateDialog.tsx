@@ -17,11 +17,11 @@ import {
 } from '@mui/icons-material';
 import { Standard } from 'types';
 import { SearchList } from 'components/lists';
-import { standardQuery, standardsQuery } from 'graphql/query';
+import { standardQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { standard, standardVariables } from 'graphql/generated/standard';
 import { StandardCreate } from 'components/views/Standard/StandardCreate/StandardCreate';
-import { ObjectType, parseSearchParams, stringifySearchParams } from 'utils';
+import { parseSearchParams, stringifySearchParams, SearchType } from 'utils';
 import { useLocation } from '@shared/route';
 
 const helpText =
@@ -162,9 +162,8 @@ export const StandardSelectOrCreateDialog = ({
                     <SearchList
                         itemKeyPrefix='standard-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
-                        objectType={ObjectType.Standard}
+                        searchType={SearchType.Standard}
                         onObjectSelect={(newValue) => handeStandardSelect(newValue)}
-                        query={standardsQuery}
                         searchPlaceholder={'Select existing standard...'}
                         session={session}
                         take={20}

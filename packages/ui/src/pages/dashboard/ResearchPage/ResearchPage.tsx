@@ -1,5 +1,5 @@
 import { useLazyQuery, useQuery } from '@apollo/client';
-import { APP_LINKS, ResourceListUsedFor } from '@shared/consts';
+import { APP_LINKS, ResourceListUsedFor, ResourceUsedFor } from '@shared/consts';
 import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, ResourceListHorizontal, ListTitleContainer } from 'components';
 import { profile } from 'graphql/generated/profile';
@@ -7,7 +7,7 @@ import { researchPage } from 'graphql/generated/researchPage';
 import { profileQuery, researchPageQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ResourceList } from 'types';
-import { listToListItems, ObjectType, openObject, OpenObjectProps, stringifySearchParams } from 'utils';
+import { listToListItems, openObject, OpenObjectProps, stringifySearchParams, SearchPageTabOption } from 'utils';
 import { useLocation } from '@shared/route';
 import { ResearchPageProps } from '../types';
 
@@ -43,7 +43,7 @@ export const ResearchPage = ({
     session
 }: ResearchPageProps) => {
     const [, setLocation] = useLocation();
-    const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all'});
+    const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all' });
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
     const [resourceList, setResourceList] = useState<ResourceList | null>(null);
     useEffect(() => {
@@ -55,7 +55,7 @@ export const ResearchPage = ({
         setResourceList(updatedList);
     }, []);
 
-    const { data: researchPageData, loading: researchPageLoading } = useQuery<researchPage>(researchPageQuery, { errorPolicy: 'all'});
+    const { data: researchPageData, loading: researchPageLoading } = useQuery<researchPage>(researchPageQuery, { errorPolicy: 'all' });
 
     /**
      * Opens page for list item
@@ -111,68 +111,66 @@ export const ResearchPage = ({
         session,
     }), [researchPageData?.researchPage?.needMembers, researchPageLoading, session, toItemPage])
 
-    /**
-     * Navigates to "New Routine" page, with "Learn" tag as default
-     */
     const toCreateProcess = useCallback((event: any) => {
         event?.stopPropagation();
         setLocation(`${APP_LINKS.Routine}/add${stringifySearchParams({ tags: ['Research'] })}`);
     }, [setLocation]);
 
-    /**
-     * Navigates to "New Project" page
-     */
     const toCreateProject = useCallback((event: any) => {
         event?.stopPropagation();
         setLocation(`${APP_LINKS.Project}/add`);
     }, [setLocation]);
 
-    /**
-     * Navigates to "New Organization" page
-     */
     const toCreateOrganization = useCallback((event: any) => {
         event?.stopPropagation();
         setLocation(`${APP_LINKS.Organization}/add`);
     }, [setLocation]);
 
-    /**
-     * Navigates to "Update Profile" page
-     */
     const toUpdateProfile = useCallback((event: any) => {
         event?.stopPropagation();
         setLocation(`${APP_LINKS.Settings}?page="profile"`);
     }, [setLocation]);
 
-    /**
-     * Navigates to "Routine Search" page, with "Research" tag as default
-     */
     const toSeeAllProcesses = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`/search${stringifySearchParams({ tags: ['Research'], type: ObjectType.Routine })}`);
+        setLocation(`${APP_LINKS.Search}${stringifySearchParams({ 
+            tags: ['Research'], 
+            type: SearchPageTabOption.Routines,
+        })}`);
     }, [setLocation]);
 
-    /**
-     * Navigates to "Project Search" page, with "isComplete" set to true and "sort" set to "DateUpdatedDesc" 
-     */
     const toSeeAllNewlyCompleted = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`/search${stringifySearchParams({
+        setLocation(`${APP_LINKS.Search}${stringifySearchParams({
             isComplete: true,
             sort: 'DateUpdatedDesc',
-            type: ObjectType.Routine,
+            type: SearchPageTabOption.Projects,
         })}`);
     }, [setLocation]);
 
-    /**
-     * Navigates to "Organization Search" page, with "isOpenToNewMembers" set to true
-     */
-     const toSeeAllJoinATeam = useCallback((event: any) => {
+    const toSeeAllJoinATeam = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`/search${stringifySearchParams({
+        setLocation(`${APP_LINKS.Search}${stringifySearchParams({
             isOpenToNewMembers: true,
-            type: ObjectType.Organization,
+            type: SearchPageTabOption.Organizations,
         })}`);
     }, [setLocation]);
+
+    const toSeeAllNeedVotes = useCallback((event: any) => {
+        event?.stopPropagation();
+        setLocation(`${APP_LINKS.Search}${stringifySearchParams({
+            resourceTypes: [ResourceUsedFor.Proposal], 
+            type: SearchPageTabOption.Projects,
+        })}`);
+    }, [setLocation]);
+
+    const toSeeAllNeedInvestments = useCallback((event: any) => {
+        event?.stopPropagation();
+        setLocation(`${APP_LINKS.Search}${stringifySearchParams({
+            resourceTypes: [ResourceUsedFor.Donation],
+            type: SearchPageTabOption.Projects,
+        })}`);
+    } , [setLocation]);
 
     return (
         <Box id='page' sx={{
@@ -225,8 +223,8 @@ export const ResearchPage = ({
                     title={"Vote"}
                     helpText={voteText}
                     isEmpty={needVotes.length === 0}
-                    onClick={() => { }}
-                    options={[['Create', toCreateProject], ['See all', () => { }]]}
+                    onClick={toSeeAllNeedVotes}
+                    options={[['Create', toCreateProject], ['See all', toSeeAllNeedVotes]]}
                 >
                     {needVotes}
                 </ListTitleContainer>
@@ -234,8 +232,8 @@ export const ResearchPage = ({
                     title={"Donate or Invest"}
                     helpText={donateOrInvestText}
                     isEmpty={needInvestments.length === 0}
-                    onClick={() => { }}
-                    options={[['Create', toCreateProject], ['See all', () => { }]]}
+                    onClick={toSeeAllNeedInvestments}
+                    options={[['Create', toCreateProject], ['See all', toSeeAllNeedInvestments]]}
                 >
                     {needInvestments}
                 </ListTitleContainer>
