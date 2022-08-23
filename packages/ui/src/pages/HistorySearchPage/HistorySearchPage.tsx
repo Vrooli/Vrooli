@@ -65,7 +65,7 @@ export function HistorySearchPage({
             search,
             sort,
             time,
-            type: tabOptions[tabIndex][1],
+            type: tabOptions[newIndex][1],
         }), { replace: true })
         // Update tab index
         setTabIndex(newIndex) 

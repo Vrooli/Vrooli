@@ -23,7 +23,7 @@ const tabParams: { [key in TabOption]: BaseParams } = {
         itemKeyPrefix: 'inProgress-list-item',
         searchType: SearchType.ProjectOrRoutine,
         title: 'In Progress',
-        where: { routineIsInternal: false },
+        where: { isComplete: false, routineIsInternal: false },
     },
     [TabOption.Recent]: {
         itemKeyPrefix: 'recent-list-item',
@@ -35,7 +35,7 @@ const tabParams: { [key in TabOption]: BaseParams } = {
         itemKeyPrefix: 'completed-list-item',
         searchType: SearchType.ProjectOrRoutine,
         title: 'Completed',
-        where: { routineIsInternal: false },
+        where: { isComplete: true, routineIsInternal: false },
     },
 }
 
@@ -65,7 +65,7 @@ export function DevelopSearchPage({
             search,
             sort,
             time,
-            type: tabOptions[tabIndex][1],
+            type: tabOptions[newIndex][1],
         }), { replace: true })
         // Update tab index
         setTabIndex(newIndex) 

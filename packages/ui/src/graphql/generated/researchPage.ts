@@ -111,6 +111,7 @@ export interface researchPage_researchPage_newlyCompleted_Project {
   handle: string | null;
   score: number;
   stars: number;
+  isComplete: boolean;
   isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
@@ -226,6 +227,7 @@ export interface researchPage_researchPage_needVotes {
   handle: string | null;
   score: number;
   stars: number;
+  isComplete: boolean;
   isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
@@ -277,6 +279,7 @@ export interface researchPage_researchPage_needInvestments {
   handle: string | null;
   score: number;
   stars: number;
+  isComplete: boolean;
   isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
