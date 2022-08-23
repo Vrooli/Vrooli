@@ -2,22 +2,31 @@
  * Horizontal button list for assigning owner, project, and parent 
  * to objects
  */
-import { Box, IconButton, Stack, Typography, useTheme } from '@mui/material';
+import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
-import { RelationshipButtonsProps } from '../types';
+import { RelationshipButtonsProps, RelationshipItemOrganization, RelationshipItemProject, RelationshipItemRoutine, RelationshipItemUser, RelationshipOwner } from '../types';
 import { noSelect } from 'styles';
 import { getTranslation, getUserLanguages, ObjectType } from 'utils';
 import { OrganizationSelectOrCreateDialog } from 'components/dialogs';
 import {
     Apartment as OrganizationIcon,
-    Person as SelfIcon
+    DeviceHub as RoutineIcon,
+    Person as SelfIcon,
+    ViewQuilt as ProjIcon,
 } from '@mui/icons-material';
-import { Organization, Project, Routine } from 'types';
+import { Session } from 'types';
 
-const grey = {
-    400: '#BFC7CF',
-    800: '#2F3A45',
-};
+/**
+ * Converts session to user object
+ * @param session Current user session
+ * @returns User object
+ */
+export const userFromSession = (session: Session): RelationshipOwner => ({
+    __typename: 'User',
+    id: session.id,
+    handle: null,
+    name: 'Self',
+})
 
 export function RelationshipButtons({
     disabled = false,
@@ -66,7 +75,7 @@ export function RelationshipButtons({
     }, [objectType])
 
     // Handle owner click
-    const handleOnwerClick = useCallback((ev: React.MouseEvent<any>) => {
+    const handleOwnerClick = useCallback((ev: React.MouseEvent<any>) => {
         if (disabled || !isOwnerAvailable) return;
         // No matter what the owner value was, open the owner select dialog
         openOwnerDialog();
@@ -91,107 +100,132 @@ export function RelationshipButtons({
     }, [disabled, isParentAvailable, onParentChange, openParentDialog, parent]);
 
     // Current owner icon
-    
+    const { OwnerIcon, ownerTooltip } = useMemo(() => {
+        // If no owner data, marked as anonymous
+        if (!owner) return {
+            OwnerIcon: null,
+            ownerTooltip: 'Marked as anonymous. Press to set owner'
+        };
+        // If owner is organization, use organization icon
+        if (owner.__typename === 'Organization') {
+            const OwnerIcon = OrganizationIcon;
+            // Button color indicates if you can modify the organization, or if someone will have to approve it
+            const canEdit = (owner as RelationshipItemOrganization).permissionsOrganization?.canEdit === true;
+            const ownerName = getTranslation(owner as RelationshipItemOrganization, 'name', languages, true) ?? 'organization';
+            return {
+                OwnerIcon,
+                ownerTooltip: `Owner: ${ownerName}${!canEdit ? ' (requires approval)' : ''}`
+            };
+        }
+        // If owner is user, use self icon
+        const OwnerIcon = SelfIcon;
+        // Button color indicates if it's your own account, or if someone will have to approve it
+        const canEdit = owner.id === session.id;
+        const ownerName = (owner as RelationshipItemUser).name;
+        return {
+            OwnerIcon,
+            ownerTooltip: `Owner: ${canEdit ? 'Self' : (ownerName + ' (requires approval)')}`
+        };
+    }, [languages, owner, session.id]);
+
+    // Current project icon
+    const { ProjectIcon, projectTooltip } = useMemo(() => {
+        // If no project data, marked as unset
+        if (!project) return {
+            ProjectIcon: null,
+            projectTooltip: 'Press to assign to a project'
+        };
+        const canEdit = project.permissionsProject?.canEdit === true;
+        const projectName = getTranslation(project as RelationshipItemProject, 'name', languages, true) ?? 'project';
+        return {
+            ProjectIcon: ProjIcon,
+            projectTooltip: `Project: ${projectName}${!canEdit ? ' (requires approval)' : ''}`
+        };
+    }, [languages, project]);
+
+    // Current parent icon
+    const { ParentIcon, parentTooltip } = useMemo(() => {
+        // If no parent data, marked as unset
+        if (!parent) return {
+            ParentIcon: null,
+            parentTooltip: 'Press to copy from a parent (will override entered data)'
+        };
+        // If parent is project, use project icon
+        if (parent.__typename === 'Project') {
+            const ParentIcon = ProjIcon;
+            // Button color indicates if you can modify the project, or if someone will have to approve it
+            const canEdit = (parent as RelationshipItemProject).permissionsProject?.canEdit === true;
+            const parentName = getTranslation(parent as RelationshipItemProject, 'name', languages, true) ?? 'project';
+            return {
+                ParentIcon,
+                parentTooltip: `Parent: ${parentName}${!canEdit ? ' (requires approval)' : ''}`
+            };
+        }
+        // If parent is routine, use routine icon
+        const ParentIcon = RoutineIcon;
+        // Button color indicates if you can modify the routine, or if someone will have to approve it
+        const canEdit = (parent as RelationshipItemRoutine).permissionsRoutine?.canEdit === true;
+        const parentName = getTranslation(parent as RelationshipItemRoutine, 'title', languages, true) ?? 'routine';
+        return {
+            ParentIcon,
+            parentTooltip: `Parent: ${parentName}${!canEdit ? ' (requires approval)' : ''}`
+        };
+    }, [languages, parent]);
+
+    const commonButtonProps = {
+        width: '60px',
+        height: '60px',
+        background: palette.primary.light,
+    }
+
+    const commonIconProps = {
+        width: 'unset',
+        height: 'unset',
+        '&:hover': {
+            filter: `brightness(120%)`,
+            transition: 'filter 0.2s',
+        },
+    }
 
     return (
-        <Box sx={{
-            position: 'relative',
-            zIndex: zIndex,
-            display: 'flex',
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderRadius: '12px',
-            background: palette.background.paper,
-        }}>
+        <Stack
+            spacing={2}
+            padding={1}
+            direction="row"
+            alignItems="center"
+            justifyContent="center"
+            zIndex={zIndex}
+            sx={{
+                borderRadius: '12px',
+                background: palette.background.paper,
+            }}
+        >
+            {/* Popup for adding/connecting a new organization */}
+            {/* <OrganizationSelectOrCreateDialog
+                isOpen={isOrganizationSelectDialogOpen}
+                handleAdd={onOwnerOrganizationAdd}
+                handleClose={closeOrganizationSelectDialog}
+                session={session}
+                zIndex={zIndex + 1}
+            /> */}
             {/* Owner button */}
-            <Box
-                width="50px"
-                minWidth="50px"
-                height="50px"
-                borderRadius='100%'
-                // bgcolor={profileColors[0]}
-                justifyContent='center'
-                alignItems='center'
-                sx={{
-                    display: 'flex',
-                }}
-            >
-                <OrganizationIcon sx={{
-                    // fill: profileColors[1],
-                    width: '80%',
-                    height: '80%',
-                }} />
-            </Box>
-        </Box>
-        // <>
-        //     {/* Popup for adding/connecting a new organization */}
-        //     <OrganizationSelectOrCreateDialog
-        //         isOpen={isCreateDialogOpen}
-        //         handleAdd={onChange}
-        //         handleClose={closeCreateDialog}
-        //         session={session}
-        //         zIndex={zIndex + 1}
-        //     />
-        //     {/* Main component */}
-        //     <Stack direction="row" spacing={1} justifyContent="center">
-        //         <Typography variant="h6" sx={{ ...noSelect }}>For:</Typography>
-        //         <Box component="span" sx={{
-        //             display: 'inline-block',
-        //             position: 'relative',
-        //             width: '64px',
-        //             height: '36px',
-        //             padding: '8px',
-        //         }}>
-        //             {/* Track */}
-        //             <Box component="span" sx={{
-        //                 backgroundColor: palette.mode === 'dark' ? grey[800] : grey[400],
-        //                 borderRadius: '16px',
-        //                 width: '100%',
-        //                 height: '65%',
-        //                 display: 'block',
-        //             }}>
-        //                 {/* Thumb */}
-
-        //                 <IconButton sx={{
-        //                     backgroundColor: palette.secondary.main,
-        //                     display: 'inline-flex',
-        //                     width: '30px',
-        //                     height: '30px',
-        //                     position: 'absolute',
-        //                     top: 0,
-        //                     transition: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)',
-        //                     transform: `translateX(${Boolean(selected) ? '24' : '0'}px)`,
-        //                 }}>
-        //                     <Icon sx={{
-        //                         position: 'absolute',
-        //                         display: 'block',
-        //                         fill: 'white',
-        //                         borderRadius: '8px',
-        //                     }} />
-        //                 </IconButton>
-        //             </Box>
-        //             {/* Input */}
-        //             <input
-        //                 type="checkbox"
-        //                 checked={Boolean(selected)}
-        //                 disabled={disabled}
-        //                 aria-label="user-organization-toggle"
-        //                 onClick={handleClick}
-        //                 style={{
-        //                     position: 'absolute',
-        //                     width: '100%',
-        //                     height: '100%',
-        //                     top: '0',
-        //                     left: '0',
-        //                     opacity: '0',
-        //                     zIndex: '1',
-        //                     margin: '0',
-        //                     cursor: 'pointer',
-        //                 }} />
-        //         </Box >
-        //         <Typography variant="h6" sx={{ ...noSelect }}>{Boolean(selected) ? getTranslation(selected, 'name', languages, true) : 'Self'}</Typography>
-        //     </Stack>
-        // </>
+            <Tooltip title={ownerTooltip}>
+                <IconButton sx={{ ...commonButtonProps }} onClick={handleOwnerClick}>
+                    {OwnerIcon && <OwnerIcon sx={{ ...commonIconProps }} />}
+                </IconButton>
+            </Tooltip>
+            {/* Project button */}
+            <Tooltip title={projectTooltip}>
+                <IconButton sx={{ ...commonButtonProps }}>
+                    {ProjectIcon && <ProjectIcon sx={{ ...commonIconProps }} />}
+                </IconButton>
+            </Tooltip>
+            {/* Parent button */}
+            <Tooltip title={parentTooltip}>
+                <IconButton sx={{ ...commonButtonProps }}>
+                    {ParentIcon && <ParentIcon sx={{ ...commonIconProps }} />}
+                </IconButton>
+            </Tooltip>
+        </Stack>
     )
 }

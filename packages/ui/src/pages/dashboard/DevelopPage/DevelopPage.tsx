@@ -122,6 +122,7 @@ export const DevelopPage = ({
     // Dialog for selecting whether to create a new project or routine
     const [createAnchor, setCreateAnchor] = useState<any>(null);
     const openCreateSelect = useCallback((ev: React.MouseEvent<any>) => {
+        ev.stopPropagation();
         setCreateAnchor(ev.currentTarget)
     }, [setCreateAnchor]);
     const closeCreateSelect = useCallback(() => setCreateAnchor(null), []);

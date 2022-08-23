@@ -245,15 +245,24 @@ export interface QuantityBoxProps extends BoxProps {
     value: number;
 }
 
+export type RelationshipItemOrganization = Pick<Organization, '__typename' | 'handle' | 'id' | 'permissionsOrganization' | 'translations'>;
+export type RelationshipItemUser = Pick<User, '__typename' | 'handle' | 'id' | 'name'>;
+export type RelationshipItemProject = Pick<Project, '__typename' | 'handle' | 'id' | 'owner' | 'permissionsProject' | 'translations'>;
+export type RelationshipItemRoutine = Pick<Routine, '__typename' | 'handle' | 'id' | 'owner' | 'permissionsRoutine' | 'translations'>;
+
+export type RelationshipOwner = RelationshipItemOrganization | RelationshipItemUser | null;
+export type RelationshipProject = RelationshipItemProject | null;
+export type RelationshipParent = RelationshipItemProject | RelationshipItemRoutine | null;
+
 export interface RelationshipButtonsProps {
     disabled?: boolean;
     objectType: ObjectType;
-    onOwnerChange: (newOwner: Organization | 'Self' | null) => void;
-    onProjectChange: (newProject: Project | null) => void;
-    onParentChange: (newParent: Project | Routine | null) => void;
-    owner: Organization | 'Self' | null;
-    parent: Project | Routine | null;
-    project: Project | null;
+    onOwnerChange: (newOwner: RelationshipOwner) => void;
+    onProjectChange: (newProject: RelationshipProject) => void;
+    onParentChange: (newParent: RelationshipParent) => void;
+    owner: RelationshipOwner;
+    parent: RelationshipParent;
+    project: RelationshipProject;
     session: Session;
     zIndex: number;
 }

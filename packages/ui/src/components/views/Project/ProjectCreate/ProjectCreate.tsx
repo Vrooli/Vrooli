@@ -4,7 +4,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { projectCreateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { projectCreateMutation } from "graphql/mutation";
-import { getUserLanguages, ProjectTranslationShape, shapeProjectCreate, TagShape, updateArray, useReactSearch } from "utils";
+import { getUserLanguages, ObjectType, ProjectTranslationShape, shapeProjectCreate, TagShape, updateArray, useReactSearch } from "utils";
 import { ProjectCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";
@@ -12,13 +12,13 @@ import {
     Add as CreateIcon,
     Restore as CancelIcon,
 } from '@mui/icons-material';
-import { LanguageInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
+import { LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { Organization } from "types";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { projectCreate, projectCreateVariables } from "graphql/generated/projectCreate";
+import { RelationshipOwner, RelationshipParent, RelationshipProject } from "components/inputs/types";
 
 export const ProjectCreate = ({
     onCreated,
@@ -28,9 +28,15 @@ export const ProjectCreate = ({
 }: ProjectCreateProps) => {
     const params = useReactSearch(null);
 
-    // Handle user/organization switch
-    const [organizationFor, setOrganizationFor] = useState<Organization | null>(null);
-    const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, []);
+    // Who can control the project
+    const [owner, setOwner] = useState<RelationshipOwner>(userFromSession(session));
+    const onOwnerChange = useCallback((owner: RelationshipOwner) => { setOwner(owner); }, [setOwner]);
+    // Object this was forked from
+    const [parent, setParent] = useState<RelationshipParent>(null);
+    const onParentChange = useCallback((parent: RelationshipParent) => { setParent(parent); }, [setParent]);
+    // What project this object is a part of
+    const [project, setProject] = useState<RelationshipProject>(null);
+    const onProjectChange = useCallback((project: RelationshipProject) => { setProject(project); }, [setProject]);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
@@ -66,6 +72,7 @@ export const ProjectCreate = ({
         setTranslations(getTranslationsUpdate(language, translation));
     }, [getTranslationsUpdate]);
 
+    // TODO upgrade to pull data from search params like it's done in AdvancedSearchDialog
     useEffect(() => {
         if (typeof params.tag === 'string') setTags([{ tag: params.tag }]);
         else if (Array.isArray(params.tags)) setTags(params.tags.map((t: any) => ({ tag: t })));
@@ -91,13 +98,9 @@ export const ProjectCreate = ({
                 input: shapeProjectCreate({
                     id: uuid(),
                     isComplete: false, //TODO: values.isComplete,
-                    owner: organizationFor ? {
-                        __typename: 'Organization',
-                        id: organizationFor.id,
-                    } : {
-                        __typename: 'User',
-                        id: session.id ?? '',
-                    },
+                    owner,
+                    parent,
+                    // project, //TODO
                     resourceLists: [resourceList],
                     tags: tags,
                     translations: allTranslations,
@@ -200,10 +203,21 @@ export const ProjectCreate = ({
                     >Create Project</Typography>
                 </Grid>
                 <Grid item xs={12}>
-                    <UserOrganizationSwitch
+                    {/* <UserOrganizationSwitch TODO delete switches when relationshipbuttons working
                         session={session}
                         selected={organizationFor}
                         onChange={onSwitchChange}
+                        zIndex={zIndex}
+                    /> */}
+                    <RelationshipButtons
+                        objectType={ObjectType.Project}
+                        onOwnerChange={onOwnerChange}
+                        onProjectChange={onProjectChange}
+                        onParentChange={onParentChange as any}
+                        owner={owner}
+                        parent={parent}
+                        project={project}
+                        session={session}
                         zIndex={zIndex}
                     />
                 </Grid>
