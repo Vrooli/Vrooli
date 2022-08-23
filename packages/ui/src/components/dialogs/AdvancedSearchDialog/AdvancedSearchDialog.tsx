@@ -42,9 +42,6 @@ export const AdvancedSearchDialog = ({
         const fieldInputs: FieldData[] = generateDefaultProps(schema?.fields ?? []);
         // Parse search params from URL, and filter out search fields that are not in schema
         const urlValues = schema ? convertSearchForFormik(parseSearchParams(window.location.search), schema) : {} as { [key: string]: any };
-        console.group('initialValues')
-        console.log('fieldInputs', fieldInputs);
-        console.log('urlValues', urlValues);
         // Filter out search params that are not in schema
         let values: { [x: string]: any } = {};
         // Add fieldInputs to values
@@ -56,8 +53,6 @@ export const AdvancedSearchDialog = ({
             const currValue = urlValues[key];
             if (currValue !== undefined) values[key] = currValue;
         });
-        console.log('result', values);
-        console.groupEnd();
         return values;
     }, [schema])
 

@@ -145,6 +145,9 @@ export const projectOrOrganizationSearchSchema: FormSchema = {
     },
     containers: [
         {
+            totalItems: 1,
+        },
+        {
             title: "Stars",
             totalItems: 1,
             spacing: 2,
@@ -159,6 +162,20 @@ export const projectOrOrganizationSearchSchema: FormSchema = {
         }
     ],
     fields: [
+        {
+            fieldName: "objectType",
+            label: "Object Type",
+            type: InputType.Radio,
+            props: {
+                defaultValue: 'undefined',
+                row: true,
+                options: [
+                    { label: "Project", value: 'Project' },
+                    { label: "Organization", value: 'Organization' },
+                    { label: "Don't Care", value: 'undefined' },
+                ]
+            }
+        },
         {
             fieldName: "minStars",
             label: "Min",
@@ -227,15 +244,15 @@ export const projectOrRoutineSearchSchema: FormSchema = {
     ],
     fields: [
         {
-            fieldName: "type",
+            fieldName: "objectType",
             label: "Object Type",
             type: InputType.Radio,
             props: {
                 defaultValue: 'undefined',
                 row: true,
                 options: [
-                    { label: "Project", value: 'project' },
-                    { label: "Routine", value: 'routine' },
+                    { label: "Project", value: 'Project' },
+                    { label: "Routine", value: 'Routine' },
                     { label: "Don't Care", value: 'undefined' },
                 ]
             }

@@ -90,7 +90,6 @@ export function SearchPage({
         const searchParams = parseSearchParams(window.location.search);
         const availableTypes: TabOption[] = tabOptions.map(t => t[1]);
         const index = availableTypes.indexOf(searchParams.type as TabOption);
-        console.log('getting tab index', searchParams, availableTypes, index);
         return Math.max(0, index);
     });
     const handleTabChange = (_e, newIndex: number) => { 
@@ -100,7 +99,7 @@ export function SearchPage({
             search,
             sort,
             time,
-            type: tabOptions[tabIndex][1],
+            type: tabOptions[newIndex][1],
         }), { replace: true });
         // Update tab index
         setTabIndex(newIndex) 

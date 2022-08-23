@@ -7,7 +7,8 @@ export const projectOrRoutinesQuery = gql`
     query projectOrRoutines($input: ProjectOrRoutineSearchInput!) {
         projectOrRoutines(input: $input) {
             pageInfo {
-                endCursor
+                endCursorProject
+                endCursorRoutine
                 hasNextPage
             }
             edges {

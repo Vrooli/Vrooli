@@ -1680,16 +1680,13 @@ export async function deleteOneHelper({
     prisma,
     userId,
 }: DeleteOneHelperProps): Promise<Success> {
-    console.log('deleteonehelper 1', userId, JSON.stringify(input), '\n\n')
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete object', { code: genErrorCode('0033') });
     if (!model.mutate || !model.mutate(prisma).cud)
         throw new CustomError(CODE.InternalError, 'Model does not support delete', { code: genErrorCode('0034') });
     // Check permissions
     // TODO
-    console.log('deleteonehelper 2')
     const { deleted } = await model.mutate!(prisma).cud!({ partialInfo: {}, userId, deleteMany: [input.id] });
-    console.log('deleteonehelper 3', deleted)
     if (deleted?.count && deleted.count > 0) {
         // If organization, project, routine, or standard, log for stats
         const objectType = model.format.relationshipMap.__typename;
@@ -1874,7 +1871,7 @@ export async function readManyAsFeed<GraphQLModel, SearchInput extends SearchInp
     model,
     prisma,
     userId,
-}: Omit<ReadManyHelperProps<GraphQLModel, SearchInput>, 'addSupplemental'>): Promise<any[]> {
+}: Omit<ReadManyHelperProps<GraphQLModel, SearchInput>, 'addSupplemental'>): Promise<{ pageInfo: any, nodes: any[] }> {
     const readManyResult = await readManyHelper({
         additionalQueries,
         addSupplemental: false,
@@ -1884,8 +1881,12 @@ export async function readManyAsFeed<GraphQLModel, SearchInput extends SearchInp
         prisma,
         userId,
     })
-    return readManyResult.edges.map(({ node }: any) =>
+    const nodes = readManyResult.edges.map(({ node }: any) =>
         modelToGraphQL(node, toPartialGraphQLInfo(info, model.format.relationshipMap) as PartialGraphQLInfo)) as any[]
+    return {
+        pageInfo: readManyResult.pageInfo,
+        nodes,
+    }
 }
 
 type AddSupplementalFieldsHelper = {

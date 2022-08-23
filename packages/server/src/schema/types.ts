@@ -1416,6 +1416,13 @@ export type ProjectOrOrganizationEdge = {
 
 export type ProjectOrOrganizationOrRoutineOrStandardOrUser = Organization | Project | Routine | Standard | User;
 
+export type ProjectOrOrganizationPageInfo = {
+  __typename?: 'ProjectOrOrganizationPageInfo';
+  endCursorOrganization?: Maybe<Scalars['String']>;
+  endCursorProject?: Maybe<Scalars['String']>;
+  hasNextPage: Scalars['Boolean'];
+};
+
 export type ProjectOrOrganizationSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
@@ -1424,6 +1431,7 @@ export type ProjectOrOrganizationSearchInput = {
   languages?: InputMaybe<Array<Scalars['String']>>;
   minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
+  objectType?: InputMaybe<Scalars['String']>;
   organizationAfter?: InputMaybe<Scalars['String']>;
   organizationIsOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
   organizationProjectId?: InputMaybe<Scalars['ID']>;
@@ -1448,7 +1456,7 @@ export type ProjectOrOrganizationSearchInput = {
 export type ProjectOrOrganizationSearchResult = {
   __typename?: 'ProjectOrOrganizationSearchResult';
   edges: Array<ProjectOrOrganizationEdge>;
-  pageInfo: PageInfo;
+  pageInfo: ProjectOrOrganizationPageInfo;
 };
 
 export enum ProjectOrOrganizationSortBy {
@@ -1468,6 +1476,13 @@ export type ProjectOrRoutineEdge = {
   node: ProjectOrRoutine;
 };
 
+export type ProjectOrRoutinePageInfo = {
+  __typename?: 'ProjectOrRoutinePageInfo';
+  endCursorProject?: Maybe<Scalars['String']>;
+  endCursorRoutine?: Maybe<Scalars['String']>;
+  hasNextPage: Scalars['Boolean'];
+};
+
 export type ProjectOrRoutineSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
@@ -1479,6 +1494,7 @@ export type ProjectOrRoutineSearchInput = {
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
+  objectType?: InputMaybe<Scalars['String']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
   projectAfter?: InputMaybe<Scalars['String']>;
@@ -1487,7 +1503,6 @@ export type ProjectOrRoutineSearchInput = {
   resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
   routineAfter?: InputMaybe<Scalars['String']>;
   routineIsInternal?: InputMaybe<Scalars['Boolean']>;
-  routineIsInternalExceptions?: InputMaybe<Array<BooleanSearchException>>;
   routineMaxComplexity?: InputMaybe<Scalars['Int']>;
   routineMaxSimplicity?: InputMaybe<Scalars['Int']>;
   routineMaxTimesCompleted?: InputMaybe<Scalars['Int']>;
@@ -1506,7 +1521,7 @@ export type ProjectOrRoutineSearchInput = {
 export type ProjectOrRoutineSearchResult = {
   __typename?: 'ProjectOrRoutineSearchResult';
   edges: Array<ProjectOrRoutineEdge>;
-  pageInfo: PageInfo;
+  pageInfo: ProjectOrRoutinePageInfo;
 };
 
 export enum ProjectOrRoutineSortBy {

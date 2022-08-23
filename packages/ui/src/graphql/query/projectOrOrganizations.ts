@@ -7,7 +7,8 @@ export const projectOrOrganizationsQuery = gql`
     query projectOrOrganizations($input: ProjectOrOrganizationSearchInput!) {
         projectOrOrganizations(input: $input) {
             pageInfo {
-                endCursor
+                endCursorProject
+                endCursorOrganization
                 hasNextPage
             }
             edges {

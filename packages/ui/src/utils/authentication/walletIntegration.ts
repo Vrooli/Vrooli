@@ -178,7 +178,6 @@ export const validateWallet = async (key: string): Promise<WalletCompleteResult 
         // Sign payload with wallet
         const signedPayload = await signPayload(key, walletActions, stakingAddresses[0], payload);
         if (!signedPayload) return null;
-        console.log('GOT SIGNED PAYLOAD THAT SHOULD BE STRING', signedPayload);
         // Send signed payload to backend for verification
         result = (await walletComplete(stakingAddresses[0], signedPayload));
     } catch (error: any) {

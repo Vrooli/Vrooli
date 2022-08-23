@@ -98,12 +98,10 @@ export const ObjectPage = ({
     session,
 }: ObjectPageProps) => {
     const [location, setLocation] = useLocation();
-    console.log('in object page', location)
 
     // Determine if page should be displayed as a dialog or full page. 
     // Also checks if the create, update, or view page should be shown
     const { hasPreviousPage, objectType, pageType } = useMemo(() => {
-        console.log('calculating thingies', location.split('/')[1])
         const objectType = typeMap['/' + location.split('/')[1]];
         // Read session storage to check previous page.
         const hasPreviousPage = Boolean(sessionStorage.getItem('lastPath'));
@@ -137,7 +135,6 @@ export const ObjectPage = ({
     }, [hasPreviousPage, location, setLocation]);
 
     const displayedPage = useMemo<JSX.Element | undefined>(() => {
-        console.log('calculating displayed page', pageType, objectType)
         if (!objectType) return undefined;
         if (pageType === PageType.Create) {
             const Create = createMap[objectType];

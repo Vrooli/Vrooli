@@ -56,6 +56,8 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     const { advancedSearchSchema, defaultSortBy, sortByOptions, query } = useMemo<SearchParams>(() => searchTypeToParams[searchType], [searchType]);
 
+    console.log('SEARCH LIST', where)
+
     const [sortBy, setSortBy] = useState<string>(defaultSortBy);
     const [searchString, setSearchString] = useState<string>('');
     const [timeFrame, setTimeFrame] = useState<TimeFrame | undefined>(undefined);
@@ -64,7 +66,6 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
         if (typeof searchParams.sort === 'string') {
             // Check if sortBy is valid
-            console.log('checking sortBy', searchParams.sort, sortByOptions, defaultSortBy)
             if (searchParams.sort in sortByOptions) {
                 setSortBy(searchParams.sort);
             } else {
@@ -130,7 +131,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     useEffect(() => {
         after.current = undefined;
         if (canSearch) getPageData();
-    }, [advancedSearchParams, canSearch, searchString, sortBy, timeFrame, where, getPageData]);
+    }, [advancedSearchParams, canSearch, searchString, searchType, sortBy, timeFrame, where, getPageData]);
 
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
@@ -171,6 +172,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         const allAdvancedSearchParams = advancedSearchSchema.fields.map(f => f.fieldName);
         // fields in both otherParams and allAdvancedSearchParams should be the new advanced search params
         const advancedData = Object.keys(otherParams).filter(k => allAdvancedSearchParams.includes(k));
+        console.log('advancedData', advancedData);
         setAdvancedSearchParams(advancedData.reduce((acc, k) => ({ ...acc, [k]: otherParams[k] }), {}));
     }, [advancedSearchSchema?.fields]);
 
@@ -181,7 +183,6 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         setAdvancedSearchDialogOpen(false)
     }, []);
     const handleAdvancedSearchDialogSubmit = useCallback((values: any) => {
-        console.log('handleAdvancedSearchDialogSubmit', values);
         // Remove 0 values
         const valuesWithoutBlanks: { [x: string]: any } = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== 0));
         // Get current URL search params
@@ -272,7 +273,6 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
      * Find sort by label when sortBy changes
      */
     const sortByLabel = useMemo(() => {
-        console.log('getting sort by label', sortBy);
         if (sortBy && sortBy in SortValueToLabelMap) return SortValueToLabelMap[sortBy];
         return '';
     }, [sortBy]);

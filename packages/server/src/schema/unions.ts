@@ -7,7 +7,7 @@ import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, Orga
 import { CODE } from '@shared/consts';
 import { IWrap } from '../types';
 import { Context } from '../context';
-import { addSupplementalFieldsMultiTypes, OrganizationModel, PartialGraphQLInfo, ProjectModel, readManyAsFeed, readManyHelper, RoutineModel, RunModel, StandardModel, StarModel, toPartialGraphQLInfo, UserModel, ViewModel } from '../models';
+import { addSupplementalFieldsMultiTypes, modelToGraphQL, OrganizationModel, PartialGraphQLInfo, ProjectModel, readManyAsFeed, readManyHelper, RoutineModel, RunModel, StandardModel, StarModel, toPartialGraphQLInfo, UserModel, ViewModel } from '../models';
 import { CustomError } from '../error';
 import { rateLimit } from '../rateLimit';
 import { resolveProjectOrOrganization, resolveProjectOrOrganizationOrRoutineOrStandardOrUser, resolveProjectOrRoutine } from './resolvers';
@@ -55,6 +55,7 @@ export const typeDef = gql`
         minScore: Int
         minStars: Int
         minViews: Int
+        objectType: String
         organizationId: ID
         parentId: ID
         projectAfter: String
@@ -62,6 +63,7 @@ export const typeDef = gql`
         resourceLists: [String!]
         resourceTypes: [ResourceUsedFor!]
         routineAfter: String
+        routineIsInternal: Boolean
         routineMinComplexity: Int
         routineMaxComplexity: Int
         routineMinSimplicity: Int
@@ -78,8 +80,14 @@ export const typeDef = gql`
     }
 
     type ProjectOrRoutineSearchResult {
-        pageInfo: PageInfo!
+        pageInfo: ProjectOrRoutinePageInfo!
         edges: [ProjectOrRoutineEdge!]!
+    }
+
+    type ProjectOrRoutinePageInfo {
+        hasNextPage: Boolean!
+        endCursorProject: String
+        endCursorRoutine: String
     }
 
     type ProjectOrRoutineEdge {
@@ -95,6 +103,7 @@ export const typeDef = gql`
         languages: [String!]
         minStars: Int
         minViews: Int
+        objectType: String
         organizationAfter: String
         organizationIsOpenToNewMembers: Boolean
         organizationProjectId: ID
@@ -117,8 +126,14 @@ export const typeDef = gql`
     }
 
     type ProjectOrOrganizationSearchResult {
-        pageInfo: PageInfo!
+        pageInfo: ProjectOrOrganizationPageInfo!
         edges: [ProjectOrOrganizationEdge!]!
+    }
+
+    type ProjectOrOrganizationPageInfo {
+        hasNextPage: Boolean!
+        endCursorProject: String
+        endCursorOrganization: String
     }
 
     type ProjectOrOrganizationEdge {
@@ -149,176 +164,223 @@ export const resolvers = {
             await rateLimit({ info, max: 2000, req });
             const partial = toPartialGraphQLInfo(info, {
                 '__typename': 'ProjectOrRoutineSearchResult',
-                'edges': {
-                    'node': {
-                        'Project': 'Project',
-                        'Routine': 'Routine',
-                    },
-                },
+                'Project': 'Project',
+                'Routine': 'Routine',
             }) as PartialGraphQLInfo;
             const userId = req.userId;
             if (!userId) throw new CustomError(CODE.NotAuthorized, { code: genErrorCode('0254') });
             const take = Math.ceil((input.take ?? 10) / 2);
             const commonReadParams = { prisma, userId }
             // Query projects
-            const projects = await readManyHelper({
-                ...commonReadParams,
-                additionalQueries: ProjectModel.permissions(prisma).ownershipQuery(userId),
-                addSupplemental: false,
-                info, //TODO might not work
-                input: {
-                    after: input.projectAfter,
-                    createdTimeFrame: input.createdTimeFrame,
-                    excludeIds: input.excludeIds,
-                    ids: input.ids,
-                    includePrivate: input.includePrivate,
-                    isComplete: input.isComplete,
-                    isCompleteExceptions: input.isCompleteExceptions,
-                    languages: input.languages,
-                    minScore: input.minScore,
-                    minStars: input.minStars,
-                    minViews: input.minViews,
-                    organizationId: input.organizationId,
-                    parentId: input.parentId,
-                    reportId: input.reportId,
-                    resourceLists: input.resourceLists,
-                    resourceTypes: input.resourceTypes,
-                    searchString: input.searchString,
-                    sortBy: input.sortBy as unknown as ProjectSortBy,
-                    tags: input.tags,
-                    take,
-                    updatedTimeFrame: input.updatedTimeFrame,
-                    userId,
-                },
-                model: ProjectModel,
-            })
+            let projects;
+            if (input.objectType === undefined || input.objectType === 'Project') {
+                projects = await readManyAsFeed({
+                    ...commonReadParams,
+                    additionalQueries: ProjectModel.permissions(prisma).ownershipQuery(userId),
+                    info: (partial as any).Project,
+                    input: {
+                        after: input.projectAfter,
+                        createdTimeFrame: input.createdTimeFrame,
+                        excludeIds: input.excludeIds,
+                        ids: input.ids,
+                        includePrivate: input.includePrivate,
+                        isComplete: input.isComplete,
+                        isCompleteExceptions: input.isCompleteExceptions,
+                        languages: input.languages,
+                        minScore: input.minScore,
+                        minStars: input.minStars,
+                        minViews: input.minViews,
+                        organizationId: input.organizationId,
+                        parentId: input.parentId,
+                        reportId: input.reportId,
+                        resourceLists: input.resourceLists,
+                        resourceTypes: input.resourceTypes,
+                        searchString: input.searchString,
+                        sortBy: input.sortBy as unknown as ProjectSortBy,
+                        tags: input.tags,
+                        take,
+                        updatedTimeFrame: input.updatedTimeFrame,
+                        userId,
+                    },
+                    model: ProjectModel,
+                });
+            }
             // Query routines
-            const routines = await readManyHelper({
-                ...commonReadParams,
-                additionalQueries: RoutineModel.permissions(prisma).ownershipQuery(userId),
-                addSupplemental: false,
-                info, //TODO might not work
-                input: {
-                    after: input.routineAfter,
-                    createdTimeFrame: input.createdTimeFrame,
-                    excludeIds: input.excludeIds,
-                    ids: input.ids,
-                    includePrivate: input.includePrivate,
-                    isInternal: false,
-                    isComplete: input.isComplete,
-                    isCompleteExceptions: input.isCompleteExceptions,
-                    languages: input.languages,
-                    minComplexity: input.routineMinComplexity,
-                    maxComplexity: input.routineMaxComplexity,
-                    minScore: input.minScore,
-                    minSimplicity: input.routineMinSimplicity,
-                    maxSimplicity: input.routineMaxSimplicity,
-                    minStars: input.minStars,
-                    minTimesCompleted: input.routineMinTimesCompleted,
-                    maxTimesCompleted: input.routineMaxTimesCompleted,
-                    minViews: input.minViews,
-                    organizationId: input.organizationId,
-                    parentId: input.parentId,
-                    projectId: input.routineProjectId,
-                    reportId: input.reportId,
-                    resourceLists: input.resourceLists,
-                    resourceTypes: input.resourceTypes,
-                    searchString: input.searchString,
-                    sortBy: input.sortBy as unknown as RoutineSortBy,
-                    tags: input.tags,
-                    take,
-                    updatedTimeFrame: input.updatedTimeFrame,
-                    userId,
+            let routines;
+            if (input.objectType === undefined || input.objectType === 'Routine') {
+                routines = await readManyAsFeed({
+                    ...commonReadParams,
+                    additionalQueries: RoutineModel.permissions(prisma).ownershipQuery(userId),
+                    info: (partial as any).Routine,
+                    input: {
+                        after: input.routineAfter,
+                        createdTimeFrame: input.createdTimeFrame,
+                        excludeIds: input.excludeIds,
+                        ids: input.ids,
+                        includePrivate: input.includePrivate,
+                        isInternal: false,
+                        isComplete: input.isComplete,
+                        isCompleteExceptions: input.isCompleteExceptions,
+                        languages: input.languages,
+                        minComplexity: input.routineMinComplexity,
+                        maxComplexity: input.routineMaxComplexity,
+                        minScore: input.minScore,
+                        minSimplicity: input.routineMinSimplicity,
+                        maxSimplicity: input.routineMaxSimplicity,
+                        minStars: input.minStars,
+                        minTimesCompleted: input.routineMinTimesCompleted,
+                        maxTimesCompleted: input.routineMaxTimesCompleted,
+                        minViews: input.minViews,
+                        organizationId: input.organizationId,
+                        parentId: input.parentId,
+                        projectId: input.routineProjectId,
+                        reportId: input.reportId,
+                        resourceLists: input.resourceLists,
+                        resourceTypes: input.resourceTypes,
+                        searchString: input.searchString,
+                        sortBy: input.sortBy as unknown as RoutineSortBy,
+                        tags: input.tags,
+                        take,
+                        updatedTimeFrame: input.updatedTimeFrame,
+                        userId,
+                    },
+                    model: RoutineModel,
+                });
+            }
+            // Add supplemental fields to every result
+            const withSupplemental = await addSupplementalFieldsMultiTypes(
+                [projects?.nodes ?? [], routines?.nodes ?? []],
+                [{ __typename: 'Project', ...(partial as any).Project }, { __typename: 'Routine', ...(partial as any).Routine }] as PartialGraphQLInfo[],
+                ['p', 'r'],
+                userId,
+                prisma,
+            )
+            // Combine nodes, alternating between projects and routines
+            const nodes = [];
+            for (let i = 0; i < Math.max(withSupplemental['p'].length, withSupplemental['r'].length); i++) {
+                if (i < withSupplemental['p'].length) {
+                    nodes.push(withSupplemental['p'][i]);
+                }
+                if (i < withSupplemental['r'].length) {
+                    nodes.push(withSupplemental['r'][i]);
+                }
+            }
+            // Combine pageInfo
+            const combined = {
+                pageInfo: {
+                    hasNextPage: projects?.pageInfo?.hasNextPage ?? routines?.pageInfo?.hasNextPage ?? false,
+                    endCursorProject: projects?.pageInfo?.endCursor ?? '',
+                    endCursorRoutine: routines?.pageInfo?.endCursor ?? '',
                 },
-                model: RoutineModel,
-            });
-            // Combine edges
-            let edges = [...projects.edges, ...routines.edges];
-            // Sort edges TODO
-            // edges = edges.sort((a, b) => {
-            //     let a = input.sortBy ?? 
-        //     return readManyResult.edges.map(({ node }: any) =>
-        // modelToGraphQL(node, toPartialGraphQLInfo(info, model.format.relationshipMap) as PartialGraphQLInfo)) as any[]
-            // TODO 
-            throw new CustomError(CODE.NotImplemented);
+                edges: nodes.map((node) => ({ cursor: node.id, node })),
+            }
+            return combined;
         },
         projectOrOrganizations: async (_parent: undefined, { input }: IWrap<ProjectOrOrganizationSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ProjectOrOrganizationSearchResult> => {
             await rateLimit({ info, max: 2000, req });
             const partial = toPartialGraphQLInfo(info, {
                 '__typename': 'ProjectOrOrganizationSearchResult',
-                'edges': {
-                    'node': {
-                        'Project': 'Project',
-                        'Organization': 'Organization',
-                    },
-                },
+                'Project': 'Project',
+                'Organization': 'Organization',
             }) as PartialGraphQLInfo;
             const userId = req.userId;
             if (!userId) throw new CustomError(CODE.NotAuthorized, { code: genErrorCode('0255') });
             const take = Math.ceil((input.take ?? 10) / 2);
             const commonReadParams = { prisma, userId }
             // Query projects
-            const projects = await readManyAsFeed({
-                ...commonReadParams,
-                additionalQueries: ProjectModel.permissions(prisma).ownershipQuery(userId),
-                info: partial.projects as PartialGraphQLInfo, // TODO this won't work
-                input: {
-                    after: input.projectAfter,
-                    createdTimeFrame: input.createdTimeFrame,
-                    excludeIds: input.excludeIds,
-                    ids: input.ids,
-                    includePrivate: input.includePrivate,
-                    isComplete: input.projectIsComplete,
-                    isCompleteExceptions: input.projectIsCompleteExceptions,
-                    languages: input.languages,
-                    minScore: input.projectMinScore,
-                    minStars: input.minStars,
-                    minViews: input.minViews,
-                    organizationId: input.projectOrganizationId,
-                    parentId: input.projectParentId,
-                    reportId: input.reportId,
-                    resourceLists: input.resourceLists,
-                    resourceTypes: input.resourceTypes,
-                    searchString: input.searchString,
-                    sortBy: input.sortBy as unknown as ProjectSortBy,
-                    tags: input.tags,
-                    take,
-                    updatedTimeFrame: input.updatedTimeFrame,
-                    userId,
-                },
-                model: ProjectModel,
-            });
+            let projects;
+            if (input.objectType === undefined || input.objectType === 'Project') {
+                projects = await readManyAsFeed({
+                    ...commonReadParams,
+                    additionalQueries: ProjectModel.permissions(prisma).ownershipQuery(userId),
+                    info: (partial as any).Project,
+                    input: {
+                        after: input.projectAfter,
+                        createdTimeFrame: input.createdTimeFrame,
+                        excludeIds: input.excludeIds,
+                        ids: input.ids,
+                        includePrivate: input.includePrivate,
+                        isComplete: input.projectIsComplete,
+                        isCompleteExceptions: input.projectIsCompleteExceptions,
+                        languages: input.languages,
+                        minScore: input.projectMinScore,
+                        minStars: input.minStars,
+                        minViews: input.minViews,
+                        organizationId: input.projectOrganizationId,
+                        parentId: input.projectParentId,
+                        reportId: input.reportId,
+                        resourceLists: input.resourceLists,
+                        resourceTypes: input.resourceTypes,
+                        searchString: input.searchString,
+                        sortBy: input.sortBy as unknown as ProjectSortBy,
+                        tags: input.tags,
+                        take,
+                        updatedTimeFrame: input.updatedTimeFrame,
+                        userId,
+                    },
+                    model: ProjectModel,
+                });
+            }
             // Query organizations
-            const organizations = await readManyAsFeed({
-                ...commonReadParams,
-                additionalQueries: OrganizationModel.permissions(prisma).ownershipQuery(userId),
-                info: partial.organizations as PartialGraphQLInfo, // TODO this won't work
-                input: {
-                    after: input.organizationAfter,
-                    createdTimeFrame: input.createdTimeFrame,
-                    excludeIds: input.excludeIds,
-                    ids: input.ids,
-                    includePrivate: input.includePrivate,
-                    languages: input.languages,
-                    minStars: input.minStars,
-                    minViews: input.minViews,
-                    isOpenToNewMembers: input.organizationIsOpenToNewMembers,
-                    projectId: input.organizationProjectId,
-                    routineId: input.organizationRoutineId,
-                    reportId: input.reportId,
-                    resourceLists: input.resourceLists,
-                    resourceTypes: input.resourceTypes,
-                    searchString: input.searchString,
-                    sortBy: input.sortBy as unknown as OrganizationSortBy,
-                    tags: input.tags,
-                    take,
-                    updatedTimeFrame: input.updatedTimeFrame,
-                    userId,
+            let organizations;
+            if (input.objectType === undefined || input.objectType === 'Organization') {
+                organizations = await readManyAsFeed({
+                    ...commonReadParams,
+                    additionalQueries: OrganizationModel.permissions(prisma).ownershipQuery(userId),
+                    info: (partial as any).Organization,
+                    input: {
+                        after: input.organizationAfter,
+                        createdTimeFrame: input.createdTimeFrame,
+                        excludeIds: input.excludeIds,
+                        ids: input.ids,
+                        includePrivate: input.includePrivate,
+                        languages: input.languages,
+                        minStars: input.minStars,
+                        minViews: input.minViews,
+                        isOpenToNewMembers: input.organizationIsOpenToNewMembers,
+                        projectId: input.organizationProjectId,
+                        routineId: input.organizationRoutineId,
+                        reportId: input.reportId,
+                        resourceLists: input.resourceLists,
+                        resourceTypes: input.resourceTypes,
+                        searchString: input.searchString,
+                        sortBy: input.sortBy as unknown as OrganizationSortBy,
+                        tags: input.tags,
+                        take,
+                        updatedTimeFrame: input.updatedTimeFrame,
+                        userId,
+                    },
+                    model: OrganizationModel,
+                });
+            }
+            // Add supplemental fields to every result
+            const withSupplemental = await addSupplementalFieldsMultiTypes(
+                [projects?.nodes ?? [], organizations?.nodes ?? []],
+                [{ __typename: 'Project', ...(partial as any).Project }, { __typename: 'Organization', ...(partial as any).Organization }] as PartialGraphQLInfo[],
+                ['p', 'o'],
+                userId,
+                prisma,
+            )
+            // Combine nodes, alternating between projects and organizations
+            const nodes = [];
+            for (let i = 0; i < Math.max(withSupplemental['p'].length, withSupplemental['o'].length); i++) {
+                if (i < withSupplemental['p'].length) {
+                    nodes.push(withSupplemental['p'][i]);
+                }
+                if (i < withSupplemental['o'].length) {
+                    nodes.push(withSupplemental['o'][i]);
+                }
+            }
+            // Combine pageInfo
+            const combined = {
+                pageInfo: {
+                    hasNextPage: projects?.pageInfo?.hasNextPage ?? organizations?.pageInfo?.hasNextPage ?? false,
+                    endCursorProject: projects?.pageInfo?.endCursor ?? '',
+                    endCursorOrganization: organizations?.pageInfo?.endCursor ?? '',
                 },
-                model: RoutineModel,
-            });
-            // TODO 
-            throw new CustomError(CODE.NotImplemented);
+                edges: nodes.map((node) => ({ cursor: node.id, node })),
+            }
+            return combined;
         },
     },
 }

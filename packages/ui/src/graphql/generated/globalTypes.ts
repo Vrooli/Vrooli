@@ -98,6 +98,15 @@ export enum OrganizationSortBy {
   StarsDesc = "StarsDesc",
 }
 
+export enum ProjectOrOrganizationSortBy {
+  DateCreatedAsc = "DateCreatedAsc",
+  DateCreatedDesc = "DateCreatedDesc",
+  DateUpdatedAsc = "DateUpdatedAsc",
+  DateUpdatedDesc = "DateUpdatedDesc",
+  StarsAsc = "StarsAsc",
+  StarsDesc = "StarsDesc",
+}
+
 export enum ProjectOrRoutineSortBy {
   CommentsAsc = "CommentsAsc",
   CommentsDesc = "CommentsDesc",
@@ -817,6 +826,36 @@ export interface ProjectCreateInput {
   translationsCreate?: ProjectTranslationCreateInput[] | null;
 }
 
+export interface ProjectOrOrganizationSearchInput {
+  createdTimeFrame?: TimeFrame | null;
+  excludeIds?: string[] | null;
+  ids?: string[] | null;
+  includePrivate?: boolean | null;
+  languages?: string[] | null;
+  minStars?: number | null;
+  minViews?: number | null;
+  objectType?: string | null;
+  organizationAfter?: string | null;
+  organizationIsOpenToNewMembers?: boolean | null;
+  organizationProjectId?: string | null;
+  organizationRoutineId?: string | null;
+  projectAfter?: string | null;
+  projectIsComplete?: boolean | null;
+  projectIsCompleteExceptions?: BooleanSearchException[] | null;
+  projectMinScore?: number | null;
+  projectOrganizationId?: string | null;
+  projectParentId?: string | null;
+  reportId?: string | null;
+  resourceLists?: string[] | null;
+  resourceTypes?: ResourceUsedFor[] | null;
+  searchString?: string | null;
+  sortBy?: ProjectOrOrganizationSortBy | null;
+  tags?: string[] | null;
+  take?: number | null;
+  updatedTimeFrame?: TimeFrame | null;
+  userId?: string | null;
+}
+
 export interface ProjectOrRoutineSearchInput {
   createdTimeFrame?: TimeFrame | null;
   excludeIds?: string[] | null;
@@ -828,6 +867,7 @@ export interface ProjectOrRoutineSearchInput {
   minScore?: number | null;
   minStars?: number | null;
   minViews?: number | null;
+  objectType?: string | null;
   organizationId?: string | null;
   parentId?: string | null;
   projectAfter?: string | null;
@@ -836,7 +876,6 @@ export interface ProjectOrRoutineSearchInput {
   resourceTypes?: ResourceUsedFor[] | null;
   routineAfter?: string | null;
   routineIsInternal?: boolean | null;
-  routineIsInternalExceptions?: BooleanSearchException[] | null;
   routineMinComplexity?: number | null;
   routineMaxComplexity?: number | null;
   routineMinSimplicity?: number | null;

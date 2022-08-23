@@ -10,8 +10,9 @@ import { ProjectOrRoutineSearchInput } from "./globalTypes";
 // ====================================================
 
 export interface projectOrRoutines_projectOrRoutines_pageInfo {
-  __typename: "PageInfo";
-  endCursor: string | null;
+  __typename: "ProjectOrRoutinePageInfo";
+  endCursorProject: string | null;
+  endCursorRoutine: string | null;
   hasNextPage: boolean;
 }
 
@@ -57,6 +58,7 @@ export interface projectOrRoutines_projectOrRoutines_edges_node_Project {
   handle: string | null;
   score: number;
   stars: number;
+  isComplete: boolean;
   isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
