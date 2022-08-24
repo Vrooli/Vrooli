@@ -1,5 +1,4 @@
 import {
-    Box,
     Dialog,
     DialogContent,
     IconButton,
@@ -8,12 +7,11 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { BaseObjectDialog, HelpButton } from 'components';
+import { BaseObjectDialog, DialogTitle } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SubroutineSelectOrCreateDialogProps } from '../types';
 import {
     Add as CreateIcon,
-    Close as CloseIcon
 } from '@mui/icons-material';
 import { IsCompleteInput, IsInternalInput, Routine } from 'types';
 import { SearchList } from 'components/lists';
@@ -27,6 +25,8 @@ import { useLocation } from '@shared/route';
 
 const helpText =
     `This dialog allows you to connect a new or existing subroutine. Each subroutine becomes a page when executing the routine (or if it contains its own subroutines, then those subroutines become pages).`
+
+const titleAria = 'select-or-create-subroutine-dialog-title';
 
 export const SubroutineSelectOrCreateDialog = ({
     handleAdd,
@@ -89,33 +89,6 @@ export const SubroutineSelectOrCreateDialog = ({
     }, [handleAdd, onClose, handleCreateClose, nodeId, routineData]);
 
     /**
-     * Title bar with help button and close icon
-     */
-    const titleBar = useMemo(() => (
-        <Box sx={{
-            background: palette.primary.dark,
-            color: palette.primary.contrastText,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: 2,
-        }}>
-            <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
-                {'Add Subroutine'}
-                <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
-            </Typography>
-            <Box sx={{ marginLeft: 'auto' }}>
-                <IconButton
-                    edge="start"
-                    onClick={(e) => { onClose() }}
-                >
-                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
-                </IconButton>
-            </Box>
-        </Box>
-    ), [onClose, palette.primary.contrastText, palette.primary.dark])
-
-    /**
      * Query conditions change depending on a few factors
      */
     const where = useMemo(() => {
@@ -149,6 +122,7 @@ export const SubroutineSelectOrCreateDialog = ({
             open={isOpen}
             onClose={onClose}
             scroll="body"
+            aria-labelledby={titleAria}
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': {
@@ -171,7 +145,12 @@ export const SubroutineSelectOrCreateDialog = ({
                     zIndex={zIndex + 1}
                 />
             </BaseObjectDialog>
-            {titleBar}
+            <DialogTitle
+                ariaLabel={titleAria}
+                helpText={helpText}
+                title={'Add Subroutine'}
+                onClose={onClose}
+            />
             <DialogContent>
                 <Stack direction="column" spacing={2}>
                     <Stack direction="row" alignItems="center" justifyContent="center">

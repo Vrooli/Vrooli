@@ -26,6 +26,13 @@ export interface DeleteDialogProps {
     zIndex: number;
 }
 
+export interface DialogTitleProps {
+    ariaLabel: string;
+    helpText?: string;
+    onClose: () => void;
+    title: string;
+}
+
 export interface ListMenuItemData<T> {
     /**
      * Displays help button with data
@@ -60,6 +67,13 @@ export interface ListMenuProps<T> {
     onClose: () => void;
     title?: string;
     zIndex: number;
+}
+
+export interface MenuTitleProps {
+    ariaLabel: string;
+    helpText?: string;
+    onClose: () => void;
+    title: string;
 }
 
 export enum ObjectDialogAction {

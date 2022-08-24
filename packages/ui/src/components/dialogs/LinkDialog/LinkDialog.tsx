@@ -8,26 +8,24 @@ import {
     Dialog,
     DialogContent,
     Grid,
-    IconButton,
     Stack,
     TextField,
     Typography,
-    useTheme
 } from '@mui/material';
-import { HelpButton } from 'components';
+import { DialogTitle } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LinkDialogProps } from '../types';
-import { Close as CloseIcon } from '@mui/icons-material';
 import { Node, NodeLink } from 'types';
 import { getTranslation, PubSub } from 'utils';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { v4 as uuid } from 'uuid';
-import { noSelect } from 'styles';
 
 const helpText =
     `This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.
 
 In the future, links will also be able to specify conditions, which must be true in order for the path to be available.`;
+
+const titleAria = "link-dialog-title";
 
 export const LinkDialog = ({
     handleClose,
@@ -41,7 +39,6 @@ export const LinkDialog = ({
     routine,
     zIndex,
 }: LinkDialogProps) => {
-    const { palette } = useTheme();
 
     // Selected "From" and "To" nodes
     const [fromNode, setFromNode] = useState<Node | null>(nodeFrom ?? null);
@@ -80,34 +77,6 @@ export const LinkDialog = ({
     }, [onClose, fromNode, toNode]);
 
     const closeDialog = useCallback(() => { onClose(undefined); }, [onClose]);
-
-    /**
-     * Title bar with help button and close icon
-     */
-    const titleBar = useMemo(() => (
-        <Box sx={{
-            ...noSelect,
-            background: palette.primary.dark,
-            color: palette.primary.contrastText,
-            display: 'flex',
-            alignItems: 'left',
-            justifyContent: 'space-between',
-            padding: 1,
-        }}>
-            <Typography component="h2" variant="h4" alignSelf='center' sx={{ marginLeft: 2, marginRight: 'auto' }}>
-                {isAdd ? 'Add Link' : 'Edit Link'}
-                <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
-            </Typography>
-            <Box sx={{ marginLeft: 'auto' }}>
-                <IconButton
-                    edge="start"
-                    onClick={(e) => { onClose() }}
-                >
-                    <CloseIcon sx={{ fill: palette.primary.contrastText, marginLeft: 'auto' }} />
-                </IconButton>
-            </Box>
-        </Box>
-    ), [onClose, isAdd, palette.primary.contrastText, palette.primary.dark]);
 
     /**
      * Calculate the "From" and "To" options
@@ -212,13 +181,19 @@ export const LinkDialog = ({
         <Dialog
             open={isOpen}
             onClose={() => { handleClose() }}
+            aria-labelledby={titleAria}
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': { overflow: 'visible' },
                 '& .MuiDialog-paper': { overflow: 'visible' }
             }}
         >
-            {titleBar}
+            <DialogTitle
+                ariaLabel={titleAria}
+                title={isAdd ? 'Add Link' : 'Edit Link'}
+                helpText={helpText}
+                onClose={onClose}
+            />
             <DialogContent>
                 {nodeSelections}
                 {conditions}

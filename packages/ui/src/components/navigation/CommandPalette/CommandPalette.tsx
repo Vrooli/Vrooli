@@ -2,15 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     Dialog,
     DialogContent,
-    DialogTitle,
-    IconButton,
-    Typography,
     useTheme,
 } from '@mui/material';
-import {
-    Close as CloseIcon,
-} from '@mui/icons-material';
-import { noSelect } from 'styles';
 import { listToAutocomplete, openObject, PubSub, shortcutsItems } from 'utils';
 import { AutocompleteSearchBar } from 'components/inputs';
 import { APP_LINKS } from '@shared/consts';
@@ -20,6 +13,14 @@ import { CommandPaletteProps } from '../types';
 import { homePage, homePageVariables } from 'graphql/generated/homePage';
 import { homePageQuery } from 'graphql/query';
 import { useLocation } from '@shared/route';
+import { DialogTitle } from 'components';
+
+const helpText =
+    `Use this dialog to quickly navigate to other pages.
+
+It can be opened at any time by entering CTRL + P.`
+
+const titleAria = 'command-palette-dialog-title';
 
 const CommandPalette = ({
     session
@@ -28,19 +29,22 @@ const CommandPalette = ({
     const [, setLocation] = useLocation();
     const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
 
+    const [searchString, setSearchString] = useState<string>('');
+    const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
+
     const [open, setOpen] = useState(false);
     const close = useCallback(() => setOpen(false), []);
 
     useEffect(() => {
-        let dialogSub = PubSub.get().subscribeCommandPalette(() => setOpen(o => !o));
+        let dialogSub = PubSub.get().subscribeCommandPalette(() => {
+            setOpen(o => !o);
+            setSearchString('');
+        });
         return () => { PubSub.get().unsubscribe(dialogSub) };
     }, [])
 
-    const [searchString, setSearchString] = useState<string>('');
-    const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
-
     const { data, refetch, loading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
-    useEffect(() => { refetch() }, [refetch, searchString]);
+    useEffect(() => { open && refetch() }, [open, refetch, searchString]);
 
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
@@ -71,8 +75,8 @@ const CommandPalette = ({
     const onInputSelect = useCallback((newValue: AutocompleteOption) => {
         if (!newValue) return;
         // Clear search string and close command palette
-        setSearchString('');
         close();
+        setSearchString('');
         // Replace current state with search string, so that search is not lost. 
         // Only do this if the selected item is not a shortcut
         if (newValue.__typename !== 'Shortcut' && searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
@@ -91,8 +95,7 @@ const CommandPalette = ({
         <Dialog
             open={open}
             onClose={close}
-            aria-labelledby="command-palette-dialog-title"
-            aria-describedby="command-palette-dialog-description"
+            aria-labelledby={titleAria}
             sx={{
                 '& .MuiDialog-paper': {
                     border: palette.mode === 'dark' ? `1px solid white` : 'unset',
@@ -104,35 +107,12 @@ const CommandPalette = ({
                 }
             }}
         >
-            {/* Title with close icon */}
             <DialogTitle
-                id="command-palette-dialog-title"
-                sx={{
-                    ...noSelect,
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: 2,
-                    background: palette.primary.dark,
-                    color: palette.primary.contrastText,
-                }}
-            >
-                <Typography
-                    variant="h6"
-                    sx={{
-                        width: '-webkit-fill-available',
-                        textAlign: 'center',
-                    }}
-                >
-                    What would you like to do?
-                </Typography>
-                <IconButton
-                    aria-label="close"
-                    edge="end"
-                    onClick={close}
-                >
-                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
-                </IconButton>
-            </DialogTitle>
+                ariaLabel={titleAria}
+                helpText={helpText}
+                title={'What would you like to do?'}
+                onClose={close}
+            />
             <DialogContent sx={{
                 background: palette.background.default,
                 position: 'relative',

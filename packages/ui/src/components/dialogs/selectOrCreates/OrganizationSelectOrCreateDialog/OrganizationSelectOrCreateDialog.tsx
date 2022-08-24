@@ -1,5 +1,4 @@
 import {
-    Box,
     Dialog,
     DialogContent,
     IconButton,
@@ -8,12 +7,11 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { BaseObjectDialog, HelpButton } from 'components';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { BaseObjectDialog, DialogTitle } from 'components';
+import { useCallback, useEffect, useState } from 'react';
 import { OrganizationSelectOrCreateDialogProps } from '../types';
 import {
     Add as CreateIcon,
-    Close as CloseIcon
 } from '@mui/icons-material';
 import { Organization } from 'types';
 import { SearchList } from 'components/lists';
@@ -26,10 +24,12 @@ import { useLocation } from '@shared/route';
 
 const helpText =
     `This dialog allows you to connect a new or existing organization to an object.
-    
-    This will assign ownership of the object to that organization, instead of your own account.
-    
-    You must be an admin or owner of the organization for it to appear in the list`
+
+This will assign ownership of the object to that organization, instead of your own account.
+
+You must be an admin or owner of the organization for it to appear in the list`
+
+const titleAria = "select-or-create-organization-dialog-title"
 
 export const OrganizationSelectOrCreateDialog = ({
     handleAdd,
@@ -95,38 +95,12 @@ export const OrganizationSelectOrCreateDialog = ({
         }
     }, [handleAdd, onClose, handleCreateClose, organizationData]);
 
-    /**
-     * Title bar with help button and close icon
-     */
-    const titleBar = useMemo(() => (
-        <Box sx={{
-            alignItems: 'center',
-            background: palette.primary.dark,
-            color: palette.primary.contrastText,
-            display: 'flex',
-            justifyContent: 'space-between',
-            padding: 2,
-        }}>
-            <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
-                {'Add Organization'}
-                <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
-            </Typography>
-            <Box sx={{ marginLeft: 'auto' }}>
-                <IconButton
-                    edge="start"
-                    onClick={(e) => { onClose() }}
-                >
-                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
-                </IconButton>
-            </Box>
-        </Box>
-    ), [onClose, palette.primary.contrastText, palette.primary.dark])
-
     return (
         <Dialog
             open={isOpen}
             onClose={onClose}
             scroll="body"
+            aria-labelledby={titleAria}
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': { overflow: 'visible', background: palette.background.default },
@@ -146,7 +120,12 @@ export const OrganizationSelectOrCreateDialog = ({
                     zIndex={zIndex + 1}
                 />
             </BaseObjectDialog>
-            {titleBar}
+            <DialogTitle
+                ariaLabel={titleAria}
+                title={'Add Organization'}
+                helpText={helpText}
+                onClose={onClose}
+            />
             <DialogContent>
                 <Stack direction="column" spacing={2}>
                     <Stack direction="row" alignItems="center" justifyContent="center">

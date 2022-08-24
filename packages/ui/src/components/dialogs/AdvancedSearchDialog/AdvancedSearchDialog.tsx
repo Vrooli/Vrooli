@@ -2,26 +2,25 @@
  * Displays all search options for an organization
  */
 import {
-    Box,
     Button,
     Dialog,
     DialogContent,
     Grid,
-    IconButton,
-    Typography,
     useTheme
 } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 import { AdvancedSearchDialogProps } from '../types';
 import {
     Cancel as CancelIcon,
-    Close as CloseIcon,
     Search as SearchIcon,
 } from '@mui/icons-material';
 import { useFormik } from 'formik';
 import { FieldData, FormSchema } from 'forms/types';
 import { generateDefaultProps, generateGrid, generateYupSchema } from 'forms/generators';
 import { convertFormikForSearch, convertSearchForFormik, parseSearchParams, searchTypeToParams } from 'utils';
+import { DialogTitle } from 'components';
+
+const titleAria = 'advanced-search-dialog-title';
 
 export const AdvancedSearchDialog = ({
     handleClose,
@@ -88,40 +87,13 @@ export const AdvancedSearchDialog = ({
         })
     }, [schema, formik, session, theme, zIndex])
 
-    /**
-     * Title bar with help button and close icon
-     */
-    const titleBar = useMemo(() => (
-        <Box
-            sx={{
-                background: theme.palette.primary.dark,
-                color: theme.palette.primary.contrastText,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: 2,
-            }}
-        >
-            <Typography component="h2" variant="h5" textAlign="center" sx={{ marginLeft: 'auto', paddingLeft: 2, paddingRight: 2 }}>
-                {'Advanced Search'}
-            </Typography>
-            <Box sx={{ marginLeft: 'auto' }}>
-                <IconButton
-                    edge="start"
-                    onClick={(e) => { handleClose() }}
-                >
-                    <CloseIcon sx={{ fill: theme.palette.primary.contrastText }} />
-                </IconButton>
-            </Box>
-        </Box>
-    ), [handleClose, theme])
-
     return (
         <Dialog
             id="advanced-search-dialog"
             open={isOpen}
             onClose={handleClose}
             scroll="body"
+            aria-labelledby={titleAria}
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': {
@@ -135,7 +107,11 @@ export const AdvancedSearchDialog = ({
                 },
             }}
         >
-            {titleBar}
+            <DialogTitle
+                ariaLabel={titleAria}
+                title={'Advanced Search'}
+                onClose={handleClose}
+            />
             <form onSubmit={formik.handleSubmit}>
                 <DialogContent sx={{
                     padding: { xs: 1, sm: 2 },

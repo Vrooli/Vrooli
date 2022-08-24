@@ -1,7 +1,6 @@
 import { useMutation } from '@apollo/client';
 import { resourceCreateForm as validationSchema } from '@shared/validation';
-import { Box, Button, Dialog, FormControl, Grid, IconButton, InputLabel, MenuItem, Select, Stack, TextField, Typography, useTheme } from '@mui/material';
-import { HelpButton } from 'components/buttons';
+import { Button, Dialog, DialogContent, FormControl, Grid, InputLabel, MenuItem, Select, Stack, TextField } from '@mui/material';
 import { useFormik } from 'formik';
 import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
@@ -9,7 +8,6 @@ import { ResourceDialogProps } from '../types';
 import {
     Add as AddIcon,
     Cancel as CancelIcon,
-    Close as CloseIcon,
 } from '@mui/icons-material';
 import { getTranslation, getUserLanguages, PubSub, ResourceShape, ResourceTranslationShape, shapeResourceCreate, shapeResourceUpdate, updateArray } from 'utils';
 import { resourceCreate, resourceCreateVariables } from 'graphql/generated/resourceCreate';
@@ -19,6 +17,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { LanguageInput } from 'components/inputs';
 import { Resource } from 'types';
 import { v4 as uuid } from 'uuid';
+import { DialogTitle } from 'components';
 
 const helpText =
     `## What are resources?
@@ -54,6 +53,8 @@ export const UsedForDisplay = {
     [ResourceUsedFor.Tutorial]: 'Tutorial',
 }
 
+const titleAria = "resource-dialog-title";
+
 export const ResourceDialog = ({
     mutate,
     open,
@@ -66,8 +67,6 @@ export const ResourceDialog = ({
     listId,
     zIndex,
 }: ResourceDialogProps) => {
-    const { palette } = useTheme();
-
     const [addMutation, { loading: addLoading }] = useMutation<resourceCreate, resourceCreateVariables>(resourceCreateMutation);
     const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate, resourceUpdateVariables>(resourceUpdateMutation);
 
@@ -217,6 +216,7 @@ export const ResourceDialog = ({
         <Dialog
             onClose={handleClose}
             open={open}
+            aria-labelledby={titleAria}
             sx={{
                 zIndex,
                 '& .MuiDialog-paper': {
@@ -226,111 +226,96 @@ export const ResourceDialog = ({
                 }
             }}
         >
-            <form onSubmit={formik.handleSubmit}>
-                <Box sx={{
-                    padding: 1,
-                    background: palette.primary.dark,
-                    color: palette.primary.contrastText,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                }}>
-                    <Stack direction="row" spacing={1} sx={{ marginLeft: 'auto' }}>
-                        <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
-                            {(index < 0) ? 'Add Resource' : 'Update Resource'}
-                        </Typography>
+            <DialogTitle
+                ariaLabel={titleAria}
+                title={(index < 0) ? 'Add Resource' : 'Update Resource'}
+                helpText={helpText}
+                onClose={handleClose}
+            />
+            <DialogContent>
+                <form onSubmit={formik.handleSubmit}>
+                    <Stack direction="column" spacing={2} paddingTop={2}>
+                        {/* Language select */}
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleLanguageDelete}
+                            handleCurrent={handleLanguageSelect}
+                            selectedLanguages={languages}
+                            session={session}
+                            zIndex={zIndex + 1}
+                        />
+                        {/* Enter link */}
+                        <TextField
+                            fullWidth
+                            id="link"
+                            name="link"
+                            label="Link"
+                            value={formik.values.link}
+                            onBlur={formik.handleBlur}
+                            onChange={formik.handleChange}
+                            error={formik.touched.link && Boolean(formik.errors.link)}
+                            helperText={formik.touched.link && formik.errors.link}
+                        />
+                        {/* Select resource type */}
+                        <FormControl fullWidth>
+                            <InputLabel id="rsource-type-label">Reason</InputLabel>
+                            <Select
+                                labelId="resource-type-label"
+                                id="usedFor"
+                                value={formik.values.usedFor}
+                                label="Resource type"
+                                onChange={(e) => formik.setFieldValue('usedFor', e.target.value)}
+                            >
+                                {Object.entries(UsedForDisplay).map(([key, value]) => (
+                                    <MenuItem key={key} value={key}>{value}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        {/* Enter title */}
+                        <TextField
+                            fullWidth
+                            id="title"
+                            name="title"
+                            label="Title"
+                            value={formik.values.title}
+                            onBlur={formik.handleBlur}
+                            onChange={formik.handleChange}
+                            error={formik.touched.title && Boolean(formik.errors.title)}
+                            helperText={(formik.touched.title && formik.errors.title) ?? "Enter title (optional)"}
+                        />
+                        {/* Enter description */}
+                        <TextField
+                            fullWidth
+                            id="description"
+                            name="description"
+                            label="Description"
+                            value={formik.values.description}
+                            onBlur={formik.handleBlur}
+                            onChange={formik.handleChange}
+                            error={formik.touched.description && Boolean(formik.errors.description)}
+                            helperText={(formik.touched.description && formik.errors.description) ?? "Enter description (optional)"}
+                        />
+                        {/* Action buttons */}
+                        <Grid container spacing={1}>
+                            <Grid item xs={6}>
+                                <Button
+                                    fullWidth
+                                    type="submit"
+                                    startIcon={<AddIcon />}
+                                >Create</Button>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Button
+                                    fullWidth
+                                    onClick={handleClose}
+                                    startIcon={<CancelIcon />}
+                                >Cancel</Button>
+                            </Grid>
+                        </Grid>
                     </Stack>
-                    <Box sx={{ marginLeft: 'auto' }}>
-                        <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
-                        <IconButton
-                            edge="start"
-                            onClick={handleClose}
-                        >
-                            <CloseIcon sx={{ fill: palette.primary.contrastText }} />
-                        </IconButton>
-                    </Box>
-                </Box>
-                <Stack direction="column" spacing={2} sx={{ padding: 2 }}>
-                    {/* Language select */}
-                    <LanguageInput
-                        currentLanguage={language}
-                        handleAdd={handleAddLanguage}
-                        handleDelete={handleLanguageDelete}
-                        handleCurrent={handleLanguageSelect}
-                        selectedLanguages={languages}
-                        session={session}
-                        zIndex={zIndex + 1}
-                    />
-                    {/* Enter link */}
-                    <TextField
-                        fullWidth
-                        id="link"
-                        name="link"
-                        label="Link"
-                        value={formik.values.link}
-                        onBlur={formik.handleBlur}
-                        onChange={formik.handleChange}
-                        error={formik.touched.link && Boolean(formik.errors.link)}
-                        helperText={formik.touched.link && formik.errors.link}
-                    />
-                    {/* Select resource type */}
-                    <FormControl fullWidth>
-                        <InputLabel id="rsource-type-label">Reason</InputLabel>
-                        <Select
-                            labelId="resource-type-label"
-                            id="usedFor"
-                            value={formik.values.usedFor}
-                            label="Resource type"
-                            onChange={(e) => formik.setFieldValue('usedFor', e.target.value)}
-                        >
-                            {Object.entries(UsedForDisplay).map(([key, value]) => (
-                                <MenuItem key={key} value={key}>{value}</MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                    {/* Enter title */}
-                    <TextField
-                        fullWidth
-                        id="title"
-                        name="title"
-                        label="Title"
-                        value={formik.values.title}
-                        onBlur={formik.handleBlur}
-                        onChange={formik.handleChange}
-                        error={formik.touched.title && Boolean(formik.errors.title)}
-                        helperText={(formik.touched.title && formik.errors.title) ?? "Enter title (optional)"}
-                    />
-                    {/* Enter description */}
-                    <TextField
-                        fullWidth
-                        id="description"
-                        name="description"
-                        label="Description"
-                        value={formik.values.description}
-                        onBlur={formik.handleBlur}
-                        onChange={formik.handleChange}
-                        error={formik.touched.description && Boolean(formik.errors.description)}
-                        helperText={(formik.touched.description && formik.errors.description) ?? "Enter description (optional)"}
-                    />
-                    {/* Action buttons */}
-                    <Grid container spacing={1}>
-                        <Grid item xs={6}>
-                            <Button
-                                fullWidth
-                                type="submit"
-                                startIcon={<AddIcon />}
-                            >Create</Button>
-                        </Grid>
-                        <Grid item xs={6}>
-                            <Button
-                                fullWidth
-                                onClick={handleClose}
-                                startIcon={<CancelIcon />}
-                            >Cancel</Button>
-                        </Grid>
-                    </Grid>
-                </Stack>
-            </form>
+                </form>
+            </DialogContent>
         </Dialog>
     )
 }
