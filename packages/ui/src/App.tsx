@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     AlertDialog,
     BottomNav,
+    CommandPalette,
     Footer,
     Navbar,
     Snack
@@ -136,6 +137,24 @@ export function App() {
         else setTheme(themes.light);
     }, [session])
 
+    // Handle site-wide keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // CTRL + P - Opens Command Palette
+            if (e.ctrlKey && e.key === 'p') {
+                e.preventDefault();
+                PubSub.get().publishCommandPalette();
+            }
+        };
+
+        // attach the event listener
+        document.addEventListener('keydown', handleKeyDown);
+        // remove the event listener
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, []);
+
     const checkSession = useCallback((session?: any) => {
         if (session) {
             setSession(session);
@@ -190,7 +209,7 @@ export function App() {
             // If undefined or empty, set session to published data
             if (session === undefined || Object.keys(session).length === 0) {
                 setSession(session);
-            } 
+            }
             // Otherwise, combine existing session data with published data
             else {
                 setSession(s => ({ ...s, ...session }));
@@ -250,6 +269,8 @@ export function App() {
                                     <CircularProgress size={100} />
                                 </Box>
                             }
+                            {/* Command palette */}
+                            <CommandPalette session={session ?? {}} />
                             {/* Celebratory confetti. To be used sparingly */}
                             {
                                 celebrating && <Confetti

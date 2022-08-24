@@ -2,7 +2,7 @@
  * Search page for organizations, projects, routines, standards, and users
  */
 import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material";
-import { SearchList, ShareDialog } from "components";
+import { ListMenu, SearchList, ShareDialog } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
 import { useLocation } from '@shared/route';
@@ -12,6 +12,7 @@ import { getObjectUrlBase, PubSub, parseSearchParams, stringifySearchParams, ope
 import { ListOrganization, ListProject, ListRoutine, ListStandard, ListUser } from "types";
 import { validate as uuidValidate } from 'uuid';
 import { APP_LINKS } from "@shared/consts";
+import { ListMenuItemData } from "components/dialogs/types";
 
 // Tab data type
 type BaseParams = {
@@ -31,7 +32,7 @@ const tabParams: { [key in TabOption]: BaseParams } = {
         popupTooltip: `Can't find who you're looking for? Invite them!😊`,
         searchType: SearchType.Organization,
         title: 'Organizations',
-        where: { },
+        where: {},
     },
     [TabOption.Projects]: {
         itemKeyPrefix: 'project-list-item',
@@ -39,7 +40,7 @@ const tabParams: { [key in TabOption]: BaseParams } = {
         popupTooltip: `Can't find what you're looking for? Create it!😎`,
         searchType: SearchType.Project,
         title: 'Projects',
-        where: { },
+        where: {},
     },
     [TabOption.Routines]: {
         itemKeyPrefix: 'routine-list-item',
@@ -55,7 +56,7 @@ const tabParams: { [key in TabOption]: BaseParams } = {
         popupTooltip: `Can't find what you're looking for? Create it!😎`,
         searchType: SearchType.Standard,
         title: 'Standards',
-        where: { },
+        where: {},
     },
     [TabOption.Users]: {
         itemKeyPrefix: 'user-list-item',
@@ -63,7 +64,7 @@ const tabParams: { [key in TabOption]: BaseParams } = {
         popupTooltip: `Can't find who you're looking for? Invite them!😊`,
         searchType: SearchType.User,
         title: 'Users',
-        where: { },
+        where: {},
     },
 }
 
@@ -92,7 +93,7 @@ export function SearchPage({
         const index = availableTypes.indexOf(searchParams.type as TabOption);
         return Math.max(0, index);
     });
-    const handleTabChange = (_e, newIndex: number) => { 
+    const handleTabChange = (_e, newIndex: number) => {
         // Update "type" in URL and remove all search params not shared by all tabs
         const { search, sort, time } = parseSearchParams(window.location.search);
         setLocation(stringifySearchParams({
@@ -102,7 +103,7 @@ export function SearchPage({
             type: tabOptions[newIndex][1],
         }), { replace: true });
         // Update tab index
-        setTabIndex(newIndex) 
+        setTabIndex(newIndex)
     };
 
     // On tab change, update BaseParams, document title, where, and URL
@@ -115,27 +116,61 @@ export function SearchPage({
         return tabParams[searchType]
     }, [tabIndex]);
 
-    const onAddClick = useCallback(() => {
+    // Menu for picking which routine type to add
+    const [addRoutineAnchor, setAddRoutineAnchor] = useState<any>(null);
+    const openAddRoutine = useCallback((ev: React.MouseEvent<HTMLDivElement>) => {
         const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
-        const tabType: TabOption = tabOptions[tabIndex][1];
-        const addUrl = `${getObjectUrlBase({ __typename: tabType as string })}/add`
         if (loggedIn) {
-            setLocation(addUrl)
+            setAddRoutineAnchor(ev.currentTarget)
         }
         else {
             PubSub.get().publishSnack({ message: 'Must be logged in.', severity: 'error' });
             setLocation(`${APP_LINKS.Start}${stringifySearchParams({
-                redirect: addUrl
+                redirect: window.location.pathname
             })}`);
         }
-    }, [session?.id, session?.isLoggedIn, setLocation, tabIndex]);
+    }, [session?.id, session?.isLoggedIn, setLocation]);
+    const closeAddRoutine = useCallback(() => setAddRoutineAnchor(null), []);
+    const handleAddRoutineSelect = useCallback((option: any) => {
+        if (option === 'basic') setLocation(`${APP_LINKS.Routine}/add`)
+        else setLocation(`${APP_LINKS.Routine}/add?build=true`)
+    }, [setLocation]);
+    const addRoutineOptions: ListMenuItemData<string>[] = [
+        { label: 'Basic (Single Step)', value: 'basic' },
+        { label: 'Advanced (Multi Step)', value: 'advanced' },
+    ]
 
-    const onPopupButtonClick = useCallback(() => {
+    const onAddClick = useCallback((ev: any) => {
+        const addUrl = `${getObjectUrlBase({ __typename: searchType as string })}/add`
+        // If not logged in, redirect to login page
+        const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
+        if (!loggedIn) {
+            PubSub.get().publishSnack({ message: 'Must be logged in.', severity: 'error' });
+            setLocation(`${APP_LINKS.Start}${stringifySearchParams({
+                redirect: addUrl
+            })}`);
+            return;
+        }
+        // If search type is a routine, open dialog to select routine type
+        if (searchType === SearchType.Routine) {
+            openAddRoutine(ev);
+        }
+        // If search type is a user, open start page
+        else if (searchType === SearchType.User) {
+            setLocation(`${APP_LINKS.Start}`);
+        }
+        // Otherwise, navigate to add page
+        else {
+            setLocation(addUrl)
+        }
+    }, [openAddRoutine, searchType, session?.id, session?.isLoggedIn, setLocation]);
+
+    const onPopupButtonClick = useCallback((ev: any) => {
         const tabType = tabOptions[tabIndex][1];
         if (tabType === TabOption.Organizations || tabType === TabOption.Users) {
             setShareDialogOpen(true);
         } else {
-            onAddClick();
+            onAddClick(ev);
         }
     }, [onAddClick, tabIndex])
 
@@ -172,6 +207,16 @@ export function SearchPage({
             <ShareDialog
                 onClose={closeShareDialog}
                 open={shareDialogOpen}
+                zIndex={200}
+            />
+            {/* Add dialog for selecting between single-step and multi-step routines */}
+            <ListMenu
+                id={`add-routine-select-type-menu`}
+                anchorEl={addRoutineAnchor}
+                title='Select Routine Type'
+                data={addRoutineOptions}
+                onSelect={handleAddRoutineSelect}
+                onClose={closeAddRoutine}
                 zIndex={200}
             />
             {/* Navigate between search pages */}

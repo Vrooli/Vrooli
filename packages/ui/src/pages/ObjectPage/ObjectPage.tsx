@@ -5,7 +5,7 @@ import { ObjectDialogAction } from "components/dialogs/types";
 import { useLocation } from '@shared/route';
 import { APP_LINKS } from "@shared/consts";
 import { lazily } from "react-lazily";
-import { ObjectType } from "utils";
+import { ObjectType, parseSearchParams } from "utils";
 import { Organization, Project, Routine, Session, Standard, User } from "types";
 
 const { OrganizationCreate, OrganizationUpdate, OrganizationView } = lazily(() => import('../../components/views/Organization'));
@@ -56,7 +56,7 @@ const typeMap: { [key in APP_LINKS]?: ObjectType } = {
 /**
  * Maps object types to dialog titles
  */
- const titleMap: { [key in ObjectType]?: string } = {
+const titleMap: { [key in ObjectType]?: string } = {
     [ObjectType.Organization]: 'Organization',
     [ObjectType.Project]: 'Project',
     [ObjectType.Routine]: 'Routine',
@@ -136,9 +136,19 @@ export const ObjectPage = ({
 
     const displayedPage = useMemo<JSX.Element | undefined>(() => {
         if (!objectType) return undefined;
+        // If page type is View, display the view page
+        // Also display the view page for multi-step routines, since this has special logic
+        const searchParams = parseSearchParams(window.location.search);
+        console.log('searchParams', searchParams);
+        if (pageType === PageType.View || searchParams.build === true) {
+            const View = viewMap[objectType];
+            document.title = `View ${titleMap[objectType]}`;
+            return View && <View session={session} zIndex={200} />
+        }
+        //
         if (pageType === PageType.Create) {
             const Create = createMap[objectType];
-            document.title = `View ${titleMap[objectType]}`;
+            document.title = `Create ${titleMap[objectType]}`;
             return (Create && <Create
                 onCancel={() => onAction(ObjectDialogAction.Cancel)}
                 onCreated={(data: { id: string }) => onAction(ObjectDialogAction.Add, data)}
@@ -159,7 +169,7 @@ export const ObjectPage = ({
         const View = viewMap[objectType];
         document.title = `View ${titleMap[objectType]}`;
         return View && <View session={session} zIndex={200} />
-    }, [objectType, onAction, pageType, session]);
+    }, [location, objectType, onAction, pageType, session]);
 
     return (
         <Box sx={{

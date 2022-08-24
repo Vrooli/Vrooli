@@ -4,7 +4,7 @@ import { ChangeEvent } from 'react';
 import { Organization, Project, Routine, Session, Standard, Tag } from 'types';
 import { ObjectType, TagShape } from 'utils';
 
-export interface AutocompleteSearchBarProps extends SearchBarProps {
+export interface AutocompleteSearchBarProps extends Omit<SearchBarProps, 'sx'> {
     debounce?: number;
     id?: string;
     loading?: boolean;
@@ -15,6 +15,7 @@ export interface AutocompleteSearchBarProps extends SearchBarProps {
     session: Session;
     showSecondaryLabel?: boolean;
     value: string;
+    sxs?: { paper?: { [x: string]: any }, root?: { [x: string]: any } };
 }
 
 export interface DropzoneProps {

@@ -2,6 +2,8 @@ import { CommonProps } from 'types';
 
 export type BottomNavProps = Pick<CommonProps, 'session'>
 
+export type CommandPaletteProps = Pick<CommonProps, 'session'>
+
 export interface ContactInfoProps {
     className?: string;
 }

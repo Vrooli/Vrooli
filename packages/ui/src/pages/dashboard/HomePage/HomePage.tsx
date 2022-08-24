@@ -13,7 +13,7 @@ import {
     Add as CreateIcon,
     Search as SearchIcon,
 } from '@mui/icons-material';
-import { DevelopSearchPageTabOption, HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, OpenObjectProps, SearchPageTabOption, useReactSearch } from 'utils';
+import { listToAutocomplete, listToListItems, openObject, OpenObjectProps, SearchPageTabOption, shortcutsItems, useReactSearch } from 'utils';
 import { AutocompleteOption } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 
@@ -90,146 +90,6 @@ const examplesData: [string, string][] = [
     // ['Fund your project', ''], //TODO
     ['Create a Cardano native asset token', '3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
 ]
-
-interface ShortcutItem {
-    label: string;
-    link: string;
-}
-/**
- * Shortcuts that can appear in the search bar
- */
-const shortcuts: ShortcutItem[] = [
-    {
-        label: 'Create new organization',
-        link: `${APP_LINKS.Organization}/add`,
-    },
-    {
-        label: 'Create new project',
-        link: `${APP_LINKS.Project}/add`,
-    },
-    {
-        label: 'Create new single-step routine',
-        link: `${APP_LINKS.Routine}/add`,
-    },
-    {
-        label: 'Create new multi-step routine',
-        link: `${APP_LINKS.Routine}/add?build=true`,
-    },
-    {
-        label: 'Create new standard',
-        link: `${APP_LINKS.Standard}/add`,
-    },
-    {
-        label: 'View learn dashboard',
-        link: `${APP_LINKS.Learn}`,
-    },
-    {
-        label: 'View research dashboard',
-        link: `${APP_LINKS.Research}`,
-    },
-    {
-        label: 'View develop dashboard',
-        link: `${APP_LINKS.Develop}`,
-    },
-    {
-        label: 'View history page',
-        link: `${APP_LINKS.History}`,
-    },
-    {
-        label: 'Search organizations',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Organizations}`,
-    },
-    {
-        label: 'Search projects',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Projects}`,
-    },
-    {
-        label: 'Search routines',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Routines}`,
-    },
-    {
-        label: 'Search standards',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Routines}`,
-    },
-    {
-        label: 'Search users',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Users}`,
-    },
-    {
-        label: 'Search organizations advanced',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Organizations}&advanced=true`,
-    },
-    {
-        label: 'Search projects advanced',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Projects}&advanced=true`,
-    },
-    {
-        label: 'Search routines advanced',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Routines}&advanced=true`,
-    },
-    {
-        label: 'Search standards advanced',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Standards}&advanced=true`,
-    },
-    {
-        label: 'Search users advanced',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Users}&advanced=true`,
-    },
-    {
-        label: 'Search runs',
-        link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Runs}`,
-    },
-    {
-        label: 'Search viewed',
-        link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Viewed}`,
-    },
-    {
-        label: 'Search starred',
-        link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Starred}`,
-    },
-    {
-        label: 'Search runs advanced',
-        link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Runs}&advanced=true`,
-    },
-    {
-        label: 'Search viewed advanced',
-        link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Viewed}&advanced=true`,
-    },
-    {
-        label: 'Search starred advanced',
-        link: `${APP_LINKS.HistorySearch}?type=${HistorySearchPageTabOption.Starred}&advanced=true`,
-    },
-    {
-        label: 'Search your actively developing projects and routines',
-        link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.InProgress}`,
-    },
-    {
-        label: 'Search your completed projects and routines',
-        link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.Completed}`,
-    },
-    {
-        label: 'Search your actively developing projects and routines advanced',
-        link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.InProgress}&advanced=true`,
-    },
-    {
-        label: 'Search your completed projects and routines advanced',
-        link: `${APP_LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.Completed}&advanced=true`,
-    },
-    {
-        label: `Beginner's Guide`,
-        link: `${APP_LINKS.Welcome}`,
-    },
-    {
-        label: 'FAQ',
-        link: `${APP_LINKS.FAQ}`,
-    },
-]
-// Shape shortcuts to match AutoCompleteListItem format
-const shortcutsItems: AutocompleteOption[] = shortcuts.map(({ label, link }) => ({
-    __typename: "Shortcut",
-    label,
-    id: link,
-}))
 
 /**
  * Containers a search bar, lists of routines, projects, tags, and organizations, 
@@ -496,7 +356,7 @@ export const HomePage = ({
                     onInputChange={onInputSelect}
                     session={session}
                     showSecondaryLabel={true}
-                    sx={{ width: 'min(100%, 600px)' }}
+                    sxs={{ root: { width: 'min(100%, 600px)' } }}
                 />
                 {/* =========  #endregion ========= */}
             </Stack>

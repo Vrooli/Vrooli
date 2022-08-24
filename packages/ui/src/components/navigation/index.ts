@@ -1,4 +1,5 @@
 export * from './BottomNav/BottomNav';
+export * from './CommandPalette/CommandPalette';
 export * from './ContactInfo/ContactInfo';
 export * from './Footer/Footer';
 export * from './HideOnScroll/HideOnScroll';
