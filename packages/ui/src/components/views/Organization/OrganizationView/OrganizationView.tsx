@@ -12,14 +12,13 @@ import {
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
     Share as ShareIcon,
-    Today as CalendarIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, SearchList, SelectLanguageDialog, StarButton } from "components";
+import { BaseObjectActionDialog, DateDisplay, SearchList, SelectLanguageDialog, StarButton } from "components";
 import { containerShadow } from "styles";
 import { OrganizationViewProps } from "../types";
 import { Organization, ResourceList } from "types";
 import { SearchListGenerator } from "components/lists/types";
-import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, PubSub, SearchType } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, PubSub, SearchType } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
@@ -279,18 +278,13 @@ export const OrganizationView = ({
                     </Link>
                 }
                 {/* Joined date */}
-                {
-                    loading ? (
-                        <Box sx={{ width: '33%', color: "#00831e" }}>
-                            <LinearProgress color="inherit" />
-                        </Box>
-                    ) : (
-                        organization?.created_at && (<Box sx={{ display: 'flex' }} >
-                            <CalendarIcon />
-                            {`Joined ${displayDate(organization.created_at, false)}`}
-                        </Box>)
-                    )
-                }
+                <DateDisplay
+                    loading={loading}
+                    showIcon={true}
+                    textBeforeDate="Joined"
+                    timestamp={organization?.created_at}
+                    width={"33%"}
+                />
                 {/* Bio */}
                 {
                     loading ? (

@@ -19,7 +19,7 @@ import {
 } from '@mui/icons-material';
 import { Session } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
-import { TextShrink } from 'components/TextShrink/TextShrink';
+import { TextShrink } from 'components/text/TextShrink/TextShrink';
 
 /**
  * Converts session to user object

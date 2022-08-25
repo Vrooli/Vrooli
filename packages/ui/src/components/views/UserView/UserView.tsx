@@ -12,12 +12,11 @@ import {
     MoreHoriz as EllipsisIcon,
     Person as ProfileIcon,
     Share as ShareIcon,
-    Today as CalendarIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, ResourceListVertical, SearchList, SelectLanguageDialog, StarButton } from "components";
+import { BaseObjectActionDialog, DateDisplay, ResourceListVertical, SearchList, SelectLanguageDialog, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
-import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, PubSub, SearchType } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, PubSub, SearchType } from "utils";
 import { ResourceList, User } from "types";
 import { SearchListGenerator } from "components/lists/types";
 import { validate as uuidValidate } from 'uuid';
@@ -49,7 +48,7 @@ export const UserView = ({
     }, [session]);
     const isOwn: boolean = useMemo(() => Boolean(session?.id && session.id === id), [id, session]);
     // Fetch data
-    const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery, { errorPolicy: 'all'});
+    const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery, { errorPolicy: 'all' });
     const [user, setUser] = useState<User | null | undefined>(null);
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { input: { id } } })
@@ -285,17 +284,13 @@ export const UserView = ({
                     </Link>
                 }
                 {/* Joined date */}
-                {
-                    loading ? (
-                        <Box sx={{ width: '33%', color: "#00831e" }}>
-                            <LinearProgress color="inherit" />
-                        </Box>
-                    ) :
-                        user?.created_at && (<Box sx={{ display: 'flex' }} >
-                            <CalendarIcon />
-                            {`Joined ${displayDate(user.created_at, false)}`}
-                        </Box>)
-                }
+                <DateDisplay
+                    loading={loading}
+                    showIcon={true}
+                    textBeforeDate="Joined"
+                    timestamp={user?.created_at}
+                    width={"33%"}
+                />
                 {/* Description */}
                 {
                     loading ? (
@@ -374,7 +369,7 @@ export const UserView = ({
                     canStar: !isOwn,
                 }}
                 session={session}
-                zIndex={zIndex+1}
+                zIndex={zIndex + 1}
             />
             <Box sx={{
                 display: 'flex',

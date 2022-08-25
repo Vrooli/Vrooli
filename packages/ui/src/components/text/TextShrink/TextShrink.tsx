@@ -3,8 +3,8 @@
  */
 
 import { Typography } from "@mui/material";
-import { TextShrinkProps } from "components/types";
 import { useEffect } from "react";
+import { TextShrinkProps } from "../types";
 
 export const TextShrink = ({
     id,

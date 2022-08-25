@@ -11,14 +11,13 @@ import {
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
     Share as ShareIcon,
-    Today as CalendarIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, ResourceListVertical, SearchList, SelectLanguageDialog, StarButton } from "components";
+import { BaseObjectActionDialog, DateDisplay, ResourceListVertical, SearchList, SelectLanguageDialog, StarButton } from "components";
 import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
 import { Project, ResourceList } from "types";
 import { SearchListGenerator } from "components/lists/types";
-import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, PubSub, SearchType } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, PubSub, SearchType } from "utils";
 import { validate as uuidValidate } from 'uuid';
 
 enum TabOptions {
@@ -234,18 +233,13 @@ export const ProjectView = ({
                     </Link>
                 }
                 {/* Created date */}
-                {
-                    loading ? (
-                        <Box sx={{ width: '33%', color: "#00831e" }}>
-                            <LinearProgress color="inherit" />
-                        </Box>
-                    ) : (
-                        project?.created_at && (<Box sx={{ display: 'flex' }} >
-                            <CalendarIcon />
-                            {`Created ${displayDate(project.created_at, false)}`}
-                        </Box>)
-                    )
-                }
+                <DateDisplay
+                    loading={loading}
+                    showIcon={true}
+                    textBeforeDate="Created"
+                    timestamp={project?.created_at}
+                    width={"33%"}
+                />
                 {/* Description */}
                 {
                     loading && (

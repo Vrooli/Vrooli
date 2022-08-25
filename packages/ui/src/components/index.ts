@@ -10,4 +10,4 @@ export * from './navigation';
 export * from './views';
 export * from './ScrollToTop';
 export * from './Snack/Snack';
-export * from './TextShrink/TextShrink';
+export * from './text';
