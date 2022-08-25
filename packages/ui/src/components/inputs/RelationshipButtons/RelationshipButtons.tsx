@@ -2,19 +2,24 @@
  * Horizontal button list for assigning owner, project, and parent 
  * to objects
  */
-import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, IconButton, Palette, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import { RelationshipButtonsProps, RelationshipItemOrganization, RelationshipItemProject, RelationshipItemRoutine, RelationshipItemUser, RelationshipOwner } from '../types';
-import { noSelect } from 'styles';
 import { getTranslation, getUserLanguages, ObjectType } from 'utils';
-import { OrganizationSelectOrCreateDialog } from 'components/dialogs';
+import { ListMenu, OrganizationSelectOrCreateDialog, ProjectSelectOrCreateDialog, RoutineSelectOrCreateDialog, UserSelectDialog } from 'components/dialogs';
 import {
     Apartment as OrganizationIcon,
     DeviceHub as RoutineIcon,
+    DoneAll as CompletedIcon,
     Person as SelfIcon,
+    RemoveDone as IncompleteIcon,
     ViewQuilt as ProjIcon,
+    Visibility as PublicIcon,
+    VisibilityOff as PrivateIcon,
 } from '@mui/icons-material';
 import { Session } from 'types';
+import { ListMenuItemData } from 'components/dialogs/types';
+import { TextShrink } from 'components/TextShrink/TextShrink';
 
 /**
  * Converts session to user object
@@ -28,9 +33,45 @@ export const userFromSession = (session: Session): RelationshipOwner => ({
     name: 'Self',
 })
 
+const commonButtonProps = (palette: Palette) => ({
+    width: '69px',
+    height: '69px',
+    background: palette.primary.light,
+})
+
+const commonIconProps = {
+    width: 'unset',
+    height: 'unset',
+    '&:hover': {
+        filter: `brightness(120%)`,
+        transition: 'filter 0.2s',
+    },
+}
+
+const commonLabelProps = {
+    width: '69px',
+    textAlign: 'center',
+}
+
+enum OwnerTypesEnum {
+    Self = 'Self',
+    Organization = 'Organization',
+    AnotherUser = 'AnotherUser',
+}
+
+const ownerTypes: ListMenuItemData<OwnerTypesEnum>[] = [
+    { label: 'Self', value: OwnerTypesEnum.Self },
+    { label: 'Organization', value: OwnerTypesEnum.Organization },
+    { label: 'Another User (Requires Permission)', value: OwnerTypesEnum.AnotherUser },
+]
+
 export function RelationshipButtons({
     disabled = false,
+    isComplete,
+    isPrivate,
     objectType,
+    onIsCompleteChange,
+    onIsPrivateChange,
     onOwnerChange,
     onProjectChange,
     onParentChange,
@@ -43,61 +84,95 @@ export function RelationshipButtons({
     const { palette } = useTheme();
     const languages = useMemo(() => getUserLanguages(session), [session])
 
-    // Owner dialog (select self or organization)
-    const [isOwnerDialogOpen, setOwnerDialogOpen] = useState<boolean>(false);
-    const openOwnerDialog = useCallback(() => { setOwnerDialogOpen(true) }, [setOwnerDialogOpen]);
-    const closeOwnerDialog = useCallback(() => { setOwnerDialogOpen(false); }, [setOwnerDialogOpen]);
-
-    // Organization owner dialog
-    const [isOrganizationDialogOpen, setOrganizationDialogOpen] = useState<boolean>(false);
-    const openOrganizationDialog = useCallback(() => { setOrganizationDialogOpen(true) }, [setOrganizationDialogOpen]);
-    const closeOrganizationDialog = useCallback(() => { setOrganizationDialogOpen(false); }, [setOrganizationDialogOpen]);
-
-    // Project dialog
-    const [isProjectDialogOpen, setProjectDialogOpen] = useState<boolean>(false);
-    const openProjectDialog = useCallback(() => { setProjectDialogOpen(true) }, [setProjectDialogOpen]);
-    const closeProjectDialog = useCallback(() => { setProjectDialogOpen(false); }, [setProjectDialogOpen]);
-
-    // Parent dialog
-    const [isParentDialogOpen, setParentDialogOpen] = useState<boolean>(false);
-    const openParentDialog = useCallback(() => { setParentDialogOpen(true) }, [setParentDialogOpen]);
-    const closeParentDialog = useCallback(() => { setParentDialogOpen(false); }, [setParentDialogOpen]);
-
     // Determine which relationship buttons are available
-    const { isOwnerAvailable, isProjectAvailable, isParentAvailable } = useMemo(() => {
+    const { isCompleteAvailable, isOwnerAvailable, isPrivateAvailable, isProjectAvailable, isParentAvailable } = useMemo(() => {
+        // isComplete available for projects and routines
+        const isCompleteAvailable = [ObjectType.Project, ObjectType.Routine].includes(objectType);
         // Owner available for organizations, projects, routines, and standards
         const isOwnerAvailable = [ObjectType.Organization, ObjectType.Project, ObjectType.Routine, ObjectType.Standard].includes(objectType);
+        // isPrivate always available for now
+        const isPrivateAvailable = true;
         // Project available for organizations, routines, and standards
         const isProjectAvailable = [ObjectType.Organization, ObjectType.Project, ObjectType.Standard].includes(objectType);
         // Parent available for projects and routines
         const isParentAvailable = [ObjectType.Project, ObjectType.Routine].includes(objectType);
-        return { isOwnerAvailable, isProjectAvailable, isParentAvailable }
+        return { isCompleteAvailable, isOwnerAvailable, isPrivateAvailable, isProjectAvailable, isParentAvailable }
     }, [objectType])
 
-    // Handle owner click
+    // Organization owner dialog (displayed after selecting owner dialog)
+    const [isOrganizationDialogOpen, setOrganizationDialogOpen] = useState<boolean>(false);
+    const openOrganizationDialog = useCallback(() => { setOrganizationDialogOpen(true) }, [setOrganizationDialogOpen]);
+    const closeOrganizationDialog = useCallback(() => { setOrganizationDialogOpen(false); }, [setOrganizationDialogOpen]);
+
+    // Another user owner dialog (displayed after selecting owner dialog)
+    const [isAnotherUserDialogOpen, setAnotherUserDialogOpen] = useState<boolean>(false);
+    const openAnotherUserDialog = useCallback(() => { setAnotherUserDialogOpen(true) }, [setAnotherUserDialogOpen]);
+    const closeAnotherUserDialog = useCallback(() => { setAnotherUserDialogOpen(false); }, [setAnotherUserDialogOpen]);
+
+    // Owner dialog (select self, organization, or another user)
+    const [ownerDialogAnchor, setOwnerDialogAnchor] = useState<any>(null);
     const handleOwnerClick = useCallback((ev: React.MouseEvent<any>) => {
         if (disabled || !isOwnerAvailable) return;
-        // No matter what the owner value was, open the owner select dialog
-        openOwnerDialog();
-    }, [disabled, isOwnerAvailable, openOwnerDialog]);
+        ev.stopPropagation();
+        setOwnerDialogAnchor(ev.currentTarget)
+    }, [disabled, isOwnerAvailable]);
+    const closeOwnerDialog = useCallback(() => setOwnerDialogAnchor(null), []);
+    const handleOwnerDialogSelect = useCallback((ownerType: OwnerTypesEnum) => {
+        if (ownerType === OwnerTypesEnum.Organization) {
+            openOrganizationDialog();
+        } else if (ownerType === OwnerTypesEnum.AnotherUser) {
+            openAnotherUserDialog();
+        } else {
+            onOwnerChange(userFromSession(session));
+        }
+        closeOwnerDialog();
+    }, [closeOwnerDialog, onOwnerChange, openAnotherUserDialog, openOrganizationDialog, session]);
+    const handleOwnerSelect = useCallback((owner: RelationshipOwner) => {
+        onOwnerChange(owner);
+    }, [onOwnerChange]);
 
-    // Handle project click
+    // Project dialog
+    const [isProjectDialogOpen, setProjectDialogOpen] = useState<boolean>(false);
     const handleProjectClick = useCallback((ev: React.MouseEvent<any>) => {
         if (disabled || !isProjectAvailable) return;
         // If project was set, remove
         if (project) onProjectChange(null);
         // Otherwise, open project select dialog
-        else openProjectDialog();
-    }, [disabled, isProjectAvailable, onProjectChange, openProjectDialog, project]);
+        else setProjectDialogOpen(true);
+    }, [disabled, isProjectAvailable, onProjectChange, project]);
+    const closeProjectDialog = useCallback(() => { setProjectDialogOpen(false); }, [setProjectDialogOpen]);
+    const handleProjectSelect = useCallback((project: RelationshipItemProject) => {
+        onProjectChange(project);
+    }, [onProjectChange]);
 
-    // Handle parent click
+    // Parent dialog
+    const [isParentDialogOpen, setParentDialogOpen] = useState<boolean>(false);
     const handleParentClick = useCallback((ev: React.MouseEvent<any>) => {
         if (disabled || !isParentAvailable) return;
         // If parent was set, remove
         if (parent) onParentChange(null);
         // Otherwise, open parent select dialog
-        else openParentDialog();
-    }, [disabled, isParentAvailable, onParentChange, openParentDialog, parent]);
+        else setParentDialogOpen(true);
+    }, [disabled, isParentAvailable, onParentChange, parent]);
+    const closeParentDialog = useCallback(() => { setParentDialogOpen(false); }, [setParentDialogOpen]);
+    const handleParentProjectSelect = useCallback((parent: RelationshipItemProject) => {
+        onParentChange(parent);
+    }, [onParentChange]);
+    const handleParentRoutineSelect = useCallback((parent: RelationshipItemRoutine) => {
+        onParentChange(parent);
+    }, [onParentChange]);
+
+    // Handle private click
+    const handlePrivateClick = useCallback((ev: React.MouseEvent<any>) => {
+        if (disabled || !isPrivateAvailable) return;
+        onIsPrivateChange(!isPrivate);
+    }, [disabled, isPrivate, isPrivateAvailable, onIsPrivateChange]);
+
+    // Handle complete click
+    const handleCompleteClick = useCallback((ev: React.MouseEvent<any>) => {
+        if (disabled || !isCompleteAvailable) return;
+        onIsCompleteChange(!isComplete);
+    }, [disabled, isComplete, isCompleteAvailable, onIsCompleteChange]);
 
     // Current owner icon
     const { OwnerIcon, ownerTooltip } = useMemo(() => {
@@ -172,60 +247,133 @@ export function RelationshipButtons({
         };
     }, [languages, parent]);
 
-    const commonButtonProps = {
-        width: '60px',
-        height: '60px',
-        background: palette.primary.light,
-    }
+    // Current privacy icon (public or private)
+    const { PrivacyIcon, privacyTooltip } = useMemo(() => {
+        return {
+            PrivacyIcon: isPrivate ? PrivateIcon : PublicIcon,
+            privacyTooltip: isPrivate ? 'Only you or your organization can see this. Press to make public' : 'Anyone can see this. Press to make private'
+        }
+    }, [isPrivate]);
 
-    const commonIconProps = {
-        width: 'unset',
-        height: 'unset',
-        '&:hover': {
-            filter: `brightness(120%)`,
-            transition: 'filter 0.2s',
-        },
-    }
+    // Current complete icon (complete or incomplete)
+    const { CompleteIcon, completeTooltip } = useMemo(() => {
+        return {
+            CompleteIcon: isComplete ? CompletedIcon : IncompleteIcon,
+            completeTooltip: isComplete ? 'This is complete. Press to mark incomplete' : 'This is incomplete. Press to mark complete'
+        }
+    }, [isComplete]);
 
     return (
-        <Stack
-            spacing={2}
+        <Box
             padding={1}
-            direction="row"
-            alignItems="center"
-            justifyContent="center"
             zIndex={zIndex}
             sx={{
                 borderRadius: '12px',
                 background: palette.background.paper,
+                overflowX: 'auto',
             }}
         >
-            {/* Popup for adding/connecting a new organization */}
-            {/* <OrganizationSelectOrCreateDialog
-                isOpen={isOrganizationSelectDialogOpen}
-                handleAdd={onOwnerOrganizationAdd}
-                handleClose={closeOrganizationSelectDialog}
+            {/* Popup for selecting type of owner */}
+            <ListMenu
+                id={'select-owner-type-menu'}
+                anchorEl={ownerDialogAnchor}
+                title='Owner Type'
+                data={ownerTypes}
+                onSelect={handleOwnerDialogSelect}
+                onClose={closeOwnerDialog}
+                zIndex={zIndex + 1}
+            />
+            {/* Popup for selecting organization (yours or another) */}
+            <OrganizationSelectOrCreateDialog
+                isOpen={isOrganizationDialogOpen}
+                handleAdd={handleOwnerSelect}
+                handleClose={closeOrganizationDialog}
                 session={session}
                 zIndex={zIndex + 1}
-            /> */}
-            {/* Owner button */}
-            <Tooltip title={ownerTooltip}>
-                <IconButton sx={{ ...commonButtonProps }} onClick={handleOwnerClick}>
-                    {OwnerIcon && <OwnerIcon sx={{ ...commonIconProps }} />}
-                </IconButton>
-            </Tooltip>
-            {/* Project button */}
-            <Tooltip title={projectTooltip}>
-                <IconButton sx={{ ...commonButtonProps }}>
-                    {ProjectIcon && <ProjectIcon sx={{ ...commonIconProps }} />}
-                </IconButton>
-            </Tooltip>
-            {/* Parent button */}
-            <Tooltip title={parentTooltip}>
-                <IconButton sx={{ ...commonButtonProps }}>
-                    {ParentIcon && <ParentIcon sx={{ ...commonIconProps }} />}
-                </IconButton>
-            </Tooltip>
-        </Stack>
+            />
+            {/* Popup for selecting a user that's not you */}
+            <UserSelectDialog
+                isOpen={isAnotherUserDialogOpen}
+                handleAdd={handleOwnerSelect}
+                handleClose={closeAnotherUserDialog}
+                session={session}
+                zIndex={zIndex + 1}
+            />
+            {/* Popup for selecting a project (yours or another) */}
+            <ProjectSelectOrCreateDialog
+                isOpen={isProjectDialogOpen}
+                handleAdd={handleProjectSelect}
+                handleClose={closeProjectDialog}
+                session={session}
+                zIndex={zIndex + 1}
+            />
+            {/* Popups for selecting a parent (yours or another) */}
+            {objectType === ObjectType.Routine && <RoutineSelectOrCreateDialog
+                isOpen={isParentDialogOpen}
+                handleAdd={handleParentRoutineSelect}
+                handleClose={closeParentDialog}
+                session={session}
+                zIndex={zIndex + 1}
+            />}
+            {objectType === ObjectType.Project && <ProjectSelectOrCreateDialog
+                isOpen={isParentDialogOpen}
+                handleAdd={handleParentProjectSelect}
+                handleClose={closeParentDialog}
+                session={session}
+                zIndex={zIndex + 1}
+            />}
+            {/* Row of button labels */}
+            <Stack
+                spacing={2}
+                direction="row"
+                alignItems="center"
+                justifyContent="center"
+            >
+                {isOwnerAvailable && <TextShrink id="owner" sx={{...commonLabelProps}}>Owner</TextShrink>}
+                {isProjectAvailable && <TextShrink id="project" sx={{...commonLabelProps}}>Project</TextShrink>}
+                {isParentAvailable && <TextShrink id="parent" sx={{...commonLabelProps}}>Parent</TextShrink>}
+                {isPrivateAvailable && <TextShrink id="privacy" sx={{...commonLabelProps}}>Privacy</TextShrink>}
+                {isCompleteAvailable && <TextShrink id="complete" sx={{...commonLabelProps}}>Complete?</TextShrink>}
+            </Stack>
+            {/* Buttons row */}
+            <Stack
+                spacing={2}
+                direction="row"
+                alignItems="center"
+                justifyContent="center"
+            >
+
+                {/* Owner button */}
+                {isOwnerAvailable && <Tooltip title={ownerTooltip}>
+                    <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleOwnerClick}>
+                        {OwnerIcon && <OwnerIcon sx={{ ...commonIconProps }} />}
+                    </IconButton>
+                </Tooltip>}
+                {/* Project button */}
+                {isProjectAvailable && <Tooltip title={projectTooltip}>
+                    <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleProjectClick}>
+                        {ProjectIcon && <ProjectIcon sx={{ ...commonIconProps }} />}
+                    </IconButton>
+                </Tooltip>}
+                {/* Parent button */}
+                {isParentAvailable && <Tooltip title={parentTooltip}>
+                    <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleParentClick}>
+                        {ParentIcon && <ParentIcon sx={{ ...commonIconProps }} />}
+                    </IconButton>
+                </Tooltip>}
+                {/* Privacy button */}
+                {isPrivateAvailable && <Tooltip title={privacyTooltip}>
+                    <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handlePrivateClick}>
+                        {PrivacyIcon && <PrivacyIcon sx={{ ...commonIconProps }} />}
+                    </IconButton>
+                </Tooltip>}
+                {/* Complete button */}
+                {isCompleteAvailable && <Tooltip title={completeTooltip}>
+                    <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleCompleteClick}>
+                        {CompleteIcon && <CompleteIcon sx={{ ...commonIconProps }} />}
+                    </IconButton>
+                </Tooltip>}
+            </Stack>
+        </Box>
     )
 }

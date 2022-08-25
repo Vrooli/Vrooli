@@ -9,35 +9,33 @@ import {
 } from '@mui/material';
 import { BaseObjectDialog, DialogTitle } from 'components';
 import { useCallback, useEffect, useState } from 'react';
-import { OrganizationSelectOrCreateDialogProps } from '../types';
+import { ProjectSelectOrCreateDialogProps } from '../types';
 import {
     Add as CreateIcon,
 } from '@mui/icons-material';
-import { Organization } from 'types';
+import { Project } from 'types';
 import { SearchList } from 'components/lists';
-import { organizationQuery } from 'graphql/query';
+import { projectQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
-import { organization, organizationVariables } from 'graphql/generated/organization';
-import { OrganizationCreate } from 'components/views/Organization/OrganizationCreate/OrganizationCreate';
-import { parseSearchParams, stringifySearchParams, SearchType, organizationSearchSchema } from 'utils';
+import { project, projectVariables } from 'graphql/generated/project';
+import { ProjectCreate } from 'components/views/Project/ProjectCreate/ProjectCreate';
+import { parseSearchParams, stringifySearchParams, SearchType, projectSearchSchema } from 'utils';
 import { useLocation } from '@shared/route';
 
 const helpText =
-    `This dialog allows you to connect a new or existing organization to an object.
+    `This dialog allows you to connect a new or existing project to an object.
 
-This will assign ownership of the object to that organization, instead of your own account.
+If you do not own the project, the owner will have to approve of the request.`
 
-If you do not own the organization, the owner will have to approve of the request.`
+const titleAria = "select-or-create-project-dialog-title"
 
-const titleAria = "select-or-create-organization-dialog-title"
-
-export const OrganizationSelectOrCreateDialog = ({
+export const ProjectSelectOrCreateDialog = ({
     handleAdd,
     handleClose,
     isOpen,
     session,
     zIndex,
-}: OrganizationSelectOrCreateDialogProps) => {
+}: ProjectSelectOrCreateDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -47,7 +45,7 @@ export const OrganizationSelectOrCreateDialog = ({
     const onClose = useCallback(() => {
         // Find all search fields
         const searchFields = [
-            ...organizationSearchSchema.fields.map(f => f.fieldName),
+            ...projectSearchSchema.fields.map(f => f.fieldName),
             'advanced',
             'sort',
             'time',
@@ -65,35 +63,35 @@ export const OrganizationSelectOrCreateDialog = ({
         handleClose();
     }, [handleClose, setLocation]);
 
-    // Create new organization dialog
+    // Create new project dialog
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const handleCreateOpen = useCallback(() => { setIsCreateOpen(true); }, [setIsCreateOpen]);
-    const handleCreated = useCallback((organization: Organization) => {
+    const handleCreated = useCallback((project: Project) => {
         setIsCreateOpen(false);
-        handleAdd(organization);
+        handleAdd(project);
         onClose();
     }, [handleAdd, onClose]);
     const handleCreateClose = useCallback(() => {
         setIsCreateOpen(false);
     }, [setIsCreateOpen]);
 
-    // If organization selected from search, query for full data
-    const [getOrganization, { data: organizationData }] = useLazyQuery<organization, organizationVariables>(organizationQuery);
-    const handleOrganizationSelect = useCallback((organization: Organization) => {
-        // Query for full organization data, if not already known (would be known if the same organization was selected last time)
-        if (organizationData?.organization?.id === organization.id) {
-            handleAdd(organizationData?.organization);
+    // If project selected from search, query for full data
+    const [getProject, { data: projectData }] = useLazyQuery<project, projectVariables>(projectQuery);
+    const handleProjectSelect = useCallback((project: Project) => {
+        // Query for full project data, if not already known (would be known if the same project was selected last time)
+        if (projectData?.project?.id === project.id) {
+            handleAdd(projectData?.project);
             onClose();
         } else {
-            getOrganization({ variables: { input: { id: organization.id } } });
+            getProject({ variables: { input: { id: project.id } } });
         }
-    }, [getOrganization, organizationData, handleAdd, onClose]);
+    }, [getProject, projectData, handleAdd, onClose]);
     useEffect(() => {
-        if (organizationData?.organization) {
-            handleAdd(organizationData.organization);
+        if (projectData?.project) {
+            handleAdd(projectData.project);
             onClose();
         }
-    }, [handleAdd, onClose, handleCreateClose, organizationData]);
+    }, [handleAdd, onClose, handleCreateClose, projectData]);
 
     return (
         <Dialog
@@ -107,13 +105,13 @@ export const OrganizationSelectOrCreateDialog = ({
                 '& .MuiDialog-paper': { overflow: 'visible' }
             }}
         >
-            {/* Popup for creating a new organization */}
+            {/* Popup for creating a new project */}
             <BaseObjectDialog
                 onAction={handleCreateClose}
                 open={isCreateOpen}
                 zIndex={zIndex + 1}
             >
-                <OrganizationCreate
+                <ProjectCreate
                     onCreated={handleCreated}
                     onCancel={handleCreateClose}
                     session={session}
@@ -122,14 +120,14 @@ export const OrganizationSelectOrCreateDialog = ({
             </BaseObjectDialog>
             <DialogTitle
                 ariaLabel={titleAria}
-                title={'Add Organization'}
+                title={'Add Project'}
                 helpText={helpText}
                 onClose={onClose}
             />
             <DialogContent>
                 <Stack direction="column" spacing={2}>
                     <Stack direction="row" alignItems="center" justifyContent="center">
-                        <Typography component="h2" variant="h4">Organizations</Typography>
+                        <Typography component="h2" variant="h4">Projects</Typography>
                         <Tooltip title="Add new" placement="top">
                             <IconButton
                                 size="large"
@@ -141,11 +139,11 @@ export const OrganizationSelectOrCreateDialog = ({
                         </Tooltip>
                     </Stack>
                     <SearchList
-                        itemKeyPrefix='organization-list-item'
+                        itemKeyPrefix='project-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
-                        onObjectSelect={(newValue) => handleOrganizationSelect(newValue)}
-                        searchType={SearchType.Organization}
-                        searchPlaceholder={'Select existing organizations...'}
+                        onObjectSelect={(newValue) => handleProjectSelect(newValue)}
+                        searchType={SearchType.Project}
+                        searchPlaceholder={'Select existing projects...'}
                         session={session}
                         take={20}
                         where={{ userId: session?.id }}

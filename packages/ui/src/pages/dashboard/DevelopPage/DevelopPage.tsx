@@ -139,7 +139,7 @@ export const DevelopPage = ({
         }}>
             {/* Create new dialog */}
             <ListMenu
-                id={`create-project-or-routine-dialog`}
+                id={`create-project-or-routine-menu`}
                 anchorEl={createAnchor}
                 title='Select Object Type'
                 data={createPopupOptions}

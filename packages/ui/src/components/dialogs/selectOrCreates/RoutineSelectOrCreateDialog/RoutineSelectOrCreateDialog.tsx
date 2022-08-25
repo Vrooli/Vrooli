@@ -9,35 +9,33 @@ import {
 } from '@mui/material';
 import { BaseObjectDialog, DialogTitle } from 'components';
 import { useCallback, useEffect, useState } from 'react';
-import { OrganizationSelectOrCreateDialogProps } from '../types';
+import { RoutineSelectOrCreateDialogProps } from '../types';
 import {
     Add as CreateIcon,
 } from '@mui/icons-material';
-import { Organization } from 'types';
+import { Routine } from 'types';
 import { SearchList } from 'components/lists';
-import { organizationQuery } from 'graphql/query';
+import { routineQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
-import { organization, organizationVariables } from 'graphql/generated/organization';
-import { OrganizationCreate } from 'components/views/Organization/OrganizationCreate/OrganizationCreate';
-import { parseSearchParams, stringifySearchParams, SearchType, organizationSearchSchema } from 'utils';
+import { routine, routineVariables } from 'graphql/generated/routine';
+import { RoutineCreate } from 'components/views/Routine/RoutineCreate/RoutineCreate';
+import { parseSearchParams, stringifySearchParams, SearchType, routineSearchSchema } from 'utils';
 import { useLocation } from '@shared/route';
 
 const helpText =
-    `This dialog allows you to connect a new or existing organization to an object.
+    `This dialog allows you to connect a new or existing routine to an object.
 
-This will assign ownership of the object to that organization, instead of your own account.
+If you do not own the routine, the owner will have to approve of the request.`
 
-If you do not own the organization, the owner will have to approve of the request.`
+const titleAria = "select-or-create-routine-dialog-title"
 
-const titleAria = "select-or-create-organization-dialog-title"
-
-export const OrganizationSelectOrCreateDialog = ({
+export const RoutineSelectOrCreateDialog = ({
     handleAdd,
     handleClose,
     isOpen,
     session,
     zIndex,
-}: OrganizationSelectOrCreateDialogProps) => {
+}: RoutineSelectOrCreateDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -47,7 +45,7 @@ export const OrganizationSelectOrCreateDialog = ({
     const onClose = useCallback(() => {
         // Find all search fields
         const searchFields = [
-            ...organizationSearchSchema.fields.map(f => f.fieldName),
+            ...routineSearchSchema.fields.map(f => f.fieldName),
             'advanced',
             'sort',
             'time',
@@ -65,35 +63,35 @@ export const OrganizationSelectOrCreateDialog = ({
         handleClose();
     }, [handleClose, setLocation]);
 
-    // Create new organization dialog
+    // Create new routine dialog
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const handleCreateOpen = useCallback(() => { setIsCreateOpen(true); }, [setIsCreateOpen]);
-    const handleCreated = useCallback((organization: Organization) => {
+    const handleCreated = useCallback((routine: Routine) => {
         setIsCreateOpen(false);
-        handleAdd(organization);
+        handleAdd(routine);
         onClose();
     }, [handleAdd, onClose]);
     const handleCreateClose = useCallback(() => {
         setIsCreateOpen(false);
     }, [setIsCreateOpen]);
 
-    // If organization selected from search, query for full data
-    const [getOrganization, { data: organizationData }] = useLazyQuery<organization, organizationVariables>(organizationQuery);
-    const handleOrganizationSelect = useCallback((organization: Organization) => {
-        // Query for full organization data, if not already known (would be known if the same organization was selected last time)
-        if (organizationData?.organization?.id === organization.id) {
-            handleAdd(organizationData?.organization);
+    // If routine selected from search, query for full data
+    const [getRoutine, { data: routineData }] = useLazyQuery<routine, routineVariables>(routineQuery);
+    const handleRoutineSelect = useCallback((routine: Routine) => {
+        // Query for full routine data, if not already known (would be known if the same routine was selected last time)
+        if (routineData?.routine?.id === routine.id) {
+            handleAdd(routineData?.routine);
             onClose();
         } else {
-            getOrganization({ variables: { input: { id: organization.id } } });
+            getRoutine({ variables: { input: { id: routine.id } } });
         }
-    }, [getOrganization, organizationData, handleAdd, onClose]);
+    }, [getRoutine, routineData, handleAdd, onClose]);
     useEffect(() => {
-        if (organizationData?.organization) {
-            handleAdd(organizationData.organization);
+        if (routineData?.routine) {
+            handleAdd(routineData.routine);
             onClose();
         }
-    }, [handleAdd, onClose, handleCreateClose, organizationData]);
+    }, [handleAdd, onClose, handleCreateClose, routineData]);
 
     return (
         <Dialog
@@ -107,13 +105,13 @@ export const OrganizationSelectOrCreateDialog = ({
                 '& .MuiDialog-paper': { overflow: 'visible' }
             }}
         >
-            {/* Popup for creating a new organization */}
+            {/* Popup for creating a new routine */}
             <BaseObjectDialog
                 onAction={handleCreateClose}
                 open={isCreateOpen}
                 zIndex={zIndex + 1}
             >
-                <OrganizationCreate
+                <RoutineCreate
                     onCreated={handleCreated}
                     onCancel={handleCreateClose}
                     session={session}
@@ -122,14 +120,14 @@ export const OrganizationSelectOrCreateDialog = ({
             </BaseObjectDialog>
             <DialogTitle
                 ariaLabel={titleAria}
-                title={'Add Organization'}
+                title={'Add Routine'}
                 helpText={helpText}
                 onClose={onClose}
             />
             <DialogContent>
                 <Stack direction="column" spacing={2}>
                     <Stack direction="row" alignItems="center" justifyContent="center">
-                        <Typography component="h2" variant="h4">Organizations</Typography>
+                        <Typography component="h2" variant="h4">Routines</Typography>
                         <Tooltip title="Add new" placement="top">
                             <IconButton
                                 size="large"
@@ -141,11 +139,11 @@ export const OrganizationSelectOrCreateDialog = ({
                         </Tooltip>
                     </Stack>
                     <SearchList
-                        itemKeyPrefix='organization-list-item'
+                        itemKeyPrefix='routine-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
-                        onObjectSelect={(newValue) => handleOrganizationSelect(newValue)}
-                        searchType={SearchType.Organization}
-                        searchPlaceholder={'Select existing organizations...'}
+                        onObjectSelect={(newValue) => handleRoutineSelect(newValue)}
+                        searchType={SearchType.Routine}
+                        searchPlaceholder={'Select existing routines...'}
                         session={session}
                         take={20}
                         where={{ userId: session?.id }}

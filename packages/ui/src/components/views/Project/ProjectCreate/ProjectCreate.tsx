@@ -28,6 +28,12 @@ export const ProjectCreate = ({
 }: ProjectCreateProps) => {
     const params = useReactSearch(null);
 
+    // If this object is complete/incomplete
+    const [isComplete, setIsComplete] = useState(false);
+    const onIsCompleteChange = useCallback((newIsComplete: boolean) => { setIsComplete(newIsComplete) }, [setIsComplete]);
+    // If this object is public or private
+    const [isPrivate, setIsPrivate] = useState(false);
+    const onIsPrivateChange = useCallback((newIsPrivate: boolean) => { setIsPrivate(newIsPrivate) }, [setIsPrivate]);
     // Who can control the project
     const [owner, setOwner] = useState<RelationshipOwner>(userFromSession(session));
     const onOwnerChange = useCallback((owner: RelationshipOwner) => { setOwner(owner); }, [setOwner]);
@@ -97,7 +103,8 @@ export const ProjectCreate = ({
                 mutation,
                 input: shapeProjectCreate({
                     id: uuid(),
-                    isComplete: false, //TODO: values.isComplete,
+                    isComplete,
+                    isPrivate,
                     owner,
                     parent,
                     // project, //TODO
@@ -210,7 +217,11 @@ export const ProjectCreate = ({
                         zIndex={zIndex}
                     /> */}
                     <RelationshipButtons
+                        isComplete={isComplete}
+                        isPrivate={isPrivate}
                         objectType={ObjectType.Project}
+                        onIsCompleteChange={onIsCompleteChange}
+                        onIsPrivateChange={onIsPrivateChange}
                         onOwnerChange={onOwnerChange}
                         onProjectChange={onProjectChange}
                         onParentChange={onParentChange as any}

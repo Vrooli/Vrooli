@@ -249,7 +249,7 @@ export interface QuantityBoxProps extends BoxProps {
 export type RelationshipItemOrganization = Pick<Organization, '__typename' | 'handle' | 'id' | 'permissionsOrganization' | 'translations'>;
 export type RelationshipItemUser = Pick<User, '__typename' | 'handle' | 'id' | 'name'>;
 export type RelationshipItemProject = Pick<Project, '__typename' | 'handle' | 'id' | 'owner' | 'permissionsProject' | 'translations'>;
-export type RelationshipItemRoutine = Pick<Routine, '__typename' | 'handle' | 'id' | 'owner' | 'permissionsRoutine' | 'translations'>;
+export type RelationshipItemRoutine = Pick<Routine, '__typename' | 'id' | 'owner' | 'permissionsRoutine' | 'translations'>;
 
 export type RelationshipOwner = RelationshipItemOrganization | RelationshipItemUser | null;
 export type RelationshipProject = RelationshipItemProject | null;
@@ -257,7 +257,11 @@ export type RelationshipParent = RelationshipItemProject | RelationshipItemRouti
 
 export interface RelationshipButtonsProps {
     disabled?: boolean;
+    isComplete: boolean;
+    isPrivate: boolean;
     objectType: ObjectType;
+    onIsCompleteChange: (isComplete: boolean) => any;
+    onIsPrivateChange: (isPrivate: boolean) => void;
     onOwnerChange: (newOwner: RelationshipOwner) => void;
     onProjectChange: (newProject: RelationshipProject) => void;
     onParentChange: (newParent: RelationshipParent) => void;

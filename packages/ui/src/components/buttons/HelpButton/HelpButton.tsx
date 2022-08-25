@@ -37,6 +37,7 @@ export const HelpButton = ({
                     sx={{
                         display: 'inline-flex',
                         bottom: '0',
+                        verticalAlign: 'top',
                     }}
                 >
                     <HelpIcon sx={{ fill: 'gb(103 103 104 / 87%)', ...sx }} />
