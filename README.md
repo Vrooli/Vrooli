@@ -10,6 +10,8 @@
 [![Twitter Follow](https://img.shields.io/twitter/follow/VrooliOfficial?color=1DA1F2&logo=twitter&style=for-the-badge)][twitter]
 [![Discord](https://img.shields.io/discord/880439923876974643?&style=for-the-badge)][discord]
 [![Join the Movement](https://img.shields.io/badge/-Join%20The%20Movement-gray.svg?colorB=733ace&style=for-the-badge)][start]
+<br/>
+[![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
 
 # [<img align="top" alt="YouTube" width="50px" src="./docs/assets/youtube.svg" />][youtube] [What Is Vrooli?][youtube]
 
