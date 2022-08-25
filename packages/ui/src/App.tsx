@@ -3,6 +3,7 @@ import {
     AlertDialog,
     BottomNav,
     CommandPalette,
+    FindInPage,
     Footer,
     Navbar,
     Snack
@@ -145,6 +146,11 @@ export function App() {
                 e.preventDefault();
                 PubSub.get().publishCommandPalette();
             }
+            // // CTRL + F - Opens Find in Page
+            // else if (e.ctrlKey && e.key === 'f') {
+            //     e.preventDefault();
+            //     PubSub.get().publishFindInPage();
+            // }
         };
 
         // attach the event listener
@@ -271,6 +277,8 @@ export function App() {
                             }
                             {/* Command palette */}
                             <CommandPalette session={session ?? {}} />
+                            {/* Find in page */}
+                            <FindInPage />
                             {/* Celebratory confetti. To be used sparingly */}
                             {
                                 celebrating && <Confetti
