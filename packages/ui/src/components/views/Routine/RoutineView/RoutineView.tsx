@@ -1,5 +1,5 @@
 import { Box, Button, CircularProgress, Dialog, Grid, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
-import { useLocation, useRoute } from '@shared/route';
+import { useLocation } from '@shared/route';
 import { APP_LINKS, VoteFor } from "@shared/consts";
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
@@ -44,14 +44,12 @@ export const RoutineView = ({
 }: RoutineViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Routine}/:id`);
-    const id = params?.id;
     // Fetch data
+    const id = useMemo(() => window.location.pathname.split('/').pop() ?? '', []);
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
     const [routine, setRoutine] = useState<Routine | null>(null);
     useEffect(() => {
-        if (id && uuidValidate(id)) { getData({ variables: { input: { id } } }); }
+        if (uuidValidate(id)) { getData({ variables: { input: { id } } }); }
     }, [getData, id])
     useEffect(() => {
         if (!data) return;

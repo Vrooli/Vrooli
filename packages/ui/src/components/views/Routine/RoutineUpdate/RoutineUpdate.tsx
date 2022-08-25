@@ -1,6 +1,4 @@
 import { Box, Checkbox, CircularProgress, FormControlLabel, Grid, TextField, Tooltip, Typography } from "@mui/material"
-import { useRoute } from '@shared/route';
-import { APP_LINKS } from "@shared/consts";
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
@@ -18,7 +16,7 @@ import {
 import { DialogActionItem } from "components/containers/types";
 import { LanguageInput, MarkdownInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { v4 as uuid } from 'uuid';
+import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { Organization, ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { InputOutputContainer } from "components/lists/inputOutput";
@@ -30,13 +28,11 @@ export const RoutineUpdate = ({
     session,
     zIndex,
 }: RoutineUpdateProps) => {
-    // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Routine}/edit/:id`);
-    const id = params?.id;
     // Fetch existing data
+    const id = useMemo(() => window.location.pathname.split('/').pop() ?? '', []);
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
     useEffect(() => {
-        if (id) getData({ variables: { input: { id } } });
+        if (uuidValidate(id)) getData({ variables: { input: { id } } });
     }, [getData, id])
     const routine = useMemo(() => data?.routine, [data]);
 

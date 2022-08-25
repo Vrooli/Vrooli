@@ -1,6 +1,4 @@
 import { Box, CircularProgress, Grid, TextField, Typography } from "@mui/material"
-import { useRoute } from '@shared/route';
-import { APP_LINKS } from "@shared/consts";
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { organization, organizationVariables } from "graphql/generated/organization";
 import { organizationQuery } from "graphql/query";
@@ -19,7 +17,7 @@ import { DialogActionItem } from "components/containers/types";
 import { LanguageInput, ResourceListHorizontal, TagSelector } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { ResourceList } from "types";
-import { v4 as uuid } from 'uuid';
+import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { organizationUpdate, organizationUpdateVariables } from "graphql/generated/organizationUpdate";
 
@@ -29,13 +27,11 @@ export const OrganizationUpdate = ({
     session,
     zIndex,
 }: OrganizationUpdateProps) => {
-    // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Organization}/edit/:id`);
-    const id = params?.id;
     // Fetch existing data
+    const id = useMemo(() => window.location.pathname.split('/').pop() ?? '', []);
     const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery);
     useEffect(() => {
-        if (id) getData({ variables: { input: { id } } });
+        if (uuidValidate(id)) getData({ variables: { input: { id } } });
     }, [getData, id])
     const organization = useMemo(() => data?.organization, [data]);
 

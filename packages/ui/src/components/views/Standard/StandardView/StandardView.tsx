@@ -1,5 +1,5 @@
 import { Box, CircularProgress, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
-import { useLocation, useRoute } from '@shared/route';
+import { useLocation } from '@shared/route';
 import { APP_LINKS, InputType } from "@shared/consts";
 import { useLazyQuery } from "@apollo/client";
 import { standard, standardVariables } from "graphql/generated/standard";
@@ -28,13 +28,11 @@ export const StandardView = ({
 }: StandardViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Standard}/:id`);
-    const id = params?.id;
     // Fetch data
+    const id = useMemo(() => window.location.pathname.split('/').pop() ?? '', []);
     const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery, { errorPolicy: 'all' });
     useEffect(() => {
-        if (id && uuidValidate(id)) getData({ variables: { input: { id } } });
+        if (uuidValidate(id)) getData({ variables: { input: { id } } });
     }, [getData, id])
 
     const standard = useMemo(() => data?.standard, [data]);

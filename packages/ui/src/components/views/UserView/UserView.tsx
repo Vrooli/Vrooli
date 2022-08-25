@@ -1,5 +1,5 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
-import { useLocation, useRoute } from '@shared/route';
+import { useLocation } from '@shared/route';
 import { APP_LINKS, StarFor } from "@shared/consts";
 import { adaHandleRegex } from '@shared/validation';
 import { useLazyQuery } from "@apollo/client";
@@ -40,11 +40,13 @@ export const UserView = ({
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
     // Get URL params
-    const [isProfile] = useRoute(`${APP_LINKS.Profile}`);
-    const [, params] = useRoute(`${APP_LINKS.Profile}/:id`);
     const id: string = useMemo(() => {
-        return isProfile ? (session.id ?? '') : (params?.id ?? '');
-    }, [isProfile, params, session]);
+        const pathnameEnd = window.location.pathname.split('/').pop() ?? '';
+        // If no id is provided, use the current user's id
+        if (APP_LINKS.Profile.endsWith(pathnameEnd)) return session.id ?? '';
+        // Otherwise, use the id provided in the URL
+        return pathnameEnd;
+    }, [session]);
     const isOwn: boolean = useMemo(() => Boolean(session?.id && session.id === id), [id, session]);
     // Fetch data
     const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery, { errorPolicy: 'all'});
@@ -55,7 +57,7 @@ export const UserView = ({
     }, [getData, id]);
     useEffect(() => {
         setUser((data?.user as User) ?? partialData);
-    }, [data, isProfile, partialData]);
+    }, [data, partialData]);
 
     const availableLanguages = useMemo<string[]>(() => (user?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [user?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);

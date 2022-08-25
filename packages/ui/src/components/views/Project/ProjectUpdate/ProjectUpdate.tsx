@@ -1,6 +1,4 @@
 import { Box, CircularProgress, Grid, TextField, Typography } from "@mui/material"
-import { useRoute } from '@shared/route';
-import { APP_LINKS } from "@shared/consts";
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { project, projectVariables } from "graphql/generated/project";
 import { projectQuery } from "graphql/query";
@@ -18,7 +16,7 @@ import { DialogActionItem } from "components/containers/types";
 import { LanguageInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { Organization, ResourceList } from "types";
-import { v4 as uuid } from 'uuid';
+import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { projectUpdate, projectUpdateVariables } from "graphql/generated/projectUpdate";
 import { ProjectUpdateProps } from "../types";
@@ -29,13 +27,11 @@ export const ProjectUpdate = ({
     session,
     zIndex,
 }: ProjectUpdateProps) => {
-    // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Project}/edit/:id`);
-    const id = params?.id;
     // Fetch existing data
+    const id = useMemo(() => window.location.pathname.split('/').pop() ?? '', []);
     const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery);
     useEffect(() => {
-        if (id) getData({ variables: { input: { id } } });
+        if (uuidValidate(id)) getData({ variables: { input: { id } } });
     }, [getData, id])
     const project = useMemo(() => data?.project, [data]);
 

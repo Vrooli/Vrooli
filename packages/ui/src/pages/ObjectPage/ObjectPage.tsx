@@ -135,6 +135,7 @@ export const ObjectPage = ({
     }, [hasPreviousPage, location, setLocation]);
 
     const displayedPage = useMemo<JSX.Element | undefined>(() => {
+        console.log('calculating displayed page');
         if (!objectType) return undefined;
         // If page type is View, display the view page
         // Also display the view page for multi-step routines, since this has special logic
@@ -169,7 +170,7 @@ export const ObjectPage = ({
         const View = viewMap[objectType];
         document.title = `View ${titleMap[objectType]}`;
         return View && <View session={session} zIndex={200} />
-    }, [location, objectType, onAction, pageType, session]);
+    }, [objectType, onAction, pageType, session]);
 
     return (
         <Box sx={{

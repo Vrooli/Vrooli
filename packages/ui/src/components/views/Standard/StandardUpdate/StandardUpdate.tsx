@@ -1,6 +1,5 @@
 import { Box, CircularProgress, Grid, Typography } from "@mui/material"
-import { useRoute } from '@shared/route';
-import { APP_LINKS, ResourceListUsedFor } from "@shared/consts";
+import { ResourceListUsedFor } from "@shared/consts";
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { standard, standardVariables } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
@@ -19,7 +18,7 @@ import { LanguageInput, ResourceListHorizontal, TagSelector } from "components";
 import { DialogActionItem } from "components/containers/types";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { ResourceList } from "types";
-import { v4 as uuid } from 'uuid';
+import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { standardUpdate, standardUpdateVariables } from "graphql/generated/standardUpdate";
 
 export const StandardUpdate = ({
@@ -28,13 +27,11 @@ export const StandardUpdate = ({
     session,
     zIndex,
 }: StandardUpdateProps) => {
-    // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Standard}/edit/:id`);
-    const id = params?.id;
     // Fetch existing data
+    const id = useMemo(() => window.location.pathname.split('/').pop() ?? '', []);
     const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery);
     useEffect(() => {
-        if (id) getData({ variables: { input: { id } } });
+        if (uuidValidate(id)) getData({ variables: { input: { id } } });
     }, [getData, id])
     const standard = useMemo(() => data?.standard, [data]);
 

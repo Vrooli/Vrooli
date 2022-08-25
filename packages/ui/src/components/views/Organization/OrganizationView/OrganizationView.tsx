@@ -1,5 +1,5 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
-import { useLocation, useRoute } from '@shared/route';
+import { useLocation } from '@shared/route';
 import { APP_LINKS, StarFor } from "@shared/consts";
 import { adaHandleRegex } from '@shared/validation';
 import { useLazyQuery } from "@apollo/client";
@@ -40,10 +40,8 @@ export const OrganizationView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
-    // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Organization}/:id`);
-    const id: string = useMemo(() => params?.id ?? '', [params]);
     // Fetch data
+    const id = useMemo(() => window.location.pathname.split('/').pop() ?? '', []);
     const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery, { errorPolicy: 'all'});
     const [organization, setOrganization] = useState<Organization | null | undefined>(null);
     useEffect(() => {
