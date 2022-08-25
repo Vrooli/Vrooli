@@ -91,7 +91,8 @@ export function SearchPage({
         const searchParams = parseSearchParams(window.location.search);
         const availableTypes: TabOption[] = tabOptions.map(t => t[1]);
         const index = availableTypes.indexOf(searchParams.type as TabOption);
-        return Math.max(0, index);
+        // Return valid index, or default to Routines
+        return index < 0 ? 2 : index;
     });
     const handleTabChange = (_e, newIndex: number) => {
         // Update "type" in URL and remove all search params not shared by all tabs

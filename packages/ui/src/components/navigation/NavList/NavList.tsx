@@ -25,13 +25,13 @@ const useStyles = makeStyles((theme: Theme) => ({
         background: 'transparent',
         color: theme.palette.primary.contrastText,
         textTransform: 'none',
-        fontSize: '1.5em',
+        fontSize: '1.4em',
         '&:hover': {
             color: theme.palette.secondary.light,
         },
     },
     button: {
-        fontSize: '1.5em',
+        fontSize: '1.4em',
         borderRadius: '10px',
     },
     menuItem: {
