@@ -162,6 +162,7 @@ export enum BaseObjectAction {
     Donate = "Donate",
     Downvote = "Downvote",
     Edit = "Edit",
+    FindInPage = "FindInPage",
     Fork = "Fork",
     Report = "Report",
     Share = "Share",

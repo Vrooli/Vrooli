@@ -146,11 +146,11 @@ export function App() {
                 e.preventDefault();
                 PubSub.get().publishCommandPalette();
             }
-            // // CTRL + F - Opens Find in Page
-            // else if (e.ctrlKey && e.key === 'f') {
-            //     e.preventDefault();
-            //     PubSub.get().publishFindInPage();
-            // }
+            // CTRL + F - Opens Find in Page
+            else if (e.ctrlKey && e.key === 'f') {
+                e.preventDefault();
+                PubSub.get().publishFindInPage();
+            }
         };
 
         // attach the event listener

@@ -1,4 +1,7 @@
+export * from './ArrowDownIcon';
+export * from './ArrowUpIcon';
 export * from './CaseSensitiveIcon';
+export * from './CloseIcon';
 export * from './DiscordIcon';
 export * from './GitHubIcon';
 export * from './RegexIcon';
