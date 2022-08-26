@@ -4,10 +4,10 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
+import { CloseIcon } from 'assets/img';
 import { HelpButton } from 'components';
 import { noSelect } from 'styles';
 import { MenuTitleProps } from '../types';
-import { Close as CloseIcon } from '@mui/icons-material';
 
 export const MenuTitle = ({
     ariaLabel,
@@ -45,7 +45,7 @@ export const MenuTitle = ({
                 edge="end"
                 onClick={onClose}
             >
-                <CloseIcon sx={{ fill: palette.primary.contrastText }} />
+                <CloseIcon fill={palette.primary.contrastText} />
             </IconButton>
         </Box>
     )

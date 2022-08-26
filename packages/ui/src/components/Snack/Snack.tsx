@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { IconButton, Button, Snackbar, Theme, SnackbarProps } from '@mui/material';
-import { Close as CloseIcon } from '@mui/icons-material';
 import { PubSub } from 'utils';
 import { makeStyles } from '@mui/styles';
 import { ValueOf } from '@shared/consts';
+import { CloseIcon } from 'assets/img';
 
 export const SnackSeverity = {
     Default: "default",
@@ -100,7 +100,7 @@ function Snack() {
                         {state.buttonText}
                     </Button> : null}
                     <IconButton size="small" aria-label="close" color="inherit" onClick={resetState}>
-                        <CloseIcon fontSize="small" />
+                        <CloseIcon />
                     </IconButton>
                 </>
             }

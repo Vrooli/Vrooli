@@ -14,7 +14,7 @@ export const CloseIcon = (props: SvgProps) => (
                 strokeWidth: "2",
                 strokeLinecap: "round",
             }}
-            d="m1.8353 1.8353 20.3294 20.3294M22.1647 1.8353 1.8353 22.1647"
+            d="m4.24 4.24 15.52 15.52m0-15.52L4.24 19.76"
         />
     </svg>
 )

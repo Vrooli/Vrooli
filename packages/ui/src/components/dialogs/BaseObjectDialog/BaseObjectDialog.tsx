@@ -1,19 +1,13 @@
 import {
-    AppBar,
     Box,
     Dialog,
-    IconButton,
-    Slide,
-    Toolbar,
-    Typography,
-    useScrollTrigger,
     useTheme,
 } from '@mui/material';
-import {
-    Close as CloseIcon,
-} from '@mui/icons-material';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
+import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { BaseObjectDialogProps, ObjectDialogAction } from '../types';
+
+const titleAria = 'base-object-dialog-title';
 
 /**
  * Dialog for displaying any "Add" form
@@ -28,9 +22,6 @@ export const BaseObjectDialog = ({
 }: BaseObjectDialogProps) => {
     const { palette } = useTheme();
 
-    const [scrollTarget, setScrollTarget] = useState<HTMLElement | undefined>(undefined);
-    const scrollTrigger = useScrollTrigger({ target: scrollTarget });
-
     const onClose = useCallback(() => onAction(ObjectDialogAction.Close), [onAction]);
 
     return (
@@ -38,41 +29,16 @@ export const BaseObjectDialog = ({
             fullScreen
             open={open}
             onClose={onClose}
+            aria-labelledby={titleAria}
             sx={{
                 zIndex,
             }}
         >
-            {/* TODO hide not working */}
-            <Slide appear={false} direction="down" in={!scrollTrigger}>
-                <AppBar ref={node => {
-                    if (node) {
-                        setScrollTarget(node);
-                    }
-                }}>
-                    <Toolbar sx={{
-                        background: palette.primary.dark,
-                        color: palette.primary.contrastText,
-                        width: '100vw',
-                    }}>
-                        {/* Title */}
-                        <Typography variant="h5" sx={{ marginLeft: 'auto' }}>
-                            {title}
-                        </Typography>
-                        {/* Close icon */}
-                        <IconButton
-                            edge="end"
-                            color="inherit"
-                            onClick={onClose}
-                            aria-label="close"
-                            sx={{
-                                marginLeft: 'auto'
-                            }}
-                        >
-                            <CloseIcon />
-                        </IconButton>
-                    </Toolbar>
-                </AppBar>
-            </Slide>
+            <DialogTitle
+                ariaLabel={titleAria}
+                onClose={onClose}
+                title={title}
+            />
             <Box
                 sx={{
                     background: palette.mode === 'light' ? '#c2cadd' : palette.background.default,

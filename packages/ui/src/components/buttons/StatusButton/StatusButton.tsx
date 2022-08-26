@@ -6,13 +6,13 @@ import { Box, Chip, IconButton, Menu, Tooltip, useTheme } from '@mui/material';
 import Markdown from 'markdown-to-jsx';
 import { StatusButtonProps } from '../types';
 import {
-    Close as CloseIcon,
     Mood as ValidIcon,
     MoodBad as InvalidIcon,
     SentimentDissatisfied as IncompleteIcon,
 } from '@mui/icons-material';
 import { Status } from 'utils';
 import { noSelect } from 'styles';
+import { CloseIcon } from 'assets/img';
 
 /**
  * Status indicator and slider change color to represent routine's status
@@ -69,7 +69,7 @@ export const StatusButton = ({
         <Box>
             <Box sx={{ background: palette.primary.dark }}>
                 <IconButton edge="end" color="inherit" onClick={closeMenu} aria-label="close">
-                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
+                    <CloseIcon fill={palette.primary.contrastText} />
                 </IconButton>
             </Box>
             <Box sx={{ padding: 1 }}>

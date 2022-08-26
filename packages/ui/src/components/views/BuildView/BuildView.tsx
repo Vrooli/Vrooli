@@ -14,7 +14,6 @@ import { BaseObjectAction } from 'components/dialogs/types';
 import { BuildViewProps } from '../types';
 import {
     AddLink as AddLinkIcon,
-    Close as CloseIcon,
     Compress as CleanUpIcon,
     Edit as EditIcon,
 } from '@mui/icons-material';
@@ -24,6 +23,7 @@ import { StatusButton } from 'components/buttons';
 import { routineUpdate, routineUpdateVariables } from 'graphql/generated/routineUpdate';
 import { routineCreate, routineCreateVariables } from 'graphql/generated/routineCreate';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
+import { CloseIcon } from 'assets/img';
 
 //TODO
 const helpText =
@@ -1282,10 +1282,7 @@ export const BuildView = ({
                         marginBottom: 'auto',
                     }}
                 >
-                    <CloseIcon sx={{
-                        width: '32px',
-                        height: '32px',
-                    }} />
+                    <CloseIcon width='32px' height='32px' />
                 </IconButton>
             </Stack>
             {/* Second contains additional info and icons */}

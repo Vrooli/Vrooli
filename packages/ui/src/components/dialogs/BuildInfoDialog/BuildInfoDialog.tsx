@@ -4,7 +4,6 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    Close as CloseIcon,
     FileCopy as CopyIcon,
     Delete as DeleteIcon,
     ForkRight as ForkIcon,
@@ -48,6 +47,7 @@ import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
 import { copyMutation, forkMutation, starMutation, voteMutation } from 'graphql/mutation';
 import { v4 as uuid } from 'uuid';
+import { CloseIcon } from 'assets/img';
 
 export const BuildInfoDialog = ({
     handleAction,
@@ -430,7 +430,7 @@ export const BuildInfoDialog = ({
                         flexDirection: 'row-reverse',
                         marginLeft: 'auto',
                     }}>
-                        <CloseIcon fontSize="large" />
+                        <CloseIcon />
                     </IconButton>
                 </Box>
                 {/* Main content */}

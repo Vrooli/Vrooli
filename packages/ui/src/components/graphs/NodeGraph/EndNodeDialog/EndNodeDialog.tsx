@@ -2,14 +2,13 @@
  * Prompts user to select which link the new node should be added on
  */
 import { EndNodeDialogProps } from '../types';
-import { Box, Dialog, IconButton, Typography, useTheme } from '@mui/material';
-import {
-    Close as CloseIcon,
-} from '@mui/icons-material';
-import { noSelect } from 'styles';
+import { Dialog } from '@mui/material';
 import { getTranslation } from 'utils';
 import { useEffect, useState } from 'react';
 import { useFormik } from 'formik';
+import { DialogTitle } from 'components/dialogs';
+
+const titleAria = 'end-node-dialog-title';
 
 export const EndNodeDialog = ({
     handleClose,
@@ -19,7 +18,6 @@ export const EndNodeDialog = ({
     session,
     zIndex,
 }: EndNodeDialogProps) => {
-    const { palette } = useTheme();
 
     const [changedData, setChangedData] = useState(data);
     useEffect(() => {
@@ -41,33 +39,16 @@ export const EndNodeDialog = ({
         <Dialog
             open={isOpen}
             onClose={handleClose}
+            aria-labelledby={titleAria}
             sx={{
                 zIndex,
             }}
         >
-            <Box
-                sx={{
-                    ...noSelect,
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: 1,
-                    background: palette.primary.dark
-                }}
-            >
-                <Typography
-                    variant="h6"
-                    textAlign="center"
-                    sx={{ width: '-webkit-fill-available', color: palette.primary.contrastText }}
-                >
-                    {formik.values.title}
-                </Typography>
-                <IconButton
-                    edge="end"
-                    onClick={handleClose}
-                >
-                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
-                </IconButton>
-            </Box>
+            <DialogTitle
+                ariaLabel={titleAria}
+                onClose={handleClose}
+                title={formik.values.title}
+            />
             <form onSubmit={formik.handleSubmit}>
                 {/* TODO */}
             </form>

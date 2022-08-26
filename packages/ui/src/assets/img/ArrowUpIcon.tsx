@@ -14,15 +14,7 @@ export const ArrowUpIcon = (props: SvgProps) => (
                 strokeWidth: "2",
                 strokeLinecap: "round",
             }}
-            d="M12 1.0251v21.9774"
-        /><path
-            style={{
-                fill: props.fill ?? 'white',
-                stroke: props.fill ?? 'white',
-                strokeWidth: "2",
-                strokeLinecap: "round",
-            }}
-            d="M11.9435 1.0717 2.9279 8.9825M12.0672 1.072l9.0156 7.9108"
+            d="m12.05 3.2 7.22 6.36M11.95 3.2 4.73 9.56M12 3.16v17.67"
         />
     </svg>
 )

@@ -14,15 +14,7 @@ export const ArrowDownIcon = (props: SvgProps) => (
                 strokeWidth: "2",
                 strokeLinecap: "round",
             }}
-            d="M12 23.0006V1.0232"
-        /><path
-            style={{
-                fill: props.fill ?? 'white',
-                stroke: props.fill ?? 'white',
-                strokeWidth: "2",
-                strokeLinecap: "round",
-            }}
-            d="m11.9435 22.954-9.0156-7.9108M12.0672 22.9536l9.0156-7.9107"
+            d="m12.05 20.8 7.22-6.36m-7.32 6.36-7.22-6.36m7.27 6.4V3.16"
         />
     </svg>
 )

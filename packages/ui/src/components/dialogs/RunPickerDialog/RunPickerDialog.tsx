@@ -2,14 +2,12 @@
  * Handles selecting a run from a list of runs.
  */
 
-import { Box, Button, IconButton, List, ListItem, ListItemText, Menu, Tooltip, Typography, useTheme } from "@mui/material";
+import { Button, IconButton, List, ListItem, ListItemText, Menu, Tooltip, useTheme } from "@mui/material";
 import { mutationWrapper } from "graphql/utils";
 import { useCallback, useEffect, useMemo } from "react";
-import { noSelect } from "styles";
 import { displayDate, getTranslation, getUserLanguages } from "utils/display";
 import { ListMenuItemData, RunPickerDialogProps } from "../types";
 import {
-    Close as CloseIcon,
     Delete as DeleteIcon,
 } from "@mui/icons-material";
 import { getRunPercentComplete, parseSearchParams, PubSub } from "utils";
@@ -20,6 +18,9 @@ import { Run } from "types";
 import { deleteOne, deleteOneVariables } from "graphql/generated/deleteOne";
 import { DeleteOneType } from "@shared/consts";
 import { v4 as uuid } from 'uuid';
+import { MenuTitle } from "../MenuTitle/MenuTitle";
+
+const titleAria = 'run-picker-dialog-title';
 
 export const RunPickerDialog = ({
     anchorEl,
@@ -60,11 +61,11 @@ export const RunPickerDialog = ({
                 title: getTranslation(routine, 'title', getUserLanguages(session)) ?? 'Unnamed Routine',
             },
             successCondition: (response) => response.data.runCreate !== null,
-            onSuccess: (response) => { 
+            onSuccess: (response) => {
                 const newRun = response.data.runCreate;
                 onAdd(newRun);
-                onSelect(newRun); 
-                handleClose(); 
+                onSelect(newRun);
+                handleClose();
             },
             onError: () => { PubSub.get().publishSnack({ message: 'Failed to create run.', severity: 'error' }) },
         })
@@ -94,7 +95,7 @@ export const RunPickerDialog = ({
         // If not logged in, open routine without creating a new run
         if (!session.id) {
             onSelect(null);
-            handleClose(); 
+            handleClose();
         }
         // If routine has no runs, create a new one.
         else if (routine && routine.runs?.length === 0) {
@@ -150,6 +151,7 @@ export const RunPickerDialog = ({
     return (
         <Menu
             id='select-run-dialog'
+            aria-labelledby={titleAria}
             disableScrollLock={true}
             autoFocus={true}
             open={open}
@@ -172,32 +174,11 @@ export const RunPickerDialog = ({
                 }
             }}
         >
-            <Box
-                sx={{
-                    ...noSelect,
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: 1,
-                    background: palette.primary.dark
-                }}
-            >
-                <Typography
-                    variant="h6"
-                    textAlign="center"
-                    sx={{
-                        width: '-webkit-fill-available',
-                        color: palette.primary.contrastText,
-                    }}
-                >
-                    Continue Existing Run?
-                </Typography>
-                <IconButton
-                    edge="end"
-                    onClick={handleClose}
-                >
-                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
-                </IconButton>
-            </Box>
+            <MenuTitle
+                ariaLabel={titleAria}
+                onClose={handleClose}
+                title={'Continue Existing Run?'}
+            />
             <List>
                 {items}
             </List>

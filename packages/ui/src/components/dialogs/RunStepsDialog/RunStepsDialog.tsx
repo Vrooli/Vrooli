@@ -4,7 +4,6 @@
 import { useCallback, useState } from 'react';
 import {
     AccountTree as TreeIcon,
-    Close as CloseIcon,
     Launch as OpenStepIcon,
 } from '@mui/icons-material';
 import {
@@ -23,6 +22,7 @@ import { TreeItem, treeItemClasses, TreeView } from '@mui/lab';
 import { RoutineStep } from 'types';
 import { locationArraysMatch, parseSearchParams, routineHasSubroutines, RoutineStepType, stringifySearchParams } from 'utils';
 import { useLocation } from '@shared/route';
+import { MenuTitle } from '../MenuTitle/MenuTitle';
 
 function MinusSquare(props) {
     return (
@@ -228,33 +228,10 @@ export const RunStepsDialog = ({
                     }
                 }}
             >
-                {/* Title bar */}
-                <Box sx={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    background: palette.primary.dark,
-                    color: palette.primary.contrastText,
-                    padding: 1,
-                }}>
-                    {/* Title */}
-                    <Typography variant="h6" sx={{
-                        flexGrow: 1,
-                        color: palette.primary.contrastText,
-                    }}>
-                        {`Steps (${Math.floor(percentComplete)}% Complete)`}
-                    </Typography>
-                    <IconButton onClick={closeDialog} sx={{
-                        color: palette.primary.contrastText,
-                        borderRadius: 0,
-                        borderBottom: `1px solid ${palette.primary.dark}`,
-                        justifyContent: 'end',
-                        flexDirection: 'row-reverse',
-                        marginLeft: 'auto',
-                    }}>
-                        <CloseIcon />
-                    </IconButton>
-                </Box>
+                <MenuTitle
+                    onClose={closeDialog}
+                    title={`Steps (${Math.floor(percentComplete)}% Complete)`}
+                />
                 {/* Tree display of steps */}
                 <TreeView
                     aria-label="routine steps navigator"

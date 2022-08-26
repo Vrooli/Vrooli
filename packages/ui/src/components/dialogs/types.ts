@@ -70,10 +70,10 @@ export interface ListMenuProps<T> {
 }
 
 export interface MenuTitleProps {
-    ariaLabel: string;
+    ariaLabel?: string;
     helpText?: string;
     onClose: () => void;
-    title: string;
+    title?: string;
 }
 
 export enum ObjectDialogAction {

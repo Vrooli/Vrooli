@@ -3,7 +3,7 @@ import { Box, IconButton, Menu, Tooltip, useTheme } from '@mui/material';
 import { HelpOutline as HelpIcon } from "@mui/icons-material";
 import Markdown from 'markdown-to-jsx';
 import { HelpButtonProps } from '../types';
-import { Close as CloseIcon } from '@mui/icons-material';
+import { MenuTitle } from 'components/dialogs';
 
 export const HelpButton = ({
     id = 'help-details-menu',
@@ -78,20 +78,9 @@ export const HelpButton = ({
                             },
                         }}
                     >
-                        <Box>
-                            <Box sx={{
-                                background: palette.primary.dark,
-                                display: 'flex',
-                                flexDirection: 'row-reverse',
-                                paddingRight: '0.5rem',
-                            }}>
-                                <IconButton color="inherit" onClick={closeMenu} aria-label="close">
-                                    <CloseIcon sx={{ fill: 'white' }} />
-                                </IconButton>
-                            </Box>
-                            <Box sx={{ padding: 1 }}>
-                                <Markdown>{markdown}</Markdown>
-                            </Box>
+                        <MenuTitle onClose={closeMenu} />
+                        <Box sx={{ padding: 1 }}>
+                            <Markdown>{markdown}</Markdown>
                         </Box>
                     </Menu>
                 </IconButton>

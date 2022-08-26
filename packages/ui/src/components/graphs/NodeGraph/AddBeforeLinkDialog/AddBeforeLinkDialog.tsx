@@ -5,12 +5,11 @@ import { AddBeforeLinkDialogProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { useCallback, useMemo } from 'react';
 import { NodeLink } from 'types';
-import { Box, Dialog, DialogContent, IconButton, List, ListItem, ListItemText, Typography, useTheme } from '@mui/material';
-import {
-    Close as CloseIcon,
-} from '@mui/icons-material';
-import { noSelect } from 'styles';
+import { Dialog, DialogContent, List, ListItem, ListItemText } from '@mui/material';
 import { getTranslation, getUserLanguages } from 'utils';
+import { DialogTitle } from 'components/dialogs';
+
+const titleAria = 'add-before-link-dialog-title';
 
 export const AddBeforeLinkDialog = ({
     isOpen,
@@ -22,7 +21,6 @@ export const AddBeforeLinkDialog = ({
     session,
     zIndex,
 }: AddBeforeLinkDialogProps) => {
-    const { palette } = useTheme();
 
     /**
      * Gets the name of a node from its id
@@ -46,37 +44,16 @@ export const AddBeforeLinkDialog = ({
         <Dialog
             open={isOpen}
             onClose={handleClose}
+            aria-labelledby={titleAria}
             sx={{
                 zIndex,
             }}
         >
-            <Box
-                sx={{
-                    ...noSelect,
-                    background: palette.primary.dark,
-                    color: palette.primary.contrastText,
-                    display: 'flex',
-                    alignItems: 'left',
-                    justifyContent: 'space-between',
-                    padding: 1,
-                }}
-            >
-                <Typography
-                    variant="h6"
-                    alignSelf='center'
-                    sx={{ marginLeft: 2, marginRight: 'auto' }}
-                >
-                    Select Link
-                </Typography>
-                <Box sx={{ marginLeft: 'auto' }}>
-                    <IconButton
-                        edge="start"
-                        onClick={handleClose}
-                    >
-                        <CloseIcon sx={{ fill: palette.primary.contrastText }} />
-                    </IconButton>
-                </Box>
-            </Box>
+            <DialogTitle
+                ariaLabel={titleAria}
+                onClose={handleClose}
+                title="Select Link"
+            />
             <DialogContent>
                 <List>
                     {listOptions.map(({ label, value }, index) => (

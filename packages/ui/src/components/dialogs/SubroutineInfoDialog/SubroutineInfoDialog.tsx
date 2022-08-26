@@ -5,7 +5,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     AccountTree as GraphIcon,
-    Close as CloseIcon,
     Restore as RevertIcon,
     Save as SaveIcon,
 } from '@mui/icons-material';
@@ -33,6 +32,7 @@ import { InputOutputContainer, LanguageInput, LinkButton, MarkdownInput, Quantit
 import { useFormik } from 'formik';
 import { NodeDataRoutineListItem, Organization, ResourceList } from 'types';
 import { v4 as uuid } from 'uuid';
+import { CloseIcon } from 'assets/img';
 
 export const SubroutineInfoDialog = ({
     data,
@@ -309,7 +309,7 @@ export const SubroutineInfoDialog = ({
                     borderBottom: `1px solid ${palette.primary.dark}`,
                     justifyContent: 'end',
                 }}>
-                    <CloseIcon fontSize="large" />
+                    <CloseIcon />
                 </IconButton>
             </Box>
             {/* Main content */}
