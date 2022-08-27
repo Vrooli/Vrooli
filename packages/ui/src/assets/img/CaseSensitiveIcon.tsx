@@ -2,6 +2,7 @@ import { SvgProps } from './types';
 
 export const CaseSensitiveIcon = (props: SvgProps) => (
     <svg
+        id={props.id}
         style={props.style}
         width={props.width ?? '24px'}
         height={props.height ?? '24px'}

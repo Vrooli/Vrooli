@@ -1,8 +1,9 @@
 import { SvgProps } from './types';
 
 export const TwitterIcon = (props: SvgProps) => (
-    <svg 
-        xmlns="http://www.w3.org/2000/svg" 
+    <svg
+        id={props.id}
+        xmlns="http://www.w3.org/2000/svg"
         style={props.style}
         width={props.width ?? '24px'}
         height={props.height ?? '24px'}

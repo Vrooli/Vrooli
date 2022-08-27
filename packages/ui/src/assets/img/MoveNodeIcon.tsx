@@ -1,6 +1,6 @@
 import { SvgProps } from './types';
 
-export const CloseIcon = (props: SvgProps) => (
+export const MoveNodeIcon = (props: SvgProps) => (
     <svg
         id={props.id}
         style={props.style}
@@ -11,11 +11,13 @@ export const CloseIcon = (props: SvgProps) => (
         <path
             style={{
                 fill: props.fill ?? 'white',
+                fillOpacity: 0,
                 stroke: props.fill ?? 'white',
-                strokeWidth: "2",
+                strokeWidth: "1.37953",
                 strokeLinecap: "round",
             }}
-            d="m4.24 4.24 15.52 15.52m0-15.52L4.24 19.76"
+            d="M14.18 19.33 12 20.96m-2.18-1.63L12 20.96m-.04-.07v-4.56m-7.29-2.15L3.04 12m1.63-2.18L3.04 12m.08-.04h4.55m11.7 2.22L21.02 12m-1.63-2.18L21 12m-.07-.04h-4.56m-2.2-7.29L12 3.04M9.82 4.67 12 3.04m-.04.07v4.56m-4.28.01h8.64v8.64H7.68Z"
+            fill="none"
         />
     </svg>
 )

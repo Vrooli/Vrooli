@@ -1,28 +1,33 @@
 import { NodeContextMenuProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import {
-    AddLink as AddLinkIcon,
     Delete as DeleteIcon,
     Edit as EditIcon,
-    EditLocation as EditLocationIcon,
     FileOpen as OpenIcon,
-    MoveDown as MoveDownIcon,
-    MoveUp as MoveUpIcon,
-    SvgIconComponent,
 } from '@mui/icons-material';
 import { ListMenu } from 'components';
 import { BuildAction } from 'utils';
 import { useMemo } from 'react';
+import { 
+    AddEndNodeAfterIcon,
+    AddIncomingLinkIcon, 
+    AddOutgoingLinkIcon, 
+    AddRoutineListAfterIcon, 
+    AddRoutineListBeforeIcon, 
+    DeleteNodeIcon, 
+    MoveNodeIcon, 
+    UnlinkNodeIcon 
+} from 'assets/img';
 
-const allOptionsMap: { [index in Exclude<BuildAction, BuildAction.AddSubroutine>]: [string, SvgIconComponent] } = {
-    [BuildAction.AddIncomingLink]: ['Add incoming link', AddLinkIcon],
-    [BuildAction.AddOutgoingLink]: ['Add outgoing link', AddLinkIcon],
-    [BuildAction.AddListBeforeNode]: ['Add routine list before', MoveDownIcon],
-    [BuildAction.AddListAfterNode]: ['Add routine list after', MoveUpIcon],
-    [BuildAction.AddEndAfterNode]: ['Add end node after', MoveUpIcon],
-    [BuildAction.DeleteNode]: ['Delete node', DeleteIcon],
-    [BuildAction.MoveNode]: ['Move node', EditLocationIcon],
-    [BuildAction.UnlinkNode]: ['Unlink node', EditIcon],
+const allOptionsMap: { [index in Exclude<BuildAction, BuildAction.AddSubroutine>]: [string, any] } = {
+    [BuildAction.AddIncomingLink]: ['Add incoming link', AddIncomingLinkIcon],
+    [BuildAction.AddOutgoingLink]: ['Add outgoing link', AddOutgoingLinkIcon],
+    [BuildAction.AddListBeforeNode]: ['Add routine list before', AddRoutineListBeforeIcon],
+    [BuildAction.AddListAfterNode]: ['Add routine list after', AddRoutineListAfterIcon],
+    [BuildAction.AddEndAfterNode]: ['Add end node after', AddEndNodeAfterIcon],
+    [BuildAction.DeleteNode]: ['Delete node', DeleteNodeIcon],
+    [BuildAction.MoveNode]: ['Move node', MoveNodeIcon],
+    [BuildAction.UnlinkNode]: ['Unlink node', UnlinkNodeIcon],
     [BuildAction.OpenSubroutine]: ['Open subroutine', OpenIcon],
     [BuildAction.EditSubroutine]: ['Edit subroutine', EditIcon],
     [BuildAction.DeleteSubroutine]: ['Delete subroutine', DeleteIcon],

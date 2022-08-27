@@ -3,7 +3,7 @@
  */
 import { useCallback, useState } from 'react';
 import {
-    AccountTree as TreeIcon,
+    FormatListNumbered as StepsIcon,
     Launch as OpenStepIcon,
 } from '@mui/icons-material';
 import {
@@ -206,7 +206,7 @@ export const RunStepsDialog = ({
         <>
             {/* Icon for opening/closing dialog */}
             <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
-                <TreeIcon sx={sxs?.icon} />
+                <StepsIcon sx={sxs?.icon} />
             </IconButton>
             {/* The dialog */}
             <SwipeableDrawer
