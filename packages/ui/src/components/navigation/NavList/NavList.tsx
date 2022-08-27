@@ -62,7 +62,7 @@ export const NavList = ({
         return () => window.removeEventListener("resize", updateWindowDimensions);
     }, [updateWindowDimensions]);
 
-    const nav_actions = useMemo<Action[]>(() => getUserActions({ roles: session.roles ?? [], exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn] }), [session.roles]);
+    const nav_actions = useMemo<Action[]>(() => getUserActions({ session, exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn] }), [session]);
 
     return (
         <Container className={classes.root}>
@@ -81,7 +81,7 @@ export const NavList = ({
                 classes: { root: classes.navItem },
             })}
             {/* Enter button displayed when not logged in */}
-            {sessionChecked && session !== undefined && !session?.roles && (
+            {sessionChecked && session?.isLoggedIn !== true && (
                 <Button
                     className={classes.button}
                     onClick={() => openLink(setLocation, APP_LINKS.Start)}
@@ -91,7 +91,7 @@ export const NavList = ({
                 </Button>
             )}
             {/* Profile icon for mobile */}
-            {isMobile && session?.roles && (
+            {isMobile && session?.isLoggedIn === true && (
                 <IconButton
                     color="inherit"
                     onClick={() => { setLocation(APP_LINKS.Profile) }}

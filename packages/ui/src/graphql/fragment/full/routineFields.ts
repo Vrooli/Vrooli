@@ -17,11 +17,14 @@ export const routineFields = gql`
             id
             language
             description
+            helpText
         }
         standard {
             id
             default
+            isDeleted
             isInternal
+            isPrivate
             name
             type
             props
@@ -33,6 +36,7 @@ export const routineFields = gql`
                 jsonVariable
             }
             version
+            versionGroupId
         }
     }
     fragment routineOutputFields on OutputItem {
@@ -42,11 +46,14 @@ export const routineFields = gql`
             id
             language
             description
+            helpText
         }
         standard {
             id
             default
+            isDeleted
             isInternal
+            isPrivate
             name
             type
             props
@@ -58,6 +65,7 @@ export const routineFields = gql`
                 jsonVariable
             }
             version
+            versionGroupId
         }
     }
     fragment routineNodeFields on Node {
@@ -84,12 +92,13 @@ export const routineFields = gql`
                         id
                         complexity
                         isComplete
+                        isDeleted
                         isInternal
+                        isPrivate
                         inputs {
                             ...routineInputFields
                         }
                         nodesCount
-                        role
                         outputs {
                             ...routineOutputFields
                         }
@@ -109,6 +118,16 @@ export const routineFields = gql`
                                 handle
                             }
                         }
+                        permissionsRoutine {
+                            canComment
+                            canDelete
+                            canEdit
+                            canFork
+                            canStar
+                            canReport
+                            canRun
+                            canVote
+                        }
                         resourceLists {
                             ...routineResourceListFields
                         }
@@ -124,6 +143,7 @@ export const routineFields = gql`
                             instructions
                         }
                         version
+                        versionGroupId
                     }
                     translations {
                         id
@@ -217,6 +237,13 @@ export const routineFields = gql`
         id
         completedComplexity
         contextSwitches
+        inputs {
+            id
+            data
+            input {
+                id
+            }
+        }
         timeStarted
         timeElapsed
         timeCompleted
@@ -236,7 +263,9 @@ export const routineFields = gql`
         }
         isAutomatable
         isComplete
+        isDeleted
         isInternal
+        isPrivate
         isStarred
         isUpvoted
         nodeLinks {
@@ -282,7 +311,16 @@ export const routineFields = gql`
         score
         simplicity
         stars
-        role
+        permissionsRoutine {
+            canComment
+            canDelete
+            canEdit
+            canFork
+            canStar
+            canReport
+            canRun
+            canVote
+        }
         tags {
             ...routineTagFields
         }
@@ -295,5 +333,6 @@ export const routineFields = gql`
         }
         updated_at
         version
+        versionGroupId
     }
 `

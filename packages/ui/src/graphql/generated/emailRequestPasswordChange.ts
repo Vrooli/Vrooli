@@ -11,7 +11,7 @@ import { EmailRequestPasswordChangeInput } from "./globalTypes";
 
 export interface emailRequestPasswordChange_emailRequestPasswordChange {
   __typename: "Success";
-  success: boolean | null;
+  success: boolean;
 }
 
 export interface emailRequestPasswordChange {

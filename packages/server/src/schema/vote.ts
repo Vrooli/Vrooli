@@ -2,10 +2,10 @@ import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { VoteInput, Success, VoteFor } from './types';
-import { IWrap } from 'types';
+import { IWrap } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
-import { GraphQLModelType, VoteModel } from '../models';
+import { VoteModel } from '../models';
 import { rateLimit } from '../rateLimit';
 import { genErrorCode } from '../logger';
 import { resolveVoteTo } from './resolvers';
@@ -48,11 +48,12 @@ export const resolvers = {
          * their previous vote is overruled. A user may vote on their own project/routine/etc.
          * @returns 
          */
-        vote: async (_parent: undefined, { input }: IWrap<VoteInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            if (!context.req.userId) 
+        vote: async (_parent: undefined, { input }: IWrap<VoteInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
+            // Only accessible if logged in and not using an API key
+            if (!req.userId || req.apiToken) 
                 throw new CustomError(CODE.Unauthorized, 'Must be logged in to vote', { code: genErrorCode('0165') });
-            await rateLimit({ context, info, max: 1000, byAccount: true });
-            const success = await VoteModel(context.prisma).vote(context.req.userId, input);
+            await rateLimit({ info, max: 1000, byAccountOrKey: true, req });
+            const success = await VoteModel.mutate(prisma).vote(req.userId, input);
             return { success };
         },
     }

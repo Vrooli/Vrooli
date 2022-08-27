@@ -1,7 +1,7 @@
 import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { organizationCreateForm as validationSchema, ROLES } from '@local/shared';
+import { organizationCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { organizationCreateMutation } from "graphql/mutation";
 import { getUserLanguages, OrganizationTranslationShape, shapeOrganizationCreate, TagShape, updateArray, useReactSearch } from "utils";
@@ -16,7 +16,7 @@ import { DialogActionItem } from "components/containers/types";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { v4 as uuid } from 'uuid';
+import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { organizationCreate, organizationCreateVariables } from "graphql/generated/organizationCreate";
 
 export const OrganizationCreate = ({
@@ -156,9 +156,9 @@ export const OrganizationCreate = ({
     }, [deleteTranslation, languages, updateFormikTranslation]);
 
     const actions: DialogActionItem[] = useMemo(() => {
-        const correctRole = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
+        const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
         return [
-            ['Create', CreateIcon, Boolean(!correctRole || formik.isSubmitting), true, () => { }],
+            ['Create', CreateIcon, Boolean(!loggedIn || formik.isSubmitting), true, () => { }],
             ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
         ] as DialogActionItem[]
     }, [formik.isSubmitting, onCancel, session]);

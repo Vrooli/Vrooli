@@ -20,11 +20,17 @@ export function OrganizationListItem({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
-    const { bio, name } = useMemo(() => {
+
+    const { bio, canEdit, canReport, canStar, name, reportsCount } = useMemo(() => {
+        const permissions = data?.permissionsOrganization;
         const languages = session?.languages ?? navigator.languages;
         return {
             bio: getTranslation(data, 'bio', languages, true),
+            canEdit: permissions?.canEdit === true,
+            canReport: permissions?.canReport === true,
+            canStar: permissions?.canStar === true,
             name: getTranslation(data, 'name', languages, true),
+            reportsCount: data?.reportsCount ?? 0,
         };
     }, [data, session]);
 
@@ -94,8 +100,8 @@ export function OrganizationListItem({
                                             lineBreak: 'anywhere',
                                         }}
                                     />
-                                    {!hideRole && data?.role && <ListItemText
-                                        primary={`(${data.role})`}
+                                    {!hideRole && canEdit && <ListItemText
+                                        primary={`(Can Edit)`}
                                         sx={{ 
                                             display: 'flex',
                                             alignItems: 'center',
@@ -117,14 +123,14 @@ export function OrganizationListItem({
                     </Stack>
                     {/* Star/Comment/Report */}
                     <Stack direction="column" spacing={1}>
-                        <StarButton
+                        {canStar && <StarButton
                             session={session}
                             objectId={data?.id ?? ''}
                             starFor={StarFor.Organization}
                             isStar={data?.isStarred}
                             stars={data?.stars}
-                        />
-                        {(data?.reportsCount ?? 0) > 0 && <ReportButton
+                        />}
+                        {canReport && reportsCount > 0 && <ReportButton
                             reportsCount={data?.reportsCount ?? 0}
                             object={data}
                         />}

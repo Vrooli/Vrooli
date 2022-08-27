@@ -3,7 +3,7 @@ import { IWrap, RecursivePartial } from '../types';
 import { Count, DeleteManyInput, FindByIdInput, Run, RunCancelInput, RunCompleteInput, RunCountInput, RunCreateInput, RunSearchInput, RunSearchResult, RunSortBy, RunStatus, RunStepStatus, RunUpdateInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
-import { countHelper, createHelper, deleteManyHelper, LogType, readManyHelper, readOneHelper, RunModel, updateHelper } from '../models';
+import { countHelper, createHelper, deleteManyHelper, readManyHelper, readOneHelper, RunModel, updateHelper } from '../models';
 import { rateLimit } from '../rateLimit';
 
 export const typeDef = gql`
@@ -36,6 +36,7 @@ export const typeDef = gql`
         id: ID!
         completedComplexity: Int!
         contextSwitches: Int!
+        isPrivate: Boolean!
         timeStarted: Date
         timeElapsed: Int
         timeCompleted: Date
@@ -43,6 +44,7 @@ export const typeDef = gql`
         status: RunStatus!
         routine: Routine
         steps: [RunStep!]!
+        inputs: [RunInput!]!
         user: User!
     }
 
@@ -68,6 +70,7 @@ export const typeDef = gql`
         completedTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
+        includePrivate: Boolean
         status: RunStatus
         routineId: ID
         searchString: String
@@ -96,10 +99,12 @@ export const typeDef = gql`
 
     input RunCreateInput {
         id: ID!
+        isPrivate: Boolean
         routineId: ID!
         title: String!
         version: String!
         stepsCreate: [RunStepCreateInput!]
+        inputsCreate: [RunInputCreateInput!]
         # If scheduling info provided, not starting immediately
         # TODO
     }
@@ -108,10 +113,14 @@ export const typeDef = gql`
         id: ID!
         completedComplexity: Int # Total completed complexity, including what was completed before this update
         contextSwitches: Int # Total contextSwitches, including what was completed before this update
+        isPrivate: Boolean
         timeElapsed: Int # Total time elapsed, including what was completed before this update
         stepsDelete: [ID!]
         stepsCreate: [RunStepCreateInput!]
         stepsUpdate: [RunStepUpdateInput!]
+        inputsDelete: [ID!]
+        inputsCreate: [RunInputCreateInput!]
+        inputsUpdate: [RunInputUpdateInput!]
     }
 
     input RunStepCreateInput {
@@ -139,6 +148,9 @@ export const typeDef = gql`
         title: String! # Title of routine, so run name stays consistent even if routine updates/deletes
         finalStepCreate: RunStepCreateInput
         finalStepUpdate: RunStepUpdateInput
+        inputsDelete: [ID!]
+        inputsCreate: [RunInputCreateInput!]
+        inputsUpdate: [RunInputUpdateInput!]
         version: String! # Version of routine which was ran
         wasSuccessful: Boolean
     }
@@ -168,43 +180,43 @@ export const resolvers = {
     RunStatus: RunStatus,
     RunStepStatus: RunStepStatus,
     Query: {
-        run: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Run>> => {
-            await rateLimit({ context, info, max: 1000 });
-            return readOneHelper(context.req.userId, input, info, RunModel(context.prisma));
+        run: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Run>> => {
+            await rateLimit({ info, max: 1000, req });
+            return readOneHelper({ info, input, model: RunModel, prisma, userId: req.userId });
         },
-        runs: async (_parent: undefined, { input }: IWrap<RunSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<RunSearchResult> => {
-            await rateLimit({ context, info, max: 1000 });
-            return readManyHelper(context.req.userId, input, info, RunModel(context.prisma));
+        runs: async (_parent: undefined, { input }: IWrap<RunSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RunSearchResult> => {
+            await rateLimit({ info, max: 1000, req });
+            return readManyHelper({ info, input, model: RunModel, prisma, userId: req.userId });
         },
-        runsCount: async (_parent: undefined, { input }: IWrap<RunCountInput>, context: Context, info: GraphQLResolveInfo): Promise<number> => {
-            await rateLimit({ context, info, max: 1000 });
-            return countHelper(input, RunModel(context.prisma));
+        runsCount: async (_parent: undefined, { input }: IWrap<RunCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
+            await rateLimit({ info, max: 1000, req });
+            return countHelper({ input, model: RunModel, prisma });
         },
     },
     Mutation: {
-        runCreate: async (_parent: undefined, { input }: IWrap<RunCreateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Run>> => {
-            await rateLimit({ context, info, max: 1000, byAccount: true });
-            return createHelper(context.req.userId, input, info, RunModel(context.prisma));
+        runCreate: async (_parent: undefined, { input }: IWrap<RunCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Run>> => {
+            await rateLimit({ info, max: 1000, byAccountOrKey: true, req });
+            return createHelper({ info, input, model: RunModel, prisma, userId: req.userId });
         },
-        runUpdate: async (_parent: undefined, { input }: IWrap<RunUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Run>> => {
-            await rateLimit({ context, info, max: 1000, byAccount: true });
-            return updateHelper(context.req.userId, input, info, RunModel(context.prisma));
+        runUpdate: async (_parent: undefined, { input }: IWrap<RunUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Run>> => {
+            await rateLimit({ info, max: 1000, byAccountOrKey: true, req });
+            return updateHelper({ info, input, model: RunModel, prisma, userId: req.userId });
         },
-        runDeleteAll: async (_parent: undefined, _input: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
-            await rateLimit({ context, info, max: 25, byAccount: true });
-            return RunModel(context.prisma).deleteAll(context.req.userId ?? '');
+        runDeleteAll: async (_parent: undefined, _input: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Count> => {
+            await rateLimit({ info, max: 25, byAccountOrKey: true, req });
+            return RunModel.mutate(prisma).deleteAll(req.userId ?? '');
         },
-        runDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
-            await rateLimit({ context, info, max: 100, byAccount: true });
-            return deleteManyHelper(context.req.userId, input, RunModel(context.prisma));
+        runDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Count> => {
+            await rateLimit({ info, max: 100, byAccountOrKey: true, req });
+            return deleteManyHelper({ input, model: RunModel, prisma, userId: req.userId });
         },
-        runComplete: async (_parent: undefined, { input }: IWrap<RunCompleteInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Run>> => {
-            await rateLimit({ context, info, max: 1000, byAccount: true });
-            return RunModel(context.prisma).complete(context.req.userId ?? '', input, info);
+        runComplete: async (_parent: undefined, { input }: IWrap<RunCompleteInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Run>> => {
+            await rateLimit({ info, max: 1000, byAccountOrKey: true, req });
+            return RunModel.mutate(prisma).complete(req.userId ?? '', input, info);
         },
-        runCancel: async (_parent: undefined, { input }: IWrap<RunCancelInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Run>> => {
-            await rateLimit({ context, info, max: 1000, byAccount: true });
-            return RunModel(context.prisma).cancel(context.req.userId ?? '', input, info);
+        runCancel: async (_parent: undefined, { input }: IWrap<RunCancelInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Run>> => {
+            await rateLimit({ info, max: 1000, byAccountOrKey: true, req });
+            return RunModel.mutate(prisma).cancel(req.userId ?? '', input, info);
         },
     }
 }

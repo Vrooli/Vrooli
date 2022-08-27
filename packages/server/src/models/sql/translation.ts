@@ -49,7 +49,7 @@ export const translationMutater = () => ({
                 }
             }
         }
-        if (hasProfanity(...fields)) 
+        if (hasProfanity(...fields))
             throw new CustomError(CODE.BannedWord, 'Banned word detected', { code: genErrorCode('0115'), fields });
     },
     /**
@@ -96,7 +96,7 @@ export const translationMutater = () => ({
         validators: { create: any, update: any }
     ): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId) 
+        if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0117') });
         if (createMany) {
             createMany.forEach(input => validators.create.validateSync(input, { abortEarly: false }));
@@ -116,13 +116,10 @@ export const translationMutater = () => ({
 /* #region Model */
 //==============================================================
 
-export function TranslationModel() {
-    const mutate = translationMutater();
-
-    return {
-        ...mutate,
-    }
-}
+// NOTE: Not a ModelLogic type because it does not map to a specific table
+export const TranslationModel = ({
+    ...(translationMutater()),
+})
 
 //==============================================================
 /* #endregion Model */

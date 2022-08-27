@@ -19,11 +19,18 @@ export function ProjectListItem({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const { description, name } = useMemo(() => {
+    const { canComment, canEdit, canStar, canReport, canVote, description, name, reportsCount } = useMemo(() => {
+        const permissions = data?.permissionsProject;
         const languages = session?.languages ?? navigator.languages;
         return {
+            canComment: permissions?.canComment === true,
+            canEdit: permissions?.canEdit === true,
+            canStar: permissions?.canStar === true,
+            canReport: permissions?.canReport === true,
+            canVote: permissions?.canVote === true,
             description: getTranslation(data, 'description', languages, true),
             name: getTranslation(data, 'name', languages, true),
+            reportsCount: data?.reportsCount ?? 0,
         }
     }, [data, session]);
 
@@ -53,14 +60,14 @@ export function ProjectListItem({
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>
-                    <UpvoteDownvote
+                    {canVote && <UpvoteDownvote
                         session={session}
                         objectId={data?.id ?? ''}
                         voteFor={VoteFor.Project}
                         isUpvoted={data?.isUpvoted}
                         score={data?.score}
                         onChange={(isUpvoted: boolean | null) => { }}
-                    />
+                    />}
                     <Stack
                         direction="column"
                         spacing={1}
@@ -83,8 +90,8 @@ export function ProjectListItem({
                                             lineBreak: 'anywhere',
                                         }}
                                     />
-                                    {!hideRole && data?.role && <ListItemText
-                                        primary={`(${data.role})`}
+                                    {!hideRole && canEdit && <ListItemText
+                                        primary={`(Can Edit)`}
                                         sx={{ 
                                             display: 'flex',
                                             alignItems: 'center',
@@ -105,18 +112,18 @@ export function ProjectListItem({
                     </Stack>
                     {/* Star/Comment/Report */}
                     <Stack direction="column" spacing={1}>
-                        <StarButton
+                        {canStar && <StarButton
                             session={session}
                             objectId={data?.id ?? ''}
                             starFor={StarFor.Project}
                             isStar={data?.isStarred}
                             stars={data?.stars}
-                        />
-                        <CommentButton
+                        />}
+                        {canComment && <CommentButton
                             commentsCount={data?.commentsCount ?? 0}
                             object={data}
-                        />
-                        {(data?.reportsCount ?? 0) > 0 && <ReportButton
+                        />}
+                        {canReport && reportsCount > 0 && <ReportButton
                             reportsCount={data?.reportsCount ?? 0}
                             object={data}
                         />}

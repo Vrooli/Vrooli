@@ -11,7 +11,7 @@ import { DeleteManyInput } from "./globalTypes";
 
 export interface resourceDeleteMany_resourceDeleteMany {
   __typename: "Count";
-  count: number | null;
+  count: number;
 }
 
 export interface resourceDeleteMany {

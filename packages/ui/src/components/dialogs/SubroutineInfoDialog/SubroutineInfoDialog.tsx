@@ -31,7 +31,6 @@ import { ResourceListUsedFor, routineUpdateForm as validationSchema } from '@loc
 import { InputOutputContainer, LanguageInput, LinkButton, MarkdownInput, QuantityBox, ResourceListHorizontal, TagList, TagSelector, UserOrganizationSwitch } from 'components';
 import { useFormik } from 'formik';
 import { NodeDataRoutineListItem, Organization, ResourceList } from 'types';
-import { owns } from 'utils/authentication';
 import { v4 as uuid } from 'uuid';
 
 export const SubroutineInfoDialog = ({
@@ -61,7 +60,6 @@ export const SubroutineInfoDialog = ({
     // Handle inputs
     const [inputsList, setInputsList] = useState<InputShape[]>([]);
     const handleInputsUpdate = useCallback((updatedList: InputShape[]) => {
-        console.log('handleInputsUpdate', updatedList);
         setInputsList(updatedList);
     }, [setInputsList]);
 
@@ -168,11 +166,10 @@ export const SubroutineInfoDialog = ({
             })
             handleUpdate({
                 ...subroutine,
-                index: Math.max(values.index - 1, 1), // Formik index starts at 1, for user convenience
+                index: Math.max(values.index - 1, 0), // Formik index starts at 1, for user convenience
                 routine: {
                     ...subroutine.routine,
                     ...ownedBy,
-                    index: values.index - 1,
                     isInternal: values.isInternal,
                     isComplete: values.isComplete,
                     version: values.version,
@@ -239,7 +236,7 @@ export const SubroutineInfoDialog = ({
 
     const ownedBy = useMemo<string | null>(() => getOwnedByString(subroutine?.routine, [language]), [subroutine, language]);
     const toOwner = useCallback(() => { toOwnedBy(subroutine?.routine, setLocation) }, [subroutine, setLocation]);
-    const canEdit = useMemo<boolean>(() => isEditing && (subroutine?.routine?.isInternal || subroutine?.routine?.owner?.id === session.id || owns(subroutine?.routine?.role)), [isEditing, session.id, subroutine?.routine?.isInternal, subroutine?.routine?.owner?.id, subroutine?.routine?.role]);
+    const canEdit = useMemo<boolean>(() => isEditing && (subroutine?.routine?.isInternal || subroutine?.routine?.owner?.id === session.id || subroutine?.routine?.permissionsRoutine?.canEdit === true), [isEditing, session.id, subroutine?.routine?.isInternal, subroutine?.routine?.owner?.id, subroutine?.routine?.permissionsRoutine?.canEdit]);
 
     /**
      * Navigate to the subroutine's build page

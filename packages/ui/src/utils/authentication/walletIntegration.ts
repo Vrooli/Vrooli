@@ -37,7 +37,7 @@ export type WalletProviderInfo = {
  */
 export const walletDownloadUrls: { [x: string]: [string, string] } = {
     // 'cardwallet': ['Card Wallet', 'https://chrome.google.com/webstore/detail/cwallet/apnehcjmnengpnmccpaibjmhhoadaico'],
-    'eternl': ['eternl (CCVault.io)', 'https://chrome.google.com/webstore/detail/eternl/kmhcihpebfmpgmihbkipmjlmmioameka'],
+    //'eternl': ['eternl (CCVault.io)', 'https://chrome.google.com/webstore/detail/eternl/kmhcihpebfmpgmihbkipmjlmmioameka'],
     'flint': ['Flint', 'https://chrome.google.com/webstore/detail/flint-wallet/hnhobjmcibchnmglfbldbfabcgaknlkj'],
     // 'gero': ['Gero', 'https://chrome.google.com/webstore/detail/gerowallet/bgpipimickeadkjlklgciifhnalhdjhe'],
     'nami': ['Nami', 'https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo'],
@@ -70,7 +70,7 @@ export const getInstalledWalletProviders = (): [string, WalletProviderInfo][] =>
         return [];
     }
     // Extensions that don't work for some reason (TODO)
-    const exclude = ['gerowallet', 'cardwallet'];
+    const exclude = ['eternl', 'gero', 'cardwallet'];
     // Filter out all entries that don't match the WalletProviderInfo shape
     let providers = Object.entries(window.cardano).filter(([key, value]) => {
         if (typeof value !== 'object') return false;
@@ -82,15 +82,12 @@ export const getInstalledWalletProviders = (): [string, WalletProviderInfo][] =>
         if (!obj.hasOwnProperty('isEnabled')) return false;
         return true;
     }) as [string, WalletProviderInfo][];
-    console.log('providers here', providers);
     // Filter out duplicate names and excluded
     providers = providers.filter(([key, value], index) => {
         const currName = value.name;
         const nextName = providers.slice(index + 1).find(([, next]) => next.name === currName);
-        console.log('currname', currName, 'nextname', nextName);
         return !nextName && !exclude.includes(key);
     });
-    console.log('providers there', providers);
     return providers;
 }
 
@@ -181,6 +178,7 @@ export const validateWallet = async (key: string): Promise<WalletCompleteResult 
         // Sign payload with wallet
         const signedPayload = await signPayload(key, walletActions, stakingAddresses[0], payload);
         if (!signedPayload) return null;
+        console.log('GOT SIGNED PAYLOAD THAT SHOULD BE STRING', signedPayload);
         // Send signed payload to backend for verification
         result = (await walletComplete(stakingAddresses[0], signedPayload));
     } catch (error: any) {

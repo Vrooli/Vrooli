@@ -9,7 +9,7 @@ export const runFields = gql`
             description
         }
     }
-    fragment runInputFields on InputItem {
+    fragment runInputItemFields on InputItem {
         id
         isRequired
         name
@@ -17,11 +17,14 @@ export const runFields = gql`
             id
             language
             description
+            helpText
         }
         standard {
             id
             default
+            isDeleted
             isInternal
+            isPrivate
             name
             type
             props
@@ -35,6 +38,7 @@ export const runFields = gql`
                 description
             }
             version
+            versionGroupId
         }
     }
     fragment runOutputFields on OutputItem {
@@ -44,11 +48,14 @@ export const runFields = gql`
             id
             language
             description
+            helpText
         }
         standard {
             id
             default
+            isDeleted
             isInternal
+            isPrivate
             name
             type
             props
@@ -62,6 +69,7 @@ export const runFields = gql`
                 description
             }
             version
+            versionGroupId
         }
     }
     fragment runNodeFields on Node {
@@ -88,12 +96,13 @@ export const runFields = gql`
                         id
                         complexity
                         inputs {
-                            ...runInputFields
+                            ...runInputItemFields
                         }
                         isComplete
+                        isDeleted
                         isInternal
+                        isPrivate
                         nodesCount
-                        role
                         outputs {
                             ...runOutputFields
                         }
@@ -113,6 +122,15 @@ export const runFields = gql`
                                 handle
                             }
                         }
+                        permissionsRoutine {
+                            canDelete
+                            canEdit
+                            canFork
+                            canStar
+                            canReport
+                            canRun
+                            canVote
+                        }
                         resourceLists {
                             ...runResourceListFields
                         }
@@ -128,6 +146,7 @@ export const runFields = gql`
                             instructions
                         }
                         version
+                        versionGroupId
                     }
                     translations {
                         id
@@ -209,11 +228,13 @@ export const runFields = gql`
         complexity
         created_at
         inputs {
-            ...runInputFields
+            ...runInputItemFields
         }
         isAutomatable
         isComplete
+        isDeleted
         isInternal
+        isPrivate
         isStarred
         isUpvoted
         nodeLinks {
@@ -255,7 +276,15 @@ export const runFields = gql`
         score
         simplicity
         stars
-        role
+        permissionsRoutine {
+            canDelete
+            canEdit
+            canFork
+            canStar
+            canReport
+            canRun
+            canVote
+        }
         tags {
             ...runTagFields
         }
@@ -268,6 +297,7 @@ export const runFields = gql`
         }
         updated_at
         version
+        versionGroupId
     }
     fragment runStepFields on RunStep {
         id
@@ -283,15 +313,26 @@ export const runFields = gql`
             id
         }
     }
+    fragment runInputDataFields on RunInput {
+        id
+        data
+        input {
+            ...runInputItemFields
+        }
+    }
     fragment runFields on Run {
         id
         completedComplexity
         contextSwitches
+        isPrivate
         timeStarted
         timeElapsed
         timeCompleted
         title
         status
+        inputs {
+            ...runInputDataFields
+        }
         routine {
             ...runRoutineFields
         }

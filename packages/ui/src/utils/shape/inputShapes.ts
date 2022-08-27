@@ -7,6 +7,7 @@ export type InputTranslationShape = Omit<ShapeWrapper<RoutineInputTranslation>, 
     id: string;
     language: InputItemTranslationCreateInput['language'];
     description: InputItemTranslationCreateInput['description'];
+    helpText: InputItemTranslationCreateInput['helpText'];
 }
 
 export type InputShape = Omit<ShapeWrapper<RoutineInput>, 'translations' | 'standard'> & {
@@ -19,6 +20,7 @@ export const shapeInputTranslationCreate = (item: InputTranslationShape): InputI
     id: item.id,
     language: item.language,
     description: item.description,
+    helpText: item.helpText,
 })
 
 export const shapeInputTranslationUpdate = (
@@ -28,10 +30,10 @@ export const shapeInputTranslationUpdate = (
     shapeUpdate(original, updated, (o, u) => ({
         id: u.id,
         description: u.description !== o.description ? u.description : undefined,
+        helpText: u.helpText !== o.helpText ? u.helpText : undefined,
     }), 'id')
 
 export const shapeInputCreate = (item: InputShape): InputItemCreateInput => {
-    console.log('shapeinputcreate', item);
     // Connect to standard if it's marked as external. 
     // Otherwise, set as create. The backend will handle the rest
     const shouldConnectToStandard = item.standard && !item.standard.isInternal && item.standard.id;
@@ -54,7 +56,6 @@ export const shapeInputUpdate = (
         // Otherwise, set as create. The backend will handle the rest, even if 
         // you're updating.
         const shouldConnectToStandard = u.standard && !u.standard.isInternal && u.standard.id;
-        console.log('shapeinputupdate', o, u);
         return {
             id: o.id,
             isRequired: u.isRequired,

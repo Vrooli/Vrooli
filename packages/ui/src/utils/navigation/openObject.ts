@@ -34,7 +34,19 @@ export const openSearchPage = (objectType: ObjectType, setLocation: SetLocation)
 }
 
 export type OpenObjectProps = {
-    object: { id: string, handle?: string | null, __typename: string };
+    object: { 
+        __typename: string 
+        handle?: string | null, 
+        id: string, 
+        routine?: {
+            id: string
+        },
+        to?: { 
+            __typename: string,
+            handle?: string | null,
+            id: string,
+        }
+    };
     setLocation: SetLocation;
 }
 /**
@@ -50,6 +62,13 @@ export const openObject = (object: OpenObjectProps['object'], setLocation: OpenO
     }
     // Navigate to object page
     const linkBases = objectLinkMap[object.__typename];
-    const linkId = object.handle ? object.handle : object.id;
+    let linkId: string;
+    if (object.to) {
+        linkId = object.to.handle ? object.to.handle : object.to.id;
+    } else if (object.routine) {
+        linkId = object.routine.id;
+    } else {
+        linkId = object.handle ? object.handle : object.id;
+    }
     setLocation(`${linkBases[1]}/${linkId}`);
 }

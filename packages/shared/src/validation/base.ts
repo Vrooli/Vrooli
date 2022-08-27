@@ -9,6 +9,7 @@ import * as yup from 'yup';
 export const id = yup.string().max(256)
 export const bio = yup.string().max(2048)
 export const description = yup.string().max(2048)
+export const helpText = yup.string().max(2048)
 export const language = yup.string().min(2).max(3) // Language code
 export const name = yup.string().min(3).max(128)
 export const handle = yup.string().min(3).max(16).nullable() // ADA Handle

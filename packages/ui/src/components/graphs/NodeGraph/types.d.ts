@@ -1,9 +1,11 @@
-import { Node, NodeLink, Session } from 'types';
+import { Node, NodeDataEnd, NodeLink, Session } from 'types';
+import { BuildAction } from 'utils';
 import { NodeContextMenuAction } from './NodeContextMenu/NodeContextMenu';
 
 export interface NodeContextMenuProps {
     id: string;
     anchorEl: HTMLElement | null;
+    availableActions: BuildAction[];
     handleClose: () => void;
     handleSelect: (option: NodeContextMenuAction) => void;
     zIndex: number;
@@ -31,6 +33,24 @@ export interface AddBeforeLinkDialogProps {
     zIndex: number;
 }
 
+export interface  EndNodeDialogProps {
+    handleClose: () => void;
+    isOpen: boolean;
+    data: Node & { data: NodeDataEnd };
+    language: string;
+    session: Session;
+    zIndex: number;
+}
+
+export interface MoveNodeMenuProps {
+    handleClose: (newPosition?: { columnIndex: number, rowIndex: number }) => void;
+    isOpen: boolean;
+    language: string; // Language to display/edit
+    node?: Node | null; // Node to be moved
+    routine: Routine;
+    zIndex: number;
+}
+
 export interface NodeGraphProps {
     /**
      * 2D array of nodes, by column then row
@@ -48,6 +68,10 @@ export interface NodeGraphProps {
      */
     handleNodeInsert: (link: NodeLink) => void;
     /**
+     * Inserts new branch
+     */
+    handleBranchInsert: (link: NodeLink) => void;
+    /**
      * Updates a node's data
      */
     handleNodeUpdate: (node: Node) => void;
@@ -63,6 +87,10 @@ export interface NodeGraphProps {
      * Delete a link between two nodes
      */
     handleLinkDelete: (link: NodeLink) => void;
+    /**
+     * Updates scale
+     */
+    handleScaleChange: (delta: number) => void;
     language: string;
     /**
      * Dictionary of row and column pairs for every node ID on graph
@@ -80,10 +108,10 @@ export interface NodeColumnProps {
     isEditing: boolean;
     dragId: string | null; // ID of node being dragged. Used to display valid drop locations
     labelVisible: boolean;
+    links: NodeLink[];
     columnIndex: number;
     nodes: Node[];
     handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
-    handleNodeDrop: (nodeId: string, columnIndex: number | null, rowIndex: number | null) => void;
     handleNodeUpdate: (updatedNode: Node) => void;
     language: string;
     zIndex: number;

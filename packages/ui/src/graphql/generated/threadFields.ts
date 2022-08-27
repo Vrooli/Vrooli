@@ -3,8 +3,6 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole } from "./globalTypes";
-
 // ====================================================
 // GraphQL fragment: threadFields
 // ====================================================
@@ -69,6 +67,16 @@ export interface threadFields_childThreads_childThreads_comment_creator_User {
 
 export type threadFields_childThreads_childThreads_comment_creator = threadFields_childThreads_childThreads_comment_creator_Organization | threadFields_childThreads_childThreads_comment_creator_User;
 
+export interface threadFields_childThreads_childThreads_comment_permissionsComment {
+  __typename: "CommentPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReply: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
+
 export interface threadFields_childThreads_childThreads_comment_translations {
   __typename: "CommentTranslation";
   id: string;
@@ -83,10 +91,10 @@ export interface threadFields_childThreads_childThreads_comment {
   updated_at: any;
   score: number;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   isStarred: boolean;
   commentedOn: threadFields_childThreads_childThreads_comment_commentedOn;
   creator: threadFields_childThreads_childThreads_comment_creator | null;
+  permissionsComment: threadFields_childThreads_childThreads_comment_permissionsComment | null;
   translations: threadFields_childThreads_childThreads_comment_translations[];
 }
 
@@ -157,6 +165,16 @@ export interface threadFields_childThreads_comment_creator_User {
 
 export type threadFields_childThreads_comment_creator = threadFields_childThreads_comment_creator_Organization | threadFields_childThreads_comment_creator_User;
 
+export interface threadFields_childThreads_comment_permissionsComment {
+  __typename: "CommentPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReply: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
+
 export interface threadFields_childThreads_comment_translations {
   __typename: "CommentTranslation";
   id: string;
@@ -171,10 +189,10 @@ export interface threadFields_childThreads_comment {
   updated_at: any;
   score: number;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   isStarred: boolean;
   commentedOn: threadFields_childThreads_comment_commentedOn;
   creator: threadFields_childThreads_comment_creator | null;
+  permissionsComment: threadFields_childThreads_comment_permissionsComment | null;
   translations: threadFields_childThreads_comment_translations[];
 }
 
@@ -246,6 +264,16 @@ export interface threadFields_comment_creator_User {
 
 export type threadFields_comment_creator = threadFields_comment_creator_Organization | threadFields_comment_creator_User;
 
+export interface threadFields_comment_permissionsComment {
+  __typename: "CommentPermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReply: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
+
 export interface threadFields_comment_translations {
   __typename: "CommentTranslation";
   id: string;
@@ -260,10 +288,10 @@ export interface threadFields_comment {
   updated_at: any;
   score: number;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   isStarred: boolean;
   commentedOn: threadFields_comment_commentedOn;
   creator: threadFields_comment_creator | null;
+  permissionsComment: threadFields_comment_permissionsComment | null;
   translations: threadFields_comment_translations[];
 }
 

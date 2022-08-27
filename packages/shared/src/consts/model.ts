@@ -236,17 +236,6 @@ export enum RunStepStatus {
     Skipped = "Skipped",
 }
 
-export enum MemberRole {
-    Admin = "Admin",
-    Member = "Member",
-    Owner = "Owner",
-}
-
-export enum ROLES {
-    Actor = "Actor",
-    Guest = "Guest",
-}
-
 export enum VoteFor {
     Comment = "Comment",
     Project = "Project",

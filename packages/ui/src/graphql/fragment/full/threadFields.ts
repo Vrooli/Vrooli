@@ -7,7 +7,6 @@ export const threadFields = gql`
         updated_at
         score
         isUpvoted
-        role
         isStarred
         commentedOn {
             ... on Project {
@@ -49,6 +48,14 @@ export const threadFields = gql`
                 name
                 handle
             }
+        }
+        permissionsComment {
+            canDelete
+            canEdit
+            canStar
+            canReply
+            canReport
+            canVote
         }
         translations {
             id

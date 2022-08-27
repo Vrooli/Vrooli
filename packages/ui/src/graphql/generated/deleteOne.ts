@@ -11,7 +11,7 @@ import { DeleteOneInput } from "./globalTypes";
 
 export interface deleteOne_deleteOne {
   __typename: "Success";
-  success: boolean | null;
+  success: boolean;
 }
 
 export interface deleteOne {

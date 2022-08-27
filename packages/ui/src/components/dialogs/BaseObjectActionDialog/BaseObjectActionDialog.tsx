@@ -51,13 +51,15 @@ const allOptionsMap: { [key in BaseObjectAction]: [string, SvgIconComponent, str
 
 export const BaseObjectActionDialog = ({
     anchorEl,
-    availableOptions,
     handleActionComplete,
     handleEdit,
+    isStarred,
+    isUpvoted,
     objectId,
     objectName,
     objectType,
     onClose,
+    permissions,
     session,
     title,
     zIndex,
@@ -155,7 +157,7 @@ export const BaseObjectActionDialog = ({
                 handleVote(false, objectType as string as VoteFor);
                 break;
             case BaseObjectAction.Edit:
-                //edit({ variables: { input: { id: objectId } } });
+                handleEdit();
                 break;
             case BaseObjectAction.Fork:
                 handleFork();
@@ -177,11 +179,38 @@ export const BaseObjectActionDialog = ({
                 break;
         }
         onClose();
-    }, [handleCopy, handleFork, handleStar, handleVote, objectType, onClose, openDelete, openDonate, openReport, openShare]);
+    }, [handleCopy, handleEdit, handleFork, handleStar, handleVote, objectType, onClose, openDelete, openDonate, openReport, openShare]);
+
+    /**
+     * Actions that are available for the object, from top to bottom
+     */
+    const availableActions: BaseObjectAction[] = useMemo(() => {
+        if (!permissions) return [];
+        const isLoggedIn = session?.isLoggedIn === true;
+        let options: BaseObjectAction[] = [];
+        if (isLoggedIn && permissions.canVote) {
+            options.push(isUpvoted ? BaseObjectAction.Downvote : BaseObjectAction.Upvote);
+        }
+        if (isLoggedIn && permissions.canStar) {
+            options.push(isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
+        }
+        if (isLoggedIn && permissions.canFork) {
+            options.push(BaseObjectAction.Copy);
+            options.push(BaseObjectAction.Fork);
+        }
+        options.push(BaseObjectAction.Donate, BaseObjectAction.Share)
+        if (isLoggedIn && permissions.canReport) {
+            options.push(BaseObjectAction.Report);
+        }
+        if (isLoggedIn && permissions.canDelete) {
+            options.push(BaseObjectAction.Delete);
+        }
+        return options;
+    }, [isStarred, isUpvoted, permissions, session?.isLoggedIn]);
 
     const data: ListMenuItemData<BaseObjectAction>[] = useMemo(() => {
         // Convert options to ListMenuItemData
-        return availableOptions
+        return availableActions
             .map(option => {
                 const [label, Icon, iconColor, preview] = allOptionsMap[option];
                 return {
@@ -192,7 +221,7 @@ export const BaseObjectActionDialog = ({
                     preview,
                 }
             })
-    }, [availableOptions]);
+    }, [availableActions]);
 
     return (
         <>
@@ -203,7 +232,7 @@ export const BaseObjectActionDialog = ({
                 objectType={objectType as any}
                 objectName={objectName}
                 handleClose={closeDelete}
-                zIndex={zIndex+1}
+                zIndex={zIndex + 1}
             />
             {/* Report dialog */}
             <ReportDialog
@@ -212,7 +241,7 @@ export const BaseObjectActionDialog = ({
                 open={reportOpen}
                 reportFor={objectType as string as ReportFor}
                 session={session}
-                zIndex={zIndex+1}
+                zIndex={zIndex + 1}
             />
             {/* Actual action dialog */}
             <ListMenu

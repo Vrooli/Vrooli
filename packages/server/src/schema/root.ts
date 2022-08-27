@@ -32,12 +32,12 @@ export const typeDef = gql`
     # Return type for delete mutations,
     # which return the number of affected rows
     type Count {
-        count: Int
+        count: Int!
     }
     # Return type for mutations with a success boolean
     # Could return just the boolean, but this makes it clear what the result means
     type Success {
-        success: Boolean
+        success: Boolean!
     }
     # Return type for error messages
     type Response {
@@ -109,14 +109,14 @@ export const resolvers = {
         __resolveType(obj: any) { return resolveContributor(obj) },
     },
     Query: {
-        readAssets: async (_parent: undefined, { input }: any, context: Context, info: GraphQLResolveInfo): Promise<Array<String | null>> => {
-            await rateLimit({ context, info, max: 1000 });
+        readAssets: async (_parent: undefined, { input }: any, { req }: Context, info: GraphQLResolveInfo): Promise<Array<String | null>> => {
+            await rateLimit({ info, max: 1000, req });
             return await readFiles(input.files);
         },
     },
     Mutation: {
-        writeAssets: async (_parent: undefined, { input }: any, context: Context, info: GraphQLResolveInfo): Promise<boolean> => {
-            await rateLimit({ context, info, max: 500 });
+        writeAssets: async (_parent: undefined, { input }: any, { req }: Context, info: GraphQLResolveInfo): Promise<boolean> => {
+            await rateLimit({ info, max: 500, req });
             throw new CustomError(CODE.NotImplemented); // TODO add safety checks before allowing uploads
             const data = await saveFiles(input.files);
             // Any failed writes will return null

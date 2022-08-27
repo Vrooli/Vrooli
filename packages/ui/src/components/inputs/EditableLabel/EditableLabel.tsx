@@ -17,6 +17,7 @@ export const EditableLabel = ({
     canEdit,
     handleUpdate,
     placeholder,
+    onDialogOpen,
     renderLabel,
     text,
     sxs,
@@ -39,6 +40,11 @@ export const EditableLabel = ({
 
     // Used for editing the title of the routine
     const [active, setActive] = useState<boolean>(false);
+    useEffect(() => {
+        if (typeof onDialogOpen === 'function') {
+            onDialogOpen(active);
+        }
+    }, [active, onDialogOpen]);
     const toggleActive = useCallback((event: any) => {
         if (!canEdit) return;
         setActive(!active)
@@ -114,6 +120,7 @@ export const EditableLabel = ({
                 {/* Save and cancel buttons */}
                 <DialogActions>
                     <Button
+                        type="submit"
                         onClick={save}
                         color="secondary"
                         startIcon={<DoneIcon />}

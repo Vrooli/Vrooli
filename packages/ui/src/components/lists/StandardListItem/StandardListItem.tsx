@@ -19,10 +19,17 @@ export function StandardListItem({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const { description } = useMemo(() => {
+    const { canComment, canEdit, canReport, canStar, canVote, description, reportsCount } = useMemo(() => {
+        const permissions = data?.permissionsStandard;
         const languages = session?.languages ?? navigator.languages;
         return {
+            canComment: permissions?.canComment === true,
+            canEdit: permissions?.canEdit === true,
+            canReport: permissions?.canReport === true,
+            canStar: permissions?.canStar === true,
+            canVote: permissions?.canVote === true,
             description: getTranslation(data, 'description', languages, true),
+            reportsCount: data?.reportsCount ?? 0,
         }
     }, [data, session]);
 
@@ -48,14 +55,14 @@ export function StandardListItem({
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>
-                    <UpvoteDownvote
+                    {canVote && <UpvoteDownvote
                         session={session}
                         objectId={data?.id ?? ''}
                         voteFor={VoteFor.Standard}
                         isUpvoted={data?.isUpvoted}
                         score={data?.score}
                         onChange={(isUpvoted: boolean | null) => { }}
-                    />
+                    />}
                     <Stack
                         direction="column"
                         spacing={1}
@@ -78,8 +85,8 @@ export function StandardListItem({
                                             lineBreak: 'anywhere',
                                         }}
                                     />
-                                    {!hideRole && data?.role && <ListItemText
-                                        primary={`(${data.role})`}
+                                    {!hideRole && canEdit && <ListItemText
+                                        primary={`(Can Edit)`}
                                         sx={{ 
                                             display: 'flex',
                                             alignItems: 'center',
@@ -100,18 +107,18 @@ export function StandardListItem({
                     </Stack>
                     {/* Star/Comment/Report */}
                     <Stack direction="column" spacing={1}>
-                        <StarButton
+                        {canStar && <StarButton
                             session={session}
                             objectId={data?.id ?? ''}
                             starFor={StarFor.Standard}
                             isStar={data?.isStarred}
                             stars={data?.stars}
-                        />
-                        <CommentButton
+                        />}
+                        {canComment && <CommentButton
                             commentsCount={data?.commentsCount ?? 0}
                             object={data}
-                        />
-                        {(data?.reportsCount ?? 0) > 0 && <ReportButton
+                        />}
+                        {canReport && reportsCount > 0 && <ReportButton
                             reportsCount={data?.reportsCount ?? 0}
                             object={data}
                         />}

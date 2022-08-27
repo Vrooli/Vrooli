@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { DeleteOneInput, Success } from './types';
-import { IWrap } from 'types';
-import { CommentModel, deleteOneHelper, EmailModel, ModelBusinessLayer, NodeModel, OrganizationModel, ProjectModel, ReportModel, RoutineModel, RunModel, StandardModel, WalletModel } from '../models';
+import { IWrap } from '../types';
+import { deleteOneHelper, GraphQLModelType, ModelLogic, ObjectMap } from '../models';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
@@ -37,43 +37,25 @@ export const typeDef = gql`
 export const resolvers = {
     DeleteOneType: DeleteOneType,
     Mutation: {
-        deleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            await rateLimit({ context, info, max: 1000, byAccount: true });
-            let model: ModelBusinessLayer<any, any> | undefined;
-            switch (input.objectType) {
-                case DeleteOneType.Comment:
-                    model = CommentModel(context.prisma);
-                    break;
-                case DeleteOneType.Email:
-                    model = EmailModel(context.prisma);
-                    break;
-                case DeleteOneType.Node:
-                    model = NodeModel(context.prisma);
-                    break;
-                case DeleteOneType.Organization:
-                    model = OrganizationModel(context.prisma);
-                    break;
-                case DeleteOneType.Project:
-                    model = ProjectModel(context.prisma);
-                    break;
-                case DeleteOneType.Report:
-                    model = ReportModel(context.prisma);
-                    break;
-                case DeleteOneType.Routine:
-                    model = RoutineModel(context.prisma);
-                    break;
-                case DeleteOneType.Run:
-                    model = RunModel(context.prisma);
-                    break;
-                case DeleteOneType.Standard:
-                    model = StandardModel(context.prisma);
-                    break;
-                case DeleteOneType.Wallet:
-                    model = WalletModel(context.prisma);
-                    break;
+        deleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
+            await rateLimit({ info, max: 1000, byAccountOrKey: true, req });
+            const validTypes: Array<keyof typeof DeleteOneType> = [
+                DeleteOneType.Comment, 
+                DeleteOneType.Email,
+                DeleteOneType.Node,
+                DeleteOneType.Organization,
+                DeleteOneType.Project,
+                DeleteOneType.Report,
+                DeleteOneType.Routine,
+                DeleteOneType.Run,
+                DeleteOneType.Standard,
+                DeleteOneType.Wallet,
+            ];
+            if (!validTypes.includes(input.objectType as keyof typeof DeleteOneType)) {
+                throw new CustomError(CODE.InvalidArgs, 'Invalid delete object type.', { code: genErrorCode('0216') });
             }
-            if (model) return deleteOneHelper(context.req.userId, input, model);
-            throw new CustomError(CODE.InvalidArgs, 'Invalid delete object type.', { code: genErrorCode('0216') });
+            const model: ModelLogic<any, any, any> = ObjectMap[input.objectType as keyof typeof GraphQLModelType] as ModelLogic<any, any, any>;
+            return deleteOneHelper({ input, model, prisma, userId: req.userId });
         },
     }
 }

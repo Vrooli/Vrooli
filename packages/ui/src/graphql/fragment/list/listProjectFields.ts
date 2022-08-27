@@ -17,12 +17,20 @@ export const listProjectFields = gql`
         id
         commentsCount
         handle
-        role
         score
         stars
+        isPrivate
         isUpvoted
         isStarred
         reportsCount
+        permissionsProject {
+            canComment
+            canDelete
+            canEdit
+            canStar
+            canReport
+            canVote
+        }
         tags {
             ...listProjectTagFields
         }

@@ -9,7 +9,6 @@ import { StarButton, TagList, TextLoading } from '..';
 import { displayDate, getTranslation, LabelledSortOption, labelledSortOptions, listItemColor } from 'utils';
 import { Apartment as ApartmentIcon } from '@mui/icons-material';
 import { RunStatus } from 'graphql/generated/globalTypes';
-import { owns } from 'utils/authentication';
 
 // Color options for profile picture
 // [background color, silhouette color]
@@ -49,15 +48,19 @@ export function RunListItem({
 }: RunListItemProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const canEdit = useMemo<boolean>(() => owns(data?.routine?.role), [data]);
     const profileColors = useMemo(() => colorOptions[Math.floor(Math.random() * colorOptions.length)], []);
-    const { name, percentComplete, startedAt, completedAt } = useMemo(() => {
+
+    const { canStar, name, percentComplete, startedAt, completedAt } = useMemo(() => {
+        const routinePermissions = data?.routine?.permissionsRoutine;
         const languages = session?.languages ?? navigator.languages;
         const completedComplexity = data?.completedComplexity ?? null;
         const totalComplexity = data?.routine?.complexity ?? null;
         const percentComplete = data?.status === RunStatus.Completed ? 100 :
-            (completedComplexity && totalComplexity) ? Math.round(completedComplexity / totalComplexity * 100) : 0
+            (completedComplexity && totalComplexity) ? 
+            Math.min(Math.round(completedComplexity / totalComplexity * 100), 100) : 
+            0
         return {
+            canStar: routinePermissions?.canStar === true,
             bio: getTranslation(data?.routine, 'bio', languages, true),
             name: data?.title ?? getTranslation(data?.routine, 'name', languages, true),
             percentComplete,
@@ -137,16 +140,14 @@ export function RunListItem({
                         {/* Progress bar */}
                         <CompletionBar color="secondary" variant={loading ? 'indeterminate' : 'determinate'} value={percentComplete} sx={{ height: '15px' }} />
                     </Stack>
-                    {
-                        canEdit ? null : <StarButton
-                            session={session}
-                            objectId={data?.id ?? ''}
-                            starFor={StarFor.Organization}
-                            isStar={data?.routine?.isStarred ?? false}
-                            stars={data?.routine?.stars ?? 0}
-                            onChange={(isStar: boolean) => { }}
-                        />
-                    }
+                    {canStar && <StarButton
+                        session={session}
+                        objectId={data?.id ?? ''}
+                        starFor={StarFor.Routine}
+                        isStar={data?.routine?.isStarred ?? false}
+                        stars={data?.routine?.stars ?? 0}
+                        onChange={(isStar: boolean) => { }}
+                    />}
                 </ListItemButton>
             </ListItem>
         </Tooltip>

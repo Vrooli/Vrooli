@@ -18,7 +18,7 @@ export interface TitleContainerProps {
     helpText?: string;
     id?: string;
     loading?: boolean;
-    onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
+    onClick?: (event: React.MouseEvent) => void;
     options?: [string, (e?: any) => void][];
     sx?: object;
     title?: string;
@@ -63,4 +63,22 @@ export interface BuildBottomContainerProps {
     routine: Routine | null;
     runState: BuildRunState
     zIndex: number;
+}
+
+export interface ContentCollapseProps {
+    helpText?: string;
+    isOpen?: boolean;
+    onOpenChange?: (isOpen: boolean) => void;
+    showOnNoText?: boolean;
+    title?: string | null;
+    children?: JSX.Element | JSX.Element[] | null;
+}
+
+export interface TextCollapseProps {
+    helpText?: string;
+    isOpen?: boolean;
+    onOpenChange?: (isOpen: boolean) => void;
+    showOnNoText?: boolean;
+    title?: string | null;
+    text?: string | null;
 }

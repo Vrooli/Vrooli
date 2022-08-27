@@ -73,7 +73,7 @@ export const AllRoutes = (props: CommonProps) => {
                 </Route>
                 <Route path={LINKS.History}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('History')} restrictedToRoles={[ROLES.Actor]} {...props}>
+                        <Page title={title('History')} mustBeLoggedIn={true} {...props}>
                             <HistoryPage session={props.session} />
                         </Page>
                     </Suspense>
@@ -296,7 +296,7 @@ export const AllRoutes = (props: CommonProps) => {
 
                 <Route path={LINKS.Settings}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Settings')} {...props} restrictedToRoles={[ROLES.Actor]}>
+                        <Page title={title('Settings')} {...props} mustBeLoggedIn={true} >
                             <SettingsPage session={props.session} />
                         </Page>
                     </Suspense>

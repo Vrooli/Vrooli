@@ -10,7 +10,7 @@ import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'r
 import { NodeGraphProps } from '../types';
 import { Node } from 'types';
 import { NodeType } from 'graphql/generated/globalTypes';
-import { PubSub } from 'utils';
+import { PubSub, usePinchZoom } from 'utils';
 
 type DragRefs = {
     currPosition: { x: number, y: number } | null; // Current position of the cursor
@@ -18,22 +18,17 @@ type DragRefs = {
     timeout: NodeJS.Timeout | null; // Timeout for scrolling the graph
 }
 
-type PinchRefs = {
-    currPosition: { x: number, y: number } | null; // Most recent pinch position
-    lastPosition: { x: number, y: number } | null; // Pinch position when scale was last updated
-    isShiftKeyPressed: boolean; // Whether shift key is pressed (for zooming with mouse and keyboard)
-    timeout: NodeJS.Timeout | null;
-}
-
 export const NodeGraph = ({
     columns,
     handleAction,
+    handleBranchInsert,
     handleNodeDrop,
     handleNodeUpdate,
     handleNodeInsert,
     handleLinkCreate,
     handleLinkUpdate,
     handleLinkDelete,
+    handleScaleChange,
     isEditing = true,
     labelVisible = true,
     language,
@@ -53,14 +48,17 @@ export const NodeGraph = ({
         speed: 0,
         timeout: null,
     })
-    // Pinching to zoom. Uses a timeout to reduce the amount of calls to handleScaleChange
-    const [isShiftKeyPressed, setIsShiftKeyPressed] = useState(false); // Used to update cursor, not for calculations
-    const pinchRefs = useRef<PinchRefs>({
-        currPosition: null,
-        lastPosition: null,
-        isShiftKeyPressed: false,
-        timeout: null,
-    })
+    // Determines if links should be re-rendered quickly or slowly
+    const [fastUpdate, setFastUpdate] = useState(false);
+    const fastUpdateTimeout = useRef<NodeJS.Timeout | null>(null);
+    useEffect(() => {
+        setFastUpdate(Boolean(dragId));
+    }, [dragId]);
+
+    usePinchZoom({
+        onScaleChange: handleScaleChange,
+        validTargetIds: ['node-', 'graph-', 'subroutine'],
+    });
 
     // /**
     //  * Add tag to head indicating that this page has custom scaling
@@ -125,31 +123,6 @@ export const NodeGraph = ({
     }
 
     /**
-     * Rescales the graph when pinching
-     */
-    const pinch = useCallback(() => {
-        if (pinchRefs.current.currPosition === null) return;
-        // Determine the distance between the last time this function was called and now
-        const { x, y } = pinchRefs.current.currPosition;
-        const { x: lastX, y: lastY } = pinchRefs.current.lastPosition || pinchRefs.current.currPosition;
-        const distX = x - lastX;
-        const distY = y - lastY;
-        const dist = Math.sqrt(distX * distX + distY * distY);
-        PubSub.get().publishSnack({ message: dist + '' }) //TODO for debugging
-        // Determine if the pinch is expanding or contracting
-        //TODO
-        // Set last position to current position
-        pinchRefs.current.lastPosition = pinchRefs.current.currPosition;
-        // Set a timeout to call this function again
-        if (pinchRefs.current.timeout) setTimeout(pinch, 100);
-    }, [])
-
-    const clearPinch = useCallback(() => {
-        if (pinchRefs.current.timeout) clearTimeout(pinchRefs.current.timeout);
-        pinchRefs.current = { currPosition: null, lastPosition: null, isShiftKeyPressed: false, timeout: null }
-    }, [])
-
-    /**
      * Checks if a point is inside a rectangle
      * @param point - The point to check
      * @param id - The ID of the rectangle to check
@@ -204,7 +177,7 @@ export const NodeGraph = ({
             }
         }
         // If columnIndex is start node or earlier, return
-        if (columnIndex < 1 || columnIndex >= columns.length) {
+        if (columnIndex < 0 || columnIndex >= columns.length) {
             PubSub.get().publishSnack({ message: 'Cannot drop node here', severity: 'error' })
             return;
         }
@@ -222,11 +195,6 @@ export const NodeGraph = ({
         }
         // If not above any nodes, must be below   
         if (rowIndex === -1) rowIndex = centerYs.length;
-        // If dropped into its same position, return
-        if (node.columnIndex === columnIndex && node.rowIndex === rowIndex) return;
-        // If dropped into its own column and no other nodes in that column, return
-        const nodesInColumn = Object.values(nodesById).filter(node => node.columnIndex === columnIndex);
-        if (nodesInColumn.length === 1 && nodesInColumn[0].id === nodeId) return;
         // Complete drop
         handleNodeDrop(nodeId, columnIndex, rowIndex);
     }, [columns, handleNodeDrop, nodesById]);
@@ -238,18 +206,8 @@ export const NodeGraph = ({
         // True if user touched the grid instead of a node or edge
         let touchedGrid = false;
         const onKeyDown = (ev: KeyboardEvent) => {
-            // If the user pressed the shift key
-            if (ev.key === 'Shift') {
-                pinchRefs.current.isShiftKeyPressed = true;
-                setIsShiftKeyPressed(true);
-            }
         }
         const onKeyUp = (ev: KeyboardEvent) => {
-            // If the user released the shift key
-            if (ev.key === 'Shift') {
-                pinchRefs.current.isShiftKeyPressed = false;
-                setIsShiftKeyPressed(false);
-            }
         }
         const onMouseDown = (ev: MouseEvent) => {
             // Find touch point
@@ -258,11 +216,6 @@ export const NodeGraph = ({
             // Find target
             const targetId = (ev as any)?.target.id;
             if (!targetId) return;
-            // If pinching
-            if (pinchRefs.current.isShiftKeyPressed) {
-                pinchRefs.current.currPosition = { x, y };
-                if (!pinchRefs.current.timeout) pinchRefs.current.timeout = setTimeout(pinch, 500);
-            }
             // If touching the grid or a node
             else if (targetId.startsWith('node-') || targetId === 'graph-root' || targetId === 'graph-grid') {
                 // Determine if grid was touched
@@ -279,11 +232,6 @@ export const NodeGraph = ({
             // Find the target
             const targetId = ev.target.id;
             if (!targetId) return;
-            // If pinching
-            if (ev.touches.length > 1) {
-                pinchRefs.current.currPosition = { x, y };
-                if (!pinchRefs.current.timeout) pinchRefs.current.timeout = setTimeout(pinch, 100);
-            }
             // If touching the grid or a node
             else if (targetId.startsWith('node-') || targetId === 'graph-root' || targetId === 'graph-grid') {
                 // Set dragRef
@@ -293,19 +241,14 @@ export const NodeGraph = ({
         const onMouseUp = (ev: MouseEvent | Event) => {
             touchedGrid = false;
             clearScroll();
-            clearPinch();
         }
         const onMouseMove = (ev: MouseEvent) => {
             // Find cursor point
             const x = ev.clientX;
             const y = ev.clientY;
-            // If pinching
-            if (pinchRefs.current.currPosition) {
-                pinchRefs.current.currPosition = { x, y };
-            }
             // Otherwise, if the grid is being dragged, move the grid
             // NOTE: this is only needed for mouse movement, as touch screens do this automatically
-            else if (touchedGrid && dragRefs.current.currPosition) {
+            if (touchedGrid && dragRefs.current.currPosition) {
                 const gridElement = document.getElementById('graph-root');
                 if (!gridElement) return;
                 const deltaX = x - dragRefs.current.currPosition.x;
@@ -318,13 +261,14 @@ export const NodeGraph = ({
             // Find touch point
             const x = ev.touches[0].clientX;
             const y = ev.touches[0].clientY;
-            // Handle pinch TODO
-            if (pinchRefs.current.currPosition) {
-                pinchRefs.current.currPosition = { x, y };
-            }
             // drag
             dragRefs.current.currPosition = { x, y };
         }
+        // const onWheelMove = (ev: WheelEvent) => {
+        //     // Find wheel point
+        //     const x = ev.clientX;
+        //     const y = ev.clientY;
+
         // Add event listeners
         window.addEventListener('keydown', onKeyDown); // Detects shift key for pinch
         window.addEventListener('keyup', onKeyUp); // Detects shift key for pinch
@@ -334,6 +278,7 @@ export const NodeGraph = ({
         window.addEventListener('touchstart', onTouchStart); // Detects if node is being dragged or graph is being pinched
         window.addEventListener('touchmove', onTouchMove); // Detects if node is being dragged or graph is being pinched
         window.addEventListener('touchend', onMouseUp); // Stops dragging and pinching
+        // window.addEventListener('wheel', onMouseWheel); // Detects mouse scroll for zoom
         // Add PubSub subscribers
         let dragStartSub = PubSub.get().subscribeNodeDrag((data) => {
             dragRefs.current.timeout = setTimeout(nodeScroll, 50);
@@ -343,6 +288,10 @@ export const NodeGraph = ({
             clearScroll();
             handleDragStop(data.nodeId, data.position);
         });
+        let fastUpdateSub = PubSub.get().subscribeFastUpdate((data) => {
+            setFastUpdate(data.on);
+            fastUpdateTimeout.current = setTimeout(() => { setFastUpdate(false) }, data.duration);
+        });
         return () => {
             // Remove event listeners
             window.removeEventListener('mousedown', onMouseDown);
@@ -351,8 +300,9 @@ export const NodeGraph = ({
             // Remove PubSub subscribers
             PubSub.get().unsubscribe(dragStartSub);
             PubSub.get().unsubscribe(dragDropSub);
+            PubSub.get().unsubscribe(fastUpdateSub);
         }
-    }, [clearPinch, handleDragStop, nodeScroll, pinch, setIsShiftKeyPressed]);
+    }, [handleDragStop, nodeScroll]);
 
     /**
      * Edges (links) displayed between nodes
@@ -368,18 +318,19 @@ export const NodeGraph = ({
             if (!fromNode || !toNode) return null;
             return <NodeEdge
                 key={`edge-${link.id ?? 'new-' + fromNode.id + '-to-' + toNode.id}`}
+                fastUpdate={fastUpdate}
                 link={link}
                 isEditing={isEditing}
                 isFromRoutineList={fromNode.type === NodeType.RoutineList}
                 isToRoutineList={toNode.type === NodeType.RoutineList}
-                dragId={dragId}
                 scale={scale ?? 1}
                 handleAdd={handleNodeInsert}
+                handleBranch={handleBranchInsert}
                 handleDelete={handleLinkDelete}
                 handleEdit={() => { }}
             />
         }).filter(edge => edge) as JSX.Element[];
-    }, [dragId, handleLinkDelete, handleNodeInsert, isEditing, links, nodesById, scale]);
+    }, [fastUpdate, handleBranchInsert, handleLinkDelete, handleNodeInsert, isEditing, links, nodesById, scale]);
 
     useEffect(() => {
         setEdges(calculateEdges());
@@ -395,20 +346,20 @@ export const NodeGraph = ({
             columnIndex={index}
             dragId={dragId}
             handleAction={handleAction}
-            handleNodeDrop={handleNodeDrop}
             handleNodeUpdate={handleNodeUpdate}
             isEditing={isEditing}
             labelVisible={labelVisible}
             language={language}
+            links={links}
             nodes={col}
             scale={scale}
             zIndex={zIndex}
         />)
-    }, [columns, dragId, handleAction, handleNodeDrop, handleNodeUpdate, isEditing, labelVisible, language, scale, zIndex]);
+    }, [columns, dragId, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, scale, zIndex]);
 
     return (
         <Box id="graph-root" position="relative" sx={{
-            cursor: isShiftKeyPressed ? 'nesw-resize' : 'move',
+            cursor: 'move',
             minWidth: '100%',
             // Graph fills remaining space that is not taken up by other elements. 
             // These are: routine title (64px), other top build icons (48px),
@@ -437,8 +388,6 @@ export const NodeGraph = ({
                 width: 'fit-content',
                 minWidth: '100vw',
                 minHeight: '-webkit-fill-available',
-                paddingLeft: 4,
-                paddingRight: 4,
                 // Create grid background pattern on stack, so it scrolls with content
                 '--line-color': palette.mode === 'light' ? `rgba(0 0 0 / .05)` : `rgba(255 255 255 / .05)`,
                 '--line-thickness': `1px`,

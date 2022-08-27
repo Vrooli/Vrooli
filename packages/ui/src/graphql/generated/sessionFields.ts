@@ -10,7 +10,7 @@
 export interface sessionFields {
   __typename: "Session";
   id: string | null;
-  theme: string;
-  roles: string[];
+  theme: string | null;
+  isLoggedIn: boolean;
   languages: string[] | null;
 }

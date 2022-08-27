@@ -24,6 +24,7 @@ export const typeDef = gql`
         id: ID!
         default: String
         isInternal: Boolean
+        isPrivate: Boolean
         name: String
         type: String!
         props: String!
@@ -39,6 +40,7 @@ export const typeDef = gql`
     input StandardUpdateInput {
         id: ID!
         makeAnonymous: Boolean
+        isPrivate: Boolean
         resourceListsDelete: [ID!]
         resourceListsCreate: [ResourceListCreateInput!]
         resourceListsUpdate: [ResourceListUpdateInput!]
@@ -55,21 +57,24 @@ export const typeDef = gql`
         updated_at: Date!
         default: String
         name: String!
+        isDeleted: Boolean!
         isInternal: Boolean!
+        isPrivate: Boolean!
         isStarred: Boolean!
-        role: MemberRole
         isUpvoted: Boolean
         isViewed: Boolean!
         type: String!
         props: String!
         yup: String
         version: String!
+        versionGroupId: ID!
         score: Int!
         stars: Int!
         views: Int!
         comments: [Comment!]!
         commentsCount: Int!
         creator: Contributor
+        permissionsStandard: StandardPermission!
         reports: [Report!]!
         reportsCount: Int!
         resourceLists: [ResourceList!]!
@@ -78,6 +83,16 @@ export const typeDef = gql`
         starredBy: [User!]!
         tags: [Tag!]!
         translations: [StandardTranslation!]!
+    }
+
+    type StandardPermission {
+        canComment: Boolean!
+        canDelete: Boolean!
+        canEdit: Boolean!
+        canStar: Boolean!
+        canReport: Boolean!
+        canView: Boolean!
+        canVote: Boolean!
     }
 
     input StandardTranslationCreateInput {
@@ -103,6 +118,7 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
+        includePrivate: Boolean  
         languages: [String!]
         minScore: Int
         minStars: Int
@@ -120,13 +136,11 @@ export const typeDef = gql`
         userId: ID
     }
 
-    # Return type for search result
     type StandardSearchResult {
         pageInfo: PageInfo!
         edges: [StandardEdge!]!
     }
 
-    # Return type for search result edge
     type StandardEdge {
         cursor: String!
         node: Standard!
@@ -153,17 +167,17 @@ export const typeDef = gql`
 export const resolvers = {
     StandardSortBy: StandardSortBy,
     Query: {
-        standard: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard> | null> => {
-            await rateLimit({ context, info, max: 1000 });
-            return readOneHelper(context.req.userId, input, info, StandardModel(context.prisma));
+        standard: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard> | null> => {
+            await rateLimit({ info, max: 1000, req });
+            return readOneHelper({ info, input, model: StandardModel, prisma, userId: req.userId });
         },
-        standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<StandardSearchResult> => {
-            await rateLimit({ context, info, max: 1000 });
-            return readManyHelper(context.req.userId, input, info, StandardModel(context.prisma));
+        standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<StandardSearchResult> => {
+            await rateLimit({ info, max: 1000, req });
+            return readManyHelper({ info, input, model: StandardModel, prisma, userId: req.userId });
         },
-        standardsCount: async (_parent: undefined, { input }: IWrap<StandardCountInput>, context: Context, info: GraphQLResolveInfo): Promise<number> => {
-            await rateLimit({ context, info, max: 1000 });
-            return countHelper(input, StandardModel(context.prisma));
+        standardsCount: async (_parent: undefined, { input }: IWrap<StandardCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
+            await rateLimit({ info, max: 1000, req });
+            return countHelper({ input, model: StandardModel, prisma });
         },
     },
     Mutation: {
@@ -171,9 +185,9 @@ export const resolvers = {
          * Create a new standard
          * @returns Standard object if successful
          */
-        standardCreate: async (_parent: undefined, { input }: IWrap<StandardCreateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
-            await rateLimit({ context, info, max: 250, byAccount: true });
-            return createHelper(context.req.userId, input, info, StandardModel(context.prisma));
+        standardCreate: async (_parent: undefined, { input }: IWrap<StandardCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
+            await rateLimit({ info, max: 250, byAccountOrKey: true, req });
+            return createHelper({ info, input, model: StandardModel, prisma, userId: req.userId });
         },
         /**
          * Update a standard you created.
@@ -182,9 +196,9 @@ export const resolvers = {
          * version number) or delete the old one and create a new one.
          * @returns Standard object if successful
          */
-        standardUpdate: async (_parent: undefined, { input }: IWrap<StandardUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
-            await rateLimit({ context, info, max: 500, byAccount: true });
-            return updateHelper(context.req.userId, input, info, StandardModel(context.prisma));
+        standardUpdate: async (_parent: undefined, { input }: IWrap<StandardUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
+            await rateLimit({ info, max: 500, byAccountOrKey: true, req });
+            return updateHelper({ info, input, model: StandardModel, prisma, userId: req.userId });
         },
     }
 }

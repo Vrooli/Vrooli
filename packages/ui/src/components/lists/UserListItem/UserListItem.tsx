@@ -23,11 +23,12 @@ export const UserListItem = ({
 
     const profileColors = useMemo(() => placeholderColor(), []);
 
-    const { bio, name } = useMemo(() => {
+    const { bio, name, reportsCount } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
         return {
             bio: getTranslation(data, 'bio', languages, true),
             name: data?.name ?? (data?.handle ? `$${data.handle}` : ''),
+            reportsCount: data?.reportsCount ?? 0,
         }
     }, [data, session]);
 
@@ -116,7 +117,7 @@ export const UserListItem = ({
                             isStar={data?.isStarred}
                             stars={data?.stars}
                         />}
-                        {(data?.reportsCount ?? 0) > 0 && <ReportButton
+                        {!isOwn && reportsCount > 0 && <ReportButton
                             reportsCount={data?.reportsCount ?? 0}
                             object={data}
                         />}

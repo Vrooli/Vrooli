@@ -3,11 +3,21 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: organizationFields
 // ====================================================
+
+export interface organizationFields_permissionsOrganization {
+  __typename: "OrganizationPermission";
+  canAddMembers: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  isMember: boolean;
+}
 
 export interface organizationFields_resourceLists_translations {
   __typename: "ResourceListTranslation";
@@ -46,6 +56,22 @@ export interface organizationFields_resourceLists {
   resources: organizationFields_resourceLists_resources[];
 }
 
+export interface organizationFields_roles_translations {
+  __typename: "RoleTranslation";
+  id: string;
+  language: string;
+  description: string;
+}
+
+export interface organizationFields_roles {
+  __typename: "Role";
+  id: string;
+  created_at: any;
+  updated_at: any;
+  title: string;
+  translations: organizationFields_roles_translations[];
+}
+
 export interface organizationFields_tags_translations {
   __typename: "TagTranslation";
   id: string;
@@ -73,11 +99,13 @@ export interface organizationFields {
   created_at: any;
   handle: string | null;
   isOpenToNewMembers: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
-  role: MemberRole | null;
   stars: number;
   reportsCount: number;
+  permissionsOrganization: organizationFields_permissionsOrganization | null;
   resourceLists: organizationFields_resourceLists[];
+  roles: organizationFields_roles[] | null;
   tags: organizationFields_tags[];
   translations: organizationFields_translations[];
 }

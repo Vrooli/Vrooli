@@ -31,7 +31,6 @@ export const BaseStandardInput = ({
      * Change schema when input type changes
      */
     useEffect(() => {
-        console.log('input type changed in basestandard input', inputType);
         if (!isEditing) return;
         let newSchema: FieldData | null = null;
         const typeKey = `${storageKey}-${inputType}`;
@@ -69,7 +68,6 @@ export const BaseStandardInput = ({
             } as any,
         }
         if (JSON.stringify(changedSchema) !== JSON.stringify(schema)) {
-            console.log('props changed in basestandard input', schema.props, newProps);
             onChange(changedSchema);
         }
     }, [isEditing, onChange, schema]);

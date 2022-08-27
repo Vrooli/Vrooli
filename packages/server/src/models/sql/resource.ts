@@ -1,17 +1,20 @@
 import { CODE, resourceCreate, resourcesCreate, resourcesUpdate, resourceUpdate } from "@local/shared";
-import { Resource, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Count, MemberRole } from "../../schema/types";
-import { PrismaType } from "types";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { Resource, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Count } from "../../schema/types";
+import { PrismaType } from "../../types";
+import { CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, ModelLogic, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
+import { OrganizationModel } from "./organization";
+import { ProjectModel } from "./project";
+import { RoutineModel } from "./routine";
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
-export const resourceFormatter = (): FormatConverter<Resource> => ({
-    relationshipMap: { '__typename': GraphQLModelType.Resource }, // For now, resource is never queried directly. So no need to handle relationships
+export const resourceFormatter = (): FormatConverter<Resource, any> => ({
+    relationshipMap: { '__typename': 'Resource' }, // For now, resource is never queried directly. So no need to handle relationships
 })
 
 export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
@@ -27,13 +30,14 @@ export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
-        return ({
-            OR: [
-                { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-                { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
-                { link: { ...insensitive } },
-            ]
+        return getSearchStringQueryHelper({ searchString,
+            resolver: ({ insensitive }) => ({ 
+                OR: [
+                    { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
+                    { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
+                    { link: { ...insensitive } },
+                ]
+            })
         })
     },
     customQueries(input: ResourceSearchInput): { [x: string]: any } {
@@ -43,65 +47,6 @@ export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
         }
     },
 })
-
-// // Maps resource for type to correct field
-// const forMap = {
-//     [ResourceFor.Organization]: 'organizationId',
-//     [ResourceFor.Project]: 'projectId',
-//     [ResourceFor.Routine]: 'routineId',
-//     [ResourceFor.User]: 'userId',
-// }
-
-// Queries for finding resource ownership
-const userOwnerQuery = { user: { select: { id: true } } }
-const organizationOwnerQuery = { organization: { select: { members: { select: { userId: true, role: true } } } } }
-const projectOwnerQuery = { project: { select: { ...userOwnerQuery, ...organizationOwnerQuery } } };
-const routineOwnerQuery = { routine: { select: { ...userOwnerQuery, ...organizationOwnerQuery } } };
-
-/**
- * Uses user ownership query to check if user is owner of resource
- * @param userId ID of user performing request
- * @param data Data shaped in the same way as userOwnerQuery
- * @returns True if user is owner of resource
- */
-const isUserOwner = (userId: string, data: any) => {
-    if (!data.user) return false;
-    return data.user.id === userId;
-}
-
-/**
- * Uses organization ownership query to check if user is owner of resource
- * @param userId ID of user performing request
- * @param data Data shaped in the same way as organizationOwnerQuery
- * @returns True if user is owner of resource
- */
-const isOrganizationOwner = (userId: string, data: any) => {
-    if (!data.organization) return false;
-    const member = data.organization.members.find((m: any) => m.userId === userId && [MemberRole.Admin, MemberRole.Owner].includes(m.role));
-    return Boolean(member);
-}
-
-/**
- * Uses project ownership query to check if user is owner of resource
- * @param userId ID of user performing request
- * @param data Data shaped in the same way as projectOwnerQuery
- * @returns True if user is owner of resource
- */
-const isProjectOwner = (userId: string, data: any) => {
-    if (!data.project) return false;
-    return isUserOwner(userId, data) || isOrganizationOwner(userId, data);
-}
-
-/**
- * Uses routine ownership query to check if user is owner of resource
- * @param userId ID of user performing request
- * @param data Data shaped in the same way as routineOwnerQuery
- * @returns True if user is owner of resource
- */
-const isRoutineOwner = (userId: string, data: any) => {
-    if (!data.routine) return false;
-    return isUserOwner(userId, data) || isOrganizationOwner(userId, data);
-}
 
 export const resourceMutater = (prisma: PrismaType) => ({
     /**
@@ -121,20 +66,35 @@ export const resourceMutater = (prisma: PrismaType) => ({
                 id: true,
                 list: {
                     select: {
-                        ...userOwnerQuery,
-                        ...organizationOwnerQuery,
-                        ...projectOwnerQuery,
-                        ...routineOwnerQuery,
+                        organization: { select: { id: true } },
+                        project: { select: { id: true } },
+                        routine: { select: { id: true } },
+                        user: { select: { id: true } },
                     }
                 }
             }
         })
         // Check if user is owner of all resources
-        const isOwner = (userId: string, data: any) => {
+        const isOwner = async (userId: string, data: any) => {
             if (!data.list) return false;
-            return isUserOwner(userId, data.list) || isOrganizationOwner(userId, data.list) || isProjectOwner(userId, data.list) || isRoutineOwner(userId, data.list);
+            if (data.list.organization) {
+                const permissions = await OrganizationModel.permissions(prisma).get({ objects: [data.list.organization], userId });
+                return permissions[0].canEdit;
+            }
+            else if (data.list.project) {
+                const permissions = await ProjectModel.permissions(prisma).get({ objects: [data.list.project], userId });
+                return permissions[0].canEdit
+            }
+            else if (data.list.routine) {
+                const permissions = await RoutineModel.permissions(prisma).get({ objects: [data.list.routine], userId });
+                return permissions[0].canEdit;
+            }
+            else if (data.list.user) {
+                return data.list.user.id === userId;
+            }
+            return false;
         }
-        if (!existingResources.some(r => isOwner(userId, r))) 
+        if (!existingResources.some(r => isOwner(userId, r)))
             throw new CustomError(CODE.Unauthorized, 'You do not own the resource, or are not an admin of its organization', { code: genErrorCode('0086') });
     },
     toDBShape(userId: string | null, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean, isRelationship: boolean): any {
@@ -144,7 +104,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
             index: data.index,
             link: data.link,
             usedFor: data.usedFor,
-            translations: TranslationModel().relationshipBuilder(userId, data, { create: resourceCreate, update: resourceUpdate }, isAdd),
+            translations: TranslationModel.relationshipBuilder(userId, data, { create: resourceCreate, update: resourceUpdate }, isAdd),
         };
     },
     async relationshipBuilder(
@@ -191,17 +151,17 @@ export const resourceMutater = (prisma: PrismaType) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ResourceCreateInput, ResourceUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId) 
+        if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0087') });
         if (createMany) {
             resourcesCreate.validateSync(createMany, { abortEarly: false });
-            TranslationModel().profanityCheck(createMany);
+            TranslationModel.profanityCheck(createMany);
             await this.authorizedAdd(userId as string, createMany, prisma);
             // Check for max resources on object TODO
         }
         if (updateMany) {
             resourcesUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            TranslationModel().profanityCheck(updateMany.map(u => u.data));
+            TranslationModel.profanityCheck(updateMany.map(u => u.data));
             await this.authorizedUpdateOrDelete(userId as string, updateMany.map(u => u.where.id), prisma);
         }
     },
@@ -231,11 +191,11 @@ export const resourceMutater = (prisma: PrismaType) => ({
                     where: {
                         AND: [
                             input.where,
-                            { list: { userId }},
+                            { list: { userId } },
                         ]
                     }
                 })
-                if (!object) 
+                if (!object)
                     throw new CustomError(CODE.ErrorUnknown, 'Resource not found', { code: genErrorCode('0088') });
                 // Update object
                 const currUpdated = await prisma.resource.update({
@@ -254,7 +214,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
                 where: {
                     AND: [
                         { id: { in: deleteMany } },
-                        { list: { userId }},
+                        { list: { userId } },
                     ]
                 }
             })
@@ -275,20 +235,12 @@ export const resourceMutater = (prisma: PrismaType) => ({
 /* #region Model */
 //==============================================================
 
-export function ResourceModel(prisma: PrismaType) {
-    const prismaObject = prisma.resource;
-    const format = resourceFormatter();
-    const search = resourceSearcher();
-    const mutate = resourceMutater(prisma);
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...search,
-        ...mutate,
-    }
-}
+export const ResourceModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.resource,
+    format: resourceFormatter(),
+    mutate: resourceMutater,
+    search: resourceSearcher(),
+})
 
 //==============================================================
 /* #endregion Model */

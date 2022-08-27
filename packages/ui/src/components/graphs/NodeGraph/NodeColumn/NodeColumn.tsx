@@ -9,13 +9,13 @@ import { NodeType } from 'graphql/generated/globalTypes';
 
 export const NodeColumn = ({
     handleAction,
-    handleNodeDrop,
     handleNodeUpdate,
     id,
     isEditing,
     columnIndex,
     labelVisible,
     language,
+    links,
     dragId,
     nodes,
     scale = 1,
@@ -24,7 +24,7 @@ export const NodeColumn = ({
     // Padding between cells
     const padding = useMemo(() => scale * 25, [scale]);
     // Highlights column when a dragging node can be dropped on it
-    const isHighlighted = useMemo(() => columnIndex > 0 && dragId && nodes.every(node => node.id !== dragId), [columnIndex, dragId, nodes]);
+    const isHighlighted = useMemo(() => dragId, [dragId]);
 
     /**
      * Create a node component for the given node data. 
@@ -70,7 +70,7 @@ export const NodeColumn = ({
             // Determine node to display based on node type
             switch (node.type) {
                 case NodeType.End:
-                    return <EndNode {...nodeProps} />
+                    return <EndNode {...nodeProps} linksIn={links.filter(l => l.toId === node.id)} />
                 case NodeType.Redirect:
                     return <RedirectNode {...nodeProps} />
                 case NodeType.RoutineList:
@@ -79,20 +79,24 @@ export const NodeColumn = ({
                         canExpand={true}
                         handleUpdate={handleNodeUpdate}
                         language={language}
+                        linksIn={links.filter(l => l.toId === node.id)}
+                        linksOut={links.filter(l => l.fromId === node.id)}
                     />)
                 case NodeType.Start:
-                    return <StartNode {...nodeProps} />
+                    return <StartNode {...nodeProps} linksOut={links.filter(l => l.fromId === node.id)} />
                 default:
                     return null;
             }
         })
-    }, [columnIndex, handleAction, handleNodeUpdate, isEditing, labelVisible, language, nodes, scale, zIndex]);
+    }, [columnIndex, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, nodes, scale, zIndex]);
 
     return (
         <Stack
             id={id}
             direction="column"
             padding={`${padding}px`}
+            paddingTop={'100px'}
+            paddingBottom={'100px'}
             position="relative"
             display="flex"
             justifyContent="center"
@@ -102,6 +106,8 @@ export const NodeColumn = ({
                 borderLeft: isHighlighted ? '1px solid #71c84f' : 'none',
                 borderRight: isHighlighted ? '1px solid #71c84f' : 'none',
                 gap: `${padding * 4}px`,
+                // Fill available if column is empty
+                width: nodes.length === 0 ? '-webkit-fill-available' : 'auto',
             }}
         >
             {nodeList}

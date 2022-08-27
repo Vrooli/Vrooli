@@ -3,11 +3,19 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole } from "./globalTypes";
-
 // ====================================================
 // GraphQL fragment: listOrganizationFields
 // ====================================================
+
+export interface listOrganizationFields_permissionsOrganization {
+  __typename: "OrganizationPermission";
+  canAddMembers: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  isMember: boolean;
+}
 
 export interface listOrganizationFields_tags_translations {
   __typename: "TagTranslation";
@@ -41,9 +49,11 @@ export interface listOrganizationFields {
   handle: string | null;
   stars: number;
   isOpenToNewMembers: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
+  membersCount: number;
   reportsCount: number;
-  role: MemberRole | null;
+  permissionsOrganization: listOrganizationFields_permissionsOrganization | null;
   tags: listOrganizationFields_tags[];
   translations: listOrganizationFields_translations[];
 }

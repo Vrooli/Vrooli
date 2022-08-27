@@ -41,7 +41,7 @@ import { DeleteDialog, EditableLabel, LanguageInput, LinkButton, MarkdownInput, 
 import { AllLanguages, getLanguageSubtag, getOwnedByString, getTranslation, PubSub, RoutineTranslationShape, toOwnedBy, updateArray } from 'utils';
 import { useLocation } from 'wouter';
 import { useFormik } from 'formik';
-import { APP_LINKS, CopyType, DeleteOneType, ForkType, MemberRole, routineUpdateForm as validationSchema, StarFor, VoteFor } from '@local/shared';
+import { APP_LINKS, CopyType, DeleteOneType, ForkType, routineUpdateForm as validationSchema, StarFor, VoteFor } from '@local/shared';
 import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
@@ -219,14 +219,14 @@ export const BuildInfoDialog = ({
     const actions = useMemo(() => {
         // [value, label, icon, secondaryLabel]
         const results: [BaseObjectAction, string, any, string | null][] = [];
-        // If signed in, not editing, and not your own routine, show vote/star options
-        if (session && !isEditing && ![MemberRole.Owner, MemberRole.Admin].includes(routine?.role ?? '' as any)) {
-            results.push(routine?.isUpvoted ? 
-                [BaseObjectAction.Downvote, 'Downvote', DownvoteIcon, null] : 
+        // If signed in and not editing, show vote/star options
+        if (session?.isLoggedIn === true && !isEditing) {
+            results.push(routine?.isUpvoted ?
+                [BaseObjectAction.Downvote, 'Downvote', DownvoteIcon, null] :
                 [BaseObjectAction.Upvote, 'Upvote', UpvoteIcon, null]
             );
-            results.push(routine?.isStarred ? 
-                [BaseObjectAction.Unstar, 'Unstar', UnstarIcon, null] : 
+            results.push(routine?.isStarred ?
+                [BaseObjectAction.Unstar, 'Unstar', UnstarIcon, null] :
                 [BaseObjectAction.Star, 'Star', StarIcon, null]
             );
         }
@@ -245,7 +245,7 @@ export const BuildInfoDialog = ({
             )
         }
         return results;
-    }, [isEditing, routine?.id, routine?.isStarred, routine?.isUpvoted, routine?.role, session]);
+    }, [isEditing, routine?.id, routine?.isStarred, routine?.isUpvoted, session]);
 
     // Handle delete
     const [deleteOpen, setDeleteOpen] = useState(false);
@@ -333,6 +333,30 @@ export const BuildInfoDialog = ({
         }
     }, [handleCopy, handleFork, handleStar, handleVote, openDelete]);
 
+    const languageComponent = useMemo(() => {
+        if (isEditing) return (
+            <LanguageInput
+                currentLanguage={language}
+                handleAdd={handleAddLanguage}
+                handleDelete={handleLanguageDelete}
+                handleCurrent={handleLanguageSelect}
+                selectedLanguages={languages}
+                session={session}
+                zIndex={zIndex}
+            />
+        )
+        return (
+            <SelectLanguageDialog
+                availableLanguages={availableLanguages}
+                canDropdownOpen={availableLanguages.length > 1}
+                currentLanguage={language}
+                handleCurrent={handleLanguageSelect}
+                session={session}
+                zIndex={zIndex}
+            />
+        )
+    }, [availableLanguages, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, isEditing, language, languages, session, zIndex]);
+
     return (
         <>
             {/* Delete routine confirmation dialog */}
@@ -344,7 +368,7 @@ export const BuildInfoDialog = ({
                 handleClose={handleDeleteClose}
                 zIndex={zIndex + 3}
             />
-            <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
+            <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen} sx={sxs?.iconButton}>
                 <InfoIcon sx={sxs?.icon} />
             </IconButton>
             <SwipeableDrawer
@@ -412,24 +436,7 @@ export const BuildInfoDialog = ({
                 {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
                 <Stack direction="column" spacing={2} padding={1}>
                     {/* Language */}
-                    {
-                        isEditing ? <LanguageInput
-                            currentLanguage={language}
-                            handleAdd={handleAddLanguage}
-                            handleDelete={handleLanguageDelete}
-                            handleCurrent={handleLanguageSelect}
-                            selectedLanguages={languages}
-                            session={session}
-                            zIndex={zIndex}
-                        /> : <SelectLanguageDialog
-                            availableLanguages={availableLanguages}
-                            canDropdownOpen={availableLanguages.length > 1}
-                            currentLanguage={language}
-                            handleCurrent={handleLanguageSelect}
-                            session={session}
-                            zIndex={zIndex}
-                        />
-                    }
+                    {languageComponent}
                     {/* Resources */}
                     {resourceList}
                     {/* Description */}

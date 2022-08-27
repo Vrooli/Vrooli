@@ -44,7 +44,7 @@ export const UnlinkedNodesDialog = ({
             isEditing: false,
             isLinked: false,
             key: `unlinked-node-${node.id}`,
-            label: '',
+            label: getTranslation(node, 'title', [language], false) ?? null,
             labelVisible: false,
             node,
             scale: 0.5,
@@ -53,7 +53,7 @@ export const UnlinkedNodesDialog = ({
         // Determine node to display based on node type
         switch (node.type) {
             case NodeType.End:
-                return <EndNode {...nodeProps} />
+                return <EndNode {...nodeProps} linksIn={[]} />
             case NodeType.Redirect:
                 return <RedirectNode {...nodeProps} />
             case NodeType.RoutineList:
@@ -63,6 +63,8 @@ export const UnlinkedNodesDialog = ({
                     labelVisible={true}
                     language={language}
                     handleUpdate={() => { }} // Intentionally blank
+                    linksIn={[]}
+                    linksOut={[]}
                 />
             default:
                 return null;

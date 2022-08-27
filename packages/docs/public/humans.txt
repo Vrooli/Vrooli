@@ -1,0 +1,10 @@
+/* TEAM */
+	Chief: Matthew Halloran
+	Github: https://github.com/MattHalloran
+	From: United States
+
+/* SITE */
+	Last update: 2021-09-19
+	Language: English
+	Doctype: HTML5
+	IDE: VSCode, Atom, Vim, Gimp

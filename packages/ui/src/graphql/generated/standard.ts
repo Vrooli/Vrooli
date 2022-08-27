@@ -3,11 +3,21 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { FindByIdInput, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: standard
 // ====================================================
+
+export interface standard_standard_permissionsStandard {
+  __typename: "StandardPermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
 
 export interface standard_standard_resourceLists_translations {
   __typename: "ResourceListTranslation";
@@ -93,14 +103,16 @@ export type standard_standard_creator = standard_standard_creator_Organization |
 export interface standard_standard {
   __typename: "Standard";
   id: string;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
-  role: MemberRole | null;
   type: string;
   props: string;
   yup: string | null;
   default: string | null;
   created_at: any;
+  permissionsStandard: standard_standard_permissionsStandard;
   resourceLists: standard_standard_resourceLists[];
   tags: standard_standard_tags[];
   translations: standard_standard_translations[];
@@ -110,6 +122,7 @@ export interface standard_standard {
   score: number;
   isUpvoted: boolean | null;
   version: string;
+  versionGroupId: string;
 }
 
 export interface standard {

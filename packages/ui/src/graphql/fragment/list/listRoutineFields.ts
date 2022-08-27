@@ -20,15 +20,26 @@ export const listRoutineFields = gql`
         complexity
         created_at
         isAutomatable
+        isDeleted
         isInternal
         isComplete
+        isPrivate
         isStarred
         isUpvoted
         reportsCount
-        role
         score
         simplicity
         stars
+        permissionsRoutine {
+            canComment
+            canDelete
+            canEdit
+            canFork
+            canStar
+            canReport
+            canRun
+            canVote
+        }
         tags {
             ...listRoutineTagFields
         }
@@ -39,5 +50,6 @@ export const listRoutineFields = gql`
             title
         }
         version
+        versionGroupId
     }
 `

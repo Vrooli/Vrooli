@@ -3,11 +3,21 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdOrHandleInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { FindByIdOrHandleInput, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: project
 // ====================================================
+
+export interface project_project_permissionsProject {
+  __typename: "ProjectPermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
 
 export interface project_project_resourceLists_translations {
   __typename: "ResourceListTranslation";
@@ -97,11 +107,12 @@ export interface project_project {
   created_at: any;
   handle: string | null;
   isComplete: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   score: number;
   stars: number;
+  permissionsProject: project_project_permissionsProject;
   resourceLists: project_project_resourceLists[] | null;
   tags: project_project_tags[];
   translations: project_project_translations[];

@@ -1,9 +1,9 @@
-import { PrismaType, RecursivePartial } from "types";
+import { PrismaType, RecursivePartial } from "../../types";
 import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success, Tag, TagCreateInput, TagHidden, User, UserDeleteInput } from "../../schema/types";
 import { sendResetPasswordLink, sendVerificationLink } from "../../worker/email/queue";
-import { addJoinTablesHelper, addSupplementalFields, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, padSelect, PartialGraphQLInfo, readOneHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo } from "./base";
+import { addJoinTablesHelper, addSupplementalFields, FormatConverter, GraphQLInfo, modelToGraphQL, padSelect, PartialGraphQLInfo, readOneHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo } from "./base";
 import { user } from "@prisma/client";
-import { CODE, omit, profileUpdateSchema, ROLES, userTranslationCreate, userTranslationUpdate } from "@local/shared";
+import { CODE, omit, profileUpdateSchema, userTranslationCreate, userTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import bcrypt from 'bcrypt';
 import { hasProfanity } from "../../utils/censor";
@@ -36,31 +36,29 @@ const tagSelect = {
 }
 
 const joinMapper = { hiddenTags: 'tag', roles: 'role', starredBy: 'user' };
-const calculatedFields = ['starredTags', 'hiddenTags'];
-export const profileFormatter = (): FormatConverter<User> => ({
+const supplementalFields = ['starredTags', 'hiddenTags'];
+export const profileFormatter = (): FormatConverter<User, any> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Profile,
-        'comments': GraphQLModelType.Comment,
-        'roles': GraphQLModelType.Role,
-        'emails': GraphQLModelType.Email,
-        'wallets': GraphQLModelType.Wallet,
-        'standards': GraphQLModelType.Standard,
-        'tags': GraphQLModelType.Tag,
-        'resourceLists': GraphQLModelType.ResourceList,
-        'organizations': GraphQLModelType.Member,
-        'projects': GraphQLModelType.Project,
-        'projectsCreated': GraphQLModelType.Project,
-        'routines': GraphQLModelType.Routine,
-        'routinesCreated': GraphQLModelType.Routine,
-        'starredBy': GraphQLModelType.User,
-        'starred': GraphQLModelType.Star,
-        'hiddenTags': GraphQLModelType.TagHidden,
-        'sentReports': GraphQLModelType.Report,
-        'reports': GraphQLModelType.Report,
-        'votes': GraphQLModelType.Vote,
-    },
-    removeCalculatedFields: (partial) => {
-        return omit(partial, calculatedFields);
+        '__typename': 'Profile',
+        'comments': 'Comment',
+        'roles': 'Role',
+        'emails': 'Email',
+        'wallets': 'Wallet',
+        'standards': 'Standard',
+        'tags': 'Tag',
+        'resourceLists': 'ResourceList',
+        'organizations': 'Member',
+        'projects': 'Project',
+        'projectsCreated': 'Project',
+        'routines': 'Routine',
+        'routinesCreated': 'Routine',
+        'starredBy': 'User',
+        'starred': 'Star',
+        'starredTags': 'Tag',
+        'hiddenTags': 'TagHidden',
+        'sentReports': 'Report',
+        'reports': 'Report',
+        'votes': 'Vote',
     },
     addJoinTables: (partial) => {
         return addJoinTablesHelper(partial, joinMapper);
@@ -68,12 +66,15 @@ export const profileFormatter = (): FormatConverter<User> => ({
     removeJoinTables: (data) => {
         return removeJoinTablesHelper(data, joinMapper);
     },
+    removeSupplementalFields: (partial) => {
+        return omit(partial, supplementalFields);
+    },
 })
 
 /**
  * Custom component for email/password validation
  */
-export const profileValidater = () => ({
+export const profileVerifier = () => ({
     /**
      * Generates a URL-safe code for account confirmations and password resets
      * @returns Hashed and salted code, with invalid characters removed
@@ -286,7 +287,7 @@ export const profileValidater = () => ({
         return {
             id: user.id,
             theme: user.theme ?? 'light',
-            roles: [ROLES.Actor],
+            isLoggedIn: true,
             languages: (user as any)?.languages ? (user as any).languages.map((language: any) => language.language) : null,
         }
     }
@@ -328,7 +329,13 @@ const profileQuerier = (prisma: PrismaType) => ({
         if (!partial)
             throw new CustomError(CODE.InternalError, 'Could not convert info to partial select.', { code: genErrorCode('0190') });
         // Query profile data and tags
-        const profileData = await readOneHelper<Profile>(userId, { id: userId }, info, ProfileModel(prisma) as any);
+        const profileData = await readOneHelper<any>({
+            info,
+            input: { id: userId },
+            model: ProfileModel,
+            prisma,
+            userId,
+        })
         const { starredTags, hiddenTags } = await this.myTags(userId, partial);
         // Format for GraphQL
         let formatted = modelToGraphQL(profileData, partial) as RecursivePartial<Profile>;
@@ -363,7 +370,12 @@ const profileQuerier = (prisma: PrismaType) => ({
             // Format for GraphQL
             const formatted: any[] = data.map(d => modelToGraphQL(d, partial.starredTags as PartialGraphQLInfo));
             // Return with supplementalfields added
-            starredTags = await (TagModel(prisma) as any).addSupplementalFields(prisma, userId, formatted, partial.starredTags as PartialGraphQLInfo) as Tag[];
+            starredTags = await TagModel.format.addSupplementalFields!({
+                objects: formatted,
+                partial: partial.starredTags as PartialGraphQLInfo,
+                prisma,
+                userId,
+            }) as Tag[];
         }
         if (partial.hiddenTags) {
             // Query hidden tags
@@ -378,8 +390,12 @@ const profileQuerier = (prisma: PrismaType) => ({
             // Format for GraphQL
             const formatted: any[] = data.map(d => modelToGraphQL(d, partial.hiddenTags as PartialGraphQLInfo));
             // Call addsupplementalFields on tags of hidden data
-            const tags = await (TagModel(prisma) as any).addSupplementalFields(prisma, userId, formatted.map(f => f.tag), (partial as any).hiddenTags.tag as PartialGraphQLInfo) as Tag[];
-            // const tags = (await addSupplementalFields(prisma, userId, formatted.map(f => f.tag), partial.hiddenTags as PartialGraphQLInfo)) as Tag[];
+            const tags = await TagModel.format.addSupplementalFields!({
+                objects: formatted.map(f => f.tag),
+                partial: (partial as any).hiddenTags.tag as PartialGraphQLInfo,
+                prisma,
+                userId,
+            }) as Tag[];
             hiddenTags = data.map((d: any) => ({
                 id: d.id,
                 isBlur: d.isBlur,
@@ -390,65 +406,51 @@ const profileQuerier = (prisma: PrismaType) => ({
     },
 })
 
-const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma: PrismaType) => ({
+const profileMutater = (prisma: PrismaType) => ({
     async updateProfile(
         userId: string,
         input: ProfileUpdateInput,
         info: GraphQLInfo,
     ): Promise<RecursivePartial<Profile>> {
         profileUpdateSchema.validateSync(input, { abortEarly: false });
-        await WalletModel(prisma).verifyHandle(GraphQLModelType.User, userId, input.handle);
+        await WalletModel.verify(prisma).verifyHandle('User', userId, input.handle);
         if (hasProfanity(input.name))
             throw new CustomError(CODE.BannedWord, 'User name contains banned word', { code: genErrorCode('0066') });
-        TranslationModel().profanityCheck([input]);
-        TranslationModel().validateLineBreaks(input, ['bio'], CODE.LineBreaksBio)
+        TranslationModel.profanityCheck([input]);
+        TranslationModel.validateLineBreaks(input, ['bio'], CODE.LineBreaksBio)
         // Convert info to partial select
-        const partial = toPartialGraphQLInfo(info, formatter.relationshipMap);
+        const partial = toPartialGraphQLInfo(info, profileFormatter().relationshipMap);
         if (!partial)
             throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0067') });
         // Handle starred tags
-        const tagsToCreate: TagCreateInput[] = [];
-        const tagsToConnect: string[] = [];
-        if (input.starredTagsConnect) {
-            // Check if tags exist
-            const tags = await prisma.tag.findMany({
-                where: { id: { in: input.starredTagsConnect } },
-            })
-            const connectTags = tags.map(t => t.id);
-            const createTags = input.starredTagsConnect.filter(t => !connectTags.includes(t));
-            // Add existing tags to tagsToConnect
-            tagsToConnect.push(...connectTags);
-            // Add new tags to tagsToCreate
-            tagsToCreate.push(...createTags.map((t) => typeof t === 'string' ? ({ tag: t }) : t));
-        }
-        if (input.starredTagsCreate) {
-            // Check if tags exist
-            const tags = await prisma.tag.findMany({
-                where: { tag: { in: input.starredTagsCreate.map(c => c.tag) } },
-            })
-            const connectTags = tags.map(t => t.id);
-            const createTags = input.starredTagsCreate.filter(t => !connectTags.includes(t.tag));
-            // Add existing tags to tagsToConnect
-            tagsToConnect.push(...connectTags);
-            // Add new tags to tagsToCreate
-            tagsToCreate.push(...createTags);
-        }
+        const tagsToCreate: TagCreateInput[] = [
+            ...(input.starredTagsCreate ?? []),
+            ...((input.starredTagsConnect ?? []).map(t => ({
+                tag: t
+            }))),
+        ];
         // Create new tags
-        const createTagsData = await Promise.all(tagsToCreate.map(async (tag: TagCreateInput) => await TagModel(prisma).toDBShape(userId, tag)));
+        const createTagsData = await Promise.all(tagsToCreate.map(async (tag: TagCreateInput) => await TagModel.mutate(prisma).toDBShape(userId, tag)));
         const createdTags = await prisma.$transaction(
-            createTagsData.map((data) => prisma.tag.create({ data })),
+            createTagsData.map((data) =>
+                prisma.tag.upsert({
+                    where: { tag: data.tag },
+                    create: data,
+                    update: { tag: data.tag }
+                })
+            ),
         );
         // Combine connect IDs and created IDs
-        const tagIds = [...tagsToConnect, ...createdTags.map(t => t.id)];
+        const tagIds = createdTags.map(t => t.id);
         // Convert tagIds to star creates
         const starredCreate = tagIds.map(tagId => ({ tagId }));
         // Convert starredTagsDisconnect to star deletes
         const starredDelete = input.starredTagsDisconnect ? await prisma.star.findMany({
             where: {
                 AND: [
-                    { byId: userId },
-                    { tagId: { in: input.starredTagsDisconnect } },
-                    { NOT: { tagId: null } }
+                    { by: { id: userId } },
+                    { tag: { tag: { in: input.starredTagsDisconnect } } },
+                    { NOT: { tagId: null } },
                 ]
             },
             select: { id: true }
@@ -458,13 +460,13 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
             handle: input.handle,
             name: input.name,
             theme: input.theme,
-            hiddenTags: await TagHiddenModel(prisma).relationshipBuilder(userId, input, false),
-            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, input, false),
+            hiddenTags: await TagHiddenModel.mutate(prisma).relationshipBuilder(userId, input, false),
+            resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, input, false),
             starred: {
                 create: starredCreate,
                 delete: starredDelete,
             },
-            translations: TranslationModel().relationshipBuilder(userId, input, { create: userTranslationCreate, update: userTranslationUpdate }, false),
+            translations: TranslationModel.relationshipBuilder(userId, input, { create: userTranslationCreate, update: userTranslationUpdate }, false),
         };
         // Update user
         const profileData = await prisma.user.update({
@@ -492,21 +494,21 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
         let user = await prisma.user.findUnique({ where: { id: userId } });
         if (!user)
             throw new CustomError(CODE.InternalError, 'User not found', { code: genErrorCode('0068') });
-        if (!validater.validatePassword(input.currentPassword, user))
+        if (!profileVerifier().validatePassword(input.currentPassword, user))
             throw new CustomError(CODE.BadCredentials, 'Incorrect password', { code: genErrorCode('0069') });
         // Convert input to partial select
-        const partial = toPartialGraphQLInfo(info, formatter.relationshipMap);
+        const partial = toPartialGraphQLInfo(info, profileFormatter().relationshipMap);
         if (!partial)
             throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0070') });
         // Create user data
         let userData: { [x: string]: any } = {
-            password: input.newPassword ? validater.hashPassword(input.newPassword) : undefined,
-            emails: await EmailModel(prisma).relationshipBuilder(userId, input, true),
+            password: input.newPassword ? profileVerifier().hashPassword(input.newPassword) : undefined,
+            emails: await EmailModel.mutate(prisma).relationshipBuilder(userId, input, true),
         };
         // Send verification emails
         if (Array.isArray(input.emailsCreate)) {
             for (const email of input.emailsCreate) {
-                await validater.setupVerificationCode(email.emailAddress);
+                await profileVerifier().setupVerificationCode(email.emailAddress, prisma);
             }
         }
         // Update user
@@ -551,7 +553,7 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
         let user = await prisma.user.findUnique({ where: { id: userId } });
         if (!user)
             throw new CustomError(CODE.InternalError, 'User not found', { code: genErrorCode('0071') });
-        if (!validater.validatePassword(input.password, user))
+        if (!profileVerifier().validatePassword(input.password, user))
             throw new CustomError(CODE.BadCredentials, 'Incorrect password', { code: genErrorCode('0072') });
         // Delete user. User's created objects are deleted separately, with explicit confirmation 
         // given by the user. This is to minimize the chance of deleting objects which other users rely on.
@@ -563,21 +565,11 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
 })
 
 
-export function ProfileModel(prisma: PrismaType) {
-    const prismaObject = prisma.user;
-    const format = profileFormatter();
-    const validate = profileValidater();
-    const port = porter(prisma);
-    const mutate = profileMutater(format, validate, prisma);
-    const query = profileQuerier(prisma);
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...validate,
-        ...port,
-        ...mutate,
-        ...query,
-    }
-}
+export const ProfileModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.user,
+    format: profileFormatter(),
+    mutate: profileMutater,
+    port: porter,
+    query: profileQuerier,
+    verify: profileVerifier(),
+})

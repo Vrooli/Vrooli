@@ -3,11 +3,21 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: projectFields
 // ====================================================
+
+export interface projectFields_permissionsProject {
+  __typename: "ProjectPermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
+}
 
 export interface projectFields_resourceLists_translations {
   __typename: "ResourceListTranslation";
@@ -97,11 +107,12 @@ export interface projectFields {
   created_at: any;
   handle: string | null;
   isComplete: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   score: number;
   stars: number;
+  permissionsProject: projectFields_permissionsProject;
   resourceLists: projectFields_resourceLists[] | null;
   tags: projectFields_tags[];
   translations: projectFields_translations[];

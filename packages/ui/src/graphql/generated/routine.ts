@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor, RunStatus, RunStepStatus } from "./globalTypes";
+import { FindByIdInput, NodeType, ResourceListUsedFor, ResourceUsedFor, RunStatus, RunStepStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: routine
@@ -14,6 +14,7 @@ export interface routine_routine_inputs_translations {
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface routine_routine_inputs_standard_translations {
@@ -28,13 +29,16 @@ export interface routine_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   translations: routine_routine_inputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface routine_routine_inputs {
@@ -81,6 +85,7 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_inp
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations {
@@ -95,13 +100,16 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_inp
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   translations: routine_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_inputs {
@@ -118,6 +126,7 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_out
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations {
@@ -132,13 +141,16 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_out
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   translations: routine_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_outputs {
@@ -171,6 +183,18 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_own
 }
 
 export type routine_routine_nodes_data_NodeRoutineList_routines_routine_owner = routine_routine_nodes_data_NodeRoutineList_routines_routine_owner_Organization | routine_routine_nodes_data_NodeRoutineList_routines_routine_owner_User;
+
+export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
+}
 
 export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists_translations {
   __typename: "ResourceListTranslation";
@@ -236,17 +260,20 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine {
   id: string;
   complexity: number;
   isComplete: boolean;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   inputs: routine_routine_nodes_data_NodeRoutineList_routines_routine_inputs[];
   nodesCount: number | null;
-  role: MemberRole | null;
   outputs: routine_routine_nodes_data_NodeRoutineList_routines_routine_outputs[];
   owner: routine_routine_nodes_data_NodeRoutineList_routines_routine_owner | null;
+  permissionsRoutine: routine_routine_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine;
   resourceLists: routine_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists[];
   simplicity: number;
   tags: routine_routine_nodes_data_NodeRoutineList_routines_routine_tags[];
   translations: routine_routine_nodes_data_NodeRoutineList_routines_routine_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
 }
 
 export interface routine_routine_nodes_data_NodeRoutineList_routines_translations {
@@ -326,6 +353,7 @@ export interface routine_routine_outputs_translations {
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface routine_routine_outputs_standard_translations {
@@ -340,13 +368,16 @@ export interface routine_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   translations: routine_routine_outputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface routine_routine_outputs {
@@ -430,6 +461,18 @@ export interface routine_routine_resourceLists {
   resources: routine_routine_resourceLists_resources[];
 }
 
+export interface routine_routine_runs_inputs_input {
+  __typename: "InputItem";
+  id: string;
+}
+
+export interface routine_routine_runs_inputs {
+  __typename: "RunInput";
+  id: string;
+  data: string;
+  input: routine_routine_runs_inputs_input;
+}
+
 export interface routine_routine_runs_steps_node {
   __typename: "Node";
   id: string;
@@ -454,12 +497,25 @@ export interface routine_routine_runs {
   id: string;
   completedComplexity: number;
   contextSwitches: number;
+  inputs: routine_routine_runs_inputs[];
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
   title: string;
   status: RunStatus;
   steps: routine_routine_runs_steps[];
+}
+
+export interface routine_routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
 }
 
 export interface routine_routine_tags_translations {
@@ -493,7 +549,9 @@ export interface routine_routine {
   inputs: routine_routine_inputs[];
   isAutomatable: boolean | null;
   isComplete: boolean;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
   nodeLinks: routine_routine_nodeLinks[];
@@ -507,11 +565,12 @@ export interface routine_routine {
   score: number;
   simplicity: number;
   stars: number;
-  role: MemberRole | null;
+  permissionsRoutine: routine_routine_permissionsRoutine;
   tags: routine_routine_tags[];
   translations: routine_routine_translations[];
   updated_at: any;
-  version: string | null;
+  version: string;
+  versionGroupId: string;
 }
 
 export interface routine {

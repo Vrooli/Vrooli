@@ -1,24 +1,24 @@
 import { Box, CircularProgress, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import {
-    ContentCopy as CopyIcon,
     MoreHoriz as EllipsisIcon,
 } from "@mui/icons-material";
-import { HelpButton, LinkButton, ResourceListHorizontal } from "components";
-import Markdown from "markdown-to-jsx";
-import { useCallback, useMemo } from "react";
+import { LinkButton, ResourceListHorizontal, TextCollapse } from "components";
+import { useCallback, useEffect, useMemo } from "react";
 import { containerShadow } from "styles";
-import { getOwnedByString, getTranslation, getUserLanguages, PubSub, standardToFieldData, toOwnedBy } from "utils";
+import { formikToRunInputs, getOwnedByString, getTranslation, getUserLanguages, PubSub, runInputsToFormik, standardToFieldData, toOwnedBy } from "utils";
 import { useLocation } from "wouter";
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
-import { generateInputComponent } from 'forms/generators';
+import { generateInputWithLabel } from 'forms/generators';
 import { useFormik } from "formik";
 
 export const SubroutineView = ({
     loading,
-    data,
+    handleUserInputsUpdate,
     handleSaveProgress,
     owner,
+    routine,
+    run,
     session,
     zIndex,
 }: SubroutineViewProps) => {
@@ -28,18 +28,18 @@ export const SubroutineView = ({
     const { description, instructions, title } = useMemo(() => {
         const languages = session.languages ?? navigator.languages;
         return {
-            description: getTranslation(data, 'description', languages, true),
-            instructions: getTranslation(data, 'instructions', languages, true),
-            title: getTranslation(data, 'title', languages, true),
+            description: getTranslation(routine, 'description', languages, true),
+            instructions: getTranslation(routine, 'instructions', languages, true),
+            title: getTranslation(routine, 'title', languages, true),
         }
-    }, [data, session.languages]);
+    }, [routine, session.languages]);
 
     const ownedBy = useMemo<string | null>(() => {
-        if (!data) return null;
+        if (!routine) return null;
         // If isInternal, owner is same as overall routine owner
-        const ownerObject = data.isInternal ? { owner } : data;
+        const ownerObject = routine.isInternal ? { owner } : routine;
         return getOwnedByString(ownerObject, getUserLanguages(session))
-    }, [data, owner, session]);
+    }, [routine, owner, session]);
     const toOwner = useCallback(() => {
         // Confirmation dialog for leaving routine
         PubSub.get().publishAlertDialog({
@@ -50,36 +50,41 @@ export const SubroutineView = ({
                         // Save progress
                         handleSaveProgress();
                         // Navigate to owner
-                        const ownerObject = data?.isInternal ? { owner } : data;
+                        const ownerObject = routine?.isInternal ? { owner } : routine;
                         toOwnedBy(ownerObject, setLocation)
                     }
                 },
                 { text: 'Cancel' },
             ]
         });
-    }, [data, handleSaveProgress, owner, setLocation]);
+    }, [routine, handleSaveProgress, owner, setLocation]);
 
     // The schema and formik keys for the form
-    const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {
-        if (!data) return null;
+    const formValueMap = useMemo<{ [fieldName: string]: FieldData }>(() => {
+        console.log('calculating formvaluemap')
+        if (!routine) return {};
         const schemas: { [fieldName: string]: FieldData } = {};
-        for (let i = 0; i < data.inputs?.length; i++) {
+        for (let i = 0; i < routine.inputs?.length; i++) {
+            const currInput = routine.inputs[i];
+            console.log('currinputttttttt', currInput);
+            if (!currInput.standard) continue;
             const currSchema = standardToFieldData({
-                description: getTranslation(data.inputs[i], 'description', getUserLanguages(session), false) ?? getTranslation(data.inputs[i].standard, 'description', getUserLanguages(session), false),
-                fieldName: `inputs-${i}`,
-                props: data.inputs[i].standard?.props ?? '',
-                name: data.inputs[i].name ?? data.inputs[i].standard?.name ?? '',
-                type: data.inputs[i].standard?.type ?? '',
-                yup: data.inputs[i].standard?.yup ?? null,
+                description: getTranslation(currInput, 'description', getUserLanguages(session), false) ?? getTranslation(currInput.standard, 'description', getUserLanguages(session), false),
+                fieldName: `inputs-${currInput.id}`,
+                helpText: getTranslation(currInput, 'helpText', getUserLanguages(session), false),
+                props: currInput.standard.props,
+                name: currInput.name ?? currInput.standard.name,
+                type: currInput.standard.type,
+                yup: currInput.standard.yup,
             });
             if (currSchema) {
                 schemas[currSchema.fieldName] = currSchema;
             }
         }
         return schemas;
-    }, [data, session]);
-    const previewFormik = useFormik({
-        initialValues: Object.entries(formValueMap ?? {}).reduce((acc, [key, value]) => {
+    }, [routine, session]);
+    const formik = useFormik({
+        initialValues: Object.entries(formValueMap).reduce((acc, [key, value]) => {
             acc[key] = value.props.defaultValue ?? '';
             return acc;
         }, {}),
@@ -88,34 +93,91 @@ export const SubroutineView = ({
     });
 
     /**
+     * Update formik values with the current user inputs, if any
+     */
+    useEffect(() => {
+        console.log('useeffect1 calculating preview formik values', run)
+        if (!run?.inputs || !Array.isArray(run?.inputs) || run.inputs.length === 0) return;
+        console.log('useeffect 1calling runInputsToFormik', run.inputs)
+        const updatedValues = runInputsToFormik(run.inputs);
+        console.log('useeffect1 updating formik, values', updatedValues)
+        formik.setValues(updatedValues);
+    },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [formik.setValues, run?.inputs]);
+
+    /**
+     * Update run with updated user inputs
+     */
+    useEffect(() => {
+        if (!formik.values) return;
+        const updatedValues = formikToRunInputs(formik.values);
+        handleUserInputsUpdate(updatedValues);
+    }, [handleUserInputsUpdate, formik.values, run?.inputs]);
+
+    /**
      * Copy current value of input to clipboard
      * @param fieldName Name of input
      */
     const copyInput = useCallback((fieldName: string) => {
-        const input = previewFormik.values[fieldName];
+        const input = formik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
             PubSub.get().publishSnack({ message: 'Copied to clipboard.', severity: 'success' });
         } else {
             PubSub.get().publishSnack({ message: 'Input is empty.', severity: 'error' });
         }
-    }, [previewFormik]);
+    }, [formik.values]);
 
     const resourceList = useMemo(() => {
-        if (!data ||
-            !Array.isArray(data.resourceLists) ||
-            data.resourceLists.length < 1 ||
-            data.resourceLists[0].resources.length < 1) return null;
+        if (!routine ||
+            !Array.isArray(routine.resourceLists) ||
+            routine.resourceLists.length < 1 ||
+            routine.resourceLists[0].resources.length < 1) return null;
         return <ResourceListHorizontal
             title={'Resources'}
-            list={(data as any).resourceLists[0]}
+            list={(routine as any).resourceLists[0]}
             canEdit={false}
             handleUpdate={() => { }} // Intentionally blank
             loading={loading}
             session={session}
             zIndex={zIndex}
         />
-    }, [data, loading, session, zIndex]);
+    }, [routine, loading, session, zIndex]);
+
+    const inputComponents = useMemo(() => {
+        console.log('rendering input components', formik.values)
+        if (!routine?.inputs || !Array.isArray(routine?.inputs) || routine.inputs.length === 0) return null;
+        return (
+            <Box>
+                {Object.values(formValueMap).map((fieldData: FieldData, index: number) => (
+                    generateInputWithLabel({
+                        copyInput,
+                        disabled: false,
+                        fieldData,
+                        formik: formik,
+                        index,
+                        session,
+                        textPrimary: palette.background.textPrimary,
+                        onUpload: () => { },
+                        zIndex,
+                    })
+                ))}
+            </Box>
+        )
+    }, [copyInput, formValueMap, palette.background.textPrimary, formik, routine?.inputs, session, zIndex]);
+
+    useEffect(() => {
+        console.log('formValueMap changed', formValueMap)
+    }, [formValueMap])
+
+    useEffect(() => {
+        console.log('formik changed', formik)
+    }, [formik])
+
+    useEffect(() => {
+        console.log('routine?.inputs changed', routine?.inputs)
+    }, [routine?.inputs])
 
     if (loading) return (
         <Box sx={{
@@ -171,69 +233,19 @@ export const SubroutineView = ({
                             text={ownedBy}
                         />
                     ) : null}
-                    <Typography variant="body1"> - {data?.version}</Typography>
+                    <Typography variant="body1"> - {routine?.version}</Typography>
                 </Stack>
             </Stack>
             {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
-            <Stack direction="column" spacing={2} padding={1}>
+            <Stack direction="column" spacing={1} padding={1}>
                 {/* Resources */}
                 {resourceList}
                 {/* Description */}
-                {Boolean(description) && <Box sx={{
-                    padding: 1,
-                    borderRadius: 1,
-                    color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary,
-                }}>
-                    <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Description</Typography>
-                    <Typography variant="body1">{description}</Typography>
-                </Box>}
+                <TextCollapse title="Description" text={description} />
                 {/* Instructions */}
-                <Box sx={{
-                    padding: 1,
-                    borderRadius: 1,
-                    color: Boolean(instructions) ? palette.background.textPrimary : palette.background.textSecondary
-                }}>
-                    <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Instructions</Typography>
-                    <Markdown>{instructions ?? 'No instructions'}</Markdown>
-                </Box>
-                {/* Auto-generated inputs */}
-                {
-                    Object.keys(previewFormik.values).length > 0 && <Box sx={{
-                        padding: 1,
-                        borderRadius: 1,
-                    }}>
-                        <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Inputs</Typography>
-                        {
-                            Object.values(formValueMap ?? {}).map((field: FieldData, i: number) => (
-                                <Box key={i} sx={{
-                                    padding: 1,
-                                    borderRadius: 1,
-                                }}>
-                                    {/* Label, help button, and copy iput icon */}
-                                    <Stack direction="row" spacing={0} sx={{ alignItems: 'center' }}>
-                                        <Tooltip title="Copy to clipboard">
-                                            <IconButton onClick={() => copyInput(field.fieldName)}>
-                                                <CopyIcon />
-                                            </IconButton>
-                                        </Tooltip>
-                                        <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>{field.label ?? `Input ${i + 1}`}</Typography>
-                                        {field.description && <HelpButton markdown={field.description} />}
-                                    </Stack>
-                                    {
-                                        generateInputComponent({
-                                            data: field,
-                                            disabled: false,
-                                            formik: previewFormik,
-                                            session,
-                                            onUpload: () => { },
-                                            zIndex,
-                                        })
-                                    }
-                                </Box>
-                            ))
-                        }
-                    </Box>
-                }
+                <TextCollapse title="Instructions" text={instructions} />
+                {/* Inputs */}
+                {inputComponents}
             </Stack>
         </Box>
     )

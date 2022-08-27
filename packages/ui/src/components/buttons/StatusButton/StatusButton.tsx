@@ -18,7 +18,7 @@ import { noSelect } from 'styles';
  * Status indicator and slider change color to represent routine's status
  */
 const STATUS_COLOR = {
-    [Status.Incomplete]: '#cde22c', // Yellow
+    [Status.Incomplete]: '#a0b121', // Yellow
     [Status.Invalid]: '#ff6a6a', // Red
     [Status.Valid]: '#00d51e', // Green
 }

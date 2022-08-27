@@ -1,5 +1,5 @@
 import { REPORTABLE } from "@local/shared";
-import { DecisionStep, Node, Organization, Profile, Project, Report, Routine, Session, Standard, User } from "types";
+import { DecisionStep, Node, Organization, Profile, Project, Report, Routine, Run, Session, Standard, User } from "types";
 
 interface CreateProps<T> {
     onCancel: () => void;
@@ -62,12 +62,14 @@ export interface SettingsProfileProps extends SettingsBaseProps {}
 
 export interface SubroutineViewProps {
     loading: boolean;
-    data: Routine | null;
+    handleUserInputsUpdate: (inputs: { [inputId: string]: string }) => void;
     handleSaveProgress: () => void;
     /**
      * Owner of overall routine, not subroutine
      */
-    owner: Routine['owner'] | null;
+    owner: Routine['owner'] | null | undefined;
+    routine: Routine | null | undefined;
+    run: Run | null | undefined;
     session: Session;
     zIndex: number;
 }

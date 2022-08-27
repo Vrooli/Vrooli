@@ -1,7 +1,7 @@
 import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { projectCreateForm as validationSchema, ROLES } from '@local/shared';
+import { projectCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { projectCreateMutation } from "graphql/mutation";
 import { getUserLanguages, ProjectTranslationShape, shapeProjectCreate, TagShape, updateArray, useReactSearch } from "utils";
@@ -17,7 +17,7 @@ import { DialogActionsContainer } from "components/containers/DialogActionsConta
 import { Organization } from "types";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { v4 as uuid } from 'uuid';
+import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { projectCreate, projectCreateVariables } from "graphql/generated/projectCreate";
 
 export const ProjectCreate = ({
@@ -168,9 +168,9 @@ export const ProjectCreate = ({
     }, [deleteTranslation, languages, updateFormikTranslation]);
 
     const actions: DialogActionItem[] = useMemo(() => {
-        const correctRole = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
+        const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
         return [
-            ['Create', CreateIcon, Boolean(!correctRole || formik.isSubmitting), true, () => { }],
+            ['Create', CreateIcon, Boolean(!loggedIn || formik.isSubmitting), true, () => { }],
             ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
         ] as DialogActionItem[]
     }, [formik, onCancel, session]);

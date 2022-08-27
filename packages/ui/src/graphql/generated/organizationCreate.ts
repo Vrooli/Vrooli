@@ -3,11 +3,21 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { OrganizationCreateInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { OrganizationCreateInput, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: organizationCreate
 // ====================================================
+
+export interface organizationCreate_organizationCreate_permissionsOrganization {
+  __typename: "OrganizationPermission";
+  canAddMembers: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  isMember: boolean;
+}
 
 export interface organizationCreate_organizationCreate_resourceLists_translations {
   __typename: "ResourceListTranslation";
@@ -46,6 +56,22 @@ export interface organizationCreate_organizationCreate_resourceLists {
   resources: organizationCreate_organizationCreate_resourceLists_resources[];
 }
 
+export interface organizationCreate_organizationCreate_roles_translations {
+  __typename: "RoleTranslation";
+  id: string;
+  language: string;
+  description: string;
+}
+
+export interface organizationCreate_organizationCreate_roles {
+  __typename: "Role";
+  id: string;
+  created_at: any;
+  updated_at: any;
+  title: string;
+  translations: organizationCreate_organizationCreate_roles_translations[];
+}
+
 export interface organizationCreate_organizationCreate_tags_translations {
   __typename: "TagTranslation";
   id: string;
@@ -73,11 +99,13 @@ export interface organizationCreate_organizationCreate {
   created_at: any;
   handle: string | null;
   isOpenToNewMembers: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
-  role: MemberRole | null;
   stars: number;
   reportsCount: number;
+  permissionsOrganization: organizationCreate_organizationCreate_permissionsOrganization | null;
   resourceLists: organizationCreate_organizationCreate_resourceLists[];
+  roles: organizationCreate_organizationCreate_roles[] | null;
   tags: organizationCreate_organizationCreate_tags[];
   translations: organizationCreate_organizationCreate_translations[];
 }

@@ -1,4 +1,4 @@
-import { Context } from "./context";
+import { Request } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import { initializeRedis } from "./redisConn";
 import { CustomError } from "./error";
@@ -6,10 +6,18 @@ import { CODE } from "@local/shared";
 import { genErrorCode, logger, LogLevel } from "./logger";
 
 export interface RateLimitProps {
-    byAccount?: boolean;
-    context: Context;
+    /**
+     * True if rate limit should be applied to API key or user, 
+     * rather than IP address.
+     */
+    byAccountOrKey?: boolean;
     info: GraphQLResolveInfo;
+    /**
+     * Maximum number of requests allowed per window. Different than the 
+     * API key rate limit, which happens over a longer period of time.
+     */
     max?: number;
+    req: Request;
     window?: number;
 }
 
@@ -18,21 +26,17 @@ export interface RateLimitProps {
  * Uses userId for authenticated users and ip for unauthenticated users.
  * Tracks request count using redis.
  * Throws error if rate limit is exceeded.
- * @param context 
- * @param max The maximum number of requests per user/ip, per unit of time. Defaults to 100.
- * @param window The unit of time for the limit. Defaults to 1 day.
- * @param byAccount Whether to use userId or ip. Defaults to false (i.e. ip).
  */
 export async function rateLimit({
-    byAccount = false,
-    context, 
+    byAccountOrKey = false,
     info,
     max = 1000,
+    req,
     window = 60 * 60 * 24,
 }: RateLimitProps): Promise<void> {
-    if (byAccount && !context.req.userId) throw new CustomError(CODE.Unauthorized, "If calling rateLimit with 'byAccount' set to true, you must be logged in", { code: genErrorCode('0015') });
+    if (byAccountOrKey && !req.userId) throw new CustomError(CODE.Unauthorized, "Calling rateLimit with 'byAccountOrKey' set to true, but with an invalid or expired JWT", { code: genErrorCode('0015') });
     // Unique key for this request. Combination of GraphQL endpoint and userId/ip.
-    const key = `rate-limit:${info.path.key}:${byAccount ? context.req.userId : context.req.ip}`;
+    const key = `rate-limit:${info.path.key}:${byAccountOrKey ? (req.apiToken ?? req.userId) : req.ip}`;
     try {
         const client = await initializeRedis();
         // Increment and get the current count.
@@ -50,4 +54,5 @@ export async function rateLimit({
     catch (error) {
         logger.log(LogLevel.error, 'Error occured while connecting or accessing redis server', { code: genErrorCode('0168'), error });
     }
+    // TODO also calculate cost of API request and add to redis. Will have to find a way to map request to a cost function
 }

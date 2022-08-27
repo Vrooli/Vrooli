@@ -1,38 +1,36 @@
 import { CODE, omit, ReportFor, reportsCreate, reportsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, Report, ReportCreateInput, ReportSearchInput, ReportSortBy, ReportUpdateInput } from "../../schema/types";
-import { PrismaType, RecursivePartial } from "types";
+import { PrismaType, RecursivePartial } from "../../types";
 import { validateProfanity } from "../../utils/censor";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addSupplementalFieldsHelper, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, PartialGraphQLInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
-const calculatedFields = ['isOwn'];
-export const reportFormatter = (): FormatConverter<Report> => ({
-    relationshipMap: { '__typename': GraphQLModelType.Report },
-    removeCalculatedFields: (partial) => {
-        const omitted = omit(partial, calculatedFields)
-        // Add userId field so we can calculate isOwn
-        return { ...omitted, userId: true }
-    },
+const supplementalFields = ['isOwn'];
+export const reportFormatter = (): FormatConverter<Report, any> => ({
+    relationshipMap: { '__typename': 'Report' },
     removeJoinTables: (data) => {
         // Remove userId to hide who submitted the report
         let { userId, ...rest } = data;
         return rest;
     },
-    async addSupplementalFields(
-        prisma: PrismaType,
-        userId: string | null, // Of the user making the request
-        objects: RecursivePartial<any>[],
-        partial: PartialGraphQLInfo,
-    ): Promise<RecursivePartial<Report>[]> {
-        // Query for isOwn
-        if (partial.isOwn) objects = objects.map((x) => ({ ...x, isOwn: Boolean(userId) && x.fromId === userId }));
-        // Convert Prisma objects to GraphQL objects
-        return objects as RecursivePartial<Report>[];
+    removeSupplementalFields: (partial) => {
+        const omitted = omit(partial, supplementalFields)
+        // Add userId field so we can calculate isOwn
+        return { ...omitted, userId: true }
+    },
+    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Report>[]> {
+        return addSupplementalFieldsHelper({
+            objects,
+            partial,
+            resolvers: [
+                ['isOwn', async () => objects.map((x) => Boolean(userId) && x.fromId === userId)],
+            ]
+        });
     },
 })
 
@@ -47,12 +45,13 @@ export const reportSearcher = (): Searcher<ReportSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string): any => {
-        const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
-        return ({
-            OR: [
-                { reason: { ...insensitive } },
-                { details: { ...insensitive } },
-            ]
+        return getSearchStringQueryHelper({ searchString,
+            resolver: ({ insensitive }) => ({ 
+                OR: [
+                    { reason: { ...insensitive } },
+                    { details: { ...insensitive } },
+                ]
+            })
         })
     },
     customQueries(input: ReportSearchInput): { [x: string]: any } {
@@ -89,7 +88,7 @@ const forMapper = {
     [ReportFor.User]: 'user',
 }
 
-export const reportMutater = (prisma: PrismaType, verifier: ReturnType<typeof reportVerifier>) => ({
+export const reportMutater = (prisma: PrismaType) => ({
     async toDBShapeAdd(userId: string | null, data: ReportCreateInput): Promise<any> {
         console.log("toDBShapeAdd")
         return {
@@ -113,11 +112,11 @@ export const reportMutater = (prisma: PrismaType, verifier: ReturnType<typeof re
     }: ValidateMutationsInput<ReportCreateInput, ReportUpdateInput>): Promise<void> {
         console.log("validateMutations")
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId) 
+        if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0083') });
         if (createMany) {
             reportsCreate.validateSync(createMany, { abortEarly: false });
-            verifier.profanityCheck(createMany);
+            reportVerifier().profanityCheck(createMany);
             // Check if report already exists by user on object
             for (const input of createMany) {
                 const existingReport = await prisma.report.count({
@@ -133,7 +132,7 @@ export const reportMutater = (prisma: PrismaType, verifier: ReturnType<typeof re
         }
         if (updateMany) {
             reportsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            verifier.profanityCheck(updateMany.map(u => u.data));
+            reportVerifier().profanityCheck(updateMany.map(u => u.data));
         }
     },
     async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<ReportCreateInput, ReportUpdateInput>): Promise<CUDResult<Report>> {
@@ -200,22 +199,13 @@ export const reportMutater = (prisma: PrismaType, verifier: ReturnType<typeof re
 /* #region Model */
 //==============================================================
 
-export function ReportModel(prisma: PrismaType) {
-    const prismaObject = prisma.report;
-    const format = reportFormatter();
-    const search = reportSearcher();
-    const verify = reportVerifier();
-    const mutate = reportMutater(prisma, verify);
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...search,
-        ...verify,
-        ...mutate,
-    }
-}
+export const ReportModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.report,
+    format: reportFormatter(),
+    mutate: reportMutater,
+    search: reportSearcher(),
+    verify: reportVerifier(),
+})
 
 //==============================================================
 /* #endregion Model */

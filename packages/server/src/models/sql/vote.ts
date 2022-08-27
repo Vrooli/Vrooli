@@ -2,7 +2,7 @@ import { CODE, VoteFor } from "@local/shared";
 import { CustomError } from "../../error";
 import { LogType, Vote, VoteInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
+import { deconstructUnion, FormatConverter } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 
@@ -10,16 +10,16 @@ import { Log } from "../../models/nosql";
 /* #region Custom Components */
 //==============================================================
 
-export const voteFormatter = (): FormatConverter<Vote> => ({
+export const voteFormatter = (): FormatConverter<Vote, any> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Vote,
-        'from': GraphQLModelType.User,
+        '__typename': 'Vote',
+        'from': 'User',
         'to': {
-            'Comment': GraphQLModelType.Comment,
-            'Project': GraphQLModelType.Project,
-            'Routine': GraphQLModelType.Routine,
-            'Standard': GraphQLModelType.Standard,
-            'Tag': GraphQLModelType.Tag,
+            'Comment': 'Comment',
+            'Project': 'Project',
+            'Routine': 'Routine',
+            'Standard': 'Standard',
+            'Tag': 'Tag',
         }
     },
     constructUnions: (data) => {
@@ -33,10 +33,10 @@ export const voteFormatter = (): FormatConverter<Vote> => ({
     },
     deconstructUnions: (partial) => {
         let modified = deconstructUnion(partial, 'to', [
-            [GraphQLModelType.Comment, 'comment'],
-            [GraphQLModelType.Project, 'project'],
-            [GraphQLModelType.Routine, 'routine'],
-            [GraphQLModelType.Standard, 'standard'],
+            ['Comment', 'comment'],
+            ['Project', 'project'],
+            ['Routine', 'routine'],
+            ['Standard', 'standard'],
         ]);
         return modified;
     },
@@ -55,7 +55,7 @@ const forMapper = {
  * A user may vote on their own project/routine/etc.
  * @returns True if cast correctly (even if skipped because of duplicate)
  */
-const voter = (prisma: PrismaType) => ({
+const voteMutater = (prisma: PrismaType) => ({
     async vote(userId: string, input: VoteInput): Promise<boolean> {
         // Define prisma type for voted-on object
         const prismaFor = (prisma[forMapper[input.voteFor] as keyof PrismaType] as any);
@@ -141,13 +141,18 @@ const voter = (prisma: PrismaType) => ({
             return true;
         }
     },
+})
+
+const voteQuerier = (prisma: PrismaType) => ({
     async getIsUpvoteds(
-        userId: string,
+        userId: string | null,
         ids: string[],
         voteFor: keyof typeof VoteFor
     ): Promise<Array<boolean | null>> {
         // Create result array that is the same length as ids
         const result = new Array(ids.length).fill(null);
+        // If userId not provided, return result
+        if (!userId) return result;
         // Filter out nulls and undefineds from ids
         const idsFiltered = ids.filter(id => id !== null && id !== undefined);
         const fieldName = `${voteFor.toLowerCase()}Id`;
@@ -172,17 +177,12 @@ const voter = (prisma: PrismaType) => ({
 /* #region Model */
 //==============================================================
 
-export function VoteModel(prisma: PrismaType) {
-    const prismaObject = prisma.vote;
-    const format = voteFormatter();
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...voter(prisma),
-    }
-}
+export const VoteModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.vote,
+    format: voteFormatter(),
+    mutate: voteMutater,
+    query: voteQuerier,
+})
 
 //==============================================================
 /* #endregion Model */

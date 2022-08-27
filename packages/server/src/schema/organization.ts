@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
-import { IWrap, RecursivePartial } from 'types';
-import { FindByIdOrHandleInput, Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSearchResult, OrganizationSortBy, MemberRole } from './types';
+import { IWrap, RecursivePartial } from '../types';
+import { FindByIdOrHandleInput, Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSearchResult, OrganizationSortBy } from './types';
 import { Context } from '../context';
 import { countHelper, createHelper, OrganizationModel, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
@@ -16,25 +16,22 @@ export const typeDef = gql`
         StarsDesc
     }
 
-    enum MemberRole {
-        Admin
-        Member
-        Owner
-    }
-
     input OrganizationCreateInput {
         id: ID!
         handle: String
         isOpenToNewMembers: Boolean
+        isPrivate: Boolean
         resourceListsCreate: [ResourceListCreateInput!]
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
         translationsCreate: [OrganizationTranslationCreateInput!]
+        roles: [RoleCreateInput!]
     }
     input OrganizationUpdateInput {
         id: ID!
         handle: String
         isOpenToNewMembers: Boolean
+        isPrivate: Boolean
         membersConnect: [ID!]
         membersDisconnect: [ID!]
         resourceListsDelete: [ID!]
@@ -46,6 +43,9 @@ export const typeDef = gql`
         translationsDelete: [ID!]
         translationsCreate: [OrganizationTranslationCreateInput!]
         translationsUpdate: [OrganizationTranslationUpdateInput!]
+        rolesDelete: [ID!]
+        rolesCreate: [RoleCreateInput!]
+        rolesUpdate: [RoleUpdateInput!]
     }
     type Organization {
         id: ID!
@@ -53,24 +53,38 @@ export const typeDef = gql`
         updated_at: Date!
         handle: String
         isOpenToNewMembers: Boolean!
+        isPrivate: Boolean!
         stars: Int!
         views: Int!
         isStarred: Boolean!
         isViewed: Boolean!
-        role: MemberRole
         comments: [Comment!]!
         commentsCount: Int!
         members: [Member!]!
+        membersCount: Int!
+        permissionsOrganization: OrganizationPermission
         projects: [Project!]!
         reports: [Report!]!
         reportsCount: Int!
         resourceLists: [ResourceList!]!
+        roles: [Role!]
         routines: [Routine!]!
         routinesCreated: [Routine!]!
         starredBy: [User!]!
         tags: [Tag!]!
         translations: [OrganizationTranslation!]!
         wallets: [Wallet!]!
+    }
+
+    # Will beef this up later
+    type OrganizationPermission {
+        canAddMembers: Boolean!
+        canDelete: Boolean!
+        canEdit: Boolean!
+        canStar: Boolean!
+        canReport: Boolean!
+        canView: Boolean!
+        isMember: Boolean!
     }
 
     input OrganizationTranslationCreateInput {
@@ -94,13 +108,14 @@ export const typeDef = gql`
 
     type Member {
         user: User!
-        role: MemberRole!
+        organization: Organization!
     }
 
     input OrganizationSearchInput {
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
+        includePrivate: Boolean
         isOpenToNewMembers: Boolean
         languages: [String!]
         minStars: Int
@@ -151,29 +166,28 @@ export const typeDef = gql`
 
 export const resolvers = {
     OrganizationSortBy: OrganizationSortBy,
-    MemberRole: MemberRole,
     Query: {
-        organization: async (_parent: undefined, { input }: IWrap<FindByIdOrHandleInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization> | null> => {
-            await rateLimit({ context, info, max: 1000 });
-            return readOneHelper(context.req.userId, input, info, OrganizationModel(context.prisma));
+        organization: async (_parent: undefined, { input }: IWrap<FindByIdOrHandleInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization> | null> => {
+            await rateLimit({ info, max: 1000, req });
+            return readOneHelper({ info, input, model: OrganizationModel, prisma, userId: req.userId })
         },
-        organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<OrganizationSearchResult> => {
-            await rateLimit({ context, info, max: 1000 });
-            return readManyHelper(context.req.userId, input, info, OrganizationModel(context.prisma));
+        organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<OrganizationSearchResult> => {
+            await rateLimit({ info, max: 1000, req });
+            return readManyHelper({ info, input, model: OrganizationModel, prisma, userId: req.userId })
         },
-        organizationsCount: async (_parent: undefined, { input }: IWrap<OrganizationCountInput>, context: Context, info: GraphQLResolveInfo): Promise<number> => {
-            await rateLimit({ context, info, max: 1000 });
-            return countHelper(input, OrganizationModel(context.prisma));
+        organizationsCount: async (_parent: undefined, { input }: IWrap<OrganizationCountInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<number> => {
+            await rateLimit({ info, max: 1000, req });
+            return countHelper({ input, model: OrganizationModel, prisma })
         },
     },
     Mutation: {
-        organizationCreate: async (_parent: undefined, { input }: IWrap<OrganizationCreateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
-            await rateLimit({ context, info, max: 100, byAccount: true });
-            return createHelper(context.req.userId, input, info, OrganizationModel(context.prisma));
+        organizationCreate: async (_parent: undefined, { input }: IWrap<OrganizationCreateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
+            await rateLimit({ info, max: 100, byAccountOrKey: true, req });
+            return createHelper({ info, input, model: OrganizationModel, prisma, userId: req.userId })
         },
-        organizationUpdate: async (_parent: undefined, { input }: IWrap<OrganizationUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
-            await rateLimit({ context, info, max: 250, byAccount: true });
-            return updateHelper(context.req.userId, input, info, OrganizationModel(context.prisma));
+        organizationUpdate: async (_parent: undefined, { input }: IWrap<OrganizationUpdateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
+            await rateLimit({ info, max: 250, byAccountOrKey: true, req });
+            return updateHelper({ info, input, model: OrganizationModel, prisma, userId: req.userId })
         },
     }
 }

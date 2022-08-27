@@ -12,6 +12,7 @@ export interface runOutputFields_translations {
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface runOutputFields_standard_tags_translations {
@@ -38,7 +39,9 @@ export interface runOutputFields_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
@@ -46,6 +49,7 @@ export interface runOutputFields_standard {
   tags: runOutputFields_standard_tags[];
   translations: runOutputFields_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface runOutputFields {

@@ -161,13 +161,22 @@ export enum BaseObjectAction {
 
 export interface BaseObjectActionDialogProps {
     anchorEl: HTMLElement | null;
-    availableOptions: BaseObjectAction[];
     handleActionComplete: (action: BaseObjectAction, data: any) => any;
     handleEdit: () => any;
+    isUpvoted: boolean | null | undefined;
+    isStarred: boolean | null | undefined;
     objectId: string;
     objectName: string;
     objectType: ObjectType;
     onClose: () => any;
+    permissions: {
+        canDelete?: boolean;
+        canEdit?: boolean;
+        canFork?: boolean;
+        canReport?: boolean;
+        canStar?: boolean;
+        canVote?: boolean;
+    } | null | undefined
     session: Session;
     title: string;
     zIndex: number;
@@ -180,6 +189,8 @@ export interface LinkDialogProps {
     isOpen: boolean;
     language: string; // Language to display/edit
     link?: NodeLink; // Link to display on open, if editing
+    nodeFrom?: Node | null; // Initial "from" node
+    nodeTo?: Node | null; // Initial "to" node
     routine: Routine;
     zIndex: number;
 }
@@ -193,7 +204,7 @@ export interface BuildInfoDialogProps {
     loading: boolean;
     routine: Routine | null;
     session: Session;
-    sxs?: { icon: any };
+    sxs?: { icon: any, iconButton: any };
     zIndex: number;
 }
 

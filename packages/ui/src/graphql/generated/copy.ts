@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { CopyInput, NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor, RunStatus, RunStepStatus } from "./globalTypes";
+import { CopyInput, NodeType, ResourceListUsedFor, ResourceUsedFor, RunStatus, RunStepStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: copy
@@ -13,6 +13,17 @@ export interface copy_copy_node_data_NodeEnd {
   __typename: "NodeEnd";
   id: string;
   wasSuccessful: boolean;
+}
+
+export interface copy_copy_node_data_NodeRoutineList_routines_routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
 }
 
 export interface copy_copy_node_data_NodeRoutineList_routines_routine_tags_translations {
@@ -41,12 +52,12 @@ export interface copy_copy_node_data_NodeRoutineList_routines_routine {
   __typename: "Routine";
   id: string;
   complexity: number;
-  version: string | null;
+  version: string;
   created_at: any;
   isAutomatable: boolean | null;
   isInternal: boolean | null;
-  role: MemberRole | null;
   simplicity: number;
+  permissionsRoutine: copy_copy_node_data_NodeRoutineList_routines_routine_permissionsRoutine;
   tags: copy_copy_node_data_NodeRoutineList_routines_routine_tags[];
   translations: copy_copy_node_data_NodeRoutineList_routines_routine_translations[];
 }
@@ -123,6 +134,16 @@ export interface copy_copy_node {
   translations: copy_copy_node_translations[];
 }
 
+export interface copy_copy_organization_permissionsOrganization {
+  __typename: "OrganizationPermission";
+  canAddMembers: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  isMember: boolean;
+}
+
 export interface copy_copy_organization_resourceLists_translations {
   __typename: "ResourceListTranslation";
   id: string;
@@ -160,6 +181,22 @@ export interface copy_copy_organization_resourceLists {
   resources: copy_copy_organization_resourceLists_resources[];
 }
 
+export interface copy_copy_organization_roles_translations {
+  __typename: "RoleTranslation";
+  id: string;
+  language: string;
+  description: string;
+}
+
+export interface copy_copy_organization_roles {
+  __typename: "Role";
+  id: string;
+  created_at: any;
+  updated_at: any;
+  title: string;
+  translations: copy_copy_organization_roles_translations[];
+}
+
 export interface copy_copy_organization_tags_translations {
   __typename: "TagTranslation";
   id: string;
@@ -187,13 +224,25 @@ export interface copy_copy_organization {
   created_at: any;
   handle: string | null;
   isOpenToNewMembers: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
-  role: MemberRole | null;
   stars: number;
   reportsCount: number;
+  permissionsOrganization: copy_copy_organization_permissionsOrganization | null;
   resourceLists: copy_copy_organization_resourceLists[];
+  roles: copy_copy_organization_roles[] | null;
   tags: copy_copy_organization_tags[];
   translations: copy_copy_organization_translations[];
+}
+
+export interface copy_copy_project_permissionsProject {
+  __typename: "ProjectPermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
 }
 
 export interface copy_copy_project_resourceLists_translations {
@@ -284,11 +333,12 @@ export interface copy_copy_project {
   created_at: any;
   handle: string | null;
   isComplete: boolean;
+  isPrivate: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
-  role: MemberRole | null;
   score: number;
   stars: number;
+  permissionsProject: copy_copy_project_permissionsProject;
   resourceLists: copy_copy_project_resourceLists[] | null;
   tags: copy_copy_project_tags[];
   translations: copy_copy_project_translations[];
@@ -300,6 +350,7 @@ export interface copy_copy_routine_inputs_translations {
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface copy_copy_routine_inputs_standard_translations {
@@ -314,13 +365,16 @@ export interface copy_copy_routine_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   translations: copy_copy_routine_inputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface copy_copy_routine_inputs {
@@ -367,6 +421,7 @@ export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_i
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations {
@@ -381,13 +436,16 @@ export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_i
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   translations: copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_inputs {
@@ -404,6 +462,7 @@ export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_o
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations {
@@ -418,13 +477,16 @@ export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_o
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   translations: copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_outputs {
@@ -457,6 +519,18 @@ export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_o
 }
 
 export type copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_owner = copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_owner_Organization | copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_owner_User;
+
+export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
+}
 
 export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists_translations {
   __typename: "ResourceListTranslation";
@@ -522,17 +596,20 @@ export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_routine {
   id: string;
   complexity: number;
   isComplete: boolean;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   inputs: copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_inputs[];
   nodesCount: number | null;
-  role: MemberRole | null;
   outputs: copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_outputs[];
   owner: copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_owner | null;
+  permissionsRoutine: copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine;
   resourceLists: copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists[];
   simplicity: number;
   tags: copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_tags[];
   translations: copy_copy_routine_nodes_data_NodeRoutineList_routines_routine_translations[];
-  version: string | null;
+  version: string;
+  versionGroupId: string;
 }
 
 export interface copy_copy_routine_nodes_data_NodeRoutineList_routines_translations {
@@ -612,6 +689,7 @@ export interface copy_copy_routine_outputs_translations {
   id: string;
   language: string;
   description: string | null;
+  helpText: string | null;
 }
 
 export interface copy_copy_routine_outputs_standard_translations {
@@ -626,13 +704,16 @@ export interface copy_copy_routine_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
   type: string;
   props: string;
   yup: string | null;
   translations: copy_copy_routine_outputs_standard_translations[];
   version: string;
+  versionGroupId: string;
 }
 
 export interface copy_copy_routine_outputs {
@@ -716,6 +797,18 @@ export interface copy_copy_routine_resourceLists {
   resources: copy_copy_routine_resourceLists_resources[];
 }
 
+export interface copy_copy_routine_runs_inputs_input {
+  __typename: "InputItem";
+  id: string;
+}
+
+export interface copy_copy_routine_runs_inputs {
+  __typename: "RunInput";
+  id: string;
+  data: string;
+  input: copy_copy_routine_runs_inputs_input;
+}
+
 export interface copy_copy_routine_runs_steps_node {
   __typename: "Node";
   id: string;
@@ -740,12 +833,25 @@ export interface copy_copy_routine_runs {
   id: string;
   completedComplexity: number;
   contextSwitches: number;
+  inputs: copy_copy_routine_runs_inputs[];
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
   title: string;
   status: RunStatus;
   steps: copy_copy_routine_runs_steps[];
+}
+
+export interface copy_copy_routine_permissionsRoutine {
+  __typename: "RoutinePermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canFork: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canRun: boolean;
+  canVote: boolean;
 }
 
 export interface copy_copy_routine_tags_translations {
@@ -779,7 +885,9 @@ export interface copy_copy_routine {
   inputs: copy_copy_routine_inputs[];
   isAutomatable: boolean | null;
   isComplete: boolean;
+  isDeleted: boolean;
   isInternal: boolean | null;
+  isPrivate: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
   nodeLinks: copy_copy_routine_nodeLinks[];
@@ -793,11 +901,22 @@ export interface copy_copy_routine {
   score: number;
   simplicity: number;
   stars: number;
-  role: MemberRole | null;
+  permissionsRoutine: copy_copy_routine_permissionsRoutine;
   tags: copy_copy_routine_tags[];
   translations: copy_copy_routine_translations[];
   updated_at: any;
-  version: string | null;
+  version: string;
+  versionGroupId: string;
+}
+
+export interface copy_copy_standard_permissionsStandard {
+  __typename: "StandardPermission";
+  canComment: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  canVote: boolean;
 }
 
 export interface copy_copy_standard_resourceLists_translations {
@@ -884,14 +1003,16 @@ export type copy_copy_standard_creator = copy_copy_standard_creator_Organization
 export interface copy_copy_standard {
   __typename: "Standard";
   id: string;
+  isDeleted: boolean;
   isInternal: boolean;
+  isPrivate: boolean;
   name: string;
-  role: MemberRole | null;
   type: string;
   props: string;
   yup: string | null;
   default: string | null;
   created_at: any;
+  permissionsStandard: copy_copy_standard_permissionsStandard;
   resourceLists: copy_copy_standard_resourceLists[];
   tags: copy_copy_standard_tags[];
   translations: copy_copy_standard_translations[];
@@ -901,6 +1022,7 @@ export interface copy_copy_standard {
   score: number;
   isUpvoted: boolean | null;
   version: string;
+  versionGroupId: string;
 }
 
 export interface copy_copy {

@@ -4,6 +4,7 @@ import { tagsCreate } from './tag';
 import * as yup from 'yup';
 
 const isComplete = yup.boolean()
+const isPrivate = yup.boolean()
 
 export const projectTranslationCreate = yup.object().shape({
     id: id.required(),
@@ -23,6 +24,7 @@ export const projectTranslationsUpdate = yup.array().of(projectTranslationUpdate
 export const projectCreateForm = yup.object().shape({
     description: description.notRequired().default(undefined),
     name: name.required(),
+    isPrivate: isPrivate.notRequired().default(undefined),
 })
 export const projectUpdateForm = projectCreateForm;
 /**
@@ -31,6 +33,7 @@ export const projectUpdateForm = projectCreateForm;
 export const projectCreate = yup.object().shape({
     id: id.required(),
     isComplete: isComplete.notRequired().default(undefined),
+    isPrivate: isPrivate.notRequired().default(undefined),
     parentId: id.notRequired().default(undefined), // If forked, the parent's id
     createdByUserId: id.notRequired().default(undefined), // If associating with yourself, your own id. Cannot associate with another user
     createdByOrganizationId: id.notRequired().default(undefined), // If associating with an organization you are an admin of, the organization's id
@@ -46,6 +49,7 @@ export const projectCreate = yup.object().shape({
 export const projectUpdate = yup.object().shape({
     id: id.required(),
     isComplete: isComplete.notRequired().default(undefined),
+    isPrivate: isPrivate.notRequired().default(undefined),
     userId: id.notRequired().default(undefined), // Allows you to request transfer ownership of the project
     organizationId: id.notRequired().default(undefined), // Allows you to request transfer ownership of the project
     resourceListsDelete: idArray.notRequired().default(undefined),

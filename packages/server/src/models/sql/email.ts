@@ -1,20 +1,20 @@
 import { CODE, emailsCreate, emailsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, Email, EmailCreateInput, EmailUpdateInput } from "../../schema/types";
-import { PrismaType } from "types";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
+import { PrismaType } from "../../types";
+import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { validateProfanity } from "../../utils/censor";
-import { profileValidater } from "./profile";
 import { genErrorCode } from "../../logger";
+import { ProfileModel } from "./profile";
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
-export const emailFormatter = (): FormatConverter<Email> => ({
+export const emailFormatter = (): FormatConverter<Email, any> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Email,
-        'user': GraphQLModelType.Profile,
+        '__typename': 'Email',
+        'user': 'Profile',
     }
 })
 
@@ -24,7 +24,7 @@ export const emailVerifier = () => ({
     },
 })
 
-export const emailMutater = (prisma: PrismaType, verifier: ReturnType<typeof emailVerifier>) => ({
+export const emailMutater = (prisma: PrismaType) => ({
     toDBShapeAdd(userId: string | null, data: EmailCreateInput): any {
         return {
             userId,
@@ -67,7 +67,7 @@ export const emailMutater = (prisma: PrismaType, verifier: ReturnType<typeof ema
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0043') });
         if (createMany) {
             emailsCreate.validateSync(createMany, { abortEarly: false });
-            verifier.profanityCheck(createMany);
+            emailVerifier().profanityCheck(createMany);
             // Make sure emails aren't already in use
             const emails = await prisma.email.findMany({
                 where: { emailAddress: { in: createMany.map(email => email.emailAddress) } },
@@ -107,7 +107,7 @@ export const emailMutater = (prisma: PrismaType, verifier: ReturnType<typeof ema
                     ...selectHelper(partialInfo)
                 });
                 // Send verification email
-                await profileValidater().setupVerificationCode(input.emailAddress, prisma);
+                await ProfileModel.verify.setupVerificationCode(input.emailAddress, prisma);
                 // Convert to GraphQL
                 const converted = modelToGraphQL(currCreated, partialInfo);
                 // Add to created array
@@ -189,20 +189,12 @@ export const emailMutater = (prisma: PrismaType, verifier: ReturnType<typeof ema
 /* #region Model */
 //==============================================================
 
-export function EmailModel(prisma: PrismaType) {
-    const prismaObject = prisma.email;
-    const format = emailFormatter();
-    const verify = emailVerifier();
-    const mutate = emailMutater(prisma, verify);
-
-    return {
-        prisma,
-        prismaObject,
-        ...format,
-        ...verify,
-        ...mutate,
-    }
-}
+export const EmailModel = ({
+    prismaObject: (prisma: PrismaType) => prisma.email,
+    format: emailFormatter(),
+    mutate: emailMutater,
+    verify: emailVerifier(),
+})
 
 //==============================================================
 /* #endregion Model */
