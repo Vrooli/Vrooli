@@ -11,6 +11,7 @@ function determineLink(typename?: string) {
         case 'Organization': return APP_LINKS.Organization;
         case 'Routine': return APP_LINKS.Routine;
         case 'Standard': return APP_LINKS.Standard;
+        case 'User': return APP_LINKS.User;
         default:
             console.error('Invalid typename');
             return '';

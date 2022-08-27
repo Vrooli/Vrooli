@@ -61,6 +61,7 @@ export interface user_user {
   created_at: any;
   stars: number;
   isStarred: boolean;
+  reportsCount: number;
   resourceLists: user_user_resourceLists[];
   translations: user_user_translations[];
 }
