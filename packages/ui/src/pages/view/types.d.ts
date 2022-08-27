@@ -1,3 +1,4 @@
+import { APP_LINKS, REPORTABLE } from '@local/shared';
 import { Session } from 'types';
 
 export interface OrganizationViewPageProps {
@@ -8,8 +9,13 @@ export interface ProjectViewPageProps {
     session: Session
 }
 
+export interface ReportsViewPageProps {
+    session: Session,
+    type: REPORTABLE,
+}
+
 export interface RoutineViewPageProps {
-    session: Session
+    session: Session,
 }
 
 export interface StandardViewPageProps {

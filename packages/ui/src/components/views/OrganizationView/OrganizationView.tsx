@@ -13,7 +13,7 @@ import {
     Share as ShareIcon,
     Today as CalendarIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, SearchList, SelectLanguageDialog, StarButton } from "components";
+import { BaseObjectActionDialog, ReportsLink, SearchList, SelectLanguageDialog, StarButton } from "components";
 import { containerShadow } from "styles";
 import { OrganizationViewProps } from "../types";
 import { Organization, ResourceList } from "types";
@@ -321,6 +321,10 @@ export const OrganizationView = ({
                             <ShareIcon />
                         </IconButton>
                     </Tooltip>
+                    <ReportsLink 
+                        href={`${APP_LINKS.Organization}/reports/${organization?.id}`}
+                        reports={organization?.reportsCount}
+                    />
                     {canStar && <StarButton
                         session={session}
                         objectId={organization?.id ?? ''}

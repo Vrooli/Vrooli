@@ -559,6 +559,7 @@ export interface routineFields {
   outputs: routineFields_outputs[];
   owner: routineFields_owner | null;
   parent: routineFields_parent | null;
+  reportsCount: number;
   resourceLists: routineFields_resourceLists[];
   runs: routineFields_runs[];
   score: number;

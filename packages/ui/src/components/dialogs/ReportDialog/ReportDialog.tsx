@@ -70,11 +70,12 @@ export const ReportDialog = ({
             mutationWrapper({
                 mutation,
                 input: {
+                    createdFor: reportFor,
+                    createdForId: forId,
+                    details: values.details,
                     id: uuid(),
                     language,
                     reason: Boolean(values.otherReason) ? values.otherReason : values.reason,
-                    createdFor: reportFor,
-                    createdForId: forId
                 },
                 successCondition: (response) => response.data.reportCreate !== null,
                 onSuccess: () => {
@@ -156,6 +157,8 @@ export const ReportDialog = ({
                 <Stack direction="column" spacing={2} sx={{ padding: 2 }}>
                     {/* Text displaying what you are reporting */}
                     <Selector
+                        id="reasonSelector"
+                        name="reasonSelector"
                         disabled={loading}
                         options={Object.keys(ReportReasons)}
                         getOptionLabel={(r) => ReportReasons[r]}

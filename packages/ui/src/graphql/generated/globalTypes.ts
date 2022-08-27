@@ -125,6 +125,13 @@ export enum ReportFor {
   User = "User",
 }
 
+export enum ReportSortBy {
+  DateCreatedAsc = "DateCreatedAsc",
+  DateCreatedDesc = "DateCreatedDesc",
+  DateUpdatedAsc = "DateUpdatedAsc",
+  DateUpdatedDesc = "DateUpdatedDesc",
+}
+
 export enum ResourceFor {
   Organization = "Organization",
   Project = "Project",
@@ -857,6 +864,23 @@ export interface ReportCreateInput {
   details?: string | null;
   language: string;
   reason: string;
+}
+
+export interface ReportSearchInput {
+  userId?: string | null;
+  organizationId?: string | null;
+  projectId?: string | null;
+  routineId?: string | null;
+  standardId?: string | null;
+  tagId?: string | null;
+  ids?: string[] | null;
+  languages?: string[] | null;
+  sortBy?: ReportSortBy | null;
+  createdTimeFrame?: TimeFrame | null;
+  updatedTimeFrame?: TimeFrame | null;
+  searchString?: string | null;
+  after?: string | null;
+  take?: number | null;
 }
 
 export interface ReportUpdateInput {

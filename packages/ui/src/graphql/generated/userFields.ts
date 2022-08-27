@@ -61,6 +61,7 @@ export interface userFields {
   created_at: any;
   stars: number;
   isStarred: boolean;
+  reportsCount: number;
   resourceLists: userFields_resourceLists[];
   translations: userFields_translations[];
 }

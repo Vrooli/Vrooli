@@ -1,4 +1,5 @@
-import { DecisionStep, Node, Organization, Profile, Project, Routine, Run, Session, Standard, User } from "types";
+import { REPORTABLE } from "@local/shared";
+import { DecisionStep, Node, Organization, Profile, Project, Report, Routine, Run, Session, Standard, User } from "types";
 
 interface CreateProps<T> {
     onCancel: () => void;
@@ -29,6 +30,11 @@ export interface OrganizationViewProps extends ViewProps<Organization> {}
 export interface ProjectCreateProps extends CreateProps<Project> {}
 export interface ProjectUpdateProps extends UpdateProps<Project> {}
 export interface ProjectViewProps extends ViewProps<Project> {}
+
+export interface ReportsViewProps {
+    session: Session;
+    type: REPORTABLE;
+}
 
 export interface RoutineCreateProps extends CreateProps<Routine> {}
 export interface RoutineUpdateProps extends UpdateProps<Routine> {}

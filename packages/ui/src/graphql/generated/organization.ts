@@ -102,6 +102,7 @@ export interface organization_organization {
   isPrivate: boolean;
   isStarred: boolean;
   stars: number;
+  reportsCount: number;
   permissionsOrganization: organization_organization_permissionsOrganization | null;
   resourceLists: organization_organization_resourceLists[];
   roles: organization_organization_roles[] | null;
