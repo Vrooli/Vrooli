@@ -227,6 +227,7 @@ export interface copy_copy_organization {
   isPrivate: boolean;
   isStarred: boolean;
   stars: number;
+  reportsCount: number;
   permissionsOrganization: copy_copy_organization_permissionsOrganization | null;
   resourceLists: copy_copy_organization_resourceLists[];
   roles: copy_copy_organization_roles[] | null;
@@ -894,6 +895,7 @@ export interface copy_copy_routine {
   outputs: copy_copy_routine_outputs[];
   owner: copy_copy_routine_owner | null;
   parent: copy_copy_routine_parent | null;
+  reportsCount: number;
   resourceLists: copy_copy_routine_resourceLists[];
   runs: copy_copy_routine_runs[];
   score: number;

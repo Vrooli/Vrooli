@@ -8,6 +8,7 @@ export const userFields = gql`
         created_at
         stars
         isStarred
+        reportsCount
         resourceLists{
             id
             created_at

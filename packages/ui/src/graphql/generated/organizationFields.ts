@@ -102,6 +102,7 @@ export interface organizationFields {
   isPrivate: boolean;
   isStarred: boolean;
   stars: number;
+  reportsCount: number;
   permissionsOrganization: organizationFields_permissionsOrganization | null;
   resourceLists: organizationFields_resourceLists[];
   roles: organizationFields_roles[] | null;

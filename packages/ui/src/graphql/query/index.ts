@@ -20,6 +20,7 @@ export * from './researchPage';
 export * from './resource';
 export * from './resources';
 export * from './resourcesCount';
+export * from './reports';
 export * from './routine';
 export * from './routines';
 export * from './routinesCount';

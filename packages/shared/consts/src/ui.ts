@@ -1,6 +1,7 @@
 import { ValueOf } from '.';
 
 export const APP_LINKS = {
+    Comment: '/comment',
     Develop: '/develop', // Develop dashboard
     DevelopSearch: '/develop-search', // Search page for develop objects
     Example: '/routine/5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9', // Links to example routine that is designed to showcase the UI. See ID of routine set in init seed file
@@ -21,9 +22,14 @@ export const APP_LINKS = {
     Standard: '/standard', // View or update specific standard
     Start: '/start', // Provides options for entering application
     Stats: '/stats', // Provides statistics for the website (no admin, so only place to see users, metrics, etc.)
+    Tag: '/tag',
+    User: '/user',
     Welcome: '/welcome', // Displays the first time you enter the application (either as guest or as logged in user)
 }
 export type APP_LINKS = ValueOf<typeof APP_LINKS>;
+
+/** Types of objects that can be reported */
+export type REPORTABLE = 'comment' | 'organization' | 'project' | 'routine' | 'standard' | 'tag' | 'user';
 
 export const LANDING_LINKS = {
     About: '/about', // Overview of project, the vision, and the team

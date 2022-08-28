@@ -102,6 +102,7 @@ export interface fork_fork_organization {
   isPrivate: boolean;
   isStarred: boolean;
   stars: number;
+  reportsCount: number;
   permissionsOrganization: fork_fork_organization_permissionsOrganization | null;
   resourceLists: fork_fork_organization_resourceLists[];
   roles: fork_fork_organization_roles[] | null;
@@ -769,6 +770,7 @@ export interface fork_fork_routine {
   outputs: fork_fork_routine_outputs[];
   owner: fork_fork_routine_owner | null;
   parent: fork_fork_routine_parent | null;
+  reportsCount: number;
   resourceLists: fork_fork_routine_resourceLists[];
   runs: fork_fork_routine_runs[];
   score: number;

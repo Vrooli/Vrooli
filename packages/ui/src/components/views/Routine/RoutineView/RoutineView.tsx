@@ -12,7 +12,7 @@ import {
     MoreHoriz as EllipsisIcon,
     PlayCircle as StartIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, BuildView, LinkButton, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, StatusButton, UpTransition, UpvoteDownvote } from "components";
+import { BaseObjectActionDialog, BuildView, HelpButton, LinkButton, ReportsLink, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, StatusButton, UpTransition, UpvoteDownvote } from "components";
 import { RoutineViewProps } from "../types";
 import { formikToRunInputs, getLanguageSubtag, getOwnedByString, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, standardToFieldData, Status, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
 import { Routine, Run } from "types";
@@ -620,6 +620,10 @@ export const RoutineView = ({
                             onChange={(isStar: boolean) => { routine && setRoutine({ ...routine, isStarred: isStar }) }}
                             tooltipPlacement="bottom"
                         />}
+                        <ReportsLink 
+                            href={`${APP_LINKS.Routine}/reports/${routine?.id}`}
+                            reports={routine?.reportsCount}
+                        />
                         <Tooltip title="More options">
                             <IconButton
                                 aria-label="More"
@@ -629,6 +633,7 @@ export const RoutineView = ({
                                     display: 'block',
                                     marginLeft: 'auto',
                                     marginRight: 1,
+                                    padding: 0,
                                 }}
                             >
                                 <EllipsisIcon />

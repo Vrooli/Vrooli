@@ -4,6 +4,7 @@ export * from './UserView/UserView';
 export * from './Organization';
 export * from './Project';
 export * from './Routine';
+export * from './ReportsView/ReportsView';
 export * from './RunView/RunView';
 export * from './Standard';
 export * from './SubroutineView/SubroutineView';

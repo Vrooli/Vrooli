@@ -13,7 +13,7 @@ import {
     Person as ProfileIcon,
     Share as ShareIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, DateDisplay, ResourceListVertical, SearchList, SelectLanguageDialog, StarButton } from "components";
+import { BaseObjectActionDialog, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageDialog, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, PubSub, SearchType } from "utils";
@@ -324,6 +324,10 @@ export const UserView = ({
                             tooltipPlacement="bottom"
                         /> : null
                     }
+                    <ReportsLink 
+                        href={`${APP_LINKS.User}/reports/${user?.id}`}
+                        reports={user?.reportsCount}
+                    />
                 </Stack>
             </Stack>
         </Box>

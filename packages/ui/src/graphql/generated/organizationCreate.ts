@@ -102,6 +102,7 @@ export interface organizationCreate_organizationCreate {
   isPrivate: boolean;
   isStarred: boolean;
   stars: number;
+  reportsCount: number;
   permissionsOrganization: organizationCreate_organizationCreate_permissionsOrganization | null;
   resourceLists: organizationCreate_organizationCreate_resourceLists[];
   roles: organizationCreate_organizationCreate_roles[] | null;
