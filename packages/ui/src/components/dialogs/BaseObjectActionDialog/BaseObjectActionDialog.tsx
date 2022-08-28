@@ -5,7 +5,7 @@ import { star, starVariables } from 'graphql/generated/star';
 import { vote, voteVariables } from 'graphql/generated/vote';
 import { copyMutation, forkMutation, starMutation, voteMutation } from "graphql/mutation";
 import { useCallback, useMemo, useState } from "react";
-import { ReportFor, StarFor, VoteFor } from "@local/shared";
+import { ReportFor, StarFor, VoteFor } from "@shared/consts";
 import { DeleteDialog, ListMenu, ReportDialog } from "..";
 import { BaseObjectActionDialogProps, BaseObjectAction, ListMenuItemData } from "../types";
 import {
@@ -19,6 +19,7 @@ import {
     ReportProblem as ReportIcon,
     Share as ShareIcon,
     StarOutline as StarIcon,
+    Search as SearchIcon,
     Star as UnstarIcon,
     ThumbUp as UpvoteIcon,
     Update as UpdateIcon,
@@ -38,6 +39,7 @@ const allOptionsMap: { [key in BaseObjectAction]: [string, SvgIconComponent, str
     [BaseObjectAction.Donate]: ['Donate', DonateIcon, "default", true],
     [BaseObjectAction.Downvote]: ['Downvote', DownvoteIcon, "default", false],
     [BaseObjectAction.Edit]: ['Edit', EditIcon, "default", false],
+    [BaseObjectAction.FindInPage]: ['Find...', SearchIcon, "default", false],
     [BaseObjectAction.Fork]: ['Fork', ForkIcon, "default", false],
     [BaseObjectAction.Report]: ['Report', ReportIcon, "default", false],
     [BaseObjectAction.Share]: ['Share', ShareIcon, "default", false],
@@ -159,6 +161,9 @@ export const BaseObjectActionDialog = ({
             case BaseObjectAction.Edit:
                 handleEdit();
                 break;
+            case BaseObjectAction.FindInPage:
+                PubSub.get().publishFindInPage();
+                break;
             case BaseObjectAction.Fork:
                 handleFork();
                 break;
@@ -198,7 +203,7 @@ export const BaseObjectActionDialog = ({
             options.push(BaseObjectAction.Copy);
             options.push(BaseObjectAction.Fork);
         }
-        options.push(BaseObjectAction.Donate, BaseObjectAction.Share)
+        options.push(BaseObjectAction.Donate, BaseObjectAction.Share, BaseObjectAction.FindInPage)
         if (isLoggedIn && permissions.canReport) {
             options.push(BaseObjectAction.Report);
         }

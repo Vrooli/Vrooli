@@ -3,7 +3,7 @@ import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper,
 import { PrismaType, RecursivePartial } from "../../types";
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
-import { omit } from "@local/shared";
+import { omit } from "@shared/utils";
 
 //==============================================================
 /* #region Custom Components */
@@ -22,21 +22,11 @@ export const userFormatter = (): FormatConverter<User, any> => ({
         'reports': 'Report',
         'routines': 'Routine',
     },
-    addJoinTables: (partial) => {
-        return addJoinTablesHelper(partial, joinMapper);
-    },
-    removeJoinTables: (data) => {
-        return removeJoinTablesHelper(data, joinMapper);
-    },
-    addCountFields: (partial) => {
-        return addCountFieldsHelper(partial, countMapper);
-    },
-    removeCountFields: (data) => {
-        return removeCountFieldsHelper(data, countMapper);
-    },
-    removeSupplementalFields: (partial) => {
-        return omit(partial, supplementalFields);
-    },
+    addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
+    removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
+    addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
+    removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
+    removeSupplementalFields: (partial) => omit(partial, supplementalFields),
     async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<User>[]> {
         return addSupplementalFieldsHelper({
             objects,

@@ -5,7 +5,6 @@ import {
     ExpandLess as ShrinkIcon,
     ExpandMore as ExpandIcon,
     Delete as DeleteIcon,
-    LinkOff as UnlinkedIcon,
 } from '@mui/icons-material';
 import {
     Box,
@@ -22,6 +21,7 @@ import { NodeType } from 'graphql/generated/globalTypes';
 import { Node } from 'types';
 import { EndNode, RedirectNode, RoutineListNode } from 'components';
 import { getTranslation } from 'utils';
+import { UnlinkedNodesIcon } from 'assets/img';
 
 export const UnlinkedNodesDialog = ({
     handleNodeDelete,
@@ -105,8 +105,8 @@ export const UnlinkedNodesDialog = ({
                     justifyContent: 'space-between',
                     width: '100%'
                 }}>
-                    <UnlinkedIcon sx={{ fill: palette.background.textPrimary, marginRight: '8px' }} />
-                    <Typography variant="h6" sx={{ ...noSelect }}>{open ? 'Unlinked ' : ''}({nodes.length})</Typography>
+                    <UnlinkedNodesIcon fill={palette.background.textPrimary} />
+                    <Typography variant="h6" sx={{ ...noSelect, marginLeft: '8px' }}>{open ? 'Unlinked ' : ''}({nodes.length})</Typography>
                     <Tooltip title={open ? 'Shrink' : 'Expand'}>
                         <IconButton edge="end" color="inherit" aria-label={open ? 'Shrink' : 'Expand'}>
                             {open ? <ShrinkIcon sx={{ fill: palette.background.textPrimary }} /> : <ExpandIcon sx={{ fill: palette.background.textPrimary }} />}

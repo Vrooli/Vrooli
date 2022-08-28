@@ -1,4 +1,4 @@
-import { APP_LINKS } from "@local/shared";
+import { APP_LINKS } from "@shared/consts";
 import { Project, Routine, SetLocation, Standard, User } from "types";
 import { getTranslation } from "./translationTools";
 

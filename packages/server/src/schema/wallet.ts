@@ -2,10 +2,10 @@ import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
 import { Wallet, WalletUpdateInput } from './types';
 import { Context } from '../context';
-import { updateHelper, WalletModel } from '../models';
+import { onlyValidIds, updateHelper, WalletModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 import { CustomError } from '../error';
-import { CODE } from '@local/shared';
+import { CODE } from '@shared/consts';
 import { serializedAddressToBech32 } from '../auth/walletAuth';
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
 import { rateLimit } from '../rateLimit';
@@ -148,17 +148,17 @@ export const resolvers = {
                         data: { walletId: currWallet.id }
                     })
                     // Remove the handle from the user, organization, or project linked to a wallet with one of the bad handles
-                    const userIds = badLinks.filter(({ wallet }) => wallet?.userId !== null).map(({ wallet }) => wallet?.userId as string);
+                    const userIds = onlyValidIds(badLinks.map(({ wallet }) => wallet?.userId));
                     await prisma.user.updateMany({
                         where: { id: { in: userIds } },
                         data: { handle: null }
                     });
-                    const organizationIds = badLinks.filter(({ wallet }) => wallet?.organizationId !== null).map(({ wallet }) => wallet?.organizationId as string);
+                    const organizationIds = onlyValidIds(badLinks.map(({ wallet }) => wallet?.organizationId));
                     await prisma.organization.updateMany({
                         where: { id: { in: organizationIds } },
                         data: { handle: null }
                     });
-                    const projectIds = badLinks.filter(({ wallet }) => wallet?.projectId !== null).map(({ wallet }) => wallet?.projectId as string);
+                    const projectIds = onlyValidIds(badLinks.map(({ wallet }) => wallet?.projectId));
                     await prisma.project.updateMany({
                         where: { id: { in: projectIds } },
                         data: { handle: null }

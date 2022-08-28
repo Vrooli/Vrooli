@@ -8,7 +8,7 @@ import {
 } from '@mui/material';
 import { getTranslation, openLink, PubSub, ResourceType } from 'utils';
 import { useCallback, useMemo } from 'react';
-import { useLocation } from 'wouter';
+import { useLocation } from '@shared/route';
 import { ResourceCardProps } from '../../../cards/types';
 import { cardRoot } from '../../../cards/styles';
 import { multiLineEllipsis, noSelect } from 'styles';
@@ -18,7 +18,7 @@ import {
 } from '@mui/icons-material';
 import { getResourceIcon } from '..';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
-import { urlRegex, walletAddressRegex, adaHandleRegex } from '@local/shared';
+import { urlRegex, walletAddressRegex, adaHandleRegex } from '@shared/validation';
 import { UsedForDisplay } from 'components/dialogs';
 
 const buttonProps = {

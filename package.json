@@ -1,7 +1,8 @@
 {
     "private": true,
     "workspaces": [
-        "packages/*"
+        "packages/*",
+        "packages/shared/*"
     ],
     "author": "Vrooli",
     "license": "GPL-3.0",

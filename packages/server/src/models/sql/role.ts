@@ -12,12 +12,8 @@ export const roleFormatter = (): FormatConverter<Role, any> => ({
         '__typename': 'Role',
         'users': 'User',
     },
-    addJoinTables: (partial) => {
-        return addJoinTablesHelper(partial, joinMapper);
-    },
-    removeJoinTables: (data) => {
-        return removeJoinTablesHelper(data, joinMapper);
-    },
+    addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
+    removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
 })
 
 //==============================================================

@@ -8,10 +8,10 @@ import {
 import { Action, actionsToMenu, ACTION_TAGS, getUserActions, openLink } from 'utils';
 import { Button, Container, IconButton, Theme, useTheme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { useLocation } from 'wouter';
+import { useLocation } from '@shared/route';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NavListProps } from '../types';
-import { APP_LINKS } from '@local/shared';
+import { APP_LINKS } from '@shared/consts';
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
@@ -25,13 +25,13 @@ const useStyles = makeStyles((theme: Theme) => ({
         background: 'transparent',
         color: theme.palette.primary.contrastText,
         textTransform: 'none',
-        fontSize: '1.5em',
+        fontSize: '1.4em',
         '&:hover': {
             color: theme.palette.secondary.light,
         },
     },
     button: {
-        fontSize: '1.5em',
+        fontSize: '1.4em',
         borderRadius: '10px',
     },
     menuItem: {

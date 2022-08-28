@@ -1,5 +1,5 @@
 import { useLazyQuery, useQuery } from '@apollo/client';
-import { APP_LINKS } from '@local/shared';
+import { APP_LINKS } from '@shared/consts';
 import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, ResourceListHorizontal, ListTitleContainer } from 'components';
 import { ResourceListUsedFor } from 'graphql/generated/globalTypes';
@@ -8,8 +8,8 @@ import { profile } from 'graphql/generated/profile';
 import { learnPageQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ResourceList } from 'types';
-import { listToListItems, openObject, OpenObjectProps, stringifySearchParams } from 'utils';
-import { useLocation } from 'wouter';
+import { listToListItems, openObject, OpenObjectProps, SearchPageTabOption, stringifySearchParams } from 'utils';
+import { useLocation } from '@shared/route';
 import { LearnPageProps } from '../types';
 
 const courseText =
@@ -79,7 +79,10 @@ export const LearnPage = ({
      */
     const toSeeAllCourses = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.SearchProjects}${stringifySearchParams({ tags: ['Learn'] })}`);
+        setLocation(`${APP_LINKS.Search}${stringifySearchParams({ 
+            tags: ['Learn'], 
+            type: SearchPageTabOption.Projects,
+        })}`);
     }, [setLocation]);
 
     /**
@@ -87,7 +90,10 @@ export const LearnPage = ({
      */
     const toSeeAllTutorials = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.SearchRoutines}${stringifySearchParams({ tags: ['Learn'] })}`);
+        setLocation(`${APP_LINKS.Search}${stringifySearchParams({ 
+            tags: ['Learn'], 
+            type: SearchPageTabOption.Routines,
+        })}`);
     }, [setLocation]);
 
     const courses = useMemo(() => listToListItems({

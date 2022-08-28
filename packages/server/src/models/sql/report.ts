@@ -1,4 +1,7 @@
-import { CODE, omit, ReportFor, reportsCreate, reportsUpdate } from "@local/shared";
+import { reportsCreate, reportsUpdate } from "@shared/validation";
+import { ReportFor } from '@shared/consts';
+import { CODE } from "@shared/consts";
+import { omit } from '@shared/utils'; 
 import { CustomError } from "../../error";
 import { Count, Report, ReportCreateInput, ReportSearchInput, ReportSortBy, ReportUpdateInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
@@ -90,7 +93,6 @@ const forMapper = {
 
 export const reportMutater = (prisma: PrismaType) => ({
     async toDBShapeAdd(userId: string | null, data: ReportCreateInput): Promise<any> {
-        console.log("toDBShapeAdd")
         return {
             id: data.id,
             language: data.language,
@@ -101,7 +103,6 @@ export const reportMutater = (prisma: PrismaType) => ({
         }
     },
     async toDBShapeUpdate(userId: string | null, data: ReportUpdateInput): Promise<any> {
-        console.log("toDBShapeUpdate")
         return {
             reason: data.reason ?? undefined,
             details: data.details,

@@ -1,6 +1,6 @@
-import { StarFor, VoteFor } from '@local/shared';
+import { StarFor, VoteFor } from '@shared/consts';
+import { SearchType } from 'components/dialogs';
 import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListUser, Session, Tag } from 'types';
-import { ObjectType } from 'utils';
 
 export interface CommentButtonProps {
     commentsCount: number | null; // Defaults to 0
@@ -69,10 +69,9 @@ export interface ReportButtonProps {
  */
 export interface SearchListGenerator {
     itemKeyPrefix: string;
-    objectType: ObjectType;
+    searchType: SearchType;
     placeholder: string;
     noResultsText: string;
-    searchQuery: any;
     where: any;
     onSearchSelect: (objectData: any) => void;
 }
@@ -86,9 +85,8 @@ export interface SearchListProps {
     hideRoles?: boolean;
     itemKeyPrefix: string;
     searchPlaceholder?: string;
-    query: DocumentNode;
     take?: number; // Number of items to fetch per page
-    objectType: ObjectType;
+    searchType: SearchType;
     onObjectSelect: (objectData: any) => void; // Passes all object data to the parent, so the known information can be displayed while more details are queried
     onScrolledFar?: () => void; // Called when scrolled far enough to prompt the user to create a new object
     where?: any; // Additional where clause to pass to the query

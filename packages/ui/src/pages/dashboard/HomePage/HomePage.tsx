@@ -5,15 +5,15 @@ import { homePage, homePageVariables } from 'graphql/generated/homePage';
 import { useQuery } from '@apollo/client';
 import { homePageQuery } from 'graphql/query';
 import { AutocompleteSearchBar, ListTitleContainer, TitleContainer, ListMenu } from 'components';
-import { useLocation } from 'wouter';
-import { APP_LINKS } from '@local/shared';
+import { useLocation } from '@shared/route';
+import { APP_LINKS } from '@shared/consts';
 import { HomePageProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import {
     Add as CreateIcon,
     Search as SearchIcon,
 } from '@mui/icons-material';
-import { listToAutocomplete, listToListItems, ObjectType, openObject, OpenObjectProps, openSearchPage, useReactSearch } from 'utils';
+import { listToAutocomplete, listToListItems, openObject, OpenObjectProps, SearchPageTabOption, shortcutsItems, useReactSearch } from 'utils';
 import { AutocompleteOption } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 
@@ -64,11 +64,11 @@ If you would like to contribute to the development of Vrooli, please contact us!
 `
 
 const advancedSearchPopupOptions: ListMenuItemData<string>[] = [
-    { label: 'Organization', value: `${APP_LINKS.SearchOrganizations}?advanced=true` },
-    { label: 'Project', value: `${APP_LINKS.SearchProjects}?advanced=true` },
-    { label: 'Routine', value: `${APP_LINKS.SearchRoutines}?advanced=true` },
-    { label: 'Standard', value: `${APP_LINKS.SearchStandards}?advanced=true` },
-    { label: 'User', value: `${APP_LINKS.SearchUsers}?advanced=true` },
+    { label: 'Organization', value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Organizations}&advanced=true` },
+    { label: 'Project', value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Projects}&advanced=true` },
+    { label: 'Routine', value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Routines}&advanced=true` },
+    { label: 'Standard', value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Standards}&advanced=true` },
+    { label: 'User', value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Users}&advanced=true` },
 ]
 
 const createNewPopupOptions: ListMenuItemData<string>[] = [
@@ -90,106 +90,6 @@ const examplesData: [string, string][] = [
     // ['Fund your project', ''], //TODO
     ['Create a Cardano native asset token', '3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
 ]
-
-interface ShortcutItem {
-    label: string;
-    link: string;
-}
-/**
- * Shortcuts that can appear in the search bar
- */
-const shortcuts: ShortcutItem[] = [
-    {
-        label: 'Create new organization',
-        link: `${APP_LINKS.Organization}/add`,
-    },
-    {
-        label: 'Create new project',
-        link: `${APP_LINKS.Project}/add`,
-    },
-    {
-        label: 'Create new single-step routine',
-        link: `${APP_LINKS.Routine}/add`,
-    },
-    {
-        label: 'Create new multi-step routine',
-        link: `${APP_LINKS.Routine}/add?build=true`,
-    },
-    {
-        label: 'Create new standard',
-        link: `${APP_LINKS.Standard}/add`,
-    },
-    {
-        label: 'View learn dashboard',
-        link: `${APP_LINKS.Learn}`,
-    },
-    {
-        label: 'View research dashboard',
-        link: `${APP_LINKS.Research}`,
-    },
-    {
-        label: 'View develop dashboard',
-        link: `${APP_LINKS.Develop}`,
-    },
-    {
-        label: 'View history page',
-        link: `${APP_LINKS.History}`,
-    },
-    {
-        label: 'Search organizations',
-        link: `${APP_LINKS.SearchOrganizations}`,
-    },
-    {
-        label: 'Search projects',
-        link: `${APP_LINKS.SearchProjects}`,
-    },
-    {
-        label: 'Search routines',
-        link: `${APP_LINKS.SearchRoutines}`,
-    },
-    {
-        label: 'Search standards',
-        link: `${APP_LINKS.SearchStandards}`,
-    },
-    {
-        label: 'Search users',
-        link: `${APP_LINKS.SearchUsers}`,
-    },
-    {
-        label: 'Search organizations advanced',
-        link: `${APP_LINKS.SearchOrganizations}?advanced=true`,
-    },
-    {
-        label: 'Search projects advanced',
-        link: `${APP_LINKS.SearchProjects}?advanced=true`,
-    },
-    {
-        label: 'Search routines advanced',
-        link: `${APP_LINKS.SearchRoutines}?advanced=true`,
-    },
-    {
-        label: 'Search standards advanced',
-        link: `${APP_LINKS.SearchStandards}?advanced=true`,
-    },
-    {
-        label: 'Search users advanced',
-        link: `${APP_LINKS.SearchUsers}?advanced=true`,
-    },
-    {
-        label: `Beginner's Guide`,
-        link: `${APP_LINKS.Welcome}`,
-    },
-    {
-        label: 'FAQ',
-        link: `${APP_LINKS.FAQ}`,
-    },
-]
-// Shape shortcuts to match AutoCompleteListItem format
-const shortcutsItems: AutocompleteOption[] = shortcuts.map(({ label, link }) => ({
-    __typename: "Shortcut",
-    label,
-    id: link,
-}))
 
 /**
  * Containers a search bar, lists of routines, projects, tags, and organizations, 
@@ -274,12 +174,12 @@ export const HomePage = ({
     /**
      * Opens search page for object type
      */
-    const toSearchPage = useCallback((event: any, objectType: ObjectType) => {
+    const toSearchPage = useCallback((event: any, tab: SearchPageTabOption) => {
         event?.stopPropagation();
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
         // Navigate to search page
-        openSearchPage(objectType, setLocation);
+        setLocation(`${APP_LINKS.Search}?type=${tab}`);
     }, [searchString, setLocation]);
 
     /**
@@ -303,12 +203,12 @@ export const HomePage = ({
         // Helper method for checking if a word (NOT a substring) is in the search string
         const containsWord = (str: string, word: string) => str.toLowerCase().match(new RegExp("\\b" + `!${word}`.toLowerCase() + "\\b")) != null;
         // Set default order
-        let defaultOrder = [ObjectType.Routine, ObjectType.Project, ObjectType.Organization, ObjectType.Standard, ObjectType.User];
+        let defaultOrder = [SearchPageTabOption.Routines, SearchPageTabOption.Projects, SearchPageTabOption.Organizations, SearchPageTabOption.Standards, SearchPageTabOption.Users];
         // Loop through keywords, and move ones which appear in the search string to the front
         // A keyword is only counted as a match if it has an exclamation point (!) at the beginning
-        for (const keyword of Object.keys(ObjectType)) {
+        for (const keyword of Object.keys(SearchPageTabOption)) {
             if (containsWord(searchString, keyword)) {
-                defaultOrder = [ObjectType[keyword], ...defaultOrder.filter(o => o !== ObjectType[keyword])];
+                defaultOrder = [SearchPageTabOption[keyword], ...defaultOrder.filter(o => o !== SearchPageTabOption[keyword])];
             }
         }
         return defaultOrder;
@@ -316,27 +216,27 @@ export const HomePage = ({
 
     const feeds = useMemo(() => {
         let listFeeds: JSX.Element[] = [];
-        for (const objectType of feedOrder) {
+        for (const tab of feedOrder) {
             let currentList: any[] = [];
             let dummyType: string = '';
-            switch (objectType) {
-                case ObjectType.Organization:
+            switch (tab) {
+                case SearchPageTabOption.Organizations:
                     currentList = data?.homePage?.organizations ?? [];
                     dummyType = 'Organization';
                     break;
-                case ObjectType.Project:
+                case SearchPageTabOption.Projects:
                     currentList = data?.homePage?.projects ?? [];
                     dummyType = 'Project';
                     break;
-                case ObjectType.Routine:
+                case SearchPageTabOption.Routines:
                     currentList = data?.homePage?.routines ?? [];
                     dummyType = 'Routine';
                     break;
-                case ObjectType.Standard:
+                case SearchPageTabOption.Standards:
                     currentList = data?.homePage?.standards ?? [];
                     dummyType = 'Standard';
                     break;
-                case ObjectType.User:
+                case SearchPageTabOption.Users:
                     currentList = data?.homePage?.users ?? [];
                     dummyType = 'User';
                     break;
@@ -344,7 +244,7 @@ export const HomePage = ({
             const listFeedItems: JSX.Element[] = listToListItems({
                 dummyItems: new Array(5).fill(dummyType),
                 items: currentList,
-                keyPrefix: `feed-list-item-${objectType}`,
+                keyPrefix: `feed-list-item-${tab}`,
                 loading,
                 onClick: toItemPage,
                 session,
@@ -352,11 +252,11 @@ export const HomePage = ({
             if (loading || listFeedItems.length > 0) {
                 listFeeds.push((
                     <ListTitleContainer
-                        key={`feed-list-${objectType}`}
+                        key={`feed-list-${tab}`}
                         isEmpty={listFeedItems.length === 0}
-                        title={getFeedTitle(`${objectType}s`)}
-                        onClick={(e) => toSearchPage(e, objectType)}
-                        options={[['See more results', (e) => { toSearchPage(e, objectType) }]]}
+                        title={getFeedTitle(`${tab}s`)}
+                        onClick={(e) => toSearchPage(e, tab)}
+                        options={[['See more results', (e) => { toSearchPage(e, tab) }]]}
                     >
                         {listFeedItems}
                     </ListTitleContainer>
@@ -456,7 +356,7 @@ export const HomePage = ({
                     onInputChange={onInputSelect}
                     session={session}
                     showSecondaryLabel={true}
-                    sx={{ width: 'min(100%, 600px)' }}
+                    sxs={{ root: { width: 'min(100%, 600px)' } }}
                 />
                 {/* =========  #endregion ========= */}
             </Stack>

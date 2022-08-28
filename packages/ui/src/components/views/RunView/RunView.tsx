@@ -1,13 +1,12 @@
-import { RunStepStatus } from "@local/shared";
+import { RunStepStatus } from "@shared/consts";
 import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material"
 import { DecisionView, HelpButton, RunStepsDialog } from "components";
 import { SubroutineView } from "components/views/SubroutineView/SubroutineView";
-import { useLocation } from "wouter";
+import { useLocation } from '@shared/route';
 import { RunViewProps } from "../types";
 import {
     ArrowBack as PreviousIcon,
     ArrowForward as NextIcon,
-    Close as CloseIcon,
     DoneAll as CompleteIcon,
 } from '@mui/icons-material';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -24,6 +23,7 @@ import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils";
 import { runUpdate, runUpdateVariables } from "graphql/generated/runUpdate";
 import { v4 as uuid } from 'uuid';
+import { CloseIcon } from "assets/img";
 
 /**
  * Maximum routine nesting supported
@@ -861,10 +861,7 @@ export const RunView = ({
                             onClick={toFinishNotComplete}
                             color="inherit"
                         >
-                            <CloseIcon sx={{
-                                width: '32px',
-                                height: '32px',
-                            }} />
+                            <CloseIcon width='32px' height='32px' />
                         </IconButton>
                         {/* Title and steps */}
                         <Stack direction="row" spacing={1} sx={{

@@ -1,4 +1,4 @@
-import { CODE } from "@local/shared";
+import { CODE } from "@shared/consts";
 import { CustomError } from "../error";
 import { genErrorCode } from "../logger";
 

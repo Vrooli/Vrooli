@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     AlertDialog,
     BottomNav,
+    CommandPalette,
+    FindInPage,
     Footer,
     Navbar,
     Snack
@@ -15,7 +17,7 @@ import { validateSessionMutation } from 'graphql/mutation';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import { Session } from 'types';
 import Confetti from 'react-confetti';
-import { CODE } from '@local/shared';
+import { CODE } from '@shared/consts';
 
 const useStyles = makeStyles(() => ({
     "@global": {
@@ -97,6 +99,36 @@ export function App() {
     useEffect(() => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         setLoading(false);
+        // Add help wanted to console logs
+        console.log(`
+               @@@                 @@@                  
+            @@     @@           @@     @@               
+           @@       @@         @@       @@              
+            @@     @@           @@     @@               
+               @@@   @@        @   @@@                  
+                        @   @@                   @@@      
+                         @@                   @@     @@
+                         @@             @@@@@@@       @@
+            @@           @@          @@       @@     @@
+    @@@  @@    @@    @@@    @@@   @@             @@@ 
+ @@     @@         @@          @@                     
+@@       @@       @@            @@                                  
+ @@     @@        @             @@@@@@@@@@                Consider developing with us!  
+    @@@           @@            @@        @@@@@           https://github.com/Vrooli/Vrooli
+                   @@          @@                @      
+                     @@@    @@@                  @      
+                         @@                     @@@   
+       @@@              @@@@                 @@     @@  
+    @@     @@@@@@@@@@@@      @@             @@       @@ 
+   @@       @@      @@        @@             @@     @@ 
+    @@     @@        @@      @@                 @@@           
+       @@@              @@@@                             
+                         @@ 
+                       @@@@@@                        
+                     @@      @@                        
+                     @@      @@                        
+                       @@@@@@  
+        `)
     }, []);
 
     useEffect(() => {
@@ -105,6 +137,29 @@ export function App() {
         else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme(themes.dark);
         else setTheme(themes.light);
     }, [session])
+
+    // Handle site-wide keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // CTRL + P - Opens Command Palette
+            if (e.ctrlKey && e.key === 'p') {
+                e.preventDefault();
+                PubSub.get().publishCommandPalette();
+            }
+            // CTRL + F - Opens Find in Page
+            else if (e.ctrlKey && e.key === 'f') {
+                e.preventDefault();
+                PubSub.get().publishFindInPage();
+            }
+        };
+
+        // attach the event listener
+        document.addEventListener('keydown', handleKeyDown);
+        // remove the event listener
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, []);
 
     const checkSession = useCallback((session?: any) => {
         if (session) {
@@ -160,7 +215,7 @@ export function App() {
             // If undefined or empty, set session to published data
             if (session === undefined || Object.keys(session).length === 0) {
                 setSession(session);
-            } 
+            }
             // Otherwise, combine existing session data with published data
             else {
                 setSession(s => ({ ...s, ...session }));
@@ -220,6 +275,10 @@ export function App() {
                                     <CircularProgress size={100} />
                                 </Box>
                             }
+                            {/* Command palette */}
+                            <CommandPalette session={session ?? {}} />
+                            {/* Find in page */}
+                            <FindInPage />
                             {/* Celebratory confetti. To be used sparingly */}
                             {
                                 celebrating && <Confetti

@@ -1,24 +1,24 @@
 import {
-    Box,
     Button,
     Dialog,
     DialogContent,
-    IconButton,
     Stack,
     TextField,
     Typography,
     useTheme
 } from '@mui/material';
 import { DeleteDialogProps } from '../types';
-import { Close as CloseIcon } from '@mui/icons-material';
 import { useCallback, useState } from 'react';
 import { mutationWrapper } from 'graphql/utils';
 import { useMutation } from '@apollo/client';
 import { deleteOneMutation } from 'graphql/mutation';
 import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
-import { APP_LINKS } from '@local/shared';
-import { useLocation } from 'wouter';
+import { APP_LINKS } from '@shared/consts';
+import { useLocation } from '@shared/route';
 import { PubSub } from 'utils';
+import { DialogTitle } from 'components';
+
+const titleAria = 'delete-object-dialog-title';
 
 export const DeleteDialog = ({
     handleClose,
@@ -64,28 +64,16 @@ export const DeleteDialog = ({
         <Dialog
             open={isOpen}
             onClose={() => { close(); }}
-            aria-labelledby="delete-object-dialog-title"
-            aria-describedby="delete-object-dialog-description"
+            aria-labelledby={titleAria}
             sx={{
                 zIndex
             }}
         >
-            <Box sx={{
-                background: palette.primary.dark,
-                color: palette.primary.contrastText,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-            }}>
-                <Typography variant="h6" sx={{ marginLeft: 'auto' }}>Delete {objectName}</Typography>
-                <IconButton onClick={() => { close(); }} sx={{
-                    justifyContent: 'end',
-                    flexDirection: 'row-reverse',
-                    marginLeft: 'auto',
-                }}>
-                    <CloseIcon fontSize="large" sx={{ fill: palette.primary.contrastText }} />
-                </IconButton>
-            </Box>
+            <DialogTitle
+                ariaLabel={titleAria}
+                title={`Delete ${objectName}`}
+                onClose={() => { close() }}
+            />
             <DialogContent>
                 <Stack direction="column" spacing="2">
                     <Typography variant="h6">Are you absolutely certain you want to delete "{objectName}"?</Typography>

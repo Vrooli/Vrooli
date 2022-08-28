@@ -3,7 +3,7 @@
  * must match a certain schema.
  */
 import { TextFieldStandardInputProps } from '../types';
-import { textFieldStandardInputForm as validationSchema } from '@local/shared';
+import { textFieldStandardInputForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { Grid, TextField } from '@mui/material';
 import { QuantityBox } from 'components/inputs/QuantityBox/QuantityBox';

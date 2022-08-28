@@ -19,6 +19,7 @@ export const listProjectFields = gql`
         handle
         score
         stars
+        isComplete
         isPrivate
         isUpvoted
         isStarred

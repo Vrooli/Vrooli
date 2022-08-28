@@ -1,10 +1,10 @@
 import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
-import { DeleteOneType } from '@local/shared';
+import { DeleteOneType } from '@shared/consts';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 import { ReportFor } from 'graphql/generated/globalTypes';
-import { ObjectType } from 'utils';
+import { ObjectType, SearchType } from 'utils';
 
 export interface BaseObjectDialogProps extends DialogProps {
     children: JSX.Element | JSX.Element[];
@@ -13,7 +13,7 @@ export interface BaseObjectDialogProps extends DialogProps {
      */
     onAction: (state: ObjectDialogAction) => any;
     open: boolean;
-    title: string;
+    title?: string;
     zIndex: number;
 };
 
@@ -24,6 +24,13 @@ export interface DeleteDialogProps {
     objectName: string;
     objectType: DeleteOneType;
     zIndex: number;
+}
+
+export interface DialogTitleProps {
+    ariaLabel: string;
+    helpText?: string;
+    onClose: () => void;
+    title: string;
 }
 
 export interface ListMenuItemData<T> {
@@ -60,6 +67,13 @@ export interface ListMenuProps<T> {
     onClose: () => void;
     title?: string;
     zIndex: number;
+}
+
+export interface MenuTitleProps {
+    ariaLabel?: string;
+    helpText?: string;
+    onClose: () => void;
+    title?: string;
 }
 
 export enum ObjectDialogAction {
@@ -148,6 +162,7 @@ export enum BaseObjectAction {
     Donate = "Donate",
     Downvote = "Downvote",
     Edit = "Edit",
+    FindInPage = "FindInPage",
     Fork = "Fork",
     Report = "Report",
     Share = "Share",
@@ -280,6 +295,7 @@ export interface AdvancedSearchDialogProps {
     handleClose: () => any;
     handleSearch: (searchQuery: { [x: string]: any }) => any;
     isOpen: boolean;
+    searchType: SearchType;   
     session: Session;
     zIndex: number;
 }

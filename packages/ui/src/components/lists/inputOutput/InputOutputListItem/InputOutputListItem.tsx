@@ -1,6 +1,7 @@
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { InputOutputListItemProps } from '../types';
-import { inputCreate, InputType, outputCreate } from '@local/shared';
+import { InputType } from '@shared/consts';
+import { inputCreate, outputCreate } from '@shared/validation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { containerShadow } from 'styles';
 import {
@@ -8,52 +9,13 @@ import {
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
-import { getTranslation, InputTranslationShape, jsonToString, OutputTranslationShape, StandardShape, standardToFieldData, updateArray } from 'utils';
+import { getTranslation, InputTranslationShape, InputTypeOption, InputTypeOptions, jsonToString, OutputTranslationShape, StandardShape, standardToFieldData, updateArray } from 'utils';
 import { useFormik } from 'formik';
 import { Standard } from 'types';
 import { BaseStandardInput, MarkdownInput, PreviewSwitch, Selector, StandardSelectSwitch } from 'components';
 import { FieldData } from 'forms/types';
 import { generateInputComponent } from 'forms/generators';
 import { v4 as uuid } from 'uuid';
-
-type InputTypeOption = { label: string, value: InputType }
-/**
- * Supported input types
- */
-export const InputTypeOptions: InputTypeOption[] = [
-    {
-        label: 'Text',
-        value: InputType.TextField,
-    },
-    {
-        label: 'JSON',
-        value: InputType.JSON,
-    },
-    {
-        label: 'Integer',
-        value: InputType.QuantityBox
-    },
-    {
-        label: 'Radio (Select One)',
-        value: InputType.Radio,
-    },
-    {
-        label: 'Checkbox (Select any)',
-        value: InputType.Checkbox,
-    },
-    {
-        label: 'Switch (On/Off)',
-        value: InputType.Switch,
-    },
-    // {
-    //     label: 'File Upload',
-    //     value: InputType.Dropzone,
-    // },
-    {
-        label: 'Markdown',
-        value: InputType.Markdown
-    },
-]
 
 const defaultStandard = (item: InputOutputListItemProps['item'], generatedSchema?: FieldData | null): StandardShape => ({
     __typename: 'Standard',

@@ -1408,9 +1408,138 @@ export type ProjectEdge = {
 
 export type ProjectOrOrganization = Organization | Project;
 
+export type ProjectOrOrganizationEdge = {
+  __typename?: 'ProjectOrOrganizationEdge';
+  cursor: Scalars['String'];
+  node: ProjectOrOrganization;
+};
+
 export type ProjectOrOrganizationOrRoutineOrStandardOrUser = Organization | Project | Routine | Standard | User;
 
+export type ProjectOrOrganizationPageInfo = {
+  __typename?: 'ProjectOrOrganizationPageInfo';
+  endCursorOrganization?: Maybe<Scalars['String']>;
+  endCursorProject?: Maybe<Scalars['String']>;
+  hasNextPage: Scalars['Boolean'];
+};
+
+export type ProjectOrOrganizationSearchInput = {
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  excludeIds?: InputMaybe<Array<Scalars['ID']>>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  includePrivate?: InputMaybe<Scalars['Boolean']>;
+  languages?: InputMaybe<Array<Scalars['String']>>;
+  minStars?: InputMaybe<Scalars['Int']>;
+  minViews?: InputMaybe<Scalars['Int']>;
+  objectType?: InputMaybe<Scalars['String']>;
+  organizationAfter?: InputMaybe<Scalars['String']>;
+  organizationIsOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
+  organizationProjectId?: InputMaybe<Scalars['ID']>;
+  organizationRoutineId?: InputMaybe<Scalars['ID']>;
+  projectAfter?: InputMaybe<Scalars['String']>;
+  projectIsComplete?: InputMaybe<Scalars['Boolean']>;
+  projectIsCompleteExceptions?: InputMaybe<Array<BooleanSearchException>>;
+  projectMinScore?: InputMaybe<Scalars['Int']>;
+  projectOrganizationId?: InputMaybe<Scalars['ID']>;
+  projectParentId?: InputMaybe<Scalars['ID']>;
+  reportId?: InputMaybe<Scalars['ID']>;
+  resourceLists?: InputMaybe<Array<Scalars['String']>>;
+  resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<ProjectOrOrganizationSortBy>;
+  tags?: InputMaybe<Array<Scalars['String']>>;
+  take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  userId?: InputMaybe<Scalars['ID']>;
+};
+
+export type ProjectOrOrganizationSearchResult = {
+  __typename?: 'ProjectOrOrganizationSearchResult';
+  edges: Array<ProjectOrOrganizationEdge>;
+  pageInfo: ProjectOrOrganizationPageInfo;
+};
+
+export enum ProjectOrOrganizationSortBy {
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  StarsAsc = 'StarsAsc',
+  StarsDesc = 'StarsDesc'
+}
+
 export type ProjectOrRoutine = Project | Routine;
+
+export type ProjectOrRoutineEdge = {
+  __typename?: 'ProjectOrRoutineEdge';
+  cursor: Scalars['String'];
+  node: ProjectOrRoutine;
+};
+
+export type ProjectOrRoutinePageInfo = {
+  __typename?: 'ProjectOrRoutinePageInfo';
+  endCursorProject?: Maybe<Scalars['String']>;
+  endCursorRoutine?: Maybe<Scalars['String']>;
+  hasNextPage: Scalars['Boolean'];
+};
+
+export type ProjectOrRoutineSearchInput = {
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  excludeIds?: InputMaybe<Array<Scalars['ID']>>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  includePrivate?: InputMaybe<Scalars['Boolean']>;
+  isComplete?: InputMaybe<Scalars['Boolean']>;
+  isCompleteExceptions?: InputMaybe<Array<BooleanSearchException>>;
+  languages?: InputMaybe<Array<Scalars['String']>>;
+  minScore?: InputMaybe<Scalars['Int']>;
+  minStars?: InputMaybe<Scalars['Int']>;
+  minViews?: InputMaybe<Scalars['Int']>;
+  objectType?: InputMaybe<Scalars['String']>;
+  organizationId?: InputMaybe<Scalars['ID']>;
+  parentId?: InputMaybe<Scalars['ID']>;
+  projectAfter?: InputMaybe<Scalars['String']>;
+  reportId?: InputMaybe<Scalars['ID']>;
+  resourceLists?: InputMaybe<Array<Scalars['String']>>;
+  resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
+  routineAfter?: InputMaybe<Scalars['String']>;
+  routineIsInternal?: InputMaybe<Scalars['Boolean']>;
+  routineMaxComplexity?: InputMaybe<Scalars['Int']>;
+  routineMaxSimplicity?: InputMaybe<Scalars['Int']>;
+  routineMaxTimesCompleted?: InputMaybe<Scalars['Int']>;
+  routineMinComplexity?: InputMaybe<Scalars['Int']>;
+  routineMinSimplicity?: InputMaybe<Scalars['Int']>;
+  routineMinTimesCompleted?: InputMaybe<Scalars['Int']>;
+  routineProjectId?: InputMaybe<Scalars['ID']>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<ProjectOrRoutineSortBy>;
+  tags?: InputMaybe<Array<Scalars['String']>>;
+  take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  userId?: InputMaybe<Scalars['ID']>;
+};
+
+export type ProjectOrRoutineSearchResult = {
+  __typename?: 'ProjectOrRoutineSearchResult';
+  edges: Array<ProjectOrRoutineEdge>;
+  pageInfo: ProjectOrRoutinePageInfo;
+};
+
+export enum ProjectOrRoutineSortBy {
+  CommentsAsc = 'CommentsAsc',
+  CommentsDesc = 'CommentsDesc',
+  DateCompletedAsc = 'DateCompletedAsc',
+  DateCompletedDesc = 'DateCompletedDesc',
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  ForksAsc = 'ForksAsc',
+  ForksDesc = 'ForksDesc',
+  StarsAsc = 'StarsAsc',
+  StarsDesc = 'StarsDesc',
+  VotesAsc = 'VotesAsc',
+  VotesDesc = 'VotesDesc'
+}
 
 export type ProjectPermission = {
   __typename?: 'ProjectPermission';
@@ -1526,6 +1655,8 @@ export type Query = {
   organizationsCount: Scalars['Int'];
   profile: Profile;
   project?: Maybe<Project>;
+  projectOrOrganizations: ProjectOrOrganizationSearchResult;
+  projectOrRoutines: ProjectOrRoutineSearchResult;
   projects: ProjectSearchResult;
   projectsCount: Scalars['Int'];
   readAssets: Array<Maybe<Scalars['String']>>;
@@ -1557,6 +1688,7 @@ export type Query = {
   user?: Maybe<User>;
   users: UserSearchResult;
   usersCount: Scalars['Int'];
+  views: ViewSearchResult;
 };
 
 
@@ -1612,6 +1744,16 @@ export type QueryOrganizationsCountArgs = {
 
 export type QueryProjectArgs = {
   input: FindByIdOrHandleInput;
+};
+
+
+export type QueryProjectOrOrganizationsArgs = {
+  input: ProjectOrOrganizationSearchInput;
+};
+
+
+export type QueryProjectOrRoutinesArgs = {
+  input: ProjectOrRoutineSearchInput;
 };
 
 
@@ -1762,6 +1904,11 @@ export type QueryUsersArgs = {
 
 export type QueryUsersCountArgs = {
   input: UserCountInput;
+};
+
+
+export type QueryViewsArgs = {
+  input: ViewSearchInput;
 };
 
 export type ReadAssetsInput = {

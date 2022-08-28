@@ -2,16 +2,18 @@
  * Label that turns into a text input when clicked. 
  * Stores new text until committed.
  */
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Stack, TextField, Typography, useTheme } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Stack, TextField } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import {
     Cancel as CancelIcon,
-    Close as CloseIcon,
     Done as DoneIcon,
     Edit as EditIcon,
 } from '@mui/icons-material';
 import { EditableLabelProps } from '../types';
-import { noSelect } from 'styles';
+import { DialogTitle } from 'components/dialogs';
+
+const titleAria = 'editable-label-dialog-title';
+const descriptionAria = 'editable-label-dialog-description';
 
 export const EditableLabel = ({
     canEdit,
@@ -22,7 +24,6 @@ export const EditableLabel = ({
     text,
     sxs,
 }: EditableLabelProps) => {
-    const { palette } = useTheme();
 
     /**
      * Random string for unique ID
@@ -49,11 +50,11 @@ export const EditableLabel = ({
         if (!canEdit) return;
         setActive(!active)
     }, [active, canEdit]);
-    const save = useCallback((event: React.MouseEvent<any>) => {
+    const save = useCallback(() => {
         handleUpdate(changedText);
         setActive(false);
     }, [changedText, handleUpdate]);
-    const cancel = useCallback((event: React.MouseEvent<any>) => {
+    const cancel = useCallback(() => {
         setChangedText(text ?? '');
         setActive(false);
     }, [text]);
@@ -65,8 +66,8 @@ export const EditableLabel = ({
                 open={active}
                 disableScrollLock={true}
                 onClose={() => { }}
-                aria-labelledby="edit-label-title"
-                aria-describedby="edit-label-body"
+                aria-labelledby={titleAria}
+                aria-describedby={descriptionAria}
                 sx={{
                     '& .MuiPaper-root': {
                         minWidth: 'min(400px, 100%)',
@@ -74,37 +75,13 @@ export const EditableLabel = ({
                     },
                 }}
             >
-                {/* Title with close icon */}
                 <DialogTitle
-                    id="edit-label-title"
-                    sx={{
-                        ...noSelect,
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: 2,
-                        background: palette.primary.dark,
-                        color: palette.primary.contrastText,
-                    }}
-                >
-                    <Typography
-                        variant="h6"
-                        sx={{
-                            width: '-webkit-fill-available',
-                            textAlign: 'center',
-                        }}
-                    >
-                        Edit Label
-                    </Typography>
-                    <IconButton
-                        aria-label="close"
-                        edge="start"
-                        onClick={cancel}
-                    >
-                        <CloseIcon sx={{ fill: palette.primary.contrastText }} />
-                    </IconButton>
-                </DialogTitle>
+                    ariaLabel={titleAria}
+                    onClose={cancel}
+                    title="Edit Label"
+                />
                 <DialogContent>
-                    <DialogContentText id="edit-label-body">
+                    <DialogContentText id={descriptionAria}>
                         <TextField
                             autoFocus
                             margin="dense"

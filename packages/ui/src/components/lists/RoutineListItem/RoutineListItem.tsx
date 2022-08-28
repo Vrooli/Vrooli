@@ -2,8 +2,8 @@ import { Chip, ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme 
 import { RoutineListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, StarFor, VoteFor } from '@local/shared';
-import { useLocation } from 'wouter';
+import { APP_LINKS, StarFor, VoteFor } from '@shared/consts';
+import { useLocation } from '@shared/route';
 import { CommentButton, ReportButton, StarButton, TagList, TextLoading, UpvoteDownvote } from '..';
 import { getTranslation, listItemColor } from 'utils';
 

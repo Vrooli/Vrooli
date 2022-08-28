@@ -2,7 +2,7 @@ import { Box, Stack, Typography, useTheme } from "@mui/material"
 import { useMutation } from "@apollo/client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { profileUpdateSchema as validationSchema } from '@local/shared';
+import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
 import { PubSub, shapeProfileUpdate, TagHiddenShape, TagShape, TERTIARY_COLOR } from "utils";

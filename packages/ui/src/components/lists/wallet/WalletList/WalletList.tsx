@@ -14,7 +14,7 @@ import { PubSub, updateArray } from 'utils';
 import { deleteOneMutation, walletUpdateMutation } from 'graphql/mutation';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
 import { WalletListItem } from '../WalletListItem/WalletListItem';
-import { DeleteOneType } from '@local/shared';
+import { DeleteOneType } from '@shared/consts';
 import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
 import { walletUpdate, walletUpdateVariables } from 'graphql/generated/walletUpdate';
 import { WalletInstallDialog, WalletSelectDialog } from 'components';

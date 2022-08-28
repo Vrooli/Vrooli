@@ -5,7 +5,7 @@
  *      import { PubSub } from 'utils';
  *      PubSub.get().publishSnack({ message: 'Hello World' });
  */
-import { COOKIE, ValueOf } from '@local/shared';
+import { COOKIE, ValueOf } from '@shared/consts';
 import { AlertDialogState, SnackPub } from 'components';
 
 export const Pubs = {

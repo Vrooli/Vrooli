@@ -1,7 +1,8 @@
 import { Count, Node, NodeCreateInput, NodeUpdateInput } from "../../schema/types";
-import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, onlyValidIds } from "./base";
 import { CustomError } from "../../error";
-import { CODE, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeTranslationCreate, nodeTranslationUpdate, whilesCreate, whilesUpdate, whensCreate, whensUpdate, loopsCreate, loopsUpdate, nodesCreate, nodesUpdate } from "@local/shared";
+import { CODE } from "@shared/consts";
+import { nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeTranslationCreate, nodeTranslationUpdate, whilesCreate, whilesUpdate, whensCreate, whensUpdate, loopsCreate, loopsUpdate, nodesCreate, nodesUpdate } from "@shared/validation";
 import { PrismaType } from "../../types";
 import { validateProfanity } from "../../utils/censor";
 import { TranslationModel } from "./translation";
@@ -347,9 +348,9 @@ export const nodeMutater = (prisma: PrismaType) => ({
         if (!userId)
             throw new CustomError(CODE.Unauthorized, 'Must pass valid userId to validateMutations', { code: genErrorCode('0054') });
         // Make sure the user has access to these nodes
-        const createNodeIds: string[] = createMany?.map(node => node.id)?.filter(id => !!id) as string[] ?? []; // Nodes can have an ID on create, unlike most other objects
-        const updateNodeIds: string[] = updateMany?.map(node => node.where.id)?.filter(id => !!id) as string[] ?? [];
-        const deleteNodeIds: string[] = deleteMany?.filter(Boolean) ?? [];
+        const createNodeIds: string[] = onlyValidIds(createMany?.map(node => node.id) ?? []); // Nodes can have an ID on create, unlike most other objects
+        const updateNodeIds: string[] = onlyValidIds(updateMany?.map(node => node.where.id) ?? []);
+        const deleteNodeIds: string[] = onlyValidIds(deleteMany ?? []);
         const allNodeIds = [...createNodeIds, ...updateNodeIds, ...deleteNodeIds];
         if (allNodeIds.length === 0) return;
         const routineId: string | null = await nodeVerifier().authorizedCheck(userId, allNodeIds, prisma);

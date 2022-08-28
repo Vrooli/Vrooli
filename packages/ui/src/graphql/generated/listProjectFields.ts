@@ -49,6 +49,7 @@ export interface listProjectFields {
   handle: string | null;
   score: number;
   stars: number;
+  isComplete: boolean;
   isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;

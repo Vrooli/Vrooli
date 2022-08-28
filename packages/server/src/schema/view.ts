@@ -1,5 +1,13 @@
+import { CODE, ViewSortBy } from '@shared/consts';
 import { gql } from 'apollo-server-express';
-import { ViewSortBy } from './types';
+import { GraphQLResolveInfo } from 'graphql';
+import { Context } from '../context';
+import { CustomError } from '../error';
+import { genErrorCode } from '../logger';
+import { readManyHelper, ViewModel } from '../models';
+import { rateLimit } from '../rateLimit';
+import { IWrap } from '../types';
+import { ViewSearchInput, ViewSearchResult } from './types';
 
 export const typeDef = gql`
     enum ViewSortBy {
@@ -33,8 +41,21 @@ export const typeDef = gql`
         cursor: String!
         node: View!
     }
+
+    extend type Query {
+        views(input: ViewSearchInput!): ViewSearchResult!
+    }
 `
 
 export const resolvers = {
     ViewSortBy: ViewSortBy,
+    Query: {
+        views: async (_parent: undefined, { input }: IWrap<ViewSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ViewSearchResult> => {
+            // Only accessible if logged in and not using an API key
+            if (!req.userId || req.apiToken) 
+                throw new CustomError(CODE.Unauthorized, 'Must be logged in to query views', { code: genErrorCode('0253') });
+            await rateLimit({ info, max: 2000, req });
+            return readManyHelper({ info, input, model: ViewModel, prisma, userId: req.userId, additionalQueries: { userId: req.userId } });
+        },
+    },
 }

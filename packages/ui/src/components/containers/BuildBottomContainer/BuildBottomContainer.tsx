@@ -9,7 +9,7 @@ import {
 } from '@mui/icons-material';
 import { BuildRunState, stringifySearchParams } from 'utils';
 import { BuildBottomContainerProps } from '../types';
-import { useLocation } from 'wouter';
+import { useLocation } from '@shared/route';
 import { RunPickerDialog, UpTransition } from 'components/dialogs';
 import { RunView } from 'components/views';
 import { Run } from 'types';

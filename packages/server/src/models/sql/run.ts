@@ -1,4 +1,5 @@
-import { CODE, runsCreate, runsUpdate } from "@local/shared";
+import { runsCreate, runsUpdate } from "@shared/validation";
+import { CODE } from "@shared/consts";
 import { CustomError } from "../../error";
 import { Count, LogType, Run, RunCancelInput, RunCompleteInput, RunCreateInput, RunSearchInput, RunSortBy, RunStatus, RunUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";
@@ -92,7 +93,15 @@ export const runPermissioner = (prisma: PrismaType): Permissioner<{ canDelete: b
     }) {
         //TODO
         return 'full';
-    }
+    },
+    ownershipQuery: (userId) => ({
+        routine: {
+            OR: [
+                { organization: { roles: { some: { assignees: { some: { user: { id: userId } } } } } } },
+                { user: { id: userId } }
+            ]
+        }
+    })
 })
 
 /**

@@ -1,6 +1,6 @@
 import { CheckboxProps, DropzoneProps, JSONProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TextFieldProps, QuantityBoxProps, TagSelectorProps, LanguageInputProps, YupField } from '../types';
 import { FieldData } from 'forms/types';
-import { InputType } from '@local/shared';
+import { InputType } from '@shared/consts';
 
 /**
  * Maps a data input type to a function that calculates its default values.

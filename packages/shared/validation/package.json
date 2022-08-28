@@ -1,0 +1,25 @@
+{
+    "name": "@shared/validation",
+    "author": "Vrooli",
+    "license": "GPL-3.0",
+    "version": "1.2.0",
+    "private": true,
+    "description": "Common code shared between local packages",
+    "main": "dist/index.js",
+    "typings": "src/types.d.ts",
+    "type": "module",
+    "scripts": {
+        "build": "yarn tsc"
+    },
+    "dependencies": {
+        "@shared/consts": "*",
+        "react": "^18.0.0",
+        "react-dom": "^18.0.0",
+        "yup": "^0.32.9"
+    },
+    "devDependencies": {
+        "@types/node": "^17.0.35",
+        "@types/react": "18.0.9",
+        "@types/react-dom": "^18.0.4"
+    }
+}

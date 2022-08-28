@@ -31,7 +31,7 @@ services:
         depends_on: 
                 - redis
                 - db
-        command: /bin/sh -c "chmod +x ./scripts/* && ./scripts/ui.sh"
+        command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/ui.sh"
     server:
         build:
             context: .
@@ -81,7 +81,7 @@ services:
         depends_on: 
             - redis
             - db
-        command: /bin/sh -c "chmod +x ./scripts/* && ./scripts/server.sh"
+        command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/server.sh"
     db:
         image: postgres:13-alpine
         restart: always
@@ -137,7 +137,7 @@ services:
         volumes:
             - ./packages/docs:${PROJECT_DIR}/packages/docs:z
             - ./packages/shared:${PROJECT_DIR}/packages/shared:z
-        command: /bin/sh -c "chmod +x ./scripts/* && ./scripts/docs.sh"
+        command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/docs.sh"
     # adminer:
     #     image: adminer
     #     restart: always
@@ -148,7 +148,7 @@ services:
 
 networks:
   proxy:
-      external:
-        name: nginx-proxy
+    name: nginx-proxy
+    external: true
   app:
 

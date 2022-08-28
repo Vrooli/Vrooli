@@ -1,6 +1,6 @@
 import { emailRequestPasswordChangeMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { emailRequestPasswordChangeSchema } from '@local/shared';
+import { emailRequestPasswordChangeSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import {
     Button,
@@ -10,10 +10,10 @@ import {
     TextField,
     Typography
 } from '@mui/material';
-import { APP_LINKS } from '@local/shared';
+import { APP_LINKS } from '@shared/consts';
 import { Forms } from 'utils';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { useLocation } from 'wouter';
+import { useLocation } from '@shared/route';
 import { emailRequestPasswordChange, emailRequestPasswordChangeVariables } from 'graphql/generated/emailRequestPasswordChange';
 import { FormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';

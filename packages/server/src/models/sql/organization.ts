@@ -1,8 +1,10 @@
 import { PrismaType, RecursivePartial } from "../../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor, OrganizationPermission } from "../../schema/types";
-import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, Permissioner, getSearchStringQueryHelper } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, Permissioner, getSearchStringQueryHelper, onlyValidIds } from "./base";
 import { CustomError } from "../../error";
-import { CODE, omit, organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@local/shared";
+import { organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@shared/validation";
+import { CODE } from '@shared/consts';
+import { omit } from '@shared/utils';
 import { organization_users, role } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -34,21 +36,11 @@ export const organizationFormatter = (): FormatConverter<Organization, Organizat
         'starredBy': 'User',
         'tags': 'Tag',
     },
-    addJoinTables: (partial) => {
-        return addJoinTablesHelper(partial, joinMapper);
-    },
-    removeJoinTables: (data) => {
-        return removeJoinTablesHelper(data, joinMapper);
-    },
-    addCountFields: (partial) => {
-        return addCountFieldsHelper(partial, countMapper);
-    },
-    removeCountFields: (data) => {
-        return removeCountFieldsHelper(data, countMapper);
-    },
-    removeSupplementalFields: (partial) => {
-        return omit(partial, supplementalFields);
-    },
+    addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
+    removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
+    addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
+    removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
+    removeSupplementalFields: (partial) => omit(partial, supplementalFields),
     async addSupplementalFields({ objects, partial, permissions, prisma, userId }): Promise<RecursivePartial<Organization>[]> {
         return addSupplementalFieldsHelper({
             objects,
@@ -102,7 +94,10 @@ export const organizationPermissioner = (prisma: PrismaType): Permissioner<Organ
     }) {
         //TODO
         return 'full';
-    }
+    },
+    ownershipQuery: (userId) => ({
+        roles: { some: { assignees: { some: { user: { id: userId } } } } },
+    }),
 })
 
 export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
@@ -118,8 +113,9 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({ searchString,
-            resolver: ({ insensitive }) => ({ 
+        return getSearchStringQueryHelper({
+            searchString,
+            resolver: ({ insensitive }) => ({
                 OR: [
                     { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },
                     { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
@@ -157,7 +153,7 @@ export const organizationQuerier = (prisma: PrismaType) => ({
     async hasRole(userId: string, organizationIds: (string | null | undefined)[], title: string = 'Admin'): Promise<Array<role | undefined>> {
         if (organizationIds.length === 0) return [];
         // Take out nulls
-        const idsToQuery = organizationIds.filter(x => x) as string[];
+        const idsToQuery = onlyValidIds(organizationIds);
         // Query roles data for each organization ID
         const roles = await prisma.role.findMany({
             where: {

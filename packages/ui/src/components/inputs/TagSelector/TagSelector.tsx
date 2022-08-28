@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { tags, tagsVariables } from 'graphql/generated/tags';
 import { tagsQuery } from 'graphql/query';
 import { useQuery } from '@apollo/client';
-import { StarFor, TagSortBy } from '@local/shared';
+import { StarFor, TagSortBy } from '@shared/consts';
 import { TagSelectorProps } from '../types';
 import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from '@mui/material';
 import { StarButton } from 'components';

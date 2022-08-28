@@ -1,13 +1,18 @@
-import { CODE, isObject, ViewFor } from "@local/shared";
+import { CODE, ViewFor } from "@shared/consts";
+import { isObject } from '@shared/utils'
 import { CustomError } from "../../error";
 import { Count, LogType, User, ViewSearchInput, ViewSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { deconstructUnion, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, ModelLogic, ObjectMap, PartialGraphQLInfo, readManyHelper, Searcher, timeFrameToPrisma } from "./base";
+import { deconstructUnion, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, ModelLogic, ObjectMap, onlyValidIds, PartialGraphQLInfo, readManyHelper, Searcher, timeFrameToPrisma } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { OrganizationModel } from "./organization";
 import { initializeRedis } from "../../redisConn";
 import { resolveProjectOrOrganizationOrRoutineOrStandardOrUser } from "../../schema/resolvers";
+import { ProjectModel } from "./project";
+import { RoutineModel } from "./routine";
+import { UserModel } from "./user";
+import { StandardModel } from "./standard";
 
 //==============================================================
 /* #region Custom Components */
@@ -120,7 +125,14 @@ export const viewSearcher = (): Searcher<ViewSearchInput> => ({
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
         return getSearchStringQueryHelper({ searchString,
             resolver: ({ insensitive }) => ({ 
-                title: { ...insensitive }
+                OR: [
+                    { title: { ...insensitive } },
+                    { organization: OrganizationModel.search.getSearchStringQuery(searchString, languages) },
+                    { project: ProjectModel.search.getSearchStringQuery(searchString, languages) },
+                    { routine: RoutineModel.search.getSearchStringQuery(searchString, languages) },
+                    { standard: StandardModel.search.getSearchStringQuery(searchString, languages) },
+                    { user: UserModel.search.getSearchStringQuery(searchString, languages) },
+                ]
             })
         })
     },
@@ -142,7 +154,7 @@ const viewQuerier = (prisma: PrismaType) => ({
         // If userId not provided, return result
         if (!userId) return result;
         // Filter out nulls and undefineds from ids
-        const idsFiltered = ids.filter(id => id !== null && id !== undefined);
+        const idsFiltered = onlyValidIds(ids);
         const fieldName = `${viewFor.toLowerCase()}Id`;
         const isViewedArray = await prisma.view.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
         // Replace the nulls in the result array with true if viewed

@@ -1,16 +1,18 @@
-import { Box, IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material';
+import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { SelectLanguageDialogProps } from '../types';
 import {
     ArrowDropDown as ArrowDropDownIcon,
     ArrowDropUp as ArrowDropUpIcon,
     Check as CheckIcon,
-    Close as CloseIcon,
     Delete as DeleteIcon,
     Language as LanguageIcon,
 } from '@mui/icons-material';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { AllLanguages, getUserLanguages } from 'utils';
 import { FixedSizeList } from 'react-window';
+import { MenuTitle } from 'components';
+
+const titleAria = 'select-language-dialog-title';
 
 export const SelectLanguageDialog = ({
     availableLanguages,
@@ -84,34 +86,6 @@ export const SelectLanguageDialog = ({
         if (handleDelete) handleDelete(language);
     }, [handleDelete]);
 
-    /**
-     * Title bar with close icon
-     */
-    const titleBar = useMemo(() => (
-        <Box
-            sx={{
-                background: palette.primary.dark,
-                color: palette.primary.contrastText,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: 1,
-            }}
-        >
-            <Typography component="h2" variant="h5" textAlign="center" sx={{ marginLeft: 'auto' }}>
-                Select Language
-            </Typography>
-            <Box sx={{ marginLeft: 'auto' }}>
-                <IconButton
-                    edge="start"
-                    onClick={onClose}
-                >
-                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
-                </IconButton>
-            </Box>
-        </Box>
-    ), [onClose, palette])
-
     return (
         <>
             {/* Language select popover */}
@@ -119,6 +93,7 @@ export const SelectLanguageDialog = ({
                 open={open}
                 anchorEl={anchorEl}
                 onClose={onClose}
+                aria-labelledby={titleAria}
                 sx={{
                     zIndex: zIndex + 1,
                     '& .MuiPopover-paper': {
@@ -137,7 +112,11 @@ export const SelectLanguageDialog = ({
                 }}
             >
                 {/* Title */}
-                {titleBar}
+                <MenuTitle
+                    ariaLabel={titleAria}
+                    title={'Select Language'}
+                    onClose={onClose}
+                />
                 {/* Search bar and list of languages */}
                 <Stack direction="column" spacing={2} sx={{
                     width: 'min(100vw, 400px)',
@@ -164,7 +143,7 @@ export const SelectLanguageDialog = ({
                         autoFocus={true}
                         value={searchString}
                         onChange={updateSearchString}
-                        sx={{ 
+                        sx={{
                             paddingLeft: 1,
                             paddingRight: 1,
                         }}
@@ -241,7 +220,7 @@ export const SelectLanguageDialog = ({
             </Popover>
             {/* Selected language label */}
             <Tooltip title={AllLanguages[currentLanguage] ?? ''} placement="top">
-                <Stack direction="row"  spacing={0} onClick={onOpen} sx={{
+                <Stack direction="row" spacing={0} onClick={onOpen} sx={{
                     ...(sxs?.root ?? {}),
                     display: availableLanguages === undefined || availableLanguages.length > 0 ? 'flex' : 'none',
                     justifyContent: 'center',

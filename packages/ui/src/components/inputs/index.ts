@@ -8,6 +8,7 @@ export * from './MarkdownInput/MarkdownInput';
 export * from './PasswordTextField/PasswordTextField';
 export * from './PreviewSwitch/PreviewSwitch';
 export * from './QuantityBox/QuantityBox';
+export * from './RelationshipButtons/RelationshipButtons';
 export * from './SearchBar/SearchBar';
 export * from './Selector/Selector';
 export * from './standards';

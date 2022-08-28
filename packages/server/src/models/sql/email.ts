@@ -1,4 +1,5 @@
-import { CODE, emailsCreate, emailsUpdate } from "@local/shared";
+import { CODE } from "@shared/consts";
+import { emailsCreate, emailsUpdate } from "@shared/validation";
 import { CustomError } from "../../error";
 import { Count, Email, EmailCreateInput, EmailUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";

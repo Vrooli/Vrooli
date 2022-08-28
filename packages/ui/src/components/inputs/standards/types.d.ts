@@ -1,4 +1,4 @@
-import { InputType } from "@local/shared";
+import { InputType } from "@shared/consts";
 import { CheckboxProps, DropzoneProps, FieldData, FieldDataBase, JsonProps, MarkdownProps, QuantityBoxProps, RadioProps, SwitchProps, TextFieldProps } from "forms/types";
 
 /**

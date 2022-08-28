@@ -1,8 +1,10 @@
-import { CODE, omit, projectsCreate, projectsUpdate, projectTranslationCreate, projectTranslationUpdate } from "@local/shared";
+import { projectsCreate, projectsUpdate, projectTranslationCreate, projectTranslationUpdate } from "@shared/validation";
+import { CODE } from "@shared/consts";
+import { omit } from '@shared/utils';
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
 import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor, ProjectPermission, OrganizationPermission } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFieldsHelper, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, Permissioner, permissionsCheck, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFieldsHelper, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, Permissioner, permissionsCheck, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -51,21 +53,11 @@ export const projectFormatter = (): FormatConverter<Project, ProjectPermission> 
         modified = removeOwnerField(modified);
         return modified;
     },
-    addJoinTables: (partial) => {
-        return addJoinTablesHelper(partial, joinMapper);
-    },
-    removeJoinTables: (data) => {
-        return removeJoinTablesHelper(data, joinMapper);
-    },
-    addCountFields: (partial) => {
-        return addCountFieldsHelper(partial, countMapper);
-    },
-    removeCountFields: (data) => {
-        return removeCountFieldsHelper(data, countMapper);
-    },
-    removeSupplementalFields: (partial) => {
-        return omit(partial, supplementalFields);
-    },
+    addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
+    removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
+    addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
+    removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
+    removeSupplementalFields: (partial) => omit(partial, supplementalFields),
     async addSupplementalFields({ objects, partial, permissions, prisma, userId }): Promise<RecursivePartial<Project>[]> {
         return addSupplementalFieldsHelper({
             objects,
@@ -98,13 +90,13 @@ export const projectPermissioner = (prisma: PrismaType): Permissioner<ProjectPer
         }));
         if (!userId) return result;
         const ids = objects.map(x => x.id);
-        let ownerData: { 
-            id: string, 
-            user?: { id: string } | null | undefined, 
+        let ownerData: {
+            id: string,
+            user?: { id: string } | null | undefined,
             organization?: { id: string } | null | undefined
         }[] = [];
         // If some owner data missing, query for owner data.
-        if (objects.map(x => x.owner).filter(x => x).length < objects.length) {
+        if (onlyValidIds(objects.map(x => x.owner)).length < objects.length) {
             ownerData = await prisma.project.findMany({
                 where: { id: { in: ids } },
                 select: {
@@ -124,10 +116,10 @@ export const projectPermissioner = (prisma: PrismaType): Permissioner<ProjectPer
             });
         }
         // Find permissions for every organization
-        const organizationIds: string[] = ownerData.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
-        const orgPermissions = await OrganizationModel.permissions(prisma).get({ 
+        const organizationIds = onlyValidIds(ownerData.map(x => x.organization?.id));
+        const orgPermissions = await OrganizationModel.permissions(prisma).get({
             objects: organizationIds.map(x => ({ id: x })),
-            userId 
+            userId
         });
         // Find which objects have ownership permissions
         for (let i = 0; i < objects.length; i++) {
@@ -186,7 +178,13 @@ export const projectPermissioner = (prisma: PrismaType): Permissioner<ProjectPer
         }
         if (input.organizationId || input.userId || input.parentId) return 'public';
         return 'public';
-    }
+    },
+    ownershipQuery: (userId) => ({
+        OR: [
+            { organization: { roles: { some: { assignees: { some: { user: { id: userId } } } } } } },
+            { user: { id: userId } }
+        ]
+    }),
 })
 
 export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
@@ -210,15 +208,16 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({ searchString,
-            resolver: ({ insensitive }) => ({ 
+        return getSearchStringQueryHelper({
+            searchString,
+            resolver: ({ insensitive }) => ({
                 OR: [
                     { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
                     { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
                     { tags: { some: { tag: { tag: { ...insensitive } } } } },
                 ]
             })
-        }) 
+        })
     },
     customQueries(input: ProjectSearchInput): { [x: string]: any } {
         // isComplete routines may be set to true or false generally, and also set exceptions
@@ -267,7 +266,7 @@ export const projectMutater = (prisma: PrismaType) => ({
             TranslationModel.profanityCheck(createMany);
             createMany.forEach(input => TranslationModel.validateLineBreaks(input, ['description'], CODE.LineBreaksDescription));
             // Add createdByOrganizationIds to organizationIds array, if they are set
-            organizationIds.push(...createMany.map(input => input.createdByOrganizationId).filter(id => id))
+            organizationIds.push(...onlyValidIds(createMany.map(input => input.createdByOrganizationId)))
             // Check if user will pass max projects limit
             //TODO
             // const existingCount = await prisma.project.count({
@@ -287,7 +286,7 @@ export const projectMutater = (prisma: PrismaType) => ({
             projectsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
             TranslationModel.profanityCheck(updateMany.map(u => u.data));
             // Add new organizationIds to organizationIds array, if they are set
-            organizationIds.push(...updateMany.map(input => input.data.organizationId).filter(id => id))
+            organizationIds.push(...onlyValidIds(updateMany.map(input => input.data.organizationId)))
             // Add existing organizationIds to organizationIds array, if userId does not match the object's userId
             const objects = await prisma.project.findMany({
                 where: { id: { in: updateMany.map(input => input.where.id) } },

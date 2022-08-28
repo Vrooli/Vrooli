@@ -1,5 +1,5 @@
 import { REPORTABLE } from "@local/shared";
-import { DecisionStep, Node, Organization, Profile, Project, Report, Routine, Run, Session, Standard, User } from "types";
+import { DecisionStep, Node, Profile, Routine, Run, Session, User } from "types";
 
 interface CreateProps<T> {
     onCancel: () => void;
@@ -23,29 +23,10 @@ interface ViewProps<T> {
     zIndex: number;
 }
 
-export interface OrganizationCreateProps extends CreateProps<Organization> {}
-export interface OrganizationUpdateProps extends UpdateProps<Organization> {}
-export interface OrganizationViewProps extends ViewProps<Organization> {}
-
-export interface ProjectCreateProps extends CreateProps<Project> {}
-export interface ProjectUpdateProps extends UpdateProps<Project> {}
-export interface ProjectViewProps extends ViewProps<Project> {}
-
 export interface ReportsViewProps {
     session: Session;
     type: REPORTABLE;
 }
-
-export interface RoutineCreateProps extends CreateProps<Routine> {}
-export interface RoutineUpdateProps extends UpdateProps<Routine> {}
-export interface RoutineViewProps extends ViewProps<Routine> {}
-
-export interface StandardCreateProps extends CreateProps<Standard> {
-    session: Session;
-}
-export interface StandardUpdateProps extends UpdateProps<Standard> {}
-export interface StandardViewProps extends ViewProps<Standard> {}
-
 export interface UserViewProps extends ViewProps<User> {}
 
 

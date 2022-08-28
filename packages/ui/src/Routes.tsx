@@ -1,7 +1,7 @@
 import { Suspense, useCallback } from 'react';
 import { lazily } from 'react-lazily';
-import { Route, Switch } from 'wouter';
-import { APP_LINKS as LINKS, BUSINESS_NAME, ROLES } from '@local/shared';
+import { Route, Switch } from '@shared/route';
+import { APP_LINKS as LINKS, BUSINESS_NAME } from '@shared/consts';
 // import { Sitemap } from 'Sitemap';
 import {
     ForgotPasswordForm,
@@ -24,18 +24,11 @@ const { WelcomePage } = lazily(() => import('./pages/WelcomePage/WelcomePage'));
 const { SettingsPage } = lazily(() => import('./pages/SettingsPage/SettingsPage'));
 const { StartPage } = lazily(() => import('./pages/StartPage/StartPage'));
 const { StatsPage } = lazily(() => import('./pages/dashboard/StatsPage/StatsPage'));
-const {
-    SearchOrganizationsPage,
-    SearchProjectsPage,
-    SearchRoutinesPage,
-    SearchStandardsPage,
-    SearchUsersPage,
-} = lazily(() => import('./pages/search'));
-const { OrganizationViewPage } = lazily(() => import('./pages/view/OrganizationViewPage'));
-const { ProjectViewPage } = lazily(() => import('./pages/view/ProjectViewPage'));
-const { StandardViewPage } = lazily(() => import('./pages/view/StandardViewPage'));
+const { SearchPage } = lazily(() => import('./pages/SearchPage/SearchPage'));
+const { HistorySearchPage } = lazily(() => import('./pages/HistorySearchPage/HistorySearchPage'));
+const { DevelopSearchPage } = lazily(() => import('./pages/DevelopSearchPage/DevelopSearchPage'));
+const { ObjectPage } = lazily(() => import('./pages/ObjectPage/ObjectPage'));
 const { ReportsViewPage } = lazily(() => import('./pages/view/ReportsViewPage'));
-const { RoutineViewPage } = lazily(() => import('./pages/view/RoutineViewPage'));
 const { UserViewPage } = lazily(() => import('./pages/view/UserViewPage'));
 const { FormPage } = lazily(() => import('./pages/wrapper/FormPage'));
 const { NotFoundPage } = lazily(() => import('./pages/NotFoundPage'));
@@ -102,103 +95,56 @@ export const AllRoutes = (props: CommonProps) => {
                 {/* ========= #endregion Dashboard Routes ========= */}
 
                 {/* ========= #region Search Routes ========= */}
-                <Route path={`${LINKS.SearchOrganizations}/:params*`}>
+                <Route path={`${LINKS.Search}/:params*`}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Organizations Search')} {...props}>
-                            <SearchOrganizationsPage session={props.session} />
+                        <Page {...props}>
+                            <SearchPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.SearchProjects}/:params*`}>
+                <Route path={`${LINKS.HistorySearch}/:params*`}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Projects Search')} {...props}>
-                            <SearchProjectsPage session={props.session} />
+                        <Page {...props}>
+                            <HistorySearchPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.SearchRoutines}/:params*`}>
+                <Route path={`${LINKS.DevelopSearch}/:params*`}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Routines Search')} {...props}>
-                            <SearchRoutinesPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route path={`${LINKS.SearchStandards}/:params*`}>
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Standards Search')} {...props}>
-                            <SearchStandardsPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route path={`${LINKS.SearchUsers}/:params*`}>
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Users Search')} {...props}>
-                            <SearchUsersPage session={props.session} />
+                        <Page {...props}>
+                            <DevelopSearchPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
                 {/* ========= #endregion Search Routes ========= */}
 
-                {/* ========= #region Routine Routes ========= */}
-                {/* Pages for creating and running routines */}
-                <Route path={`${LINKS.Routine}/:id`}>
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <RoutineViewPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route path={`${LINKS.Routine}/edit/:id`}>
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <RoutineViewPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                {/* ========= #endregion Routine Routes ========= */}
-
                 {/* ========= #region Views Routes ========= */}
                 {/* Views for main Vrooli components (i.e. organizations, projects, routines, standards, users) */}
-                {/* Opens objects as their own page, as opposed to the search routes which open them as popup dialogs */}
-                <Route path={`${LINKS.Organization}/:id?`}>
+                <Route path={`${LINKS.Organization}/:params*`}>
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
-                            <OrganizationViewPage session={props.session} />
+                            <ObjectPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.Organization}/edit/:id?`}>
+                <Route path={`${LINKS.Project}/:params*`}>
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
-                            <OrganizationViewPage session={props.session} />
+                            <ObjectPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.Project}/:id?`}>
+                <Route path={`${LINKS.Routine}/:params*`}>
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
-                            <ProjectViewPage session={props.session} />
+                            <ObjectPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.Project}/edit/:id?`}>
+                <Route path={`${LINKS.Standard}/:params*`}>
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
-                            <ProjectViewPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route path={`${LINKS.Standard}/:id?`}>
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <StandardViewPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route path={`${LINKS.Standard}/edit/:id?`}>
-                    <Suspense fallback={Fallback}>
-                        <Page {...props}>
-                            <StandardViewPage session={props.session} />
+                            <ObjectPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>

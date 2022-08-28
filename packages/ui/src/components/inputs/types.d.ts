@@ -1,10 +1,10 @@
 import { BoxProps, InputProps, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
 import { JSONVariable } from 'forms/types';
 import { ChangeEvent } from 'react';
-import { Organization, Session, Standard, Tag } from 'types';
-import { TagShape } from 'utils';
+import { Organization, Project, Routine, Session, Standard, Tag } from 'types';
+import { ObjectType, TagShape } from 'utils';
 
-export interface AutocompleteSearchBarProps extends SearchBarProps {
+export interface AutocompleteSearchBarProps extends Omit<SearchBarProps, 'sx'> {
     debounce?: number;
     id?: string;
     loading?: boolean;
@@ -15,6 +15,7 @@ export interface AutocompleteSearchBarProps extends SearchBarProps {
     session: Session;
     showSecondaryLabel?: boolean;
     value: string;
+    sxs?: { paper?: { [x: string]: any }, root?: { [x: string]: any } };
 }
 
 export interface DropzoneProps {
@@ -243,6 +244,32 @@ export interface QuantityBoxProps extends BoxProps {
     step?: number;
     tooltip?: string;
     value: number;
+}
+
+export type RelationshipItemOrganization = Pick<Organization, '__typename' | 'handle' | 'id' | 'permissionsOrganization' | 'translations'>;
+export type RelationshipItemUser = Pick<User, '__typename' | 'handle' | 'id' | 'name'>;
+export type RelationshipItemProject = Pick<Project, '__typename' | 'handle' | 'id' | 'owner' | 'permissionsProject' | 'translations'>;
+export type RelationshipItemRoutine = Pick<Routine, '__typename' | 'id' | 'owner' | 'permissionsRoutine' | 'translations'>;
+
+export type RelationshipOwner = RelationshipItemOrganization | RelationshipItemUser | null;
+export type RelationshipProject = RelationshipItemProject | null;
+export type RelationshipParent = RelationshipItemProject | RelationshipItemRoutine | null;
+
+export interface RelationshipButtonsProps {
+    disabled?: boolean;
+    isComplete: boolean;
+    isPrivate: boolean;
+    objectType: ObjectType;
+    onIsCompleteChange: (isComplete: boolean) => any;
+    onIsPrivateChange: (isPrivate: boolean) => void;
+    onOwnerChange: (newOwner: RelationshipOwner) => void;
+    onProjectChange: (newProject: RelationshipProject) => void;
+    onParentChange: (newParent: RelationshipParent) => void;
+    owner: RelationshipOwner;
+    parent: RelationshipParent;
+    project: RelationshipProject;
+    session: Session;
+    zIndex: number;
 }
 
 export interface SearchBarProps extends InputProps {

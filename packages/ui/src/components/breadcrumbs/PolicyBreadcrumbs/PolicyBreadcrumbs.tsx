@@ -1,4 +1,4 @@
-import { LANDING_LINKS, LANDING_URL } from '@local/shared';
+import { LANDING_LINKS, LANDING_URL } from '@shared/consts';
 import { BreadcrumbsBase } from '../BreadcrumbsBase/BreadcrumbsBase';
 import { PolicyBreadcrumbsProps } from '../types';
 

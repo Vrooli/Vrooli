@@ -11,7 +11,7 @@ import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
 import { CustomError } from '../error';
-import { CODE, CopyType, ForkType } from '@local/shared';
+import { CODE, CopyType, ForkType } from '@shared/consts';
 import { genErrorCode } from '../logger';
 
 export const typeDef = gql`

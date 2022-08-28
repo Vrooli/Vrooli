@@ -1,4 +1,5 @@
-import { CODE, walletsUpdate } from "@local/shared";
+import { CODE } from "@shared/consts";
+import { walletsUpdate } from '@shared/validation';
 import { CustomError } from "../../error";
 import { PrismaType } from "../../types";
 import { Count, Wallet, WalletUpdateInput } from "../../schema/types";

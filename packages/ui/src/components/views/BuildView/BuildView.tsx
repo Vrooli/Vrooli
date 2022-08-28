@@ -6,14 +6,13 @@ import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getTranslation, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine } from 'utils';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
-import { useLocation } from 'wouter';
-import { APP_LINKS, isEqual } from '@local/shared';
+import { useLocation } from '@shared/route';
+import { APP_LINKS } from '@shared/consts';
+import { isEqual } from '@shared/utils';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { BaseObjectAction } from 'components/dialogs/types';
 import { BuildViewProps } from '../types';
 import {
-    AddLink as AddLinkIcon,
-    Close as CloseIcon,
     Compress as CleanUpIcon,
     Edit as EditIcon,
 } from '@mui/icons-material';
@@ -23,6 +22,7 @@ import { StatusButton } from 'components/buttons';
 import { routineUpdate, routineUpdateVariables } from 'graphql/generated/routineUpdate';
 import { routineCreate, routineCreateVariables } from 'graphql/generated/routineCreate';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
+import { AddLinkIcon, CloseIcon } from 'assets/img';
 
 //TODO
 const helpText =
@@ -233,9 +233,9 @@ export const BuildView = ({
         });
     }, [changedRoutine]);
 
-    const handleScaleChange = (newScale: number) => { 
+    const handleScaleChange = (newScale: number) => {
         PubSub.get().publishFastUpdate({ duration: 1000 });
-        setScale(newScale) 
+        setScale(newScale)
     };
     const handleScaleDelta = useCallback((delta: number) => {
         PubSub.get().publishFastUpdate({ duration: 1000 });
@@ -1281,10 +1281,7 @@ export const BuildView = ({
                         marginBottom: 'auto',
                     }}
                 >
-                    <CloseIcon sx={{
-                        width: '32px',
-                        height: '32px',
-                    }} />
+                    <CloseIcon width='32px' height='32px' />
                 </IconButton>
             </Stack>
             {/* Second contains additional info and icons */}
@@ -1345,7 +1342,7 @@ export const BuildView = ({
                                 },
                             }}
                         >
-                            <AddLinkIcon id="add-link-button-icon" sx={{ fill: 'white' }} />
+                            <AddLinkIcon id="add-link-button-icon" fill='white' />
                         </IconButton>
                     </Tooltip>}
                     {/* Displays unlinked nodes */}

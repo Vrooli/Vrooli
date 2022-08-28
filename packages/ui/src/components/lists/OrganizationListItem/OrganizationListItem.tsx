@@ -2,8 +2,8 @@ import { Box, ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme }
 import { OrganizationListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, StarFor } from '@local/shared';
-import { useLocation } from 'wouter';
+import { APP_LINKS, StarFor } from '@shared/consts';
+import { useLocation } from '@shared/route';
 import { ReportButton, StarButton, TagList, TextLoading } from '..';
 import { getTranslation, listItemColor, placeholderColor } from 'utils';
 import { Apartment as ApartmentIcon } from '@mui/icons-material';

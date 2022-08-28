@@ -1,8 +1,10 @@
-import { CODE, commentsCreate, CommentSortBy, commentsUpdate, commentTranslationCreate, commentTranslationUpdate, omit } from "@local/shared";
+import { CODE, CommentSortBy } from "@shared/consts";
+import { commentsCreate, commentsUpdate, commentTranslationCreate, commentTranslationUpdate } from "@shared/validation";
+import { omit } from '@shared/utils';
 import { CustomError } from "../../error";
 import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, Count } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, Querier, addSupplementalFieldsHelper, Permissioner, permissionsCheck, getSearchStringQueryHelper } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, Querier, addSupplementalFieldsHelper, Permissioner, permissionsCheck, getSearchStringQueryHelper, onlyValidIds } from "./base";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
 import { StarModel } from "./star";
@@ -53,21 +55,11 @@ export const commentFormatter = (): FormatConverter<Comment, CommentPermission> 
         ]);
         return modified;
     },
-    addJoinTables: (partial) => {
-        return addJoinTablesHelper(partial, joinMapper);
-    },
-    removeJoinTables: (data) => {
-        return removeJoinTablesHelper(data, joinMapper);
-    },
-    addCountFields: (partial) => {
-        return addCountFieldsHelper(partial, countMapper);
-    },
-    removeCountFields: (data) => {
-        return removeCountFieldsHelper(data, countMapper);
-    },
-    removeSupplementalFields: (partial) => {
-        return omit(partial, supplementalFields);
-    },
+    addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
+    removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
+    addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
+    removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
+    removeSupplementalFields: (partial) => omit(partial, supplementalFields),
     async addSupplementalFields({ objects, partial, permissions, prisma, userId }): Promise<RecursivePartial<Comment>[]> {
         return addSupplementalFieldsHelper({
             objects,
@@ -93,17 +85,16 @@ export const commentFormatter = (): FormatConverter<Comment, CommentPermission> 
     //                 organization: { select: { id: true } },
     //             },
     //         });
-    //         organizationIds = ownerDataUnformatted.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
+    //         organizationIds = onlyValidIds(ownerDataUnformatted.map(x => x.organization?.id));
     //         // Inject owner data into "objects"
     //         objects = objects.map((x, i) => { 
     //             const unformatted = ownerDataUnformatted.find(y => y.id === x.id);
     //             return ({ ...x, owner: unformatted?.user || unformatted?.organization })
     //         });
     //     } else {
-    //         organizationIds = objects
+    //         organizationIds = onlyValidIds(objects
     //             .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
-    //             .map(x => x.owner.id)
-    //             .filter(x => Boolean(x)) as string[];
+    //             .map(x => x.owner.id))
     //     }
     //     // If owned by user, set role to owner if userId matches
     //     // If owned by organization, set role user's role in organization
@@ -200,7 +191,7 @@ export const commentPermissioner = (prisma: PrismaType): Permissioner<CommentPer
             });
         }
         // Find permissions for every organization
-        const organizationIds: string[] = ownerData.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
+        const organizationIds = onlyValidIds(ownerData.map(x => x.organization?.id))
         const orgPermissions = await OrganizationModel.permissions(prisma).get({
             objects: organizationIds.map(x => ({ id: x })),
             userId
@@ -222,6 +213,12 @@ export const commentPermissioner = (prisma: PrismaType): Permissioner<CommentPer
         }
         return result;
     },
+    ownershipQuery: (userId) => ({
+        OR: [
+            { organization: { roles: { some: { assignees: { some: { user: { id: userId } } } } } } },
+            { user: { id: userId } }
+        ]
+    }),
 })
 
 export const commentQuerier = (prisma: PrismaType): Querier => ({

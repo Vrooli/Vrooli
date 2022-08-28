@@ -3,25 +3,26 @@
  */
 import { Box, Button, CircularProgress, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { CommentContainerProps } from '../types';
-import { commentCreateForm as validationSchema } from '@local/shared';
+import { commentCreateForm as validationSchema } from '@shared/validation';
 import { useLazyQuery, useMutation } from '@apollo/client';
 import { commentCreate, commentCreateVariables } from 'graphql/generated/commentCreate';
 import { MarkdownInput } from 'components/inputs';
 import { useFormik } from 'formik';
 import { commentCreateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils';
-import { objectToSearchInfo, ObjectType, parseSearchParams, PubSub, stringifySearchParams, useReactSearch } from 'utils';
+import { ObjectType, parseSearchParams, PubSub, searchTypeToParams, stringifySearchParams, useReactSearch } from 'utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TimeFrame } from 'graphql/generated/globalTypes';
 import { comments, commentsVariables } from 'graphql/generated/comments';
-import { useLocation } from 'wouter';
+import { useLocation } from '@shared/route';
 import { commentsQuery } from 'graphql/query';
 import { Comment, CommentThread as ThreadType } from 'types';
 import { CommentThread } from 'components/lists/comment';
 import { validate as uuidValidate } from 'uuid';
 import { v4 as uuid } from 'uuid';
+import { FormSchema } from 'forms/types';
 
-const { advancedSearchSchema, defaultSortBy, sortByOptions } = objectToSearchInfo[ObjectType.Comment];
+const { advancedSearchSchema, defaultSortBy, sortByOptions } = searchTypeToParams.Comment;
 
 export function CommentContainer({
     language,
@@ -132,7 +133,7 @@ export function CommentContainer({
         // Any search params that aren't advanced, search, sort, or time MIGHT be advanced search params
         const { advanced, search, sort, time, ...otherParams } = searchParams;
         // Find valid advanced search params
-        const allAdvancedSearchParams = advancedSearchSchema.fields.map(f => f.fieldName);
+        const allAdvancedSearchParams = advancedSearchSchema?.fields?.map(f => f.fieldName) ?? [];
         // fields in both otherParams and allAdvancedSearchParams should be the new advanced search params
         const advancedData = Object.keys(otherParams).filter(k => allAdvancedSearchParams.includes(k));
         setAdvancedSearchParams(advancedData.reduce((acc, k) => ({ ...acc, [k]: otherParams[k] }), {}));

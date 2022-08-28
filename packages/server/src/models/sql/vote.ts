@@ -1,8 +1,8 @@
-import { CODE, VoteFor } from "@local/shared";
+import { CODE, VoteFor } from "@shared/consts";
 import { CustomError } from "../../error";
 import { LogType, Vote, VoteInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { deconstructUnion, FormatConverter } from "./base";
+import { deconstructUnion, FormatConverter, onlyValidIds } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 
@@ -154,7 +154,7 @@ const voteQuerier = (prisma: PrismaType) => ({
         // If userId not provided, return result
         if (!userId) return result;
         // Filter out nulls and undefineds from ids
-        const idsFiltered = ids.filter(id => id !== null && id !== undefined);
+        const idsFiltered = onlyValidIds(ids);
         const fieldName = `${voteFor.toLowerCase()}Id`;
         const isUpvotedArray = await prisma.vote.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
         // Replace the nulls in the result array with true or false

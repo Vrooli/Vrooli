@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
 import Logo from 'assets/img/Logo-128x128.png';
-import { BUSINESS_NAME, APP_LINKS } from '@local/shared';
+import { BUSINESS_NAME, APP_LINKS } from '@shared/consts';
 import { AppBar, Toolbar, Typography, Box, useTheme } from '@mui/material';
 import { NavList } from '../NavList/NavList';
-import { useLocation } from 'wouter';
+import { useLocation } from '@shared/route';
 import { HideOnScroll } from '..';
 
 export const Navbar = () => {

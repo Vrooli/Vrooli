@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { ValueOf } from '@local/shared';
+import { ValueOf } from '@shared/consts';
 
 /**
  * Converts GraphQL sort values to User-Friendly labels
@@ -7,6 +7,8 @@ import { ValueOf } from '@local/shared';
  export const SortValueToLabelMap = {
     'CommentsAsc': 'Comments ↑',
     'CommentsDesc': 'Comments ↓',
+    'LastViewedAsc': 'Viewed ↑',
+    'LastViewedDesc': 'Viewed ↓',
     'StarsAsc': 'Stars ↑',
     'StarsDesc': 'Stars ↓',
     'VotesAsc': 'Votes ↑',
@@ -15,6 +17,8 @@ import { ValueOf } from '@local/shared';
     'ForksDesc': 'Forks ↓',
     'DateCreatedAsc': 'Old',
     'DateCreatedDesc': 'New',
+    'DateStartedAsc': 'Started ↑',
+    'DateStartedDesc': 'Started ↓',
     'DateUpdatedAsc': 'Recent ↑',
     'DateUpdatedDesc': 'Recent ↓',
 }

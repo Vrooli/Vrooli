@@ -2,7 +2,7 @@
  * Input for entering (and viewing format of) Checkbox data that 
  * must match a certain schema.
  */
-import { InputType } from '@local/shared';
+import { InputType } from '@shared/consts';
 import { createDefaultFieldData } from 'forms/generators';
 import { FieldData } from 'forms/types';
 import { useCallback, useEffect, useMemo } from 'react';

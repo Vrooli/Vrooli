@@ -1,4 +1,5 @@
-import { CODE, stepsCreate, stepsUpdate } from "@local/shared";
+import { stepsCreate, stepsUpdate } from "@shared/validation";
+import { CODE } from "@shared/consts";
 import { CustomError } from "../../error";
 import { Count, RunStep, RunStepCreateInput, RunStepStatus, RunStepUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";

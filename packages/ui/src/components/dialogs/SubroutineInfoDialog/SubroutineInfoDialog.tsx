@@ -5,7 +5,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     AccountTree as GraphIcon,
-    Close as CloseIcon,
     Restore as RevertIcon,
     Save as SaveIcon,
 } from '@mui/icons-material';
@@ -23,15 +22,17 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { useLocation } from 'wouter';
+import { useLocation } from '@shared/route';
 import { SubroutineInfoDialogProps } from '../types';
 import { getOwnedByString, getTranslation, InputShape, OutputShape, RoutineTranslationShape, TagShape, toOwnedBy, updateArray } from 'utils';
 import Markdown from 'markdown-to-jsx';
-import { ResourceListUsedFor, routineUpdateForm as validationSchema } from '@local/shared';
+import { routineUpdateForm as validationSchema } from '@shared/validation';
+import { ResourceListUsedFor } from '@shared/consts';
 import { InputOutputContainer, LanguageInput, LinkButton, MarkdownInput, QuantityBox, ResourceListHorizontal, TagList, TagSelector, UserOrganizationSwitch } from 'components';
 import { useFormik } from 'formik';
 import { NodeDataRoutineListItem, Organization, ResourceList } from 'types';
 import { v4 as uuid } from 'uuid';
+import { CloseIcon } from 'assets/img';
 
 export const SubroutineInfoDialog = ({
     data,
@@ -308,7 +309,7 @@ export const SubroutineInfoDialog = ({
                     borderBottom: `1px solid ${palette.primary.dark}`,
                     justifyContent: 'end',
                 }}>
-                    <CloseIcon fontSize="large" />
+                    <CloseIcon />
                 </IconButton>
             </Box>
             {/* Main content */}

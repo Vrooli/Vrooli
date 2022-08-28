@@ -4,7 +4,6 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    Close as CloseIcon,
     FileCopy as CopyIcon,
     Delete as DeleteIcon,
     ForkRight as ForkIcon,
@@ -39,14 +38,16 @@ import { BaseObjectAction, BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { DeleteDialog, EditableLabel, LanguageInput, LinkButton, MarkdownInput, ResourceListHorizontal } from 'components';
 import { AllLanguages, getLanguageSubtag, getOwnedByString, getTranslation, PubSub, RoutineTranslationShape, toOwnedBy, updateArray } from 'utils';
-import { useLocation } from 'wouter';
+import { useLocation } from '@shared/route';
 import { useFormik } from 'formik';
-import { APP_LINKS, CopyType, DeleteOneType, ForkType, routineUpdateForm as validationSchema, StarFor, VoteFor } from '@local/shared';
+import { APP_LINKS, CopyType, DeleteOneType, ForkType, StarFor, VoteFor } from '@shared/consts';
+import { routineUpdateForm as validationSchema } from '@shared/validation';
 import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
 import { copyMutation, forkMutation, starMutation, voteMutation } from 'graphql/mutation';
 import { v4 as uuid } from 'uuid';
+import { CloseIcon } from 'assets/img';
 
 export const BuildInfoDialog = ({
     handleAction,
@@ -429,7 +430,7 @@ export const BuildInfoDialog = ({
                         flexDirection: 'row-reverse',
                         marginLeft: 'auto',
                     }}>
-                        <CloseIcon fontSize="large" />
+                        <CloseIcon />
                     </IconButton>
                 </Box>
                 {/* Main content */}

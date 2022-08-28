@@ -1,5 +1,4 @@
 import {
-    Box,
     Dialog,
     DialogContent,
     IconButton,
@@ -8,26 +7,27 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { BaseObjectDialog, HelpButton, standardSearchSchema } from 'components';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { BaseObjectDialog, DialogTitle } from 'components';
+import { useCallback, useEffect, useState } from 'react';
 import { StandardSelectOrCreateDialogProps } from '../types';
 import {
     Add as CreateIcon,
-    Close as CloseIcon
 } from '@mui/icons-material';
 import { Standard } from 'types';
 import { SearchList } from 'components/lists';
-import { standardQuery, standardsQuery } from 'graphql/query';
+import { standardQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { standard, standardVariables } from 'graphql/generated/standard';
-import { StandardCreate } from 'components/views/StandardCreate/StandardCreate';
-import { ObjectType, parseSearchParams, stringifySearchParams } from 'utils';
-import { useLocation } from 'wouter';
+import { StandardCreate } from 'components/views/Standard/StandardCreate/StandardCreate';
+import { parseSearchParams, stringifySearchParams, SearchType, standardSearchSchema } from 'utils';
+import { useLocation } from '@shared/route';
 
 const helpText =
     `This dialog allows you to connect a new or existing standard to a routine input/output.
     
     Standards allow for interoperability between routines and external services adhering to the Vrooli protocol.`
+
+const titleAria = 'select-or-create-standard-dialog-title';
 
 export const StandardSelectOrCreateDialog = ({
     handleAdd,
@@ -93,38 +93,12 @@ export const StandardSelectOrCreateDialog = ({
         }
     }, [handleAdd, onClose, handleCreateClose, standardData]);
 
-    /**
-     * Title bar with help button and close icon
-     */
-    const titleBar = useMemo(() => (
-        <Box sx={{
-            alignItems: 'center',
-            background: palette.primary.dark,
-            color: palette.primary.contrastText,
-            display: 'flex',
-            justifyContent: 'space-between',
-            padding: 2,
-        }}>
-            <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
-                {'Add Standard'}
-                <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
-            </Typography>
-            <Box sx={{ marginLeft: 'auto' }}>
-                <IconButton
-                    edge="start"
-                    onClick={(e) => { onClose() }}
-                >
-                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
-                </IconButton>
-            </Box>
-        </Box>
-    ), [onClose, palette.primary.contrastText, palette.primary.dark])
-
     return (
         <Dialog
             open={isOpen}
             onClose={onClose}
             scroll="body"
+            aria-labelledby={titleAria}
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': { overflow: 'visible', background: palette.background.default },
@@ -135,7 +109,6 @@ export const StandardSelectOrCreateDialog = ({
             <BaseObjectDialog
                 onAction={handleCreateClose}
                 open={isCreateOpen}
-                title={"Create Standard"}
                 zIndex={zIndex + 1}
             >
                 <StandardCreate
@@ -145,7 +118,12 @@ export const StandardSelectOrCreateDialog = ({
                     zIndex={zIndex + 1}
                 />
             </BaseObjectDialog>
-            {titleBar}
+            <DialogTitle
+                ariaLabel={titleAria}
+                helpText={helpText}
+                title={'Add Standard'}
+                onClose={onClose}
+            />
             <DialogContent>
                 <Stack direction="column" spacing={2}>
                     <Stack direction="row" alignItems="center" justifyContent="center">
@@ -163,9 +141,8 @@ export const StandardSelectOrCreateDialog = ({
                     <SearchList
                         itemKeyPrefix='standard-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
-                        objectType={ObjectType.Standard}
+                        searchType={SearchType.Standard}
                         onObjectSelect={(newValue) => handeStandardSelect(newValue)}
-                        query={standardsQuery}
                         searchPlaceholder={'Select existing standard...'}
                         session={session}
                         take={20}
