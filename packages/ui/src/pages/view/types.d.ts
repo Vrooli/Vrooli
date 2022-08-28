@@ -1,4 +1,3 @@
-import { REPORTABLE } from '@local/shared';
 import { Session } from 'types';
 
 export interface UserViewPageProps {
@@ -6,5 +5,4 @@ export interface UserViewPageProps {
 }
 export interface ReportsViewPageProps {
     session: Session,
-    type: REPORTABLE,
 }

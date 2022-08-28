@@ -14,6 +14,7 @@ export const APP_LINKS = {
     Organization: '/organization', // View or update specific organization
     Profile: '/profile', // View profile
     Project: '/project', // View or update specific project
+    Report: '/report', // Reports view
     Research: '/research', // Research dashboard
     Routine: '/routine', // Displays a UI corresponding to the current subroutine
     ResetPassword: '/password-reset', // Page to reset password, after clicking on password reset link in email
@@ -27,9 +28,6 @@ export const APP_LINKS = {
     Welcome: '/welcome', // Displays the first time you enter the application (either as guest or as logged in user)
 }
 export type APP_LINKS = ValueOf<typeof APP_LINKS>;
-
-/** Types of objects that can be reported */
-export type REPORTABLE = 'comment' | 'organization' | 'project' | 'routine' | 'standard' | 'tag' | 'user';
 
 export const LANDING_LINKS = {
     About: '/about', // Overview of project, the vision, and the team

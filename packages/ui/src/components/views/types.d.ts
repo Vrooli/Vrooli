@@ -1,4 +1,3 @@
-import { REPORTABLE } from "@local/shared";
 import { DecisionStep, Node, Profile, Routine, Run, Session, User } from "types";
 
 interface CreateProps<T> {
@@ -25,7 +24,6 @@ interface ViewProps<T> {
 
 export interface ReportsViewProps {
     session: Session;
-    type: REPORTABLE;
 }
 export interface UserViewProps extends ViewProps<User> {}
 

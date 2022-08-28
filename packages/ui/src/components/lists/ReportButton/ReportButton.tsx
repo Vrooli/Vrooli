@@ -3,8 +3,8 @@ import { useCallback } from 'react';
 import { ReportButtonProps } from '../types';
 import { Flag as ReportsIcon } from '@mui/icons-material';
 import { multiLineEllipsis } from 'styles';
-import { APP_LINKS, StarFor, VoteFor } from '@local/shared';
-import { useLocation } from 'wouter';
+import { APP_LINKS } from '@shared/consts';
+import { useLocation } from '@shared/route';
 
 function determineLink(typename?: string) {
     switch (typename) {
@@ -31,7 +31,7 @@ export const ReportButton = ({
         event.stopPropagation();
 
         setLocation(`${determineLink(object?.__typename)}/reports/${object?.id}`)
-    }, [setLocation]);
+    }, [object?.__typename, object?.id, setLocation]);
 
     return (
         <Stack

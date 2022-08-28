@@ -1,36 +1,10 @@
-import { ReportsViewProps } from "../types";
-import { useRoute } from "wouter";
-import { APP_LINKS } from "@local/shared";
-import { OperationVariables, useQuery } from "@apollo/client";
+import {  useQuery } from "@apollo/client";
 import { reports, reportsVariables } from "graphql/generated/reports";
 import { reportsQuery } from "graphql/query";
+import { APP_LINKS } from "@shared/consts";
+import { useMemo } from "react";
 
-export const ReportsView = ({
-    session,
-    type,
-}: ReportsViewProps): JSX.Element => {
-    switch (type) {
-        case 'comment':
-            return <CommentReportsView />
-        case 'organization':
-            return <OrganizationReportsView />
-        case 'project':
-            return <ProjectReportsView />
-        case 'routine':
-            return <RoutineReportsView />
-        case 'standard':
-            return <StandardReportsView />
-        case 'tag':
-            return <TagReportsView />
-        case 'user':
-            return <UserReportsView />
-        default:
-            console.error('Invalid type in ReportsView');
-            return <></>
-    }
-}
-
-const CommentReportsView = (): JSX.Element => {
+export const CommentReportsView = (): JSX.Element => {
     const { loading, error, data } = useReportsQuery(APP_LINKS.Comment, 'commentId');
 
     if (loading) {
@@ -49,7 +23,7 @@ const CommentReportsView = (): JSX.Element => {
     </>
 }
 
-const OrganizationReportsView = (): JSX.Element => {
+export const OrganizationReportsView = (): JSX.Element => {
     const { loading, error, data } = useReportsQuery(APP_LINKS.Organization, 'organizationId');
 
     if (loading) {
@@ -68,7 +42,7 @@ const OrganizationReportsView = (): JSX.Element => {
     </>
 }
 
-const ProjectReportsView = (): JSX.Element => {
+export const ProjectReportsView = (): JSX.Element => {
     const { loading, error, data } = useReportsQuery(APP_LINKS.Project, 'projectId');
 
     if (loading) {
@@ -87,7 +61,7 @@ const ProjectReportsView = (): JSX.Element => {
     </>
 }
 
-const RoutineReportsView = (): JSX.Element => {
+export const RoutineReportsView = (): JSX.Element => {
     const { loading, error, data } = useReportsQuery(APP_LINKS.Routine, 'routineId');
 
     if (loading) {
@@ -106,7 +80,7 @@ const RoutineReportsView = (): JSX.Element => {
     </>
 }
 
-const StandardReportsView = (): JSX.Element => {
+export const StandardReportsView = (): JSX.Element => {
     const { loading, error, data } = useReportsQuery(APP_LINKS.Standard, 'standardId');
 
     if (loading) {
@@ -125,7 +99,7 @@ const StandardReportsView = (): JSX.Element => {
     </>
 }
 
-const TagReportsView = (): JSX.Element => {
+export const TagReportsView = (): JSX.Element => {
     const { loading, error, data } = useReportsQuery(APP_LINKS.Tag, 'tagId');
 
     if (loading) {
@@ -144,7 +118,7 @@ const TagReportsView = (): JSX.Element => {
     </>
 }
 
-const UserReportsView = (): JSX.Element => {
+export const UserReportsView = (): JSX.Element => {
     const { loading, error, data } = useReportsQuery(APP_LINKS.User, 'userId');
 
     if (loading) {
@@ -164,8 +138,7 @@ const UserReportsView = (): JSX.Element => {
 }
 
 function useReportsQuery(appLink: string, queryField: string) {
-    const [, params] = useRoute(`${appLink}/reports/:id`);
-    const id = params?.id;
+    const id = useMemo(() => window.location.pathname.split('/').pop(), []);
     console.log(id);
 
     return useQuery<reports, reportsVariables>(

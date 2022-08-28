@@ -7,6 +7,7 @@ import { APP_LINKS } from "@shared/consts";
 import { lazily } from "react-lazily";
 import { ObjectType, parseSearchParams } from "utils";
 import { Organization, Project, Routine, Session, Standard, User } from "types";
+import { CommentReportsView, OrganizationReportsView, ProjectReportsView, RoutineReportsView, StandardReportsView, TagReportsView, UserReportsView } from "components";
 
 const { OrganizationCreate, OrganizationUpdate, OrganizationView } = lazily(() => import('../../components/views/Organization'));
 const { ProjectCreate, ProjectUpdate, ProjectView } = lazily(() => import('../../components/views/Project'));
@@ -37,10 +38,13 @@ export interface ViewPageProps {
     zIndex: number;
 }
 
+export interface ReportsPageProps { }
+
 enum PageType {
     Create = 'Create',
     Update = 'Update',
     View = 'View',
+    Reports = 'Reports',
 }
 
 /**
@@ -93,6 +97,18 @@ const viewMap: { [key in ObjectType]?: (props: ViewPageProps) => JSX.Element } =
     [ObjectType.Standard]: StandardView,
 }
 
+/**
+ * Maps object types to reports view components
+ */
+ const reportsMap: { [key in ObjectType]?: (props: ReportsPageProps) => JSX.Element } = {
+    [ObjectType.Comment]: CommentReportsView,
+    [ObjectType.Organization]: OrganizationReportsView,
+    [ObjectType.Project]: ProjectReportsView,
+    [ObjectType.Routine]: RoutineReportsView,
+    [ObjectType.Standard]: StandardReportsView,
+    [ObjectType.Tag]: TagReportsView,
+    [ObjectType.User]: UserReportsView,
+}
 
 export const ObjectPage = ({
     session,
@@ -108,6 +124,7 @@ export const ObjectPage = ({
         // Determine if create, update, or view page should be shown using the URL
         let pageType: PageType = PageType.View;
         if (location.endsWith('/add')) pageType = PageType.Create;
+        else if (location.includes('/reports/')) pageType = PageType.Reports;
         else if (location.includes('/edit/')) pageType = PageType.Update;
         return { hasPreviousPage, objectType, pageType };
     }, [location]);
@@ -166,6 +183,11 @@ export const ObjectPage = ({
                 session={session}
                 zIndex={200}
             />)
+        }
+        if (pageType === PageType.Reports) {
+            const Reports = reportsMap[objectType];
+            document.title = `Reports | ${titleMap[objectType]}`;
+            return (Reports && <Reports />)
         }
         const View = viewMap[objectType];
         document.title = `View ${titleMap[objectType]}`;

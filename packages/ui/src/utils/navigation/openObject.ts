@@ -14,6 +14,7 @@ export enum ObjectType {
     Run = 'Run',
     Standard = 'Standard',
     Star = 'Star',
+    Tag = 'Tag',
     User = 'User',
     View = 'View',
 }
