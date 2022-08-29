@@ -21,7 +21,7 @@ COPY --chown=node:node packages/shared/utils/src packages/shared/utils/
 COPY --chown=node:node packages/shared/validation/src packages/shared/validation/
 
 # Copy required script files
-COPY --chown=node:node scripts/ui.sh scripts/shared.sh scripts/wait-for.sh scripts/
+COPY --chown=node:node scripts/* scripts/
 
 # Assign working directory to node
 RUN chown -R node:node .
@@ -40,7 +40,7 @@ COPY --from=stage0 ${PROJECT_DIR} ./
 RUN yarn install
 
 # Install global packages
-RUN yarn global add react-scripts serve
+RUN yarn global add react-scripts
 
 # Stage 2. Copy files from stage 1
 FROM node:16-alpine as stage2
@@ -49,10 +49,10 @@ FROM node:16-alpine as stage2
 ARG PROJECT_DIR
 WORKDIR ${PROJECT_DIR}
 
-# Copy entire working directory contents from stage 3
+# Copy entire working directory contents from stage 1
 COPY --from=stage1 ${PROJECT_DIR} ./
 
-# Copy global yarn packages from stage 3
+# Copy global yarn packages from stage 1
 COPY --from=stage1 /usr/local/share/.config/yarn/global /usr/local/share/.config/yarn/global
 
 # Set port

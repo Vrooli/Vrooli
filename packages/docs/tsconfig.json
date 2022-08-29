@@ -29,7 +29,7 @@
         "src",
         "fonts.d.ts",
         "types.d.ts"
-, "../ui/src/components/navigation/CommandPalette"    ],
+,   ],
     "exclude": [
         "node_modules"
     ]

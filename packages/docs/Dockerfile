@@ -21,7 +21,7 @@ COPY --chown=node:node packages/shared/utils/src packages/shared/utils/
 COPY --chown=node:node packages/shared/validation/src packages/shared/validation/
 
 # Copy required script files
-COPY --chown=node:node scripts/docs.sh scripts/shared.sh scripts/
+COPY --chown=node:node scripts/* scripts/
 
 # Assign working directory to node
 RUN chown -R node:node .
