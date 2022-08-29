@@ -6,7 +6,7 @@
 # 1. Checks if Nginx containers are running
 # 2. Copies current database and build to a safe location, under a temporary directory.
 # 3. Runs git fetch and git pull to get the latest changes.
-# 4. Runs yarn cache clean and yarn to make sure that node_modules are up to date.
+# 4. Runs setup.sh
 # 5. Moves build created by build.sh to the correct location.
 # 6. Restarts docker containers
 #
@@ -117,13 +117,11 @@ info "Pulling latest changes from repository..."
 git fetch
 git pull
 
-# Run yarn cache clean and yarn to make sure that node_modules are up to date.
-info "Cleaning yarn cache..."
-yarn cache clean
-info "Running yarn..."
-yarn
+# Running setup.sh
+info "Running setup.sh..."
+./scripts/setup.sh
 if [ $? -ne 0 ]; then
-    error "Yarn failed"
+    error "setup.sh failed"
     exit 1
 fi
 
