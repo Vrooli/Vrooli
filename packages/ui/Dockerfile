@@ -5,22 +5,10 @@ FROM node:16-alpine as stage0
 ARG PROJECT_DIR
 WORKDIR ${PROJECT_DIR}
 
-# Copy main package.json, as well as packages this container will use. Doing this first helps with caching (I think).
+# Copy required files
 COPY --chown=node:node package.json yarn.lock .
-COPY --chown=node:node packages/ui/package.json packages/ui/
-COPY --chown=node:node packages/shared/consts/package.json packages/shared/consts/
-COPY --chown=node:node packages/shared/route/package.json packages/shared/route/
-COPY --chown=node:node packages/shared/utils/package.json packages/shared/utils/
-COPY --chown=node:node packages/shared/validation/package.json packages/shared/validation/
-
-# Copy all files from packages/server/src, and every directory's src in packages/shared
-COPY --chown=node:node packages/server/src packages/server/
-COPY --chown=node:node packages/shared/consts/src packages/shared/consts/
-COPY --chown=node:node packages/shared/route/src packages/shared/route/
-COPY --chown=node:node packages/shared/utils/src packages/shared/utils/
-COPY --chown=node:node packages/shared/validation/src packages/shared/validation/
-
-# Copy required script files
+COPY --chown=node:node packages/ui packages/ui/
+COPY --chown=node:node packages/shared packages/shared/
 COPY --chown=node:node scripts/* scripts/
 
 # Assign working directory to node
@@ -35,9 +23,6 @@ WORKDIR ${PROJECT_DIR}
 
 # Copy entire working directory contents from stage 2, and install yarn packages
 COPY --from=stage0 ${PROJECT_DIR} ./
-
-# Install local packages
-RUN yarn install
 
 # Install global packages
 RUN yarn global add react-scripts

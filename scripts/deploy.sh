@@ -1,7 +1,7 @@
 #!/bin/bash
 # NOTE 1: Run outside of Docker container, on production server
 # NOTE 2: First run build.sh on development server
-# NOTE 3: If docker-compose was changed since the last build, you should prune the containers and images before running this script.
+# NOTE 3: If docker-compose file was changed since the last build, you should prune the containers and images before running this script.
 # Finishes up the deployment process, which was started by build.sh:
 # 1. Checks if Nginx containers are running
 # 2. Copies current database and build to a safe location, under a temporary directory.
@@ -136,6 +136,6 @@ fi
 
 # Restart docker containers.
 info "Restarting docker containers..."
-docker-compose up --build -d
+docker-compose -f docker-compose-prod.yml up --build -d
 
 success "Done! You may need to wait a few minutes for the Docker containers to finish starting up."

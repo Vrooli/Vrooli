@@ -27,6 +27,7 @@ services:
             - proxy
             - app
         volumes:
+            - ./node_modules:${PROJECT_DIR}/node_modules
             - ./packages/ui:${PROJECT_DIR}/packages/ui:z
             - ./packages/shared:${PROJECT_DIR}/packages/shared:z
         depends_on: 
@@ -73,6 +74,7 @@ services:
             - proxy
             - app
         volumes:
+            - ./node_modules:${PROJECT_DIR}/node_modules
             - ./packages/server:${PROJECT_DIR}/packages/server:z
             - ./packages/shared:${PROJECT_DIR}/packages/shared:z
             - ./data/logs:${PROJECT_DIR}/data/logs:z
@@ -136,6 +138,7 @@ services:
     #         - proxy
     #         - app
     #     volumes:
+    #         - ./node_modules:${PROJECT_DIR}/node_modules
     #         - ./packages/docs:${PROJECT_DIR}/packages/docs:z
     #         - ./packages/shared:${PROJECT_DIR}/packages/shared:z
     #     command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/docs.sh"
