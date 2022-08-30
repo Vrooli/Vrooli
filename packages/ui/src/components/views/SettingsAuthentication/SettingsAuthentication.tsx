@@ -6,7 +6,7 @@ import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { APP_LINKS } from '@shared/consts';
 import { useFormik } from 'formik';
 import { profileEmailUpdateMutation } from "graphql/mutation";
-import { PubSub, TERTIARY_COLOR } from "utils";
+import { PubSub } from "utils";
 import {
     AccountBalanceWallet as WalletIcon,
     Email as EmailIcon,
@@ -134,7 +134,7 @@ export const SettingsAuthentication = ({
                 alignItems: 'center',
             }}>
                 <Typography component="h1" variant="h4" textAlign="center">Authentication</Typography>
-                <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
+                <HelpButton markdown={helpText} />
             </Box>
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
                 <WalletIcon sx={{ marginRight: 1 }} />

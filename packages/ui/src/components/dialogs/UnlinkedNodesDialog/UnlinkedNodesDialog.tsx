@@ -21,7 +21,7 @@ import { NodeType } from 'graphql/generated/globalTypes';
 import { Node } from 'types';
 import { EndNode, RedirectNode, RoutineListNode } from 'components';
 import { getTranslation } from 'utils';
-import { UnlinkedNodesIcon } from 'assets/img';
+import { UnlinkedNodesIcon } from '@shared/icons';
 
 export const UnlinkedNodesDialog = ({
     handleNodeDelete,

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Box, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { JsonInputProps } from '../types';
 import { HelpButton, StatusButton } from 'components/buttons';
-import { isJson, jsonHelpText, jsonToMarkdown, Status, TERTIARY_COLOR } from 'utils';
+import { isJson, jsonHelpText, jsonToMarkdown, Status } from 'utils';
 import Markdown from 'markdown-to-jsx';
 import {
     VisibilityOff as PreviewOffIcon,
@@ -97,7 +97,6 @@ export const JsonInput = ({
                 <HelpButton
                     markdown={jsonHelpText}
                     sxRoot={{ marginRight: 1 }}
-                    sx={{ color: TERTIARY_COLOR }}
                 />
             </Box>
             {/* Displays inputted JSON to the left, and info about the current variable being edited to the right */}

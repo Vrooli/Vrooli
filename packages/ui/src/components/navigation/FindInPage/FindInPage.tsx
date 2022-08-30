@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import { PubSub } from 'utils';
 import { Stack } from '@mui/system';
-import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from 'assets/img';
+import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from '@shared/icons';
 
 const commonButtonSx = (palette: Palette, isActivated?: boolean) => ({
     background: isActivated ? palette.secondary.dark : 'transparent',

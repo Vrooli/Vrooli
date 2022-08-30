@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useFormik } from 'formik';
 import { Box, IconButton, Stack, TextField, Tooltip, useTheme } from '@mui/material';
 import { HelpButton, StatusButton } from 'components/buttons';
-import { isEqualJSON, isJson, jsonHelpText, jsonToMarkdown, jsonToString, Status, TERTIARY_COLOR } from 'utils';
+import { isEqualJSON, isJson, jsonHelpText, jsonToMarkdown, jsonToString, Status } from 'utils';
 import {
     VisibilityOff as PreviewOffIcon,
     Visibility as PreviewOnIcon,
@@ -112,7 +112,6 @@ export const JsonStandardInput = ({
                 <HelpButton
                     markdown={jsonHelpText}
                     sxRoot={{ marginRight: 1 }}
-                    sx={{ color: TERTIARY_COLOR }}
                 />
             </Box>
             {/* Displays inputted JSON to the left, and info about the current variable being edited to the right */}

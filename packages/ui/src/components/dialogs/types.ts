@@ -5,6 +5,7 @@ import { DeleteOneType } from '@shared/consts';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 import { ReportFor } from 'graphql/generated/globalTypes';
 import { ObjectType, SearchType } from 'utils';
+import { SvgProps } from '@shared/icons';
 
 export interface BaseObjectDialogProps extends DialogProps {
     children: JSX.Element | JSX.Element[];
@@ -219,7 +220,7 @@ export interface BuildInfoDialogProps {
     loading: boolean;
     routine: Routine | null;
     session: Session;
-    sxs?: { icon: any, iconButton: any };
+    sxs?: { icon: SvgProps, iconButton: any };
     zIndex: number;
 }
 

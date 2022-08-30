@@ -17,7 +17,7 @@ import {
     DeleteNodeIcon, 
     MoveNodeIcon, 
     UnlinkNodeIcon 
-} from 'assets/img';
+} from '@shared/icons';
 
 const allOptionsMap: { [index in Exclude<BuildAction, BuildAction.AddSubroutine>]: [string, any] } = {
     [BuildAction.AddIncomingLink]: ['Add incoming link', AddIncomingLinkIcon],

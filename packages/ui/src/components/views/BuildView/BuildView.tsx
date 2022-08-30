@@ -22,16 +22,29 @@ import { StatusButton } from 'components/buttons';
 import { routineUpdate, routineUpdateVariables } from 'graphql/generated/routineUpdate';
 import { routineCreate, routineCreateVariables } from 'graphql/generated/routineCreate';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
-import { AddLinkIcon, CloseIcon } from 'assets/img';
+import { AddLinkIcon, CloseIcon } from '@shared/icons';
 
-//TODO
 const helpText =
-    `## What am I looking at?
-Lorem ipsum dolor sit amet consectetur adipisicing elit. 
+`## What am I looking at?
+This is the *Build* page. Here you can create and edit multi-step routines.
 
+## What is a routine?
+A **routine** is simply a process for completing a task, which takes inputs, performs some action, and outputs some results. By connecting multiple routines together, you can perform arbitrarily complex tasks.
 
-## How does it work?
-Lorem ipsum dolor sit amet consectetur adipisicing elit.
+All valid multi-step routines have a **start** node and at least one **end** node. Each node inbetween stores a list of subroutines, which can be optional or required.
+
+When a user runs the routine, they traverse the routine graph from left to right. Each subroutine is rendered as a page, with components such as TextFields for each input. Where the graph splits, users are given a choice of which subroutine to go to next.
+
+## How do I build a multi-step routine?
+If you are starting from scratch, you will see a **start** node, a **routine list** node, and an **end** node.
+
+You can press the routine list node to toggle it open/closed. The **open** stats allows you to select existing subroutines from Vrooli, or create a new one.
+
+Each link connecting nodes has a circle. Pressing this circle opens a popup menu with options to insert a node, split the graph, or delete the link.
+
+You also have the option to **unlink** nodes. These are stored on the top status bar - along with the status indicator, a button to clean up the graph, a button to add a new link, this help button, and an info button that sets overall routine information.
+
+At the bottom of the screen, there is a slider to control the scale of the graph, and buttons to create/update and cancel the routine.
 `
 
 /**
@@ -1361,7 +1374,7 @@ export const BuildView = ({
                         </IconButton>
                     ) : null}
                     {/* Help button */}
-                    <HelpButton markdown={helpText} sxRoot={{ margin: "auto", marginRight: 1 }} sx={{ color: TERTIARY_COLOR }} />
+                    <HelpButton markdown={helpText} sxRoot={{ margin: "auto", marginRight: 1 }} />
                     {/* Display routine description, insturctions, etc. */}
                     <BuildInfoDialog
                         handleAction={handleRoutineAction}

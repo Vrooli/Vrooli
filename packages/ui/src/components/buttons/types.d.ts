@@ -1,4 +1,5 @@
 import { ButtonProps } from '@mui/material';
+import { SvgProps } from 'assets/img/types';
 import { Status } from 'utils';
 
 export interface HelpButtonProps extends ButtonProps {
@@ -18,7 +19,7 @@ export interface HelpButtonProps extends ButtonProps {
     /**
      * Style applied to the question mark icon
      */
-    sx?: object;
+    sx?: SvgProps;
 }
 
 export interface PopupMenuProps extends ButtonProps {

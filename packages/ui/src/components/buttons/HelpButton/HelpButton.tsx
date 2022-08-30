@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react';
 import { Box, IconButton, Menu, Tooltip, useTheme } from '@mui/material';
-import { HelpOutline as HelpIcon } from "@mui/icons-material";
 import Markdown from 'markdown-to-jsx';
 import { HelpButtonProps } from '../types';
 import { MenuTitle } from 'components/dialogs';
+import { HelpIcon } from '@shared/icons';
+import { TERTIARY_COLOR } from 'utils';
 
 export const HelpButton = ({
     id = 'help-details-menu',
@@ -40,7 +41,7 @@ export const HelpButton = ({
                         verticalAlign: 'top',
                     }}
                 >
-                    <HelpIcon sx={{ fill: 'gb(103 103 104 / 87%)', ...sx }} />
+                    <HelpIcon fill={TERTIARY_COLOR} {...sx} />
                     <Menu
                         id={id}
                         open={open}

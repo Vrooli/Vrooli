@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
 import { Box, IconButton, Menu, Tooltip, useTheme } from '@mui/material';
-import { HelpOutline as HelpIcon } from "@mui/icons-material";
 import Markdown from 'markdown-to-jsx';
 import { HelpButtonProps } from '../types';
-import { Close as CloseIcon } from '@mui/icons-material';
+import { TERTIARY_COLOR } from 'utils';
+import { CloseIcon, HelpIcon } from '@shared/icons';
 
 export const HelpButton = ({
     id = 'help-details-menu',
@@ -39,7 +39,7 @@ export const HelpButton = ({
                         bottom: '0',
                     }}
                 >
-                    <HelpIcon sx={{ fill: 'gb(103 103 104 / 87%)', ...sx }} />
+                    <HelpIcon fill={TERTIARY_COLOR} {...sx} />
                     <Menu
                         id={id}
                         open={open}
@@ -85,7 +85,7 @@ export const HelpButton = ({
                                 paddingRight: '0.5rem',
                             }}>
                                 <IconButton color="inherit" onClick={closeMenu} aria-label="close">
-                                    <CloseIcon sx={{ fill: 'white' }} />
+                                    <CloseIcon fill='white' />
                                 </IconButton>
                             </Box>
                             <Box sx={{ padding: 1 }}>

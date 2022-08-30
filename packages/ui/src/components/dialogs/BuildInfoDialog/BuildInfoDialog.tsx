@@ -7,7 +7,6 @@ import {
     FileCopy as CopyIcon,
     Delete as DeleteIcon,
     ForkRight as ForkIcon,
-    Info as InfoIcon,
     QueryStats as StatsIcon,
     StarOutline as StarIcon,
     Star as UnstarIcon,
@@ -47,7 +46,7 @@ import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
 import { copyMutation, forkMutation, starMutation, voteMutation } from 'graphql/mutation';
 import { v4 as uuid } from 'uuid';
-import { CloseIcon } from 'assets/img';
+import { CloseIcon, InfoIcon } from '@shared/icons';
 
 export const BuildInfoDialog = ({
     handleAction,
@@ -370,7 +369,7 @@ export const BuildInfoDialog = ({
                 zIndex={zIndex + 3}
             />
             <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen} sx={sxs?.iconButton}>
-                <InfoIcon sx={sxs?.icon} />
+                <InfoIcon {...sxs?.icon ?? {}} />
             </IconButton>
             <SwipeableDrawer
                 anchor="right"

@@ -10,7 +10,7 @@ import {
     DoneAll as CompleteIcon,
 } from '@mui/icons-material';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getRunPercentComplete, getTranslation, getUserLanguages, locationArraysMatch, PubSub, routineHasSubroutines, RoutineStepType, runInputsUpdate, TERTIARY_COLOR, useReactSearch } from "utils";
+import { getRunPercentComplete, getTranslation, getUserLanguages, locationArraysMatch, PubSub, routineHasSubroutines, RoutineStepType, runInputsUpdate, useReactSearch } from "utils";
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
@@ -23,7 +23,7 @@ import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils";
 import { runUpdate, runUpdateVariables } from "graphql/generated/runUpdate";
 import { v4 as uuid } from 'uuid';
-import { CloseIcon } from "assets/img";
+import { CloseIcon } from "@shared/icons";
 
 /**
  * Maximum routine nesting supported
@@ -874,7 +874,7 @@ export const RunView = ({
                                 <Typography variant="h5" component="h2">({currentStepNumber} of {stepsInCurrentNode})</Typography>
                                 : null}
                             {/* Help icon */}
-                            {instructions && <HelpButton markdown={instructions} sx={{ color: TERTIARY_COLOR }} />}
+                            {instructions && <HelpButton markdown={instructions} />}
                         </Stack>
                         {/* Steps explorer drawer */}
                         <RunStepsDialog

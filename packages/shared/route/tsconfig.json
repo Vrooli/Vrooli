@@ -28,5 +28,5 @@
     },
     "include": [
         "src"
-, "consts/statusCodes.ts", "validation", "consts/businessData.ts", "utils"    ]
+    ],
 }

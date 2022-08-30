@@ -2,11 +2,8 @@ import { Box, IconButton, Stack, Typography } from '@mui/material';
 import { useCallback, useMemo } from 'react';
 import { ThemeSwitchProps } from '../types';
 import { noSelect } from 'styles';
-import {
-    DarkMode as DarkIcon,
-    LightMode as LightIcon,
-} from '@mui/icons-material';
 import { PubSub } from 'utils';
+import { DarkModeIcon, LightModeIcon } from '@shared/icons';
 
 export function ThemeSwitch({
     theme,
@@ -20,7 +17,7 @@ export function ThemeSwitch({
     }, [onChange, theme]);
 
     const isDark = useMemo(() => theme === 'dark', [theme]);
-    const Icon = useMemo(() => isDark ? DarkIcon : LightIcon, [isDark]);
+    const Icon = useMemo(() => isDark ? DarkModeIcon : LightModeIcon, [isDark]);
     const trackColor = useMemo(() => isDark ? '#2F3A45' : '#BFC7CF', [isDark]);
 
     return (

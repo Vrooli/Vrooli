@@ -32,7 +32,7 @@ import { InputOutputContainer, LanguageInput, LinkButton, MarkdownInput, Quantit
 import { useFormik } from 'formik';
 import { NodeDataRoutineListItem, Organization, ResourceList } from 'types';
 import { v4 as uuid } from 'uuid';
-import { CloseIcon } from 'assets/img';
+import { CloseIcon } from '@shared/icons';
 
 export const SubroutineInfoDialog = ({
     data,

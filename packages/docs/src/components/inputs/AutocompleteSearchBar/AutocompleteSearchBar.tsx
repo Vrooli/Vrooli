@@ -1,11 +1,9 @@
 import { Autocomplete, CircularProgress, IconButton, Input, ListItemText, MenuItem, Paper, Typography } from '@mui/material';
 import { AutocompleteSearchBarProps } from '../types';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
-import {
-    Search as SearchIcon
-} from '@mui/icons-material';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
 import { AutocompleteOption } from 'types';
+import { SearchIcon } from '@shared/icons';
 
 export function AutocompleteSearchBar({
     id = 'search-bar',

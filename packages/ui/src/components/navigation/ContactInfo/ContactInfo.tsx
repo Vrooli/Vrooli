@@ -7,8 +7,7 @@ import {
     Tooltip,
     useTheme,
 } from '@mui/material';
-import { DiscordIcon, GitHubIcon, TwitterIcon } from 'assets/img';
-import { SvgProps } from 'assets/img/types';
+import { DiscordIcon, GitHubIcon, SvgProps, TwitterIcon } from '@shared/icons';
 import { ContactInfoProps } from '../types';
 
 const contactInfo: [string, string, string, (props: SvgProps) => JSX.Element][] = [

@@ -6,7 +6,7 @@ import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { APP_LINKS } from '@shared/consts';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { getUserLanguages, ProfileTranslationShape, shapeProfileUpdate, TERTIARY_COLOR, updateArray } from "utils";
+import { getUserLanguages, ProfileTranslationShape, shapeProfileUpdate, updateArray } from "utils";
 import {
     Refresh as RefreshIcon,
     Restore as CancelIcon,
@@ -201,7 +201,7 @@ export const SettingsProfile = ({
                 alignItems: 'center',
             }}>
                 <Typography component="h1" variant="h4" textAlign="center">Update Profile</Typography>
-                <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
+                <HelpButton markdown={helpText} />
             </Box>
             <Container sx={{ paddingBottom: 2 }}>
                 <Grid container spacing={2}>

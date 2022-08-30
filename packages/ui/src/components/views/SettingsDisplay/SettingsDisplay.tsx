@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { PubSub, shapeProfileUpdate, TagHiddenShape, TagShape, TERTIARY_COLOR } from "utils";
+import { PubSub, shapeProfileUpdate, TagHiddenShape, TagShape } from "utils";
 import {
     Restore as RevertIcon,
     Save as SaveIcon,
@@ -163,7 +163,7 @@ export const SettingsDisplay = ({
                 marginBottom: 2,
             }}>
                 <Typography component="h1" variant="h4">Display Preferences</Typography>
-                <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
+                <HelpButton markdown={helpText} />
             </Stack>
             <Box sx={{ margin: 2, marginBottom: 5 }}>
                 <ThemeSwitch
