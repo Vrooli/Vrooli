@@ -52,7 +52,7 @@
         "workbox-streams": "^6.3.0"
     },
     "scripts": {
-        "build": "react-scripts build --max-old-space-size=8192 --optimize_for_size --max_executable_size=4096 --stack_size=4096",
+        "build": "react-scripts build --max-old-space-size=4096 --optimize_for_size --max_executable_size=4096 --stack_size=4096",
         "start-development": "react-scripts start",
         "start-production": "serve -s build -l 3000",
         "test": "react-scripts test",

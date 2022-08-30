@@ -3,6 +3,7 @@
 # required to get the project up and running.
 HERE=`dirname $0`
 source "${HERE}/prettify.sh"
+source "${HERE}/shared.sh"
 
 header "Checking for package updates"
 sudo apt-get update
@@ -25,6 +26,8 @@ yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@3.14.0 react-scr
 
 header "Installing local dependencies"
 cd "${HERE}/.." && yarn cache clean && yarn
+
+# header "Combining node_modules from all packages into one"
 
 header "Generating type models for Prisma"
 cd "${HERE}/../packages/server" && yarn prisma-generate

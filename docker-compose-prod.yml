@@ -1,16 +1,16 @@
-# Run this file by typing: docker-compose up -f docker-compose-dev.yml -d
+# Run this file by typing: docker-compose up -d
 version: "3.9"
 services:
     ui:
         build:
             context: .
-            dockerfile: ./packages/ui/Dockerfile
+            dockerfile: ./packages/ui/Dockerfile-prod
             args:
                 PROJECT_DIR: "${PROJECT_DIR}"
         container_name: ui
         restart: always
         environment: 
-            NODE_ENV: "development"
+            NODE_ENV: "production"
             REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
             REACT_APP_PORT_SERVER: "${PORT_SERVER}"
             REACT_APP_SERVER_URL: "${SERVER_URL}"
@@ -27,7 +27,6 @@ services:
             - proxy
             - app
         volumes:
-            - ./node_modules:${PROJECT_DIR}/node_modules
             - ./packages/ui:${PROJECT_DIR}/packages/ui:z
             - ./packages/shared:${PROJECT_DIR}/packages/shared:z
         depends_on: 
@@ -43,7 +42,7 @@ services:
         container_name: server
         restart: always
         environment: 
-            NODE_ENV: "development"
+            NODE_ENV: "production"
             JWT_SECRET: "${JWT_SECRET}"
             PROJECT_DIR: "${PROJECT_DIR}"
             REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
@@ -74,7 +73,6 @@ services:
             - proxy
             - app
         volumes:
-            - ./node_modules:${PROJECT_DIR}/node_modules
             - ./packages/server:${PROJECT_DIR}/packages/server:z
             - ./packages/shared:${PROJECT_DIR}/packages/shared:z
             - ./data/logs:${PROJECT_DIR}/data/logs:z
@@ -115,13 +113,13 @@ services:
     # docs:
     #     build:
     #         context: .
-    #         dockerfile: ./packages/docs/Dockerfile
+    #         dockerfile: ./packages/docs/Dockerfile-prod
     #         args:
     #             PROJECT_DIR: "${PROJECT_DIR}"
     #     container_name: docs
     #     restart: always
     #     environment: 
-    #         NODE_ENV: "development"
+    #         NODE_ENV: "production"
     #         REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
     #         REACT_APP_PORT_SERVER: "${PORT_SERVER}"
     #         REACT_APP_SERVER_URL: "${SERVER_URL}"
@@ -138,7 +136,6 @@ services:
     #         - proxy
     #         - app
     #     volumes:
-    #         - ./node_modules:${PROJECT_DIR}/node_modules
     #         - ./packages/docs:${PROJECT_DIR}/packages/docs:z
     #         - ./packages/shared:${PROJECT_DIR}/packages/shared:z
     #     command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/docs.sh"

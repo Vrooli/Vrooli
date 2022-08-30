@@ -1,22 +1,44 @@
 #!/bin/bash
 # These functions help to prettify echos
 
+# Determine if tput is available
+if [ -n "$(command -v tput)" ]; then
+    # Set colors
+    RED=$(tput setaf 1)
+    GREEN=$(tput setaf 2)
+    YELLOW=$(tput setaf 3)
+    BLUE=$(tput setaf 4)
+    MAGENTA=$(tput setaf 5)
+    CYAN=$(tput setaf 6)
+    WHITE=$(tput setaf 7)
+    RESET=$(tput sgr0)
+else
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    MAGENTA=""
+    CYAN=""
+    WHITE=""
+    RESET=""
+fi
+
 # Print header message
 header() {
-    echo "$(tput setaf 7)$1"
+    echo "${MAGENTA}${1}${RESET}"
 }
 
 # Print info message
 info() {
-    echo "$(tput setaf 3)$1$(tput setaf 7)"
+    echo "${CYAN}${1}${RESET}"
 }
 
 # Print success message
 success() {
-    echo "$(tput setaf 2)$1$(tput setaf 7)"
+    echo "${GREEN}${1}${RESET}"
 }
 
 # Print error message
 error() {
-    echo "$(tput setaf 1)$1$(tput setaf 7)"
+    echo "${RED}${1}${RESET}"
 }
