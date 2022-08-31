@@ -12,21 +12,18 @@ import {
     FileCopy as CopyIcon,
     DeleteForever as DeleteIcon,
     CardGiftcard as DonateIcon,
-    ThumbDown as DownvoteIcon,
     Edit as EditIcon,
     ForkRight as ForkIcon,
     ReportProblem as ReportIcon,
     Share as ShareIcon,
     StarOutline as StarIcon,
     Star as UnstarIcon,
-    ThumbUp as UpvoteIcon,
-    Update as UpdateIcon,
     QueryStats as StatsIcon,
 } from "@mui/icons-material";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
 import { PubSub } from "utils";
 import { CopyType, ForkType } from "graphql/generated/globalTypes";
-import { CancelIcon, SearchIcon } from "@shared/icons";
+import { CancelIcon, DownvoteWideIcon, SaveIcon, SearchIcon, UpvoteWideIcon } from "@shared/icons";
 
 /**
  * [label, Icon, iconColor, preview]
@@ -35,7 +32,7 @@ const allOptionsMap: { [key in BaseObjectAction]: [string, any, string, boolean]
     [BaseObjectAction.Copy]: ['Copy', CopyIcon, 'default', false],
     [BaseObjectAction.Delete]: ['Delete', DeleteIcon, "default", false],
     [BaseObjectAction.Donate]: ['Donate', DonateIcon, "default", true],
-    [BaseObjectAction.Downvote]: ['Downvote', DownvoteIcon, "default", false],
+    [BaseObjectAction.Downvote]: ['Downvote', DownvoteWideIcon, "default", false],
     [BaseObjectAction.Edit]: ['Edit', EditIcon, "default", false],
     [BaseObjectAction.FindInPage]: ['Find...', SearchIcon, "default", false],
     [BaseObjectAction.Fork]: ['Fork', ForkIcon, "default", false],
@@ -44,9 +41,9 @@ const allOptionsMap: { [key in BaseObjectAction]: [string, any, string, boolean]
     [BaseObjectAction.Star]: ['Star', StarIcon, "#cbae30", false],
     [BaseObjectAction.Stats]: ['Stats', StatsIcon, "default", true],
     [BaseObjectAction.Unstar]: ['Unstar', UnstarIcon, "#cbae30", false],
-    [BaseObjectAction.Update]: ['Update', UpdateIcon, "default", false],
+    [BaseObjectAction.Update]: ['Update', SaveIcon, "default", false],
     [BaseObjectAction.UpdateCancel]: ['Cancel Update', CancelIcon, "default", false],
-    [BaseObjectAction.Upvote]: ['Upvote', UpvoteIcon, "default", false],
+    [BaseObjectAction.Upvote]: ['Upvote', UpvoteWideIcon, "default", false],
 })
 
 export const BaseObjectActionDialog = ({

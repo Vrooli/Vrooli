@@ -16,7 +16,6 @@ export const HelpIcon = (props: SvgProps) => (
         </defs>
         <path
             style={{
-                fill: props.fill ?? 'white',
                 fillOpacity: 0,
                 stroke: props.fill ?? 'white',
                 strokeWidth: "1.37953",
@@ -28,7 +27,6 @@ export const HelpIcon = (props: SvgProps) => (
         />
         <path
             style={{
-                fill: props.fill ?? 'white',
                 fillOpacity: 0,
                 stroke: props.fill ?? 'white',
                 strokeWidth: "1",

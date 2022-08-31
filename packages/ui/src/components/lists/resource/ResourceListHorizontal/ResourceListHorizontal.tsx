@@ -6,9 +6,6 @@ import { ResourceListHorizontalProps } from '../types';
 import { containerShadow } from 'styles';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { Resource } from 'types';
-import {
-    Add as AddIcon,
-} from '@mui/icons-material';
 import { cardRoot } from 'components/cards/styles';
 import { ResourceDialog } from 'components/dialogs';
 import { updateArray } from 'utils';
@@ -16,6 +13,7 @@ import { resourceDeleteManyMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { resourceDeleteMany, resourceDeleteManyVariables } from 'graphql/generated/resourceDeleteMany';
+import { AddIcon } from '@shared/icons';
 
 export const ResourceListHorizontal = ({
     title = '📌 Resources',
@@ -195,7 +193,7 @@ export const ResourceListHorizontal = ({
                                 justifyContent: 'center',
                             }}
                         >
-                            <AddIcon color="primary" sx={{ width: '50px', height: '50px' }} />
+                            <AddIcon fill={palette.primary.main} width='50px' height='50px' />
                         </Box>
                     </Tooltip> : null}
                 </Stack>

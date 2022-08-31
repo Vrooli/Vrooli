@@ -3,7 +3,6 @@ import { SelectLanguageDialogProps } from '../types';
 import {
     ArrowDropDown as ArrowDropDownIcon,
     ArrowDropUp as ArrowDropUpIcon,
-    Check as CheckIcon,
     Delete as DeleteIcon,
     Language as LanguageIcon,
 } from '@mui/icons-material';
@@ -11,6 +10,7 @@ import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { AllLanguages, getUserLanguages } from 'utils';
 import { FixedSizeList } from 'react-window';
 import { MenuTitle } from 'components';
+import { CompleteIcon } from '@shared/icons';
 
 const titleAria = 'select-language-dialog-title';
 
@@ -184,16 +184,12 @@ export const SelectLanguageDialog = ({
                                 >
                                     {/* Display check mark if selected */}
                                     {isSelected && (
-                                        <CheckIcon
-                                            sx={{
-                                                color: (isCurrent) ? palette.secondary.contrastText : palette.background.textPrimary,
-                                                fontSize: '1.5rem',
-                                            }}
-                                        />
+                                        <CompleteIcon fill={(isCurrent) ? palette.secondary.contrastText : palette.background.textPrimary} />
                                     )}
                                     <Typography variant="body2" style={{
                                         display: 'block',
                                         marginRight: 'auto',
+                                        marginLeft: isSelected ? '8px' : '0',
                                     }}>{option[1]}</Typography>
                                     {/* Display delete icon if selected and editing */}
                                     {isSelected && (selectedLanguages?.length ?? 0) > 1 && isEditing && (

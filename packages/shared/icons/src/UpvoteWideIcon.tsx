@@ -1,6 +1,6 @@
 import { SvgProps } from './types';
 
-export const AddIcon = (props: SvgProps) => (
+export const UpvoteWideIcon = (props: SvgProps) => (
     <svg
         id={props.id}
         style={props.style}
@@ -10,13 +10,11 @@ export const AddIcon = (props: SvgProps) => (
         xmlns="http://www.w3.org/2000/svg">
         <path
             style={{
-                fillOpacity: 0,
-                stroke: props.fill ?? 'white',
-                strokeWidth: "2.3",
-                strokeLinecap: "round",
+                fill: props.fill ?? 'white',
+                strokeWidth: 0,
             }}
-            d="M19.51 12H4.49M12 4.5v15.02"
-            fill="none"
+            d="M18.68 19.13H5.32l3.34-6.56L12 6l3.34 6.56Z"
+            transform="matrix(1.35517 0 0 .79117 -4.26 2.06)"
         />
     </svg>
 )

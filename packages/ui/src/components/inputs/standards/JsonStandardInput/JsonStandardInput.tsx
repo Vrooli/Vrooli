@@ -9,11 +9,8 @@ import { useFormik } from 'formik';
 import { Box, IconButton, Stack, TextField, Tooltip, useTheme } from '@mui/material';
 import { HelpButton, StatusButton } from 'components/buttons';
 import { isEqualJSON, isJson, jsonHelpText, jsonToMarkdown, jsonToString, Status } from 'utils';
-import {
-    VisibilityOff as PreviewOffIcon,
-    Visibility as PreviewOnIcon,
-} from '@mui/icons-material';
 import Markdown from 'markdown-to-jsx';
+import { InvisibleIcon, VisibleIcon } from '@shared/icons';
 
 export const JsonStandardInput = ({
     defaultValue,
@@ -104,8 +101,8 @@ export const JsonStandardInput = ({
                     <IconButton size="small" onClick={togglePreview}>
                         {
                             isPreviewOn ?
-                                <PreviewOffIcon sx={{ fill: palette.primary.contrastText }} /> :
-                                <PreviewOnIcon sx={{ fill: palette.primary.contrastText }} />
+                                <InvisibleIcon fill={palette.primary.contrastText} /> :
+                                <VisibleIcon fill={palette.primary.contrastText} />
                         }
                     </IconButton>
                 </Tooltip>

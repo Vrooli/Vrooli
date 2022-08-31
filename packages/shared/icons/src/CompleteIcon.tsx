@@ -1,6 +1,6 @@
 import { SvgProps } from './types';
 
-export const CreateIcon = (props: SvgProps) => (
+export const CompleteIcon = (props: SvgProps) => (
     <svg
         id={props.id}
         style={props.style}
@@ -12,11 +12,10 @@ export const CreateIcon = (props: SvgProps) => (
             style={{
                 fillOpacity: 0,
                 stroke: props.fill ?? 'white',
-                strokeWidth: "1.5",
+                strokeWidth: "2",
                 strokeLinecap: "round",
             }}
-            d="m15.96851 11.99532-7.93702.0094M12 8.0315v7.93702M20.82306 12A8.82306 8.82306 0 0 1 12 20.82306 8.82306 8.82306 0 0 1 3.17694 12 8.82306 8.82306 0 0 1 12 3.17694 8.82306 8.82306 0 0 1 20.82306 12Z"
-            fill="none"
+            d="m3.3 12.35 5.44 5.62L20.7 5.62"
         />
     </svg>
 )

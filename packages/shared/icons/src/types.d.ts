@@ -1,7 +1,8 @@
 declare module '@shared/route';
 export * from '.';
 
-export interface SvgProps extends React.SVGProps<SVGSVGElement> {
+export interface SvgProps {
+    fill?: string;
     iconTitle?: string;
     id?: string;
     style?: any;

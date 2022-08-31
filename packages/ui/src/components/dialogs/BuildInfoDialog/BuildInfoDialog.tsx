@@ -10,8 +10,6 @@ import {
     QueryStats as StatsIcon,
     StarOutline as StarIcon,
     Star as UnstarIcon,
-    ThumbDown as DownvoteIcon,
-    ThumbUp as UpvoteIcon,
 } from '@mui/icons-material';
 import {
     Box,
@@ -46,7 +44,7 @@ import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
 import { copyMutation, forkMutation, starMutation, voteMutation } from 'graphql/mutation';
 import { v4 as uuid } from 'uuid';
-import { CloseIcon, InfoIcon } from '@shared/icons';
+import { CloseIcon, DownvoteWideIcon, InfoIcon, UpvoteWideIcon } from '@shared/icons';
 
 export const BuildInfoDialog = ({
     handleAction,
@@ -222,8 +220,8 @@ export const BuildInfoDialog = ({
         // If signed in and not editing, show vote/star options
         if (session?.isLoggedIn === true && !isEditing) {
             results.push(routine?.isUpvoted ?
-                [BaseObjectAction.Downvote, 'Downvote', DownvoteIcon, null] :
-                [BaseObjectAction.Upvote, 'Upvote', UpvoteIcon, null]
+                [BaseObjectAction.Downvote, 'Downvote', DownvoteWideIcon, null] :
+                [BaseObjectAction.Upvote, 'Upvote', UpvoteWideIcon, null]
             );
             results.push(routine?.isStarred ?
                 [BaseObjectAction.Unstar, 'Unstar', UnstarIcon, null] :

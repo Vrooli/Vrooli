@@ -12,8 +12,6 @@ import React, { CSSProperties, useCallback, useEffect, useMemo, useRef, useState
 import { RoutineListNodeProps } from '../types';
 import { DraggableNode, RoutineSubnode } from '..';
 import {
-    Add as AddIcon,
-    Close as DeleteIcon,
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
@@ -26,6 +24,7 @@ import { multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { NodeDataRoutineList, NodeDataRoutineListItem } from 'types';
 import { getTranslation, BuildAction, updateTranslationField, PubSub, useLongPress } from 'utils';
 import { EditableLabel } from 'components/inputs';
+import { AddIcon, CloseIcon } from '@shared/icons';
 
 /**
  * Distance before a click is considered a drag
@@ -399,7 +398,7 @@ export const RoutineListNode = ({
                                 onTouchStart={confirmDelete}
                                 color="inherit"
                             >
-                                <DeleteIcon id={`delete-node-icon-button-${node.id}`} />
+                                <CloseIcon id={`delete-node-icon-button-${node.id}`} />
                             </IconButton>
                         )
                     }

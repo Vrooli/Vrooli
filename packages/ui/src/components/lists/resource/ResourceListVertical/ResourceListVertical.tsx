@@ -6,14 +6,12 @@ import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { Resource } from 'types';
 import { containerShadow } from 'styles';
 import { Box, Button } from '@mui/material';
-import {
-    Add as AddIcon,
-} from '@mui/icons-material';
 import { useMutation } from '@apollo/client';
 import { resourceDeleteManyMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { updateArray } from 'utils';
 import { resourceDeleteMany, resourceDeleteManyVariables } from 'graphql/generated/resourceDeleteMany';
+import { AddIcon } from '@shared/icons';
 
 export const ResourceListVertical = ({
     title = '📌 Resources',

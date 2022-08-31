@@ -126,11 +126,11 @@ export const SubroutineInfoDialog = ({
 
     useEffect(() => {
         // setRelationships({
-        //     isComplete: routine?.isComplete ?? false,
-        //     isPrivate: routine?.isPrivate ?? false,
-        //     owner: routine?.owner ?? null,
+        //     isComplete: subroutine?.routine?.isComplete ?? false,
+        //     isPrivate: subroutine?.routine?.isPrivate ?? false,
+        //     owner: subroutine?.routine?.owner ?? null,
         //     parent: null,
-        //     // parent: routine?.parent ?? null, TODO
+        //     // parent: subroutine?.routine?.parent ?? null, TODO
         // });
         setInputsList(subroutine?.routine?.inputs ?? []);
         setOutputsList(subroutine?.routine?.outputs ?? []);
@@ -332,10 +332,11 @@ export const SubroutineInfoDialog = ({
             }}>
                 <form onSubmit={formik.handleSubmit}>
                     {/* Position, description and instructions */}
-                    <Grid container>
-                        {/* Owner */}
+                    <Grid container spacing={2}>
+                        {/* owner, project, isPrivate, etc. */}
                         <Grid item xs={12}>
                             <RelationshipButtons
+                                disabled={!isEditing}
                                 objectType={ObjectType.Routine}
                                 onRelationshipsChange={onRelationshipsChange}
                                 relationships={relationships}
@@ -412,7 +413,7 @@ export const SubroutineInfoDialog = ({
                                             helperText={formik.touched.description ? formik.errors.description : null}
                                         />
                                     ) : (
-                                        <Markdown>{getTranslation(subroutine, 'description', [language]) ?? ''}</Markdown>
+                                        <Markdown>{formik.values.description}</Markdown>
                                     )
                                 }
                             </Box>
@@ -435,7 +436,7 @@ export const SubroutineInfoDialog = ({
                                             helperText={formik.touched.instructions ? formik.errors.instructions : null}
                                         />
                                     ) : (
-                                        <Markdown>{getTranslation(subroutine, 'instructions', [language]) ?? ''}</Markdown>
+                                        <Markdown>{formik.values.instructions}</Markdown>
                                     )
                                 }
                             </Box>

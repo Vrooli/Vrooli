@@ -1,8 +1,8 @@
 import { IconButton, Input, Paper } from '@mui/material';
+import { SearchIcon } from '@shared/icons';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { SearchBarProps } from '../types';
-import { Search as SearchIcon } from '@mui/icons-material';
 
 export const SearchBar = ({
     id = 'search-bar',

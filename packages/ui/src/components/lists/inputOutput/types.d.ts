@@ -20,6 +20,7 @@ export interface InputOutputListItemProps {
     handleOpen: (index: number) => void;
     handleClose: (index: number) => void;
     handleDelete: (index: number) => void;
+    handleReorder: (index: number) => void;
     handleUpdate: (index: number, updatedItem: InputShape | OutputShape) => void;
     language: string;
     session: Session;

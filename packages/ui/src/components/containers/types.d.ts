@@ -58,11 +58,15 @@ export interface BuildBottomContainerProps {
 
 export interface ContentCollapseProps {
     helpText?: string;
+    id?: string;
     isOpen?: boolean;
     onOpenChange?: (isOpen: boolean) => void;
-    showOnNoText?: boolean;
+    sxs?: {
+        titleContainer?: { [x: string]: any };
+        root?: { [x: string]: any };
+    }
     title?: string | null;
-    children?: JSX.Element | JSX.Element[] | null;
+    children?: React.ReactNode;
 }
 
 export interface TextCollapseProps {

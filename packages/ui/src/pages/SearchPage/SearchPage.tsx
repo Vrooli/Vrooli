@@ -1,18 +1,18 @@
 /**
  * Search page for organizations, projects, routines, standards, and users
  */
-import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material";
+import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material";
 import { ListMenu, SearchList, ShareDialog } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
 import { useLocation } from '@shared/route';
 import { SearchPageProps } from "../types";
-import { Add as AddIcon } from '@mui/icons-material';
 import { getObjectUrlBase, PubSub, parseSearchParams, stringifySearchParams, openObject, SearchType, SearchPageTabOption as TabOption } from "utils";
 import { ListOrganization, ListProject, ListRoutine, ListStandard, ListUser } from "types";
 import { validate as uuidValidate } from 'uuid';
 import { APP_LINKS } from "@shared/consts";
 import { ListMenuItemData } from "components/dialogs/types";
+import { AddIcon } from "@shared/icons";
 
 // Tab data type
 type BaseParams = {
@@ -77,6 +77,7 @@ export function SearchPage({
     session,
 }: SearchPageProps) {
     const [, setLocation] = useLocation();
+    const { palette } = useTheme();
 
     const handleSelected = useCallback((selected: SearchObject) => { openObject(selected, setLocation) }, [setLocation]);
 
@@ -250,13 +251,13 @@ export function SearchPage({
                 <Typography component="h2" variant="h4">{title}</Typography>
                 <Tooltip title="Add new" placement="top">
                     <IconButton
-                        size="large"
+                        size="medium"
                         onClick={onAddClick}
                         sx={{
                             padding: 1,
                         }}
                     >
-                        <AddIcon color="secondary" sx={{ width: '1.5em', height: '1.5em' }} />
+                        <AddIcon fill={palette.secondary.main} width='1.5em' height='1.5em' />
                     </IconButton>
                 </Tooltip>
             </Stack>

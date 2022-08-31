@@ -101,6 +101,14 @@ export interface ProjectDialogProps {
     zIndex: number;
 };
 
+export interface ReorderInputDialogProps {
+    handleClose: (toIndex?: number) => void;
+    isInput: boolean;
+    listLength: number;
+    startIndex: number;
+    zIndex: number;
+}
+
 export interface ReportDialogProps extends DialogProps {
     forId: string;
     onClose: () => any;

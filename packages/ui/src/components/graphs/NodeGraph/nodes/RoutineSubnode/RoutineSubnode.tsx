@@ -3,6 +3,7 @@ import {
     Checkbox,
     Container,
     FormControlLabel,
+    IconButton,
     Stack,
     Tooltip,
     Typography,
@@ -11,15 +12,13 @@ import {
 import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
 import { RoutineSubnodeProps } from '../types';
 import {
-    Close as DeleteIcon,
-} from '@mui/icons-material';
-import {
     routineNodeCheckboxOption,
     routineNodeCheckboxLabel,
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { BuildAction, getTranslation, updateTranslationField } from 'utils';
 import { EditableLabel, NodeContextMenu } from 'components';
+import { CloseIcon } from '@shared/icons';
 
 /**
  * Decides if a clicked element should trigger opening the subroutine dialog 
@@ -131,9 +130,9 @@ export const RoutineSubnode = ({
                 id={contextId}
                 anchorEl={contextAnchor}
                 availableActions={
-                    isEditing ? 
-                    [BuildAction.EditSubroutine, BuildAction.DeleteSubroutine] :
-                    [BuildAction.OpenSubroutine, BuildAction.DeleteSubroutine]
+                    isEditing ?
+                        [BuildAction.EditSubroutine, BuildAction.DeleteSubroutine] :
+                        [BuildAction.OpenSubroutine, BuildAction.DeleteSubroutine]
                 }
                 handleClose={closeContext}
                 handleSelect={(action) => { onAction(null, action) }}
@@ -175,11 +174,16 @@ export const RoutineSubnode = ({
                     }}
                 >
                     {labelObject}
-                    {isEditing ? <DeleteIcon
-                        id={`subroutine-delete-icon-${data.id}`}
-                        onClick={deleteSubroutine}
-                        onTouchStart={deleteSubroutine}
-                    /> : null}
+                    {isEditing && (
+                        <IconButton
+                            id={`subroutine-delete-icon-button-${data.id}`}
+                            onClick={deleteSubroutine}
+                            onTouchStart={deleteSubroutine}
+                            color="inherit"
+                        >
+                            <CloseIcon id={`subroutine-delete-icon-${data.id}`} />
+                        </IconButton>
+                    )}
                 </Container>
                 <Stack direction="row" justifyContent="space-between" borderRadius={0} sx={{ ...noSelect }}>
                     <Tooltip placement={'top'} title='Routine can be skipped'>

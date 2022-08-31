@@ -3,7 +3,6 @@ import { useCallback, useMemo, useState } from 'react';
 import {
     Pause as PauseIcon,
     PlayCircle as RunIcon,
-    Update as UpdateIcon
 } from '@mui/icons-material';
 import { BuildRunState, stringifySearchParams } from 'utils';
 import { BuildBottomContainerProps } from '../types';
@@ -11,7 +10,7 @@ import { useLocation } from '@shared/route';
 import { RunPickerDialog, UpTransition } from 'components/dialogs';
 import { RunView } from 'components/views';
 import { Run } from 'types';
-import { CancelIcon, CreateIcon } from '@shared/icons';
+import { CancelIcon, CreateIcon, SaveIcon } from '@shared/icons';
 
 export const BuildBottomContainer = ({
     canSubmitMutate,
@@ -134,7 +133,7 @@ export const BuildBottomContainer = ({
                                 disabled={loading || !canSubmitMutate}
                                 fullWidth
                                 onClick={handleUpdate}
-                                startIcon={<UpdateIcon />}
+                                startIcon={<SaveIcon />}
                                 sx={{ width: 'min(25vw, 150px)' }}
                             >Update</Button>
                             <Button

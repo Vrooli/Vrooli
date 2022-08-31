@@ -10,7 +10,6 @@ export const SaveIcon = (props: SvgProps) => (
         xmlns="http://www.w3.org/2000/svg">
         <path
             style={{
-                fill: props.fill ?? 'white',
                 fillOpacity: 0,
                 stroke: props.fill ?? 'white',
                 strokeWidth: "1.89",
@@ -20,7 +19,6 @@ export const SaveIcon = (props: SvgProps) => (
         />
         <path
             style={{
-                fill: props.fill ?? 'white',
                 fillOpacity: 0,
                 stroke: props.fill ?? 'white',
                 strokeWidth: "1.89",

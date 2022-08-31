@@ -10,15 +10,13 @@ import { ListMenu, OrganizationSelectOrCreateDialog, ProjectSelectOrCreateDialog
 import {
     Apartment as OrganizationIcon,
     DeviceHub as RoutineIcon,
-    Done as CompletedIcon,
     Person as SelfIcon,
     ViewQuilt as ProjIcon,
-    Visibility as PublicIcon,
-    VisibilityOff as PrivateIcon,
 } from '@mui/icons-material';
 import { Session } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { TextShrink } from 'components/text/TextShrink/TextShrink';
+import { CompleteIcon as CompletedIcon, InvisibleIcon, VisibleIcon } from '@shared/icons';
 
 /**
  * Converts session to user object
@@ -36,15 +34,15 @@ const commonButtonProps = (palette: Palette) => ({
     width: '69px',
     height: '69px',
     background: palette.primary.light,
+    '&:hover': {
+        background: palette.primary.light,
+        filter: 'brightness(120%)',
+    },
 })
 
 const commonIconProps = {
     width: 'unset',
     height: 'unset',
-    '&:hover': {
-        filter: `brightness(120%)`,
-        transition: 'filter 0.2s',
-    },
 }
 
 const commonLabelProps = {
@@ -245,7 +243,7 @@ export function RelationshipButtons({
     // Current privacy icon (public or private)
     const { PrivacyIcon, privacyTooltip } = useMemo(() => {
         return {
-            PrivacyIcon: relationships.isPrivate ? PrivateIcon : PublicIcon,
+            PrivacyIcon: relationships.isPrivate ? InvisibleIcon : VisibleIcon,
             privacyTooltip: relationships.isPrivate ? `Only you or your organization can see this${disabled ? '' : '. Press to make public'}` : `Anyone can see this${disabled ? '' : '. Press to make private'}`
         }
     }, [disabled, relationships.isPrivate]);
@@ -359,13 +357,13 @@ export function RelationshipButtons({
                 {/* Privacy button */}
                 {isPrivateAvailable && <Tooltip title={privacyTooltip}>
                     <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handlePrivateClick}>
-                        {PrivacyIcon && <PrivacyIcon sx={{ ...commonIconProps }} />}
+                        {PrivacyIcon && <PrivacyIcon { ...commonIconProps } />}
                     </IconButton>
                 </Tooltip>}
                 {/* Complete button */}
                 {isCompleteAvailable && <Tooltip title={completeTooltip}>
                     <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleCompleteClick}>
-                        {CompleteIcon && <CompleteIcon sx={{ ...commonIconProps }} />}
+                        {CompleteIcon && <CompleteIcon { ...commonIconProps } />}
                     </IconButton>
                 </Tooltip>}
             </Stack>

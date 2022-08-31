@@ -1,14 +1,13 @@
-import { Box, IconButton, Stack, Tooltip, Typography } from '@mui/material';
-import { BaseEdge, HelpButton } from 'components';
+import { IconButton, Stack, Tooltip, useTheme } from '@mui/material';
+import { ContentCollapse } from 'components';
 import { InputOutputContainerProps } from '../types';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import {
-    Add as AddIcon,
-} from '@mui/icons-material';
 import { InputShape, OutputShape, updateArray } from 'utils';
 import { InputOutputListItem } from '../InputOutputListItem/InputOutputListItem';
 import { RoutineInput, RoutineOutput } from 'types';
 import { v4 as uuid } from 'uuid';
+import { AddIcon } from '@shared/icons';
+import { ReorderInputDialog } from 'components/dialogs/ReorderInputDialog/ReorderInputDialog';
 
 const inputHelpText =
     `Inputs specify the information required to complete a routine. 
@@ -45,7 +44,7 @@ const AddButton = ({ index, isInput, handleAdd }: AddButtonProps) => (
             id={`add-${isInput ? 'input' : 'output'}-item-${index}`}
             color="inherit"
             onClick={() => handleAdd(index, {} as any)}
-            aria-label="close"
+            aria-label="add item"
             sx={{
                 zIndex: 1,
                 width: 'fit-content',
@@ -78,6 +77,8 @@ export const InputOutputContainer = ({
     session,
     zIndex,
 }: InputOutputContainerProps) => {
+    const { palette } = useTheme();
+
     const type = useMemo(() => isInput ? 'input' : 'output', [isInput]);
     // Store open/close state of each list item
     const [isOpenArray, setIsOpenArray] = useState<boolean[]>([]);
@@ -126,6 +127,16 @@ export const InputOutputContainer = ({
         handleUpdate(combined as any);
     }, [list, language, isInput, handleUpdate]);
 
+    const onItemReorder = useCallback((fromIndex: number, toIndex: number) => {
+        console.log('onItemReorder', fromIndex, toIndex);
+        const newList = [...list];
+        console.log('original list', newList);
+        const [removed] = newList.splice(fromIndex, 1);
+        newList.splice(toIndex, 0, removed);
+        console.log('new list', newList);
+        handleUpdate(newList as any);
+    }, [handleUpdate, list]);
+
     const onItemUpdate = useCallback((index: number, updatedItem: InputShape | OutputShape) => {
         handleUpdate(updateArray(list, index, updatedItem));
     }, [handleUpdate, list]);
@@ -135,67 +146,84 @@ export const InputOutputContainer = ({
         handleUpdate([...list.filter((_, i) => i !== index)]);
     }, [handleUpdate, list, isOpenArray]);
 
+    // Move item dialog
+    const [moveStartIndex, setMoveStartIndex] = useState<number>(-1);
+    const openMoveDialog = useCallback((index: number) => { setMoveStartIndex(index); }, []);
+    const closeMoveDialog = useCallback((toIndex?: number) => {
+        console.log('close move dialog', toIndex);
+        if (toIndex !== undefined && toIndex >= 0) {
+            onItemReorder(moveStartIndex, toIndex);
+            // If the item was open, open the new item
+            if (isOpenArray[moveStartIndex]) {
+                handleOpen(toIndex);
+            }
+        }
+        setMoveStartIndex(-1);
+    }, [onItemReorder, moveStartIndex, isOpenArray, handleOpen]);
+
     return (
-        <Box
-            id={`${type}-container`}
-            sx={{
-                position: 'relative',
-                maxWidth: '500px',
-                marginLeft: 'auto',
-                marginRight: 'auto',
-            }}
-        >
-            <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                {/* Title */}
-                <Typography component="h2" variant="h5" textAlign="left">{isInput ? 'Inputs' : 'Outputs'}</Typography>
-                {/* Help button */}
-                <HelpButton markdown={isInput ? inputHelpText : outputHelpText} />
-            </Stack>
-            <Stack direction="column">
-                {/* List of inputs. If editing, display delete icon next to each and an add button at the bottom */}
-                {list.map((item, index) => (
-                    <Fragment key={index}>
-                        {isEditing && <AddButton
-                            key={`add-${type}-item-${index}`}
-                            index={index}
-                            isInput={isInput}
-                            handleAdd={onItemAdd}
-                        />}
-                        <InputOutputListItem
-                            key={`${type}-item-${item.id}`}
-                            index={index}
-                            isInput={isInput}
-                            isOpen={isOpenArray.length > index && isOpenArray[index]}
-                            item={item}
-                            isEditing={isEditing}
-                            handleOpen={handleOpen}
-                            handleClose={handleClose}
-                            handleDelete={onItemDelete}
-                            handleUpdate={onItemUpdate}
-                            language={language}
-                            session={session}
-                            zIndex={zIndex}
-                        />
-                    </Fragment>
-                ))}
-                {/* Show add button at bottom of list */}
-                {isEditing && <AddButton
-                key={`add-${type}-item-${list.length}`}
-                    index={list.length}
-                    isInput={isInput}
-                    handleAdd={onItemAdd}
-                />}
-            </Stack>
-            {/* Edges displayed between items (and add button) is actually one edge, since it will be a 
-                straight line anyway */}
-            {((isEditing && list.length > 0) || (!isEditing && list.length > 1)) && <BaseEdge
-                containerId={`${type}-container`}
-                fromId={`add-${type}-item-0`}
-                isEditing={isEditing}
-                thiccness={30}
-                timeBetweenDraws={100}
-                toId={`add-${type}-item-${list.length}`}
-            />}
-        </Box>
+        <>
+            {/* Dialog for reordering item */}
+            <ReorderInputDialog
+                isInput={isInput}
+                handleClose={closeMoveDialog}
+                listLength={list.length}
+                startIndex={moveStartIndex}
+                zIndex={zIndex + 1}
+            />
+            {/* Main content */}
+            <ContentCollapse
+                id={`${type}-container`}
+                helpText={isInput ? inputHelpText : outputHelpText}
+                title={isInput ? 'Inputs' : 'Outputs'}
+                sxs={{
+                    titleContainer: {
+                        display: 'flex',
+                        justifyContent: 'center'
+                    },
+                    root: {
+                        background: palette.primary.dark,
+                        color: palette.primary.contrastText,
+                        border: `1px solid ${palette.mode === 'dark' ? palette.background.textPrimary : 'unset'}`,
+                        borderRadius: 2,
+                        padding: 0,
+                        overflow: 'overlay',
+                    }
+                }}
+            >
+                <Stack direction="column" sx={{
+                    background: palette.background.default,
+                }}>
+                    {/* List of inputs. If editing, display delete icon next to each and an add button at the bottom */}
+                    {list.map((item, index) => (
+                        <Fragment key={index}>
+                            <InputOutputListItem
+                                key={`${type}-item-${item.id}`}
+                                index={index}
+                                isInput={isInput}
+                                isOpen={isOpenArray.length > index && isOpenArray[index]}
+                                item={item}
+                                isEditing={isEditing}
+                                handleOpen={handleOpen}
+                                handleClose={handleClose}
+                                handleDelete={onItemDelete}
+                                handleReorder={openMoveDialog}
+                                handleUpdate={onItemUpdate}
+                                language={language}
+                                session={session}
+                                zIndex={zIndex}
+                            />
+                        </Fragment>
+                    ))}
+                    {/* Show add button at bottom of list */}
+                    {isEditing && <AddButton
+                        key={`add-${type}-item-${list.length}`}
+                        index={list.length}
+                        isInput={isInput}
+                        handleAdd={onItemAdd}
+                    />}
+                </Stack>
+            </ContentCollapse>
+        </>
     )
 }

@@ -11,7 +11,6 @@ export const UnlinkedNodesIcon = (props: SvgProps) => (
         <path
             aria-label="Unlinked Nodes"
             style={{
-                fill: props.fill ?? 'white',
                 fillOpacity: 0,
                 stroke: props.fill ?? 'white',
                 strokeWidth: "1.00157",
@@ -25,7 +24,6 @@ export const UnlinkedNodesIcon = (props: SvgProps) => (
         />
         <path
             style={{
-                fill: props.fill ?? 'white',
                 fillOpacity: 0,
                 stroke: props.fill ?? 'white',
                 strokeWidth: "1.75748",

@@ -128,11 +128,11 @@ export const StandardSelectOrCreateDialog = ({
                         <Typography component="h2" variant="h4">Standards</Typography>
                         <Tooltip title="Add new" placement="top">
                             <IconButton
-                                size="large"
+                                size="medium"
                                 onClick={handleCreateOpen}
                                 sx={{ padding: 1 }}
                             >
-                                <AddIcon color="secondary" width='1.5em' height='1.5em' />
+                                <AddIcon fill={palette.secondary.main} width='1.5em' height='1.5em' />
                             </IconButton>
                         </Tooltip>
                     </Stack>

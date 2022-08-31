@@ -12,13 +12,12 @@ import {
     List as ListIcon,
     StrikethroughS as StrikethroughIcon,
     Title as HeaderIcon,
-    Visibility as PreviewOnIcon,
-    VisibilityOff as PreviewOffIcon,
 } from '@mui/icons-material';
 import { MarkdownInputProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { noSelect } from 'styles';
 import { PubSub } from 'utils';
+import { InvisibleIcon, VisibleIcon } from '@shared/icons';
 
 enum Headers {
     H1 = 'h1',
@@ -353,8 +352,8 @@ export const MarkdownInput = ({
                         <IconButton size="small" onClick={togglePreview}>
                             {
                                 isPreviewOn ?
-                                    <PreviewOffIcon sx={{ fill: palette.primary.contrastText }} /> :
-                                    <PreviewOnIcon sx={{ fill: palette.primary.contrastText }} />
+                                    <InvisibleIcon fill={palette.primary.contrastText} /> :
+                                    <VisibleIcon fill={palette.primary.contrastText} />
                             }
                         </IconButton>
                     </Tooltip>

@@ -1,10 +1,7 @@
 import { useCallback, useState } from "react";
 import { FormControl, FormHelperText, IconButton, InputAdornment, InputLabel, OutlinedInput, useTheme } from '@mui/material';
-import {
-    Visibility as VisibilityIcon,
-    VisibilityOff as VisibilityOffIcon,
-} from '@mui/icons-material';
 import { PasswordTextFieldProps } from "../types";
+import { InvisibleIcon, VisibleIcon } from "@shared/icons";
 
 export const PasswordTextField = ({
     autoComplete = 'current-password',
@@ -48,7 +45,7 @@ export const PasswordTextField = ({
                             onClick={handleClickShowPassword}
                             edge="end"
                         >
-                            {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                            {showPassword ? <InvisibleIcon /> : <VisibleIcon />}
                         </IconButton>
                     </InputAdornment>
                 }

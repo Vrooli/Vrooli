@@ -16,7 +16,6 @@ export const InfoIcon = (props: SvgProps) => (
         </defs>
         <path
             style={{
-                fill: props.fill ?? 'white',
                 fillOpacity: 0,
                 stroke: props.fill ?? 'white',
                 strokeWidth: "1.37953",
@@ -28,7 +27,6 @@ export const InfoIcon = (props: SvgProps) => (
         />
         <path
             style={{
-                fill: props.fill ?? 'white',
                 fillOpacity: 0,
                 stroke: props.fill ?? 'white',
                 strokeWidth: "2.13543",
@@ -39,7 +37,6 @@ export const InfoIcon = (props: SvgProps) => (
         />
         <path
             style={{
-                fill: props.fill ?? 'white',
                 fillOpacity: 0,
                 stroke: props.fill ?? 'white',
                 strokeWidth: "1.75748",

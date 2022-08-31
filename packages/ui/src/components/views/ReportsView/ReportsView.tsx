@@ -3,6 +3,7 @@ import { reports, reportsVariables } from "graphql/generated/reports";
 import { reportsQuery } from "graphql/query";
 import { APP_LINKS } from "@shared/consts";
 import { useMemo } from "react";
+import { useTheme } from "@mui/material";
 
 export const CommentReportsView = (): JSX.Element => {
     const { loading, error, data } = useReportsQuery(APP_LINKS.Comment, 'commentId');
@@ -152,6 +153,7 @@ function useReportsQuery(appLink: string, queryField: string) {
 }
 
 const BaseReportsView = (props: { data: reports }): JSX.Element => {
+    const { palette } = useTheme();
     const edges = props.data.reports.edges;
     return <>
         {edges.map((edge, i) => {
@@ -159,7 +161,8 @@ const BaseReportsView = (props: { data: reports }): JSX.Element => {
             return <div 
                 key={i} 
                 style={{ 
-                    background: "white",
+                    background: palette.background.paper,
+                    color: palette.background.textPrimary,
                     borderRadius: "16px",
                     boxShadow: "0 4px 16px 0 #00000050", 
                     margin: "16px 16px 0 16px",
