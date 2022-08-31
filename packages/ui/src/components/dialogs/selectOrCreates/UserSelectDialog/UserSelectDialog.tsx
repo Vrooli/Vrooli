@@ -10,9 +10,6 @@ import {
 import { DialogTitle, ShareDialog } from 'components';
 import { useCallback, useEffect, useState } from 'react';
 import { UserSelectDialogProps } from '../types';
-import {
-    Add as CreateIcon,
-} from '@mui/icons-material';
 import { User } from 'types';
 import { SearchList } from 'components/lists';
 import { userQuery } from 'graphql/query';
@@ -20,6 +17,7 @@ import { useLazyQuery } from '@apollo/client';
 import { user, userVariables } from 'graphql/generated/user';
 import { parseSearchParams, stringifySearchParams, SearchType, userSearchSchema } from 'utils';
 import { useLocation } from '@shared/route';
+import { AddIcon } from '@shared/icons';
 
 const helpText =
     `This dialog allows you to connect a user to an object.
@@ -119,7 +117,7 @@ export const UserSelectDialog = ({
                                 onClick={openShareDialog}
                                 sx={{ padding: 1 }}
                             >
-                                <CreateIcon color="secondary" sx={{ width: '1.5em', height: '1.5em' }} />
+                                <AddIcon color="secondary" width='1.5em' height='1.5em' />
                             </IconButton>
                         </Tooltip>
                     </Stack>

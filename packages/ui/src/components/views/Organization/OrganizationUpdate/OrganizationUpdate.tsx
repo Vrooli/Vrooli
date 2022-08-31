@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Grid, TextField, Typography } from "@mui/material"
+import { Box, Button, CircularProgress, Grid, TextField, Typography } from "@mui/material"
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { organization, organizationVariables } from "graphql/generated/organization";
 import { organizationQuery } from "graphql/query";
@@ -8,18 +8,14 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { organizationUpdateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { organizationUpdateMutation } from "graphql/mutation";
-import { OrganizationTranslationShape, PubSub, shapeOrganizationUpdate, TagShape, updateArray } from "utils";
-import {
-    Restore as CancelIcon,
-    Save as SaveIcon,
-} from '@mui/icons-material';
-import { DialogActionItem } from "components/containers/types";
-import { LanguageInput, ResourceListHorizontal, TagSelector } from "components";
-import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
+import { ObjectType, OrganizationTranslationShape, PubSub, shapeOrganizationUpdate, TagShape, updateArray } from "utils";
+import { LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { organizationUpdate, organizationUpdateVariables } from "graphql/generated/organizationUpdate";
+import { RelationshipsObject } from "components/inputs/types";
+import { CancelIcon, SaveIcon } from "@shared/icons";
 
 export const OrganizationUpdate = ({
     onCancel,
@@ -34,6 +30,20 @@ export const OrganizationUpdate = ({
         if (uuidValidate(id)) getData({ variables: { input: { id } } });
     }, [getData, id])
     const organization = useMemo(() => data?.organization, [data]);
+
+    const [relationships, setRelationships] = useState<RelationshipsObject>({
+        isComplete: false,
+        isPrivate: false,
+        owner: userFromSession(session),
+        parent: null,
+        project: null,
+    });
+    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
+        setRelationships({
+            ...relationships,
+            ...newRelationshipsObject,
+        });
+    }, [relationships]);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
@@ -70,6 +80,13 @@ export const OrganizationUpdate = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
+        setRelationships({
+            isComplete: false,
+            isPrivate: organization?.isPrivate ?? false,
+            owner: null,
+            parent: null,
+            project: null,
+        });
         setResourceList(organization?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(organization?.tags ?? []);
         setTranslations(organization?.translations?.map(t => ({
@@ -163,15 +180,6 @@ export const OrganizationUpdate = ({
         setLanguages(newLanguages);
     }, [deleteTranslation, languages, updateFormikTranslation]);
 
-    const actions: DialogActionItem[] = useMemo(() => [
-        ['Save', SaveIcon, Boolean(formik.isSubmitting || !formik.isValid), true, () => { }],
-        ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
-    ], [formik, onCancel]);
-    const [formBottom, setFormBottom] = useState<number>(0);
-    const handleResize = useCallback(({ height }: any) => {
-        setFormBottom(height);
-    }, [setFormBottom]);
-
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12}>
@@ -183,6 +191,15 @@ export const OrganizationUpdate = ({
                         sx: { marginTop: 2, marginBottom: 2 },
                     }}
                 >Update Organization</Typography>
+            </Grid>
+            <Grid item xs={12}>
+                <RelationshipButtons
+                    objectType={ObjectType.Organization}
+                    onRelationshipsChange={onRelationshipsChange}
+                    relationships={relationships}
+                    session={session}
+                    zIndex={zIndex}
+                />
             </Grid>
             <Grid item xs={12}>
                 <LanguageInput
@@ -235,7 +252,7 @@ export const OrganizationUpdate = ({
                     zIndex={zIndex}
                 />
             </Grid>
-            <Grid item xs={12} marginBottom={4}>
+            <Grid item xs={12}>
                 <TagSelector
                     session={session}
                     tags={tags}
@@ -244,15 +261,29 @@ export const OrganizationUpdate = ({
                     onTagsClear={clearTags}
                 />
             </Grid>
+            <Grid item xs={6} marginBottom={4}>
+                <Button
+                    disabled={Boolean(formik.isSubmitting || !formik.isValid)}
+                    fullWidth
+                    type="submit"
+                    startIcon={<SaveIcon />}
+                >Save</Button>
+            </Grid>
+            <Grid item xs={6} marginBottom={4}>
+                <Button
+                    fullWidth
+                    onClick={onCancel}
+                    startIcon={<CancelIcon />}
+                >Cancel</Button>
+            </Grid>
         </Grid>
-    ), [language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, session, zIndex, formik.values.name, formik.values.bio, formik.handleBlur, formik.handleChange, formik.touched.name, formik.touched.bio, formik.errors.name, formik.errors.bio, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
+    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, formik.values.name, formik.values.bio, formik.handleBlur, formik.handleChange, formik.touched.name, formik.touched.bio, formik.errors.name, formik.errors.bio, formik.isSubmitting, formik.isValid, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags, onCancel]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            paddingBottom: `${formBottom}px`,
         }}
         >
             {loading ? (
@@ -268,7 +299,6 @@ export const OrganizationUpdate = ({
                     <CircularProgress size={100} color="secondary" />
                 </Box>
             ) : formInput}
-            <DialogActionsContainer actions={actions} onResize={handleResize} />
         </form>
     )
 }

@@ -10,9 +10,6 @@ import {
 import { BaseObjectDialog, DialogTitle } from 'components';
 import { useCallback, useEffect, useState } from 'react';
 import { RoutineSelectOrCreateDialogProps } from '../types';
-import {
-    Add as CreateIcon,
-} from '@mui/icons-material';
 import { Routine } from 'types';
 import { SearchList } from 'components/lists';
 import { routineQuery } from 'graphql/query';
@@ -21,6 +18,7 @@ import { routine, routineVariables } from 'graphql/generated/routine';
 import { RoutineCreate } from 'components/views/Routine/RoutineCreate/RoutineCreate';
 import { parseSearchParams, stringifySearchParams, SearchType, routineSearchSchema } from 'utils';
 import { useLocation } from '@shared/route';
+import { AddIcon } from '@shared/icons';
 
 const helpText =
     `This dialog allows you to connect a new or existing routine to an object.
@@ -134,7 +132,7 @@ export const RoutineSelectOrCreateDialog = ({
                                 onClick={handleCreateOpen}
                                 sx={{ padding: 1 }}
                             >
-                                <CreateIcon color="secondary" sx={{ width: '1.5em', height: '1.5em' }} />
+                                <AddIcon color="secondary" width='1.5em' height='1.5em' />
                             </IconButton>
                         </Tooltip>
                     </Stack>

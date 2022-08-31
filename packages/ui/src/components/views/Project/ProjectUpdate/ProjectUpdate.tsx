@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Grid, TextField, Typography } from "@mui/material"
+import { Box, Button, CircularProgress, Grid, TextField, Typography } from "@mui/material"
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { project, projectVariables } from "graphql/generated/project";
 import { projectQuery } from "graphql/query";
@@ -7,19 +7,15 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { projectUpdateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { projectUpdateMutation } from "graphql/mutation";
-import { ProjectTranslationShape, PubSub, shapeProjectUpdate, TagShape, updateArray } from "utils";
-import {
-    Restore as CancelIcon,
-    Save as SaveIcon,
-} from '@mui/icons-material';
-import { DialogActionItem } from "components/containers/types";
-import { LanguageInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
-import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { Organization, ResourceList } from "types";
+import { ObjectType, ProjectTranslationShape, PubSub, shapeProjectUpdate, TagShape, updateArray } from "utils";
+import { LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
+import { ResourceList } from "types";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { projectUpdate, projectUpdateVariables } from "graphql/generated/projectUpdate";
 import { ProjectUpdateProps } from "../types";
+import { RelationshipsObject } from "components/inputs/types";
+import { CancelIcon, SaveIcon } from "@shared/icons";
 
 export const ProjectUpdate = ({
     onCancel,
@@ -35,9 +31,19 @@ export const ProjectUpdate = ({
     }, [getData, id])
     const project = useMemo(() => data?.project, [data]);
 
-    // Handle user/organization switch
-    const [organizationFor, setOrganizationFor] = useState<Organization | null>(null);
-    const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
+    const [relationships, setRelationships] = useState<RelationshipsObject>({
+        isComplete: false,
+        isPrivate: false,
+        owner: userFromSession(session),
+        parent: null,
+        project: null,
+    });
+    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
+        setRelationships({
+            ...relationships,
+            ...newRelationshipsObject,
+        });
+    }, [relationships]);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
@@ -74,8 +80,15 @@ export const ProjectUpdate = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
-        if (project?.owner?.__typename === 'Organization') setOrganizationFor(project.owner as Organization);
-        else setOrganizationFor(null);
+        setRelationships({
+            isComplete: project?.isComplete ?? false,
+            isPrivate: project?.isPrivate ?? false,
+            owner: null,
+            // owner: project?.owner ?? null, TODO
+            parent: null,
+            // parent: project?.parent ?? null, TODO
+            project: null,
+        });
         setResourceList(project?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(project?.tags ?? []);
         setTranslations(project?.translations?.map(t => ({
@@ -110,14 +123,10 @@ export const ProjectUpdate = ({
                 mutation,
                 input: shapeProjectUpdate(project, {
                     id: project.id,
-                    isComplete: project.isComplete, //TODO: values.isComplete,
-                    owner: organizationFor ? {
-                        __typename: 'Organization',
-                        id: organizationFor.id,
-                    } : {
-                        __typename: 'User',
-                        id: session.id ?? '',
-                    },
+                    isComplete: relationships.isComplete,
+                    isPrivate: relationships.isPrivate,
+                    owner: relationships.owner,
+                    parent: relationships.parent,
                     resourceLists: [resourceList],
                     tags: tags,
                     translations: allTranslations,
@@ -176,15 +185,6 @@ export const ProjectUpdate = ({
         setLanguages(newLanguages);
     }, [deleteTranslation, languages, updateFormikTranslation]);
 
-    const actions: DialogActionItem[] = useMemo(() => [
-        ['Save', SaveIcon, Boolean(formik.isSubmitting || !formik.isValid), true, () => { }],
-        ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
-    ], [formik, onCancel]);
-    const [formBottom, setFormBottom] = useState<number>(0);
-    const handleResize = useCallback(({ height }: any) => {
-        setFormBottom(height);
-    }, [setFormBottom]);
-
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12}>
@@ -198,10 +198,11 @@ export const ProjectUpdate = ({
                 >Update Project</Typography>
             </Grid>
             <Grid item xs={12}>
-                <UserOrganizationSwitch
+                <RelationshipButtons
+                    objectType={ObjectType.Project}
+                    onRelationshipsChange={onRelationshipsChange}
+                    relationships={relationships}
                     session={session}
-                    selected={organizationFor}
-                    onChange={onSwitchChange}
                     zIndex={zIndex}
                 />
             </Grid>
@@ -256,7 +257,7 @@ export const ProjectUpdate = ({
                     zIndex={zIndex}
                 />
             </Grid>
-            <Grid item xs={12} marginBottom={4}>
+            <Grid item xs={12}>
                 <TagSelector
                     session={session}
                     tags={tags}
@@ -265,8 +266,23 @@ export const ProjectUpdate = ({
                     onTagsClear={clearTags}
                 />
             </Grid>
+            <Grid item xs={6} marginBottom={4}>
+                <Button
+                    disabled={Boolean(formik.isSubmitting || !formik.isValid)}
+                    fullWidth
+                    type="submit"
+                    startIcon={<SaveIcon />}
+                >Save</Button>
+            </Grid>
+            <Grid item xs={6} marginBottom={4}>
+                <Button
+                    fullWidth
+                    onClick={onCancel}
+                    startIcon={<CancelIcon />}
+                >Cancel</Button>
+            </Grid>
         </Grid>
-    ), [session, organizationFor, onSwitchChange, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, formik.values.name, formik.values.description, formik.handleBlur, formik.handleChange, formik.touched.name, formik.touched.description, formik.errors.name, formik.errors.description, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
+    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, formik.values.name, formik.values.description, formik.handleBlur, formik.handleChange, formik.touched.name, formik.touched.description, formik.errors.name, formik.errors.description, formik.isSubmitting, formik.isValid, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags, onCancel]);
 
 
     return (
@@ -274,7 +290,6 @@ export const ProjectUpdate = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            paddingBottom: `${formBottom}px`,
             zIndex,
         }}
         >
@@ -291,7 +306,6 @@ export const ProjectUpdate = ({
                     <CircularProgress size={100} color="secondary" />
                 </Box>
             ) : formInput}
-            <DialogActionsContainer actions={actions} onResize={handleResize} />
         </form>
     )
 }

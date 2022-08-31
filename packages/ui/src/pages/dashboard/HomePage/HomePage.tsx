@@ -9,13 +9,10 @@ import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { HomePageProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import {
-    Add as CreateIcon,
-    Search as SearchIcon,
-} from '@mui/icons-material';
 import { listToAutocomplete, listToListItems, openObject, OpenObjectProps, SearchPageTabOption, shortcutsItems, useReactSearch } from 'utils';
 import { AutocompleteOption } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
+import { CreateIcon, SearchIcon } from '@shared/icons';
 
 const faqText =
     `## What is This?

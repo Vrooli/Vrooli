@@ -1,8 +1,6 @@
 import { Box, Button, Dialog, IconButton, Slider, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import {
-    Add as AddIcon,
-    Cancel as CancelIcon,
     Pause as PauseIcon,
     PlayCircle as RunIcon,
     Update as UpdateIcon
@@ -13,6 +11,7 @@ import { useLocation } from '@shared/route';
 import { RunPickerDialog, UpTransition } from 'components/dialogs';
 import { RunView } from 'components/views';
 import { Run } from 'types';
+import { CancelIcon, CreateIcon } from '@shared/icons';
 
 export const BuildBottomContainer = ({
     canSubmitMutate,
@@ -117,7 +116,7 @@ export const BuildBottomContainer = ({
                                 disabled={loading || !canSubmitMutate}
                                 fullWidth
                                 onClick={handleAdd}
-                                startIcon={<AddIcon />}
+                                startIcon={<CreateIcon />}
                                 sx={{ width: 'min(25vw, 150px)' }}
                             >Create</Button>
                             <Button

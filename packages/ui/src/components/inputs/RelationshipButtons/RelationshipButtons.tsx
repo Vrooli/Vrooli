@@ -10,9 +10,8 @@ import { ListMenu, OrganizationSelectOrCreateDialog, ProjectSelectOrCreateDialog
 import {
     Apartment as OrganizationIcon,
     DeviceHub as RoutineIcon,
-    DoneAll as CompletedIcon,
+    Done as CompletedIcon,
     Person as SelfIcon,
-    RemoveDone as IncompleteIcon,
     ViewQuilt as ProjIcon,
     Visibility as PublicIcon,
     VisibilityOff as PrivateIcon,
@@ -67,17 +66,9 @@ const ownerTypes: ListMenuItemData<OwnerTypesEnum>[] = [
 
 export function RelationshipButtons({
     disabled = false,
-    isComplete,
-    isPrivate,
     objectType,
-    onIsCompleteChange,
-    onIsPrivateChange,
-    onOwnerChange,
-    onProjectChange,
-    onParentChange,
-    owner,
-    parent,
-    project,
+    onRelationshipsChange,
+    relationships,
     session,
     zIndex,
 }: RelationshipButtonsProps) {
@@ -88,14 +79,18 @@ export function RelationshipButtons({
     const { isCompleteAvailable, isOwnerAvailable, isPrivateAvailable, isProjectAvailable, isParentAvailable } = useMemo(() => {
         // isComplete available for projects and routines
         const isCompleteAvailable = [ObjectType.Project, ObjectType.Routine].includes(objectType);
-        // Owner available for organizations, projects, routines, and standards
-        const isOwnerAvailable = [ObjectType.Organization, ObjectType.Project, ObjectType.Routine, ObjectType.Standard].includes(objectType);
+        // Owner available for projects, routines, and standards
+        const isOwnerAvailable = [ObjectType.Project, ObjectType.Routine, ObjectType.Standard].includes(objectType);
+        // Roles available for organizations
+        //TODO
         // isPrivate always available for now
         const isPrivateAvailable = true;
-        // Project available for organizations, routines, and standards
-        const isProjectAvailable = [ObjectType.Organization, ObjectType.Project, ObjectType.Standard].includes(objectType);
-        // Parent available for projects and routines
-        const isParentAvailable = [ObjectType.Project, ObjectType.Routine].includes(objectType);
+        // Project available for projects, routines, and standards
+        const isProjectAvailable = [ObjectType.Project, ObjectType.Routine, ObjectType.Standard].includes(objectType);
+        // Projects (i.e. setting projects assigned to object instead of project object is assigned to) available for organizations and projects
+        //TODO
+        // Parent available for routines
+        const isParentAvailable = [ObjectType.Routine].includes(objectType);
         return { isCompleteAvailable, isOwnerAvailable, isPrivateAvailable, isProjectAvailable, isParentAvailable }
     }, [objectType])
 
@@ -123,70 +118,70 @@ export function RelationshipButtons({
         } else if (ownerType === OwnerTypesEnum.AnotherUser) {
             openAnotherUserDialog();
         } else {
-            onOwnerChange(userFromSession(session));
+            onRelationshipsChange({ owner: userFromSession(session) });
         }
         closeOwnerDialog();
-    }, [closeOwnerDialog, onOwnerChange, openAnotherUserDialog, openOrganizationDialog, session]);
+    }, [closeOwnerDialog, onRelationshipsChange, openAnotherUserDialog, openOrganizationDialog, session]);
     const handleOwnerSelect = useCallback((owner: RelationshipOwner) => {
-        onOwnerChange(owner);
-    }, [onOwnerChange]);
+        onRelationshipsChange({ owner });
+    }, [onRelationshipsChange]);
 
     // Project dialog
     const [isProjectDialogOpen, setProjectDialogOpen] = useState<boolean>(false);
     const handleProjectClick = useCallback((ev: React.MouseEvent<any>) => {
         if (disabled || !isProjectAvailable) return;
         // If project was set, remove
-        if (project) onProjectChange(null);
+        if (relationships.project) onRelationshipsChange({ project: null });
         // Otherwise, open project select dialog
         else setProjectDialogOpen(true);
-    }, [disabled, isProjectAvailable, onProjectChange, project]);
+    }, [disabled, isProjectAvailable, onRelationshipsChange, relationships.project]);
     const closeProjectDialog = useCallback(() => { setProjectDialogOpen(false); }, [setProjectDialogOpen]);
     const handleProjectSelect = useCallback((project: RelationshipItemProject) => {
-        onProjectChange(project);
-    }, [onProjectChange]);
+        onRelationshipsChange({ project });
+    }, [onRelationshipsChange]);
 
     // Parent dialog
     const [isParentDialogOpen, setParentDialogOpen] = useState<boolean>(false);
     const handleParentClick = useCallback((ev: React.MouseEvent<any>) => {
         if (disabled || !isParentAvailable) return;
         // If parent was set, remove
-        if (parent) onParentChange(null);
+        if (relationships.parent) onRelationshipsChange({ parent: null });
         // Otherwise, open parent select dialog
         else setParentDialogOpen(true);
-    }, [disabled, isParentAvailable, onParentChange, parent]);
+    }, [disabled, isParentAvailable, onRelationshipsChange, relationships.parent]);
     const closeParentDialog = useCallback(() => { setParentDialogOpen(false); }, [setParentDialogOpen]);
     const handleParentProjectSelect = useCallback((parent: RelationshipItemProject) => {
-        onParentChange(parent);
-    }, [onParentChange]);
+        onRelationshipsChange({ parent });
+    }, [onRelationshipsChange]);
     const handleParentRoutineSelect = useCallback((parent: RelationshipItemRoutine) => {
-        onParentChange(parent);
-    }, [onParentChange]);
+        onRelationshipsChange({ parent });
+    }, [onRelationshipsChange]);
 
     // Handle private click
     const handlePrivateClick = useCallback((ev: React.MouseEvent<any>) => {
         if (disabled || !isPrivateAvailable) return;
-        onIsPrivateChange(!isPrivate);
-    }, [disabled, isPrivate, isPrivateAvailable, onIsPrivateChange]);
+        onRelationshipsChange({ isPrivate: !relationships.isPrivate });
+    }, [disabled, relationships.isPrivate, isPrivateAvailable, onRelationshipsChange]);
 
     // Handle complete click
     const handleCompleteClick = useCallback((ev: React.MouseEvent<any>) => {
         if (disabled || !isCompleteAvailable) return;
-        onIsCompleteChange(!isComplete);
-    }, [disabled, isComplete, isCompleteAvailable, onIsCompleteChange]);
+        onRelationshipsChange({ isComplete: !relationships.isComplete });
+    }, [disabled, relationships.isComplete, isCompleteAvailable, onRelationshipsChange]);
 
     // Current owner icon
     const { OwnerIcon, ownerTooltip } = useMemo(() => {
         // If no owner data, marked as anonymous
-        if (!owner) return {
+        if (!relationships.owner) return {
             OwnerIcon: null,
-            ownerTooltip: 'Marked as anonymous. Press to set owner'
+            ownerTooltip: `Marked as anonymous${disabled ? '' : '. Press to set owner'}`
         };
         // If owner is organization, use organization icon
-        if (owner.__typename === 'Organization') {
+        if (relationships.owner.__typename === 'Organization') {
             const OwnerIcon = OrganizationIcon;
             // Button color indicates if you can modify the organization, or if someone will have to approve it
-            const canEdit = (owner as RelationshipItemOrganization).permissionsOrganization?.canEdit === true;
-            const ownerName = getTranslation(owner as RelationshipItemOrganization, 'name', languages, true) ?? 'organization';
+            const canEdit = (relationships.owner as RelationshipItemOrganization).permissionsOrganization?.canEdit === true;
+            const ownerName = getTranslation(relationships.owner as RelationshipItemOrganization, 'name', languages, true) ?? 'organization';
             return {
                 OwnerIcon,
                 ownerTooltip: `Owner: ${ownerName}${!canEdit ? ' (requires approval)' : ''}`
@@ -195,42 +190,42 @@ export function RelationshipButtons({
         // If owner is user, use self icon
         const OwnerIcon = SelfIcon;
         // Button color indicates if it's your own account, or if someone will have to approve it
-        const canEdit = owner.id === session.id;
-        const ownerName = (owner as RelationshipItemUser).name;
+        const canEdit = relationships.owner.id === session.id;
+        const ownerName = (relationships.owner as RelationshipItemUser).name;
         return {
             OwnerIcon,
             ownerTooltip: `Owner: ${canEdit ? 'Self' : (ownerName + ' (requires approval)')}`
         };
-    }, [languages, owner, session.id]);
+    }, [disabled, languages, relationships.owner, session.id]);
 
     // Current project icon
     const { ProjectIcon, projectTooltip } = useMemo(() => {
         // If no project data, marked as unset
-        if (!project) return {
+        if (!relationships.project) return {
             ProjectIcon: null,
-            projectTooltip: 'Press to assign to a project'
+            projectTooltip: disabled ? '' : 'Press to assign to a project'
         };
-        const canEdit = project.permissionsProject?.canEdit === true;
-        const projectName = getTranslation(project as RelationshipItemProject, 'name', languages, true) ?? 'project';
+        const canEdit = relationships.project.permissionsProject?.canEdit === true;
+        const projectName = getTranslation(relationships.project as RelationshipItemProject, 'name', languages, true) ?? 'project';
         return {
             ProjectIcon: ProjIcon,
             projectTooltip: `Project: ${projectName}${!canEdit ? ' (requires approval)' : ''}`
         };
-    }, [languages, project]);
+    }, [disabled, languages, relationships.project]);
 
     // Current parent icon
     const { ParentIcon, parentTooltip } = useMemo(() => {
         // If no parent data, marked as unset
-        if (!parent) return {
+        if (!relationships.parent) return {
             ParentIcon: null,
-            parentTooltip: 'Press to copy from a parent (will override entered data)'
+            parentTooltip: disabled ? '' : 'Press to copy from a parent (will override entered data)'
         };
         // If parent is project, use project icon
-        if (parent.__typename === 'Project') {
+        if (relationships.parent.__typename === 'Project') {
             const ParentIcon = ProjIcon;
             // Button color indicates if you can modify the project, or if someone will have to approve it
-            const canEdit = (parent as RelationshipItemProject).permissionsProject?.canEdit === true;
-            const parentName = getTranslation(parent as RelationshipItemProject, 'name', languages, true) ?? 'project';
+            const canEdit = (relationships.parent as RelationshipItemProject).permissionsProject?.canEdit === true;
+            const parentName = getTranslation(relationships.parent as RelationshipItemProject, 'name', languages, true) ?? 'project';
             return {
                 ParentIcon,
                 parentTooltip: `Parent: ${parentName}${!canEdit ? ' (requires approval)' : ''}`
@@ -239,29 +234,29 @@ export function RelationshipButtons({
         // If parent is routine, use routine icon
         const ParentIcon = RoutineIcon;
         // Button color indicates if you can modify the routine, or if someone will have to approve it
-        const canEdit = (parent as RelationshipItemRoutine).permissionsRoutine?.canEdit === true;
-        const parentName = getTranslation(parent as RelationshipItemRoutine, 'title', languages, true) ?? 'routine';
+        const canEdit = (relationships.parent as RelationshipItemRoutine).permissionsRoutine?.canEdit === true;
+        const parentName = getTranslation(relationships.parent as RelationshipItemRoutine, 'title', languages, true) ?? 'routine';
         return {
             ParentIcon,
             parentTooltip: `Parent: ${parentName}${!canEdit ? ' (requires approval)' : ''}`
         };
-    }, [languages, parent]);
+    }, [disabled, languages, relationships.parent]);
 
     // Current privacy icon (public or private)
     const { PrivacyIcon, privacyTooltip } = useMemo(() => {
         return {
-            PrivacyIcon: isPrivate ? PrivateIcon : PublicIcon,
-            privacyTooltip: isPrivate ? 'Only you or your organization can see this. Press to make public' : 'Anyone can see this. Press to make private'
+            PrivacyIcon: relationships.isPrivate ? PrivateIcon : PublicIcon,
+            privacyTooltip: relationships.isPrivate ? `Only you or your organization can see this${disabled ? '' : '. Press to make public'}` : `Anyone can see this${disabled ? '' : '. Press to make private'}`
         }
-    }, [isPrivate]);
+    }, [disabled, relationships.isPrivate]);
 
     // Current complete icon (complete or incomplete)
     const { CompleteIcon, completeTooltip } = useMemo(() => {
         return {
-            CompleteIcon: isComplete ? CompletedIcon : IncompleteIcon,
-            completeTooltip: isComplete ? 'This is complete. Press to mark incomplete' : 'This is incomplete. Press to mark complete'
+            CompleteIcon: relationships.isComplete ? CompletedIcon : null,
+            completeTooltip: relationships.isComplete ? `This is complete${disabled ? '' : '. Press to mark incomplete'}` : `This is incomplete${disabled ? '' : '. Press to mark complete'}`
         }
-    }, [isComplete]);
+    }, [disabled, relationships.isComplete]);
 
     return (
         <Box

@@ -10,9 +10,6 @@ import {
 import { BaseObjectDialog, DialogTitle } from 'components';
 import { useCallback, useEffect, useState } from 'react';
 import { StandardSelectOrCreateDialogProps } from '../types';
-import {
-    Add as CreateIcon,
-} from '@mui/icons-material';
 import { Standard } from 'types';
 import { SearchList } from 'components/lists';
 import { standardQuery } from 'graphql/query';
@@ -21,6 +18,7 @@ import { standard, standardVariables } from 'graphql/generated/standard';
 import { StandardCreate } from 'components/views/Standard/StandardCreate/StandardCreate';
 import { parseSearchParams, stringifySearchParams, SearchType, standardSearchSchema } from 'utils';
 import { useLocation } from '@shared/route';
+import { AddIcon } from '@shared/icons';
 
 const helpText =
     `This dialog allows you to connect a new or existing standard to a routine input/output.
@@ -134,7 +132,7 @@ export const StandardSelectOrCreateDialog = ({
                                 onClick={handleCreateOpen}
                                 sx={{ padding: 1 }}
                             >
-                                <CreateIcon color="secondary" sx={{ width: '1.5em', height: '1.5em' }} />
+                                <AddIcon color="secondary" width='1.5em' height='1.5em' />
                             </IconButton>
                         </Tooltip>
                     </Stack>

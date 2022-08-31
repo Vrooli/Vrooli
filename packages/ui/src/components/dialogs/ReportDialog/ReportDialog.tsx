@@ -6,15 +6,12 @@ import { reportCreate, reportCreateVariables } from 'graphql/generated/reportCre
 import { reportCreateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { ReportDialogProps } from '../types';
-import {
-    Cancel as CancelIcon,
-    Check as SaveIcon,
-} from '@mui/icons-material';
 import { getUserLanguages, PubSub } from 'utils';
 import { useEffect, useState } from 'react';
 import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
 import { DialogTitle, Selector } from 'components';
 import { v4 as uuid } from 'uuid';
+import { CancelIcon, CreateIcon } from '@shared/icons';
 
 const helpText =
     `Reports help us moderate content. For now, reports will be handled by moderators. 
@@ -188,9 +185,9 @@ export const ReportDialog = ({
                                     type="submit"
                                     fullWidth
                                     disabled={loading}
-                                    startIcon={<SaveIcon />}
+                                    startIcon={<CreateIcon />}
                                 >
-                                    Save
+                                    Create
                                 </Button>
                             </Grid>
                             <Grid item xs={6} sx={{ padding: 1 }}>

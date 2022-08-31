@@ -1,23 +1,19 @@
-import { Grid, Stack, TextField, Typography } from "@mui/material";
+import { Button, Grid, TextField, Typography } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { organizationCreateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { organizationCreateMutation } from "graphql/mutation";
-import { getUserLanguages, OrganizationTranslationShape, shapeOrganizationCreate, TagShape, updateArray, useReactSearch } from "utils";
+import { getUserLanguages, ObjectType, OrganizationTranslationShape, shapeOrganizationCreate, TagShape, updateArray, useReactSearch } from "utils";
 import { OrganizationCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { LanguageInput, ResourceListHorizontal, TagSelector } from "components";
-import {
-    Add as CreateIcon,
-    Restore as CancelIcon,
-} from '@mui/icons-material';
-import { DialogActionItem } from "components/containers/types";
-import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
+import { LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { organizationCreate, organizationCreateVariables } from "graphql/generated/organizationCreate";
+import { RelationshipsObject } from "components/inputs/types";
+import { CancelIcon, CreateIcon } from "@shared/icons";
 
 export const OrganizationCreate = ({
     onCreated,
@@ -26,6 +22,20 @@ export const OrganizationCreate = ({
     zIndex,
 }: OrganizationCreateProps) => {
     const params = useReactSearch(null);
+
+    const [relationships, setRelationships] = useState<RelationshipsObject>({
+        isComplete: false,
+        isPrivate: false,
+        owner: userFromSession(session),
+        parent: null,
+        project: null,
+    });
+    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
+        setRelationships({
+            ...relationships,
+            ...newRelationshipsObject,
+        });
+    }, [relationships]);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
@@ -155,24 +165,13 @@ export const OrganizationCreate = ({
         setLanguages(newLanguages);
     }, [deleteTranslation, languages, updateFormikTranslation]);
 
-    const actions: DialogActionItem[] = useMemo(() => {
-        const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
-        return [
-            ['Create', CreateIcon, Boolean(!loggedIn || formik.isSubmitting), true, () => { }],
-            ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
-        ] as DialogActionItem[]
-    }, [formik.isSubmitting, onCancel, session]);
-    const [formBottom, setFormBottom] = useState<number>(0);
-    const handleResize = useCallback(({ height }: any) => {
-        setFormBottom(height);
-    }, [setFormBottom]);
+    const isLoggedIn = useMemo(() => session?.isLoggedIn === true && uuidValidate(session?.id ?? ''), [session]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            paddingBottom: `${formBottom}px`,
         }}
         >
             <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
@@ -185,6 +184,15 @@ export const OrganizationCreate = ({
                             sx: { marginTop: 2, marginBottom: 2 },
                         }}
                     >Create Organization</Typography>
+                </Grid>
+                <Grid item xs={12}>
+                    <RelationshipButtons
+                        objectType={ObjectType.Organization}
+                        onRelationshipsChange={onRelationshipsChange}
+                        relationships={relationships}
+                        session={session}
+                        zIndex={zIndex}
+                    />
                 </Grid>
                 <Grid item xs={12}>
                     <LanguageInput
@@ -237,7 +245,7 @@ export const OrganizationCreate = ({
                         zIndex={zIndex}
                     />
                 </Grid>
-                <Grid item xs={12} marginBottom={4}>
+                <Grid item xs={12}>
                     <TagSelector
                         session={session}
                         tags={tags}
@@ -246,8 +254,22 @@ export const OrganizationCreate = ({
                         onTagsClear={clearTags}
                     />
                 </Grid>
+                <Grid item xs={6} marginBottom={4}>
+                    <Button
+                        disabled={Boolean(!isLoggedIn || formik.isSubmitting)}
+                        fullWidth
+                        type="submit"
+                        startIcon={<CreateIcon />}
+                    >Create</Button>
+                </Grid>
+                <Grid item xs={6} marginBottom={4}>
+                    <Button
+                        fullWidth
+                        onClick={onCancel}
+                        startIcon={<CancelIcon />}
+                    >Cancel</Button>
+                </Grid>
             </Grid>
-            <DialogActionsContainer actions={actions} onResize={handleResize} />
         </form >
     )
 }

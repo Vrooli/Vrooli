@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Grid, Typography } from "@mui/material"
+import { Box, Button, CircularProgress, Grid, Typography } from "@mui/material"
 import { ResourceListUsedFor } from "@shared/consts";
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { standard, standardVariables } from "graphql/generated/standard";
@@ -9,17 +9,13 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { standardUpdateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";
-import { PubSub, shapeStandardUpdate, StandardTranslationShape, TagShape, updateArray } from "utils";
-import {
-    Restore as CancelIcon,
-    Save as SaveIcon,
-} from '@mui/icons-material';
-import { LanguageInput, ResourceListHorizontal, TagSelector } from "components";
-import { DialogActionItem } from "components/containers/types";
-import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
+import { ObjectType, PubSub, shapeStandardUpdate, StandardTranslationShape, TagShape, updateArray } from "utils";
+import { LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { standardUpdate, standardUpdateVariables } from "graphql/generated/standardUpdate";
+import { RelationshipsObject } from "components/inputs/types";
+import { CancelIcon, SaveIcon } from "@shared/icons";
 
 export const StandardUpdate = ({
     onCancel,
@@ -34,6 +30,20 @@ export const StandardUpdate = ({
         if (uuidValidate(id)) getData({ variables: { input: { id } } });
     }, [getData, id])
     const standard = useMemo(() => data?.standard, [data]);
+
+    const [relationships, setRelationships] = useState<RelationshipsObject>({
+        isComplete: false,
+        isPrivate: false,
+        owner: userFromSession(session),
+        parent: null,
+        project: null,
+    });
+    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
+        setRelationships({
+            ...relationships,
+            ...newRelationshipsObject,
+        });
+    }, [relationships]);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
@@ -70,6 +80,13 @@ export const StandardUpdate = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
+        // setRelationships({
+        //     isComplete: standard?.isComplete ?? false,
+        //     isPrivate: standard?.isPrivate ?? false,
+        //     owner: standard?.owner ?? null,
+        //     parent: null,
+        //     // parent: standard?.parent ?? null, TODO
+        // });
         setResourceList(standard?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(standard?.tags ?? []);
         setTranslations(standard?.translations?.map(t => ({
@@ -161,15 +178,6 @@ export const StandardUpdate = ({
         setLanguages(newLanguages);
     }, [deleteTranslation, languages, updateFormikTranslation]);
 
-    const actions: DialogActionItem[] = useMemo(() => [
-        ['Save', SaveIcon, Boolean(formik.isSubmitting || !formik.isValid), true, () => { }],
-        ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
-    ], [formik, onCancel]);
-    const [formBottom, setFormBottom] = useState<number>(0);
-    const handleResize = useCallback(({ height }: any) => {
-        setFormBottom(height);
-    }, [setFormBottom]);
-
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12}>
@@ -181,6 +189,15 @@ export const StandardUpdate = ({
                         sx: { marginTop: 2, marginBottom: 2 },
                     }}
                 >Update Standard</Typography>
+            </Grid>
+            <Grid item xs={12}>
+                <RelationshipButtons
+                    objectType={ObjectType.Standard}
+                    onRelationshipsChange={onRelationshipsChange}
+                    relationships={relationships}
+                    session={session}
+                    zIndex={zIndex}
+                />
             </Grid>
             <Grid item xs={12}>
                 <LanguageInput
@@ -215,8 +232,23 @@ export const StandardUpdate = ({
                     onTagsClear={clearTags}
                 />
             </Grid>
+            <Grid item xs={6} marginBottom={4}>
+                <Button
+                    disabled={Boolean(formik.isSubmitting || !formik.isValid)}
+                    fullWidth
+                    type="submit"
+                    startIcon={<SaveIcon />}
+                >Save</Button>
+            </Grid>
+            <Grid item xs={6} marginBottom={4}>
+                <Button
+                    fullWidth
+                    onClick={onCancel}
+                    startIcon={<CancelIcon />}
+                >Cancel</Button>
+            </Grid>
         </Grid>
-    ), [language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, session, zIndex, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
+    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags, formik.isSubmitting, formik.isValid, onCancel]);
 
 
     return (
@@ -224,7 +256,6 @@ export const StandardUpdate = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            paddingBottom: `${formBottom}px`,
         }}
         >
             {loading ? (
@@ -240,7 +271,6 @@ export const StandardUpdate = ({
                     <CircularProgress size={100} color="secondary" />
                 </Box>
             ) : formInput}
-            <DialogActionsContainer actions={actions} onResize={handleResize} />
         </form>
     )
 }

@@ -53,6 +53,7 @@ export const typeDef = gql`
         version: String
         userId: ID
         organizationId: ID
+        projectId: ID
         nodesDelete: [ID!]
         nodesCreate: [NodeCreateInput!]
         nodesUpdate: [NodeUpdateInput!]

@@ -33,15 +33,6 @@ export interface ListTitleContainerProps extends TitleContainerProps {
 // label, Icon, disabled, isSubmit, onClick
 export type DialogActionItem = [string, any, boolean, boolean, () => void,]
 
-export interface DialogActionsContainerProps {
-    actions: DialogActionItem[];
-    /**
-     * If true, the actions will be fixed to the bottom of the window
-     */
-    fixed?: boolean;
-    onResize?: ({ height: number, width: number }) => any;
-}
-
 export interface BuildBottomContainerProps {
     canSubmitMutate: boolean;
     canCancelMutate: boolean;

@@ -9,7 +9,6 @@ import { ReportFor, StarFor, VoteFor } from "@shared/consts";
 import { DeleteDialog, ListMenu, ReportDialog } from "..";
 import { BaseObjectActionDialogProps, BaseObjectAction, ListMenuItemData } from "../types";
 import {
-    Cancel as CancelIcon,
     FileCopy as CopyIcon,
     DeleteForever as DeleteIcon,
     CardGiftcard as DonateIcon,
@@ -19,21 +18,20 @@ import {
     ReportProblem as ReportIcon,
     Share as ShareIcon,
     StarOutline as StarIcon,
-    Search as SearchIcon,
     Star as UnstarIcon,
     ThumbUp as UpvoteIcon,
     Update as UpdateIcon,
     QueryStats as StatsIcon,
-    SvgIconComponent,
 } from "@mui/icons-material";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
 import { PubSub } from "utils";
 import { CopyType, ForkType } from "graphql/generated/globalTypes";
+import { CancelIcon, SearchIcon } from "@shared/icons";
 
 /**
  * [label, Icon, iconColor, preview]
  */
-const allOptionsMap: { [key in BaseObjectAction]: [string, SvgIconComponent, string, boolean] } = ({
+const allOptionsMap: { [key in BaseObjectAction]: [string, any, string, boolean] } = ({
     [BaseObjectAction.Copy]: ['Copy', CopyIcon, 'default', false],
     [BaseObjectAction.Delete]: ['Delete', DeleteIcon, "default", false],
     [BaseObjectAction.Donate]: ['Donate', DonateIcon, "default", true],

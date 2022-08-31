@@ -10,9 +10,6 @@ import {
 import { BaseObjectDialog, DialogTitle } from 'components';
 import { useCallback, useEffect, useState } from 'react';
 import { ProjectSelectOrCreateDialogProps } from '../types';
-import {
-    Add as CreateIcon,
-} from '@mui/icons-material';
 import { Project } from 'types';
 import { SearchList } from 'components/lists';
 import { projectQuery } from 'graphql/query';
@@ -21,6 +18,7 @@ import { project, projectVariables } from 'graphql/generated/project';
 import { ProjectCreate } from 'components/views/Project/ProjectCreate/ProjectCreate';
 import { parseSearchParams, stringifySearchParams, SearchType, projectSearchSchema } from 'utils';
 import { useLocation } from '@shared/route';
+import { AddIcon } from '@shared/icons';
 
 const helpText =
     `This dialog allows you to connect a new or existing project to an object.
@@ -134,7 +132,7 @@ export const ProjectSelectOrCreateDialog = ({
                                 onClick={handleCreateOpen}
                                 sx={{ padding: 1 }}
                             >
-                                <CreateIcon color="secondary" sx={{ width: '1.5em', height: '1.5em' }} />
+                                <AddIcon color="secondary" width='1.5em' height='1.5em' />
                             </IconButton>
                         </Tooltip>
                     </Stack>

@@ -23,6 +23,9 @@ export type RoutineShape = Omit<ShapeWrapper<Routine>, 'complexity' | 'simplicit
     parent?: {
         id: string
     } | null;
+    project?: {
+        id: string
+    } | null;
     resourceLists?: ResourceListShape[] | null;
     tags?: TagShape[] | null;
     translations: RoutineTranslationShape[];
@@ -54,7 +57,7 @@ export const shapeRoutineCreate = (item: RoutineShape): RoutineCreateInput => ({
     isInternal: item.isInternal,
     version: item.version,
     parentId: item.parent?.id,
-    // projectId: item.p
+    projectId: item.project?.id,
     createdByUserId: item.owner?.__typename === ObjectType.User ? item.owner.id : undefined,
     createdByOrganizationId: item.owner?.__typename === ObjectType.Organization ? item.owner.id : undefined,
     ...shapeCreateList({

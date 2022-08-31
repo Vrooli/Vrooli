@@ -1,24 +1,21 @@
-import { Box, Stack, Typography, useTheme } from "@mui/material"
+import { Box, Button, Grid, Stack, Typography, useTheme } from "@mui/material"
 import { useMutation } from "@apollo/client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
 import { PubSub, shapeProfileUpdate, TagHiddenShape, TagShape } from "utils";
 import {
-    Restore as RevertIcon,
-    Save as SaveIcon,
     ThumbUp as InterestsIcon,
     VisibilityOff as HiddenIcon,
 } from '@mui/icons-material';
-import { DialogActionItem } from "components/containers/types";
-import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { SettingsDisplayProps } from "../types";
 import { HelpButton, TagSelector } from "components";
 import { ThemeSwitch } from "components/inputs";
 import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
 import { v4 as uuid } from 'uuid';
+import { CancelIcon, SaveIcon } from "@shared/icons";
 
 const helpText =
     `Display preferences customize the look and feel of Vrooli. More customizations will be available in the near future.`
@@ -57,10 +54,10 @@ export const SettingsDisplay = ({
     // Handle hidden tags
     const [hiddenTags, setHiddenTags] = useState<TagHiddenShape[]>([]);
     const addHiddenTag = useCallback((tag: TagShape) => {
-        setHiddenTags(t => [...t, { 
+        setHiddenTags(t => [...t, {
             id: uuid(),
-            isBlur: true, 
-            tag 
+            isBlur: true,
+            tag
         }]);
     }, [setHiddenTags]);
     const removeHiddenTag = useCallback((tag: TagShape) => {
@@ -142,16 +139,15 @@ export const SettingsDisplay = ({
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [formik.dirty]);
 
-    const actions: DialogActionItem[] = useMemo(() => [
-        ['Save', SaveIcon, !formik.touched || formik.isSubmitting, false, () => {
-            formik.submitForm();
-        }],
-        ['Revert', RevertIcon, !formik.touched || formik.isSubmitting, false, () => {
-            formik.resetForm();
-            setStarredTags([]);
-            setHiddenTags([]);
-        }],
-    ], [formik]);
+    const handleSave = useCallback(() => {
+        formik.submitForm();
+    }, [formik]);
+
+    const handleCancel = useCallback(() => {
+        formik.resetForm();
+        setStarredTags([]);
+        setHiddenTags([]);
+    }, [formik]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
@@ -201,7 +197,23 @@ export const SettingsDisplay = ({
                     onTagsClear={clearHiddenTags}
                 />
             </Box>
-            <DialogActionsContainer fixed={false} actions={actions} />
+            <Grid container spacing={2} p={2}>
+                <Grid item xs={6}>
+                    <Button
+                        disabled={Boolean(formik.isSubmitting || !formik.isValid)}
+                        fullWidth
+                        onClick={handleSave}
+                        startIcon={<SaveIcon />}
+                    >Save</Button>
+                </Grid>
+                <Grid item xs={6}>
+                    <Button
+                        fullWidth
+                        onClick={handleCancel}
+                        startIcon={<CancelIcon />}
+                    >Cancel</Button>
+                </Grid>
+            </Grid>
         </form>
     )
 }

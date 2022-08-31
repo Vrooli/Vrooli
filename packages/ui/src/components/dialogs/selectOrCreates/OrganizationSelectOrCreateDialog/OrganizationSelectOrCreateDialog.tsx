@@ -10,9 +10,6 @@ import {
 import { BaseObjectDialog, DialogTitle } from 'components';
 import { useCallback, useEffect, useState } from 'react';
 import { OrganizationSelectOrCreateDialogProps } from '../types';
-import {
-    Add as CreateIcon,
-} from '@mui/icons-material';
 import { Organization } from 'types';
 import { SearchList } from 'components/lists';
 import { organizationQuery } from 'graphql/query';
@@ -21,6 +18,7 @@ import { organization, organizationVariables } from 'graphql/generated/organizat
 import { OrganizationCreate } from 'components/views/Organization/OrganizationCreate/OrganizationCreate';
 import { parseSearchParams, stringifySearchParams, SearchType, organizationSearchSchema } from 'utils';
 import { useLocation } from '@shared/route';
+import { AddIcon } from '@shared/icons';
 
 const helpText =
     `This dialog allows you to connect a new or existing organization to an object.
@@ -136,7 +134,7 @@ export const OrganizationSelectOrCreateDialog = ({
                                 onClick={handleCreateOpen}
                                 sx={{ padding: 1 }}
                             >
-                                <CreateIcon color="secondary" sx={{ width: '1.5em', height: '1.5em' }} />
+                                <AddIcon color="secondary" width='1.5em' height='1.5em' />
                             </IconButton>
                         </Tooltip>
                     </Stack>

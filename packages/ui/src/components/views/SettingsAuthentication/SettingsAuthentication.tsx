@@ -11,7 +11,6 @@ import {
     AccountBalanceWallet as WalletIcon,
     Email as EmailIcon,
     Restore as RevertIcon,
-    Save as SaveIcon,
 } from '@mui/icons-material';
 import { SettingsAuthenticationProps } from "../types";
 import { useLocation } from '@shared/route';
@@ -22,6 +21,7 @@ import { Email, Wallet } from "types";
 import { PasswordTextField } from "components";
 import { logOut } from "graphql/generated/logOut";
 import { profileEmailUpdate, profileEmailUpdateVariables } from "graphql/generated/profileEmailUpdate";
+import { SaveIcon } from "@shared/icons";
 
 const helpText =
     `This page allows you to manage your wallets, emails, and other authentication settings.`;

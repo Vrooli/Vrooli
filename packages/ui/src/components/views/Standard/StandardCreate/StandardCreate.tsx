@@ -1,26 +1,22 @@
-import { Box, Grid, TextField, Typography } from "@mui/material";
+import { Box, Button, Grid, TextField, Typography } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { standardCreateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { standardCreateMutation } from "graphql/mutation";
-import { getUserLanguages, InputTypeOption, InputTypeOptions, shapeStandardCreate, StandardTranslationShape, TagShape, updateArray, useReactSearch } from "utils";
+import { getUserLanguages, InputTypeOption, InputTypeOptions, ObjectType, shapeStandardCreate, StandardTranslationShape, TagShape, updateArray, useReactSearch } from "utils";
 import { StandardCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { DialogActionItem } from "components/containers/types";
-import {
-    Add as CreateIcon,
-    Restore as CancelIcon,
-} from '@mui/icons-material';
 import { LanguageInput, ResourceListHorizontal, Selector, TagSelector } from "components";
-import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { FieldData } from "forms/types";
-import { BaseStandardInput, PreviewSwitch } from "components/inputs";
+import { BaseStandardInput, PreviewSwitch, RelationshipButtons, userFromSession } from "components/inputs";
 import { generateInputComponent, generateYupSchema } from "forms/generators";
 import { standardCreate, standardCreateVariables } from "graphql/generated/standardCreate";
+import { RelationshipsObject } from "components/inputs/types";
+import { CancelIcon, CreateIcon } from "@shared/icons";
 
 export const StandardCreate = ({
     onCreated,
@@ -29,6 +25,20 @@ export const StandardCreate = ({
     zIndex,
 }: StandardCreateProps) => {
     const params = useReactSearch(null);
+
+    const [relationships, setRelationships] = useState<RelationshipsObject>({
+        isComplete: false,
+        isPrivate: false,
+        owner: userFromSession(session),
+        parent: null,
+        project: null,
+    });
+    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
+        setRelationships({
+            ...relationships,
+            ...newRelationshipsObject,
+        });
+    }, [relationships]);
 
     // Handle input type selector
     const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
@@ -53,7 +63,6 @@ export const StandardCreate = ({
         }) : undefined,
         onSubmit: () => { },
     });
-
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
@@ -129,8 +138,6 @@ export const StandardCreate = ({
                     version: values.version,
                 }),
                 onSuccess: (response) => {
-                    // Remove schema from local state
-                    localStorage.removeItem('standard-create-schema');
                     onCreated(response.data.standardCreate)
                 },
                 onError: () => { formik.setSubmitting(false) },
@@ -196,21 +203,7 @@ export const StandardCreate = ({
         setLanguages(newLanguages);
     }, [deleteTranslation, languages, updateFormikTranslation]);
 
-    const actions: DialogActionItem[] = useMemo(() => {
-        const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
-        return [
-            ['Create', CreateIcon, Boolean(!loggedIn || formik.isSubmitting), true, () => { }],
-            ['Cancel', CancelIcon, formik.isSubmitting, false, () => {
-                // Remove schema from local state
-                localStorage.removeItem('standard-create-schema');
-                onCancel();
-            }],
-        ] as DialogActionItem[]
-    }, [formik, onCancel, session]);
-    const [formBottom, setFormBottom] = useState<number>(0);
-    const handleResize = useCallback(({ height }: any) => {
-        setFormBottom(height);
-    }, [setFormBottom]);
+    const isLoggedIn = useMemo(() => session?.isLoggedIn === true && uuidValidate(session?.id ?? ''), [session]);
 
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
@@ -220,7 +213,6 @@ export const StandardCreate = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            paddingBottom: `${formBottom}px`,
         }}
         >
             <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
@@ -233,6 +225,15 @@ export const StandardCreate = ({
                             sx: { marginTop: 2, marginBottom: 2 },
                         }}
                     >Create Standard</Typography>
+                </Grid>
+                <Grid item xs={12}>
+                    <RelationshipButtons
+                        objectType={ObjectType.Standard}
+                        onRelationshipsChange={onRelationshipsChange}
+                        relationships={relationships}
+                        session={session}
+                        zIndex={zIndex}
+                    />
                 </Grid>
                 <Grid item xs={12}>
                     <LanguageInput
@@ -341,7 +342,7 @@ export const StandardCreate = ({
                         zIndex={zIndex}
                     />
                 </Grid>
-                <Grid item xs={12} marginBottom={4}>
+                <Grid item xs={12}>
                     <TagSelector
                         session={session}
                         tags={tags}
@@ -350,8 +351,22 @@ export const StandardCreate = ({
                         onTagsClear={clearTags}
                     />
                 </Grid>
+                <Grid item xs={6} marginBottom={4}>
+                    <Button
+                        disabled={Boolean(!isLoggedIn || formik.isSubmitting)}
+                        fullWidth
+                        type="submit"
+                        startIcon={<CreateIcon />}
+                    >Create</Button>
+                </Grid>
+                <Grid item xs={6} marginBottom={4}>
+                    <Button
+                        fullWidth
+                        onClick={onCancel}
+                        startIcon={<CancelIcon />}
+                    >Cancel</Button>
+                </Grid>
             </Grid>
-            <DialogActionsContainer actions={actions} onResize={handleResize} />
         </form>
     )
 }

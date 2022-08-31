@@ -1,4 +1,4 @@
-import { Grid, TextField, Typography } from "@mui/material";
+import { Button, Grid, TextField, Typography } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { projectCreateForm as validationSchema } from '@shared/validation';
@@ -7,18 +7,13 @@ import { projectCreateMutation } from "graphql/mutation";
 import { getUserLanguages, ObjectType, ProjectTranslationShape, shapeProjectCreate, TagShape, updateArray, useReactSearch } from "utils";
 import { ProjectCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { DialogActionItem } from "components/containers/types";
-import {
-    Add as CreateIcon,
-    Restore as CancelIcon,
-} from '@mui/icons-material';
 import { LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
-import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { projectCreate, projectCreateVariables } from "graphql/generated/projectCreate";
-import { RelationshipOwner, RelationshipParent, RelationshipProject } from "components/inputs/types";
+import { RelationshipsObject } from "components/inputs/types";
+import { CancelIcon, CreateIcon } from "@shared/icons";
 
 export const ProjectCreate = ({
     onCreated,
@@ -28,21 +23,19 @@ export const ProjectCreate = ({
 }: ProjectCreateProps) => {
     const params = useReactSearch(null);
 
-    // If this object is complete/incomplete
-    const [isComplete, setIsComplete] = useState(false);
-    const onIsCompleteChange = useCallback((newIsComplete: boolean) => { setIsComplete(newIsComplete) }, [setIsComplete]);
-    // If this object is public or private
-    const [isPrivate, setIsPrivate] = useState(false);
-    const onIsPrivateChange = useCallback((newIsPrivate: boolean) => { setIsPrivate(newIsPrivate) }, [setIsPrivate]);
-    // Who can control the project
-    const [owner, setOwner] = useState<RelationshipOwner>(userFromSession(session));
-    const onOwnerChange = useCallback((owner: RelationshipOwner) => { setOwner(owner); }, [setOwner]);
-    // Object this was forked from
-    const [parent, setParent] = useState<RelationshipParent>(null);
-    const onParentChange = useCallback((parent: RelationshipParent) => { setParent(parent); }, [setParent]);
-    // What project this object is a part of
-    const [project, setProject] = useState<RelationshipProject>(null);
-    const onProjectChange = useCallback((project: RelationshipProject) => { setProject(project); }, [setProject]);
+    const [relationships, setRelationships] = useState<RelationshipsObject>({
+        isComplete: false,
+        isPrivate: false,
+        owner: userFromSession(session),
+        parent: null,
+        project: null,
+    });
+    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
+        setRelationships({
+            ...relationships,
+            ...newRelationshipsObject,
+        });
+    }, [relationships]);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
@@ -103,11 +96,10 @@ export const ProjectCreate = ({
                 mutation,
                 input: shapeProjectCreate({
                     id: uuid(),
-                    isComplete,
-                    isPrivate,
-                    owner,
-                    parent,
-                    // project, //TODO
+                    isComplete: relationships.isComplete,
+                    isPrivate: relationships.isPrivate,
+                    owner: relationships.owner,
+                    parent: relationships.parent,
                     resourceLists: [resourceList],
                     tags: tags,
                     translations: allTranslations,
@@ -177,24 +169,13 @@ export const ProjectCreate = ({
         setLanguages(newLanguages);
     }, [deleteTranslation, languages, updateFormikTranslation]);
 
-    const actions: DialogActionItem[] = useMemo(() => {
-        const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
-        return [
-            ['Create', CreateIcon, Boolean(!loggedIn || formik.isSubmitting), true, () => { }],
-            ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
-        ] as DialogActionItem[]
-    }, [formik, onCancel, session]);
-    const [formBottom, setFormBottom] = useState<number>(0);
-    const handleResize = useCallback(({ height }: any) => {
-        setFormBottom(height);
-    }, [setFormBottom]);
+    const isLoggedIn = useMemo(() => session?.isLoggedIn === true && uuidValidate(session?.id ?? ''), [session]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            paddingBottom: `${formBottom}px`,
             zIndex,
         }}
         >
@@ -210,24 +191,10 @@ export const ProjectCreate = ({
                     >Create Project</Typography>
                 </Grid>
                 <Grid item xs={12}>
-                    {/* <UserOrganizationSwitch TODO delete switches when relationshipbuttons working
-                        session={session}
-                        selected={organizationFor}
-                        onChange={onSwitchChange}
-                        zIndex={zIndex}
-                    /> */}
                     <RelationshipButtons
-                        isComplete={isComplete}
-                        isPrivate={isPrivate}
                         objectType={ObjectType.Project}
-                        onIsCompleteChange={onIsCompleteChange}
-                        onIsPrivateChange={onIsPrivateChange}
-                        onOwnerChange={onOwnerChange}
-                        onProjectChange={onProjectChange}
-                        onParentChange={onParentChange as any}
-                        owner={owner}
-                        parent={parent}
-                        project={project}
+                        onRelationshipsChange={onRelationshipsChange}
+                        relationships={relationships}
                         session={session}
                         zIndex={zIndex}
                     />
@@ -283,7 +250,7 @@ export const ProjectCreate = ({
                         zIndex={zIndex}
                     />
                 </Grid>
-                <Grid item xs={12} marginBottom={4}>
+                <Grid item xs={12}>
                     <TagSelector
                         session={session}
                         tags={tags}
@@ -292,8 +259,22 @@ export const ProjectCreate = ({
                         onTagsClear={clearTags}
                     />
                 </Grid>
+                <Grid item xs={6} marginBottom={4}>
+                    <Button
+                        disabled={Boolean(!isLoggedIn || formik.isSubmitting)}
+                        fullWidth
+                        type="submit"
+                        startIcon={<CreateIcon />}
+                    >Create</Button>
+                </Grid>
+                <Grid item xs={6} marginBottom={4}>
+                    <Button
+                        fullWidth
+                        onClick={onCancel}
+                        startIcon={<CancelIcon />}
+                    >Cancel</Button>
+                </Grid>
             </Grid>
-            <DialogActionsContainer actions={actions} onResize={handleResize} />
         </form>
     )
 }

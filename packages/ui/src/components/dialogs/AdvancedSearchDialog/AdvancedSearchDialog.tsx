@@ -10,15 +10,12 @@ import {
 } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 import { AdvancedSearchDialogProps } from '../types';
-import {
-    Cancel as CancelIcon,
-    Search as SearchIcon,
-} from '@mui/icons-material';
 import { useFormik } from 'formik';
 import { FieldData, FormSchema } from 'forms/types';
 import { generateDefaultProps, generateGrid, generateYupSchema } from 'forms/generators';
 import { convertFormikForSearch, convertSearchForFormik, parseSearchParams, searchTypeToParams } from 'utils';
 import { DialogTitle } from 'components';
+import { CancelIcon, SearchIcon } from '@shared/icons';
 
 const titleAria = 'advanced-search-dialog-title';
 
