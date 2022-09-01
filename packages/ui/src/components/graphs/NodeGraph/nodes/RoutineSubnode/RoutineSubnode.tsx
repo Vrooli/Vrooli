@@ -116,7 +116,7 @@ export const RoutineSubnode = ({
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `subroutine-context-menu-${data.id}`, [data?.id]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((ev: MouseEvent<HTMLDivElement>) => {
+    const openContext = useCallback((ev: MouseEvent<HTMLElement>) => {
         // Ignore if not editing
         if (!isEditing) return;
         setContextAnchor(ev.currentTarget)

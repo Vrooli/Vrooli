@@ -331,7 +331,7 @@ export const HomePage = ({
             />
             {/* Create new dialog */}
             <ListMenu
-                id={`open-advanced-search-menu`}
+                id={`create-new-object-menu`}
                 anchorEl={createNewAnchor}
                 title='Create New...'
                 data={createNewPopupOptions}

@@ -10,14 +10,14 @@ import {
     DoneAll as MarkAsCompleteIcon,
     PlayCircle as StartIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, BuildView, LinkButton, ReportsLink, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, StatusButton, UpTransition, UpvoteDownvote } from "components";
+import { ObjectActionMenu, BuildView, LinkButton, ReportsLink, ResourceListHorizontal, RunPickerMenu, RunView, SelectLanguageMenu, StarButton, StatusButton, UpTransition, UpvoteDownvote } from "components";
 import { RoutineViewProps } from "../types";
 import { formikToRunInputs, getLanguageSubtag, getOwnedByString, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, standardToFieldData, Status, stringifySearchParams, toOwnedBy, useReactSearch } from "utils";
 import { Routine, Run } from "types";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
 import { CommentFor, NodeType, StarFor } from "graphql/generated/globalTypes";
-import { BaseObjectAction } from "components/dialogs/types";
+import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 import { containerShadow } from "styles";
 import { validate as uuidValidate } from 'uuid';
 import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
@@ -199,59 +199,42 @@ export const RoutineView = ({
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
-    const handleMoreActionComplete = useCallback((action: BaseObjectAction, data: any) => {
+    const onMoreActionStart = useCallback((action: ObjectAction) => {
         switch (action) {
-            case BaseObjectAction.Edit:
+            case ObjectAction.Edit:
+                onEdit();
+                break;
+            case ObjectAction.Stats:
                 //TODO
                 break;
-            case BaseObjectAction.Stats:
-                //TODO
-                break;
-            case BaseObjectAction.Upvote:
+        }
+    }, [onEdit]);
+
+    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
+        switch (action) {
+            case ObjectActionComplete.VoteDown:
+            case ObjectActionComplete.VoteUp:
                 if (data.vote.success) {
                     setRoutine({
                         ...routine,
-                        isUpvoted: true,
+                        isUpvoted: action === ObjectActionComplete.VoteUp,
                     } as any)
                 }
                 break;
-            case BaseObjectAction.Downvote:
-                if (data.vote.success) {
-                    setRoutine({
-                        ...routine,
-                        isUpvoted: false,
-                    } as any)
-                }
-                break;
-            case BaseObjectAction.Star:
+            case ObjectActionComplete.Star:
+            case ObjectActionComplete.StarUndo:
                 if (data.star.success) {
                     setRoutine({
                         ...routine,
-                        isStarred: true,
+                        isStarred: action === ObjectActionComplete.Star,
                     } as any)
                 }
                 break;
-            case BaseObjectAction.Unstar:
-                if (data.star.success) {
-                    setRoutine({
-                        ...routine,
-                        isStarred: false,
-                    } as any)
-                }
-                break;
-            case BaseObjectAction.Fork:
+            case ObjectActionComplete.Fork:
                 setLocation(`${APP_LINKS.Routine}/${data.fork.routine.id}`);
                 break;
-            case BaseObjectAction.Donate:
-                //TODO
-                break;
-            case BaseObjectAction.Share:
-                //TODO
-                break;
-            case BaseObjectAction.Copy:
+            case ObjectActionComplete.Copy:
                 setLocation(`${APP_LINKS.Routine}/${data.copy.routine.id}`);
-                break;
-            default:
                 break;
         }
     }, [routine, setLocation]);
@@ -433,7 +416,7 @@ export const RoutineView = ({
     return (
         <>
             {/* Chooses which run to use */}
-            <RunPickerDialog
+            <RunPickerMenu
                 anchorEl={selectRunAnchor}
                 handleClose={handleSelectRunClose}
                 onAdd={handleRunAdd}
@@ -481,9 +464,7 @@ export const RoutineView = ({
                 />
             </Dialog>
             {/* Popup menu displayed when "More" ellipsis pressed */}
-            <BaseObjectActionDialog
-                handleActionComplete={handleMoreActionComplete}
-                handleEdit={onEdit}
+            <ObjectActionMenu
                 isUpvoted={routine?.isUpvoted}
                 isStarred={routine?.isStarred}
                 objectId={id ?? ''}
@@ -491,6 +472,8 @@ export const RoutineView = ({
                 objectType={ObjectType.Routine}
                 anchorEl={moreMenuAnchor}
                 title='Routine Options'
+                onActionStart={onMoreActionStart}
+                onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
                 permissions={routine?.permissionsRoutine}
                 session={session}
@@ -567,7 +550,7 @@ export const RoutineView = ({
                                     />
                                 )}
                                 <Typography variant="body1"> - {routine?.version}</Typography>
-                                <SelectLanguageDialog
+                                <SelectLanguageMenu
                                     availableLanguages={availableLanguages}
                                     canDropdownOpen={availableLanguages.length > 1}
                                     currentLanguage={language}

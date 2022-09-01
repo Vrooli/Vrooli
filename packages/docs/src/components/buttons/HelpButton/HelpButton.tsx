@@ -12,7 +12,7 @@ export const HelpButton = ({
     sx,
 }: HelpButtonProps) => {
     const { palette } = useTheme();
-    const [anchorEl, setAnchorEl] = useState(null);
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = Boolean(anchorEl);
 
     const openMenu = useCallback((event) => {

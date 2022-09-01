@@ -11,7 +11,7 @@ import {
     CardGiftcard as DonateIcon,
     Share as ShareIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, DateDisplay, ReportsLink, SearchList, SelectLanguageDialog, StarButton } from "components";
+import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, StarButton, SelectRoutineTypeMenu } from "components";
 import { containerShadow } from "styles";
 import { OrganizationViewProps } from "../types";
 import { Organization, ResourceList } from "types";
@@ -21,6 +21,7 @@ import { ResourceListVertical } from "components/lists";
 import { validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { EditIcon, EllipsisIcon } from "@shared/icons";
+import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 
 enum TabOptions {
     Resources = "Resources",
@@ -184,6 +185,44 @@ export const OrganizationView = ({
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
+    const onMoreActionStart = useCallback((action: ObjectAction) => {
+        switch (action) {
+            case ObjectAction.Edit:
+                onEdit();
+                break;
+            case ObjectAction.Stats:
+                //TODO
+                break;
+        }
+    }, [onEdit]);
+
+    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
+        switch (action) {
+            case ObjectActionComplete.Star:
+            case ObjectActionComplete.StarUndo:
+                if (data.star.success) {
+                    setOrganization({
+                        ...organization,
+                        isStarred: action === ObjectActionComplete.Star,
+                    } as any)
+                }
+                break;
+            case ObjectActionComplete.Fork:
+                setLocation(`${APP_LINKS.Organization}/${data.fork.organization.id}`);
+                break;
+            case ObjectActionComplete.Copy:
+                setLocation(`${APP_LINKS.Organization}/${data.copy.organization.id}`);
+                break;
+        }
+    }, [organization, setLocation]);
+
+    // Menu for picking which routine type to add
+    const [addRoutineAnchor, setAddRoutineAnchor] = useState<any>(null);
+    const openAddRoutine = useCallback((ev: React.MouseEvent<HTMLElement>) => {
+        setAddRoutineAnchor(ev.currentTarget)
+    }, []);
+    const closeAddRoutine = useCallback(() => setAddRoutineAnchor(null), []);
+
     /**
      * Displays name, avatar, bio, and quick links
      */
@@ -324,7 +363,7 @@ export const OrganizationView = ({
     /**
      * Opens add new page
      */
-    const toAddNew = useCallback(() => {
+    const toAddNew = useCallback((event: any) => {
         switch (currTabType) {
             case TabOptions.Members:
                 //TODO
@@ -333,20 +372,18 @@ export const OrganizationView = ({
                 setLocation(`${APP_LINKS.Project}/add`);
                 break;
             case TabOptions.Routines:
-                // setLocation(`${APP_LINKS.Routine}/add`);TODO
+                openAddRoutine(event);
                 break;
             case TabOptions.Standards:
                 setLocation(`${APP_LINKS.Standard}/add`);
                 break;
         }
-    }, [currTabType, setLocation]);
+    }, [currTabType, openAddRoutine, setLocation]);
 
     return (
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
-            <BaseObjectActionDialog
-                handleActionComplete={() => { }} //TODO
-                handleEdit={onEdit}
+            <ObjectActionMenu
                 isUpvoted={null}
                 isStarred={organization?.isStarred}
                 objectId={id}
@@ -354,8 +391,17 @@ export const OrganizationView = ({
                 objectType={ObjectType.Organization}
                 anchorEl={moreMenuAnchor}
                 title='Organization Options'
+                onActionStart={onMoreActionStart}
+                onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
                 permissions={organization?.permissionsOrganization}
+                session={session}
+                zIndex={zIndex + 1}
+            />
+            {/* Add menu for selecting between single-step and multi-step routines */}
+            <SelectRoutineTypeMenu
+                anchorEl={addRoutineAnchor}
+                handleClose={closeAddRoutine}
                 session={session}
                 zIndex={zIndex + 1}
             />
@@ -372,7 +418,7 @@ export const OrganizationView = ({
                     top: 8,
                     right: 8,
                 }}>
-                    <SelectLanguageDialog
+                    <SelectLanguageMenu
                         availableLanguages={availableLanguages}
                         canDropdownOpen={availableLanguages.length > 1}
                         currentLanguage={language}

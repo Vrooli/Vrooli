@@ -11,7 +11,7 @@ import {
     Person as ProfileIcon,
     Share as ShareIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageDialog, StarButton } from "components";
+import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton, SelectRoutineTypeMenu } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, PubSub, SearchType } from "utils";
@@ -20,6 +20,7 @@ import { SearchListGenerator } from "components/lists/types";
 import { validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { EditIcon, EllipsisIcon } from "@shared/icons";
+import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 
 enum TabOptions {
     Resources = "Resources",
@@ -189,6 +190,44 @@ export const UserView = ({
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
+    const onMoreActionStart = useCallback((action: ObjectAction) => {
+        switch (action) {
+            case ObjectAction.Edit:
+                onEdit();
+                break;
+            case ObjectAction.Stats:
+                //TODO
+                break;
+        }
+    }, [onEdit]);
+
+    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
+        switch (action) {
+            case ObjectActionComplete.Star:
+            case ObjectActionComplete.StarUndo:
+                if (data.star.success) {
+                    setUser({
+                        ...user,
+                        isStarred: action === ObjectActionComplete.Star,
+                    } as any)
+                }
+                break;
+            case ObjectActionComplete.Fork:
+                setLocation(`${APP_LINKS.User}/${data.fork.user.id}`);
+                break;
+            case ObjectActionComplete.Copy:
+                setLocation(`${APP_LINKS.User}/${data.copy.user.id}`);
+                break;
+        }
+    }, [user, setLocation]);
+
+    // Menu for picking which routine type to add
+    const [addRoutineAnchor, setAddRoutineAnchor] = useState<any>(null);
+    const openAddRoutine = useCallback((ev: React.MouseEvent<HTMLElement>) => {
+        setAddRoutineAnchor(ev.currentTarget)
+    }, []);
+    const closeAddRoutine = useCallback(() => setAddRoutineAnchor(null), []);
+
     /**
      * Displays name, handle, avatar, bio, and quick links
      */
@@ -320,7 +359,7 @@ export const UserView = ({
                             tooltipPlacement="bottom"
                         /> : null
                     }
-                    <ReportsLink 
+                    <ReportsLink
                         href={`${APP_LINKS.User}/reports/${user?.id}`}
                         reports={user?.reportsCount}
                     />
@@ -332,7 +371,7 @@ export const UserView = ({
     /**
      * Opens add new page
      */
-    const toAddNew = useCallback(() => {
+    const toAddNew = useCallback((event: any) => {
         switch (currTabType) {
             case TabOptions.Organizations:
                 setLocation(`${APP_LINKS.Organization}/add`);
@@ -341,20 +380,18 @@ export const UserView = ({
                 setLocation(`${APP_LINKS.Project}/add`);
                 break;
             case TabOptions.Routines:
-                // setLocation(`${APP_LINKS.Routine}/add`);TODO
+                openAddRoutine(event);
                 break;
             case TabOptions.Standards:
                 setLocation(`${APP_LINKS.Standard}/add`);
                 break;
         }
-    }, [currTabType, setLocation]);
+    }, [currTabType, openAddRoutine, setLocation]);
 
     return (
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
-            <BaseObjectActionDialog
-                handleActionComplete={() => { }} //TODO
-                handleEdit={onEdit}
+            <ObjectActionMenu
                 isUpvoted={null}
                 isStarred={user?.isStarred}
                 objectId={id}
@@ -362,12 +399,21 @@ export const UserView = ({
                 objectType={ObjectType.User}
                 anchorEl={moreMenuAnchor}
                 title='User Options'
+                onActionStart={onMoreActionStart}
+                onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
                 permissions={{
                     canEdit: isOwn,
                     canReport: !isOwn,
                     canStar: !isOwn,
                 }}
+                session={session}
+                zIndex={zIndex + 1}
+            />
+            {/* Add menu for selecting between single-step and multi-step routines */}
+            <SelectRoutineTypeMenu
+                anchorEl={addRoutineAnchor}
+                handleClose={closeAddRoutine}
                 session={session}
                 zIndex={zIndex + 1}
             />
@@ -384,7 +430,7 @@ export const UserView = ({
                     top: 8,
                     right: 8,
                 }}>
-                    <SelectLanguageDialog
+                    <SelectLanguageMenu
                         availableLanguages={availableLanguages}
                         canDropdownOpen={availableLanguages.length > 1}
                         currentLanguage={language}

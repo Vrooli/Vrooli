@@ -7,7 +7,7 @@ import {
 import { BuildRunState, stringifySearchParams } from 'utils';
 import { BuildBottomContainerProps } from '../types';
 import { useLocation } from '@shared/route';
-import { RunPickerDialog, UpTransition } from 'components/dialogs';
+import { RunPickerMenu, UpTransition } from 'components/dialogs';
 import { RunView } from 'components/views';
 import { Run } from 'types';
 import { CancelIcon, CreateIcon, SaveIcon } from '@shared/icons';
@@ -190,7 +190,7 @@ export const BuildBottomContainer = ({
             height: 'calc(64px + env(safe-area-inset-bottom))',
         }}>
             {/* Chooses which run to use */}
-            <RunPickerDialog
+            <RunPickerMenu
                 anchorEl={selectRunAnchor}
                 handleClose={handleSelectRunClose}
                 onAdd={handleRunAdd}

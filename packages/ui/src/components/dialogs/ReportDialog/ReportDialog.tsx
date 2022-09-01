@@ -8,7 +8,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { ReportDialogProps } from '../types';
 import { getUserLanguages, PubSub } from 'utils';
 import { useEffect, useState } from 'react';
-import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
+import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
 import { DialogTitle, Selector } from 'components';
 import { v4 as uuid } from 'uuid';
 import { CancelIcon, CreateIcon } from '@shared/icons';
@@ -130,7 +130,7 @@ export const ReportDialog = ({
                 <form onSubmit={formik.handleSubmit}>
                     <Stack direction="column" spacing={2} paddingTop={2}>
                         {/* Language select */}
-                        <SelectLanguageDialog
+                        <SelectLanguageMenu
                             currentLanguage={language}
                             handleCurrent={setLanguage}
                             session={session}

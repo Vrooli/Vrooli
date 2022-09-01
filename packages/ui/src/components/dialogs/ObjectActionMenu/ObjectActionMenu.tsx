@@ -7,7 +7,7 @@ import { copyMutation, forkMutation, starMutation, voteMutation } from "graphql/
 import { useCallback, useMemo, useState } from "react";
 import { ReportFor, StarFor, VoteFor } from "@shared/consts";
 import { DeleteDialog, ListMenu, ReportDialog } from "..";
-import { BaseObjectActionDialogProps, BaseObjectAction, ListMenuItemData } from "../types";
+import { ObjectActionMenuProps, ListMenuItemData, ObjectActionComplete, ObjectAction } from "../types";
 import {
     FileCopy as CopyIcon,
     DeleteForever as DeleteIcon,
@@ -22,44 +22,43 @@ import {
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
 import { PubSub } from "utils";
 import { CopyType, ForkType } from "graphql/generated/globalTypes";
-import { CancelIcon, DownvoteWideIcon, EditIcon, SaveIcon, SearchIcon, UpvoteWideIcon } from "@shared/icons";
+import { DownvoteWideIcon, EditIcon, SearchIcon, UpvoteWideIcon } from "@shared/icons";
+import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
 
 /**
  * [label, Icon, iconColor, preview]
  */
-const allOptionsMap: { [key in BaseObjectAction]: [string, any, string, boolean] } = ({
-    [BaseObjectAction.Copy]: ['Copy', CopyIcon, 'default', false],
-    [BaseObjectAction.Delete]: ['Delete', DeleteIcon, "default", false],
-    [BaseObjectAction.Donate]: ['Donate', DonateIcon, "default", true],
-    [BaseObjectAction.Downvote]: ['Downvote', DownvoteWideIcon, "default", false],
-    [BaseObjectAction.Edit]: ['Edit', EditIcon, "default", false],
-    [BaseObjectAction.FindInPage]: ['Find...', SearchIcon, "default", false],
-    [BaseObjectAction.Fork]: ['Fork', ForkIcon, "default", false],
-    [BaseObjectAction.Report]: ['Report', ReportIcon, "default", false],
-    [BaseObjectAction.Share]: ['Share', ShareIcon, "default", false],
-    [BaseObjectAction.Star]: ['Star', StarIcon, "#cbae30", false],
-    [BaseObjectAction.Stats]: ['Stats', StatsIcon, "default", true],
-    [BaseObjectAction.Unstar]: ['Unstar', UnstarIcon, "#cbae30", false],
-    [BaseObjectAction.Update]: ['Update', SaveIcon, "default", false],
-    [BaseObjectAction.UpdateCancel]: ['Cancel Update', CancelIcon, "default", false],
-    [BaseObjectAction.Upvote]: ['Upvote', UpvoteWideIcon, "default", false],
+const allOptionsMap: { [key in ObjectAction]: [string, any, string, boolean] } = ({
+    [ObjectAction.Copy]: ['Copy', CopyIcon, 'default', false],
+    [ObjectAction.Delete]: ['Delete', DeleteIcon, "default", false],
+    [ObjectAction.Donate]: ['Donate', DonateIcon, "default", true],
+    [ObjectAction.Edit]: ['Edit', EditIcon, "default", false],
+    [ObjectAction.FindInPage]: ['Find...', SearchIcon, "default", false],
+    [ObjectAction.Fork]: ['Fork', ForkIcon, "default", false],
+    [ObjectAction.Report]: ['Report', ReportIcon, "default", false],
+    [ObjectAction.Share]: ['Share', ShareIcon, "default", false],
+    [ObjectAction.Star]: ['Star', StarIcon, "#cbae30", false],
+    [ObjectAction.StarUndo]: ['Unstar', UnstarIcon, "#cbae30", false],
+    [ObjectAction.Stats]: ['Stats', StatsIcon, "default", true],
+    [ObjectAction.VoteDown]: ['Downvote', DownvoteWideIcon, "default", false],
+    [ObjectAction.VoteUp]: ['Upvote', UpvoteWideIcon, "default", false],
 })
 
-export const BaseObjectActionDialog = ({
+export const ObjectActionMenu = ({
     anchorEl,
-    handleActionComplete,
-    handleEdit,
     isStarred,
     isUpvoted,
     objectId,
     objectName,
     objectType,
+    onActionComplete,
+    onActionStart,
     onClose,
     permissions,
     session,
     title,
     zIndex,
-}: BaseObjectActionDialogProps) => {
+}: ObjectActionMenuProps) => {
     // States
     const [deleteOpen, setDeleteOpen] = useState<boolean>(false);
     const [donateOpen, setDonateOpen] = useState<boolean>(false);
@@ -96,10 +95,10 @@ export const BaseObjectActionDialog = ({
             input: { id: objectId, objectType: copyType },
             onSuccess: ({ data }) => {
                 PubSub.get().publishSnack({ message: `${objectName} copied.`, severity: 'success' });
-                handleActionComplete(BaseObjectAction.Copy, data);
+                onActionComplete(ObjectActionComplete.Copy, data);
             },
         })
-    }, [copy, handleActionComplete, objectId, objectName, objectType]);
+    }, [copy, objectId, objectName, objectType, onActionComplete]);
 
     const handleFork = useCallback(() => {
         // Check if objectType can be converted to ForkType
@@ -113,101 +112,99 @@ export const BaseObjectActionDialog = ({
             input: { id: objectId, objectType: forkType },
             onSuccess: ({ data }) => {
                 PubSub.get().publishSnack({ message: `${objectName} forked.`, severity: 'success' });
-                handleActionComplete(BaseObjectAction.Fork, data);
+                onActionComplete(ObjectActionComplete.Fork, data);
             }
         })
-    }, [fork, handleActionComplete, objectId, objectName, objectType]);
+    }, [fork, objectId, objectName, objectType, onActionComplete]);
 
     const handleStar = useCallback((isStar: boolean, starFor: StarFor) => {
         mutationWrapper({
             mutation: star,
             input: { isStar, starFor, forId: objectId },
             onSuccess: ({ data }) => {
-                handleActionComplete(isStar ? BaseObjectAction.Star : BaseObjectAction.Unstar, data);
+                onActionComplete(isStar ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data);
             }
         })
-    }, [handleActionComplete, objectId, star]);
+    }, [objectId, onActionComplete, star]);
 
     const handleVote = useCallback((isUpvote: boolean | null, voteFor: VoteFor) => {
         mutationWrapper({
             mutation: vote,
             input: { isUpvote, voteFor, forId: objectId },
             onSuccess: ({ data }) => {
-                handleActionComplete(isUpvote ? BaseObjectAction.Upvote : BaseObjectAction.Downvote, data);
+                onActionComplete(isUpvote ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data);
             }
         })
-    }, [handleActionComplete, objectId, vote]);
+    }, [objectId, onActionComplete, vote]);
 
-    const onSelect = useCallback((action: BaseObjectAction) => {
+    const onSelect = useCallback((action: ObjectAction) => {
         switch (action) {
-            case BaseObjectAction.Copy:
+            case ObjectAction.Copy:
                 handleCopy();
                 break;
-            case BaseObjectAction.Delete:
+            case ObjectAction.Delete:
                 openDelete();
                 break;
-            case BaseObjectAction.Donate:
+            case ObjectAction.Donate:
                 openDonate();
                 break;
-            case BaseObjectAction.Downvote:
-                handleVote(false, objectType as string as VoteFor);
+            case ObjectAction.Edit:
+                onActionStart(ObjectAction.Edit);
                 break;
-            case BaseObjectAction.Edit:
-                handleEdit();
-                break;
-            case BaseObjectAction.FindInPage:
+            case ObjectAction.FindInPage:
                 PubSub.get().publishFindInPage();
                 break;
-            case BaseObjectAction.Fork:
+            case ObjectAction.Fork:
                 handleFork();
                 break;
-            case BaseObjectAction.Report:
+            case ObjectAction.Report:
                 openReport();
                 break;
-            case BaseObjectAction.Share:
+            case ObjectAction.Share:
                 openShare();
                 break;
-            case BaseObjectAction.Star:
-                handleStar(true, objectType as string as StarFor);
+            case ObjectAction.Star:
+            case ObjectAction.StarUndo:
+                handleStar(action === ObjectAction.Star, objectType as string as StarFor);
                 break;
-            case BaseObjectAction.Unstar:
-                handleStar(false, objectType as string as StarFor);
+            case ObjectAction.Stats:
+                onActionStart(ObjectAction.Stats);
                 break;
-            case BaseObjectAction.Upvote:
-                handleVote(true, objectType as string as VoteFor);
-                break;
+            case ObjectAction.VoteDown:
+            case ObjectAction.VoteUp:
+                handleVote(action === ObjectAction.VoteUp, objectType as string as VoteFor);
         }
         onClose();
-    }, [handleCopy, handleEdit, handleFork, handleStar, handleVote, objectType, onClose, openDelete, openDonate, openReport, openShare]);
+    }, [handleCopy, handleFork, handleStar, handleVote, objectType, onActionStart, onClose, openDelete, openDonate, openReport, openShare]);
 
     /**
      * Actions that are available for the object, from top to bottom
      */
-    const availableActions: BaseObjectAction[] = useMemo(() => {
+    const availableActions: ObjectAction[] = useMemo(() => {
         if (!permissions) return [];
         const isLoggedIn = session?.isLoggedIn === true;
-        let options: BaseObjectAction[] = [];
+        let options: ObjectAction[] = [];
         if (isLoggedIn && permissions.canVote) {
-            options.push(isUpvoted ? BaseObjectAction.Downvote : BaseObjectAction.Upvote);
+            options.push(isUpvoted ? ObjectAction.VoteDown : ObjectAction.VoteUp);
         }
         if (isLoggedIn && permissions.canStar) {
-            options.push(isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
+            options.push(isStarred ? ObjectAction.StarUndo : ObjectAction.Star);
         }
         if (isLoggedIn && permissions.canFork) {
-            options.push(BaseObjectAction.Copy);
-            options.push(BaseObjectAction.Fork);
+            options.push(ObjectAction.Copy);
+            options.push(ObjectAction.Fork);
         }
-        options.push(BaseObjectAction.Donate, BaseObjectAction.Share, BaseObjectAction.FindInPage)
+        options.push(ObjectAction.Stats, ObjectAction.Donate, ObjectAction.Share, ObjectAction.FindInPage)
         if (isLoggedIn && permissions.canReport) {
-            options.push(BaseObjectAction.Report);
+            options.push(ObjectAction.Report);
         }
         if (isLoggedIn && permissions.canDelete) {
-            options.push(BaseObjectAction.Delete);
+            options.push(ObjectAction.Delete);
         }
         return options;
     }, [isStarred, isUpvoted, permissions, session?.isLoggedIn]);
 
-    const data: ListMenuItemData<BaseObjectAction>[] = useMemo(() => {
+    const data: ListMenuItemData<ObjectAction>[] = useMemo(() => {
         // Convert options to ListMenuItemData
         return availableActions
             .map(option => {
@@ -240,6 +237,13 @@ export const BaseObjectActionDialog = ({
                 open={reportOpen}
                 reportFor={objectType as string as ReportFor}
                 session={session}
+                zIndex={zIndex + 1}
+            />
+            {/* Share dialog */}
+            <ShareObjectDialog
+                objectType={objectType}
+                open={shareOpen}
+                onClose={closeShare}
                 zIndex={zIndex + 1}
             />
             {/* Actual action dialog */}

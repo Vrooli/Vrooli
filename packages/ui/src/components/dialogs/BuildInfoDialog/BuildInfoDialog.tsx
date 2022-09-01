@@ -31,7 +31,7 @@ import { copy, copyVariables } from 'graphql/generated/copy';
 import { fork, forkVariables } from 'graphql/generated/fork';
 import { star, starVariables } from 'graphql/generated/star';
 import { vote, voteVariables } from 'graphql/generated/vote';
-import { BaseObjectAction, BuildInfoDialogProps } from '../types';
+import { ObjectAction, BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { DeleteDialog, EditableLabel, LanguageInput, LinkButton, MarkdownInput, ResourceListHorizontal } from 'components';
 import { AllLanguages, getLanguageSubtag, getOwnedByString, getTranslation, PubSub, RoutineTranslationShape, toOwnedBy, updateArray } from 'utils';
@@ -39,7 +39,7 @@ import { useLocation } from '@shared/route';
 import { useFormik } from 'formik';
 import { APP_LINKS, CopyType, DeleteOneType, ForkType, StarFor, VoteFor } from '@shared/consts';
 import { routineUpdateForm as validationSchema } from '@shared/validation';
-import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
+import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
 import { copyMutation, forkMutation, starMutation, voteMutation } from 'graphql/mutation';
@@ -216,30 +216,30 @@ export const BuildInfoDialog = ({
      */
     const actions = useMemo(() => {
         // [value, label, icon, secondaryLabel]
-        const results: [BaseObjectAction, string, any, string | null][] = [];
+        const results: [ObjectAction, string, any, string | null][] = [];
         // If signed in and not editing, show vote/star options
         if (session?.isLoggedIn === true && !isEditing) {
             results.push(routine?.isUpvoted ?
-                [BaseObjectAction.Downvote, 'Downvote', DownvoteWideIcon, null] :
-                [BaseObjectAction.Upvote, 'Upvote', UpvoteWideIcon, null]
+                [ObjectAction.VoteDown, 'Downvote', DownvoteWideIcon, null] :
+                [ObjectAction.VoteUp, 'Upvote', UpvoteWideIcon, null]
             );
             results.push(routine?.isStarred ?
-                [BaseObjectAction.Unstar, 'Unstar', UnstarIcon, null] :
-                [BaseObjectAction.Star, 'Star', StarIcon, null]
+                [ObjectAction.StarUndo, 'Unstar', UnstarIcon, null] :
+                [ObjectAction.Star, 'Star', StarIcon, null]
             );
         }
         // If not editing, show "Stats" and "Fork" buttons
         if (!isEditing) {
             results.push(
-                [BaseObjectAction.Stats, 'Stats', StatsIcon, 'Coming Soon'],
-                [BaseObjectAction.Copy, 'Copy', CopyIcon, null],
-                [BaseObjectAction.Fork, 'Fork', ForkIcon, null],
+                [ObjectAction.Stats, 'Stats', StatsIcon, 'Coming Soon'],
+                [ObjectAction.Copy, 'Copy', CopyIcon, null],
+                [ObjectAction.Fork, 'Fork', ForkIcon, null],
             )
         }
         // Only show "Delete" when editing an existing routine
         if (isEditing && Boolean(routine?.id)) {
             results.push(
-                [BaseObjectAction.Delete, 'Delete', DeleteIcon, null],
+                [ObjectAction.Delete, 'Delete', DeleteIcon, null],
             )
         }
         return results;
@@ -266,7 +266,7 @@ export const BuildInfoDialog = ({
             input: { id: routine.id, objectType: CopyType.Routine },
             onSuccess: ({ data }) => {
                 PubSub.get().publishSnack({ message: `${getTranslation(routine, 'title', [language], true)} copied.`, severity: 'success' });
-                handleAction(BaseObjectAction.Copy, data);
+                handleAction(ObjectAction.Copy, data);
             },
         })
     }, [copy, handleAction, language, routine]);
@@ -278,7 +278,7 @@ export const BuildInfoDialog = ({
             input: { id: routine.id, objectType: ForkType.Routine },
             onSuccess: ({ data }) => {
                 PubSub.get().publishSnack({ message: `${getTranslation(routine, 'title', [language], true)} forked.`, severity: 'success' });
-                handleAction(BaseObjectAction.Fork, data);
+                handleAction(ObjectAction.Fork, data);
             }
         })
     }, [fork, handleAction, language, routine]);
@@ -289,7 +289,7 @@ export const BuildInfoDialog = ({
             mutation: star,
             input: { isStar, forId: routine.id, starFor: StarFor.Routine },
             onSuccess: ({ data }) => {
-                handleAction(isStar ? BaseObjectAction.Star : BaseObjectAction.Unstar, data);
+                handleAction(isStar ? ObjectAction.Star : ObjectAction.StarUndo, data);
             }
         })
     }, [handleAction, routine?.id, star]);
@@ -300,33 +300,29 @@ export const BuildInfoDialog = ({
             mutation: vote,
             input: { isUpvote, forId: routine.id, voteFor: VoteFor.Routine },
             onSuccess: ({ data }) => {
-                handleAction(isUpvote ? BaseObjectAction.Upvote : BaseObjectAction.Downvote, data);
+                handleAction(isUpvote ? ObjectAction.VoteUp : ObjectAction.VoteDown, data);
             }
         })
     }, [handleAction, routine?.id, vote]);
 
-    const onSelect = useCallback((action: BaseObjectAction) => {
+    const onSelect = useCallback((action: ObjectAction) => {
         switch (action) {
-            case BaseObjectAction.Copy:
+            case ObjectAction.Copy:
                 handleCopy();
                 break;
-            case BaseObjectAction.Delete:
+            case ObjectAction.Delete:
                 openDelete();
                 break;
-            case BaseObjectAction.Downvote:
-                handleVote(false);
-                break;
-            case BaseObjectAction.Fork:
+            case ObjectAction.Fork:
                 handleFork();
                 break;
-            case BaseObjectAction.Star:
-                handleStar(true);
+            case ObjectAction.Star:
+            case ObjectAction.StarUndo:
+                handleStar(action === ObjectAction.Star);
                 break;
-            case BaseObjectAction.Unstar:
-                handleStar(false);
-                break;
-            case BaseObjectAction.Upvote:
-                handleVote(true);
+            case ObjectAction.VoteDown:
+            case ObjectAction.VoteUp:
+                handleVote(action === ObjectAction.VoteUp);
                 break;
         }
     }, [handleCopy, handleFork, handleStar, handleVote, openDelete]);
@@ -344,7 +340,7 @@ export const BuildInfoDialog = ({
             />
         )
         return (
-            <SelectLanguageDialog
+            <SelectLanguageMenu
                 availableLanguages={availableLanguages}
                 canDropdownOpen={availableLanguages.length > 1}
                 currentLanguage={language}

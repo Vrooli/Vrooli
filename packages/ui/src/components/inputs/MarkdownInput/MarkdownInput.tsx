@@ -51,12 +51,12 @@ export const MarkdownInput = ({
 
     const [isPreviewOn, setIsPreviewOn] = useState(false);
 
-    const [headerAnchorEl, setHeaderAnchorEl] = useState(null);
+    const [headerAnchorEl, setHeaderAnchorEl] = useState<HTMLElement | null>(null);
     const openHeaderSelect = (event) => { setHeaderAnchorEl(event.currentTarget) };
     const closeHeader = () => { setHeaderAnchorEl(null) };
     const headerSelectOpen = Boolean(headerAnchorEl);
 
-    const [listAnchorEl, setListAnchorEl] = useState(null);
+    const [listAnchorEl, setListAnchorEl] = useState<HTMLElement | null>(null);
     const openListSelect = (event) => { setListAnchorEl(event.currentTarget) };
     const closeList = () => { setListAnchorEl(null) };
     const listSelectOpen = Boolean(listAnchorEl);

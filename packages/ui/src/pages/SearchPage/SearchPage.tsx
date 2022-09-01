@@ -2,7 +2,7 @@
  * Search page for organizations, projects, routines, standards, and users
  */
 import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material";
-import { ListMenu, SearchList, ShareDialog } from "components";
+import { SearchList, SelectRoutineTypeMenu, ShareSiteDialog } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
 import { useLocation } from '@shared/route';
@@ -11,7 +11,6 @@ import { getObjectUrlBase, PubSub, parseSearchParams, stringifySearchParams, ope
 import { ListOrganization, ListProject, ListRoutine, ListStandard, ListUser } from "types";
 import { validate as uuidValidate } from 'uuid';
 import { APP_LINKS } from "@shared/consts";
-import { ListMenuItemData } from "components/dialogs/types";
 import { AddIcon } from "@shared/icons";
 
 // Tab data type
@@ -120,27 +119,10 @@ export function SearchPage({
 
     // Menu for picking which routine type to add
     const [addRoutineAnchor, setAddRoutineAnchor] = useState<any>(null);
-    const openAddRoutine = useCallback((ev: React.MouseEvent<HTMLDivElement>) => {
-        const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
-        if (loggedIn) {
-            setAddRoutineAnchor(ev.currentTarget)
-        }
-        else {
-            PubSub.get().publishSnack({ message: 'Must be logged in.', severity: 'error' });
-            setLocation(`${APP_LINKS.Start}${stringifySearchParams({
-                redirect: window.location.pathname
-            })}`);
-        }
-    }, [session?.id, session?.isLoggedIn, setLocation]);
+    const openAddRoutine = useCallback((ev: React.MouseEvent<HTMLElement>) => {
+        setAddRoutineAnchor(ev.currentTarget)
+    }, []);
     const closeAddRoutine = useCallback(() => setAddRoutineAnchor(null), []);
-    const handleAddRoutineSelect = useCallback((option: any) => {
-        if (option === 'basic') setLocation(`${APP_LINKS.Routine}/add`)
-        else setLocation(`${APP_LINKS.Routine}/add?build=true`)
-    }, [setLocation]);
-    const addRoutineOptions: ListMenuItemData<string>[] = [
-        { label: 'Basic (Single Step)', value: 'basic' },
-        { label: 'Advanced (Multi Step)', value: 'advanced' },
-    ]
 
     const onAddClick = useCallback((ev: any) => {
         const addUrl = `${getObjectUrlBase({ __typename: searchType as string })}/add`
@@ -206,19 +188,16 @@ export function SearchPage({
             paddingTop: { xs: '64px', md: '80px' },
         }}>
             {/* Invite dialog for organizations and users */}
-            <ShareDialog
+            <ShareSiteDialog
                 onClose={closeShareDialog}
                 open={shareDialogOpen}
                 zIndex={200}
             />
-            {/* Add dialog for selecting between single-step and multi-step routines */}
-            <ListMenu
-                id={`add-routine-select-type-menu`}
+            {/* Add menu for selecting between single-step and multi-step routines */}
+            <SelectRoutineTypeMenu
                 anchorEl={addRoutineAnchor}
-                title='Select Routine Type'
-                data={addRoutineOptions}
-                onSelect={handleAddRoutineSelect}
-                onClose={closeAddRoutine}
+                handleClose={closeAddRoutine}
+                session={session}
                 zIndex={200}
             />
             {/* Navigate between search pages */}

@@ -1,6 +1,9 @@
+/**
+ * Dialog for spreading the word about the site.
+ */
 import { APP_LINKS } from '@shared/consts';
 import { Box, Button, Dialog, Stack, Typography } from '@mui/material';
-import { ShareDialogProps } from '../types';
+import { ShareSiteDialogProps } from '../types';
 import {
     ContentCopy as CopyIcon,
     Email as EmailIcon,
@@ -32,11 +35,11 @@ const buttonProps = {
     }
 }
 
-export const ShareDialog = ({
+export const ShareSiteDialog = ({
     open,
     onClose,
     zIndex,
-}: ShareDialogProps) => {
+}: ShareSiteDialogProps) => {
     const [copied, setCopied] = useState<boolean>(false);
     const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
     const copyInviteLink = () => {

@@ -20,7 +20,7 @@ export const DateDisplay = ({
     console.log('rendering date display', loading, timestamp)
 
     // Full date popup
-    const [anchorEl, setAnchorEl] = useState<any>(null);
+    const [anchorEl, setAnchorEl] = useState<any | null>(null);
     const isOpen = Boolean(anchorEl);
     const open = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
         ev.preventDefault();

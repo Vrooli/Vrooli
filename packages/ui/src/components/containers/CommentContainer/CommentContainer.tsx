@@ -54,8 +54,8 @@ export function CommentContainer({
         }
     }, [searchParams]);
 
-    const [sortAnchorEl, setSortAnchorEl] = useState(null);
-    const [timeAnchorEl, setTimeAnchorEl] = useState(null);
+    const [sortAnchorEl, setSortAnchorEl] = useState<HTMLElement | null>(null);
+    const [timeAnchorEl, setTimeAnchorEl] = useState<HTMLElement | null>(null);
     const [timeFrameLabel, setTimeFrameLabel] = useState<string>('Time');
     const after = useRef<string | undefined>(undefined);
 

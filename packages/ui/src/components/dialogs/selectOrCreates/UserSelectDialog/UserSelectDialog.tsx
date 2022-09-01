@@ -7,7 +7,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { DialogTitle, ShareDialog } from 'components';
+import { DialogTitle, ShareSiteDialog } from 'components';
 import { useCallback, useEffect, useState } from 'react';
 import { UserSelectDialogProps } from '../types';
 import { User } from 'types';
@@ -96,7 +96,7 @@ export const UserSelectDialog = ({
             }}
         >
             {/* Invite user dialog */}
-            <ShareDialog
+            <ShareSiteDialog
                 onClose={closeShareDialog}
                 open={shareDialogOpen}
                 zIndex={200}

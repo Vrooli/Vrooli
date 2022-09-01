@@ -1,5 +1,5 @@
 import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material';
-import { SelectLanguageDialogProps } from '../types';
+import { SelectLanguageMenuProps } from '../types';
 import {
     ArrowDropDown as ArrowDropDownIcon,
     ArrowDropUp as ArrowDropUpIcon,
@@ -14,7 +14,7 @@ import { CompleteIcon } from '@shared/icons';
 
 const titleAria = 'select-language-dialog-title';
 
-export const SelectLanguageDialog = ({
+export const SelectLanguageMenu = ({
     availableLanguages,
     canDropdownOpen = true,
     currentLanguage,
@@ -25,7 +25,7 @@ export const SelectLanguageDialog = ({
     session,
     sxs,
     zIndex,
-}: SelectLanguageDialogProps) => {
+}: SelectLanguageMenuProps) => {
     const { palette } = useTheme();
     const [searchString, setSearchString] = useState('');
     const updateSearchString = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,9 +67,9 @@ export const SelectLanguageDialog = ({
     }, [availableLanguages, searchString, selectedLanguages, session]);
 
     // Popup for selecting language
-    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = Boolean(anchorEl);
-    const onOpen = useCallback((event: MouseEvent<HTMLDivElement>) => {
+    const onOpen = useCallback((event: MouseEvent<HTMLElement>) => {
         if (canDropdownOpen) setAnchorEl(event.currentTarget);
         // Force parent to save current translation TODO this causes infinite render in multi-step routine. not sure why
         if (currentLanguage) handleCurrent(currentLanguage);

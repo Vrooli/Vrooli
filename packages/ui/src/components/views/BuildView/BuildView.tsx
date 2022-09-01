@@ -10,7 +10,7 @@ import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { isEqual } from '@shared/utils';
 import { NodeType } from 'graphql/generated/globalTypes';
-import { BaseObjectAction } from 'components/dialogs/types';
+import { ObjectAction } from 'components/dialogs/types';
 import { BuildViewProps } from '../types';
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { StatusMessageArray } from 'components/buttons/types';
@@ -1105,69 +1105,46 @@ export const BuildView = ({
         }
     }, [changedRoutine?.nodes, handleNodeDelete, handleSubroutineDelete, handleSubroutineOpen, handleNodeDrop, handleAddEndAfter, handleAddListAfter, handleAddListBefore]);
 
-    const handleRoutineAction = useCallback((action: BaseObjectAction, data: any) => {
+    const handleRoutineAction = useCallback((action: ObjectAction, data: any) => {
         switch (action) {
-            case BaseObjectAction.Copy:
+            case ObjectAction.Copy:
                 setLocation(`${APP_LINKS.Routine}/${data.copy.routine.id}`);
                 break;
-            case BaseObjectAction.Delete:
+            case ObjectAction.Delete:
                 setLocation(APP_LINKS.Home);
                 break;
-            case BaseObjectAction.Downvote:
-                if (data.vote.success) {
-                    onChange({
-                        ...routine,
-                        isUpvoted: false,
-                    } as any)
-                }
-                break;
-            case BaseObjectAction.Edit:
-                //TODO
-                break;
-            case BaseObjectAction.Fork:
+            case ObjectAction.Fork:
                 setLocation(`${APP_LINKS.Routine}/${data.fork.routine.id}`);
                 break;
-            case BaseObjectAction.Report:
+            case ObjectAction.Report:
                 //TODO
                 break;
-            case BaseObjectAction.Share:
+            case ObjectAction.Share:
                 //TODO
                 break;
-            case BaseObjectAction.Star:
+            case ObjectAction.Star:
+            case ObjectAction.StarUndo:
                 if (data.star.success) {
                     onChange({
                         ...routine,
-                        isStarred: true,
+                        isStarred: action === ObjectAction.Star,
                     } as any)
                 }
                 break;
-            case BaseObjectAction.Stats:
+            case ObjectAction.Stats:
                 //TODO
                 break;
-            case BaseObjectAction.Unstar:
-                if (data.star.success) {
-                    onChange({
-                        ...routine,
-                        isStarred: false,
-                    } as any)
-                }
-                break;
-            case BaseObjectAction.Update:
-                updateRoutine();
-                break;
-            case BaseObjectAction.UpdateCancel:
-                revertChanges();
-                break;
-            case BaseObjectAction.Upvote:
+            case ObjectAction.VoteDown:
+            case ObjectAction.VoteUp:
                 if (data.vote.success) {
                     onChange({
                         ...routine,
-                        isUpvoted: true,
+                        isUpvoted: action === ObjectAction.VoteUp,
                     } as any)
                 }
                 break;
         }
-    }, [setLocation, updateRoutine, revertChanges, onChange, routine]);
+    }, [setLocation, onChange, routine]);
 
     // Open/close unlinked nodes drawer
     const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);
@@ -1452,7 +1429,7 @@ export const BuildView = ({
                     ) : null}
                     {/* Help button */}
                     <HelpButton markdown={helpText} sx={{ fill: palette.secondary.light }} sxRoot={{ margin: "auto", marginRight: 1 }} />
-                    {/* Display routine description, insturctions, etc. */}
+                    {/* Display overall routine description, insturctions, etc. */}
                     <BuildInfoDialog
                         handleAction={handleRoutineAction}
                         handleLanguageChange={setLanguage}

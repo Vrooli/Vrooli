@@ -10,7 +10,7 @@ import {
     CardGiftcard as DonateIcon,
     Share as ShareIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, DateDisplay, ResourceListVertical, SearchList, SelectLanguageDialog, StarButton } from "components";
+import { ObjectActionMenu, DateDisplay, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton, SelectRoutineTypeMenu } from "components";
 import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
 import { Project, ResourceList } from "types";
@@ -18,6 +18,7 @@ import { SearchListGenerator } from "components/lists/types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, PubSub, SearchType } from "utils";
 import { validate as uuidValidate } from 'uuid';
 import { EditIcon, EllipsisIcon } from "@shared/icons";
+import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 
 enum TabOptions {
     Resources = "Resources",
@@ -123,6 +124,53 @@ export const ProjectView = ({
         ev.preventDefault();
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
+
+    const onMoreActionStart = useCallback((action: ObjectAction) => {
+        switch (action) {
+            case ObjectAction.Edit:
+                onEdit();
+                break;
+            case ObjectAction.Stats:
+                //TODO
+                break;
+        }
+    }, [onEdit]);
+
+    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
+        switch (action) {
+            case ObjectActionComplete.VoteDown:
+            case ObjectActionComplete.VoteUp:
+                if (data.vote.success) {
+                    setProject({
+                        ...project,
+                        isUpvoted: action === ObjectActionComplete.VoteUp,
+                    } as any)
+                }
+                break;
+            case ObjectActionComplete.Star:
+            case ObjectActionComplete.StarUndo:
+                if (data.star.success) {
+                    setProject({
+                        ...project,
+                        isStarred: action === ObjectActionComplete.Star,
+                    } as any)
+                }
+                break;
+            case ObjectActionComplete.Fork:
+                setLocation(`${APP_LINKS.Project}/${data.fork.project.id}`);
+                break;
+            case ObjectActionComplete.Copy:
+                setLocation(`${APP_LINKS.Project}/${data.copy.project.id}`);
+                break;
+        }
+    }, [project, setLocation]);
+
+    // Menu for picking which routine type to add
+    const [addRoutineAnchor, setAddRoutineAnchor] = useState<any>(null);
+    const openAddRoutine = useCallback((ev: React.MouseEvent<HTMLElement>) => {
+        setAddRoutineAnchor(ev.currentTarget)
+    }, []);
+    const closeAddRoutine = useCallback(() => setAddRoutineAnchor(null), []);
 
     // Create search data
     const { searchType, itemKeyPrefix, placeholder, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
@@ -276,23 +324,21 @@ export const ProjectView = ({
     /**
     * Opens add new page
     */
-    const toAddNew = useCallback(() => {
+    const toAddNew = useCallback((event: any) => {
         switch (currTabType) {
             case TabOptions.Routines:
-                // setLocation(`${APP_LINKS.Routine}/add`);TODO
+                openAddRoutine(event);
                 break;
             case TabOptions.Standards:
                 setLocation(`${APP_LINKS.Standard}/add`);
                 break;
         }
-    }, [currTabType, setLocation]);
+    }, [currTabType, openAddRoutine, setLocation]);
 
     return (
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
-            <BaseObjectActionDialog
-                handleActionComplete={() => { }} //TODO
-                handleEdit={onEdit}
+            <ObjectActionMenu
                 isUpvoted={project?.isUpvoted}
                 isStarred={project?.isStarred}
                 objectId={id}
@@ -300,8 +346,17 @@ export const ProjectView = ({
                 objectType={ObjectType.Project}
                 anchorEl={moreMenuAnchor}
                 title='Project Options'
+                onActionStart={onMoreActionStart}
+                onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
                 permissions={project?.permissionsProject}
+                session={session}
+                zIndex={zIndex + 1}
+            />
+            {/* Add menu for selecting between single-step and multi-step routines */}
+            <SelectRoutineTypeMenu
+                anchorEl={addRoutineAnchor}
+                handleClose={closeAddRoutine}
                 session={session}
                 zIndex={zIndex + 1}
             />
@@ -318,7 +373,7 @@ export const ProjectView = ({
                     top: 8,
                     right: 8,
                 }}>
-                    <SelectLanguageDialog
+                    <SelectLanguageMenu
                         availableLanguages={availableLanguages}
                         canDropdownOpen={availableLanguages.length > 1}
                         currentLanguage={language}

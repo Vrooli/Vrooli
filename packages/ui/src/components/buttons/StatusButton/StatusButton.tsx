@@ -51,7 +51,7 @@ export const StatusButton = ({
 
     const StatusIcon = useMemo(() => STATUS_ICON[status], [status]);
 
-    const [anchorEl, setAnchorEl] = useState(null);
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = Boolean(anchorEl);
     const openMenu = useCallback((event) => {
         if (!anchorEl) setAnchorEl(event.currentTarget);

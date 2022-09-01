@@ -78,7 +78,7 @@ export interface SearchListGenerator {
 
 export interface SearchListProps {
     canSearch?: boolean;
-    handleAdd?: () => void; // Not shown if not passed
+    handleAdd?: (event?: any) => void; // Not shown if not passed
     /**
      * True if roles (admin, owner, etc.) should be hidden in list items
      */

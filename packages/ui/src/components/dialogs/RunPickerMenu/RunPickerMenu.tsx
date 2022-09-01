@@ -6,7 +6,7 @@ import { Button, IconButton, List, ListItem, ListItemText, Menu, Tooltip, useThe
 import { mutationWrapper } from "graphql/utils";
 import { useCallback, useEffect, useMemo } from "react";
 import { displayDate, getTranslation, getUserLanguages } from "utils/display";
-import { ListMenuItemData, RunPickerDialogProps } from "../types";
+import { ListMenuItemData, RunPickerMenuProps } from "../types";
 import {
     Delete as DeleteIcon,
 } from "@mui/icons-material";
@@ -22,7 +22,7 @@ import { MenuTitle } from "../MenuTitle/MenuTitle";
 
 const titleAria = 'run-picker-dialog-title';
 
-export const RunPickerDialog = ({
+export const RunPickerMenu = ({
     anchorEl,
     handleClose,
     onAdd,
@@ -30,7 +30,7 @@ export const RunPickerDialog = ({
     onSelect,
     routine,
     session
-}: RunPickerDialogProps) => {
+}: RunPickerMenuProps) => {
     const { palette } = useTheme();
     const open = useMemo(() => Boolean(anchorEl), [anchorEl]);
 
