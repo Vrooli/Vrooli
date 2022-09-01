@@ -76,8 +76,8 @@ export const UnlinkedNodesDialog = ({
             <Box id="unlinked-nodes-dialog" sx={{
                 alignSelf: open ? 'baseline' : 'auto',
                 borderRadius: 3,
-                background: palette.mode === 'light' ? '#c7dee2' : '#315672',
-                color: palette.text.primary,
+                background: palette.secondary.main,
+                color: palette.secondary.contrastText,
                 paddingLeft: 1,
                 paddingRight: 1,
                 marginRight: 1,
@@ -105,11 +105,11 @@ export const UnlinkedNodesDialog = ({
                     justifyContent: 'space-between',
                     width: '100%'
                 }}>
-                    <UnlinkedNodesIcon fill={palette.background.textPrimary} />
+                    <UnlinkedNodesIcon fill={palette.secondary.contrastText} />
                     <Typography variant="h6" sx={{ ...noSelect, marginLeft: '8px' }}>{open ? 'Unlinked ' : ''}({nodes.length})</Typography>
                     <Tooltip title={open ? 'Shrink' : 'Expand'}>
                         <IconButton edge="end" color="inherit" aria-label={open ? 'Shrink' : 'Expand'}>
-                            {open ? <ShrinkIcon sx={{ fill: palette.background.textPrimary }} /> : <ExpandIcon sx={{ fill: palette.background.textPrimary }} />}
+                            {open ? <ShrinkIcon sx={{ fill: palette.secondary.contrastText }} /> : <ExpandIcon sx={{ fill: palette.secondary.contrastText }} />}
                         </IconButton>
                     </Tooltip>
                 </Stack>

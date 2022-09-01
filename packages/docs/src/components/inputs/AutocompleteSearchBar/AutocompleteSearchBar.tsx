@@ -1,4 +1,4 @@
-import { Autocomplete, CircularProgress, IconButton, Input, ListItemText, MenuItem, Paper, Typography } from '@mui/material';
+import { Autocomplete, CircularProgress, IconButton, Input, ListItemText, MenuItem, Paper, Typography, useTheme } from '@mui/material';
 import { AutocompleteSearchBarProps } from '../types';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
@@ -18,6 +18,8 @@ export function AutocompleteSearchBar({
     sx,
     ...props
 }: AutocompleteSearchBarProps) {
+    const { palette } = useTheme();
+
     const [internalValue, setInternalValue] = useState<string>(value);
     const onChangeDebounced = useMemo(() => AwesomeDebouncePromise(
         onChange,
@@ -159,7 +161,7 @@ export function AutocompleteSearchBar({
                         width: '48px',
                         height: '48px',
                     }} aria-label="main-search-icon">
-                        <SearchIcon />
+                        <SearchIcon fill={palette.background.textSecondary} />
                     </IconButton>
                 </Paper>
             )

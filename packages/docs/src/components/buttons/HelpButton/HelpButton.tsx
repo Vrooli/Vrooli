@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react';
 import { Box, IconButton, Menu, Tooltip, useTheme } from '@mui/material';
 import Markdown from 'markdown-to-jsx';
 import { HelpButtonProps } from '../types';
-import { TERTIARY_COLOR } from 'utils';
 import { CloseIcon, HelpIcon } from '@shared/icons';
 
 export const HelpButton = ({
@@ -39,7 +38,7 @@ export const HelpButton = ({
                         bottom: '0',
                     }}
                 >
-                    <HelpIcon fill={TERTIARY_COLOR} {...sx} />
+                    <HelpIcon fill={palette.secondary.main} {...sx} />
                     <Menu
                         id={id}
                         open={open}

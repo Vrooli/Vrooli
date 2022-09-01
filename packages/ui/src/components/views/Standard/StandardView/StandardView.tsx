@@ -11,7 +11,7 @@ import {
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, BaseStandardInput, CommentContainer, LinkButton, ResourceListHorizontal, SelectLanguageDialog, StarButton, TextCollapse } from "components";
 import { StandardViewProps } from "../types";
-import { getCreatedByString, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData, TERTIARY_COLOR, toCreatedBy } from "utils";
+import { getCreatedByString, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData, toCreatedBy } from "utils";
 import { Standard } from "types";
 import { CommentFor, StarFor } from "graphql/generated/globalTypes";
 import { containerShadow } from "styles";
@@ -293,7 +293,7 @@ export const StandardView = ({
                                     size="small"
                                     onClick={onEdit}
                                 >
-                                    <EditIcon sx={{ fill: TERTIARY_COLOR }} />
+                                    <EditIcon sx={{ fill: palette.secondary.light }} />
                                 </IconButton>
                             </Tooltip>}
                         </Stack>

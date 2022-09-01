@@ -1,4 +1,4 @@
-import { IconButton, Input, Paper } from '@mui/material';
+import { IconButton, Input, Paper, useTheme } from '@mui/material';
 import { SearchIcon } from '@shared/icons';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
@@ -12,6 +12,8 @@ export const SearchBar = ({
     debounce = 200,
     ...props
 }: SearchBarProps) => {
+    const { palette } = useTheme();
+    
     const [internalValue, setInternalValue] = useState<string>(value);
     const onChangeDebounced = useMemo(() => AwesomeDebouncePromise(
         onChange,
@@ -42,7 +44,7 @@ export const SearchBar = ({
                 inputProps={props.inputProps}
             />
             <IconButton sx={{ p: '10px' }} aria-label="main-search-icon">
-                <SearchIcon />
+                <SearchIcon fill={palette.background.textSecondary} />
             </IconButton>
         </Paper>
     );

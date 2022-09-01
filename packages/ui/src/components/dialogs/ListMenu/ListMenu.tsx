@@ -35,7 +35,7 @@ export function ListMenu<T>({
         }}/>;
         const itemIcon = Icon ? (
             <ListItemIcon>
-                <Icon sx={{ fill: iconColor || 'default' }} />
+                <Icon fill={iconColor || palette.background.textPrimary} />
             </ListItemIcon>
         ) : null;
         const helpIcon = helpData ? (
@@ -50,7 +50,7 @@ export function ListMenu<T>({
                 {helpIcon}
             </ListItem>
         )
-    }), [data, onClose, onSelect])
+    }), [data, onClose, onSelect, palette.background.textPrimary])
 
     return (
         <Menu

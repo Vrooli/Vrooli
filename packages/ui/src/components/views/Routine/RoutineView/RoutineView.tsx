@@ -14,7 +14,7 @@ import {
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, BuildView, LinkButton, ReportsLink, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, StatusButton, UpTransition, UpvoteDownvote } from "components";
 import { RoutineViewProps } from "../types";
-import { formikToRunInputs, getLanguageSubtag, getOwnedByString, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, standardToFieldData, Status, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
+import { formikToRunInputs, getLanguageSubtag, getOwnedByString, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, standardToFieldData, Status, stringifySearchParams, toOwnedBy, useReactSearch } from "utils";
 import { Routine, Run } from "types";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
@@ -582,7 +582,7 @@ export const RoutineView = ({
                                         size="small"
                                         onClick={onEdit}
                                     >
-                                        <EditIcon sx={{ fill: TERTIARY_COLOR }} />
+                                        <EditIcon sx={{ fill: palette.secondary.light }} />
                                     </IconButton>
                                 </Tooltip>}
                             </Stack>

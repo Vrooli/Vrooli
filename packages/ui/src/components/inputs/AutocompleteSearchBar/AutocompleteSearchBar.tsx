@@ -1,4 +1,4 @@
-import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, CircularProgress, IconButton, Input, ListItemText, MenuItem, Paper, Typography } from '@mui/material';
+import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, CircularProgress, IconButton, Input, ListItemText, MenuItem, Paper, Typography, useTheme } from '@mui/material';
 import { AutocompleteSearchBarProps } from '../types';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
@@ -19,6 +19,8 @@ export function AutocompleteSearchBar({
     sxs,
     ...props
 }: AutocompleteSearchBarProps) {
+    const { palette } = useTheme();
+
     // Input internal value (since value passed back is debounced)
     const [internalValue, setInternalValue] = useState<string>(value);
     // Highlighted option (if navigated with keyboard)
@@ -187,7 +189,7 @@ export function AutocompleteSearchBar({
                         width: '48px',
                         height: '48px',
                     }} aria-label="main-search-icon">
-                        <SearchIcon />
+                        <SearchIcon fill={palette.background.textSecondary} />
                     </IconButton>
                 </Paper>
             )}

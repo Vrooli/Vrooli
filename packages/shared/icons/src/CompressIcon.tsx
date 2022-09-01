@@ -1,6 +1,6 @@
 import { SvgProps } from './types';
 
-export const SearchIcon = (props: SvgProps) => (
+export const CompressIcon = (props: SvgProps) => (
     <svg
         id={props.id}
         style={props.style}
@@ -11,12 +11,11 @@ export const SearchIcon = (props: SvgProps) => (
         <path
             style={{
                 stroke: props.fill ?? 'white',
-                strokeWidth: "1.37952",
+                strokeWidth: "1.89",
                 strokeLinecap: "round",
-                strokeDasharray: "none",
             }}
-            d="m19.685 19.685-6.622-6.622m-.22-7.288a4.999 4.999 0 0 1 0 7.069 4.999 4.999 0 0 1-7.068 0 4.999 4.999 0 0 1 0-7.07 4.999 4.999 0 0 1 7.069 0z"
             fill="none"
+            d="m12.99 18.21-1.84.02.9-1.2zm-.91 3.76v-4.4m-.99-11.78 1.84-.02-.9 1.2ZM12 2.03v4.4M4.65 13.5h14.7m-14.7-2.9h14.7"
         />
     </svg>
 )

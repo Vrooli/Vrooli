@@ -38,7 +38,7 @@ export const DialogTitle = ({
                 }}
             >
                 {title}
-                {helpText && <HelpButton markdown={helpText} /> }
+                {helpText && <HelpButton markdown={helpText} sx={{ fill: palette.secondary.light }} /> }
             </Typography>
             <IconButton
                 aria-label="close"

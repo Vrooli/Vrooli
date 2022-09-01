@@ -45,7 +45,11 @@ export const PasswordTextField = ({
                             onClick={handleClickShowPassword}
                             edge="end"
                         >
-                            {showPassword ? <InvisibleIcon /> : <VisibleIcon />}
+                            {
+                            showPassword ? 
+                            <InvisibleIcon fill={palette.background.textSecondary} /> : 
+                            <VisibleIcon fill={palette.background.textSecondary} />
+                            }
                         </IconButton>
                     </InputAdornment>
                 }

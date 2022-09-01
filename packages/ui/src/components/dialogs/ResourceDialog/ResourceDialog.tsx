@@ -14,7 +14,7 @@ import { LanguageInput } from 'components/inputs';
 import { Resource } from 'types';
 import { v4 as uuid } from 'uuid';
 import { DialogTitle } from 'components';
-import { CancelIcon, CreateIcon } from '@shared/icons';
+import { CancelIcon, CreateIcon, SaveIcon } from '@shared/icons';
 
 const helpText =
     `## What are resources?
@@ -299,8 +299,8 @@ export const ResourceDialog = ({
                                 <Button
                                     fullWidth
                                     type="submit"
-                                    startIcon={<CreateIcon />}
-                                >Create</Button>
+                                    startIcon={index < 0 ? <CreateIcon /> : <SaveIcon />}
+                                >{index < 0 ? 'Create' : 'Update'}</Button>
                             </Grid>
                             <Grid item xs={6}>
                                 <Button
