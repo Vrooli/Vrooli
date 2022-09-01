@@ -12,16 +12,13 @@ import { isEqual } from '@shared/utils';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { BaseObjectAction } from 'components/dialogs/types';
 import { BuildViewProps } from '../types';
-import {
-    Edit as EditIcon,
-} from '@mui/icons-material';
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { StatusMessageArray } from 'components/buttons/types';
 import { StatusButton } from 'components/buttons';
 import { routineUpdate, routineUpdateVariables } from 'graphql/generated/routineUpdate';
 import { routineCreate, routineCreateVariables } from 'graphql/generated/routineCreate';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
-import { AddLinkIcon, CloseIcon, CompressIcon, RedoIcon, UndoIcon } from '@shared/icons';
+import { AddLinkIcon, CloseIcon, CompressIcon, EditIcon, RedoIcon, UndoIcon } from '@shared/icons';
 
 const helpText =
     `## What am I looking at?
@@ -1450,7 +1447,7 @@ export const BuildView = ({
                     {/* Edit button */}
                     {canEdit && !isEditing ? (
                         <IconButton aria-label="confirm-title-change" onClick={startEditing} >
-                            <EditIcon sx={{ fill: palette.secondary.light }} />
+                            <EditIcon fill={palette.secondary.light} />
                         </IconButton>
                     ) : null}
                     {/* Help button */}

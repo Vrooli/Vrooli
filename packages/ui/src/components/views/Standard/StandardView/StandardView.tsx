@@ -5,10 +5,6 @@ import { useLazyQuery } from "@apollo/client";
 import { standard, standardVariables } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import {
-    Edit as EditIcon,
-    MoreHoriz as EllipsisIcon,
-} from "@mui/icons-material";
 import { BaseObjectActionDialog, BaseStandardInput, CommentContainer, LinkButton, ResourceListHorizontal, SelectLanguageDialog, StarButton, TextCollapse } from "components";
 import { StandardViewProps } from "../types";
 import { getCreatedByString, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData, toCreatedBy } from "utils";
@@ -20,6 +16,7 @@ import { FieldData, FieldDataJSON } from "forms/types";
 import { useFormik } from "formik";
 import { generateInputComponent } from "forms/generators";
 import { PreviewSwitch } from "components/inputs";
+import { EditIcon, EllipsisIcon } from "@shared/icons";
 
 export const StandardView = ({
     partialData,
@@ -253,7 +250,7 @@ export const StandardView = ({
                                         marginRight: 1,
                                     }}
                                 >
-                                    <EllipsisIcon sx={{ fill: palette.primary.contrastText }} />
+                                    <EllipsisIcon fill={palette.background.textSecondary} />
                                 </IconButton>
                             </Tooltip>
                         </Stack>
@@ -293,7 +290,7 @@ export const StandardView = ({
                                     size="small"
                                     onClick={onEdit}
                                 >
-                                    <EditIcon sx={{ fill: palette.secondary.light }} />
+                                    <EditIcon fill={palette.secondary.main} />
                                 </IconButton>
                             </Tooltip>}
                         </Stack>

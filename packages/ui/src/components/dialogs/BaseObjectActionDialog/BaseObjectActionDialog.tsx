@@ -12,9 +12,8 @@ import {
     FileCopy as CopyIcon,
     DeleteForever as DeleteIcon,
     CardGiftcard as DonateIcon,
-    Edit as EditIcon,
     ForkRight as ForkIcon,
-    ReportProblem as ReportIcon,
+    Flag as ReportIcon,
     Share as ShareIcon,
     StarOutline as StarIcon,
     Star as UnstarIcon,
@@ -23,7 +22,7 @@ import {
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
 import { PubSub } from "utils";
 import { CopyType, ForkType } from "graphql/generated/globalTypes";
-import { CancelIcon, DownvoteWideIcon, SaveIcon, SearchIcon, UpvoteWideIcon } from "@shared/icons";
+import { CancelIcon, DownvoteWideIcon, EditIcon, SaveIcon, SearchIcon, UpvoteWideIcon } from "@shared/icons";
 
 /**
  * [label, Icon, iconColor, preview]

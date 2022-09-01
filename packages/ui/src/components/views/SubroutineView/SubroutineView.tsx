@@ -1,7 +1,4 @@
 import { Box, CircularProgress, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import {
-    MoreHoriz as EllipsisIcon,
-} from "@mui/icons-material";
 import { LinkButton, ResourceListHorizontal, TextCollapse } from "components";
 import { useCallback, useEffect, useMemo } from "react";
 import { containerShadow } from "styles";
@@ -11,6 +8,7 @@ import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
 import { generateInputWithLabel } from 'forms/generators';
 import { useFormik } from "formik";
+import { EllipsisIcon } from "@shared/icons";
 
 export const SubroutineView = ({
     loading,
@@ -222,7 +220,7 @@ export const SubroutineView = ({
                                 marginRight: 1,
                             }}
                         >
-                            <EllipsisIcon sx={{ fill: palette.primary.contrastText }} />
+                            <EllipsisIcon fill={palette.background.textSecondary} />
                         </IconButton>
                     </Tooltip>
                 </Stack>

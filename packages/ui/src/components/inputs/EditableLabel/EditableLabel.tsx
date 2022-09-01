@@ -4,12 +4,9 @@
  */
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Stack, TextField } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
-import {
-    Edit as EditIcon,
-} from '@mui/icons-material';
 import { EditableLabelProps } from '../types';
 import { DialogTitle } from 'components/dialogs';
-import { CancelIcon, SaveIcon } from '@shared/icons';
+import { CancelIcon, EditIcon, SaveIcon } from '@shared/icons';
 
 const titleAria = 'editable-label-dialog-title';
 const descriptionAria = 'editable-label-dialog-description';

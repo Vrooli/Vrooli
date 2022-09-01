@@ -18,6 +18,8 @@ export * from './DeleteNodeIcon';
 export * from './DiscordIcon';
 export * from './DownvoteTallIcon';
 export * from './DownvoteWideIcon';
+export * from './EditIcon';
+export * from './EllipsisIcon';
 export * from './GitHubIcon';
 export * from './HelpIcon';
 export * from './InfoIcon';

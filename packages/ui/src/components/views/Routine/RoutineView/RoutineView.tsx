@@ -8,8 +8,6 @@ import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     AccountTree as GraphIcon,
     DoneAll as MarkAsCompleteIcon,
-    Edit as EditIcon,
-    MoreHoriz as EllipsisIcon,
     PlayCircle as StartIcon,
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, BuildView, LinkButton, ReportsLink, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, StatusButton, UpTransition, UpvoteDownvote } from "components";
@@ -27,6 +25,7 @@ import { useFormik } from "formik";
 import { FieldData } from "forms/types";
 import { generateInputWithLabel } from "forms/generators";
 import { CommentContainer, ContentCollapse, TextCollapse } from "components/containers";
+import { EditIcon, EllipsisIcon } from "@shared/icons";
 
 const statsHelpText =
     `Statistics are calculated to measure various aspects of a routine. 
@@ -582,7 +581,7 @@ export const RoutineView = ({
                                         size="small"
                                         onClick={onEdit}
                                     >
-                                        <EditIcon sx={{ fill: palette.secondary.light }} />
+                                        <EditIcon fill={palette.secondary.light} />
                                     </IconButton>
                                 </Tooltip>}
                             </Stack>
@@ -636,7 +635,7 @@ export const RoutineView = ({
                                     padding: 0,
                                 }}
                             >
-                                <EllipsisIcon />
+                                <EllipsisIcon fill={palette.background.textSecondary} />
                             </IconButton>
                         </Tooltip>
                     </Stack>

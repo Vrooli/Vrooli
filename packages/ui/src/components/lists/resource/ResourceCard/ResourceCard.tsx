@@ -14,12 +14,12 @@ import { cardRoot } from '../../../cards/styles';
 import { multiLineEllipsis, noSelect } from 'styles';
 import {
     Delete as DeleteIcon,
-    Edit as EditIcon,
 } from '@mui/icons-material';
 import { getResourceIcon } from '..';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { urlRegex, walletAddressRegex, adaHandleRegex } from '@shared/validation';
 import { UsedForDisplay } from 'components/dialogs';
+import { EditIcon } from '@shared/icons';
 
 const buttonProps = {
     position: 'absolute',

@@ -8,8 +8,6 @@ import { userQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     CardGiftcard as DonateIcon,
-    Edit as EditIcon,
-    MoreHoriz as EllipsisIcon,
     Person as ProfileIcon,
     Share as ShareIcon,
 } from "@mui/icons-material";
@@ -21,6 +19,7 @@ import { ResourceList, User } from "types";
 import { SearchListGenerator } from "components/lists/types";
 import { validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
+import { EditIcon, EllipsisIcon } from "@shared/icons";
 
 enum TabOptions {
     Resources = "Resources",
@@ -240,7 +239,7 @@ export const UserView = ({
                         marginRight: 1,
                     }}
                 >
-                    <EllipsisIcon />
+                    <EllipsisIcon fill={palette.background.textSecondary} />
                 </IconButton>
             </Tooltip>
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
@@ -259,10 +258,7 @@ export const UserView = ({
                                     size="small"
                                     onClick={onEdit}
                                 >
-                                    <EditIcon sx={{
-                                        fill: palette.mode === 'light' ?
-                                            palette.primary.main : palette.secondary.light,
-                                    }} />
+                                    <EditIcon fill={palette.secondary.main} />
                                 </IconButton>
                             </Tooltip>
                         </Stack>
@@ -331,7 +327,7 @@ export const UserView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [bio, handle, isOwn, loading, name, onEdit, openMoreMenu, palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.mode, palette.primary.dark, palette.primary.main, palette.secondary.dark, palette.secondary.light, profileColors, session, shareLink, user?.created_at, user?.id, user?.isStarred, user?.reportsCount, user?.stars]);
+    ), [bio, handle, isOwn, loading, name, onEdit, openMoreMenu, palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.primary.dark, palette.secondary.dark, palette.secondary.main, profileColors, session, shareLink, user?.created_at, user?.id, user?.isStarred, user?.reportsCount, user?.stars]);
 
     /**
      * Opens add new page

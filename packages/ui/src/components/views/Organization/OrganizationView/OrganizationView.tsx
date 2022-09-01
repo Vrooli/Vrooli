@@ -9,8 +9,6 @@ import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     Apartment as ProfileIcon,
     CardGiftcard as DonateIcon,
-    Edit as EditIcon,
-    MoreHoriz as EllipsisIcon,
     Share as ShareIcon,
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, DateDisplay, ReportsLink, SearchList, SelectLanguageDialog, StarButton } from "components";
@@ -22,6 +20,7 @@ import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguag
 import { ResourceListVertical } from "components/lists";
 import { validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
+import { EditIcon, EllipsisIcon } from "@shared/icons";
 
 enum TabOptions {
     Resources = "Resources",
@@ -234,7 +233,7 @@ export const OrganizationView = ({
                         marginRight: 1,
                     }}
                 >
-                    <EllipsisIcon />
+                    <EllipsisIcon fill={palette.background.textSecondary} />
                 </IconButton>
             </Tooltip>
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
@@ -253,10 +252,7 @@ export const OrganizationView = ({
                                     size="small"
                                     onClick={onEdit}
                                 >
-                                    <EditIcon sx={{
-                                        fill: palette.mode === 'light' ?
-                                            palette.primary.main : palette.secondary.light,
-                                    }} />
+                                    <EditIcon fill={palette.secondary.main} />
                                 </IconButton>
                             </Tooltip>
                         </Stack>
@@ -323,7 +319,7 @@ export const OrganizationView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.mode, palette.primary.main, palette.secondary.light, palette.secondary.dark, profileColors, openMoreMenu, loading, canEdit, name, onEdit, handle, organization?.created_at, organization?.id, organization?.reportsCount, organization?.isStarred, organization?.stars, bio, shareLink, canStar, session]);
+    ), [palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.secondary.main, palette.secondary.dark, profileColors, openMoreMenu, loading, canEdit, name, onEdit, handle, organization?.created_at, organization?.id, organization?.reportsCount, organization?.isStarred, organization?.stars, bio, shareLink, canStar, session]);
 
     /**
      * Opens add new page

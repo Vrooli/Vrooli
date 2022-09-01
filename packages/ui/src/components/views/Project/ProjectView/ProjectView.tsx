@@ -8,8 +8,6 @@ import { projectQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     CardGiftcard as DonateIcon,
-    Edit as EditIcon,
-    MoreHoriz as EllipsisIcon,
     Share as ShareIcon,
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, DateDisplay, ResourceListVertical, SearchList, SelectLanguageDialog, StarButton } from "components";
@@ -19,6 +17,7 @@ import { Project, ResourceList } from "types";
 import { SearchListGenerator } from "components/lists/types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, PubSub, SearchType } from "utils";
 import { validate as uuidValidate } from 'uuid';
+import { EditIcon, EllipsisIcon } from "@shared/icons";
 
 enum TabOptions {
     Resources = "Resources",
@@ -189,7 +188,7 @@ export const ProjectView = ({
                         marginRight: 1,
                     }}
                 >
-                    <EllipsisIcon />
+                    <EllipsisIcon fill={palette.background.textSecondary} />
                 </IconButton>
             </Tooltip>
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
@@ -208,10 +207,7 @@ export const ProjectView = ({
                                     size="small"
                                     onClick={onEdit}
                                 >
-                                    <EditIcon sx={{
-                                        fill: palette.mode === 'light' ?
-                                            palette.primary.main : palette.secondary.light,
-                                    }} />
+                                    <EditIcon fill={palette.secondary.main} />
                                 </IconButton>
                             </Tooltip>
                         </Stack>
@@ -275,7 +271,7 @@ export const ProjectView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.mode, palette.primary.main, palette.secondary.light, palette.secondary.dark, openMoreMenu, loading, canEdit, name, onEdit, handle, project?.created_at, project?.id, project?.isStarred, project?.stars, description, shareLink, canStar, session]);
+    ), [palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.secondary.main, palette.secondary.dark, openMoreMenu, loading, canEdit, name, onEdit, handle, project?.created_at, project?.id, project?.isStarred, project?.stars, description, shareLink, canStar, session]);
 
     /**
     * Opens add new page
