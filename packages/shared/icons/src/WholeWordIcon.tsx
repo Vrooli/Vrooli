@@ -1,15 +1,8 @@
+import { SvgBase } from './base';
 import { SvgProps } from './types';
 
 export const WholeWordIcon = (props: SvgProps) => (
-    <svg
-        id={props.id}
-        style={props.style}
-        width={props.width ?? '24px'}
-        height={props.height ?? '24px'}
-        viewBox="0 0 24 24"
-        role="img"
-        xmlSpace="preserve"
-        xmlns="http://www.w3.org/2000/svg">
+    <SvgBase props={props}>
         <g
             aria-label="ab"
             transform="matrix(1.13298 0 0 1.02124 -.05 .1)"
@@ -33,5 +26,5 @@ export const WholeWordIcon = (props: SvgProps) => (
             }}
             d="M.73 10.73v8.81M23.28 10.73v8.81M23.15 19.54H.75"
         />
-    </svg>
+    </SvgBase>
 )

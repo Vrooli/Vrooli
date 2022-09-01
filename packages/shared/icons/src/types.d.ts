@@ -7,6 +7,6 @@ export interface SvgProps {
     id?: string;
     style?: any;
     onClick?: () => any;
-    width?: number | string;
-    height?: number | string;
+    width?: number | string | null;
+    height?: number | string | null;
 }

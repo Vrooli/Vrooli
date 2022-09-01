@@ -1,13 +1,8 @@
+import { SvgBase } from './base';
 import { SvgProps } from './types';
 
 export const HelpIcon = (props: SvgProps) => (
-    <svg
-        id={props.id}
-        style={props.style}
-        width={props.width ?? '24px'}
-        height={props.height ?? '24px'}
-        viewBox="0 0 24 24"
-        xmlns="http://www.w3.org/2000/svg">
+    <SvgBase props={props}>
         <defs>
             <path
                 id="a"
@@ -37,5 +32,5 @@ export const HelpIcon = (props: SvgProps) => (
             aria-label="Help"
             transform="matrix(1.50397 0 0 1.42864 27.708 9.305)"
         />
-    </svg>
+    </SvgBase>
 )

@@ -1,13 +1,8 @@
+import { SvgBase } from './base';
 import { SvgProps } from './types';
 
 export const RoutineValidIcon = (props: SvgProps) => (
-    <svg
-        id={props.id}
-        style={props.style}
-        width={props.width ?? '24px'}
-        height={props.height ?? '24px'}
-        viewBox="0 0 24 24"
-        xmlns="http://www.w3.org/2000/svg">
+    <SvgBase props={props}>
         <path
             style={{
                 fillOpacity: 0,
@@ -39,5 +34,5 @@ export const RoutineValidIcon = (props: SvgProps) => (
             }}
             d="M17.28145 14.26879H6.71855a5.28154 3.9889 0 0 0 5.28232 3.9895 5.28154 3.9889 0 0 0 5.28058-3.9895z"
         />
-    </svg>
+    </SvgBase>
 )

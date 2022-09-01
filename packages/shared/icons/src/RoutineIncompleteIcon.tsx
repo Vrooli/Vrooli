@@ -1,13 +1,8 @@
+import { SvgBase } from './base';
 import { SvgProps } from './types';
 
 export const RoutineIncompleteIcon = (props: SvgProps) => (
-    <svg
-        id={props.id}
-        style={props.style}
-        width={props.width ?? '24px'}
-        height={props.height ?? '24px'}
-        viewBox="0 0 24 24"
-        xmlns="http://www.w3.org/2000/svg">
+    <SvgBase props={props}>
         <path
             style={{
                 fillOpacity: 0,
@@ -39,5 +34,5 @@ export const RoutineIncompleteIcon = (props: SvgProps) => (
             }}
             d="M7.61994 15.83595h8.76012"
         />
-    </svg>
+    </SvgBase>
 )

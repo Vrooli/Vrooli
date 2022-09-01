@@ -1,13 +1,8 @@
+import { SvgBase } from './base';
 import { SvgProps } from './types';
 
 export const UnlinkNodeIcon = (props: SvgProps) => (
-    <svg
-        id={props.id}
-        style={props.style}
-        width={props.width ?? '24px'}
-        height={props.height ?? '24px'}
-        viewBox="0 0 24 24"
-        xmlns="http://www.w3.org/2000/svg">
+    <SvgBase props={props}>
         <g fill="none">
             <path
                 style={{
@@ -28,5 +23,5 @@ export const UnlinkNodeIcon = (props: SvgProps) => (
                 d="m15.46 6.93 4.56-4.55m-4.6-.02 4.55 4.57"
             />
         </g>
-    </svg>
+    </SvgBase>
 )

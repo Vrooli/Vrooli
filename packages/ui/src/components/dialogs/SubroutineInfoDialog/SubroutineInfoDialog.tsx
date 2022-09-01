@@ -337,6 +337,7 @@ export const SubroutineInfoDialog = ({
                         <Grid item xs={12}>
                             <RelationshipButtons
                                 disabled={!isEditing}
+                                isFormDirty={formik.dirty}
                                 objectType={ObjectType.Routine}
                                 onRelationshipsChange={onRelationshipsChange}
                                 relationships={relationships}

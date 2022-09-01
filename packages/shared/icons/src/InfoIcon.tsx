@@ -1,13 +1,8 @@
+import { SvgBase } from './base';
 import { SvgProps } from './types';
 
 export const InfoIcon = (props: SvgProps) => (
-    <svg
-        id={props.id}
-        style={props.style}
-        width={props.width ?? '24px'}
-        height={props.height ?? '24px'}
-        viewBox="0 0 24 24"
-        xmlns="http://www.w3.org/2000/svg">
+    <SvgBase props={props}>
         <defs>
             <path
                 id="a"
@@ -45,5 +40,5 @@ export const InfoIcon = (props: SvgProps) => (
             }}
             d="M12.47 7.39a.491.491 0 0 1-.49.491.491.491 0 0 1-.492-.49.491.491 0 0 1 .492-.492.491.491 0 0 1 .49.491z"
         />
-    </svg>
+    </SvgBase>
 )

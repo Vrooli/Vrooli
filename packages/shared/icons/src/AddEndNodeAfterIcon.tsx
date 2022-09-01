@@ -1,13 +1,8 @@
+import { SvgBase } from './base';
 import { SvgProps } from './types';
 
 export const AddEndNodeAfterIcon = (props: SvgProps) => (
-    <svg
-        id={props.id}
-        style={props.style}
-        width={props.width ?? '24px'}
-        height={props.height ?? '24px'}
-        viewBox="0 0 24 24"
-        xmlns="http://www.w3.org/2000/svg">
+    <SvgBase props={props}>
         <g fill="none">
             <path
                 style={{
@@ -28,5 +23,5 @@ export const AddEndNodeAfterIcon = (props: SvgProps) => (
                 d="M9.28 11.89h3.91M.87 8.2h7.57v7.58H.87ZM23.18 12a4.6 4.6 0 0 1-4.6 4.6 4.6 4.6 0 0 1-4.6-4.6 4.6 4.6 0 0 1 4.6-4.6 4.6 4.6 0 0 1 4.6 4.6z"
             />
         </g>
-    </svg>
+    </SvgBase>
 )

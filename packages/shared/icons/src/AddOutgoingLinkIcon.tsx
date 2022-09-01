@@ -1,13 +1,8 @@
+import { SvgBase } from './base';
 import { SvgProps } from './types';
 
 export const AddOutgoingLinkIcon = (props: SvgProps) => (
-    <svg
-        id={props.id}
-        style={props.style}
-        width={props.width ?? '24px'}
-        height={props.height ?? '24px'}
-        viewBox="0 0 24 24"
-        xmlns="http://www.w3.org/2000/svg">
+    <SvgBase props={props}>
         <g fill="none">
             <path
                 style={{
@@ -28,5 +23,5 @@ export const AddOutgoingLinkIcon = (props: SvgProps) => (
                 d="M14.5 4.65h6.44M17.69 1.4v6.44"
             />
         </g>
-    </svg>
+    </SvgBase>
 )

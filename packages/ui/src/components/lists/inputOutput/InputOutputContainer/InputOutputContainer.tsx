@@ -79,14 +79,20 @@ export const InputOutputContainer = ({
 }: InputOutputContainerProps) => {
     const { palette } = useTheme();
 
+    const sortedList = useMemo(() => {
+        return list;
+        // TODO when index added in schema.prisma, sort by index
+        //return list.sort((a, b) => a. - b.index);
+    } , [list]);
+
     const type = useMemo(() => isInput ? 'input' : 'output', [isInput]);
-    // Store open/close state of each list item
+    // Store open/close state of each sortedList item
     const [isOpenArray, setIsOpenArray] = useState<boolean[]>([]);
     useEffect(() => {
-        if (list.length > 0 && list.length !== isOpenArray.length) {
-            setIsOpenArray(list.map(() => false));
+        if (sortedList.length > 0 && sortedList.length !== isOpenArray.length) {
+            setIsOpenArray(sortedList.map(() => false));
         }
-    }, [list, isOpenArray]);
+    }, [sortedList, isOpenArray]);
 
     /**
      * Open item at index, and close all others
@@ -103,14 +109,14 @@ export const InputOutputContainer = ({
     }, [isOpenArray]);
 
     const onItemAdd = useCallback((index: number, newItem: RoutineInput | RoutineOutput) => {
-        const newIsOpenArray = new Array(list.length + 1).fill(false);
-        newIsOpenArray[Math.min(index + 1, list.length)] = true;
+        const newIsOpenArray = new Array(sortedList.length + 1).fill(false);
+        newIsOpenArray[Math.min(index + 1, sortedList.length)] = true;
         setIsOpenArray(newIsOpenArray);
-        const newList = [...list];
+        const newList = [...sortedList];
         let newItemFormatted: RoutineInput | RoutineOutput = {
             ...newItem,
             id: uuid(),
-            name: newItem.name || `${isInput ? 'Input' : 'Output'} ${list.length + 1}`,
+            name: newItem.name || `${isInput ? 'Input' : 'Output'} ${sortedList.length + 1}`,
             standard: newItem.standard || null,
             translations: newItem.translations ? newItem.translations : [{
                 id: uuid(),
@@ -119,32 +125,32 @@ export const InputOutputContainer = ({
             }] as any,
         };
         if (isInput && (newItem as RoutineInput).isRequired !== true && (newItem as RoutineInput).isRequired !== false) (newItemFormatted as RoutineInput).isRequired = true;
-        // Add new item to list at index (splice does not work)
+        // Add new item to sortedList at index (splice does not work)
         const listStart = newList.slice(0, index);
         const listEnd = newList.slice(index);
         const combined = [...listStart, newItemFormatted, ...listEnd];
         // newList.splice(index + 1, 0, newItemFormatted);
         handleUpdate(combined as any);
-    }, [list, language, isInput, handleUpdate]);
+    }, [sortedList, language, isInput, handleUpdate]);
 
     const onItemReorder = useCallback((fromIndex: number, toIndex: number) => {
         console.log('onItemReorder', fromIndex, toIndex);
-        const newList = [...list];
-        console.log('original list', newList);
+        const newList = [...sortedList];
+        console.log('original sortedList', newList);
         const [removed] = newList.splice(fromIndex, 1);
         newList.splice(toIndex, 0, removed);
-        console.log('new list', newList);
+        console.log('new sortedList', newList);
         handleUpdate(newList as any);
-    }, [handleUpdate, list]);
+    }, [handleUpdate, sortedList]);
 
     const onItemUpdate = useCallback((index: number, updatedItem: InputShape | OutputShape) => {
-        handleUpdate(updateArray(list, index, updatedItem));
-    }, [handleUpdate, list]);
+        handleUpdate(updateArray(sortedList, index, updatedItem));
+    }, [handleUpdate, sortedList]);
 
     const onItemDelete = useCallback((index: number) => {
         setIsOpenArray(isOpenArray.filter((_, i) => i !== index));
-        handleUpdate([...list.filter((_, i) => i !== index)]);
-    }, [handleUpdate, list, isOpenArray]);
+        handleUpdate([...sortedList.filter((_, i) => i !== index)]);
+    }, [handleUpdate, sortedList, isOpenArray]);
 
     // Move item dialog
     const [moveStartIndex, setMoveStartIndex] = useState<number>(-1);
@@ -167,7 +173,7 @@ export const InputOutputContainer = ({
             <ReorderInputDialog
                 isInput={isInput}
                 handleClose={closeMoveDialog}
-                listLength={list.length}
+                listLength={sortedList.length}
                 startIndex={moveStartIndex}
                 zIndex={zIndex + 1}
             />
@@ -195,7 +201,7 @@ export const InputOutputContainer = ({
                     background: palette.background.default,
                 }}>
                     {/* List of inputs. If editing, display delete icon next to each and an add button at the bottom */}
-                    {list.map((item, index) => (
+                    {sortedList.map((item, index) => (
                         <Fragment key={index}>
                             <InputOutputListItem
                                 key={`${type}-item-${item.id}`}
@@ -215,10 +221,10 @@ export const InputOutputContainer = ({
                             />
                         </Fragment>
                     ))}
-                    {/* Show add button at bottom of list */}
+                    {/* Show add button at bottom of sortedList */}
                     {isEditing && <AddButton
-                        key={`add-${type}-item-${list.length}`}
-                        index={list.length}
+                        key={`add-${type}-item-${sortedList.length}`}
+                        index={sortedList.length}
                         isInput={isInput}
                         handleAdd={onItemAdd}
                     />}

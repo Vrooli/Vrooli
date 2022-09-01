@@ -5,7 +5,7 @@
 import { Box, IconButton, Palette, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import { RelationshipButtonsProps, RelationshipItemOrganization, RelationshipItemProject, RelationshipItemRoutine, RelationshipItemUser, RelationshipOwner } from '../types';
-import { getTranslation, getUserLanguages, ObjectType } from 'utils';
+import { getTranslation, getUserLanguages, ObjectType, PubSub } from 'utils';
 import { ListMenu, OrganizationSelectOrCreateDialog, ProjectSelectOrCreateDialog, RoutineSelectOrCreateDialog, UserSelectDialog } from 'components/dialogs';
 import {
     Apartment as OrganizationIcon,
@@ -41,8 +41,8 @@ const commonButtonProps = (palette: Palette) => ({
 })
 
 const commonIconProps = {
-    width: 'unset',
-    height: 'unset',
+    width: "unset",
+    height: "unset",
 }
 
 const commonLabelProps = {
@@ -64,6 +64,7 @@ const ownerTypes: ListMenuItemData<OwnerTypesEnum>[] = [
 
 export function RelationshipButtons({
     disabled = false,
+    isFormDirty = false,
     objectType,
     onRelationshipsChange,
     relationships,
@@ -111,11 +112,13 @@ export function RelationshipButtons({
     }, [disabled, isOwnerAvailable]);
     const closeOwnerDialog = useCallback(() => setOwnerDialogAnchor(null), []);
     const handleOwnerDialogSelect = useCallback((ownerType: OwnerTypesEnum) => {
+        console.log('handleOwnerDialogSelect', ownerType)
         if (ownerType === OwnerTypesEnum.Organization) {
             openOrganizationDialog();
         } else if (ownerType === OwnerTypesEnum.AnotherUser) {
             openAnotherUserDialog();
         } else {
+            console.log('setting to self')
             onRelationshipsChange({ owner: userFromSession(session) });
         }
         closeOwnerDialog();
@@ -144,9 +147,25 @@ export function RelationshipButtons({
         if (disabled || !isParentAvailable) return;
         // If parent was set, remove
         if (relationships.parent) onRelationshipsChange({ parent: null });
-        // Otherwise, open parent select dialog
-        else setParentDialogOpen(true);
-    }, [disabled, isParentAvailable, onRelationshipsChange, relationships.parent]);
+        else {
+            // If form is dirty, prompt to confirm (since data will be lost)
+            if (isFormDirty) {
+                PubSub.get().publishAlertDialog({
+                    message: 'Selecting a parent to copy will override existing data. Continue?',
+                    buttons: [
+                        {
+                            text: 'Yes', onClick: () => { setParentDialogOpen(true); }
+                        },
+                        {
+                            text: "No", onClick: () => { }
+                        },
+                    ]
+                });
+            }
+            // Otherwise, open parent select dialog
+            else setParentDialogOpen(true);
+        }
+    }, [disabled, isFormDirty, isParentAvailable, onRelationshipsChange, relationships.parent]);
     const closeParentDialog = useCallback(() => { setParentDialogOpen(false); }, [setParentDialogOpen]);
     const handleParentProjectSelect = useCallback((parent: RelationshipItemProject) => {
         onRelationshipsChange({ parent });

@@ -265,6 +265,7 @@ export type RelationshipsObject = {
 
 export interface RelationshipButtonsProps {
     disabled?: boolean;
+    isFormDirty?: boolean;
     objectType: ObjectType;
     onRelationshipsChange: (relationships: Partial<RelationshipsObject>) => void;
     relationships: RelationshipsObject;
