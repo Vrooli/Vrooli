@@ -159,6 +159,27 @@ export const BuildView = ({
     }, [changeStack, changeStackIndex, setChangeStack, setChangeStackIndex, setChangedRoutine]);
     console.log('canundo', canUndo, changeStackIndex, );
 
+    // Handle undo and redo keys
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            console.log('keydown', e);
+            // CTRL + Y or CTRL + SHIFT + Z = redo
+            if (e.ctrlKey && (e.key === 'y' || e.key === 'Z')) {
+                redo();
+            }
+            // CTRL + Z = undo
+            else if (e.ctrlKey && e.key === 'z') {
+                undo();
+            }
+        };
+
+        // attach the event listener
+        document.addEventListener('keydown', handleKeyDown);
+        // remove the event listener
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [redo, undo]);
 
     useEffect(() => {
         clearChangeStack(routine);

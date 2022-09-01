@@ -31,6 +31,7 @@ export const ProjectCreate = ({
         project: null,
     });
     const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
+        console.log('onRelationshipsChange', newRelationshipsObject);
         setRelationships({
             ...relationships,
             ...newRelationshipsObject,
@@ -92,6 +93,17 @@ export const ProjectCreate = ({
                 description: values.description,
                 name: values.name,
             })
+            console.log('onsubmit', values, relationships, shapeProjectCreate({
+                id: uuid(),
+                isComplete: relationships.isComplete,
+                isPrivate: relationships.isPrivate,
+                owner: relationships.owner,
+                parent: relationships.parent,
+                resourceLists: [resourceList],
+                tags: tags,
+                translations: allTranslations,
+            }));
+            return;
             mutationWrapper({
                 mutation,
                 input: shapeProjectCreate({

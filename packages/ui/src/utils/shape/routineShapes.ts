@@ -55,6 +55,7 @@ export const shapeRoutineCreate = (item: RoutineShape): RoutineCreateInput => ({
     isAutomatable: item.isAutomatable,
     isComplete: item.isComplete,
     isInternal: item.isInternal,
+    isPrivate: item.isPrivate,
     version: item.version,
     parentId: item.parent?.id,
     projectId: item.project?.id,
@@ -76,11 +77,12 @@ export const shapeRoutineUpdate = (
     updated: RoutineShape
 ): RoutineUpdateInput | undefined => shapeUpdate(original, updated, (o, u) => ({
     id: o.id,
-    isAutomatable: u.isAutomatable,
-    isComplete: u.isComplete,
-    isInternal: u.isInternal,
-    version: u.version,
-    parentId: u.parent?.id,
+    isAutomatable: u.isAutomatable !== o.isAutomatable ? u.isAutomatable : undefined,
+    isComplete: u.isComplete !== o.isComplete ? u.isComplete : undefined,
+    isInternal: u.isInternal !== o.isInternal ? u.isInternal : undefined,
+    isPrivate: u.isPrivate !== o.isPrivate ? u.isPrivate : undefined,
+    version: u.version !== o.version ? u.version : undefined,
+    parentId: u.parent?.id !== o.parent?.id ? u.parent?.id : undefined,
     // projectId: u.p
     userId: u.owner?.__typename === ObjectType.User ? u.owner.id : undefined,
     organizationId: u.owner?.__typename === ObjectType.Organization ? u.owner.id : undefined,

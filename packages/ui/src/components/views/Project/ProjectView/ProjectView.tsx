@@ -136,7 +136,7 @@ export const ProjectView = ({
                     itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search project's routines...",
                     noResultsText: "No routines found",
-                    where: { projectId: id, isComplete: !canEdit ? true : undefined, isInternal: false },
+                    where: { projectId: id, isComplete: !canEdit ? true : undefined, isInternal: false, includePrivate: true },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 };
             case TabOptions.Standards:
@@ -145,7 +145,7 @@ export const ProjectView = ({
                     itemKeyPrefix: 'standard-list-item',
                     placeholder: "Search project's standards...",
                     noResultsText: "No standards found",
-                    where: { projectId: id },
+                    where: { projectId: id, includePrivate: true },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
                 }
             default:

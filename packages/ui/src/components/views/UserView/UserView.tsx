@@ -140,7 +140,7 @@ export const UserView = ({
                     itemKeyPrefix: 'organization-list-item',
                     placeholder: "Search user's organizations...",
                     noResultsText: "No organizations found",
-                    where: { userId: id },
+                    where: { userId: id, includePrivate: true },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Organization, newValue.id),
                 }
             case TabOptions.Projects:
@@ -149,7 +149,7 @@ export const UserView = ({
                     itemKeyPrefix: 'project-list-item',
                     placeholder: "Search user's projects...",
                     noResultsText: "No projects found",
-                    where: { userId: id, isComplete: !isOwn ? true : undefined },
+                    where: { userId: id, isComplete: !isOwn ? true : undefined, includePrivate: true },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Project, newValue.id),
                 }
             case TabOptions.Routines:
@@ -158,7 +158,7 @@ export const UserView = ({
                     itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search user's routines...",
                     noResultsText: "No routines found",
-                    where: { userId: id, isComplete: !isOwn ? true : undefined, isInternal: false },
+                    where: { userId: id, isComplete: !isOwn ? true : undefined, isInternal: false, includePrivate: true },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 }
             case TabOptions.Standards:
@@ -167,7 +167,7 @@ export const UserView = ({
                     itemKeyPrefix: 'standard-list-item',
                     placeholder: "Search user's standards...",
                     noResultsText: "No standards found",
-                    where: { userId: id },
+                    where: { userId: id, includePrivate: true },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
                 }
             default:
@@ -331,7 +331,7 @@ export const UserView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [bio, handle, isOwn, loading, name, onEdit, openMoreMenu, palette, profileColors, session, shareLink, user?.created_at, user?.id, user?.isStarred, user?.stars]);
+    ), [bio, handle, isOwn, loading, name, onEdit, openMoreMenu, palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.mode, palette.primary.dark, palette.primary.main, palette.secondary.dark, palette.secondary.light, profileColors, session, shareLink, user?.created_at, user?.id, user?.isStarred, user?.reportsCount, user?.stars]);
 
     /**
      * Opens add new page

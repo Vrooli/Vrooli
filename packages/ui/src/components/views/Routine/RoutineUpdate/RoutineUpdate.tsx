@@ -232,6 +232,7 @@ export const RoutineUpdate = ({
             </Grid>
             <Grid item xs={12}>
                 <RelationshipButtons
+                    isFormDirty={formik.dirty}
                     objectType={ObjectType.Routine}
                     onRelationshipsChange={onRelationshipsChange}
                     relationships={relationships}

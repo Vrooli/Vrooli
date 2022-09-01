@@ -1434,6 +1434,7 @@ type ReadManyHelperProps<GraphQLModel, SearchInput extends SearchInputBase<any>>
 /**
  * Helper function for reading many objects in a single line.
  * Cursor-based search. Supports pagination, sorting, and filtering by string.
+ * NOTE: Permissions queries should be passed into additionalQueries
  * @returns Paginated search result
  */
 export async function readManyHelper<GraphQLModel, SearchInput extends SearchInputBase<any>>({
@@ -1451,10 +1452,6 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0023') });
     // Make sure ID is in partialInfo, since this is required for cursor-based search
     partialInfo.id = true;
-    // Check permissions
-    // TODO need different permissions than readonehelper. Needs to use requested fields to determine which permissions to check.
-    // For example, a routines query with a specified organizationId input must check read permission on the organizationId, 
-    // and use that to determine if private routines can be returned.
     // Create query for specified ids
     const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: onlyValidIds(input.ids) } }) : undefined;
     // Determine text search query

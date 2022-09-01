@@ -505,7 +505,8 @@ export const routineMutater = (prisma: PrismaType) => ({
         return {
             id: data.id,
             isAutomatable: data.isAutomatable ?? undefined,
-            isComplete: data.isComplete,
+            isComplete: data.isComplete ?? undefined,
+            isPrivate: data.isPrivate ?? undefined,
             completedAt: (data.isComplete === true) ? new Date().toISOString() : (data.isComplete === false) ? null : undefined,
             complexity: complexity,
             simplicity: simplicity,
