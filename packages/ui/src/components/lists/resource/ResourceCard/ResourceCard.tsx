@@ -6,7 +6,7 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { getTranslation, openLink, PubSub, ResourceType } from 'utils';
+import { getTranslation, openLink, PubSub, ResourceType, usePress } from 'utils';
 import { useCallback, useMemo } from 'react';
 import { useLocation } from '@shared/route';
 import { ResourceCardProps } from '../../../cards/types';
@@ -72,7 +72,7 @@ export const ResourceCard = ({
         return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link)
     }, [data]);
 
-    const handleClick = useCallback((event: any) => {
+    const handleClick = useCallback((target: React.MouseEvent['target']) => {
         // Find the resource type
         const resourceType = getResourceType(data.link);
         // If null, show error
@@ -100,9 +100,15 @@ export const ResourceCard = ({
         // If handle, open ADA Handle payment site
         else if (resourceType === ResourceType.Handle) openLink(setLocation, `https://handle.me/${data.link}`);
     }, [data.link, setLocation]);
-    const handleRightClick = useCallback((event: any) => {
-        if (onRightClick) onRightClick(event, index);
+    const handleRightClick = useCallback((target: React.MouseEvent['target']) => {
+        if (onRightClick) onRightClick(target, index);
     }, [onRightClick, index]);
+
+    const pressEvents = usePress({ 
+        onLongPress: handleRightClick,
+        onClick: handleClick,
+        onRightClick: handleRightClick,
+    });
 
     const onEdit = useCallback((e) => {
         e.stopPropagation();
@@ -117,8 +123,7 @@ export const ResourceCard = ({
     return (
         <Tooltip placement="top" title={description ?? data.link}>
             <Box
-                onClick={handleClick}
-                onContextMenu={handleRightClick}
+                {...pressEvents}
                 sx={{
                     ...cardRoot,
                     ...noSelect,

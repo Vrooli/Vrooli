@@ -57,13 +57,14 @@ export const HelpButton = ({
                         }}
                         sx={{
                             '& .MuiPopover-paper': {
-                                background: palette.background.paper,
+                                background: palette.background.default,
                                 maxWidth: 'min(90vw, 400px)',
                             },
                             '& .MuiMenu-list': {
                                 padding: 0,
                             },
-                            // Style visited, active, and hovered links differently
+                            // Global link styles do not render correctly for some reason,
+                            // so we must set them again
                             a: {
                                 color: palette.mode === 'light' ? '#001cd3' : '#dd86db',
                                 '&:visited': {
@@ -75,11 +76,13 @@ export const HelpButton = ({
                                 '&:hover': {
                                     color: palette.mode === 'light' ? '#5a6ff6' : '#f3d4f2',
                                 },
+                                // Remove underline on links
+                                textDecoration: 'none',
                             },
                         }}
                     >
                         <MenuTitle onClose={closeMenu} />
-                        <Box sx={{ padding: 1 }}>
+                        <Box sx={{ padding: 2 }}>
                             <Markdown>{markdown}</Markdown>
                         </Box>
                     </Menu>

@@ -33,7 +33,6 @@ export function ListMenu<T>({
                 color: 'red',
             },
         }}/>;
-        console.log('item fill', iconColor, palette.background.textPrimary)
         const fill = !iconColor || ['default', 'unset'].includes(iconColor) ? palette.background.textPrimary : iconColor;
         const itemIcon = Icon ? (
             <ListItemIcon>

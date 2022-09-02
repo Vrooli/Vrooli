@@ -6,6 +6,8 @@ import { useMemo } from 'react';
 import { NodeColumnProps } from '../types';
 import { EndNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
 import { NodeType } from 'graphql/generated/globalTypes';
+import { Node, NodeEnd, NodeRoutineList } from 'types';
+import { getTranslation } from 'utils';
 
 export const NodeColumn = ({
     handleAction,
@@ -43,7 +45,7 @@ export const NodeColumn = ({
             nodesWithGaps[node.rowIndex as number] = node;
         })
         // Now that we have a complete array, create a list of nodes
-        return nodesWithGaps.map((node, index) => {
+        return nodesWithGaps.map((node: Node | null, index) => {
             // If a placeholder, return a placeholder node
             if (node === null) {
                 return (
@@ -59,9 +61,8 @@ export const NodeColumn = ({
                 key: `node-${columnIndex}-${index}`,
                 handleAction,
                 isLinked: true,
-                node,
                 scale,
-                label: node.title,
+                label: getTranslation(node, 'title', [language], false) ?? null,
                 labelVisible,
                 isEditing,
                 canDrag: isEditing,
@@ -70,9 +71,18 @@ export const NodeColumn = ({
             // Determine node to display based on node type
             switch (node.type) {
                 case NodeType.End:
-                    return <EndNode {...nodeProps} linksIn={links.filter(l => l.toId === node.id)} />
+                    return <EndNode
+                        {...nodeProps}
+                        handleUpdate={handleNodeUpdate}
+                        language={language}
+                        linksIn={links.filter(l => l.toId === node.id)}
+                        node={node as NodeEnd}
+                    />
                 case NodeType.Redirect:
-                    return <RedirectNode {...nodeProps} />
+                    return <RedirectNode
+                        {...nodeProps}
+                        node={node as Node}//as NodeRedirect}
+                    />
                 case NodeType.RoutineList:
                     return (<RoutineListNode
                         {...nodeProps}
@@ -81,9 +91,14 @@ export const NodeColumn = ({
                         language={language}
                         linksIn={links.filter(l => l.toId === node.id)}
                         linksOut={links.filter(l => l.fromId === node.id)}
+                        node={node as NodeRoutineList}
                     />)
                 case NodeType.Start:
-                    return <StartNode {...nodeProps} linksOut={links.filter(l => l.fromId === node.id)} />
+                    return <StartNode
+                        {...nodeProps}
+                        linksOut={links.filter(l => l.fromId === node.id)}
+                        node={node as Node}
+                    />
                 default:
                     return null;
             }

@@ -22,7 +22,7 @@ import {
 } from '../styles';
 import { multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { NodeDataRoutineList, NodeDataRoutineListItem } from 'types';
-import { getTranslation, BuildAction, updateTranslationField, PubSub, useLongPress } from 'utils';
+import { getTranslation, BuildAction, updateTranslationField, PubSub, usePress } from 'utils';
 import { EditableLabel } from 'components/inputs';
 import { AddIcon, CloseIcon } from '@shared/icons';
 
@@ -80,22 +80,12 @@ export const RoutineListNode = ({
 
     // Default to open if editing and empty
     const [collapseOpen, setCollapseOpen] = useState<boolean>(isEditing && (node?.data as NodeDataRoutineList)?.routines?.length === 0);
-    const handleNodeClick = useCallback((event: any) => {
-        if (isLinked && (!canDrag || shouldCollapse(event.target.id))) {
+    const toggleCollapse = useCallback((target: React.MouseEvent['target']) => {
+        if (isLinked && shouldCollapse((target as any).id)) {
             PubSub.get().publishFastUpdate({ duration: 1000 });
             setCollapseOpen(!collapseOpen);
         }
-    }, [canDrag, collapseOpen, isLinked]);
-    /**
-     * When not dragging, DraggableNode onClick will not be triggered. So 
-     * we must handle this ourselves.
-     */
-    const handleNodeMouseUp = useCallback((event: any) => {
-        if (isLinked && !canDrag && shouldCollapse(event.target.id)) {
-            PubSub.get().publishFastUpdate({ duration: 1000 });
-            setCollapseOpen(!collapseOpen);
-        }
-    }, [canDrag, isLinked, collapseOpen]);
+    }, [collapseOpen, isLinked]);
 
     const handleNodeUnlink = useCallback(() => { handleAction(BuildAction.UnlinkNode, node.id); }, [handleAction, node.id]);
     const handleNodeDelete = useCallback(() => { handleAction(BuildAction.DeleteNode, node.id); }, [handleAction, node.id]);
@@ -314,21 +304,23 @@ export const RoutineListNode = ({
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
+    const openContext = useCallback((target: React.MouseEvent['target']) => {
         // Ignore if not linked, not editing, or in the middle of an event (drag, collapse, move, etc.)
         if (!canDrag || !isLinked || !isEditing || isLabelDialogOpen.current || fastUpdateRef.current) return;
-        ev.preventDefault();
-        setContextAnchor(ev.currentTarget ?? ev.target)
+        setContextAnchor(target)
     }, [canDrag, isEditing, isLinked, isLabelDialogOpen]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
-    const longPressEvent = useLongPress({ onLongPress: openContext });
+    const pressEvents = usePress({ 
+        onLongPress: openContext,
+        onClick: toggleCollapse,
+        onRightClick: openContext,
+    });
 
     return (
         <DraggableNode
             className="handle"
             canDrag={canDrag}
             nodeId={node.id}
-            onClick={handleNodeClick}
             dragThreshold={DRAG_THRESHOLD}
             sx={{
                 zIndex: 5,
@@ -356,9 +348,7 @@ export const RoutineListNode = ({
                 <Container
                     id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
                     aria-owns={contextOpen ? contextId : undefined}
-                    onContextMenu={openContext}
-                    {...longPressEvent}
-                    onMouseUp={handleNodeMouseUp}
+                    {...pressEvents}
                     sx={{
                         display: 'flex',
                         height: '48px', // Lighthouse SEO requirement

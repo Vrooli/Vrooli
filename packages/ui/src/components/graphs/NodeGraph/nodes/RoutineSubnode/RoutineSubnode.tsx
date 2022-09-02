@@ -9,14 +9,14 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
+import { CSSProperties, useCallback, useMemo, useState } from 'react';
 import { RoutineSubnodeProps } from '../types';
 import {
     routineNodeCheckboxOption,
     routineNodeCheckboxLabel,
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
-import { BuildAction, getTranslation, updateTranslationField } from 'utils';
+import { BuildAction, getTranslation, updateTranslationField, usePress } from 'utils';
 import { EditableLabel, NodeContextMenu } from 'components';
 import { CloseIcon } from '@shared/icons';
 
@@ -116,13 +116,18 @@ export const RoutineSubnode = ({
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `subroutine-context-menu-${data.id}`, [data?.id]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((ev: MouseEvent<HTMLElement>) => {
+    const openContext = useCallback((target: React.MouseEvent['target']) => {
+        console.log('subroutine opencontext', isEditing, target)
         // Ignore if not editing
         if (!isEditing) return;
-        setContextAnchor(ev.currentTarget)
-        ev.preventDefault();
+        setContextAnchor(target)
     }, [isEditing]);
-    const closeContext = useCallback(() => setContextAnchor(null), []);
+    const closeContext = useCallback(() => { console.log('closing context'); setContextAnchor(null) }, []);
+    const pressEvents = usePress({ 
+        onLongPress: openContext,
+        onClick: openSubroutine,
+        onRightClick: openContext,
+    });
 
     return (
         <>
@@ -154,9 +159,8 @@ export const RoutineSubnode = ({
             >
                 <Container
                     id={`subroutine-title-bar-${data.id}`}
-                    onContextMenu={openContext}
+                    {...pressEvents}
                     aria-owns={contextOpen ? contextId : undefined}
-                    onClick={openSubroutine}
                     sx={{
                         display: 'flex',
                         alignItems: 'center',

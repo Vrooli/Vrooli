@@ -399,7 +399,7 @@ export const BuildView = ({
      * If closing with unsaved changes, prompt user to save
      */
     const onClose = useCallback(() => {
-        if (isEditing && JSON.stringify(routine) !== JSON.stringify(changedRoutine)) {
+        if (isEditing && changeStack.length > 1) {
             PubSub.get().publishAlertDialog({
                 message: 'There are unsaved changes. Would you like to save before exiting?',
                 buttons: [
@@ -422,7 +422,7 @@ export const BuildView = ({
             removeSearchParams();
             handleClose(false);
         }
-    }, [changedRoutine, handleClose, isEditing, removeSearchParams, routine, updateRoutine]);
+    }, [changeStack.length, handleClose, isEditing, removeSearchParams, updateRoutine]);
 
     /**
      * On page leave, check if routine has changed. 

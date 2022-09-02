@@ -1,11 +1,12 @@
 import { IconButton, Tooltip, Typography } from '@mui/material';
-import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
+import { CSSProperties, useCallback, useMemo, useState } from 'react';
 import { RedirectNodeProps } from '../types';
 import { UTurnLeft as RedirectIcon } from '@mui/icons-material';
 import { NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 import { DraggableNode } from '../';
+import { usePress } from 'utils';
 
 export const RedirectNode = ({
     canDrag,
@@ -35,13 +36,16 @@ export const RedirectNode = ({
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((ev: MouseEvent<HTMLButtonElement>) => {
+    const openContext = useCallback((target: React.MouseEvent['target']) => {
         // Ignore if not linked or editing
         if (!canDrag || !isLinked) return;
-        setContextAnchor(ev.currentTarget)
-        ev.preventDefault();
+        setContextAnchor(target)
     }, [canDrag, isLinked]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
+    const pressEvents = usePress({ 
+        onLongPress: openContext,
+        onRightClick: openContext,
+    });
 
     return (
         <DraggableNode className="handle" canDrag={canDrag} nodeId={node.id}>
@@ -50,7 +54,7 @@ export const RedirectNode = ({
                     id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
                     className="handle"
                     aria-owns={contextOpen ? contextId : undefined}
-                    onContextMenu={openContext}
+                    {...pressEvents}
                     sx={{
                         width: nodeSize,
                         height: nodeSize,

@@ -444,7 +444,7 @@ export const BuildInfoDialog = ({
                                     fullWidth
                                     id="description"
                                     name="description"
-                                    label="description"
+                                    InputLabelProps={{ shrink: true }}
                                     value={formik.values.description}
                                     multiline
                                     maxRows={3}
@@ -524,7 +524,7 @@ export const BuildInfoDialog = ({
                             onClick={() => onSelect(value)}
                         >
                             <ListItemIcon>
-                                <Icon />
+                                <Icon fill={palette.background.textSecondary} />
                             </ListItemIcon>
                             <ListItemText primary={label} secondary={secondaryLabel} sx={{
                                 '& .MuiListItemText-secondary': {

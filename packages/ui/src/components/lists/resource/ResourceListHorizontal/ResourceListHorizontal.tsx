@@ -77,10 +77,9 @@ export const ResourceListHorizontal = ({
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const contextId = useMemo(() => `resource-context-menu-${selectedIndex}`, [selectedIndex]);
-    const openContext = useCallback((ev: MouseEvent<HTMLButtonElement>, index: number) => {
-        setContextAnchor(ev.currentTarget);
+    const openContext = useCallback((target: React.MouseEvent['target'], index: number) => {
+        setContextAnchor(target);
         setSelectedIndex(index);
-        ev.preventDefault();
     }, []);
     const closeContext = useCallback(() => {
         setContextAnchor(null);

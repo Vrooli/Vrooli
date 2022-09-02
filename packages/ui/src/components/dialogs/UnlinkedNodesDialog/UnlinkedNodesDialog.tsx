@@ -18,7 +18,7 @@ import { UnlinkedNodesDialogProps } from '../types';
 import { noSelect } from 'styles';
 import { useCallback } from 'react';
 import { NodeType } from 'graphql/generated/globalTypes';
-import { Node } from 'types';
+import { Node, NodeEnd, NodeRoutineList } from 'types';
 import { EndNode, RedirectNode, RoutineListNode } from 'components';
 import { getTranslation } from 'utils';
 import { UnlinkedNodesIcon } from '@shared/icons';
@@ -46,16 +46,24 @@ export const UnlinkedNodesDialog = ({
             key: `unlinked-node-${node.id}`,
             label: getTranslation(node, 'title', [language], false) ?? null,
             labelVisible: false,
-            node,
             scale: 0.5,
             zIndex,
         }
         // Determine node to display based on node type
         switch (node.type) {
             case NodeType.End:
-                return <EndNode {...nodeProps} linksIn={[]} />
+                return <EndNode
+                    {...nodeProps}
+                    handleUpdate={() => { }} // Intentionally blank
+                    language={language}
+                    linksIn={[]}
+                    node={node as NodeEnd}
+                />
             case NodeType.Redirect:
-                return <RedirectNode {...nodeProps} />
+                return <RedirectNode
+                    {...nodeProps}
+                    node={node as Node}//as NodeRedirect}
+                />
             case NodeType.RoutineList:
                 return <RoutineListNode
                     {...nodeProps}
@@ -65,6 +73,7 @@ export const UnlinkedNodesDialog = ({
                     handleUpdate={() => { }} // Intentionally blank
                     linksIn={[]}
                     linksOut={[]}
+                    node={node as NodeRoutineList}
                 />
             default:
                 return null;
