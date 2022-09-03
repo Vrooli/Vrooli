@@ -59,17 +59,10 @@ export const EndNode = ({
     // Normal click edit menu (title, wasSuccessful, etc.)
     const [editDialogOpen, setEditDialogOpen] = useState<boolean>(false);
     const openEditDialog = useCallback((event: any) => {
-        console.log('handleNodeClick', isLinked, event);
         if (isLinked) {
             setEditDialogOpen(!editDialogOpen);
         }
     }, [isLinked, editDialogOpen]);
-    // const handleNodeMouseUp = useCallback((event: any) => {
-    //     console.log('handleNodeMouseUp', isLinked, event);
-    //     if (isLinked && !canDrag) {
-    //         setEditDialogOpen(!editDialogOpen);
-    //     }
-    // } , [isLinked, canDrag, editDialogOpen]);
     const handleEditDialogClose = useCallback((updatedNode?: NodeEnd) => {
         if (updatedNode) handleUpdate(updatedNode);
         setEditDialogOpen(false);
@@ -80,7 +73,6 @@ export const EndNode = ({
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
     const openContext = useCallback((target: React.MouseEvent['target']) => {
-        console.log('opencontext')
         // Ignore if not linked or not editing
         if (!canDrag || !isLinked || !isEditing) return;
         setContextAnchor(target)

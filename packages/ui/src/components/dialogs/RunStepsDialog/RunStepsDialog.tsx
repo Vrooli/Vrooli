@@ -121,6 +121,7 @@ export const RunStepsDialog = ({
     const [isOpen, setIsOpen] = useState(false);
     const toggleOpen = useCallback(() => setIsOpen(!isOpen), [isOpen]);
     const closeDialog = () => { setIsOpen(false) };
+    console.log('run steps dialog', zIndex);
 
     /**
      * Checks if a routine is complete. If it is a subroutine,
@@ -210,12 +211,8 @@ export const RunStepsDialog = ({
                 open={isOpen}
                 onOpen={() => { }}
                 onClose={closeDialog}
-                ModalProps={{
-                    container: document.getElementById("run-routine-view-dialog"),
-                    style: { position: "absolute" },
-                }}
                 sx={{
-                    zIndex: zIndex + 1,
+                    zIndex,
                     '& .MuiDrawer-paper': {
                         background: palette.background.default,
                         minHeight: '100vh',

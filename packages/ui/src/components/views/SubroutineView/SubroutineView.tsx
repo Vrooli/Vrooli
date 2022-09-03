@@ -66,12 +66,10 @@ export const SubroutineView = ({
 
     // The schema and formik keys for the form
     const formValueMap = useMemo<{ [fieldName: string]: FieldData }>(() => {
-        console.log('calculating formvaluemap')
         if (!internalRoutine) return {};
         const schemas: { [fieldName: string]: FieldData } = {};
         for (let i = 0; i < internalRoutine.inputs?.length; i++) {
             const currInput = internalRoutine.inputs[i];
-            console.log('currinputttttttt', currInput);
             if (!currInput.standard) continue;
             const currSchema = standardToFieldData({
                 description: getTranslation(currInput, 'description', getUserLanguages(session), false) ?? getTranslation(currInput.standard, 'description', getUserLanguages(session), false),
@@ -151,7 +149,6 @@ export const SubroutineView = ({
     }, [internalRoutine, loading, session, zIndex]);
 
     const inputComponents = useMemo(() => {
-        console.log('rendering input components', formik.values)
         if (!internalRoutine?.inputs || !Array.isArray(internalRoutine?.inputs) || internalRoutine.inputs.length === 0) return null;
         return (
             <Box>

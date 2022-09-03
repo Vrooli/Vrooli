@@ -79,7 +79,6 @@ export const BuildView = ({
     const id: string = useMemo(() => routine?.id ?? '', [routine]);
     const [isEditing, setIsEditing] = useState<boolean>(false);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    console.log('ROUTINEEEE', routine);
 
     /**
      * On page load, check if editing
@@ -416,7 +415,6 @@ export const BuildView = ({
      * If closing with unsaved changes, prompt user to save
      */
     const onClose = useCallback(() => {
-        console.log('onclose')
         if (isEditing) {
             stopEditing(true);
         } else {

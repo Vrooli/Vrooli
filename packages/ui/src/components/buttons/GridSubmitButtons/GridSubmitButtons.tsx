@@ -43,8 +43,6 @@ export const GridSubmitButtons = ({
         else if (!disabledSubmit && typeof onSubmit === 'function') onSubmit();
     }, [errors, openError, disabledSubmit, onSubmit]);
 
-    console.log('formik errors', errors);
-
     const isSubmitDisabled = useMemo(() => (errors && Object.keys(errors).length > 0) || (disabledSubmit === true), [errors, disabledSubmit]);
 
     return (

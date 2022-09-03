@@ -130,12 +130,10 @@ export const ObjectPage = ({
     }, [location]);
 
     const onAction = useCallback((action: ObjectDialogAction, item?: { id: string }) => {
-        console.log('onaction', action, item, hasPreviousPage);
         // Only navigate back if there is a previous page
         const pageRoot = window.location.pathname.split('/')[1];
         switch (action) {
             case ObjectDialogAction.Add:
-                console.log('setting location', `${pageRoot}/${item?.id}`)
                 setLocation(`${item?.id}`, { replace: !hasPreviousPage });
                 break;
             case ObjectDialogAction.Cancel:
@@ -154,12 +152,10 @@ export const ObjectPage = ({
     }, [hasPreviousPage, setLocation]);
 
     const displayedPage = useMemo<JSX.Element | undefined>(() => {
-        console.log('calculating displayed page');
         if (!objectType) return undefined;
         // If page type is View, display the view page
         // Also display the view page for multi-step routines, since this has special logic
         const searchParams = parseSearchParams(window.location.search);
-        console.log('searchParams', searchParams);
         if (pageType === PageType.View || searchParams.build === true) {
             const View = viewMap[objectType];
             document.title = `View ${titleMap[objectType]}`;

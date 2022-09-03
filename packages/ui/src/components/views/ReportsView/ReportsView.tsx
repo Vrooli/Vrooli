@@ -141,7 +141,6 @@ export const UserReportsView = (): JSX.Element => {
 
 function useReportsQuery(appLink: string, queryField: string) {
     const id = useMemo(() => getLastUrlPart(), []);
-    console.log(id);
 
     return useQuery<reports, reportsVariables>(
         reportsQuery,

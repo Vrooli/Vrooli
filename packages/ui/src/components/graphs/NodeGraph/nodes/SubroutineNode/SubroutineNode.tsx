@@ -25,7 +25,6 @@ import { CloseIcon } from '@shared/icons';
  * @param id ID of the clicked element
  */
 const shouldOpen = (id: string | null | undefined): boolean => {
-    console.log('in shouldOpen', id);
     // Only collapse if clicked on title bar or title
     return Boolean(id && (id.startsWith('subroutine-title-')));
 }
@@ -118,12 +117,11 @@ export const SubroutineNode = ({
     const contextId = useMemo(() => `subroutine-context-menu-${data.id}`, [data?.id]);
     const contextOpen = Boolean(contextAnchor);
     const openContext = useCallback((target: React.MouseEvent['target']) => {
-        console.log('subroutine opencontext', isEditing, target)
         // Ignore if not editing
         if (!isEditing) return;
         setContextAnchor(target)
     }, [isEditing]);
-    const closeContext = useCallback(() => { console.log('closing context'); setContextAnchor(null) }, []);
+    const closeContext = useCallback(() => { setContextAnchor(null) }, []);
     const pressEvents = usePress({ 
         onLongPress: openContext,
         onClick: openSubroutine,

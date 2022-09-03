@@ -31,7 +31,6 @@ export const ProjectView = ({
     session,
     zIndex,
 }: ProjectViewProps) => {
-    console.log('rendering project view')
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     // Fetch data

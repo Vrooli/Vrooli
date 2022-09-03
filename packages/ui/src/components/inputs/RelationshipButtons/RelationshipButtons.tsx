@@ -112,13 +112,11 @@ export function RelationshipButtons({
     }, [disabled, isOwnerAvailable]);
     const closeOwnerDialog = useCallback(() => setOwnerDialogAnchor(null), []);
     const handleOwnerDialogSelect = useCallback((ownerType: OwnerTypesEnum) => {
-        console.log('handleOwnerDialogSelect', ownerType)
         if (ownerType === OwnerTypesEnum.Organization) {
             openOrganizationDialog();
         } else if (ownerType === OwnerTypesEnum.AnotherUser) {
             openAnotherUserDialog();
         } else {
-            console.log('setting to self')
             onRelationshipsChange({ owner: userFromSession(session) });
         }
         closeOwnerDialog();

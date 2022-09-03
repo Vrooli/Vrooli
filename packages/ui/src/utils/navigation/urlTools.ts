@@ -46,7 +46,7 @@ export const parseSearchParams = (searchParams: string): ParseSearchParamsResult
         });
         return parsed;
     } catch (error) {
-        console.log('caused error', error);
+        console.error('Could not parse search params', error);
         return {};
     }
 }

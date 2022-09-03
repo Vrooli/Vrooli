@@ -254,6 +254,7 @@ export const RunView = ({
 }: RunViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    console.log('run view', zIndex)
 
     // Find data in URL (e.g. current step, runID, whether or not this is a test run)
     const params = useReactSearch(null);
@@ -302,7 +303,6 @@ export const RunView = ({
      * Converts the overall routine into a tree of steps, and stores it in the steps ref.
      */
     useEffect(() => {
-        console.log('settings steps routine change')
         setSteps(convertRoutineToStep(routine, languages));
     }, [languages, routine]);
 
@@ -335,7 +335,6 @@ export const RunView = ({
      * The number of steps in the current-level node, or -1 if not found.
      */
     const stepsInCurrentNode = useMemo(() => {
-        console.log('calculating stepsincurrentnode', currStepLocation, steps)
         if (!currStepLocation || !steps) return -1;
         // For each step in ids array (except for the last id), find the nested step in the steps array.
         // If it doesn't exist, return -1;
@@ -358,27 +357,20 @@ export const RunView = ({
         return runStep;
     }, [run?.steps, currStepLocation]);
 
-    useEffect(() => {
-        console.log('currStepRunData', currStepRunData);
-    }, [currStepRunData]);
-
     /**
      * Stores user inputs, which are uploaded to the run's data
      */
     const currUserInputs = useRef<{ [inputId: string]: string }>({});
     const handleUserInputsUpdate = useCallback((inputs: { [inputId: string]: string }) => {
-        console.log('handleuserinputsupdate', inputs);
         currUserInputs.current = inputs;
     }, []);
     useEffect(() => {
-        console.log('useeffect runinputs 1', run?.inputs)
         if (!run?.inputs || !Array.isArray(run?.inputs)) return;
         const inputs: { [inputId: string]: string } = {};
         for (const input of run.inputs) {
             inputs[input.input.id] = input.data;
         }
         if (JSON.stringify(inputs) !== JSON.stringify(currUserInputs.current)) {
-            console.log('goop', inputs, currUserInputs.current);
             handleUserInputsUpdate(inputs);
         }
     }, [run?.inputs, handleUserInputsUpdate]);
@@ -470,18 +462,6 @@ export const RunView = ({
             setCurrentStep(currStep);
         }
     }, [currStepLocation, getSubroutine, params, setCurrStepLocation, steps]);
-
-    useEffect(() => {
-        console.log('currsteplocation changed', currStepLocation)
-    }, [currStepLocation])
-
-    useEffect(() => {
-        console.log('params changed', params)
-    }, [params])
-
-    useEffect(() => {
-        console.log('steps changed', steps)
-    }, [steps])
 
     /**
      * When new subroutine data is fetched, inject it into steps. 

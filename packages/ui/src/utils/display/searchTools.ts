@@ -916,7 +916,6 @@ export const convertFormikForSearch = (values: { [x: string]: any }, schema: For
  * @returns Values converted for formik
  */
 export const convertSearchForFormik = (values: { [x: string]: any }, schema: FormSchema): { [x: string]: any } => {
-    console.log('convert search to formik start', values)
     // Initialize result
     const result: { [x: string]: any } = {};
     // Loop through all fields in the schema

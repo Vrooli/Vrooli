@@ -34,6 +34,7 @@ export const BuildBottomContainer = ({
     runState,
     zIndex,
 }: BuildBottomContainerProps) => {
+    console.log('build bottom container', zIndex);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 

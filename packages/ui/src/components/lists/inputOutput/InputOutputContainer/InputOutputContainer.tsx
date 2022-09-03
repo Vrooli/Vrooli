@@ -134,12 +134,9 @@ export const InputOutputContainer = ({
     }, [sortedList, language, isInput, handleUpdate]);
 
     const onItemReorder = useCallback((fromIndex: number, toIndex: number) => {
-        console.log('onItemReorder', fromIndex, toIndex);
         const newList = [...sortedList];
-        console.log('original sortedList', newList);
         const [removed] = newList.splice(fromIndex, 1);
         newList.splice(toIndex, 0, removed);
-        console.log('new sortedList', newList);
         handleUpdate(newList as any);
     }, [handleUpdate, sortedList]);
 
@@ -156,7 +153,6 @@ export const InputOutputContainer = ({
     const [moveStartIndex, setMoveStartIndex] = useState<number>(-1);
     const openMoveDialog = useCallback((index: number) => { setMoveStartIndex(index); }, []);
     const closeMoveDialog = useCallback((toIndex?: number) => {
-        console.log('close move dialog', toIndex);
         if (toIndex !== undefined && toIndex >= 0) {
             onItemReorder(moveStartIndex, toIndex);
             // If the item was open, open the new item

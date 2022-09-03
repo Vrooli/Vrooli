@@ -153,7 +153,7 @@ export const usePress = ({
         onTouchEnd: e => clear(e),
         onTouchMove: e => move(e),
         onTouchStart: e => start(e),
-        onContextMenu: e => { console.log('reeeeeeee'); e.preventDefault(); }
+        onContextMenu: e => { e.preventDefault(); }
     };
 };
 
