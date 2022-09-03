@@ -2,6 +2,16 @@ import { ButtonProps } from '@mui/material';
 import { SvgProps } from 'assets/img/types';
 import { Status } from 'utils';
 
+export interface GridSubmitButtonsProps {
+    disabledCancel?: boolean;
+    disabledSubmit?: boolean;
+    errors?: { [key: string]: string };
+    isCreate: boolean;
+    onCancel: () => void;
+    onSetSubmitting?: (isSubmitting: boolean) => void;
+    onSubmit?: () => void;
+}
+
 export interface HelpButtonProps extends ButtonProps {
     id?: string;
     /**

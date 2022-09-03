@@ -1,13 +1,14 @@
 import { EndNodeDialogProps } from '../types';
-import { Button, Checkbox, Dialog, FormControlLabel, Grid, TextField, Tooltip, Typography } from '@mui/material';
+import { Checkbox, Dialog, FormControlLabel, Grid, TextField, Tooltip, Typography } from '@mui/material';
 import { getTranslation, updateTranslationField } from 'utils';
+import { nodeEndForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { DialogTitle } from 'components/dialogs';
 import Markdown from 'markdown-to-jsx';
 import { useCallback } from 'react';
-import { CancelIcon, SaveIcon } from '@shared/icons';
 import { Node } from 'types';
 import { v4 as uuid } from 'uuid';
+import { GridSubmitButtons } from 'components/buttons';
 
 const titleAria = 'end-node-dialog-title';
 
@@ -21,15 +22,17 @@ export const EndNodeDialog = ({
 }: EndNodeDialogProps) => {
     const formik = useFormik({
         initialValues: {
-            label: getTranslation(node, 'title', [language], false) ?? '',
+            title: !getTranslation(node, 'title', [language], false) ? 'End' : getTranslation(node, 'title', [language], false) as string,
             description: getTranslation(node, 'description', [language], false) ?? '',
             wasSuccessful: node.data?.wasSuccessful ?? true,
         },
         enableReinitialize: true,
-        // validationSchema,
+        validationSchema,
         onSubmit: (values) => {
-            let newTranslations = updateTranslationField(node, 'title', values.label, language);
+            //TODO probs not working
+            let newTranslations = updateTranslationField(node, 'title', values.title, language);
             newTranslations = updateTranslationField({ translations: newTranslations }, 'description', values.description, language);
+            console.log('new translations', newTranslations);
             handleClose({
                 ...node,
                 translations: newTranslations as Node['translations'],
@@ -42,9 +45,12 @@ export const EndNodeDialog = ({
         },
     });
 
+    console.log('isvalid', formik.isValid, formik.errors);
+
     const onClose = useCallback(() => {
+        formik.resetForm();
         handleClose();
-    }, [handleClose]);
+    }, [formik, handleClose]);
 
     return (
         <Dialog
@@ -67,19 +73,20 @@ export const EndNodeDialog = ({
                         {
                             isEditing ? (
                                 <TextField
+                                    autoFocus
                                     fullWidth
-                                    id="label"
-                                    name="label"
-                                    value={formik.values.label}
+                                    id="title"
+                                    name="title"
+                                    value={formik.values.title}
                                     multiline
                                     maxRows={3}
                                     onBlur={formik.handleBlur}
                                     onChange={formik.handleChange}
-                                    error={formik.touched.label && Boolean(formik.errors.label)}
-                                    helperText={formik.touched.label && formik.errors.label}
+                                    error={formik.touched.title && Boolean(formik.errors.title)}
+                                    helperText={formik.touched.title && formik.errors.title}
                                 />
                             ) : (
-                                <Markdown>{formik.values.label}</Markdown>
+                                <Markdown>{formik.values.title}</Markdown>
                             )
                         }
                     </Grid>
@@ -123,21 +130,15 @@ export const EndNodeDialog = ({
                             />
                         </Tooltip>
                     </Grid>
-                    <Grid item xs={6} marginBottom={4}>
-                        <Button
-                            disabled={Boolean(formik.isSubmitting || !formik.isValid)}
-                            fullWidth
-                            type="submit"
-                            startIcon={<SaveIcon />}
-                        >Save</Button>
-                    </Grid>
-                    <Grid item xs={6} marginBottom={4}>
-                        <Button
-                            fullWidth
-                            onClick={onClose}
-                            startIcon={<CancelIcon />}
-                        >Cancel</Button>
-                    </Grid>
+                    <GridSubmitButtons
+                        disabledCancel={formik.isSubmitting}
+                        disabledSubmit={formik.isSubmitting || !formik.isValid}
+                        errors={formik.errors}
+                        isCreate={false}
+                        onCancel={onClose}
+                        onSetSubmitting={formik.setSubmitting}
+                        onSubmit={formik.handleSubmit}
+                    />
                 </Grid>
             </form>
         </Dialog>

@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import React, { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RoutineListNodeProps } from '../types';
-import { DraggableNode, RoutineSubnode } from '..';
+import { DraggableNode, SubroutineNode } from '..';
 import {
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
@@ -245,7 +245,7 @@ export const RoutineListNode = ({
      * Subroutines, sorted from lowest to highest index
      * */
     const routines = useMemo(() => [...((node?.data as NodeDataRoutineList)?.routines ?? [])].sort((a, b) => a.index - b.index).map(routine => (
-        <RoutineSubnode
+        <SubroutineNode
             key={`${routine.id}`}
             data={routine}
             handleAction={handleSubroutineAction}

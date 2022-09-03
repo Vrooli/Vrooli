@@ -16,7 +16,7 @@ import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { validate as uuidValidate } from 'uuid';
 import { DecisionStep, Node, NodeDataEnd, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, Run, RunInput, RunStep, SubroutineStep } from "types";
-import { parseSearchParams, stringifySearchParams } from "utils/navigation/urlTools";
+import { addSearchParams, removeSearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
 import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
 import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
@@ -275,10 +275,7 @@ export const RunView = ({
      * Update URL when currStepLocation changes
      */
     useEffect(() => {
-        setLocation(stringifySearchParams({
-            ...params,
-            step: currStepLocation,
-        }), { replace: true });
+        addSearchParams(setLocation, { step: currStepLocation });
     }, [currStepLocation, params, setLocation]);
 
     /**
@@ -604,17 +601,6 @@ export const RunView = ({
     const subroutineComplete = true;
 
     /**
-     * Clears run-specific search params from URL
-     */
-    const clearSearchParams = useCallback(() => {
-        const params = parseSearchParams(window.location.search);
-        delete params.run;
-        delete params.step;
-        console.log('CLEARING SEARCH PARAMS', params);
-        setLocation(`${window.location.pathname}${stringifySearchParams(params)}`, { replace: true });
-    }, [setLocation]);
-
-    /**
       * Navigate to the previous subroutine
       */
     const toPrevious = useCallback(() => {
@@ -708,12 +694,12 @@ export const RunView = ({
                 successMessage: () => 'Routine completed!🎉',
                 onSuccess: () => {
                     PubSub.get().publishCelebration();
-                    clearSearchParams();
+                    removeSearchParams(setLocation, ['run', 'step']);
                     handleClose();
                 },
             })
         }
-    }, [clearSearchParams, contextSwitches, currStepLocation, currStepRunData, handleClose, logRunComplete, logRunUpdate, nextStep, progress, routine, run, session, setCurrStepLocation, steps, testMode, timeElapsed]);
+    }, [contextSwitches, currStepLocation, currStepRunData, handleClose, logRunComplete, logRunUpdate, nextStep, progress, routine, run, session, setLocation, steps, testMode, timeElapsed]);
 
     /**
      * End routine after reaching end node using a decision step. 
@@ -732,7 +718,7 @@ export const RunView = ({
         // Don't actually do it if in test mode
         if (testMode || !run) {
             if (success) PubSub.get().publishCelebration();
-            clearSearchParams();
+            removeSearchParams(setLocation, ['run', 'step']);
             handleClose();
             return;
         }
@@ -751,11 +737,11 @@ export const RunView = ({
             successMessage: () => 'Routine completed!🎉',
             onSuccess: () => {
                 PubSub.get().publishCelebration();
-                clearSearchParams();
+                removeSearchParams(setLocation, ['run', 'step']);
                 handleClose();
             },
         })
-    }, [testMode, run, logRunComplete, routine, session, clearSearchParams, handleClose]);
+    }, [testMode, run, logRunComplete, routine, session, setLocation, handleClose]);
 
     /**
      * Stores current progress, both for overall routine and the current subroutine
@@ -788,9 +774,9 @@ export const RunView = ({
      */
     const toFinishNotComplete = useCallback(() => {
         saveProgress();
-        clearSearchParams();
+        removeSearchParams(setLocation, ['run', 'step']);
         handleClose();
-    }, [clearSearchParams, handleClose, saveProgress]);
+    }, [handleClose, saveProgress, setLocation]);
 
     /**
      * Navigate to selected decision

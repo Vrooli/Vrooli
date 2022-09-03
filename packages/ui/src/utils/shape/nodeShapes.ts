@@ -108,12 +108,12 @@ export const shapeNodeRoutineListUpdate = (
         ...shapeUpdateList(o, u, 'routines', hasObjectChanged, shapeNodeRoutineListItemCreate, shapeNodeRoutineListItemUpdate, 'id')
     }), 'id')
 
-export const shapeNodeTranslationCreate = (item: NodeTranslationShape): NodeTranslationCreateInput => ({
+export const shapeNodeTranslationCreate = (item: NodeTranslationShape): NodeTranslationCreateInput => {console.log('yeeeeet', item); return ({
     id: item.id,
     language: item.language,
     description: item.description,
     title: item.title,
-})
+}) }
 
 export const shapeNodeTranslationUpdate = (
     original: NodeTranslationShape,

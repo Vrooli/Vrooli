@@ -16,7 +16,7 @@ import { projectQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { project, projectVariables } from 'graphql/generated/project';
 import { ProjectCreate } from 'components/views/Project/ProjectCreate/ProjectCreate';
-import { parseSearchParams, stringifySearchParams, SearchType, projectSearchSchema } from 'utils';
+import { SearchType, projectSearchSchema, removeSearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';
 
@@ -41,23 +41,13 @@ export const ProjectSelectOrCreateDialog = ({
      * Before closing, remove all URL search params for advanced search
      */
     const onClose = useCallback(() => {
-        // Find all search fields
-        const searchFields = [
+        // Clear search params
+        removeSearchParams(setLocation, [
             ...projectSearchSchema.fields.map(f => f.fieldName),
             'advanced',
             'sort',
             'time',
-        ];
-        // Find current search params
-        const params = parseSearchParams(window.location.search);
-        // Remove all search params that are advanced search fields
-        Object.keys(params).forEach(key => {
-            if (searchFields.includes(key)) {
-                delete params[key];
-            }
-        });
-        // Update URL
-        setLocation(stringifySearchParams(params), { replace: true });
+        ]);
         handleClose();
     }, [handleClose, setLocation]);
 

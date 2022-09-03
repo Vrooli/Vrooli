@@ -19,6 +19,7 @@ import { deleteOne, deleteOneVariables } from "graphql/generated/deleteOne";
 import { DeleteOneType } from "@shared/consts";
 import { v4 as uuid } from 'uuid';
 import { MenuTitle } from "../MenuTitle/MenuTitle";
+import { RunStatus } from "graphql/generated/globalTypes";
 
 const titleAria = 'run-picker-dialog-title';
 
@@ -98,14 +99,15 @@ export const RunPickerMenu = ({
             handleClose();
         }
         // If routine has no runs, create a new one.
-        else if (routine && routine.runs?.length === 0) {
+        else if (routine && routine.runs?.filter(r => r.status === RunStatus.InProgress)?.length === 0) {
             createNewRun();
         }
     }, [open, routine, createNewRun, onSelect, session.id, handleClose]);
 
     const runOptions: ListMenuItemData<Run>[] = useMemo(() => {
         if (!routine || !routine.runs) return [];
-        const runs = routine.runs;
+        // Find incomplete runs
+        const runs = routine.runs.filter(run => run.status === RunStatus.InProgress);
         return runs.map((run) => ({
             label: `Started: ${displayDate(run.timeStarted)} (${getRunPercentComplete(run.completedComplexity, routine.complexity)}%)`,
             value: run as Run,

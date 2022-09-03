@@ -1,4 +1,4 @@
-import { Box, Button, Grid, Stack, Typography, useTheme } from "@mui/material"
+import { Box, Grid, Stack, Typography, useTheme } from "@mui/material"
 import { useMutation } from "@apollo/client";
 import { useCallback, useEffect, useState } from "react";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
@@ -10,11 +10,11 @@ import {
     Favorite as InterestsIcon,
 } from '@mui/icons-material';
 import { SettingsDisplayProps } from "../types";
-import { HelpButton, TagSelector } from "components";
+import { GridSubmitButtons, HelpButton, TagSelector } from "components";
 import { ThemeSwitch } from "components/inputs";
 import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
 import { v4 as uuid } from 'uuid';
-import { CancelIcon, InvisibleIcon, SaveIcon } from "@shared/icons";
+import { InvisibleIcon } from "@shared/icons";
 
 const helpText =
     `Display preferences customize the look and feel of Vrooli. More customizations will be available in the near future.`
@@ -197,21 +197,15 @@ export const SettingsDisplay = ({
                 />
             </Box>
             <Grid container spacing={2} p={2}>
-                <Grid item xs={6}>
-                    <Button
-                        disabled={Boolean(formik.isSubmitting || !formik.isValid)}
-                        fullWidth
-                        onClick={handleSave}
-                        startIcon={<SaveIcon />}
-                    >Save</Button>
-                </Grid>
-                <Grid item xs={6}>
-                    <Button
-                        fullWidth
-                        onClick={handleCancel}
-                        startIcon={<CancelIcon />}
-                    >Cancel</Button>
-                </Grid>
+                <GridSubmitButtons
+                    disabledCancel={formik.isSubmitting}
+                    disabledSubmit={formik.isSubmitting || !formik.isValid}
+                    errors={formik.errors}
+                    isCreate={false}
+                    onCancel={handleCancel}
+                    onSetSubmitting={formik.setSubmitting}
+                    onSubmit={handleSave}
+                />
             </Grid>
         </form>
     )

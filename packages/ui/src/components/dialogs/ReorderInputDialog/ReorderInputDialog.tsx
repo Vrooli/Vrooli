@@ -3,7 +3,6 @@
  */
 import {
     Box,
-    Button,
     Dialog,
     DialogContent,
     Grid,
@@ -11,7 +10,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { CancelIcon, SaveIcon } from '@shared/icons';
+import { GridSubmitButtons } from 'components/buttons';
 import { DialogTitle } from 'components/dialogs';
 import { QuantityBox } from 'components/inputs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -78,7 +77,7 @@ export const ReorderInputDialog = ({
                         alignItems: 'center',
                         justifyContent: 'center',
                     }}>
-                        <Typography variant="h6" textAlign="center">
+                        <Typography variant="h6" textAlign="center" color={palette.background.textPrimary}>
                             ⮕
                         </Typography>
                     </Box>
@@ -94,21 +93,11 @@ export const ReorderInputDialog = ({
                 </Stack>
                 {/* Action buttons */}
                 <Grid container sx={{ padding: 0, paddingTop: '24px' }}>
-                    <Grid item xs={12} sm={6} sx={{ paddingRight: 1 }}>
-                        <Button
-                            fullWidth
-                            onClick={onSubmit}
-                            startIcon={<SaveIcon />}
-                        >Submit</Button>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                        <Button
-                            fullWidth
-                            onClick={onCancel}
-                            sx={{ paddingLeft: 1 }}
-                            startIcon={<CancelIcon />}
-                        >Cancel</Button>
-                    </Grid>
+                    <GridSubmitButtons
+                        isCreate={false}
+                        onCancel={onCancel}
+                        onSubmit={onSubmit}
+                    />
                 </Grid>
             </DialogContent>
         </Dialog>

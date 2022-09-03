@@ -25,6 +25,11 @@ export const nodeEndUpdate = yup.object().shape({
     id: id.required(),
     wasSuccessful: wasSuccessful.notRequired().default(undefined),
 })
+export const nodeEndForm = yup.object().shape({
+    wasSuccessful: wasSuccessful.notRequired().default(undefined),
+    title: title.required(),
+    description: description.notRequired().default(undefined),
+});
 
 export const whenTranslationCreate = yup.object().shape({
     id: id.required(),
@@ -144,7 +149,7 @@ export const nodeRoutineListItemCreate = yup.object().shape({
     routineConnect: id.notRequired().default(undefined), // Creating subroutines must be done in a separate request
     translationsCreate: nodeRoutineListItemTranslationsCreate.notRequired().default(undefined),
 });
-export const nodeRoutineListItemUpdate: any = yup.object().shape({
+export const nodeRoutineListItemUpdate = yup.object().shape({
     id: id.required(),
     index: index.notRequired().default(undefined),
     isOptional: isOptional.notRequired().default(undefined),

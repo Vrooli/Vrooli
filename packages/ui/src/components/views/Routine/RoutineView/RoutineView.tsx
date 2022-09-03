@@ -12,7 +12,7 @@ import {
 } from "@mui/icons-material";
 import { ObjectActionMenu, BuildView, LinkButton, ReportsLink, ResourceListHorizontal, RunPickerMenu, RunView, SelectLanguageMenu, StarButton, StatusButton, UpTransition, UpvoteDownvote } from "components";
 import { RoutineViewProps } from "../types";
-import { formikToRunInputs, getLanguageSubtag, getOwnedByString, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, standardToFieldData, Status, stringifySearchParams, toOwnedBy, useReactSearch } from "utils";
+import { formikToRunInputs, getLanguageSubtag, getLastUrlPart, getOwnedByString, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, toOwnedBy, useReactSearch } from "utils";
 import { Routine, Run } from "types";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
@@ -44,7 +44,7 @@ export const RoutineView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     // Fetch data
-    const id = useMemo(() => window.location.pathname.split('/').pop() ?? '', []);
+    const id = useMemo(() => getLastUrlPart(), []);
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
     const [routine, setRoutine] = useState<Routine | null>(null);
     useEffect(() => {
@@ -99,18 +99,14 @@ export const RoutineView = ({
         }
     }, [id, language]);
     const viewGraph = useCallback(() => {
-        setLocation(stringifySearchParams({
-            build: routine?.id,
-        }), { replace: true });
+        setSearchParams(setLocation, {
+            build: true,
+        })
         setIsBuildOpen(true);
-    }, [routine?.id, setLocation]);
-    const stopBuild = useCallback((wasModified: boolean) => {
-        // If was building a new routine (and did not create), navigate to last page (since this one will just be a blank view)
-        if (!routine?.id && !wasModified) {
-            window.history.back();
-        }
-        else setIsBuildOpen(false)
-    }, [routine?.id]);
+    }, [setLocation]);
+    const stopBuild = useCallback(() => {
+        setIsBuildOpen(false)
+    }, []);
 
 
     const [isRunOpen, setIsRunOpen] = useState(false)
@@ -118,17 +114,17 @@ export const RoutineView = ({
     const handleRunSelect = useCallback((run: Run | null) => {
         // If run is null, it means the routine will be opened without a run
         if (!run) {
-            setLocation(stringifySearchParams({
+            setSearchParams(setLocation, {
                 run: "test",
-                step: [1]
-            }), { replace: true });
+                step: [1],
+            })
         }
         // Otherwise, open routine where last left off in run
         else {
-            setLocation(stringifySearchParams({
+            setSearchParams(setLocation, {
                 run: run.id,
                 step: run.steps?.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
-            }), { replace: true });
+            })
         }
         setIsRunOpen(true);
     }, [setLocation]);
@@ -179,10 +175,10 @@ export const RoutineView = ({
             (Array.isArray(routine?.nodeLinks) && (routine?.nodeLinks as Routine['nodeLinks']).length > 0);
         // If multi step, navigate to build page
         if (isMultiStep) {
-            setLocation(stringifySearchParams({
+            setSearchParams(setLocation, {
                 build: true,
                 edit: true,
-            }), { replace: true });
+            });
             setIsBuildOpen(true);
         }
         // Otherwise, edit as single step
@@ -618,7 +614,7 @@ export const RoutineView = ({
                                     padding: 0,
                                 }}
                             >
-                                <EllipsisIcon fill={palette.background.textSecondary} />
+                                <EllipsisIcon fill={palette.primary.contrastText} />
                             </IconButton>
                         </Tooltip>
                     </Stack>

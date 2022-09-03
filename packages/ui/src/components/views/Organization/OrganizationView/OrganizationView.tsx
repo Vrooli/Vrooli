@@ -16,7 +16,7 @@ import { containerShadow } from "styles";
 import { OrganizationViewProps } from "../types";
 import { Organization, ResourceList } from "types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, PubSub, SearchType } from "utils";
+import { getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, PubSub, SearchType } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
@@ -40,7 +40,7 @@ export const OrganizationView = ({
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
     // Fetch data
-    const id = useMemo(() => window.location.pathname.split('/').pop() ?? '', []);
+    const id = useMemo(() => getLastUrlPart(), []);
     const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery, { errorPolicy: 'all'});
     const [organization, setOrganization] = useState<Organization | null | undefined>(null);
     useEffect(() => {

@@ -4,7 +4,7 @@ import { Box, CircularProgress, Stack, Tooltip, Typography, useTheme } from '@mu
 import { ResourceCard, ResourceListItemContextMenu } from 'components';
 import { ResourceListHorizontalProps } from '../types';
 import { containerShadow } from 'styles';
-import { MouseEvent, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Resource } from 'types';
 import { cardRoot } from 'components/cards/styles';
 import { ResourceDialog } from 'components/dialogs';

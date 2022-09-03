@@ -1,4 +1,4 @@
-import { Box, Button, CircularProgress, Grid, Typography } from "@mui/material"
+import { Box, CircularProgress, Grid, Typography } from "@mui/material"
 import { ResourceListUsedFor } from "@shared/consts";
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { standard, standardVariables } from "graphql/generated/standard";
@@ -9,13 +9,12 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { standardUpdateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";
-import { ObjectType, PubSub, shapeStandardUpdate, StandardTranslationShape, TagShape, updateArray } from "utils";
-import { LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
+import { getLastUrlPart, ObjectType, PubSub, shapeStandardUpdate, StandardTranslationShape, TagShape, updateArray } from "utils";
+import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { standardUpdate, standardUpdateVariables } from "graphql/generated/standardUpdate";
 import { RelationshipsObject } from "components/inputs/types";
-import { CancelIcon, SaveIcon } from "@shared/icons";
 
 export const StandardUpdate = ({
     onCancel,
@@ -24,7 +23,7 @@ export const StandardUpdate = ({
     zIndex,
 }: StandardUpdateProps) => {
     // Fetch existing data
-    const id = useMemo(() => window.location.pathname.split('/').pop() ?? '', []);
+    const id = useMemo(() => getLastUrlPart(), []);
     const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery);
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { input: { id } } });
@@ -179,7 +178,7 @@ export const StandardUpdate = ({
     }, [deleteTranslation, languages, updateFormikTranslation]);
 
     const formInput = useMemo(() => (
-        <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
+        <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12}>
                 <Typography
                     component="h1"
@@ -232,23 +231,17 @@ export const StandardUpdate = ({
                     onTagsClear={clearTags}
                 />
             </Grid>
-            <Grid item xs={6} marginBottom={4}>
-                <Button
-                    disabled={Boolean(formik.isSubmitting || !formik.isValid)}
-                    fullWidth
-                    type="submit"
-                    startIcon={<SaveIcon />}
-                >Save</Button>
-            </Grid>
-            <Grid item xs={6} marginBottom={4}>
-                <Button
-                    fullWidth
-                    onClick={onCancel}
-                    startIcon={<CancelIcon />}
-                >Cancel</Button>
-            </Grid>
+            <GridSubmitButtons
+                disabledCancel={formik.isSubmitting}
+                disabledSubmit={formik.isSubmitting || !formik.isValid}
+                errors={formik.errors}
+                isCreate={false}
+                onCancel={onCancel}
+                onSetSubmitting={formik.setSubmitting}
+                onSubmit={formik.handleSubmit}
+            />
         </Grid>
-    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags, formik.isSubmitting, formik.isValid, onCancel]);
+    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags, formik.isSubmitting, formik.isValid, formik.errors, formik.setSubmitting, formik.handleSubmit, onCancel]);
 
 
     return (

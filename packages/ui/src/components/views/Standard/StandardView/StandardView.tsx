@@ -7,7 +7,7 @@ import { standardQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, BaseStandardInput, CommentContainer, LinkButton, ResourceListHorizontal, SelectLanguageMenu, StarButton, TextCollapse } from "components";
 import { StandardViewProps } from "../types";
-import { getCreatedByString, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData, toCreatedBy } from "utils";
+import { getCreatedByString, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData, toCreatedBy } from "utils";
 import { Standard } from "types";
 import { CommentFor, StarFor } from "graphql/generated/globalTypes";
 import { containerShadow } from "styles";
@@ -28,7 +28,7 @@ export const StandardView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     // Fetch data
-    const id = useMemo(() => window.location.pathname.split('/').pop() ?? '', []);
+    const id = useMemo(() => getLastUrlPart(), []);
     const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery, { errorPolicy: 'all' });
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { input: { id } } });
@@ -291,7 +291,7 @@ export const StandardView = ({
                                         marginRight: 1,
                                     }}
                                 >
-                                    <EllipsisIcon fill={palette.background.textSecondary} />
+                                    <EllipsisIcon fill={palette.primary.contrastText}  />
                                 </IconButton>
                             </Tooltip>
                         </Stack>

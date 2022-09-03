@@ -1,19 +1,18 @@
-import { Button, Grid, TextField, Typography } from "@mui/material";
+import { Grid, TextField, Typography } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { organizationCreateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { organizationCreateMutation } from "graphql/mutation";
-import { getUserLanguages, ObjectType, OrganizationTranslationShape, shapeOrganizationCreate, TagShape, updateArray, useReactSearch } from "utils";
+import { getUserLanguages, ObjectType, OrganizationTranslationShape, parseSearchParams, shapeOrganizationCreate, TagShape, updateArray } from "utils";
 import { OrganizationCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
+import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { organizationCreate, organizationCreateVariables } from "graphql/generated/organizationCreate";
 import { RelationshipsObject } from "components/inputs/types";
-import { CancelIcon, CreateIcon } from "@shared/icons";
 
 export const OrganizationCreate = ({
     onCreated,
@@ -21,7 +20,6 @@ export const OrganizationCreate = ({
     session,
     zIndex,
 }: OrganizationCreateProps) => {
-    const params = useReactSearch(null);
 
     const [relationships, setRelationships] = useState<RelationshipsObject>({
         isComplete: false,
@@ -72,9 +70,10 @@ export const OrganizationCreate = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
+        const params = parseSearchParams(window.location.search);
         if (typeof params.tag === 'string') setTags([{ tag: params.tag }]);
         else if (Array.isArray(params.tags)) setTags(params.tags.map((t: any) => ({ tag: t })));
-    }, [params]);
+    }, []);
 
     // Handle create
     const [mutation] = useMutation<organizationCreate, organizationCreateVariables>(organizationCreateMutation);
@@ -174,7 +173,7 @@ export const OrganizationCreate = ({
             justifyContent: 'center',
         }}
         >
-            <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
+            <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                 <Grid item xs={12}>
                     <Typography
                         component="h1"
@@ -254,21 +253,15 @@ export const OrganizationCreate = ({
                         onTagsClear={clearTags}
                     />
                 </Grid>
-                <Grid item xs={6} marginBottom={4}>
-                    <Button
-                        disabled={Boolean(!isLoggedIn || formik.isSubmitting)}
-                        fullWidth
-                        type="submit"
-                        startIcon={<CreateIcon />}
-                    >Create</Button>
-                </Grid>
-                <Grid item xs={6} marginBottom={4}>
-                    <Button
-                        fullWidth
-                        onClick={onCancel}
-                        startIcon={<CancelIcon />}
-                    >Cancel</Button>
-                </Grid>
+                <GridSubmitButtons
+                    disabledCancel={formik.isSubmitting}
+                    disabledSubmit={Boolean(!isLoggedIn || formik.isSubmitting)}
+                    errors={formik.errors}
+                    isCreate={true}
+                    onCancel={onCancel}
+                    onSetSubmitting={formik.setSubmitting}
+                    onSubmit={formik.handleSubmit}
+                />
             </Grid>
         </form >
     )

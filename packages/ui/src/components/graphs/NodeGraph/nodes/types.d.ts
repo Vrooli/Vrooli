@@ -91,7 +91,7 @@ export interface RoutineListNodeProps extends ScaleProps, LabelledProps, Editabl
 /**
  * Props for a Routine List's subroutine
  */
-export interface RoutineSubnodeProps extends ScaleProps, LabelledProps, EditableProps {
+export interface SubroutineNodeProps extends ScaleProps, LabelledProps, EditableProps {
     data: NodeDataRoutineListItem;
     isOpen: boolean;
     handleAction: (action: BuildAction.OpenSubroutine | BuildAction.EditSubroutine | BuildAction.DeleteSubroutine, subroutineId: string) => void;

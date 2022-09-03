@@ -15,7 +15,7 @@ import { SearchList } from 'components/lists';
 import { userQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { user, userVariables } from 'graphql/generated/user';
-import { parseSearchParams, stringifySearchParams, SearchType, userSearchSchema } from 'utils';
+import { SearchType, userSearchSchema, removeSearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';
 
@@ -40,23 +40,13 @@ export const UserSelectDialog = ({
      * Before closing, remove all URL search params for advanced search
      */
     const onClose = useCallback(() => {
-        // Find all search fields
-        const searchFields = [
+        // Clear search params
+        removeSearchParams(setLocation, [
             ...userSearchSchema.fields.map(f => f.fieldName),
             'advanced',
             'sort',
             'time',
-        ];
-        // Find current search params
-        const params = parseSearchParams(window.location.search);
-        // Remove all search params that are advanced search fields
-        Object.keys(params).forEach(key => {
-            if (searchFields.includes(key)) {
-                delete params[key];
-            }
-        });
-        // Update URL
-        setLocation(stringifySearchParams(params), { replace: true });
+        ]);
         handleClose();
     }, [handleClose, setLocation]);
 

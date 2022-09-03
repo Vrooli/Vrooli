@@ -4,6 +4,7 @@ import { reportsQuery } from "graphql/query";
 import { APP_LINKS } from "@shared/consts";
 import { useMemo } from "react";
 import { useTheme } from "@mui/material";
+import { getLastUrlPart } from "utils";
 
 export const CommentReportsView = (): JSX.Element => {
     const { loading, error, data } = useReportsQuery(APP_LINKS.Comment, 'commentId');
@@ -139,7 +140,7 @@ export const UserReportsView = (): JSX.Element => {
 }
 
 function useReportsQuery(appLink: string, queryField: string) {
-    const id = useMemo(() => window.location.pathname.split('/').pop(), []);
+    const id = useMemo(() => getLastUrlPart(), []);
     console.log(id);
 
     return useQuery<reports, reportsVariables>(

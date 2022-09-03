@@ -20,7 +20,7 @@ import {
 import { RunStepsDialogProps } from '../types';
 import { TreeItem, treeItemClasses, TreeView } from '@mui/lab';
 import { RoutineStep } from 'types';
-import { locationArraysMatch, parseSearchParams, routineHasSubroutines, RoutineStepType, stringifySearchParams } from 'utils';
+import { addSearchParams, locationArraysMatch, routineHasSubroutines, RoutineStepType } from 'utils';
 import { useLocation } from '@shared/route';
 import { MenuTitle } from '../MenuTitle/MenuTitle';
 
@@ -162,11 +162,7 @@ export const RunStepsDialog = ({
         // Helper function for navigating to step
         const toLocation = () => {
             // Update URL
-            const searchParams = parseSearchParams(window.location.search);
-            setLocation(stringifySearchParams({
-                run: searchParams.run,
-                step: realLocation
-            }), { replace: true });
+            addSearchParams(setLocation, { step: realLocation });
             // Update current step location
             handleCurrStepLocationUpdate(realLocation);
             // Close dialog

@@ -286,7 +286,7 @@ export const SubroutineView = ({
                                 marginRight: 1,
                             }}
                         >
-                            <EllipsisIcon fill={palette.background.textSecondary} />
+                            <EllipsisIcon fill={palette.primary.contrastText}  />
                         </IconButton>
                     </Tooltip>
                 </Stack>

@@ -130,11 +130,13 @@ export const ObjectPage = ({
     }, [location]);
 
     const onAction = useCallback((action: ObjectDialogAction, item?: { id: string }) => {
+        console.log('onaction', action, item, hasPreviousPage);
         // Only navigate back if there is a previous page
-        const pageRoot = location.split('/')[1];
+        const pageRoot = window.location.pathname.split('/')[1];
         switch (action) {
             case ObjectDialogAction.Add:
-                setLocation(`${pageRoot}/${item?.id}`, { replace: !hasPreviousPage });
+                console.log('setting location', `${pageRoot}/${item?.id}`)
+                setLocation(`${item?.id}`, { replace: !hasPreviousPage });
                 break;
             case ObjectDialogAction.Cancel:
             case ObjectDialogAction.Close:
@@ -149,7 +151,7 @@ export const ObjectPage = ({
                 else setLocation(APP_LINKS.Home);
                 break;
         }
-    }, [hasPreviousPage, location, setLocation]);
+    }, [hasPreviousPage, setLocation]);
 
     const displayedPage = useMemo<JSX.Element | undefined>(() => {
         console.log('calculating displayed page');

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getTranslation, getUserLanguages, parseSearchParams, stringifySearchParams, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine } from 'utils';
+import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getTranslation, getUserLanguages, parseSearchParams, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine, addSearchParams, keepSearchParams } from 'utils';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
 import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
@@ -79,27 +79,15 @@ export const BuildView = ({
     const id: string = useMemo(() => routine?.id ?? '', [routine]);
     const [isEditing, setIsEditing] = useState<boolean>(false);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+    console.log('ROUTINEEEE', routine);
 
     /**
      * On page load, check if editing
      */
     useEffect(() => {
         const searchParams = parseSearchParams(window.location.search);
-        // If edit param is set or build param is not a valid id, set editing to true
-        if (searchParams.edit || !uuidValidate(searchParams.build ? `${searchParams.build}` : '')) {
-            setIsEditing(true);
-        }
+        if (searchParams.edit) setIsEditing(true);
     }, []);
-
-    /**
-     * Before closing, remove build-related url params
-     */
-    const removeSearchParams = useCallback(() => {
-        const params = parseSearchParams(window.location.search);
-        if (params.build) delete params.build;
-        if (params.edit) delete params.edit;
-        setLocation(stringifySearchParams(params), { replace: true });
-    }, [setLocation]);
 
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
     // Routine mutators
@@ -114,7 +102,7 @@ export const BuildView = ({
     // Stores previous routine states for undo/redo
     const [changeStack, setChangeStack] = useState<Routine[]>([]);
     const [changeStackIndex, setChangeStackIndex] = useState<number>(0);
-    const clearChangeStack = useCallback((routine: Routine | null) => { 
+    const clearChangeStack = useCallback((routine: Routine | null) => {
         setChangeStack(routine ? [routine] : []);
         setChangeStackIndex(routine ? 0 : -1);
         PubSub.get().publishFastUpdate({ duration: 1000 });
@@ -154,12 +142,10 @@ export const BuildView = ({
         PubSub.get().publishFastUpdate({ duration: 1000 });
         setChangedRoutine(changedRoutine);
     }, [changeStack, changeStackIndex, setChangeStack, setChangeStackIndex, setChangedRoutine]);
-    console.log('canundo', canUndo, changeStackIndex, );
 
     // Handle undo and redo keys
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            console.log('keydown', e);
             // CTRL + Y or CTRL + SHIFT + Z = redo
             if (e.ctrlKey && (e.key === 'y' || e.key === 'Z')) {
                 redo();
@@ -346,7 +332,6 @@ export const BuildView = ({
         });
     }, [changedRoutine]);
 
-    const startEditing = useCallback(() => setIsEditing(true), []);
     /**
      * Creates new routine
      */
@@ -354,17 +339,19 @@ export const BuildView = ({
         if (!changedRoutine) {
             return;
         }
+        console.log('going to create routine: changedRoutine', changedRoutine)
+        console.log('shaped', shapeRoutineCreate(changedRoutine))
         mutationWrapper({
             mutation: routineCreate,
             input: shapeRoutineCreate({ ...changedRoutine, id: uuid() }),
             successMessage: () => 'Routine created.',
             onSuccess: ({ data }) => {
                 onChange(data.routineCreate);
-                removeSearchParams();
-                handleClose(true);
+                keepSearchParams(setLocation, []);
+                handleClose();
             },
         })
-    }, [changedRoutine, handleClose, onChange, removeSearchParams, routineCreate]);
+    }, [changedRoutine, handleClose, onChange, routineCreate, setLocation]);
 
     /**
      * Mutates routine data
@@ -383,46 +370,61 @@ export const BuildView = ({
             input: shapeRoutineUpdate(routine, changedRoutine),
             successMessage: () => 'Routine updated.',
             onSuccess: ({ data }) => {
-                // Update main routine object
                 onChange(data.routineUpdate);
-                // Remove indication of editing from URL
-                const params = parseSearchParams(window.location.search);
-                if (params.edit) delete params.edit;
-                setLocation(stringifySearchParams(params), { replace: true });
-                // Turn off editing mode
+                keepSearchParams(setLocation, []);
                 setIsEditing(false);
             },
         })
     }, [changedRoutine, onChange, routine, routineUpdate, setLocation])
 
-    /**
-     * If closing with unsaved changes, prompt user to save
-     */
-    const onClose = useCallback(() => {
-        if (isEditing && changeStack.length > 1) {
+    const startEditing = useCallback(() => {
+        addSearchParams(setLocation, { edit: true });
+        setIsEditing(true);
+    }, [setLocation]);
+    
+    const stopEditing = useCallback((shouldClose: boolean = false) => {
+        console.log('in stop editing', shouldClose)
+        if (changeStack.length > 1) {
             PubSub.get().publishAlertDialog({
                 message: 'There are unsaved changes. Would you like to save before exiting?',
                 buttons: [
                     {
                         text: 'Save', onClick: () => {
                             updateRoutine();
-                            removeSearchParams();
-                            handleClose(true);
+                            keepSearchParams(setLocation, ['build']);
+                            setIsEditing(false);
+                            if (shouldClose) handleClose();
                         }
                     },
                     {
                         text: "Don't Save", onClick: () => {
-                            removeSearchParams();
-                            handleClose(false);
+                            keepSearchParams(setLocation, ['build']);
+                            setIsEditing(false);
+                            if (shouldClose) handleClose();
                         }
                     },
                 ]
             });
         } else {
-            removeSearchParams();
-            handleClose(false);
+            keepSearchParams(setLocation, ['build']);
+            setIsEditing(false);
+            if (shouldClose) handleClose();
         }
-    }, [changeStack.length, handleClose, isEditing, removeSearchParams, updateRoutine]);
+    }, [changeStack.length, handleClose, setLocation, updateRoutine]);
+
+    /**
+     * If closing with unsaved changes, prompt user to save
+     */
+    const onClose = useCallback(() => {
+        console.log('onclose')
+        if (isEditing) {
+            stopEditing(true);
+        } else {
+            keepSearchParams(setLocation, []);
+            if (!uuidValidate(id)) window.history.back();
+            else handleClose();
+        }
+    }, [handleClose, id, isEditing, setLocation, stopEditing]);
 
     /**
      * On page leave, check if routine has changed. 
@@ -1475,7 +1477,7 @@ export const BuildView = ({
                 <BuildBottomContainer
                     canCancelMutate={!loading}
                     canSubmitMutate={!loading && !isEqual(routine, changedRoutine)}
-                    handleCancelAdd={() => { window.history.back(); }}
+                    handleCancelAdd={() => { stopEditing() }}
                     handleCancelUpdate={revertChanges}
                     handleAdd={createRoutine}
                     handleUpdate={updateRoutine}

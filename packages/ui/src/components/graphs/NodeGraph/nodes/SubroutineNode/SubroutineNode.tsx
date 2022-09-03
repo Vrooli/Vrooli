@@ -10,7 +10,7 @@ import {
     useTheme
 } from '@mui/material';
 import { CSSProperties, useCallback, useMemo, useState } from 'react';
-import { RoutineSubnodeProps } from '../types';
+import { SubroutineNodeProps } from '../types';
 import {
     routineNodeCheckboxOption,
     routineNodeCheckboxLabel,
@@ -25,11 +25,12 @@ import { CloseIcon } from '@shared/icons';
  * @param id ID of the clicked element
  */
 const shouldOpen = (id: string | null | undefined): boolean => {
+    console.log('in shouldOpen', id);
     // Only collapse if clicked on title bar or title
     return Boolean(id && (id.startsWith('subroutine-title-')));
 }
 
-export const RoutineSubnode = ({
+export const SubroutineNode = ({
     data,
     scale = 1,
     labelVisible = true,
@@ -39,7 +40,7 @@ export const RoutineSubnode = ({
     handleUpdate,
     language,
     zIndex,
-}: RoutineSubnodeProps) => {
+}: SubroutineNodeProps) => {
     const { palette } = useTheme();
 
     const nodeSize = useMemo(() => `${220 * scale}px`, [scale]);
@@ -60,9 +61,9 @@ export const RoutineSubnode = ({
         }
         handleAction(action, data.id);
     }, [data.id, handleAction]);
-    const openSubroutine = useCallback((event) => {
-        if (!shouldOpen(event.target?.id)) return;
-        onAction(event, BuildAction.OpenSubroutine)
+    const openSubroutine = useCallback((target: React.MouseEvent['target']) => {
+        if (!shouldOpen((target as any)?.id)) return;
+        onAction(null, BuildAction.OpenSubroutine)
     }, [onAction]);
     const deleteSubroutine = useCallback((event) => { onAction(event, BuildAction.DeleteSubroutine) }, [onAction]);
 

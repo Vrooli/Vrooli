@@ -23,11 +23,11 @@ import { getOwnedByString, getTranslation, InputShape, ObjectType, OutputShape, 
 import Markdown from 'markdown-to-jsx';
 import { routineUpdateForm as validationSchema } from '@shared/validation';
 import { ResourceListUsedFor } from '@shared/consts';
-import { InputOutputContainer, LanguageInput, LinkButton, MarkdownInput, QuantityBox, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession } from 'components';
+import { GridSubmitButtons, InputOutputContainer, LanguageInput, LinkButton, MarkdownInput, QuantityBox, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession } from 'components';
 import { useFormik } from 'formik';
 import { NodeDataRoutineListItem, ResourceList } from 'types';
 import { v4 as uuid } from 'uuid';
-import { CancelIcon, CloseIcon, SaveIcon } from '@shared/icons';
+import { CloseIcon } from '@shared/icons';
 import { RelationshipItemRoutine, RelationshipsObject } from 'components/inputs/types';
 
 export const SubroutineInfoDialog = ({
@@ -510,26 +510,15 @@ export const SubroutineInfoDialog = ({
                     {/* Save/Cancel buttons */}
                     {
                         canEdit && <Grid container spacing={1}>
-                            <Grid item xs={6}>
-                                <Button
-                                    fullWidth
-                                    startIcon={<SaveIcon />}
-                                    disabled={!formik.isValid || formik.isSubmitting}
-                                    type="submit"
-                                >
-                                    Save
-                                </Button>
-                            </Grid>
-                            <Grid item xs={6}>
-                                <Button
-                                    fullWidth
-                                    startIcon={<CancelIcon />}
-                                    disabled={formik.isSubmitting}
-                                    onClick={handleCancel}
-                                >
-                                    Cancel
-                                </Button>
-                            </Grid>
+                            <GridSubmitButtons
+                                disabledCancel={formik.isSubmitting}
+                                disabledSubmit={formik.isSubmitting || !formik.isValid}
+                                errors={formik.errors}
+                                isCreate={false}
+                                onCancel={handleCancel}
+                                onSetSubmitting={formik.setSubmitting}
+                                onSubmit={formik.handleSubmit}
+                            />
                         </Grid>
                     }
                 </form>

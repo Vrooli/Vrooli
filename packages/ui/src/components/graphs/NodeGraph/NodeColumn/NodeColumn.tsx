@@ -62,7 +62,7 @@ export const NodeColumn = ({
                 handleAction,
                 isLinked: true,
                 scale,
-                label: getTranslation(node, 'title', [language], false) ?? null,
+                label: getTranslation(node, 'title', [language], false) ?? undefined,
                 labelVisible,
                 isEditing,
                 canDrag: isEditing,

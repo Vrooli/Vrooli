@@ -1,6 +1,6 @@
 import { useMutation } from '@apollo/client';
 import { reportCreateForm as validationSchema } from '@shared/validation';
-import { Button, Dialog, DialogContent, Grid, Stack, TextField } from '@mui/material';
+import { Dialog, DialogContent, Grid, Stack, TextField } from '@mui/material';
 import { useFormik } from 'formik';
 import { reportCreate, reportCreateVariables } from 'graphql/generated/reportCreate';
 import { reportCreateMutation } from 'graphql/mutation';
@@ -9,9 +9,8 @@ import { ReportDialogProps } from '../types';
 import { getUserLanguages, PubSub } from 'utils';
 import { useEffect, useState } from 'react';
 import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
-import { DialogTitle, Selector } from 'components';
+import { DialogTitle, GridSubmitButtons, Selector } from 'components';
 import { v4 as uuid } from 'uuid';
-import { CancelIcon, CreateIcon } from '@shared/icons';
 
 const helpText =
     `Reports help us moderate content. For now, reports will be handled by moderators. 
@@ -180,27 +179,15 @@ export const ReportDialog = ({
                         {/* Details multi-line text field */}
                         {/* Action buttons */}
                         <Grid container sx={{ padding: 0 }}>
-                            <Grid item xs={6} sx={{ padding: 1 }}>
-                                <Button
-                                    type="submit"
-                                    fullWidth
-                                    disabled={loading}
-                                    startIcon={<CreateIcon />}
-                                >
-                                    Create
-                                </Button>
-                            </Grid>
-                            <Grid item xs={6} sx={{ padding: 1 }}>
-                                <Button
-                                    type="button"
-                                    fullWidth
-                                    disabled={loading}
-                                    onClick={handleClose}
-                                    startIcon={<CancelIcon />}
-                                >
-                                    Cancel
-                                </Button>
-                            </Grid>
+                            <GridSubmitButtons
+                                disabledCancel={formik.isSubmitting}
+                                disabledSubmit={formik.isSubmitting || !formik.isValid}
+                                errors={formik.errors}
+                                isCreate={true}
+                                onCancel={onClose}
+                                onSetSubmitting={formik.setSubmitting}
+                                onSubmit={formik.handleSubmit}
+                            />
                         </Grid>
                     </Stack>
                 </form>

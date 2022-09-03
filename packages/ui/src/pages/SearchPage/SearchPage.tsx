@@ -7,7 +7,7 @@ import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
 import { useLocation } from '@shared/route';
 import { SearchPageProps } from "../types";
-import { getObjectUrlBase, PubSub, parseSearchParams, stringifySearchParams, openObject, SearchType, SearchPageTabOption as TabOption } from "utils";
+import { getObjectUrlBase, PubSub, parseSearchParams, stringifySearchParams, openObject, SearchType, SearchPageTabOption as TabOption, addSearchParams } from "utils";
 import { ListOrganization, ListProject, ListRoutine, ListStandard, ListUser } from "types";
 import { validate as uuidValidate } from 'uuid';
 import { APP_LINKS } from "@shared/consts";
@@ -95,14 +95,10 @@ export function SearchPage({
         return index < 0 ? 2 : index;
     });
     const handleTabChange = (_e, newIndex: number) => {
-        // Update "type" in URL and remove all search params not shared by all tabs
-        const { search, sort, time } = parseSearchParams(window.location.search);
-        setLocation(stringifySearchParams({
-            search,
-            sort,
-            time,
+        // Update search params
+        addSearchParams(setLocation, {
             type: tabOptions[newIndex][1],
-        }), { replace: true });
+        });
         // Update tab index
         setTabIndex(newIndex)
     };

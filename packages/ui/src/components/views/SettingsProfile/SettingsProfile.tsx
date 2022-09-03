@@ -1,4 +1,4 @@
-import { Autocomplete, Box, Button, Container, Grid, IconButton, Stack, TextField, Typography, useTheme } from "@mui/material"
+import { Autocomplete, Box, Container, Grid, IconButton, Stack, TextField, Typography, useTheme } from "@mui/material"
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { useCallback, useEffect, useState } from "react";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
@@ -10,16 +10,16 @@ import { getUserLanguages, ProfileTranslationShape, shapeProfileUpdate, updateAr
 import { SettingsProfileProps } from "../types";
 import { useLocation } from '@shared/route';
 import { LanguageInput } from "components/inputs";
-import { HelpButton } from "components/buttons";
+import { GridSubmitButtons, HelpButton } from "components/buttons";
 import { findHandles, findHandlesVariables } from "graphql/generated/findHandles";
 import { findHandlesQuery } from "graphql/query";
 import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
 import { v4 as uuid } from 'uuid';
 import { PubSub } from 'utils'
-import { CancelIcon, RefreshIcon, SaveIcon } from "@shared/icons";
+import { RefreshIcon } from "@shared/icons";
 
 const helpText =
-`This page allows you to update your profile, including your name, handle, and bio.
+    `This page allows you to update your profile, including your name, handle, and bio.
     
 Handles are unique, and handled (pun intended) by the [ADA Handle Protocol](https://adahandle.com/). This allows for handle to be 
 used across many Cardano applications, and exchanged with others on an open market.
@@ -266,21 +266,15 @@ export const SettingsProfile = ({
                 </Grid>
             </Container>
             <Grid container spacing={2} p={3}>
-                <Grid item xs={6}>
-                    <Button
-                        disabled={Boolean(formik.isSubmitting || !formik.isValid)}
-                        fullWidth
-                        type="submit"
-                        startIcon={<SaveIcon />}
-                    >Save</Button>
-                </Grid>
-                <Grid item xs={6}>
-                    <Button
-                        fullWidth
-                        onClick={handleCancel}
-                        startIcon={<CancelIcon />}
-                    >Cancel</Button>
-                </Grid>
+                <GridSubmitButtons
+                    disabledCancel={formik.isSubmitting}
+                    disabledSubmit={formik.isSubmitting || !formik.isValid}
+                    errors={formik.errors}
+                    isCreate={false}
+                    onCancel={handleCancel}
+                    onSetSubmitting={formik.setSubmitting}
+                    onSubmit={formik.handleSubmit}
+                />
             </Grid>
         </form>
     )

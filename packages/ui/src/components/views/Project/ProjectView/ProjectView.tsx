@@ -15,7 +15,7 @@ import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
 import { Project, ResourceList } from "types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, PubSub, SearchType } from "utils";
+import { getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, PubSub, SearchType } from "utils";
 import { validate as uuidValidate } from 'uuid';
 import { EditIcon, EllipsisIcon } from "@shared/icons";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
@@ -35,7 +35,7 @@ export const ProjectView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     // Fetch data
-    const id = useMemo(() => window.location.pathname.split('/').pop() ?? '', []);
+    const id = useMemo(() => getLastUrlPart(), []);
     const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery, { errorPolicy: 'all'});
     const [project, setProject] = useState<Project | null | undefined>(null);
     useEffect(() => {

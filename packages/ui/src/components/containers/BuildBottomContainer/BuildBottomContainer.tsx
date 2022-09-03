@@ -1,16 +1,16 @@
-import { Box, Button, Dialog, IconButton, Slider, Stack, Tooltip, useTheme } from '@mui/material';
+import { Box, Dialog, Grid, IconButton, Slider, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import {
     Pause as PauseIcon,
     PlayCircle as RunIcon,
 } from '@mui/icons-material';
-import { BuildRunState, stringifySearchParams } from 'utils';
+import { BuildRunState, setSearchParams } from 'utils';
 import { BuildBottomContainerProps } from '../types';
 import { useLocation } from '@shared/route';
 import { RunPickerMenu, UpTransition } from 'components/dialogs';
 import { RunView } from 'components/views';
 import { Run } from 'types';
-import { CancelIcon, CreateIcon, SaveIcon } from '@shared/icons';
+import { GridSubmitButtons } from 'components/buttons';
 
 export const BuildBottomContainer = ({
     canSubmitMutate,
@@ -46,17 +46,17 @@ export const BuildBottomContainer = ({
     const handleRunSelect = useCallback((run: Run | null) => {
         // If run is null, it means the routine will be opened without a run
         if (!run) {
-            setLocation(stringifySearchParams({
+            setSearchParams(setLocation, {
                 run: "test",
                 step: [1]
-            }), { replace: true });
+            });
         }
         // Otherwise, open routine where last left off in run
         else {
-            setLocation(stringifySearchParams({
+            setSearchParams(setLocation, {
                 run: run.id,
                 step: run.steps.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
-            }), { replace: true });
+            });
         }
         setIsRunOpen(true);
     }, [setLocation]);
@@ -65,10 +65,10 @@ export const BuildBottomContainer = ({
     const runRoutine = useCallback((e: any) => {
         // If editing, don't use a real run
         if (isEditing) {
-            setLocation(stringifySearchParams({
+            setSearchParams(setLocation, {
                 run: "test",
                 step: [1]
-            }), { replace: true });
+            });
             setIsRunOpen(true);
         }
         else {
@@ -108,43 +108,15 @@ export const BuildBottomContainer = ({
     const buttons = useMemo(() => {
         return isEditing ?
             (
-                isAdding ?
-                    (
-                        <Stack direction="row" spacing={1}>
-                            <Button
-                                disabled={loading || !canSubmitMutate}
-                                fullWidth
-                                onClick={handleAdd}
-                                startIcon={<CreateIcon />}
-                                sx={{ width: 'min(25vw, 150px)' }}
-                            >Create</Button>
-                            <Button
-                                disabled={loading || !canCancelMutate}
-                                fullWidth
-                                onClick={handleCancelAdd}
-                                startIcon={<CancelIcon />}
-                                sx={{ width: 'min(25vw, 150px)' }}
-                            >Cancel</Button>
-                        </Stack>
-                    ) :
-                    (
-                        <Stack direction="row" spacing={1}>
-                            <Button
-                                disabled={loading || !canSubmitMutate}
-                                fullWidth
-                                onClick={handleUpdate}
-                                startIcon={<SaveIcon />}
-                                sx={{ width: 'min(25vw, 150px)' }}
-                            >Update</Button>
-                            <Button
-                                disabled={loading || !canCancelMutate}
-                                fullWidth
-                                onClick={handleCancelUpdate}
-                                startIcon={<CancelIcon />}
-                                sx={{ width: 'min(25vw, 150px)' }}
-                            >Cancel</Button>
-                        </Stack>
-                    )
+                <Grid container spacing={1} sx={{ width: 'min(50vw, 300px)' }}>
+                    <GridSubmitButtons
+                        disabledCancel={loading || !canCancelMutate}
+                        disabledSubmit={loading || !canSubmitMutate}
+                        isCreate={isAdding}
+                        onCancel={handleCancelAdd}
+                        onSubmit={handleAdd}
+                    />
+                </Grid>
             ) :
             (
                 <Stack direction="row" spacing={0}>
@@ -173,7 +145,7 @@ export const BuildBottomContainer = ({
                     </Tooltip> */}
                 </Stack>
             )
-    }, [canCancelMutate, canSubmitMutate, handleAdd, handleCancelAdd, handleCancelUpdate, handleUpdate, isAdding, isEditing, loading, runRoutine, runState]);
+    }, [canCancelMutate, canSubmitMutate, handleAdd, handleCancelAdd, isAdding, isEditing, loading, runRoutine, runState]);
 
     return (
         <Box sx={{

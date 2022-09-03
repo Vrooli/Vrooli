@@ -10,18 +10,16 @@ import { PubSub } from "utils";
 import {
     AccountBalanceWallet as WalletIcon,
     Email as EmailIcon,
-    Restore as RevertIcon,
 } from '@mui/icons-material';
 import { SettingsAuthenticationProps } from "../types";
 import { useLocation } from '@shared/route';
 import { logOutMutation } from 'graphql/mutation';
-import { HelpButton } from "components/buttons";
+import { GridSubmitButtons, HelpButton } from "components/buttons";
 import { EmailList, WalletList } from "components/lists";
 import { Email, Wallet } from "types";
 import { PasswordTextField } from "components";
 import { logOut } from "graphql/generated/logOut";
 import { profileEmailUpdate, profileEmailUpdateVariables } from "graphql/generated/profileEmailUpdate";
-import { SaveIcon } from "@shared/icons";
 
 const helpText =
     `This page allows you to manage your wallets, emails, and other authentication settings.`;
@@ -210,26 +208,15 @@ export const SettingsAuthentication = ({
                             helperText={formik.touched.newPasswordConfirmation ? formik.errors.newPasswordConfirmation : null}
                         />
                     </Grid>
-                    <Grid item xs={12} sm={6}>
-                        <Button
-                            fullWidth
-                            startIcon={<SaveIcon />}
-                            disabled={!Object.values(formik.values).some(v => v.length > 0) || !formik.isValid || formik.isSubmitting}
-                            type="submit"
-                        >
-                            Save
-                        </Button>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                        <Button
-                            fullWidth
-                            startIcon={<RevertIcon />}
-                            disabled={!Object.values(formik.values).some(v => v.length > 0) || formik.isSubmitting}
-                            onClick={() => { formik.resetForm() }}
-                        >
-                            Cancel
-                        </Button>
-                    </Grid>
+                    <GridSubmitButtons
+                        disabledCancel={!Object.values(formik.values).some(v => v.length > 0) || formik.isSubmitting}
+                        disabledSubmit={!Object.values(formik.values).some(v => v.length > 0) || !formik.isValid || formik.isSubmitting}
+                        errors={formik.errors}
+                        isCreate={false}
+                        onCancel={formik.resetForm}
+                        onSetSubmitting={formik.setSubmitting}
+                        onSubmit={formik.handleSubmit}
+                    />
                 </Grid>
             </form>
             <Button color="secondary" onClick={onLogOut} sx={{

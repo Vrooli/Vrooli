@@ -16,7 +16,7 @@ import { routineQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { routine, routineVariables } from 'graphql/generated/routine';
 import { RoutineCreate } from 'components/views/Routine/RoutineCreate/RoutineCreate';
-import { parseSearchParams, stringifySearchParams, SearchType, routineSearchSchema } from 'utils';
+import { SearchType, routineSearchSchema, removeSearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';
 
@@ -41,23 +41,13 @@ export const RoutineSelectOrCreateDialog = ({
      * Before closing, remove all URL search params for advanced search
      */
     const onClose = useCallback(() => {
-        // Find all search fields
-        const searchFields = [
+        // Clear search params
+        removeSearchParams(setLocation, [
             ...routineSearchSchema.fields.map(f => f.fieldName),
             'advanced',
             'sort',
             'time',
-        ];
-        // Find current search params
-        const params = parseSearchParams(window.location.search);
-        // Remove all search params that are advanced search fields
-        Object.keys(params).forEach(key => {
-            if (searchFields.includes(key)) {
-                delete params[key];
-            }
-        });
-        // Update URL
-        setLocation(stringifySearchParams(params), { replace: true });
+        ]);
         handleClose();
     }, [handleClose, setLocation]);
 
