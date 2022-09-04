@@ -33,11 +33,11 @@ import { star, starVariables } from 'graphql/generated/star';
 import { vote, voteVariables } from 'graphql/generated/vote';
 import { ObjectAction, BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import { DeleteDialog, EditableLabel, LanguageInput, LinkButton, MarkdownInput, ResourceListHorizontal } from 'components';
-import { AllLanguages, getLanguageSubtag, getOwnedByString, getTranslation, PubSub, RoutineTranslationShape, toOwnedBy, updateArray } from 'utils';
+import { DeleteDialog, EditableLabel, LanguageInput, LinkButton, MarkdownInput, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession } from 'components';
+import { AllLanguages, getLanguageSubtag, getOwnedByString, getTranslation, ObjectType, PubSub, RoutineTranslationShape, TagShape, toOwnedBy, updateArray } from 'utils';
 import { useLocation } from '@shared/route';
 import { useFormik } from 'formik';
-import { APP_LINKS, CopyType, DeleteOneType, ForkType, StarFor, VoteFor } from '@shared/consts';
+import { APP_LINKS, CopyType, DeleteOneType, ForkType, ResourceListUsedFor, StarFor, VoteFor } from '@shared/consts';
 import { routineUpdateForm as validationSchema } from '@shared/validation';
 import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
 import { useMutation } from '@apollo/client';
@@ -45,6 +45,8 @@ import { mutationWrapper } from 'graphql/utils';
 import { copyMutation, forkMutation, starMutation, voteMutation } from 'graphql/mutation';
 import { v4 as uuid } from 'uuid';
 import { CloseIcon, DownvoteWideIcon, InfoIcon, UpvoteWideIcon } from '@shared/icons';
+import { ResourceList } from 'types';
+import { RelationshipsObject } from 'components/inputs/types';
 
 export const BuildInfoDialog = ({
     handleAction,
@@ -60,9 +62,42 @@ export const BuildInfoDialog = ({
 }: BuildInfoDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    console.log('buildinfodialog renderrr')
 
     const ownedBy = useMemo<string | null>(() => getOwnedByString(routine, [language]), [routine, language]);
     const toOwner = useCallback(() => { toOwnedBy(routine, setLocation) }, [routine, setLocation]);
+
+    const [relationships, setRelationships] = useState<RelationshipsObject>({
+        isComplete: false,
+        isPrivate: false,
+        owner: userFromSession(session),
+        parent: null,
+        project: null,
+    });
+    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
+        setRelationships({
+            ...relationships,
+            ...newRelationshipsObject,
+        });
+    }, [relationships]);
+
+    // Handle resources
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
+        setResourceList(updatedList);
+    }, [setResourceList]);
+
+    // Handle tags
+    const [tags, setTags] = useState<TagShape[]>([]);
+    const addTag = useCallback((tag: TagShape) => {
+        setTags(t => [...t, tag]);
+    }, [setTags]);
+    const removeTag = useCallback((tag: TagShape) => {
+        setTags(tags => tags.filter(t => t.tag !== tag.tag));
+    }, [setTags]);
+    const clearTags = useCallback(() => {
+        setTags([]);
+    }, [setTags]);
 
     // Handle translations
     type Translation = RoutineTranslationShape;
@@ -80,13 +115,33 @@ export const BuildInfoDialog = ({
         setTranslations(getTranslationsUpdate(language, translation));
     }, [getTranslationsUpdate]);
 
+    useEffect(() => {
+        // setRelationships({ TODO
+        //     isComplete: project?.isComplete ?? false,
+        //     isPrivate: project?.isPrivate ?? false,
+        //     owner: null,
+        //     // owner: project?.owner ?? null, TODO
+        //     parent: null,
+        //     // parent: project?.parent ?? null, TODO
+        //     project: null,
+        // });
+        setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+        setTags(routine?.tags ?? []);
+        setTranslations(routine?.translations?.map(t => ({
+            id: t.id,
+            language: t.language,
+            description: t.description ?? '',
+            instructions: t.instructions ?? '',
+            title: t.title ?? '',
+        })) ?? []);
+    }, [routine]);
+
     // Handle update
     const formik = useFormik({
         initialValues: {
             description: getTranslation(routine, 'description', [language]) ?? '',
             instructions: getTranslation(routine, 'instructions', [language]) ?? '',
             isInternal: routine?.isInternal ?? false,
-            isComplete: routine?.isComplete ?? true,
             title: getTranslation(routine, 'title', [language]) ?? '',
             version: routine?.version ?? '',
         },
@@ -100,11 +155,17 @@ export const BuildInfoDialog = ({
                 instructions: values.instructions,
                 title: values.title,
             })
+            console.log('buildinfodialog updating routineeeeeeeeeeee')
             handleUpdate({
                 ...routine,
                 isInternal: values.isInternal,
-                isComplete: values.isComplete,
+                isComplete: relationships.isComplete,
+                isPrivate: relationships.isPrivate,
+                owner: relationships.owner,
+                parent: relationships.parent,
                 version: values.version,
+                resourceLists: [resourceList],
+                tags: tags,
                 translations: allTranslations,
             } as any);
         },
@@ -121,6 +182,7 @@ export const BuildInfoDialog = ({
         if (!language || !translations) return;
         const translation = translations.find(t => language === t.language);
         if (translation) {
+            console.log('buildinfodialog updating formik translation 1')
             formik.setValues({
                 ...formik.values,
                 description: translations[0].description ?? '',
@@ -195,7 +257,7 @@ export const BuildInfoDialog = ({
         }
     };
 
-    const resourceList = useMemo(() => {
+    const resourceListObject = useMemo(() => {
         if (!routine ||
             !Array.isArray(routine.resourceLists) ||
             routine.resourceLists.length < 1 ||
@@ -204,12 +266,12 @@ export const BuildInfoDialog = ({
             title={'Resources'}
             list={routine.resourceLists[0]}
             canEdit={false}
-            handleUpdate={() => { }} // Intentionally blank
+            handleUpdate={handleResourcesUpdate}
             loading={loading}
             session={session}
             zIndex={zIndex}
         />
-    }, [loading, routine, session, zIndex]);
+    }, [handleResourcesUpdate, loading, routine, session, zIndex]);
 
     /**
      * Determines which action buttons to display
@@ -429,10 +491,18 @@ export const BuildInfoDialog = ({
                 {/* Main content */}
                 {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
                 <Stack direction="column" spacing={2} padding={1}>
+                    {/* Relationships */}
+                    <RelationshipButtons
+                        objectType={ObjectType.Routine}
+                        onRelationshipsChange={onRelationshipsChange}
+                        relationships={relationships}
+                        session={session}
+                        zIndex={zIndex}
+                    />
                     {/* Language */}
                     {languageComponent}
                     {/* Resources */}
-                    {resourceList}
+                    {resourceListObject}
                     {/* Description */}
                     <Box sx={{
                         padding: 1,
@@ -480,6 +550,20 @@ export const BuildInfoDialog = ({
                         }
                     </Box>
                     {/* Inputs/Outputs TODO*/}
+                    {/* Tags */}
+                    {
+                        isEditing ? (
+                            <TagSelector
+                                session={session}
+                                tags={tags}
+                                onTagAdd={addTag}
+                                onTagRemove={removeTag}
+                                onTagsClear={clearTags}
+                            />
+                        ) : tags.length > 0 ? (
+                            <TagList session={session} parentId={routine?.id ?? ''} tags={tags as any[]} />
+                        ) : null
+                    }
                     {/* Is internal checkbox */}
                     <Tooltip placement={'top'} title='Indicates if this routine is meant to be a subroutine for only one other routine. If so, it will not appear in search resutls.'>
                         <FormControlLabel
@@ -492,23 +576,6 @@ export const BuildInfoDialog = ({
                                     name='isInternal'
                                     color='secondary'
                                     checked={formik.values.isInternal}
-                                    onChange={formik.handleChange}
-                                />
-                            }
-                        />
-                    </Tooltip>
-                    {/* Is complete checkbox */}
-                    <Tooltip placement={'top'} title='Indicates if this routine is ready for others to run. If not, it will not show in default search results'>
-                        <FormControlLabel
-                            disabled={!isEditing}
-                            label='Complete'
-                            control={
-                                <Checkbox
-                                    id='routine-info-dialog-is-complete'
-                                    size="small"
-                                    name='isComplete'
-                                    color='secondary'
-                                    checked={formik.values.isComplete}
                                     onChange={formik.handleChange}
                                 />
                             }

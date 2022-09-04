@@ -19,6 +19,7 @@ import { routineUpdate, routineUpdateVariables } from 'graphql/generated/routine
 import { routineCreate, routineCreateVariables } from 'graphql/generated/routineCreate';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
 import { AddLinkIcon, CloseIcon, CompressIcon, EditIcon, RedoIcon, UndoIcon } from '@shared/icons';
+import { smallHorizontalScrollbar } from 'components/lists/styles';
 
 const helpText =
     `## What am I looking at?
@@ -347,17 +348,16 @@ export const BuildView = ({
         }
         console.log('going to create routine: changedRoutine', changedRoutine)
         console.log('shaped', shapeRoutineCreate(changedRoutine))
-        return;
-        // mutationWrapper({
-        //     mutation: routineCreate,
-        //     input: shapeRoutineCreate({ ...changedRoutine, id: uuid() }),
-        //     successMessage: () => 'Routine created.',
-        //     onSuccess: ({ data }) => {
-        //         onChange(data.routineCreate);
-        //         keepSearchParams(setLocation, []);
-        //         handleClose();
-        //     },
-        // })
+        mutationWrapper({
+            mutation: routineCreate,
+            input: shapeRoutineCreate({ ...changedRoutine, id: uuid() }),
+            successMessage: () => 'Routine created.',
+            onSuccess: ({ data }) => {
+                onChange(data.routineCreate);
+                keepSearchParams(setLocation, []);
+                handleClose();
+            },
+        })
     }, [changedRoutine, handleClose, onChange, routineCreate, setLocation]);
 
     /**
@@ -787,6 +787,7 @@ export const BuildView = ({
      * Updates a node's data
      */
     const handleNodeUpdate = useCallback((node: Node) => {
+        console.log('handlenodeupdate starttt', node)
         if (!changedRoutine) return;
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === node.id);
         if (nodeIndex === -1) return;
@@ -1249,7 +1250,7 @@ export const BuildView = ({
                 session={session}
                 zIndex={zIndex + 3}
             />}
-            {/* Popup for editing existing subroutines */}
+            {/* Popup for editing existing multi-step subroutines */}
             {/* TODO */}
             {/* Popup for "Add after" dialog */}
             {addAfterLinkNode && <AddAfterLinkDialog
@@ -1368,6 +1369,7 @@ export const BuildView = ({
                     height: '48px',
                     background: palette.primary.light,
                     color: palette.primary.contrastText,
+                    ...smallHorizontalScrollbar(palette)
                 }}
             >
                 <StatusButton status={status.status} messages={status.messages} sx={{
@@ -1379,9 +1381,10 @@ export const BuildView = ({
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     {
                         isEditing && (<>
-                            {canUndo && <Tooltip title={canUndo ? 'Undo' : ''}>
+                            {(canUndo || canRedo) && <Tooltip title={canUndo ? 'Undo' : ''}>
                                 <IconButton
                                     id="undo-button"
+                                    disabled={!canUndo}
                                     onClick={undo}
                                     aria-label="Undo"
                                     sx={commonButtonProps(palette)}
@@ -1389,9 +1392,10 @@ export const BuildView = ({
                                     <UndoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
                                 </IconButton>
                             </Tooltip>}
-                            {canRedo && <Tooltip title={canRedo ? 'Redo' : ''}>
+                            {(canUndo || canRedo) && <Tooltip title={canRedo ? 'Redo' : ''}>
                                 <IconButton
                                     id="redo-button"
+                                    disabled={!canRedo}
                                     onClick={redo}
                                     aria-label="Redo"
                                     sx={commonButtonProps(palette)}

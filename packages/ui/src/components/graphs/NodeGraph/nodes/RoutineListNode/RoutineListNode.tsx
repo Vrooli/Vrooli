@@ -22,7 +22,7 @@ import {
 } from '../styles';
 import { multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { NodeDataRoutineList, NodeDataRoutineListItem } from 'types';
-import { getTranslation, BuildAction, updateTranslationField, PubSub, usePress } from 'utils';
+import { getTranslation, BuildAction, updateTranslationFields, PubSub, usePress } from 'utils';
 import { EditableLabel } from 'components/inputs';
 import { AddIcon, CloseIcon } from '@shared/icons';
 
@@ -93,7 +93,7 @@ export const RoutineListNode = ({
     const handleLabelUpdate = useCallback((newLabel: string) => {
         handleUpdate({
             ...node,
-            translations: updateTranslationField(node, 'title', newLabel, language),
+            translations: updateTranslationFields(node, language, { title: newLabel }),
         });
     }, [handleUpdate, language, node]);
 

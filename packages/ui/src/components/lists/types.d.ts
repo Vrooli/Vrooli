@@ -121,6 +121,7 @@ export interface StatsListProps {
 export interface TagListProps {
     session: Session;
     parentId: string;
+    sx?: { [x: string]: any };
     tags: Partial<Tag>[];
 }
 

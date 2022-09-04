@@ -16,7 +16,7 @@ import {
     routineNodeCheckboxLabel,
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
-import { BuildAction, getTranslation, updateTranslationField, usePress } from 'utils';
+import { BuildAction, getTranslation, updateTranslationFields, usePress } from 'utils';
 import { EditableLabel, NodeContextMenu } from 'components';
 import { CloseIcon } from '@shared/icons';
 
@@ -69,7 +69,7 @@ export const SubroutineNode = ({
     const handleLabelUpdate = useCallback((newLabel: string) => {
         handleUpdate(data.id, {
             ...data,
-            translations: updateTranslationField(data, 'title', newLabel, language),
+            translations: updateTranslationFields(data, language, { title: newLabel }) as any,
         });
     }, [handleUpdate, data, language]);
 

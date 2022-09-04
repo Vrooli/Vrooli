@@ -1,6 +1,6 @@
 import { EndNodeDialogProps } from '../types';
 import { Checkbox, Dialog, FormControlLabel, Grid, TextField, Tooltip, Typography } from '@mui/material';
-import { getTranslation, updateTranslationField } from 'utils';
+import { getTranslation, updateTranslationFields } from 'utils';
 import { nodeEndForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { DialogTitle } from 'components/dialogs';
@@ -29,9 +29,10 @@ export const EndNodeDialog = ({
         enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
-            //TODO probs not working
-            let newTranslations = updateTranslationField(node, 'title', values.title, language);
-            newTranslations = updateTranslationField({ translations: newTranslations }, 'description', values.description, language);
+            const newTranslations = updateTranslationFields(node, language, { 
+                title: values.title,
+                description: values.description,
+            });
             console.log('new translations', newTranslations);
             handleClose({
                 ...node,
