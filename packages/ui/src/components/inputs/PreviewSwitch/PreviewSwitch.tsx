@@ -67,6 +67,7 @@ export function PreviewSwitch({
                 <input
                     type="checkbox"
                     checked={isPreviewOn}
+                    readOnly
                     aria-label="build-preview-toggle"
                     onClick={handleClick}
                     style={{
