@@ -109,7 +109,7 @@ export const BuildBottomContainer = ({
     const buttons = useMemo(() => {
         return isEditing ?
             (
-                <Grid container spacing={1} sx={{ width: 'min(50vw, 300px)' }}>
+                <Grid container spacing={1} sx={{ width: 'min(100vw, 350px)' }}>
                     <GridSubmitButtons
                         disabledCancel={loading || !canCancelMutate}
                         disabledSubmit={loading || !canSubmitMutate}

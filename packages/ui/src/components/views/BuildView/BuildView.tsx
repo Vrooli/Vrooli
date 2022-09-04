@@ -85,8 +85,11 @@ export const BuildView = ({
      */
     useEffect(() => {
         const searchParams = parseSearchParams(window.location.search);
-        if (searchParams.edit) setIsEditing(true);
-    }, []);
+        // Editing if specified in search params, or id not set (new routine)
+        if (searchParams.edit || !uuidValidate(id)) {
+            setIsEditing(true);
+        }
+    }, [id]);
 
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
     // Routine mutators
@@ -97,6 +100,10 @@ export const BuildView = ({
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
     const canEdit = useMemo<boolean>(() => routine?.permissionsRoutine?.canEdit === true, [routine?.permissionsRoutine?.canEdit]);
+
+    useEffect(() => {
+        console.log('changedRoutine', changedRoutine);
+    }, [changedRoutine]);
 
     // Stores previous routine states for undo/redo
     const [changeStack, setChangeStack] = useState<Routine[]>([]);
@@ -340,16 +347,17 @@ export const BuildView = ({
         }
         console.log('going to create routine: changedRoutine', changedRoutine)
         console.log('shaped', shapeRoutineCreate(changedRoutine))
-        mutationWrapper({
-            mutation: routineCreate,
-            input: shapeRoutineCreate({ ...changedRoutine, id: uuid() }),
-            successMessage: () => 'Routine created.',
-            onSuccess: ({ data }) => {
-                onChange(data.routineCreate);
-                keepSearchParams(setLocation, []);
-                handleClose();
-            },
-        })
+        return;
+        // mutationWrapper({
+        //     mutation: routineCreate,
+        //     input: shapeRoutineCreate({ ...changedRoutine, id: uuid() }),
+        //     successMessage: () => 'Routine created.',
+        //     onSuccess: ({ data }) => {
+        //         onChange(data.routineCreate);
+        //         keepSearchParams(setLocation, []);
+        //         handleClose();
+        //     },
+        // })
     }, [changedRoutine, handleClose, onChange, routineCreate, setLocation]);
 
     /**
