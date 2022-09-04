@@ -74,7 +74,6 @@ export const JsonStandardInput = ({
                     background: 'transparent',
                     borderColor: state.valid ? 'unset' : 'red',
                     borderRadius: '0 0 0.5rem 0.5rem',
-                    borderTop: 'none',
                     fontFamily: 'inherit',
                     fontSize: 'inherit',
                 }}
