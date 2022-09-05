@@ -1,13 +1,12 @@
 import { useCallback, useMemo } from 'react';
 import { NodeEdgeProps } from '../types';
 import {
-    Add as AddIcon,
     AltRoute as BranchIcon,
-    Edit as EditIcon,
     Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { IconButton, Stack, Tooltip, useTheme } from '@mui/material';
 import { BaseEdge } from '../BaseEdge/BaseEdge';
+import { AddIcon, EditIcon } from '@shared/icons';
 
 /**
  * Displays a line between two nodes of a routine graph
@@ -71,7 +70,7 @@ export const NodeEdge = ({
                             },
                         }}
                     >
-                        <AddIcon id="insert-node-on-edge-button-icon" sx={{ fill: 'white' }} />
+                        <AddIcon id="insert-node-on-edge-button-icon" fill={'white'} />
                     </IconButton>
                 </Tooltip>
                 {/* Insert Branch */}
@@ -110,7 +109,7 @@ export const NodeEdge = ({
                             },
                         }}
                     >
-                        <EditIcon id="insert-node-on-edge-button-icon" sx={{ fill: 'white' }} />
+                        <EditIcon id="insert-node-on-edge-button-icon" fill={'white'} />
                     </IconButton>
                 </Tooltip>
                 {/* Delete link */}

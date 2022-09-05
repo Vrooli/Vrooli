@@ -5,13 +5,9 @@ import { useLazyQuery } from "@apollo/client";
 import { standard, standardVariables } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import {
-    Edit as EditIcon,
-    MoreHoriz as EllipsisIcon,
-} from "@mui/icons-material";
-import { BaseObjectActionDialog, BaseStandardInput, CommentContainer, LinkButton, ResourceListHorizontal, SelectLanguageDialog, StarButton, TextCollapse } from "components";
+import { ObjectActionMenu, BaseStandardInput, CommentContainer, LinkButton, ResourceListHorizontal, SelectLanguageMenu, StarButton, TextCollapse } from "components";
 import { StandardViewProps } from "../types";
-import { getCreatedByString, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData, TERTIARY_COLOR, toCreatedBy } from "utils";
+import { getCreatedByString, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData, toCreatedBy } from "utils";
 import { Standard } from "types";
 import { CommentFor, StarFor } from "graphql/generated/globalTypes";
 import { containerShadow } from "styles";
@@ -20,6 +16,9 @@ import { FieldData, FieldDataJSON } from "forms/types";
 import { useFormik } from "formik";
 import { generateInputComponent } from "forms/generators";
 import { PreviewSwitch } from "components/inputs";
+import { EditIcon, EllipsisIcon } from "@shared/icons";
+import { standardCreateForm } from "@shared/validation";
+import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 
 export const StandardView = ({
     partialData,
@@ -29,14 +28,17 @@ export const StandardView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     // Fetch data
-    const id = useMemo(() => window.location.pathname.split('/').pop() ?? '', []);
+    const id = useMemo(() => getLastUrlPart(), []);
     const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery, { errorPolicy: 'all' });
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { input: { id } } });
     }, [getData, id])
 
-    const standard = useMemo(() => data?.standard, [data]);
-    const [changedStandard, setChangedStandard] = useState<Standard | null>(null); // Standard may change if it is starred/upvoted/etc.
+    const [standard, setStandard] = useState<Standard | null>(null);
+    useEffect(() => {
+        if (!data) return;
+        setStandard(data.standard);
+    }, [data]);
 
     const availableLanguages = useMemo<string[]>(() => (standard?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [standard?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -61,10 +63,6 @@ export const StandardView = ({
         enableReinitialize: true,
         onSubmit: () => { },
     });
-
-    useEffect(() => {
-        if (standard) { setChangedStandard(standard) }
-    }, [standard]);
 
     const { canEdit, canStar, description, name } = useMemo(() => {
         const permissions = standard?.permissionsStandard;
@@ -94,6 +92,46 @@ export const StandardView = ({
         ev.preventDefault();
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
+
+    const onMoreActionStart = useCallback((action: ObjectAction) => {
+        switch (action) {
+            case ObjectAction.Edit:
+                onEdit();
+                break;
+            case ObjectAction.Stats:
+                //TODO
+                break;
+        }
+    }, [onEdit]);
+
+    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
+        switch (action) {
+            case ObjectActionComplete.VoteDown:
+            case ObjectActionComplete.VoteUp:
+                if (data.vote.success) {
+                    setStandard({
+                        ...standard,
+                        isUpvoted: action === ObjectActionComplete.VoteUp,
+                    } as any)
+                }
+                break;
+            case ObjectActionComplete.Star:
+            case ObjectActionComplete.StarUndo:
+                if (data.star.success) {
+                    setStandard({
+                        ...standardCreateForm,
+                        isStarred: action === ObjectActionComplete.Star,
+                    } as any)
+                }
+                break;
+            case ObjectActionComplete.Fork:
+                setLocation(`${APP_LINKS.Standard}/${data.fork.standard.id}`);
+                break;
+            case ObjectActionComplete.Copy:
+                setLocation(`${APP_LINKS.Standard}/${data.copy.standard.id}`);
+                break;
+        }
+    }, [standard, setLocation]);
 
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(true);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
@@ -184,9 +222,7 @@ export const StandardView = ({
             minHeight: { xs: 'calc(100vh - 64px - 56px - env(safe-area-inset-bottom))', md: 'calc(100vh - 80px)' },
         }}>
             {/* Popup menu displayed when "More" ellipsis pressed */}
-            <BaseObjectActionDialog
-                handleActionComplete={() => { }} //TODO
-                handleEdit={onEdit}
+            <ObjectActionMenu
                 isUpvoted={standard?.isUpvoted}
                 isStarred={standard?.isStarred}
                 objectId={id ?? ''}
@@ -194,6 +230,8 @@ export const StandardView = ({
                 objectType={ObjectType.Standard}
                 anchorEl={moreMenuAnchor}
                 title='Standard Options'
+                onActionStart={onMoreActionStart}
+                onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
                 permissions={standard?.permissionsStandard}
                 session={session}
@@ -253,7 +291,7 @@ export const StandardView = ({
                                         marginRight: 1,
                                     }}
                                 >
-                                    <EllipsisIcon sx={{ fill: palette.primary.contrastText }} />
+                                    <EllipsisIcon fill={palette.primary.contrastText}  />
                                 </IconButton>
                             </Tooltip>
                         </Stack>
@@ -267,9 +305,9 @@ export const StandardView = ({
                                 objectId={standard?.id ?? ''}
                                 showStars={false}
                                 starFor={StarFor.Standard}
-                                isStar={changedStandard?.isStarred ?? false}
-                                stars={changedStandard?.stars ?? 0}
-                                onChange={(isStar: boolean) => { changedStandard && setChangedStandard({ ...changedStandard, isStarred: isStar }) }}
+                                isStar={standard?.isStarred ?? false}
+                                stars={standard?.stars ?? 0}
+                                onChange={(isStar: boolean) => { standard && setStandard({ ...standard, isStarred: isStar }) }}
                                 tooltipPlacement="bottom"
                             />}
                             {createdBy && (
@@ -279,7 +317,7 @@ export const StandardView = ({
                                 />
                             )}
                             <Typography variant="body1"> - {standard?.version}</Typography>
-                            <SelectLanguageDialog
+                            <SelectLanguageMenu
                                 availableLanguages={availableLanguages}
                                 canDropdownOpen={availableLanguages.length > 1}
                                 currentLanguage={language}
@@ -293,7 +331,7 @@ export const StandardView = ({
                                     size="small"
                                     onClick={onEdit}
                                 >
-                                    <EditIcon sx={{ fill: TERTIARY_COLOR }} />
+                                    <EditIcon fill={palette.secondary.main} />
                                 </IconButton>
                             </Tooltip>}
                         </Stack>

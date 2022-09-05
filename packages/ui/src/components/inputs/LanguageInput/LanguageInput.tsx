@@ -4,7 +4,7 @@
 import { Stack, Typography } from '@mui/material';
 import { LanguageInputProps } from '../types';
 import { useCallback } from 'react';
-import { SelectLanguageDialog } from 'components/dialogs';
+import { SelectLanguageMenu } from 'components/dialogs';
 import { AllLanguages, getUserLanguages } from 'utils';
 
 export const LanguageInput = ({
@@ -55,7 +55,7 @@ export const LanguageInput = ({
 
     return (
         <Stack direction="row" spacing={1}>
-            <SelectLanguageDialog
+            <SelectLanguageMenu
                 availableLanguages={Object.keys(AllLanguages)}
                 currentLanguage={currentLanguage}
                 canDropdownOpen={true}

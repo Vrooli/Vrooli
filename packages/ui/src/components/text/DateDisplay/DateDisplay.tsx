@@ -17,10 +17,9 @@ export const DateDisplay = ({
 }: DateDisplayProps) => {
     const { palette } = useTheme();
     const shadowColor = palette.mode === 'light' ? '0 0 0' : '255 255 255';
-    console.log('rendering date display', loading, timestamp)
 
     // Full date popup
-    const [anchorEl, setAnchorEl] = useState<any>(null);
+    const [anchorEl, setAnchorEl] = useState<any | null>(null);
     const isOpen = Boolean(anchorEl);
     const open = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
         ev.preventDefault();

@@ -15,4 +15,3 @@ export * from './standards';
 export * from './StandardSelectSwitch/StandardSelectSwitch';
 export * from './TagSelector/TagSelector';
 export * from './ThemeSwitch/ThemeSwitch';
-export * from './UserOrganizationSwitch/UserOrganizationSwitch';

@@ -11,10 +11,10 @@ import { Resource } from 'types';
 import { getResourceIcon } from '..';
 import {
     Delete as DeleteIcon,
-    Edit as EditIcon,
     OpenInNew as OpenLinkIcon
 } from '@mui/icons-material';
 import { TextLoading } from 'components';
+import { EditIcon } from '@shared/icons';
 
 /**
  * Determines if a resource is a URL, wallet payment address, or an ADA handle
@@ -127,7 +127,7 @@ export function ResourceListItem({
                     }
                     {
                         canEdit && <IconButton onClick={onEdit}>
-                            <EditIcon sx={{ fill: palette.background.textPrimary }} />
+                            <EditIcon fill={palette.background.textPrimary} />
                         </IconButton>
                     }
                     <IconButton>

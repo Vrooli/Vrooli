@@ -74,7 +74,7 @@ services:
             - proxy
             - app
         volumes:
-            - ./node_modules:${PROJECT_DIR}/node_modules
+            # - ./node_modules:${PROJECT_DIR}/node_modules
             - ./packages/server:${PROJECT_DIR}/packages/server:z
             - ./packages/shared:${PROJECT_DIR}/packages/shared:z
             - ./data/logs:${PROJECT_DIR}/data/logs:z

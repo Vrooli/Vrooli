@@ -4,13 +4,23 @@ import {
 } from "@mui/icons-material";
 import { useCallback, useMemo } from "react";
 import { containerShadow, multiLineEllipsis } from "styles";
-import { Node, NodeLink } from "types";
+import { Node, NodeDataEnd, NodeLink } from "types";
 import { getTranslation, getUserLanguages } from "utils";
 import { DecisionViewProps } from "../types";
+import { HelpButton } from "components/buttons";
+import { NodeType } from "graphql/generated/globalTypes";
+
+const helpText = 
+`The routine has encountered multiple possible paths to take, with no way to decide automatically which one to take. 
+
+Paths which lead to another subroutine are shown in blue. Paths that end the routine are either red or green, depending on whether the routine will be marked as successful or not.
+
+Please select the path you would like to take. You can always navigate back to this decision later through the "Steps" side menu.`;
 
 type Decision = {
     node: Node;
     link: NodeLink;
+    color: string;
 };
 
 export const DecisionView = ({
@@ -28,9 +38,13 @@ export const DecisionView = ({
     const decisions = useMemo<Decision[]>(() => {
         return data.links.map(link => {
             const node = nodes.find(n => n.id === link.toId);
-            return { node, link } as Decision;
+            let color = palette.primary.dark;
+            if (node?.type === NodeType.End) {
+                color = (node.data as NodeDataEnd)?.wasSuccessful === false ? '#7c262a' : '#387e30'
+            }
+            return { node, link, color } as Decision;
         });
-    }, [data.links, nodes]);
+    }, [data.links, nodes, palette.primary.dark]);
 
     /**
      * Navigate to chosen option
@@ -43,7 +57,15 @@ export const DecisionView = ({
 
     return (
         <Stack direction="column" spacing={4} p={2}>
-            <Typography variant="h4" sx={{ textAlign: 'center' }}>What would you like to do next?</Typography>
+            {/* Title and help button */}
+            <Stack
+                direction="row"
+                justifyContent="center"
+                alignItems="center"
+            >
+                <Typography variant="h4" sx={{ textAlign: 'center' }}>What would you like to do next?</Typography>
+                <HelpButton markdown={helpText} sx={{ width: '40px', height: '40px' }} />
+            </Stack>
             {/* Each decision as its own ListItem, with title and description */}
             {decisions.map((decision, index) => {
                 const languages = getUserLanguages(session);
@@ -55,8 +77,8 @@ export const DecisionView = ({
                     onClick={() => { toDecision(index); }}
                     sx={{
                         display: 'flex',
-                        background: palette.secondary.light,
-                        color: 'black',
+                        background: decision.color,
+                        color: 'white',
                         ...containerShadow,
                         borderRadius: '12px',
                     }}
@@ -66,12 +88,17 @@ export const DecisionView = ({
                             {/* Name/Title */}
                             <ListItemText
                                 primary={title}
-                                sx={{ ...multiLineEllipsis(1) }}
+                                sx={{ 
+                                    ...multiLineEllipsis(1), 
+                                    fontWeight: 'bold',
+                                }}
                             />
                             {/* Bio/Description */}
                             {description && <ListItemText
                                 primary={description ?? instructions}
-                                sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
+                                sx={{ 
+                                    ...multiLineEllipsis(2), 
+                                }}
                             />}
                         </Stack>
                         <OpenLinkIcon />

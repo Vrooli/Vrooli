@@ -36,6 +36,10 @@ const useStyles = makeStyles(() => ({
                 backgroundColor: "#409590",
             },
         },
+        // Style bullet points in unordered lists
+        ul: {
+            listStyle: 'circle',
+        },
         '#page': {
             minWidth: '100vw',
             minHeight: '100vh',
@@ -146,11 +150,11 @@ export function App() {
                 e.preventDefault();
                 PubSub.get().publishCommandPalette();
             }
-            // CTRL + F - Opens Find in Page
-            else if (e.ctrlKey && e.key === 'f') {
-                e.preventDefault();
-                PubSub.get().publishFindInPage();
-            }
+            // CTRL + F - Opens Find in Page TODO
+            // else if (e.ctrlKey && e.key === 'f') {
+            //     e.preventDefault();
+            //     PubSub.get().publishFindInPage();
+            // }
         };
 
         // attach the event listener
@@ -247,6 +251,8 @@ export function App() {
                         '&:hover': {
                             color: theme.palette.mode === 'light' ? '#5a6ff6' : '#f3d4f2',
                         },
+                        // Remove underline on links
+                        textDecoration: 'none',
                     },
                 }}>
                     <main

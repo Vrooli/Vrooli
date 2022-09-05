@@ -5,12 +5,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Box, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { JsonInputProps } from '../types';
 import { HelpButton, StatusButton } from 'components/buttons';
-import { isJson, jsonHelpText, jsonToMarkdown, Status, TERTIARY_COLOR } from 'utils';
+import { isJson, jsonHelpText, jsonToMarkdown, Status } from 'utils';
 import Markdown from 'markdown-to-jsx';
-import {
-    VisibilityOff as PreviewOffIcon,
-    Visibility as PreviewOnIcon,
-} from '@mui/icons-material';
+import { InvisibleIcon, VisibleIcon } from '@shared/icons';
 
 export const JsonInput = ({
     id,
@@ -89,15 +86,14 @@ export const JsonInput = ({
                     <IconButton size="small" onClick={togglePreview}>
                         {
                             isPreviewOn ?
-                                <PreviewOffIcon sx={{ fill: palette.primary.contrastText }} /> :
-                                <PreviewOnIcon sx={{ fill: palette.primary.contrastText }} />
+                                <InvisibleIcon fill={palette.primary.contrastText} /> :
+                                <VisibleIcon fill={palette.primary.contrastText} />
                         }
                     </IconButton>
                 </Tooltip>
                 <HelpButton
                     markdown={jsonHelpText}
                     sxRoot={{ marginRight: 1 }}
-                    sx={{ color: TERTIARY_COLOR }}
                 />
             </Box>
             {/* Displays inputted JSON to the left, and info about the current variable being edited to the right */}

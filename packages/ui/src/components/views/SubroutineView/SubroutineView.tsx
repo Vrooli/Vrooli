@@ -1,16 +1,16 @@
 import { Box, CircularProgress, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import {
-    MoreHoriz as EllipsisIcon,
-} from "@mui/icons-material";
-import { LinkButton, ResourceListHorizontal, TextCollapse } from "components";
-import { useCallback, useEffect, useMemo } from "react";
+import { ObjectActionMenu, LinkButton, ResourceListHorizontal, TextCollapse } from "components";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { containerShadow } from "styles";
-import { formikToRunInputs, getOwnedByString, getTranslation, getUserLanguages, PubSub, runInputsToFormik, standardToFieldData, toOwnedBy } from "utils";
+import { formikToRunInputs, getOwnedByString, getTranslation, getUserLanguages, ObjectType, PubSub, runInputsToFormik, standardToFieldData, toOwnedBy } from "utils";
 import { useLocation } from '@shared/route';
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
 import { generateInputWithLabel } from 'forms/generators';
 import { useFormik } from "formik";
+import { EllipsisIcon } from "@shared/icons";
+import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
+import { APP_LINKS } from "@shared/consts";
 
 export const SubroutineView = ({
     loading,
@@ -25,21 +25,26 @@ export const SubroutineView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
+    const [internalRoutine, setInternalRoutine] = useState(routine);
+    useEffect(() => {
+        setInternalRoutine(routine);
+    } , [routine]);
+
     const { description, instructions, title } = useMemo(() => {
         const languages = session.languages ?? navigator.languages;
         return {
-            description: getTranslation(routine, 'description', languages, true),
-            instructions: getTranslation(routine, 'instructions', languages, true),
-            title: getTranslation(routine, 'title', languages, true),
+            description: getTranslation(internalRoutine, 'description', languages, true),
+            instructions: getTranslation(internalRoutine, 'instructions', languages, true),
+            title: getTranslation(internalRoutine, 'title', languages, true),
         }
-    }, [routine, session.languages]);
+    }, [internalRoutine, session.languages]);
 
     const ownedBy = useMemo<string | null>(() => {
-        if (!routine) return null;
+        if (!internalRoutine) return null;
         // If isInternal, owner is same as overall routine owner
-        const ownerObject = routine.isInternal ? { owner } : routine;
+        const ownerObject = internalRoutine.isInternal ? { owner } : internalRoutine;
         return getOwnedByString(ownerObject, getUserLanguages(session))
-    }, [routine, owner, session]);
+    }, [internalRoutine, owner, session]);
     const toOwner = useCallback(() => {
         // Confirmation dialog for leaving routine
         PubSub.get().publishAlertDialog({
@@ -50,23 +55,21 @@ export const SubroutineView = ({
                         // Save progress
                         handleSaveProgress();
                         // Navigate to owner
-                        const ownerObject = routine?.isInternal ? { owner } : routine;
+                        const ownerObject = internalRoutine?.isInternal ? { owner } : internalRoutine;
                         toOwnedBy(ownerObject, setLocation)
                     }
                 },
                 { text: 'Cancel' },
             ]
         });
-    }, [routine, handleSaveProgress, owner, setLocation]);
+    }, [internalRoutine, handleSaveProgress, owner, setLocation]);
 
     // The schema and formik keys for the form
     const formValueMap = useMemo<{ [fieldName: string]: FieldData }>(() => {
-        console.log('calculating formvaluemap')
-        if (!routine) return {};
+        if (!internalRoutine) return {};
         const schemas: { [fieldName: string]: FieldData } = {};
-        for (let i = 0; i < routine.inputs?.length; i++) {
-            const currInput = routine.inputs[i];
-            console.log('currinputttttttt', currInput);
+        for (let i = 0; i < internalRoutine.inputs?.length; i++) {
+            const currInput = internalRoutine.inputs[i];
             if (!currInput.standard) continue;
             const currSchema = standardToFieldData({
                 description: getTranslation(currInput, 'description', getUserLanguages(session), false) ?? getTranslation(currInput.standard, 'description', getUserLanguages(session), false),
@@ -82,7 +85,7 @@ export const SubroutineView = ({
             }
         }
         return schemas;
-    }, [routine, session]);
+    }, [internalRoutine, session]);
     const formik = useFormik({
         initialValues: Object.entries(formValueMap).reduce((acc, [key, value]) => {
             acc[key] = value.props.defaultValue ?? '';
@@ -130,24 +133,23 @@ export const SubroutineView = ({
     }, [formik.values]);
 
     const resourceList = useMemo(() => {
-        if (!routine ||
-            !Array.isArray(routine.resourceLists) ||
-            routine.resourceLists.length < 1 ||
-            routine.resourceLists[0].resources.length < 1) return null;
+        if (!internalRoutine ||
+            !Array.isArray(internalRoutine.resourceLists) ||
+            internalRoutine.resourceLists.length < 1 ||
+            internalRoutine.resourceLists[0].resources.length < 1) return null;
         return <ResourceListHorizontal
             title={'Resources'}
-            list={(routine as any).resourceLists[0]}
+            list={(internalRoutine as any).resourceLists[0]}
             canEdit={false}
             handleUpdate={() => { }} // Intentionally blank
             loading={loading}
             session={session}
             zIndex={zIndex}
         />
-    }, [routine, loading, session, zIndex]);
+    }, [internalRoutine, loading, session, zIndex]);
 
     const inputComponents = useMemo(() => {
-        console.log('rendering input components', formik.values)
-        if (!routine?.inputs || !Array.isArray(routine?.inputs) || routine.inputs.length === 0) return null;
+        if (!internalRoutine?.inputs || !Array.isArray(internalRoutine?.inputs) || internalRoutine.inputs.length === 0) return null;
         return (
             <Box>
                 {Object.values(formValueMap).map((fieldData: FieldData, index: number) => (
@@ -165,19 +167,59 @@ export const SubroutineView = ({
                 ))}
             </Box>
         )
-    }, [copyInput, formValueMap, palette.background.textPrimary, formik, routine?.inputs, session, zIndex]);
+    }, [copyInput, formValueMap, palette.background.textPrimary, formik, internalRoutine?.inputs, session, zIndex]);
 
-    useEffect(() => {
-        console.log('formValueMap changed', formValueMap)
-    }, [formValueMap])
+    // More menu
+    const [moreMenuAnchor, setMoreMenuAnchor] = useState<HTMLElement | null>(null);
+    const openMoreMenu = useCallback((ev: React.MouseEvent<HTMLElement>) => {
+        setMoreMenuAnchor(ev.currentTarget);
+        ev.preventDefault();
+    }, []);
+    const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
-    useEffect(() => {
-        console.log('formik changed', formik)
-    }, [formik])
+    const onEdit = useCallback(() => {
+        setLocation(`${APP_LINKS.Routine}/edit/${internalRoutine?.id}`);
+    }, [internalRoutine?.id, setLocation]);
 
-    useEffect(() => {
-        console.log('routine?.inputs changed', routine?.inputs)
-    }, [routine?.inputs])
+    const onMoreActionStart = useCallback((action: ObjectAction) => {
+        switch (action) {
+            case ObjectAction.Edit:
+                onEdit();
+                break;
+            case ObjectAction.Stats:
+                //TODO
+                break;
+        }
+    }, [onEdit]);
+
+    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
+        switch (action) {
+            case ObjectActionComplete.VoteDown:
+            case ObjectActionComplete.VoteUp:
+                if (data.vote.success) {
+                    setInternalRoutine({
+                        ...internalRoutine,
+                        isUpvoted: action === ObjectActionComplete.VoteUp,
+                    } as any)
+                }
+                break;
+            case ObjectActionComplete.Star:
+            case ObjectActionComplete.StarUndo:
+                if (data.star.success) {
+                    setInternalRoutine({
+                        ...internalRoutine,
+                        isStarred: action === ObjectActionComplete.Star,
+                    } as any)
+                }
+                break;
+            case ObjectActionComplete.Fork:
+                setLocation(`${APP_LINKS.Routine}/${data.fork.routine.id}`);
+                break;
+            case ObjectActionComplete.Copy:
+                setLocation(`${APP_LINKS.Routine}/${data.copy.routine.id}`);
+                break;
+        }
+    }, [internalRoutine, setLocation]);
 
     if (loading) return (
         <Box sx={{
@@ -198,6 +240,25 @@ export const SubroutineView = ({
             overflow: 'overlay',
             ...containerShadow
         }}>
+            {/* Popup menu displayed when "More" ellipsis pressed */}
+            <ObjectActionMenu
+                isUpvoted={internalRoutine?.isUpvoted}
+                isStarred={internalRoutine?.isStarred}
+                objectId={internalRoutine?.id ?? ''}
+                objectName={title ?? ''}
+                objectType={ObjectType.Routine}
+                anchorEl={moreMenuAnchor}
+                title='Subroutine Options'
+                onActionStart={onMoreActionStart}
+                onActionComplete={onMoreActionComplete}
+                onClose={closeMoreMenu}
+                permissions={{
+                    ...(internalRoutine?.permissionsRoutine ?? {}),
+                    canDelete: false,
+                }}
+                session={session}
+                zIndex={zIndex + 1}
+            />
             {/* Heading container */}
             <Stack direction="column" spacing={1} sx={{
                 display: 'flex',
@@ -215,14 +276,14 @@ export const SubroutineView = ({
                         <IconButton
                             aria-label="More"
                             size="small"
-                            onClick={() => { }} //TODO
+                            onClick={openMoreMenu}
                             sx={{
                                 display: 'block',
                                 marginLeft: 'auto',
                                 marginRight: 1,
                             }}
                         >
-                            <EllipsisIcon sx={{ fill: palette.primary.contrastText }} />
+                            <EllipsisIcon fill={palette.primary.contrastText}  />
                         </IconButton>
                     </Tooltip>
                 </Stack>
@@ -233,7 +294,7 @@ export const SubroutineView = ({
                             text={ownedBy}
                         />
                     ) : null}
-                    <Typography variant="body1"> - {routine?.version}</Typography>
+                    <Typography variant="body1"> - {internalRoutine?.version}</Typography>
                 </Stack>
             </Stack>
             {/* Stack that shows routine info, such as resources, description, inputs/outputs */}

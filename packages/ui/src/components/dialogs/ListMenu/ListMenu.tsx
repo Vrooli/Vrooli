@@ -33,9 +33,10 @@ export function ListMenu<T>({
                 color: 'red',
             },
         }}/>;
+        const fill = !iconColor || ['default', 'unset'].includes(iconColor) ? palette.background.textPrimary : iconColor;
         const itemIcon = Icon ? (
             <ListItemIcon>
-                <Icon sx={{ fill: iconColor || 'default' }} />
+                <Icon fill={fill} />
             </ListItemIcon>
         ) : null;
         const helpIcon = helpData ? (
@@ -50,7 +51,7 @@ export function ListMenu<T>({
                 {helpIcon}
             </ListItem>
         )
-    }), [data, onClose, onSelect])
+    }), [data, onClose, onSelect, palette.background.textPrimary])
 
     return (
         <Menu

@@ -255,19 +255,20 @@ export type RelationshipOwner = RelationshipItemOrganization | RelationshipItemU
 export type RelationshipProject = RelationshipItemProject | null;
 export type RelationshipParent = RelationshipItemProject | RelationshipItemRoutine | null;
 
-export interface RelationshipButtonsProps {
-    disabled?: boolean;
+export type RelationshipsObject = {
     isComplete: boolean;
     isPrivate: boolean;
-    objectType: ObjectType;
-    onIsCompleteChange: (isComplete: boolean) => any;
-    onIsPrivateChange: (isPrivate: boolean) => void;
-    onOwnerChange: (newOwner: RelationshipOwner) => void;
-    onProjectChange: (newProject: RelationshipProject) => void;
-    onParentChange: (newParent: RelationshipParent) => void;
     owner: RelationshipOwner;
     parent: RelationshipParent;
     project: RelationshipProject;
+}
+
+export interface RelationshipButtonsProps {
+    disabled?: boolean;
+    isFormDirty?: boolean;
+    objectType: ObjectType;
+    onRelationshipsChange: (relationships: Partial<RelationshipsObject>) => void;
+    relationships: RelationshipsObject;
     session: Session;
     zIndex: number;
 }
@@ -320,12 +321,4 @@ export interface TagSelectorProps {
 export interface ThemeSwitchProps {
     theme: 'light' | 'dark';
     onChange: (theme: 'light' | 'dark') => any;
-}
-
-export interface UserOrganizationSwitchProps extends UseSwitchProps {
-    session: Session;
-    selected: Organization | null;
-    onChange: (value: Organization | null) => any;
-    disabled?: boolean;
-    zIndex: number;
 }

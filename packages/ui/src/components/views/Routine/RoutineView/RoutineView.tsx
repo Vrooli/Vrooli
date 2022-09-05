@@ -8,18 +8,16 @@ import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     AccountTree as GraphIcon,
     DoneAll as MarkAsCompleteIcon,
-    Edit as EditIcon,
-    MoreHoriz as EllipsisIcon,
     PlayCircle as StartIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, BuildView, HelpButton, LinkButton, ReportsLink, ResourceListHorizontal, RunPickerDialog, RunView, SelectLanguageDialog, StarButton, StatusButton, UpTransition, UpvoteDownvote } from "components";
+import { ObjectActionMenu, BuildView, LinkButton, ReportsLink, ResourceListHorizontal, RunPickerMenu, RunView, SelectLanguageMenu, StarButton, StatusButton, UpTransition, UpvoteDownvote } from "components";
 import { RoutineViewProps } from "../types";
-import { formikToRunInputs, getLanguageSubtag, getOwnedByString, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, standardToFieldData, Status, stringifySearchParams, TERTIARY_COLOR, toOwnedBy, useReactSearch } from "utils";
+import { formikToRunInputs, getLanguageSubtag, getLastUrlPart, getOwnedByString, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, toOwnedBy, useReactSearch } from "utils";
 import { Routine, Run } from "types";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
 import { CommentFor, NodeType, StarFor } from "graphql/generated/globalTypes";
-import { BaseObjectAction } from "components/dialogs/types";
+import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 import { containerShadow } from "styles";
 import { validate as uuidValidate } from 'uuid';
 import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
@@ -27,6 +25,7 @@ import { useFormik } from "formik";
 import { FieldData } from "forms/types";
 import { generateInputWithLabel } from "forms/generators";
 import { CommentContainer, ContentCollapse, TextCollapse } from "components/containers";
+import { EditIcon, EllipsisIcon } from "@shared/icons";
 
 const statsHelpText =
     `Statistics are calculated to measure various aspects of a routine. 
@@ -45,7 +44,7 @@ export const RoutineView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     // Fetch data
-    const id = useMemo(() => window.location.pathname.split('/').pop() ?? '', []);
+    const id = useMemo(() => getLastUrlPart(), []);
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
     const [routine, setRoutine] = useState<Routine | null>(null);
     useEffect(() => {
@@ -100,18 +99,14 @@ export const RoutineView = ({
         }
     }, [id, language]);
     const viewGraph = useCallback(() => {
-        setLocation(stringifySearchParams({
-            build: routine?.id,
-        }), { replace: true });
+        setSearchParams(setLocation, {
+            build: true,
+        })
         setIsBuildOpen(true);
-    }, [routine?.id, setLocation]);
-    const stopBuild = useCallback((wasModified: boolean) => {
-        // If was building a new routine (and did not create), navigate to last page (since this one will just be a blank view)
-        if (!routine?.id && !wasModified) {
-            window.history.back();
-        }
-        else setIsBuildOpen(false)
-    }, [routine?.id]);
+    }, [setLocation]);
+    const stopBuild = useCallback(() => {
+        setIsBuildOpen(false)
+    }, []);
 
 
     const [isRunOpen, setIsRunOpen] = useState(false)
@@ -119,17 +114,17 @@ export const RoutineView = ({
     const handleRunSelect = useCallback((run: Run | null) => {
         // If run is null, it means the routine will be opened without a run
         if (!run) {
-            setLocation(stringifySearchParams({
+            setSearchParams(setLocation, {
                 run: "test",
-                step: [1]
-            }), { replace: true });
+                step: [1],
+            })
         }
         // Otherwise, open routine where last left off in run
         else {
-            setLocation(stringifySearchParams({
+            setSearchParams(setLocation, {
                 run: run.id,
                 step: run.steps?.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
-            }), { replace: true });
+            })
         }
         setIsRunOpen(true);
     }, [setLocation]);
@@ -180,10 +175,10 @@ export const RoutineView = ({
             (Array.isArray(routine?.nodeLinks) && (routine?.nodeLinks as Routine['nodeLinks']).length > 0);
         // If multi step, navigate to build page
         if (isMultiStep) {
-            setLocation(stringifySearchParams({
+            setSearchParams(setLocation, {
                 build: true,
                 edit: true,
-            }), { replace: true });
+            });
             setIsBuildOpen(true);
         }
         // Otherwise, edit as single step
@@ -200,59 +195,42 @@ export const RoutineView = ({
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
-    const handleMoreActionComplete = useCallback((action: BaseObjectAction, data: any) => {
+    const onMoreActionStart = useCallback((action: ObjectAction) => {
         switch (action) {
-            case BaseObjectAction.Edit:
+            case ObjectAction.Edit:
+                onEdit();
+                break;
+            case ObjectAction.Stats:
                 //TODO
                 break;
-            case BaseObjectAction.Stats:
-                //TODO
-                break;
-            case BaseObjectAction.Upvote:
+        }
+    }, [onEdit]);
+
+    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
+        switch (action) {
+            case ObjectActionComplete.VoteDown:
+            case ObjectActionComplete.VoteUp:
                 if (data.vote.success) {
                     setRoutine({
                         ...routine,
-                        isUpvoted: true,
+                        isUpvoted: action === ObjectActionComplete.VoteUp,
                     } as any)
                 }
                 break;
-            case BaseObjectAction.Downvote:
-                if (data.vote.success) {
-                    setRoutine({
-                        ...routine,
-                        isUpvoted: false,
-                    } as any)
-                }
-                break;
-            case BaseObjectAction.Star:
+            case ObjectActionComplete.Star:
+            case ObjectActionComplete.StarUndo:
                 if (data.star.success) {
                     setRoutine({
                         ...routine,
-                        isStarred: true,
+                        isStarred: action === ObjectActionComplete.Star,
                     } as any)
                 }
                 break;
-            case BaseObjectAction.Unstar:
-                if (data.star.success) {
-                    setRoutine({
-                        ...routine,
-                        isStarred: false,
-                    } as any)
-                }
-                break;
-            case BaseObjectAction.Fork:
+            case ObjectActionComplete.Fork:
                 setLocation(`${APP_LINKS.Routine}/${data.fork.routine.id}`);
                 break;
-            case BaseObjectAction.Donate:
-                //TODO
-                break;
-            case BaseObjectAction.Share:
-                //TODO
-                break;
-            case BaseObjectAction.Copy:
+            case ObjectActionComplete.Copy:
                 setLocation(`${APP_LINKS.Routine}/${data.copy.routine.id}`);
-                break;
-            default:
                 break;
         }
     }, [routine, setLocation]);
@@ -434,7 +412,7 @@ export const RoutineView = ({
     return (
         <>
             {/* Chooses which run to use */}
-            <RunPickerDialog
+            <RunPickerMenu
                 anchorEl={selectRunAnchor}
                 handleClose={handleSelectRunClose}
                 onAdd={handleRunAdd}
@@ -482,9 +460,7 @@ export const RoutineView = ({
                 />
             </Dialog>
             {/* Popup menu displayed when "More" ellipsis pressed */}
-            <BaseObjectActionDialog
-                handleActionComplete={handleMoreActionComplete}
-                handleEdit={onEdit}
+            <ObjectActionMenu
                 isUpvoted={routine?.isUpvoted}
                 isStarred={routine?.isStarred}
                 objectId={id ?? ''}
@@ -492,6 +468,8 @@ export const RoutineView = ({
                 objectType={ObjectType.Routine}
                 anchorEl={moreMenuAnchor}
                 title='Routine Options'
+                onActionStart={onMoreActionStart}
+                onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
                 permissions={routine?.permissionsRoutine}
                 session={session}
@@ -568,7 +546,7 @@ export const RoutineView = ({
                                     />
                                 )}
                                 <Typography variant="body1"> - {routine?.version}</Typography>
-                                <SelectLanguageDialog
+                                <SelectLanguageMenu
                                     availableLanguages={availableLanguages}
                                     canDropdownOpen={availableLanguages.length > 1}
                                     currentLanguage={language}
@@ -582,7 +560,7 @@ export const RoutineView = ({
                                         size="small"
                                         onClick={onEdit}
                                     >
-                                        <EditIcon sx={{ fill: TERTIARY_COLOR }} />
+                                        <EditIcon fill={palette.secondary.light} />
                                     </IconButton>
                                 </Tooltip>}
                             </Stack>
@@ -636,7 +614,7 @@ export const RoutineView = ({
                                     padding: 0,
                                 }}
                             >
-                                <EllipsisIcon />
+                                <EllipsisIcon fill={palette.primary.contrastText} />
                             </IconButton>
                         </Tooltip>
                     </Stack>

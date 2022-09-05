@@ -4,7 +4,7 @@ import {
     DialogContent,
     useTheme,
 } from '@mui/material';
-import { listToAutocomplete, openObject, PubSub, shortcutsItems } from 'utils';
+import { getObjectSlug, getObjectUrlBase, listToAutocomplete, PubSub, shortcutsItems } from 'utils';
 import { AutocompleteSearchBar } from 'components/inputs';
 import { APP_LINKS } from '@shared/consts';
 import { AutocompleteOption } from 'types';
@@ -14,11 +14,33 @@ import { homePage, homePageVariables } from 'graphql/generated/homePage';
 import { homePageQuery } from 'graphql/query';
 import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
+import { validate as uuidValidate } from 'uuid';
 
 const helpText =
     `Use this dialog to quickly navigate to other pages.
 
 It can be opened at any time by entering CTRL + P.`
+
+/**
+ * Strips URL for comparison against the current URL.
+ * @param url URL to strip
+ * @returns Stripped URL
+ */
+const stripUrl = (url: string) => {
+    // Split by '/' and remove empty strings
+    let urlParts = new URL(url).pathname.split('/').filter(Boolean);
+    // If last part is a UUID, or equal to "add" or "edit", remove it
+    // For example, navigating from viewing the graph of an existing routine 
+    // to creating a new multi-step routine (/routine/1234?build=true -> /routine/add?build=true) 
+    // requires a reload
+    if (urlParts.length > 1 &&
+        (uuidValidate(urlParts[urlParts.length - 1]) ||
+            urlParts[urlParts.length - 1] === "add" ||
+            urlParts[urlParts.length - 1] === "edit")) {
+        urlParts.pop();
+    }
+    return urlParts.join('/');
+}
 
 const titleAria = 'command-palette-dialog-title';
 
@@ -79,15 +101,21 @@ const CommandPalette = ({
         setSearchString('');
         // Replace current state with search string, so that search is not lost. 
         // Only do this if the selected item is not a shortcut
-        if (newValue.__typename !== 'Shortcut' && searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
-        else setLocation(APP_LINKS.Home, { replace: true });
-        // If selected item is a shortcut, navigate to it
+        let newLocation: string;
+        // If selected item is a shortcut, newLocation is in the id field
         if (newValue.__typename === 'Shortcut') {
-            setLocation(newValue.id);
+            newLocation = newValue.id
         }
-        // Otherwise, navigate to item page
+        // Otherwise, object url must be constructed
         else {
-            openObject(newValue, setLocation);
+            newLocation = `${getObjectUrlBase(newValue)}/${getObjectSlug(newValue)}`
+        }
+        // If new pathname is the same, reload page
+        const shouldReload = stripUrl(`${window.location.origin}${newLocation}`) === stripUrl(window.location.href);
+        // Set new location
+        setLocation(newLocation);
+        if (shouldReload) {
+            window.location.reload();
         }
     }, [close, searchString, setLocation]);
 

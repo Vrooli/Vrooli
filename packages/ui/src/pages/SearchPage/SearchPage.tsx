@@ -1,18 +1,17 @@
 /**
  * Search page for organizations, projects, routines, standards, and users
  */
-import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material";
-import { ListMenu, SearchList, ShareDialog } from "components";
+import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material";
+import { SearchList, SelectRoutineTypeMenu, ShareSiteDialog } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
 import { useLocation } from '@shared/route';
 import { SearchPageProps } from "../types";
-import { Add as AddIcon } from '@mui/icons-material';
-import { getObjectUrlBase, PubSub, parseSearchParams, stringifySearchParams, openObject, SearchType, SearchPageTabOption as TabOption } from "utils";
+import { getObjectUrlBase, PubSub, parseSearchParams, stringifySearchParams, openObject, SearchType, SearchPageTabOption as TabOption, addSearchParams } from "utils";
 import { ListOrganization, ListProject, ListRoutine, ListStandard, ListUser } from "types";
 import { validate as uuidValidate } from 'uuid';
 import { APP_LINKS } from "@shared/consts";
-import { ListMenuItemData } from "components/dialogs/types";
+import { AddIcon } from "@shared/icons";
 
 // Tab data type
 type BaseParams = {
@@ -77,6 +76,7 @@ export function SearchPage({
     session,
 }: SearchPageProps) {
     const [, setLocation] = useLocation();
+    const { palette } = useTheme();
 
     const handleSelected = useCallback((selected: SearchObject) => { openObject(selected, setLocation) }, [setLocation]);
 
@@ -95,14 +95,10 @@ export function SearchPage({
         return index < 0 ? 2 : index;
     });
     const handleTabChange = (_e, newIndex: number) => {
-        // Update "type" in URL and remove all search params not shared by all tabs
-        const { search, sort, time } = parseSearchParams(window.location.search);
-        setLocation(stringifySearchParams({
-            search,
-            sort,
-            time,
+        // Update search params
+        addSearchParams(setLocation, {
             type: tabOptions[newIndex][1],
-        }), { replace: true });
+        });
         // Update tab index
         setTabIndex(newIndex)
     };
@@ -119,27 +115,10 @@ export function SearchPage({
 
     // Menu for picking which routine type to add
     const [addRoutineAnchor, setAddRoutineAnchor] = useState<any>(null);
-    const openAddRoutine = useCallback((ev: React.MouseEvent<HTMLDivElement>) => {
-        const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
-        if (loggedIn) {
-            setAddRoutineAnchor(ev.currentTarget)
-        }
-        else {
-            PubSub.get().publishSnack({ message: 'Must be logged in.', severity: 'error' });
-            setLocation(`${APP_LINKS.Start}${stringifySearchParams({
-                redirect: window.location.pathname
-            })}`);
-        }
-    }, [session?.id, session?.isLoggedIn, setLocation]);
+    const openAddRoutine = useCallback((ev: React.MouseEvent<HTMLElement>) => {
+        setAddRoutineAnchor(ev.currentTarget)
+    }, []);
     const closeAddRoutine = useCallback(() => setAddRoutineAnchor(null), []);
-    const handleAddRoutineSelect = useCallback((option: any) => {
-        if (option === 'basic') setLocation(`${APP_LINKS.Routine}/add`)
-        else setLocation(`${APP_LINKS.Routine}/add?build=true`)
-    }, [setLocation]);
-    const addRoutineOptions: ListMenuItemData<string>[] = [
-        { label: 'Basic (Single Step)', value: 'basic' },
-        { label: 'Advanced (Multi Step)', value: 'advanced' },
-    ]
 
     const onAddClick = useCallback((ev: any) => {
         const addUrl = `${getObjectUrlBase({ __typename: searchType as string })}/add`
@@ -205,19 +184,16 @@ export function SearchPage({
             paddingTop: { xs: '64px', md: '80px' },
         }}>
             {/* Invite dialog for organizations and users */}
-            <ShareDialog
+            <ShareSiteDialog
                 onClose={closeShareDialog}
                 open={shareDialogOpen}
                 zIndex={200}
             />
-            {/* Add dialog for selecting between single-step and multi-step routines */}
-            <ListMenu
-                id={`add-routine-select-type-menu`}
+            {/* Add menu for selecting between single-step and multi-step routines */}
+            <SelectRoutineTypeMenu
                 anchorEl={addRoutineAnchor}
-                title='Select Routine Type'
-                data={addRoutineOptions}
-                onSelect={handleAddRoutineSelect}
-                onClose={closeAddRoutine}
+                handleClose={closeAddRoutine}
+                session={session}
                 zIndex={200}
             />
             {/* Navigate between search pages */}
@@ -250,13 +226,13 @@ export function SearchPage({
                 <Typography component="h2" variant="h4">{title}</Typography>
                 <Tooltip title="Add new" placement="top">
                     <IconButton
-                        size="large"
+                        size="medium"
                         onClick={onAddClick}
                         sx={{
                             padding: 1,
                         }}
                     >
-                        <AddIcon color="secondary" sx={{ width: '1.5em', height: '1.5em' }} />
+                        <AddIcon fill={palette.secondary.main} width='1.5em' height='1.5em' />
                     </IconButton>
                 </Tooltip>
             </Stack>

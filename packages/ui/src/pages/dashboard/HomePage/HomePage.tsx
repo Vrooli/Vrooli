@@ -9,13 +9,10 @@ import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { HomePageProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import {
-    Add as CreateIcon,
-    Search as SearchIcon,
-} from '@mui/icons-material';
 import { listToAutocomplete, listToListItems, openObject, OpenObjectProps, SearchPageTabOption, shortcutsItems, useReactSearch } from 'utils';
 import { AutocompleteOption } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
+import { CreateIcon, SearchIcon } from '@shared/icons';
 
 const faqText =
     `## What is This?
@@ -26,7 +23,7 @@ Vrooli is an automation platform built for the decentralized age. We are aiming 
 
 
 ## How does it work?
-Vrooli contains various *routines* that can be executed to perform a variety of tasks. Some are very specific (e.g. "How to create a Project Catalyst proposal"), and some are more general (e.g "Validate your business idea").The more general routines are often constructed from a graph of *subroutines*. Each subroutine in turn can consist of multiple subroutines, and so on. This allows for routines to be built in a way that is flexible and scalable.
+Vrooli contains various *routines* that can be executed to perform a variety of tasks. Some are very specific (e.g. *How to create a Project Catalyst proposal*), and some are more general (e.g *Validate your business idea*).The more general routines are often constructed from a graph of *subroutines*. Each subroutine in turn can consist of multiple subroutines, and so on. This allows for routines to be built in a way that is flexible and scalable.
 
 When a proposer is looking for a new project to tackle, they can search for existing routines which are both *complex* (i.e. consist of many steps) and *popular* (e.g. number of votes, stars, executions, and parent routines). This combination of complexity and popularity can be used to estimate the time and money that would be saved by the community as a whole if a simpler routine was created. Using the design of a simpler routine, you can also demonstrate to voters your project's user experience.
 
@@ -334,7 +331,7 @@ export const HomePage = ({
             />
             {/* Create new dialog */}
             <ListMenu
-                id={`open-advanced-search-menu`}
+                id={`create-new-object-menu`}
                 anchorEl={createNewAnchor}
                 title='Create New...'
                 data={createNewPopupOptions}

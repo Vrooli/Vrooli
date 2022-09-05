@@ -16,7 +16,7 @@ export function PopupMenu({
     ...props
 }: PopupMenuProps) {
     const classes = useStyles();
-    const [anchorEl, setAnchorEl] = useState(null);
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
     const handleClick = (event) => {
         setAnchorEl(event.currentTarget);

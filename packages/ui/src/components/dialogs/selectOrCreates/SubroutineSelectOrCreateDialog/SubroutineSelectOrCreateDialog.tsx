@@ -10,9 +10,6 @@ import {
 import { BaseObjectDialog, DialogTitle } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SubroutineSelectOrCreateDialogProps } from '../types';
-import {
-    Add as CreateIcon,
-} from '@mui/icons-material';
 import { IsCompleteInput, IsInternalInput, Routine } from 'types';
 import { SearchList } from 'components/lists';
 import { routineQuery } from 'graphql/query';
@@ -20,8 +17,9 @@ import { useLazyQuery } from '@apollo/client';
 import { routine, routineVariables } from 'graphql/generated/routine';
 import { RoutineCreate } from 'components/views/Routine/RoutineCreate/RoutineCreate';
 import { validate as uuidValidate } from 'uuid';
-import { parseSearchParams, stringifySearchParams, SearchType, routineSearchSchema } from 'utils';
+import { SearchType, routineSearchSchema, removeSearchParams } from 'utils';
 import { useLocation } from '@shared/route';
+import { AddIcon } from '@shared/icons';
 
 const helpText =
     `This dialog allows you to connect a new or existing subroutine. Each subroutine becomes a page when executing the routine (or if it contains its own subroutines, then those subroutines become pages).`
@@ -44,23 +42,13 @@ export const SubroutineSelectOrCreateDialog = ({
      * Before closing, remove all URL search params for advanced search
      */
     const onClose = useCallback(() => {
-        // Find all search fields
-        const searchFields = [
+        // Clear search params
+        removeSearchParams(setLocation, [
             ...routineSearchSchema.fields.map(f => f.fieldName),
             'advanced',
             'sort',
             'time',
-        ];
-        // Find current search params
-        const params = parseSearchParams(window.location.search);
-        // Remove all search params that are advanced search fields
-        Object.keys(params).forEach(key => {
-            if (searchFields.includes(key)) {
-                delete params[key];
-            }
-        });
-        // Update URL
-        setLocation(stringifySearchParams(params), { replace: true });
+        ]);
         handleClose();
     }, [handleClose, setLocation]);
 
@@ -157,11 +145,11 @@ export const SubroutineSelectOrCreateDialog = ({
                         <Typography component="h2" variant="h4">Routines</Typography>
                         <Tooltip title="Add new" placement="top">
                             <IconButton
-                                size="large"
+                                size="medium"
                                 onClick={handleCreateOpen}
                                 sx={{ padding: 1 }}
                             >
-                                <CreateIcon color="secondary" sx={{ width: '1.5em', height: '1.5em' }} />
+                                <AddIcon fill={palette.secondary.main} width='1.5em' height='1.5em' />
                             </IconButton>
                         </Tooltip>
                     </Stack>

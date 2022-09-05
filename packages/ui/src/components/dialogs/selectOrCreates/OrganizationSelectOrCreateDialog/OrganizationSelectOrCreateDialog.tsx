@@ -10,17 +10,15 @@ import {
 import { BaseObjectDialog, DialogTitle } from 'components';
 import { useCallback, useEffect, useState } from 'react';
 import { OrganizationSelectOrCreateDialogProps } from '../types';
-import {
-    Add as CreateIcon,
-} from '@mui/icons-material';
 import { Organization } from 'types';
 import { SearchList } from 'components/lists';
 import { organizationQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { organization, organizationVariables } from 'graphql/generated/organization';
 import { OrganizationCreate } from 'components/views/Organization/OrganizationCreate/OrganizationCreate';
-import { parseSearchParams, stringifySearchParams, SearchType, organizationSearchSchema } from 'utils';
+import { SearchType, organizationSearchSchema, removeSearchParams } from 'utils';
 import { useLocation } from '@shared/route';
+import { AddIcon } from '@shared/icons';
 
 const helpText =
     `This dialog allows you to connect a new or existing organization to an object.
@@ -45,23 +43,13 @@ export const OrganizationSelectOrCreateDialog = ({
      * Before closing, remove all URL search params for advanced search
      */
     const onClose = useCallback(() => {
-        // Find all search fields
-        const searchFields = [
+        // Clear search params
+        removeSearchParams(setLocation, [
             ...organizationSearchSchema.fields.map(f => f.fieldName),
             'advanced',
             'sort',
             'time',
-        ];
-        // Find current search params
-        const params = parseSearchParams(window.location.search);
-        // Remove all search params that are advanced search fields
-        Object.keys(params).forEach(key => {
-            if (searchFields.includes(key)) {
-                delete params[key];
-            }
-        });
-        // Update URL
-        setLocation(stringifySearchParams(params), { replace: true });
+        ]);
         handleClose();
     }, [handleClose, setLocation]);
 
@@ -132,11 +120,11 @@ export const OrganizationSelectOrCreateDialog = ({
                         <Typography component="h2" variant="h4">Organizations</Typography>
                         <Tooltip title="Add new" placement="top">
                             <IconButton
-                                size="large"
+                                size="medium"
                                 onClick={handleCreateOpen}
                                 sx={{ padding: 1 }}
                             >
-                                <CreateIcon color="secondary" sx={{ width: '1.5em', height: '1.5em' }} />
+                                <AddIcon fill={palette.secondary.main} width='1.5em' height='1.5em' />
                             </IconButton>
                         </Tooltip>
                     </Stack>

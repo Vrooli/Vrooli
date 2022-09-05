@@ -77,11 +77,9 @@ export const formikToRunInputs = (values: { [x: string]: string }): { [x: string
  */
 export const runInputsToFormik = (runInputs: { input: { id: string }, data: string }[]): { [x: string]: string } => {
     const result: { [x: string]: string } = {};
-    console.log('in runinputstoformik');
     for (const runInput of runInputs) {
         result[`inputs-${runInput.input.id}`] = JSON.parse(runInput.data);
     }
-    console.log('returning formik inputs result', result);
     return result;
 }
 

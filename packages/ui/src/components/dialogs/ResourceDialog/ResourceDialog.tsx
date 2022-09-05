@@ -5,10 +5,6 @@ import { useFormik } from 'formik';
 import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { ResourceDialogProps } from '../types';
-import {
-    Add as AddIcon,
-    Cancel as CancelIcon,
-} from '@mui/icons-material';
 import { getTranslation, getUserLanguages, PubSub, ResourceShape, ResourceTranslationShape, shapeResourceCreate, shapeResourceUpdate, updateArray } from 'utils';
 import { resourceCreate, resourceCreateVariables } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
@@ -18,6 +14,7 @@ import { LanguageInput } from 'components/inputs';
 import { Resource } from 'types';
 import { v4 as uuid } from 'uuid';
 import { DialogTitle } from 'components';
+import { CancelIcon, CreateIcon, SaveIcon } from '@shared/icons';
 
 const helpText =
     `## What are resources?
@@ -302,8 +299,8 @@ export const ResourceDialog = ({
                                 <Button
                                     fullWidth
                                     type="submit"
-                                    startIcon={<AddIcon />}
-                                >Create</Button>
+                                    startIcon={index < 0 ? <CreateIcon /> : <SaveIcon />}
+                                >{index < 0 ? 'Create' : 'Update'}</Button>
                             </Grid>
                             <Grid item xs={6}>
                                 <Button

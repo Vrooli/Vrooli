@@ -1,3 +1,5 @@
+import { SetLocation } from "types";
+
 type Primitive = string | number | boolean;
 type ParseSearchParamsResult = { [x: string]: Primitive | Primitive[] | ParseSearchParamsResult };
 
@@ -21,16 +23,16 @@ export const parseSearchParams = (searchParams: string): ParseSearchParamsResult
         });
         // Decode and parse the search params
         const parsed = JSON.parse('{"'
-        + decodeURI(search)
-            .replace(/&/g, ',"')
-            .replace(/=/g, '":')
-            .replace(/%2F/g, '/')
-            .replace(/%5B/g, '[')
-            .replace(/%5D/g, ']')
-            .replace(/%5C/g, '\\')
-            .replace(/%2C/g, ',')
-            .replace(/%3A/g, ':')
-        + '}');
+            + decodeURI(search)
+                .replace(/&/g, ',"')
+                .replace(/=/g, '":')
+                .replace(/%2F/g, '/')
+                .replace(/%5B/g, '[')
+                .replace(/%5D/g, ']')
+                .replace(/%5C/g, '\\')
+                .replace(/%2C/g, ',')
+                .replace(/%3A/g, ':')
+            + '}');
         // For any value that might be JSON, try to parse
         Object.keys(parsed).forEach((key) => {
             const value = parsed[key];
@@ -44,7 +46,7 @@ export const parseSearchParams = (searchParams: string): ParseSearchParamsResult
         });
         return parsed;
     } catch (error) {
-        console.log('caused error', error);
+        console.error('Could not parse search params', error);
         return {};
     }
 }
@@ -62,4 +64,64 @@ export const stringifySearchParams = (params: { [key: string]: any }): string =>
     const filteredKeys = keys.filter(key => params[key] !== undefined && params[key] !== null);
     const encodedParams = filteredKeys.map(key => encodeURIComponent(key) + '=' + encodeURIComponent(JSON.stringify(params[key]))).join('&');
     return '?' + encodedParams;
+}
+
+/**
+ * Adds values to the current search params, without removing any existing values. 
+ * If a key already exists, it will be overwritten.
+ * @param setLocation Function to set the location
+ * @param params Object with key/value pairs, representing search params
+ */
+export const addSearchParams = (setLocation: SetLocation, params: { [key: string]: any }) => {
+    const currentParams = parseSearchParams(window.location.search);
+    const newParams = { ...currentParams, ...params };
+    setLocation(`${window.location.pathname}${stringifySearchParams(newParams)}`, { replace: true });
+};
+
+/**
+ * Sets the search params, removing any existing values
+ * @param setLocation Function to set the location
+ * @param params Object with key/value pairs, representing search params
+ */
+export const setSearchParams = (setLocation: SetLocation, params: { [key: string]: any }) => {
+    setLocation(`${window.location.pathname}${stringifySearchParams(params)}`, { replace: true });
+};
+
+/**
+ * Keeps only the search params specified in the keys array, removing any others
+ * @param setLocation Function to set the location
+ * @param keep Array of keys to keep
+ */
+export const keepSearchParams = (setLocation: SetLocation, keep: string[]) => {
+    const keepResult: { [key: string]: any } = {};
+    const searchParams = parseSearchParams(window.location.search);
+    keep.forEach(key => {
+        if (searchParams[key] !== undefined) keepResult[key] = searchParams[key];
+    });
+    setLocation(`${window.location.pathname}${stringifySearchParams(keepResult)}`, { replace: true });
+};
+
+/**
+ * Removes the search params specified in the keys array, keeping any others
+ * @param setLocation Function to set the location
+ * @param remove Array of keys to remove
+ */
+export const removeSearchParams = (setLocation: SetLocation, remove: string[]) => {
+    const removeResult: { [key: string]: any } = {};
+    const searchParams = parseSearchParams(window.location.search);
+    Object.keys(searchParams).forEach(key => {
+        if (!remove.includes(key)) removeResult[key] = searchParams[key];
+    });
+    setLocation(`${window.location.pathname}${stringifySearchParams(removeResult)}`, { replace: true });
+};
+
+/**
+ * @returns last part of the url path
+ */
+export const getLastUrlPart = (): string => {
+    let parts = window.location.pathname.split('/');
+    // Remove any empty strings
+    parts = parts.filter(part => part !== '');
+    // Return the last part
+    return parts.length > 0 ? parts[parts.length - 1] : '';
 }

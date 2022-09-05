@@ -67,7 +67,7 @@ export interface RunViewProps extends ViewProps<Routine> {
 }
 
 export interface BuildViewProps extends ViewProps<Routine> {
-    handleClose: (wasModified: boolean) => void;
+    handleClose: () => void;
     loading: boolean;
     onChange: (routine: Routine) => void;
     routine: Routine | null;

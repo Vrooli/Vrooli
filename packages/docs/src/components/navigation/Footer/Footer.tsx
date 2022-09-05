@@ -10,7 +10,7 @@ import {
     Tooltip,
     useTheme,
 } from '@mui/material';
-import { DiscordIcon, GitHubIcon, TwitterIcon } from 'assets/img';
+import { DiscordIcon, GitHubIcon, TwitterIcon } from '@shared/icons';
 import { CopyrightBreadcrumbs } from 'components';
 import { useLocation } from '@shared/route';
 import { openLink } from 'utils';

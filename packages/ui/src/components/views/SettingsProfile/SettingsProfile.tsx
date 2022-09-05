@@ -1,28 +1,22 @@
 import { Autocomplete, Box, Container, Grid, IconButton, Stack, TextField, Typography, useTheme } from "@mui/material"
 import { useLazyQuery, useMutation } from "@apollo/client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { APP_LINKS } from '@shared/consts';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { getUserLanguages, ProfileTranslationShape, shapeProfileUpdate, TERTIARY_COLOR, updateArray } from "utils";
-import {
-    Refresh as RefreshIcon,
-    Restore as CancelIcon,
-    Save as SaveIcon,
-} from '@mui/icons-material';
-import { DialogActionItem } from "components/containers/types";
-import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
+import { getUserLanguages, ProfileTranslationShape, shapeProfileUpdate, updateArray } from "utils";
 import { SettingsProfileProps } from "../types";
 import { useLocation } from '@shared/route';
 import { LanguageInput } from "components/inputs";
-import { HelpButton } from "components/buttons";
+import { GridSubmitButtons, HelpButton } from "components/buttons";
 import { findHandles, findHandlesVariables } from "graphql/generated/findHandles";
 import { findHandlesQuery } from "graphql/query";
 import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
 import { v4 as uuid } from 'uuid';
 import { PubSub } from 'utils'
+import { RefreshIcon } from "@shared/icons";
 
 const helpText =
     `This page allows you to update your profile, including your name, handle, and bio.
@@ -183,10 +177,9 @@ export const SettingsProfile = ({
         setLanguages(newLanguages);
     }, [deleteTranslation, languages, updateFormikTranslation]);
 
-    const actions: DialogActionItem[] = useMemo(() => [
-        ['Save', SaveIcon, !formik.touched || formik.isSubmitting, true, () => { }],
-        ['Cancel', CancelIcon, !formik.touched || formik.isSubmitting, false, () => { setLocation(APP_LINKS.Profile, { replace: true }) }],
-    ], [formik, setLocation]);
+    const handleCancel = useCallback(() => {
+        setLocation(APP_LINKS.Profile, { replace: true })
+    }, [setLocation]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
@@ -201,7 +194,7 @@ export const SettingsProfile = ({
                 alignItems: 'center',
             }}>
                 <Typography component="h1" variant="h4" textAlign="center">Update Profile</Typography>
-                <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
+                <HelpButton markdown={helpText} />
             </Box>
             <Container sx={{ paddingBottom: 2 }}>
                 <Grid container spacing={2}>
@@ -272,7 +265,17 @@ export const SettingsProfile = ({
                     </Grid>
                 </Grid>
             </Container>
-            <DialogActionsContainer fixed={false} actions={actions} />
+            <Grid container spacing={2} p={3}>
+                <GridSubmitButtons
+                    disabledCancel={formik.isSubmitting}
+                    disabledSubmit={formik.isSubmitting || !formik.isValid}
+                    errors={formik.errors}
+                    isCreate={false}
+                    onCancel={handleCancel}
+                    onSetSubmitting={formik.setSubmitting}
+                    onSubmit={formik.handleSubmit}
+                />
+            </Grid>
         </form>
     )
 }

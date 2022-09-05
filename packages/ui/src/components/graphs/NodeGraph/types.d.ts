@@ -1,4 +1,4 @@
-import { Node, NodeDataEnd, NodeLink, Session } from 'types';
+import { Node, NodeEnd, NodeLink, Session } from 'types';
 import { BuildAction } from 'utils';
 import { NodeContextMenuAction } from './NodeContextMenu/NodeContextMenu';
 
@@ -34,11 +34,11 @@ export interface AddBeforeLinkDialogProps {
 }
 
 export interface  EndNodeDialogProps {
-    handleClose: () => void;
+    handleClose: (updatedNode?: NodeEnd) => void;
+    isEditing: boolean;
     isOpen: boolean;
-    data: Node & { data: NodeDataEnd };
+    node: NodeEnd;
     language: string;
-    session: Session;
     zIndex: number;
 }
 

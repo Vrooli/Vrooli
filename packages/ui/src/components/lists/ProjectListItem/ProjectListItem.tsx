@@ -6,6 +6,7 @@ import { APP_LINKS, StarFor, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { CommentButton, ReportButton, StarButton, TagList, TextLoading, UpvoteDownvote } from 'components';
 import { getTranslation, listItemColor } from 'utils';
+import { smallHorizontalScrollbar } from '../styles';
 
 export function ProjectListItem({
     data,
@@ -81,7 +82,7 @@ export function ProjectListItem({
                         {loading ? <TextLoading /> :
                             (
                                 <Stack direction="row" spacing={1} sx={{
-                                    overflow: 'auto',
+                                    ...smallHorizontalScrollbar(palette),
                                 }}>
                                     <ListItemText
                                         primary={name}
@@ -107,7 +108,7 @@ export function ProjectListItem({
                             primary={description}
                             sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
                         />}
-                        <Stack direction="row" spacing={1}>
+                        <Stack direction="row" spacing={1} sx={{ ...smallHorizontalScrollbar(palette) }}>
                             {/* Incomplete chip */}
                             {
                                 data && !data.isComplete && <Tooltip placement="top" title="Marked as incomplete">

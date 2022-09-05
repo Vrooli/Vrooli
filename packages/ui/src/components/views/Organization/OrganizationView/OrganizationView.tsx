@@ -9,19 +9,19 @@ import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     Apartment as ProfileIcon,
     CardGiftcard as DonateIcon,
-    Edit as EditIcon,
-    MoreHoriz as EllipsisIcon,
     Share as ShareIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, DateDisplay, ReportsLink, SearchList, SelectLanguageDialog, StarButton } from "components";
+import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, StarButton, SelectRoutineTypeMenu } from "components";
 import { containerShadow } from "styles";
 import { OrganizationViewProps } from "../types";
 import { Organization, ResourceList } from "types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, PubSub, SearchType } from "utils";
+import { getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, PubSub, SearchType } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
+import { EditIcon, EllipsisIcon } from "@shared/icons";
+import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 
 enum TabOptions {
     Resources = "Resources",
@@ -40,7 +40,7 @@ export const OrganizationView = ({
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
     // Fetch data
-    const id = useMemo(() => window.location.pathname.split('/').pop() ?? '', []);
+    const id = useMemo(() => getLastUrlPart(), []);
     const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery, { errorPolicy: 'all'});
     const [organization, setOrganization] = useState<Organization | null | undefined>(null);
     useEffect(() => {
@@ -144,7 +144,7 @@ export const OrganizationView = ({
                     itemKeyPrefix: 'project-list-item',
                     placeholder: "Search organization's projects...",
                     noResultsText: "No projects found",
-                    where: { organizationId: id, isComplete: !canEdit ? true : undefined },
+                    where: { organizationId: id, isComplete: !canEdit ? true : undefined, includePrivate: true },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Project, newValue.id),
                 };
             case TabOptions.Routines:
@@ -153,7 +153,7 @@ export const OrganizationView = ({
                     itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search organization's routines...",
                     noResultsText: "No routines found",
-                    where: { organizationId: id, isComplete: !canEdit ? true : undefined, isInternal: false },
+                    where: { organizationId: id, isComplete: !canEdit ? true : undefined, isInternal: false, includePrivate: true },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 };
             case TabOptions.Standards:
@@ -162,7 +162,7 @@ export const OrganizationView = ({
                     itemKeyPrefix: 'standard-list-item',
                     placeholder: "Search organization's standards...",
                     noResultsText: "No standards found",
-                    where: { organizationId: id },
+                    where: { organizationId: id, includePrivate: true },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
                 }
             default:
@@ -184,6 +184,44 @@ export const OrganizationView = ({
         ev.preventDefault();
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
+
+    const onMoreActionStart = useCallback((action: ObjectAction) => {
+        switch (action) {
+            case ObjectAction.Edit:
+                onEdit();
+                break;
+            case ObjectAction.Stats:
+                //TODO
+                break;
+        }
+    }, [onEdit]);
+
+    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
+        switch (action) {
+            case ObjectActionComplete.Star:
+            case ObjectActionComplete.StarUndo:
+                if (data.star.success) {
+                    setOrganization({
+                        ...organization,
+                        isStarred: action === ObjectActionComplete.Star,
+                    } as any)
+                }
+                break;
+            case ObjectActionComplete.Fork:
+                setLocation(`${APP_LINKS.Organization}/${data.fork.organization.id}`);
+                break;
+            case ObjectActionComplete.Copy:
+                setLocation(`${APP_LINKS.Organization}/${data.copy.organization.id}`);
+                break;
+        }
+    }, [organization, setLocation]);
+
+    // Menu for picking which routine type to add
+    const [addRoutineAnchor, setAddRoutineAnchor] = useState<any>(null);
+    const openAddRoutine = useCallback((ev: React.MouseEvent<HTMLElement>) => {
+        setAddRoutineAnchor(ev.currentTarget)
+    }, []);
+    const closeAddRoutine = useCallback(() => setAddRoutineAnchor(null), []);
 
     /**
      * Displays name, avatar, bio, and quick links
@@ -234,7 +272,7 @@ export const OrganizationView = ({
                         marginRight: 1,
                     }}
                 >
-                    <EllipsisIcon />
+                    <EllipsisIcon fill={palette.background.textSecondary} />
                 </IconButton>
             </Tooltip>
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
@@ -253,10 +291,7 @@ export const OrganizationView = ({
                                     size="small"
                                     onClick={onEdit}
                                 >
-                                    <EditIcon sx={{
-                                        fill: palette.mode === 'light' ?
-                                            palette.primary.main : palette.secondary.light,
-                                    }} />
+                                    <EditIcon fill={palette.secondary.main} />
                                 </IconButton>
                             </Tooltip>
                         </Stack>
@@ -323,12 +358,12 @@ export const OrganizationView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.mode, palette.primary.main, palette.secondary.light, palette.secondary.dark, profileColors, openMoreMenu, loading, canEdit, name, onEdit, handle, organization?.created_at, organization?.id, organization?.isStarred, organization?.stars, bio, shareLink, canStar, session]);
+    ), [palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.secondary.main, palette.secondary.dark, profileColors, openMoreMenu, loading, canEdit, name, onEdit, handle, organization?.created_at, organization?.id, organization?.reportsCount, organization?.isStarred, organization?.stars, bio, shareLink, canStar, session]);
 
     /**
      * Opens add new page
      */
-    const toAddNew = useCallback(() => {
+    const toAddNew = useCallback((event: any) => {
         switch (currTabType) {
             case TabOptions.Members:
                 //TODO
@@ -337,20 +372,18 @@ export const OrganizationView = ({
                 setLocation(`${APP_LINKS.Project}/add`);
                 break;
             case TabOptions.Routines:
-                // setLocation(`${APP_LINKS.Routine}/add`);TODO
+                openAddRoutine(event);
                 break;
             case TabOptions.Standards:
                 setLocation(`${APP_LINKS.Standard}/add`);
                 break;
         }
-    }, [currTabType, setLocation]);
+    }, [currTabType, openAddRoutine, setLocation]);
 
     return (
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
-            <BaseObjectActionDialog
-                handleActionComplete={() => { }} //TODO
-                handleEdit={onEdit}
+            <ObjectActionMenu
                 isUpvoted={null}
                 isStarred={organization?.isStarred}
                 objectId={id}
@@ -358,8 +391,17 @@ export const OrganizationView = ({
                 objectType={ObjectType.Organization}
                 anchorEl={moreMenuAnchor}
                 title='Organization Options'
+                onActionStart={onMoreActionStart}
+                onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
                 permissions={organization?.permissionsOrganization}
+                session={session}
+                zIndex={zIndex + 1}
+            />
+            {/* Add menu for selecting between single-step and multi-step routines */}
+            <SelectRoutineTypeMenu
+                anchorEl={addRoutineAnchor}
+                handleClose={closeAddRoutine}
                 session={session}
                 zIndex={zIndex + 1}
             />
@@ -376,7 +418,7 @@ export const OrganizationView = ({
                     top: 8,
                     right: 8,
                 }}>
-                    <SelectLanguageDialog
+                    <SelectLanguageMenu
                         availableLanguages={availableLanguages}
                         canDropdownOpen={availableLanguages.length > 1}
                         currentLanguage={language}

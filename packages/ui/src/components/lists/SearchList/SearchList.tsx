@@ -13,7 +13,7 @@ import {
     Sort as SortListIcon,
 } from '@mui/icons-material';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
-import { getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, parseSearchParams, SearchParams, searchTypeToParams, SortValueToLabelMap, stringifySearchParams } from "utils";
+import { addSearchParams, getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, parseSearchParams, removeSearchParams, SearchParams, searchTypeToParams, SortValueToLabelMap } from "utils";
 import { useLocation } from '@shared/route';
 import { AutocompleteOption } from "types";
 
@@ -56,8 +56,6 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     const { advancedSearchSchema, defaultSortBy, sortByOptions, query } = useMemo<SearchParams>(() => searchTypeToParams[searchType], [searchType]);
 
-    console.log('SEARCH LIST', where)
-
     const [sortBy, setSortBy] = useState<string>(defaultSortBy);
     const [searchString, setSearchString] = useState<string>('');
     const [timeFrame, setTimeFrame] = useState<TimeFrame | undefined>(undefined);
@@ -83,8 +81,8 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         }
     }, [defaultSortBy, searchType, sortByOptions]);
 
-    const [sortAnchorEl, setSortAnchorEl] = useState(null);
-    const [timeAnchorEl, setTimeAnchorEl] = useState(null);
+    const [sortAnchorEl, setSortAnchorEl] = useState<HTMLElement | null>(null);
+    const [timeAnchorEl, setTimeAnchorEl] = useState<HTMLElement | null>(null);
     const [timeFrameLabel, setTimeFrameLabel] = useState<string>('Time');
     const after = useRef<string | undefined>(undefined);
 
@@ -92,19 +90,14 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
      * When sort and filter options change, update the URL
      */
     useEffect(() => {
-        const searchParams = parseSearchParams(window.location.search);
-        if (searchString) searchParams.search = searchString;
-        else delete searchParams.search;
-        if (sortBy) searchParams.sort = sortBy;
-        else delete searchParams.sort;
-        if (timeFrame) {
-            searchParams.time = {
-                after: timeFrame.after?.toISOString() ?? undefined,
-                before: timeFrame.before?.toISOString() ?? undefined,
-            } as any;
-        }
-        else delete searchParams.time;
-        setLocation(stringifySearchParams(searchParams), { replace: true });
+        addSearchParams(setLocation, {
+            search: searchString.length > 0 ? searchString : undefined,
+            sort: sortBy,
+            time: timeFrame ? {
+                after: timeFrame.after?.toISOString() ?? '',
+                before: timeFrame.before?.toISOString() ?? '',
+            } : undefined,
+        });
     }, [searchString, sortBy, timeFrame, setLocation]);
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>(null);
@@ -172,7 +165,6 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         const allAdvancedSearchParams = advancedSearchSchema.fields.map(f => f.fieldName);
         // fields in both otherParams and allAdvancedSearchParams should be the new advanced search params
         const advancedData = Object.keys(otherParams).filter(k => allAdvancedSearchParams.includes(k));
-        console.log('advancedData', advancedData);
         setAdvancedSearchParams(advancedData.reduce((acc, k) => ({ ...acc, [k]: otherParams[k] }), {}));
     }, [advancedSearchSchema?.fields]);
 
@@ -185,16 +177,10 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     const handleAdvancedSearchDialogSubmit = useCallback((values: any) => {
         // Remove 0 values
         const valuesWithoutBlanks: { [x: string]: any } = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== 0));
-        // Get current URL search params
-        let searchParams: { [x: string]: any } = parseSearchParams(window.location.search);
-        // Remove any search params of fields in advancedSearchSchema.fields
-        for (const field of advancedSearchSchema?.fields ?? []) {
-            delete searchParams[field.fieldName];
-        }
-        // Add new search params
-        searchParams = { ...searchParams, ...valuesWithoutBlanks };
-        // Set new search params
-        setLocation(stringifySearchParams(searchParams), { replace: true });
+        // Remove schema fields from search params
+        removeSearchParams(setLocation, advancedSearchSchema?.fields?.map(f => f.fieldName) ?? []);
+        // Add set fields to search params
+        addSearchParams(setLocation, valuesWithoutBlanks);
         setAdvancedSearchParams(valuesWithoutBlanks);
     }, [advancedSearchSchema?.fields, setLocation]);
 
@@ -326,10 +312,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     // Update query params
     useEffect(() => {
-        let params = parseSearchParams(window.location.search);
-        if (advancedSearchDialogOpen) params.advanced = true;
-        else delete params.advanced;
-        setLocation(stringifySearchParams(params), { replace: true });
+        addSearchParams(setLocation, { advanced: advancedSearchDialogOpen });
     }, [advancedSearchDialogOpen, setLocation]);
 
     return (

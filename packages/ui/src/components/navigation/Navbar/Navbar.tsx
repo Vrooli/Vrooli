@@ -6,6 +6,7 @@ import { NavList } from '../NavList/NavList';
 import { useLocation } from '@shared/route';
 import { NavbarProps } from '../types';
 import { HideOnScroll } from '..';
+import { noSelect } from 'styles';
 
 export const Navbar = ({
     session,
@@ -19,6 +20,7 @@ export const Navbar = ({
     return (
         <HideOnScroll>
             <AppBar sx={{
+                ...noSelect,
                 background: palette.primary.dark,
                 height: { xs: '64px', md: '80px' },
                 zIndex: 100,

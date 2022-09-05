@@ -60,6 +60,16 @@ export const NodeGraph = ({
         validTargetIds: ['node-', 'graph-', 'subroutine'],
     });
 
+    // Add context menu event listener
+    useEffect(() => {
+        // Disable context menu for whole page
+        const handleContextMenu = (ev: any) => { ev.preventDefault(); }
+        document.addEventListener('contextmenu', handleContextMenu);
+        return () => {
+            document.removeEventListener('contextmenu', handleContextMenu);
+        }
+    } , []);
+
     // /**
     //  * Add tag to head indicating that this page has custom scaling
     //  */

@@ -4,13 +4,9 @@
  */
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Stack, TextField } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
-import {
-    Cancel as CancelIcon,
-    Done as DoneIcon,
-    Edit as EditIcon,
-} from '@mui/icons-material';
 import { EditableLabelProps } from '../types';
 import { DialogTitle } from 'components/dialogs';
+import { CancelIcon, EditIcon, SaveIcon } from '@shared/icons';
 
 const titleAria = 'editable-label-dialog-title';
 const descriptionAria = 'editable-label-dialog-description';
@@ -100,7 +96,7 @@ export const EditableLabel = ({
                         type="submit"
                         onClick={save}
                         color="secondary"
-                        startIcon={<DoneIcon />}
+                        startIcon={<SaveIcon />}
                     >
                         Save
                     </Button>

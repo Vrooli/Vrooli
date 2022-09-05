@@ -18,10 +18,10 @@ import { UnlinkedNodesDialogProps } from '../types';
 import { noSelect } from 'styles';
 import { useCallback } from 'react';
 import { NodeType } from 'graphql/generated/globalTypes';
-import { Node } from 'types';
+import { Node, NodeEnd, NodeRoutineList } from 'types';
 import { EndNode, RedirectNode, RoutineListNode } from 'components';
 import { getTranslation } from 'utils';
-import { UnlinkedNodesIcon } from 'assets/img';
+import { UnlinkedNodesIcon } from '@shared/icons';
 
 export const UnlinkedNodesDialog = ({
     handleNodeDelete,
@@ -46,16 +46,24 @@ export const UnlinkedNodesDialog = ({
             key: `unlinked-node-${node.id}`,
             label: getTranslation(node, 'title', [language], false) ?? null,
             labelVisible: false,
-            node,
             scale: 0.5,
             zIndex,
         }
         // Determine node to display based on node type
         switch (node.type) {
             case NodeType.End:
-                return <EndNode {...nodeProps} linksIn={[]} />
+                return <EndNode
+                    {...nodeProps}
+                    handleUpdate={() => { }} // Intentionally blank
+                    language={language}
+                    linksIn={[]}
+                    node={node as NodeEnd}
+                />
             case NodeType.Redirect:
-                return <RedirectNode {...nodeProps} />
+                return <RedirectNode
+                    {...nodeProps}
+                    node={node as Node}//as NodeRedirect}
+                />
             case NodeType.RoutineList:
                 return <RoutineListNode
                     {...nodeProps}
@@ -65,6 +73,7 @@ export const UnlinkedNodesDialog = ({
                     handleUpdate={() => { }} // Intentionally blank
                     linksIn={[]}
                     linksOut={[]}
+                    node={node as NodeRoutineList}
                 />
             default:
                 return null;
@@ -76,8 +85,8 @@ export const UnlinkedNodesDialog = ({
             <Box id="unlinked-nodes-dialog" sx={{
                 alignSelf: open ? 'baseline' : 'auto',
                 borderRadius: 3,
-                background: palette.mode === 'light' ? '#c7dee2' : '#315672',
-                color: palette.text.primary,
+                background: palette.secondary.main,
+                color: palette.secondary.contrastText,
                 paddingLeft: 1,
                 paddingRight: 1,
                 marginRight: 1,
@@ -105,11 +114,11 @@ export const UnlinkedNodesDialog = ({
                     justifyContent: 'space-between',
                     width: '100%'
                 }}>
-                    <UnlinkedNodesIcon fill={palette.background.textPrimary} />
+                    <UnlinkedNodesIcon fill={palette.secondary.contrastText} />
                     <Typography variant="h6" sx={{ ...noSelect, marginLeft: '8px' }}>{open ? 'Unlinked ' : ''}({nodes.length})</Typography>
                     <Tooltip title={open ? 'Shrink' : 'Expand'}>
                         <IconButton edge="end" color="inherit" aria-label={open ? 'Shrink' : 'Expand'}>
-                            {open ? <ShrinkIcon sx={{ fill: palette.background.textPrimary }} /> : <ExpandIcon sx={{ fill: palette.background.textPrimary }} />}
+                            {open ? <ShrinkIcon sx={{ fill: palette.secondary.contrastText }} /> : <ExpandIcon sx={{ fill: palette.secondary.contrastText }} />}
                         </IconButton>
                     </Tooltip>
                 </Stack>

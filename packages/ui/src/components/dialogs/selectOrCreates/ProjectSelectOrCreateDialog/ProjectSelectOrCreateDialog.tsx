@@ -10,17 +10,15 @@ import {
 import { BaseObjectDialog, DialogTitle } from 'components';
 import { useCallback, useEffect, useState } from 'react';
 import { ProjectSelectOrCreateDialogProps } from '../types';
-import {
-    Add as CreateIcon,
-} from '@mui/icons-material';
 import { Project } from 'types';
 import { SearchList } from 'components/lists';
 import { projectQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { project, projectVariables } from 'graphql/generated/project';
 import { ProjectCreate } from 'components/views/Project/ProjectCreate/ProjectCreate';
-import { parseSearchParams, stringifySearchParams, SearchType, projectSearchSchema } from 'utils';
+import { SearchType, projectSearchSchema, removeSearchParams } from 'utils';
 import { useLocation } from '@shared/route';
+import { AddIcon } from '@shared/icons';
 
 const helpText =
     `This dialog allows you to connect a new or existing project to an object.
@@ -43,23 +41,13 @@ export const ProjectSelectOrCreateDialog = ({
      * Before closing, remove all URL search params for advanced search
      */
     const onClose = useCallback(() => {
-        // Find all search fields
-        const searchFields = [
+        // Clear search params
+        removeSearchParams(setLocation, [
             ...projectSearchSchema.fields.map(f => f.fieldName),
             'advanced',
             'sort',
             'time',
-        ];
-        // Find current search params
-        const params = parseSearchParams(window.location.search);
-        // Remove all search params that are advanced search fields
-        Object.keys(params).forEach(key => {
-            if (searchFields.includes(key)) {
-                delete params[key];
-            }
-        });
-        // Update URL
-        setLocation(stringifySearchParams(params), { replace: true });
+        ]);
         handleClose();
     }, [handleClose, setLocation]);
 
@@ -130,11 +118,11 @@ export const ProjectSelectOrCreateDialog = ({
                         <Typography component="h2" variant="h4">Projects</Typography>
                         <Tooltip title="Add new" placement="top">
                             <IconButton
-                                size="large"
+                                size="medium"
                                 onClick={handleCreateOpen}
                                 sx={{ padding: 1 }}
                             >
-                                <CreateIcon color="secondary" sx={{ width: '1.5em', height: '1.5em' }} />
+                                <AddIcon fill={palette.secondary.main} width='1.5em' height='1.5em' />
                             </IconButton>
                         </Tooltip>
                     </Stack>
