@@ -1,7 +1,7 @@
-import { useLocation } from 'wouter';
+import { useLocation } from '@shared/route';
 import { emailLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { CODE, emailLogInForm } from '@local/shared';
+import { APP_LINKS, CODE } from '@shared/consts';
 import { useFormik } from 'formik';
 import {
     Button,
@@ -12,7 +12,7 @@ import {
     Typography
 } from '@mui/material';
 import { Forms, PubSub, useReactSearch } from 'utils';
-import { APP_LINKS } from '@local/shared';
+import { emailLogInForm } from '@shared/validation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { emailLogIn, emailLogInVariables } from 'graphql/generated/emailLogIn';
 import { LogInFormProps } from './types';

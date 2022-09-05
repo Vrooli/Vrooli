@@ -1,6 +1,6 @@
-import { Link } from 'wouter';
+import { Link } from '@shared/route';
 import { Box, Button } from '@mui/material';
-import { APP_LINKS } from '@local/shared';
+import { APP_LINKS } from '@shared/consts';
 
 export const NotFoundPage = () => {
     return (

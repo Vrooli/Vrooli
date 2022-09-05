@@ -1,5 +1,3 @@
-import { v4 as uuid } from 'uuid';
-
 /**
  * Array of all IANA language subtags, with their native names. 
  * Taken from https://en.wikipedia.org/wiki/List_of_ISO_639-2_codes and https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry
@@ -357,67 +355,6 @@ export const getTranslation = <
     if (showAny && obj.translations.length > 0) return obj.translations[0][field];
     // If we didn't find a translation, return undefined
     return undefined;
-}
-
-/**
- * Update a translation key/value pair for a specific language.
- * @param objectWithTranslation An object with a "translations" array
- * @param key The key to update
- * @param value The value to update
- * @param language 2 letter language code
- * @returns Updated translations array
- */
-export const updateTranslationField = <
-    KeyField extends string,
-    Translation extends { [key in KeyField]?: string | null | undefined } & { id: string, language: string },
-    Obj extends { translations?: Translation[] | null | undefined }
->(objectWithTranslation: Obj | null | undefined, key: KeyField, value: string, language: string): Translation[] => {
-    if (!objectWithTranslation?.translations) return [];
-    let translationFound = false;
-    let translations: Translation[] = []
-    for (let translation of objectWithTranslation.translations) {
-        if (translation.language === language) {
-            translations.push({ ...translation, [key]: value });
-            translationFound = true;
-        } else {
-            translations.push(translation);
-        }
-    }
-    if (!translationFound) {
-        translations.push({
-            id: uuid(),
-            language: language,
-            [key]: value
-        } as Translation);
-    }
-    return translations;
-}
-
-/**
- * Update an entire translation object for a specific language.
- * @param objectWithTranslation An object with a "translations" array
- * @param translation The translation object to update, including at least the language code
- * @returns Updated translations array
- */
-export const updateTranslation = <
-    Translation extends { id: string, language: string },
-    Obj extends { translations: Translation[] }
->(objectWithTranslation: Obj, translation: Translation): Translation[] => {
-    if (!objectWithTranslation.translations) return [];
-    let translationFound = false;
-    let translations: Translation[] = []
-    for (let existingTranslation of objectWithTranslation.translations) {
-        if (existingTranslation.language === translation.language) {
-            translations.push({ ...translation });
-            translationFound = true;
-        } else {
-            translations.push(existingTranslation);
-        }
-    }
-    if (!translationFound) {
-        translations.push(translation);
-    }
-    return translations;
 }
 
 /**

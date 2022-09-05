@@ -1,4 +1,5 @@
-import { CODE, runInputsCreate, runInputsUpdate } from "@local/shared";
+import { runInputsCreate, runInputsUpdate } from "@shared/validation";
+import { CODE } from "@shared/consts";
 import { CustomError } from "../../error";
 import { Count, RunInputCreateInput, RunInputUpdateInput, RunInput } from "../../schema/types";
 import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";

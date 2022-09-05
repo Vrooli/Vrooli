@@ -57,6 +57,7 @@ export interface projects_projects_edges_node {
   handle: string | null;
   score: number;
   stars: number;
+  isComplete: boolean;
   isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;

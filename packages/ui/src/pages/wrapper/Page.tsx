@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { APP_LINKS } from '@local/shared';
-import { useLocation, Redirect } from 'wouter';
+import { APP_LINKS } from '@shared/consts';
+import { useLocation, Redirect } from '@shared/route';
 import { PageProps } from './types';
 import { PubSub } from 'utils';
 
@@ -10,12 +10,12 @@ export const Page = ({
     redirect = APP_LINKS.Start,
     session,
     sessionChecked,
-    title = '',
+    title,
 }: PageProps) => {
     const [location] = useLocation();
 
     useEffect(() => {
-        document.title = title;
+        if (title) document.title = title;
     }, [title]);
 
     // If this page has restricted access

@@ -3,7 +3,7 @@ import { GraphQLResolveInfo, GraphQLScalarType } from "graphql";
 import { GraphQLUpload } from 'graphql-upload';
 import { readFiles, saveFiles } from '../utils';
 // import ogs from 'open-graph-scraper';
-import { CODE } from '@local/shared';
+import { CODE } from '@shared/consts';
 import { Context } from '../context';
 import { CustomError } from '../error';
 import { rateLimit } from '../rateLimit';

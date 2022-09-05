@@ -361,34 +361,48 @@ export const getTranslation = <
 }
 
 /**
- * Update a translation key/value pair for a specific language.
- * @param objectWithTranslation An object with a "translations" array
- * @param key The key to update
- * @param value The value to update
- * @param language 2 letter language code
+ * Update a translation's key/value pairs for a specific language.
+ * @param obj An object with a "translations" array
+ * @param language The language to update
+ * @param changes An object of key/value pairs to update
  * @returns Updated translations array
  */
-export const updateTranslationField = <
-    KeyField extends string,
-    Translation extends { [key in KeyField]?: string | null | undefined } & { id: string, language: string },
-    Obj extends { translations?: Translation[] | null | undefined }
->(objectWithTranslation: Obj | null | undefined, key: KeyField, value: string, language: string): Translation[] => {
-    if (!objectWithTranslation?.translations) return [];
+export const updateTranslationFields = <
+    Translation extends { id: string, language: string },
+    Obj extends { translations: Translation[] | null | undefined }
+>(
+    obj: Obj | null | undefined,
+    language: string,
+    changes: { [key in string]?: string | null | undefined }
+): Translation[] => {
     let translationFound = false;
+    // Initialize new translations array
     let translations: Translation[] = []
-    for (let translation of objectWithTranslation.translations) {
+    // Loop through translations
+    for (let translation of obj?.translations ?? []) {
+        // If language matches, update every field in changes. 
+        // If an existing field is not in changes, keep it unchanged.
+        // If a new field is not in the existing translation, add it.
         if (translation.language === language) {
-            translations.push({ ...translation, [key]: value });
+            console.log('found translation. updating...', translation);
             translationFound = true;
-        } else {
+            translations.push({
+                ...translation,
+                ...changes
+            })
+        }
+        // Otherwise, keep the translation unchanged
+        else {
             translations.push(translation);
         }
     }
+    // If no translation was found, add a new one
     if (!translationFound) {
+        console.log('no translation found, so adding new one...')
         translations.push({
             id: uuid(),
-            language: language,
-            [key]: value
+            ...changes,
+            language
         } as Translation);
     }
     return translations;

@@ -38,7 +38,9 @@ export const typeDef = gql`
         loopDelete: ID
         loopCreate: LoopCreateInput
         loopUpdate: LoopUpdateInput
+        nodeEndCreate: NodeEndCreateInput
         nodeEndUpdate: NodeEndUpdateInput
+        nodeRoutineListCreate: NodeRoutineListCreateInput
         nodeRoutineListUpdate: NodeRoutineListUpdateInput
         routineId: ID
         translationsDelete: [ID!]

@@ -13,8 +13,8 @@ import {
     Sort as SortListIcon,
 } from '@mui/icons-material';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
-import { getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, objectToSearchInfo, parseSearchParams, SortValueToLabelMap, stringifySearchParams, useReactSearch } from "utils";
-import { useLocation } from "wouter";
+import { addSearchParams, getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, parseSearchParams, removeSearchParams, SearchParams, searchTypeToParams, SortValueToLabelMap } from "utils";
+import { useLocation } from '@shared/route';
 import { AutocompleteOption } from "types";
 
 type TimeFrame = {
@@ -43,9 +43,8 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     itemKeyPrefix,
     noResultsText = 'No results',
     searchPlaceholder = 'Search...',
-    query,
     take = 20,
-    objectType,
+    searchType,
     onObjectSelect,
     onScrolledFar,
     where,
@@ -55,16 +54,22 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const { advancedSearchSchema, defaultSortBy, sortByOptions } = useMemo(() => objectToSearchInfo[objectType], [objectType]);
+    const { advancedSearchSchema, defaultSortBy, sortByOptions, query } = useMemo<SearchParams>(() => searchTypeToParams[searchType], [searchType]);
 
     const [sortBy, setSortBy] = useState<string>(defaultSortBy);
     const [searchString, setSearchString] = useState<string>('');
     const [timeFrame, setTimeFrame] = useState<TimeFrame | undefined>(undefined);
-    // Handle URL params
-    const searchParams = useReactSearch(null);
     useEffect(() => {
+        const searchParams = parseSearchParams(window.location.search)
         if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
-        if (typeof searchParams.sort === 'string') setSortBy(searchParams.sort);
+        if (typeof searchParams.sort === 'string') {
+            // Check if sortBy is valid
+            if (searchParams.sort in sortByOptions) {
+                setSortBy(searchParams.sort);
+            } else {
+                setSortBy(defaultSortBy);
+            }
+        }
         if (typeof searchParams.time === 'object' &&
             !Array.isArray(searchParams.time) &&
             searchParams.time.hasOwnProperty('after') &&
@@ -74,10 +79,10 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 before: new Date((searchParams.time as any).before),
             });
         }
-    }, [searchParams]);
+    }, [defaultSortBy, searchType, sortByOptions]);
 
-    const [sortAnchorEl, setSortAnchorEl] = useState(null);
-    const [timeAnchorEl, setTimeAnchorEl] = useState(null);
+    const [sortAnchorEl, setSortAnchorEl] = useState<HTMLElement | null>(null);
+    const [timeAnchorEl, setTimeAnchorEl] = useState<HTMLElement | null>(null);
     const [timeFrameLabel, setTimeFrameLabel] = useState<string>('Time');
     const after = useRef<string | undefined>(undefined);
 
@@ -85,22 +90,17 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
      * When sort and filter options change, update the URL
      */
     useEffect(() => {
-        const params = parseSearchParams(window.location.search);
-        if (searchString) params.search = searchString;
-        else delete params.search;
-        if (sortBy) params.sort = sortBy;
-        else delete params.sort;
-        if (timeFrame) {
-            params.time = {
+        addSearchParams(setLocation, {
+            search: searchString.length > 0 ? searchString : undefined,
+            sort: sortBy,
+            time: timeFrame ? {
                 after: timeFrame.after?.toISOString() ?? '',
                 before: timeFrame.before?.toISOString() ?? '',
-            }
-        }
-        else delete params.time;
-        setLocation(stringifySearchParams(params), { replace: true });
+            } : undefined,
+        });
     }, [searchString, sortBy, timeFrame, setLocation]);
 
-    const [advancedSearchParams, setAdvancedSearchParams] = useState<object>({});
+    const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>(null);
     const [getPageData, { data: pageData, loading }] = useLazyQuery<Query, QueryVariables>(query, {
         variables: ({
             input: {
@@ -124,7 +124,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     useEffect(() => {
         after.current = undefined;
         if (canSearch) getPageData();
-    }, [advancedSearchParams, canSearch, searchString, sortBy, timeFrame, where, getPageData]);
+    }, [advancedSearchParams, canSearch, searchString, searchType, sortBy, timeFrame, where, getPageData]);
 
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
@@ -152,6 +152,11 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     // Handle advanced search
     useEffect(() => {
+        const searchParams = parseSearchParams(window.location.search)
+        if (!advancedSearchSchema?.fields) {
+            setAdvancedSearchParams(null);
+            return;
+        }
         // Open advanced search dialog, if needed
         if (typeof searchParams.advanced === 'boolean') setAdvancedSearchDialogOpen(searchParams.advanced);
         // Any search params that aren't advanced, search, sort, or time MIGHT be advanced search params
@@ -161,7 +166,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         // fields in both otherParams and allAdvancedSearchParams should be the new advanced search params
         const advancedData = Object.keys(otherParams).filter(k => allAdvancedSearchParams.includes(k));
         setAdvancedSearchParams(advancedData.reduce((acc, k) => ({ ...acc, [k]: otherParams[k] }), {}));
-    }, [advancedSearchSchema.fields, searchParams]);
+    }, [advancedSearchSchema?.fields]);
 
     // Handle advanced search dialog
     const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(false);
@@ -170,15 +175,14 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         setAdvancedSearchDialogOpen(false)
     }, []);
     const handleAdvancedSearchDialogSubmit = useCallback((values: any) => {
-        // Remove undefined and 0 values
-        const valuesWithoutBlanks = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== undefined && v !== 0));
-        // Add advanced search params to url search params
-        setLocation(stringifySearchParams({
-            ...searchParams,
-            ...valuesWithoutBlanks
-        }));
+        // Remove 0 values
+        const valuesWithoutBlanks: { [x: string]: any } = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== 0));
+        // Remove schema fields from search params
+        removeSearchParams(setLocation, advancedSearchSchema?.fields?.map(f => f.fieldName) ?? []);
+        // Add set fields to search params
+        addSearchParams(setLocation, valuesWithoutBlanks);
         setAdvancedSearchParams(valuesWithoutBlanks);
-    }, [searchParams, setLocation]);
+    }, [advancedSearchSchema?.fields, setLocation]);
 
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
@@ -203,14 +207,14 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     }, [allData, session]);
 
     const listItems = useMemo(() => listToListItems({
-        dummyItems: new Array(5).fill(objectType),
+        dummyItems: new Array(5).fill(searchType),
         hideRoles,
         items: allData as any,
         keyPrefix: itemKeyPrefix,
         loading,
         onClick: (item) => onObjectSelect(item),
         session: session,
-    }), [allData, hideRoles, itemKeyPrefix, loading, objectType, session, onObjectSelect])
+    }), [allData, hideRoles, itemKeyPrefix, loading, searchType, session, onObjectSelect])
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
@@ -308,10 +312,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     // Update query params
     useEffect(() => {
-        let params = parseSearchParams(window.location.search);
-        if (advancedSearchDialogOpen) params.advanced = true;
-        else delete params.advanced;
-        setLocation(stringifySearchParams(params), { replace: true });
+        addSearchParams(setLocation, { advanced: advancedSearchDialogOpen });
     }, [advancedSearchDialogOpen, setLocation]);
 
     return (
@@ -321,6 +322,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 handleClose={handleAdvancedSearchDialogClose}
                 handleSearch={handleAdvancedSearchDialogSubmit}
                 isOpen={advancedSearchDialogOpen}
+                searchType={searchType}
                 session={session}
                 zIndex={zIndex + 1}
             />
@@ -368,7 +370,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         {timeFrameLabel}
                     </Box>
                 </Tooltip>
-                <Tooltip title="See all search settings" placement="top">
+                {advancedSearchParams && <Tooltip title="See all search settings" placement="top">
                     <Box
                         onClick={handleAdvancedSearchDialogOpen}
                         sx={{ ...searchButtonStyle }}
@@ -376,7 +378,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         <AdvancedIcon sx={{ fill: palette.secondary.main }} />
                         Advanced
                     </Box>
-                </Tooltip>
+                </Tooltip>}
             </Box>
             {searchResultContainer}
             {/* Add new button */}

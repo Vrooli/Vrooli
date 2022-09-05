@@ -1,24 +1,20 @@
-import { Box, Stack, Typography, useTheme } from "@mui/material"
+import { Box, Grid, Stack, Typography, useTheme } from "@mui/material"
 import { useMutation } from "@apollo/client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { profileUpdateSchema as validationSchema } from '@local/shared';
+import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { PubSub, shapeProfileUpdate, TagHiddenShape, TagShape, TERTIARY_COLOR } from "utils";
+import { PubSub, shapeProfileUpdate, TagHiddenShape, TagShape } from "utils";
 import {
-    Restore as RevertIcon,
-    Save as SaveIcon,
-    ThumbUp as InterestsIcon,
-    VisibilityOff as HiddenIcon,
+    Favorite as InterestsIcon,
 } from '@mui/icons-material';
-import { DialogActionItem } from "components/containers/types";
-import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { SettingsDisplayProps } from "../types";
-import { HelpButton, TagSelector } from "components";
+import { GridSubmitButtons, HelpButton, TagSelector } from "components";
 import { ThemeSwitch } from "components/inputs";
 import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
 import { v4 as uuid } from 'uuid';
+import { InvisibleIcon } from "@shared/icons";
 
 const helpText =
     `Display preferences customize the look and feel of Vrooli. More customizations will be available in the near future.`
@@ -57,10 +53,10 @@ export const SettingsDisplay = ({
     // Handle hidden tags
     const [hiddenTags, setHiddenTags] = useState<TagHiddenShape[]>([]);
     const addHiddenTag = useCallback((tag: TagShape) => {
-        setHiddenTags(t => [...t, { 
+        setHiddenTags(t => [...t, {
             id: uuid(),
-            isBlur: true, 
-            tag 
+            isBlur: true,
+            tag
         }]);
     }, [setHiddenTags]);
     const removeHiddenTag = useCallback((tag: TagShape) => {
@@ -142,16 +138,15 @@ export const SettingsDisplay = ({
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [formik.dirty]);
 
-    const actions: DialogActionItem[] = useMemo(() => [
-        ['Save', SaveIcon, !formik.touched || formik.isSubmitting, false, () => {
-            formik.submitForm();
-        }],
-        ['Revert', RevertIcon, !formik.touched || formik.isSubmitting, false, () => {
-            formik.resetForm();
-            setStarredTags([]);
-            setHiddenTags([]);
-        }],
-    ], [formik]);
+    const handleSave = useCallback(() => {
+        formik.submitForm();
+    }, [formik]);
+
+    const handleCancel = useCallback(() => {
+        formik.resetForm();
+        setStarredTags([]);
+        setHiddenTags([]);
+    }, [formik]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
@@ -163,7 +158,7 @@ export const SettingsDisplay = ({
                 marginBottom: 2,
             }}>
                 <Typography component="h1" variant="h4">Display Preferences</Typography>
-                <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
+                <HelpButton markdown={helpText} />
             </Stack>
             <Box sx={{ margin: 2, marginBottom: 5 }}>
                 <ThemeSwitch
@@ -172,8 +167,8 @@ export const SettingsDisplay = ({
                 />
             </Box>
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                <InterestsIcon sx={{ marginRight: 1 }} />
-                <Typography component="h2" variant="h5" textAlign="center">Favorite Topics</Typography>
+                <InterestsIcon />
+                <Typography component="h2" variant="h5" textAlign="center" ml={1}>Favorite Topics</Typography>
                 <HelpButton markdown={interestsHelpText} />
             </Stack>
             <Box sx={{ margin: 2, marginBottom: 5 }}>
@@ -187,8 +182,8 @@ export const SettingsDisplay = ({
                 />
             </Box>
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                <HiddenIcon sx={{ marginRight: 1 }} />
-                <Typography component="h2" variant="h5" textAlign="center">Hidden Topics</Typography>
+                <InvisibleIcon />
+                <Typography component="h2" variant="h5" textAlign="center" ml={1}>Hidden Topics</Typography>
                 <HelpButton markdown={hiddenHelpText} />
             </Stack>
             <Box sx={{ margin: 2, marginBottom: 5 }}>
@@ -201,7 +196,17 @@ export const SettingsDisplay = ({
                     onTagsClear={clearHiddenTags}
                 />
             </Box>
-            <DialogActionsContainer fixed={false} actions={actions} />
+            <Grid container spacing={2} p={2}>
+                <GridSubmitButtons
+                    disabledCancel={formik.isSubmitting}
+                    disabledSubmit={formik.isSubmitting || !formik.isValid}
+                    errors={formik.errors}
+                    isCreate={false}
+                    onCancel={handleCancel}
+                    onSetSubmitting={formik.setSubmitting}
+                    onSubmit={handleSave}
+                />
+            </Grid>
         </form>
     )
 }

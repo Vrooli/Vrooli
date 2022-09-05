@@ -1,26 +1,26 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
-import { useLocation, useRoute } from "wouter";
-import { adaHandleRegex, APP_LINKS, StarFor } from "@local/shared";
+import { useLocation } from '@shared/route';
+import { APP_LINKS, StarFor } from "@shared/consts";
+import { adaHandleRegex } from '@shared/validation';
 import { useLazyQuery } from "@apollo/client";
 import { user, userVariables } from "graphql/generated/user";
-import { organizationsQuery, projectsQuery, routinesQuery, standardsQuery, userQuery } from "graphql/query";
+import { userQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     CardGiftcard as DonateIcon,
-    Edit as EditIcon,
-    MoreHoriz as EllipsisIcon,
     Person as ProfileIcon,
     Share as ShareIcon,
-    Today as CalendarIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, ResourceListVertical, SearchList, SelectLanguageDialog, StarButton } from "components";
+import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton, SelectRoutineTypeMenu } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
-import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, PubSub } from "utils";
+import { getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, PubSub, SearchType } from "utils";
 import { ResourceList, User } from "types";
 import { SearchListGenerator } from "components/lists/types";
 import { validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
+import { EditIcon, EllipsisIcon } from "@shared/icons";
+import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 
 enum TabOptions {
     Resources = "Resources",
@@ -39,15 +39,16 @@ export const UserView = ({
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
     // Get URL params
-    const [isProfile] = useRoute(`${APP_LINKS.Profile}`);
-    const [, params1] = useRoute(`${APP_LINKS.Profile}/:id`);
-    const [, params2] = useRoute(`${APP_LINKS.SearchUsers}/view/:id`);
     const id: string = useMemo(() => {
-        return isProfile ? (session.id ?? '') : (params1?.id ?? params2?.id ?? '');
-    }, [isProfile, params1, params2, session]);
+        const pathnameEnd = getLastUrlPart();
+        // If no id is provided, use the current user's id
+        if (APP_LINKS.Profile.endsWith(pathnameEnd)) return session.id ?? '';
+        // Otherwise, use the id provided in the URL
+        return pathnameEnd;
+    }, [session]);
     const isOwn: boolean = useMemo(() => Boolean(session?.id && session.id === id), [id, session]);
     // Fetch data
-    const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery, { errorPolicy: 'all'});
+    const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery, { errorPolicy: 'all' });
     const [user, setUser] = useState<User | null | undefined>(null);
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { input: { id } } })
@@ -55,7 +56,7 @@ export const UserView = ({
     }, [getData, id]);
     useEffect(() => {
         setUser((data?.user as User) ?? partialData);
-    }, [data, isProfile, partialData]);
+    }, [data, partialData]);
 
     const availableLanguages = useMemo<string[]>(() => (user?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [user?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -125,62 +126,56 @@ export const UserView = ({
     }, [id]);
 
     const onEdit = useCallback(() => {
-        // Depends on if we're in a search popup or a normal organization page
-        setLocation(isProfile ? `${APP_LINKS.Settings}?page="profile"` : `${APP_LINKS.SearchUsers}/edit/${id}`);
-    }, [id, isProfile, setLocation]);
+        setLocation(`${APP_LINKS.Settings}?page="profile"`);
+    }, [setLocation]);
 
     // Create search data
-    const { objectType, itemKeyPrefix, placeholder, searchQuery, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
+    const { searchType, itemKeyPrefix, placeholder, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
         const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         // The first tab doesn't have search results, as it is the user's set resources
         switch (currTabType) {
             case TabOptions.Organizations:
                 return {
-                    objectType: ObjectType.Organization,
+                    searchType: SearchType.Organization,
                     itemKeyPrefix: 'organization-list-item',
                     placeholder: "Search user's organizations...",
                     noResultsText: "No organizations found",
-                    searchQuery: organizationsQuery,
-                    where: { userId: id },
+                    where: { userId: id, includePrivate: true },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Organization, newValue.id),
                 }
             case TabOptions.Projects:
                 return {
-                    objectType: ObjectType.Project,
+                    searchType: SearchType.Project,
                     itemKeyPrefix: 'project-list-item',
                     placeholder: "Search user's projects...",
                     noResultsText: "No projects found",
-                    searchQuery: projectsQuery,
-                    where: { userId: id, isComplete: !isOwn ? true : undefined },
+                    where: { userId: id, isComplete: !isOwn ? true : undefined, includePrivate: true },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Project, newValue.id),
                 }
             case TabOptions.Routines:
                 return {
-                    objectType: ObjectType.Routine,
+                    searchType: SearchType.Routine,
                     itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search user's routines...",
                     noResultsText: "No routines found",
-                    searchQuery: routinesQuery,
-                    where: { userId: id, isComplete: !isOwn ? true : undefined, isInternal: false },
+                    where: { userId: id, isComplete: !isOwn ? true : undefined, isInternal: false, includePrivate: true },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 }
             case TabOptions.Standards:
                 return {
-                    objectType: ObjectType.Standard,
+                    searchType: SearchType.Standard,
                     itemKeyPrefix: 'standard-list-item',
                     placeholder: "Search user's standards...",
                     noResultsText: "No standards found",
-                    searchQuery: standardsQuery,
-                    where: { userId: id },
+                    where: { userId: id, includePrivate: true },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
                 }
             default:
                 return {
-                    objectType: ObjectType.Organization,
+                    searchType: SearchType.Organization,
                     itemKeyPrefix: '',
                     placeholder: '',
                     noResultsText: '',
-                    searchQuery: null,
                     where: {},
                     onSearchSelect: (o: any) => { },
                 }
@@ -194,6 +189,44 @@ export const UserView = ({
         ev.preventDefault();
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
+
+    const onMoreActionStart = useCallback((action: ObjectAction) => {
+        switch (action) {
+            case ObjectAction.Edit:
+                onEdit();
+                break;
+            case ObjectAction.Stats:
+                //TODO
+                break;
+        }
+    }, [onEdit]);
+
+    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
+        switch (action) {
+            case ObjectActionComplete.Star:
+            case ObjectActionComplete.StarUndo:
+                if (data.star.success) {
+                    setUser({
+                        ...user,
+                        isStarred: action === ObjectActionComplete.Star,
+                    } as any)
+                }
+                break;
+            case ObjectActionComplete.Fork:
+                setLocation(`${APP_LINKS.User}/${data.fork.user.id}`);
+                break;
+            case ObjectActionComplete.Copy:
+                setLocation(`${APP_LINKS.User}/${data.copy.user.id}`);
+                break;
+        }
+    }, [user, setLocation]);
+
+    // Menu for picking which routine type to add
+    const [addRoutineAnchor, setAddRoutineAnchor] = useState<any>(null);
+    const openAddRoutine = useCallback((ev: React.MouseEvent<HTMLElement>) => {
+        setAddRoutineAnchor(ev.currentTarget)
+    }, []);
+    const closeAddRoutine = useCallback(() => setAddRoutineAnchor(null), []);
 
     /**
      * Displays name, handle, avatar, bio, and quick links
@@ -245,7 +278,7 @@ export const UserView = ({
                         marginRight: 1,
                     }}
                 >
-                    <EllipsisIcon />
+                    <EllipsisIcon fill={palette.background.textSecondary} />
                 </IconButton>
             </Tooltip>
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
@@ -264,10 +297,7 @@ export const UserView = ({
                                     size="small"
                                     onClick={onEdit}
                                 >
-                                    <EditIcon sx={{
-                                        fill: palette.mode === 'light' ?
-                                            palette.primary.main : palette.secondary.light,
-                                    }} />
+                                    <EditIcon fill={palette.secondary.main} />
                                 </IconButton>
                             </Tooltip>
                         </Stack>
@@ -289,17 +319,13 @@ export const UserView = ({
                     </Link>
                 }
                 {/* Joined date */}
-                {
-                    loading ? (
-                        <Box sx={{ width: '33%', color: "#00831e" }}>
-                            <LinearProgress color="inherit" />
-                        </Box>
-                    ) :
-                        user?.created_at && (<Box sx={{ display: 'flex' }} >
-                            <CalendarIcon />
-                            {`Joined ${displayDate(user.created_at, false)}`}
-                        </Box>)
-                }
+                <DateDisplay
+                    loading={loading}
+                    showIcon={true}
+                    textBeforeDate="Joined"
+                    timestamp={user?.created_at}
+                    width={"33%"}
+                />
                 {/* Description */}
                 {
                     loading ? (
@@ -333,15 +359,19 @@ export const UserView = ({
                             tooltipPlacement="bottom"
                         /> : null
                     }
+                    <ReportsLink
+                        href={`${APP_LINKS.User}/reports/${user?.id}`}
+                        reports={user?.reportsCount}
+                    />
                 </Stack>
             </Stack>
         </Box>
-    ), [bio, handle, isOwn, loading, name, onEdit, openMoreMenu, palette, profileColors, session, shareLink, user?.created_at, user?.id, user?.isStarred, user?.stars]);
+    ), [bio, handle, isOwn, loading, name, onEdit, openMoreMenu, palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.primary.dark, palette.secondary.dark, palette.secondary.main, profileColors, session, shareLink, user?.created_at, user?.id, user?.isStarred, user?.reportsCount, user?.stars]);
 
     /**
      * Opens add new page
      */
-    const toAddNew = useCallback(() => {
+    const toAddNew = useCallback((event: any) => {
         switch (currTabType) {
             case TabOptions.Organizations:
                 setLocation(`${APP_LINKS.Organization}/add`);
@@ -350,20 +380,18 @@ export const UserView = ({
                 setLocation(`${APP_LINKS.Project}/add`);
                 break;
             case TabOptions.Routines:
-                // setLocation(`${APP_LINKS.Routine}/add`);TODO
+                openAddRoutine(event);
                 break;
             case TabOptions.Standards:
                 setLocation(`${APP_LINKS.Standard}/add`);
                 break;
         }
-    }, [currTabType, setLocation]);
+    }, [currTabType, openAddRoutine, setLocation]);
 
     return (
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
-            <BaseObjectActionDialog
-                handleActionComplete={() => { }} //TODO
-                handleEdit={onEdit}
+            <ObjectActionMenu
                 isUpvoted={null}
                 isStarred={user?.isStarred}
                 objectId={id}
@@ -371,6 +399,8 @@ export const UserView = ({
                 objectType={ObjectType.User}
                 anchorEl={moreMenuAnchor}
                 title='User Options'
+                onActionStart={onMoreActionStart}
+                onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
                 permissions={{
                     canEdit: isOwn,
@@ -378,7 +408,14 @@ export const UserView = ({
                     canStar: !isOwn,
                 }}
                 session={session}
-                zIndex={zIndex+1}
+                zIndex={zIndex + 1}
+            />
+            {/* Add menu for selecting between single-step and multi-step routines */}
+            <SelectRoutineTypeMenu
+                anchorEl={addRoutineAnchor}
+                handleClose={closeAddRoutine}
+                session={session}
+                zIndex={zIndex + 1}
             />
             <Box sx={{
                 display: 'flex',
@@ -393,7 +430,7 @@ export const UserView = ({
                     top: 8,
                     right: 8,
                 }}>
-                    <SelectLanguageDialog
+                    <SelectLanguageMenu
                         availableLanguages={availableLanguages}
                         canDropdownOpen={availableLanguages.length > 1}
                         currentLanguage={language}
@@ -439,9 +476,8 @@ export const UserView = ({
                                 hideRoles={true}
                                 itemKeyPrefix={itemKeyPrefix}
                                 noResultsText={noResultsText}
-                                objectType={objectType}
+                                searchType={searchType}
                                 onObjectSelect={onSearchSelect}
-                                query={searchQuery}
                                 searchPlaceholder={placeholder}
                                 session={session}
                                 take={20}

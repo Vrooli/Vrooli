@@ -1,5 +1,5 @@
 import { BreadcrumbsBase } from '../BreadcrumbsBase/BreadcrumbsBase';
-import { BUSINESS_NAME, LANDING_LINKS, LANDING_URL } from '@local/shared';
+import { BUSINESS_NAME, LANDING_LINKS, LANDING_URL } from '@shared/consts';
 import { CopyrightBreadcrumbsProps } from '../types';
 
 export const CopyrightBreadcrumbs = ({ 

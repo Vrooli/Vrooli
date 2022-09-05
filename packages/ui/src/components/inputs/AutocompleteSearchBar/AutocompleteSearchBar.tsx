@@ -1,11 +1,9 @@
-import { Autocomplete, CircularProgress, IconButton, Input, ListItemText, MenuItem, Paper, Typography } from '@mui/material';
+import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, CircularProgress, IconButton, Input, ListItemText, MenuItem, Paper, Typography, useTheme } from '@mui/material';
 import { AutocompleteSearchBarProps } from '../types';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
-import {
-    Search as SearchIcon
-} from '@mui/icons-material';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
 import { AutocompleteOption } from 'types';
+import { SearchIcon } from '@shared/icons';
 
 export function AutocompleteSearchBar({
     id = 'search-bar',
@@ -18,10 +16,16 @@ export function AutocompleteSearchBar({
     loading = false,
     session,
     showSecondaryLabel = false,
-    sx,
+    sxs,
     ...props
 }: AutocompleteSearchBarProps) {
+    const { palette } = useTheme();
+
+    // Input internal value (since value passed back is debounced)
     const [internalValue, setInternalValue] = useState<string>(value);
+    // Highlighted option (if navigated with keyboard)
+    const [highlightedOption, setHighlightedOption] = useState<AutocompleteOption | null>(null);
+
     const onChangeDebounced = useMemo(() => AwesomeDebouncePromise(
         onChange,
         debounce,
@@ -32,6 +36,8 @@ export function AutocompleteSearchBar({
         const { value } = event.target;
         // Update state
         setInternalValue(value);
+        // Remove the highlight
+        setHighlightedOption(null);
         // Debounce onChange
         onChangeDebounced(value);
     }, [onChangeDebounced]);
@@ -57,21 +63,36 @@ export function AutocompleteSearchBar({
         return 'No options';
     }, [loading, value, internalValue]);
 
+    const onHighlightChange = useCallback((event: React.SyntheticEvent<Element, Event>, option: AutocompleteOption | null, reason: AutocompleteHighlightChangeReason) => {
+        if (option && option.label && reason === 'keyboard') {
+            setHighlightedOption(option);
+        }
+    }, [])
+
+    const onSubmit = useCallback((event: React.SyntheticEvent<Element, Event>, value: AutocompleteOption | null, reason: AutocompleteChangeReason, details?: AutocompleteChangeDetails<any> | undefined) => {
+        // If there is a highlighted option, use that
+        if (highlightedOption) {
+            onInputChange(highlightedOption);
+        }
+        // Otherwise, don't submit
+    }, [highlightedOption, onInputChange])
+
     return (
         <Autocomplete
             disablePortal
             id={id}
             options={options}
+            onHighlightChange={onHighlightChange}
             inputValue={internalValue}
             getOptionLabel={(option: AutocompleteOption) => option.label ?? ''}
+            // Stop default onSubmit, since this reloads the page for some reason
             onSubmit={(event: any) => {
-                // This is triggered when the user presses enter
-                // We want to prevent the form from submitting, since this reloads the page 
-                // for some reason.
                 event.preventDefault();
                 event.stopPropagation();
             }}
-            renderOption={(_, option) => {
+            // The real onSubmit, since onSubmit is only triggered after 2 presses of the enter key (don't know why)
+            onChange={onSubmit}
+            renderOption={(props, option) => {
                 // If loading, display spinner
                 if (option.__typename === 'Loading') {
                     return (
@@ -100,6 +121,7 @@ export function AutocompleteSearchBar({
                 }
                 return (
                     <MenuItem
+                        {...props}
                         key={option.id}
                         onClick={() => {
                             const label = option.label ?? '';
@@ -132,18 +154,23 @@ export function AutocompleteSearchBar({
             renderInput={(params) => (
                 <Paper
                     component="form"
-                    sx={{ p: '2px 4px', display: 'flex', alignItems: 'center', borderRadius: '10px' }}
+                    sx={{ ...(sxs?.paper ?? {}), p: '2px 4px', display: 'flex', alignItems: 'center', borderRadius: '10px' }}
                 >
                     <Input
+                        id={params.id}
+                        disabled={params.disabled}
                         disableUnderline={true}
+                        fullWidth={params.fullWidth}
                         value={internalValue}
                         onChange={handleChange}
                         placeholder={placeholder}
                         autoFocus={props.autoFocus ?? false}
-                        {...params.InputProps}
+                        // {...params.InputLabelProps}
                         inputProps={params.inputProps}
-                        sx={{ 
-                            ml: 1, 
+                        ref={params.InputProps.ref}
+                        size={params.size}
+                        sx={{
+                            ml: 1,
                             flex: 1,
                             // Drop down/up icon
                             '& .MuiAutocomplete-endAdornment': {
@@ -162,14 +189,13 @@ export function AutocompleteSearchBar({
                         width: '48px',
                         height: '48px',
                     }} aria-label="main-search-icon">
-                        <SearchIcon />
+                        <SearchIcon fill={palette.background.textSecondary} />
                     </IconButton>
                 </Paper>
-            )
-            }
+            )}
             noOptionsText={noOptionsText}
             sx={{
-                ...(sx ?? {}),
+                ...(sxs?.root ?? {}),
                 '& .MuiAutocomplete-inputRoot': {
                     paddingRight: '0 !important',
                 },

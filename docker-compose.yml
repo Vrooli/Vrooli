@@ -1,3 +1,4 @@
+# Run this file by typing: docker-compose up -f docker-compose-dev.yml -d
 version: "3.9"
 services:
     ui:
@@ -9,7 +10,7 @@ services:
         container_name: ui
         restart: always
         environment: 
-            NODE_ENV: "${NODE_ENV}"
+            NODE_ENV: "development"
             REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
             REACT_APP_PORT_SERVER: "${PORT_SERVER}"
             REACT_APP_SERVER_URL: "${SERVER_URL}"
@@ -26,12 +27,13 @@ services:
             - proxy
             - app
         volumes:
+            - ./node_modules:${PROJECT_DIR}/node_modules
             - ./packages/ui:${PROJECT_DIR}/packages/ui:z
             - ./packages/shared:${PROJECT_DIR}/packages/shared:z
         depends_on: 
                 - redis
                 - db
-        command: /bin/sh -c "chmod +x ./scripts/* && ./scripts/ui.sh"
+        command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/ui.sh"
     server:
         build:
             context: .
@@ -41,7 +43,7 @@ services:
         container_name: server
         restart: always
         environment: 
-            NODE_ENV: "${NODE_ENV}"
+            NODE_ENV: "development"
             JWT_SECRET: "${JWT_SECRET}"
             PROJECT_DIR: "${PROJECT_DIR}"
             REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
@@ -72,6 +74,7 @@ services:
             - proxy
             - app
         volumes:
+            # - ./node_modules:${PROJECT_DIR}/node_modules
             - ./packages/server:${PROJECT_DIR}/packages/server:z
             - ./packages/shared:${PROJECT_DIR}/packages/shared:z
             - ./data/logs:${PROJECT_DIR}/data/logs:z
@@ -81,7 +84,7 @@ services:
         depends_on: 
             - redis
             - db
-        command: /bin/sh -c "chmod +x ./scripts/* && ./scripts/server.sh"
+        command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/server.sh"
     db:
         image: postgres:13-alpine
         restart: always
@@ -109,35 +112,36 @@ services:
         ports:
           - ${PORT_REDIS}:6379
         command: /bin/sh -c "mkdir -p /srv/app/data/redis/appendonlydir && rm -f /srv/app/data/redis/dump.rdb && redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes --dbfilename dump.rdb --dir /srv/app/data/redis/"
-    docs:
-        build:
-            context: .
-            dockerfile: ./packages/docs/Dockerfile
-            args:
-                PROJECT_DIR: "${PROJECT_DIR}"
-        container_name: docs
-        restart: always
-        environment: 
-            NODE_ENV: "${NODE_ENV}"
-            REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
-            REACT_APP_PORT_SERVER: "${PORT_SERVER}"
-            REACT_APP_SERVER_URL: "${SERVER_URL}"
-            REACT_APP_SITE_IP: "${SITE_IP}"
-            PROJECT_DIR: "${PROJECT_DIR}"
-            VIRTUAL_HOST: "${VIRTUAL_HOST_DOCS}"
-            VIRTUAL_PATH: "/"
-            VIRTUAL_PORT: "3456"
-            LETSENCRYPT_HOST: "${VIRTUAL_HOST_DOCS}"
-            LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
-        ports:
-            - ${PORT_DOCS}:3456
-        networks:
-            - proxy
-            - app
-        volumes:
-            - ./packages/docs:${PROJECT_DIR}/packages/docs:z
-            - ./packages/shared:${PROJECT_DIR}/packages/shared:z
-        command: /bin/sh -c "chmod +x ./scripts/* && ./scripts/docs.sh"
+    # docs:
+    #     build:
+    #         context: .
+    #         dockerfile: ./packages/docs/Dockerfile
+    #         args:
+    #             PROJECT_DIR: "${PROJECT_DIR}"
+    #     container_name: docs
+    #     restart: always
+    #     environment: 
+    #         NODE_ENV: "development"
+    #         REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
+    #         REACT_APP_PORT_SERVER: "${PORT_SERVER}"
+    #         REACT_APP_SERVER_URL: "${SERVER_URL}"
+    #         REACT_APP_SITE_IP: "${SITE_IP}"
+    #         PROJECT_DIR: "${PROJECT_DIR}"
+    #         VIRTUAL_HOST: "${VIRTUAL_HOST_DOCS}"
+    #         VIRTUAL_PATH: "/"
+    #         VIRTUAL_PORT: "3456"
+    #         LETSENCRYPT_HOST: "${VIRTUAL_HOST_DOCS}"
+    #         LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
+    #     ports:
+    #         - ${PORT_DOCS}:3456
+    #     networks:
+    #         - proxy
+    #         - app
+    #     volumes:
+    #         - ./node_modules:${PROJECT_DIR}/node_modules
+    #         - ./packages/docs:${PROJECT_DIR}/packages/docs:z
+    #         - ./packages/shared:${PROJECT_DIR}/packages/shared:z
+    #     command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/docs.sh"
     # adminer:
     #     image: adminer
     #     restart: always
@@ -148,7 +152,7 @@ services:
 
 networks:
   proxy:
-      external:
-        name: nginx-proxy
+    name: nginx-proxy
+    external: true
   app:
 

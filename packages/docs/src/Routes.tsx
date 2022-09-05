@@ -1,7 +1,7 @@
 import { Suspense, useCallback } from 'react';
 import { lazily } from 'react-lazily';
-import { Route, Switch } from 'wouter';
-import { BUSINESS_NAME } from '@local/shared';
+import { Route, Switch } from '@shared/route';
+import { BUSINESS_NAME } from '@shared/consts';
 // import { Sitemap } from 'Sitemap';
 import { ScrollToTop } from 'components';
 import { Box, CircularProgress } from '@mui/material';

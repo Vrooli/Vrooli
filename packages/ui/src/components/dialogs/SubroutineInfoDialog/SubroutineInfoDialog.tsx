@@ -5,33 +5,30 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     AccountTree as GraphIcon,
-    Close as CloseIcon,
-    Restore as RevertIcon,
-    Save as SaveIcon,
 } from '@mui/icons-material';
 import {
     Box,
     Button,
-    Checkbox,
-    FormControlLabel,
     Grid,
     IconButton,
     Stack,
     SwipeableDrawer,
     TextField,
-    Tooltip,
     Typography,
     useTheme,
 } from '@mui/material';
-import { useLocation } from 'wouter';
+import { useLocation } from '@shared/route';
 import { SubroutineInfoDialogProps } from '../types';
-import { getOwnedByString, getTranslation, InputShape, OutputShape, RoutineTranslationShape, TagShape, toOwnedBy, updateArray } from 'utils';
+import { getOwnedByString, getTranslation, InputShape, ObjectType, OutputShape, RoutineTranslationShape, TagShape, toOwnedBy, updateArray } from 'utils';
 import Markdown from 'markdown-to-jsx';
-import { ResourceListUsedFor, routineUpdateForm as validationSchema } from '@local/shared';
-import { InputOutputContainer, LanguageInput, LinkButton, MarkdownInput, QuantityBox, ResourceListHorizontal, TagList, TagSelector, UserOrganizationSwitch } from 'components';
+import { routineUpdateForm as validationSchema } from '@shared/validation';
+import { ResourceListUsedFor } from '@shared/consts';
+import { GridSubmitButtons, InputOutputContainer, LanguageInput, LinkButton, MarkdownInput, QuantityBox, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession } from 'components';
 import { useFormik } from 'formik';
-import { NodeDataRoutineListItem, Organization, ResourceList } from 'types';
+import { NodeDataRoutineListItem, ResourceList } from 'types';
 import { v4 as uuid } from 'uuid';
+import { CloseIcon } from '@shared/icons';
+import { RelationshipItemRoutine, RelationshipsObject } from 'components/inputs/types';
 
 export const SubroutineInfoDialog = ({
     data,
@@ -53,9 +50,19 @@ export const SubroutineInfoDialog = ({
         return data.node.routines.find(r => r.id === data.routineItemId);
     }, [data]);
 
-    // Handle user/organization switch
-    const [organizationFor, setOrganizationFor] = useState<Organization | null>(null);
-    const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
+    const [relationships, setRelationships] = useState<RelationshipsObject>({
+        isComplete: false,
+        isPrivate: false,
+        owner: userFromSession(session),
+        parent: null,
+        project: null,
+    });
+    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
+        setRelationships({
+            ...relationships,
+            ...newRelationshipsObject,
+        });
+    }, [relationships]);
 
     // Handle inputs
     const [inputsList, setInputsList] = useState<InputShape[]>([]);
@@ -70,9 +77,9 @@ export const SubroutineInfoDialog = ({
     }, [setOutputsList]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ 
+    const [resourceList, setResourceList] = useState<ResourceList>({
         __typename: 'ResourceList',
-        id: uuid(), 
+        id: uuid(),
         usedFor: ResourceListUsedFor.Display,
         resources: [],
     } as any);
@@ -118,8 +125,13 @@ export const SubroutineInfoDialog = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
-        if (subroutine?.routine?.owner?.__typename === 'Organization') setOrganizationFor(subroutine?.routine.owner as Organization);
-        else setOrganizationFor(null);
+        // setRelationships({
+        //     isComplete: subroutine?.routine?.isComplete ?? false,
+        //     isPrivate: subroutine?.routine?.isPrivate ?? false,
+        //     owner: subroutine?.routine?.owner ?? null,
+        //     parent: null,
+        //     // parent: subroutine?.routine?.parent ?? null, TODO
+        // });
         setInputsList(subroutine?.routine?.inputs ?? []);
         setOutputsList(subroutine?.routine?.outputs ?? []);
         setResourceList(subroutine?.routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
@@ -156,7 +168,6 @@ export const SubroutineInfoDialog = ({
                     resourceList,
                 )
             } : {};
-            const ownedBy: { organizationId: string; } | { userId: string; } = organizationFor ? { organizationId: organizationFor.id } : { userId: session?.id ?? '' };
             const allTranslations = getTranslationsUpdate(language, {
                 id: uuid(),
                 language,
@@ -169,9 +180,12 @@ export const SubroutineInfoDialog = ({
                 index: Math.max(values.index - 1, 0), // Formik index starts at 1, for user convenience
                 routine: {
                     ...subroutine.routine,
-                    ...ownedBy,
                     isInternal: values.isInternal,
-                    isComplete: values.isComplete,
+                    isComplete: relationships.isComplete,
+                    isPrivate: relationships.isPrivate,
+                    owner: relationships.owner,
+                    parent: relationships.parent as RelationshipItemRoutine | null,
+                    project: relationships.project,
                     version: values.version,
                     inputs: inputsList,
                     outputs: outputsList,
@@ -308,7 +322,7 @@ export const SubroutineInfoDialog = ({
                     borderBottom: `1px solid ${palette.primary.dark}`,
                     justifyContent: 'end',
                 }}>
-                    <CloseIcon fontSize="large" />
+                    <CloseIcon />
                 </IconButton>
             </Box>
             {/* Main content */}
@@ -318,15 +332,17 @@ export const SubroutineInfoDialog = ({
             }}>
                 <form onSubmit={formik.handleSubmit}>
                     {/* Position, description and instructions */}
-                    <Grid container>
-                        {/* Owner */}
+                    <Grid container spacing={2}>
+                        {/* owner, project, isPrivate, etc. */}
                         <Grid item xs={12}>
-                            <UserOrganizationSwitch
+                            <RelationshipButtons
+                                disabled={!isEditing}
+                                isFormDirty={formik.dirty}
+                                objectType={ObjectType.Routine}
+                                onRelationshipsChange={onRelationshipsChange}
+                                relationships={relationships}
                                 session={session}
-                                selected={organizationFor}
-                                onChange={onSwitchChange}
                                 zIndex={zIndex}
-                                disabled={!canEdit}
                             />
                         </Grid>
                         <Grid item xs={12}>
@@ -356,7 +372,7 @@ export const SubroutineInfoDialog = ({
                                         max={data?.node?.routines?.length ?? 1}
                                         tooltip="The order of this subroutine in its parent routine"
                                         value={formik.values.index}
-                                        handleChange={(value: number) => { 
+                                        handleChange={(value: number) => {
                                             formik.setFieldValue('index', value);
                                             handleReorder(data?.node?.id ?? '', subroutine?.index ?? 0, value - 1);
                                         }}
@@ -398,7 +414,7 @@ export const SubroutineInfoDialog = ({
                                             helperText={formik.touched.description ? formik.errors.description : null}
                                         />
                                     ) : (
-                                        <Markdown>{getTranslation(subroutine, 'description', [language]) ?? ''}</Markdown>
+                                        <Markdown>{formik.values.description}</Markdown>
                                     )
                                 }
                             </Box>
@@ -421,7 +437,7 @@ export const SubroutineInfoDialog = ({
                                             helperText={formik.touched.instructions ? formik.errors.instructions : null}
                                         />
                                     ) : (
-                                        <Markdown>{getTranslation(subroutine, 'instructions', [language]) ?? ''}</Markdown>
+                                        <Markdown>{formik.values.instructions}</Markdown>
                                     )
                                 }
                             </Box>
@@ -478,7 +494,7 @@ export const SubroutineInfoDialog = ({
                                 />
                             </Grid>
                         }
-                        <Grid item xs={12}>
+                        <Grid item xs={12} marginBottom={4}>
                             {
                                 canEdit ? <TagSelector
                                     session={session}
@@ -490,48 +506,19 @@ export const SubroutineInfoDialog = ({
                                     <TagList session={session} parentId={''} tags={subroutine?.routine?.tags ?? []} />
                             }
                         </Grid>
-                        <Grid item xs={12} marginBottom={4}>
-                            <Tooltip placement={'top'} title='Is this routine ready for anyone to use?'>
-                                <FormControlLabel
-                                    label='Complete'
-                                    disabled={!canEdit}
-                                    control={
-                                        <Checkbox
-                                            id='routine-is-complete'
-                                            name='isComplete'
-                                            color='secondary'
-                                            checked={formik.values.isComplete}
-                                            onChange={formik.handleChange}
-                                            onBlur={formik.handleBlur}
-                                        />
-                                    }
-                                />
-                            </Tooltip>
-                        </Grid>
                     </Grid>
                     {/* Save/Cancel buttons */}
                     {
                         canEdit && <Grid container spacing={1}>
-                            <Grid item xs={6}>
-                                <Button
-                                    fullWidth
-                                    startIcon={<SaveIcon />}
-                                    disabled={!formik.isValid || formik.isSubmitting}
-                                    type="submit"
-                                >
-                                    Save
-                                </Button>
-                            </Grid>
-                            <Grid item xs={6}>
-                                <Button
-                                    fullWidth
-                                    startIcon={<RevertIcon />}
-                                    disabled={formik.isSubmitting}
-                                    onClick={handleCancel}
-                                >
-                                    Cancel
-                                </Button>
-                            </Grid>
+                            <GridSubmitButtons
+                                disabledCancel={formik.isSubmitting}
+                                disabledSubmit={formik.isSubmitting || !formik.isValid}
+                                errors={formik.errors}
+                                isCreate={false}
+                                onCancel={handleCancel}
+                                onSetSubmitting={formik.setSubmitting}
+                                onSubmit={formik.handleSubmit}
+                            />
                         </Grid>
                     }
                 </form>

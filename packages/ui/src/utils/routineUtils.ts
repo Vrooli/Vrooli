@@ -1,4 +1,4 @@
-import { uniqBy } from "@local/shared";
+import { uniqBy } from "@shared/utils";
 import { NodeType, RunInputCreateInput, RunInputUpdateInput } from "graphql/generated/globalTypes";
 import { Node, NodeDataRoutineList, NodeLink, Routine, RunInput } from "types";
 import { v4 as uuid } from "uuid";
@@ -77,11 +77,9 @@ export const formikToRunInputs = (values: { [x: string]: string }): { [x: string
  */
 export const runInputsToFormik = (runInputs: { input: { id: string }, data: string }[]): { [x: string]: string } => {
     const result: { [x: string]: string } = {};
-    console.log('in runinputstoformik');
     for (const runInput of runInputs) {
         result[`inputs-${runInput.input.id}`] = JSON.parse(runInput.data);
     }
-    console.log('returning formik inputs result', result);
     return result;
 }
 

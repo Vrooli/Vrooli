@@ -3,14 +3,14 @@
  * must match a certain schema.
  */
 import { CheckboxStandardInputProps } from '../types';
-import { checkboxStandardInputForm as validationSchema } from '@local/shared';
+import { checkboxStandardInputForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { useCallback, useEffect } from 'react';
 import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import {
-    Add as AddIcon,
     Delete as DeleteIcon,
 } from '@mui/icons-material';
+import { AddIcon } from '@shared/icons';
 
 /**
  * Create new option

@@ -3,7 +3,7 @@
  * must match a certain schema.
  */
 import { QuantityBoxStandardInputProps } from '../types';
-import { quantityBoxStandardInputForm as validationSchema } from '@local/shared';
+import { quantityBoxStandardInputForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { useEffect } from 'react';
 import { Grid } from '@mui/material';

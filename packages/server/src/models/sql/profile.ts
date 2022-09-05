@@ -3,7 +3,9 @@ import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success,
 import { sendResetPasswordLink, sendVerificationLink } from "../../worker/email/queue";
 import { addJoinTablesHelper, addSupplementalFields, FormatConverter, GraphQLInfo, modelToGraphQL, padSelect, PartialGraphQLInfo, readOneHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo } from "./base";
 import { user } from "@prisma/client";
-import { CODE, omit, profileUpdateSchema, userTranslationCreate, userTranslationUpdate } from "@local/shared";
+import { CODE } from "@shared/consts";
+import { profileUpdateSchema, userTranslationCreate, userTranslationUpdate } from "@shared/validation";
+import { omit } from '@shared/utils';
 import { CustomError } from "../../error";
 import bcrypt from 'bcrypt';
 import { hasProfanity } from "../../utils/censor";
@@ -60,15 +62,9 @@ export const profileFormatter = (): FormatConverter<User, any> => ({
         'reports': 'Report',
         'votes': 'Vote',
     },
-    addJoinTables: (partial) => {
-        return addJoinTablesHelper(partial, joinMapper);
-    },
-    removeJoinTables: (data) => {
-        return removeJoinTablesHelper(data, joinMapper);
-    },
-    removeSupplementalFields: (partial) => {
-        return omit(partial, supplementalFields);
-    },
+    addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
+    removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
+    removeSupplementalFields: (partial) => omit(partial, supplementalFields),
 })
 
 /**

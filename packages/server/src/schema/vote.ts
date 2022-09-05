@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { CODE } from '@local/shared';
+import { CODE } from '@shared/consts';
 import { CustomError } from '../error';
 import { VoteInput, Success, VoteFor } from './types';
 import { IWrap } from '../types';

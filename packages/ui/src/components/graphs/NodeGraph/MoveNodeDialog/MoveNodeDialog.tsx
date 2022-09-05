@@ -4,25 +4,25 @@
 import {
     Autocomplete,
     Box,
-    Button,
     Dialog,
     DialogContent,
     Grid,
-    IconButton,
     Stack,
     TextField,
     Typography,
     useTheme
 } from '@mui/material';
-import { HelpButton } from 'components';
+import { GridSubmitButtons } from 'components/buttons';
+import { DialogTitle } from 'components/dialogs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MoveNodeMenuProps } from '../types';
-import { Close as CloseIcon } from '@mui/icons-material';
 
 const helpText =
     `This dialog allows you to move a node to a new position.
 
 Nodes are positioned using "column" and "row" coordinates.`
+
+const titleAria = 'move-node-dialog-title';
 
 export const MoveNodeMenu = ({
     handleClose,
@@ -102,33 +102,6 @@ export const MoveNodeMenu = ({
     const closeDialog = useCallback(() => { onClose(); }, [onClose]);
 
     /**
-     * Title bar with help button and close icon
-     */
-    const titleBar = useMemo(() => (
-        <Box sx={{
-            background: palette.primary.dark,
-            color: palette.primary.contrastText,
-            display: 'flex',
-            alignItems: 'left',
-            justifyContent: 'space-between',
-            padding: 1,
-        }}>
-            <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 2, marginRight: 'auto' }}>
-                Move Node
-                <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
-            </Typography>
-            <Box sx={{ marginLeft: 'auto' }}>
-                <IconButton
-                    edge="start"
-                    onClick={(e) => { onClose() }}
-                >
-                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
-                </IconButton>
-            </Box>
-        </Box>
-    ), [onClose, palette.primary.contrastText, palette.primary.dark]);
-
-    /**
      * Container that displays "From" and "To" sections, with right arrow inbetween
      */
     const formContent = useMemo(() => (
@@ -164,7 +137,7 @@ export const MoveNodeMenu = ({
                 alignItems: 'center',
                 justifyContent: 'center',
             }}>
-                <Typography variant="h6" textAlign="center">
+                <Typography variant="h6" textAlign="center" color={palette.background.textPrimary}>
                     ⮕
                 </Typography>
             </Box>
@@ -209,23 +182,28 @@ export const MoveNodeMenu = ({
         <Dialog
             open={isOpen}
             onClose={() => { handleClose() }}
+            aria-labelledby={titleAria}
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': { overflow: 'visible' },
                 '& .MuiDialog-paper': { overflow: 'visible' }
             }}
         >
-            {titleBar}
+            <DialogTitle
+                ariaLabel={titleAria}
+                helpText={helpText}
+                onClose={onClose}
+                title="Move Node"
+            />
             <DialogContent>
                 {formContent}
                 {/* Action buttons */}
-                <Grid container sx={{ padding: 0, paddingTop: '24px' }}>
-                    <Grid item xs={12} sm={6} sx={{ paddingRight: 1 }}>
-                        <Button fullWidth type="submit" onClick={moveNode}>Move</Button>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                        <Button fullWidth onClick={closeDialog} sx={{ paddingLeft: 1 }}>Cancel</Button>
-                    </Grid>
+                <Grid container spacing={1} sx={{ padding: 0, paddingTop: '24px' }}>
+                    <GridSubmitButtons
+                        isCreate={false}
+                        onCancel={closeDialog}
+                        onSubmit={moveNode}
+                    />
                 </Grid>
             </DialogContent>
         </Dialog>

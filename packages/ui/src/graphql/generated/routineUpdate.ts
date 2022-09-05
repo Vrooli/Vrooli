@@ -559,6 +559,7 @@ export interface routineUpdate_routineUpdate {
   outputs: routineUpdate_routineUpdate_outputs[];
   owner: routineUpdate_routineUpdate_owner | null;
   parent: routineUpdate_routineUpdate_parent | null;
+  reportsCount: number;
   resourceLists: routineUpdate_routineUpdate_resourceLists[];
   runs: routineUpdate_routineUpdate_runs[];
   score: number;

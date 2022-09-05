@@ -9,8 +9,8 @@ import {
     SvgIconComponent
 } from '@mui/icons-material';
 import { useLazyQuery } from '@apollo/client';
-import { APP_LINKS } from '@local/shared';
-import { useLocation } from 'wouter';
+import { APP_LINKS } from '@shared/consts';
+import { useLocation } from '@shared/route';
 import { SettingsProfile } from 'components/views/SettingsProfile/SettingsProfile';
 import { profile, profile_profile } from 'graphql/generated/profile';
 import { profileQuery } from 'graphql/query';

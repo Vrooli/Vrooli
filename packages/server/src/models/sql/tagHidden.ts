@@ -1,4 +1,5 @@
-import { CODE, tagHiddensCreate, tagHiddensUpdate } from "@local/shared";
+import { tagHiddensCreate, tagHiddensUpdate } from "@shared/validation";
+import { CODE } from "@shared/consts";
 import { CustomError } from "../../error";
 import { genErrorCode } from "../../logger";
 import { PrismaType } from "../../types";

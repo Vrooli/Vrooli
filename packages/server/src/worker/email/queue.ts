@@ -1,7 +1,7 @@
 import Bull from 'bull';
 import { emailProcess } from './process.js';
 import { HOST, PORT } from '../../redisConn';
-import { APP_URL, BUSINESS_NAME } from '@local/shared';
+import { APP_URL, BUSINESS_NAME } from '@shared/consts';
 import fs from 'fs';
 
 const welcomeTemplate = fs.readFileSync(`${process.env.PROJECT_DIR}/packages/server/src/worker/email/templates/welcome.html`).toString();

@@ -4,16 +4,12 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    Close as CloseIcon,
     FileCopy as CopyIcon,
     Delete as DeleteIcon,
     ForkRight as ForkIcon,
-    Info as InfoIcon,
     QueryStats as StatsIcon,
     StarOutline as StarIcon,
     Star as UnstarIcon,
-    ThumbDown as DownvoteIcon,
-    ThumbUp as UpvoteIcon,
 } from '@mui/icons-material';
 import {
     Box,
@@ -35,18 +31,22 @@ import { copy, copyVariables } from 'graphql/generated/copy';
 import { fork, forkVariables } from 'graphql/generated/fork';
 import { star, starVariables } from 'graphql/generated/star';
 import { vote, voteVariables } from 'graphql/generated/vote';
-import { BaseObjectAction, BuildInfoDialogProps } from '../types';
+import { ObjectAction, BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import { DeleteDialog, EditableLabel, LanguageInput, LinkButton, MarkdownInput, ResourceListHorizontal } from 'components';
-import { AllLanguages, getLanguageSubtag, getOwnedByString, getTranslation, PubSub, RoutineTranslationShape, toOwnedBy, updateArray } from 'utils';
-import { useLocation } from 'wouter';
+import { DeleteDialog, EditableLabel, LanguageInput, LinkButton, MarkdownInput, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession } from 'components';
+import { AllLanguages, getLanguageSubtag, getOwnedByString, getTranslation, ObjectType, PubSub, RoutineTranslationShape, TagShape, toOwnedBy, updateArray } from 'utils';
+import { useLocation } from '@shared/route';
 import { useFormik } from 'formik';
-import { APP_LINKS, CopyType, DeleteOneType, ForkType, routineUpdateForm as validationSchema, StarFor, VoteFor } from '@local/shared';
-import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
+import { APP_LINKS, CopyType, DeleteOneType, ForkType, ResourceListUsedFor, StarFor, VoteFor } from '@shared/consts';
+import { routineUpdateForm as validationSchema } from '@shared/validation';
+import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
 import { copyMutation, forkMutation, starMutation, voteMutation } from 'graphql/mutation';
 import { v4 as uuid } from 'uuid';
+import { CloseIcon, DownvoteWideIcon, InfoIcon, UpvoteWideIcon } from '@shared/icons';
+import { ResourceList } from 'types';
+import { RelationshipsObject } from 'components/inputs/types';
 
 export const BuildInfoDialog = ({
     handleAction,
@@ -62,9 +62,42 @@ export const BuildInfoDialog = ({
 }: BuildInfoDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    console.log('buildinfodialog renderrr')
 
     const ownedBy = useMemo<string | null>(() => getOwnedByString(routine, [language]), [routine, language]);
     const toOwner = useCallback(() => { toOwnedBy(routine, setLocation) }, [routine, setLocation]);
+
+    const [relationships, setRelationships] = useState<RelationshipsObject>({
+        isComplete: false,
+        isPrivate: false,
+        owner: userFromSession(session),
+        parent: null,
+        project: null,
+    });
+    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
+        setRelationships({
+            ...relationships,
+            ...newRelationshipsObject,
+        });
+    }, [relationships]);
+
+    // Handle resources
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
+        setResourceList(updatedList);
+    }, [setResourceList]);
+
+    // Handle tags
+    const [tags, setTags] = useState<TagShape[]>([]);
+    const addTag = useCallback((tag: TagShape) => {
+        setTags(t => [...t, tag]);
+    }, [setTags]);
+    const removeTag = useCallback((tag: TagShape) => {
+        setTags(tags => tags.filter(t => t.tag !== tag.tag));
+    }, [setTags]);
+    const clearTags = useCallback(() => {
+        setTags([]);
+    }, [setTags]);
 
     // Handle translations
     type Translation = RoutineTranslationShape;
@@ -82,13 +115,33 @@ export const BuildInfoDialog = ({
         setTranslations(getTranslationsUpdate(language, translation));
     }, [getTranslationsUpdate]);
 
+    useEffect(() => {
+        // setRelationships({ TODO
+        //     isComplete: project?.isComplete ?? false,
+        //     isPrivate: project?.isPrivate ?? false,
+        //     owner: null,
+        //     // owner: project?.owner ?? null, TODO
+        //     parent: null,
+        //     // parent: project?.parent ?? null, TODO
+        //     project: null,
+        // });
+        setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+        setTags(routine?.tags ?? []);
+        setTranslations(routine?.translations?.map(t => ({
+            id: t.id,
+            language: t.language,
+            description: t.description ?? '',
+            instructions: t.instructions ?? '',
+            title: t.title ?? '',
+        })) ?? []);
+    }, [routine]);
+
     // Handle update
     const formik = useFormik({
         initialValues: {
             description: getTranslation(routine, 'description', [language]) ?? '',
             instructions: getTranslation(routine, 'instructions', [language]) ?? '',
             isInternal: routine?.isInternal ?? false,
-            isComplete: routine?.isComplete ?? true,
             title: getTranslation(routine, 'title', [language]) ?? '',
             version: routine?.version ?? '',
         },
@@ -102,11 +155,17 @@ export const BuildInfoDialog = ({
                 instructions: values.instructions,
                 title: values.title,
             })
+            console.log('buildinfodialog updating routineeeeeeeeeeee')
             handleUpdate({
                 ...routine,
                 isInternal: values.isInternal,
-                isComplete: values.isComplete,
+                isComplete: relationships.isComplete,
+                isPrivate: relationships.isPrivate,
+                owner: relationships.owner,
+                parent: relationships.parent,
                 version: values.version,
+                resourceLists: [resourceList],
+                tags: tags,
                 translations: allTranslations,
             } as any);
         },
@@ -119,18 +178,20 @@ export const BuildInfoDialog = ({
     }, [isEditing, routine?.translations]);
     const [languages, setLanguages] = useState<string[]>([]);
 
-    useEffect(() => {
-        if (!language || !translations) return;
-        const translation = translations.find(t => language === t.language);
-        if (translation) {
-            formik.setValues({
-                ...formik.values,
-                description: translations[0].description ?? '',
-                instructions: translations[0].instructions,
-                title: translations[0].title,
-            })
-        }
-    }, [formik, language, translations])
+    // useEffect(() => {
+    //     if (languages.length === 0 && translations.length > 0) {
+    //         // setLanguage(translations[0].language);
+    //         setLanguages(translations.map(t => t.language));
+    //         console.log('buildinfodialog updating formik translation 1')
+    //         formik.setValues({
+    //             ...formik.values,
+    //             description: translations[0].description ?? '',
+    //             instructions: translations[0].instructions ?? '',
+    //             title: translations[0].title ?? '',
+    //         })
+    //     }
+    // }, [formik, languages, setLanguages, translations])
+
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
         formik.setValues({
@@ -197,51 +258,55 @@ export const BuildInfoDialog = ({
         }
     };
 
-    const resourceList = useMemo(() => {
+    // TODO doesn't really work. resource list query returns empty resources inside, 
+    // and this won't display editor if there are no resources yet. 
+    // Ideally this should create a new resource list if none exists
+    const resourceListObject = useMemo(() => {
         if (!routine ||
             !Array.isArray(routine.resourceLists) ||
             routine.resourceLists.length < 1 ||
+            !Array.isArray(routine.resourceLists[0].resources) ||
             routine.resourceLists[0].resources.length < 1) return null;
         return <ResourceListHorizontal
             title={'Resources'}
             list={routine.resourceLists[0]}
             canEdit={false}
-            handleUpdate={() => { }} // Intentionally blank
+            handleUpdate={handleResourcesUpdate}
             loading={loading}
             session={session}
             zIndex={zIndex}
         />
-    }, [loading, routine, session, zIndex]);
+    }, [handleResourcesUpdate, loading, routine, session, zIndex]);
 
     /**
      * Determines which action buttons to display
      */
     const actions = useMemo(() => {
         // [value, label, icon, secondaryLabel]
-        const results: [BaseObjectAction, string, any, string | null][] = [];
+        const results: [ObjectAction, string, any, string | null][] = [];
         // If signed in and not editing, show vote/star options
         if (session?.isLoggedIn === true && !isEditing) {
             results.push(routine?.isUpvoted ?
-                [BaseObjectAction.Downvote, 'Downvote', DownvoteIcon, null] :
-                [BaseObjectAction.Upvote, 'Upvote', UpvoteIcon, null]
+                [ObjectAction.VoteDown, 'Downvote', DownvoteWideIcon, null] :
+                [ObjectAction.VoteUp, 'Upvote', UpvoteWideIcon, null]
             );
             results.push(routine?.isStarred ?
-                [BaseObjectAction.Unstar, 'Unstar', UnstarIcon, null] :
-                [BaseObjectAction.Star, 'Star', StarIcon, null]
+                [ObjectAction.StarUndo, 'Unstar', UnstarIcon, null] :
+                [ObjectAction.Star, 'Star', StarIcon, null]
             );
         }
         // If not editing, show "Stats" and "Fork" buttons
         if (!isEditing) {
             results.push(
-                [BaseObjectAction.Stats, 'Stats', StatsIcon, 'Coming Soon'],
-                [BaseObjectAction.Copy, 'Copy', CopyIcon, null],
-                [BaseObjectAction.Fork, 'Fork', ForkIcon, null],
+                [ObjectAction.Stats, 'Stats', StatsIcon, 'Coming Soon'],
+                [ObjectAction.Copy, 'Copy', CopyIcon, null],
+                [ObjectAction.Fork, 'Fork', ForkIcon, null],
             )
         }
         // Only show "Delete" when editing an existing routine
         if (isEditing && Boolean(routine?.id)) {
             results.push(
-                [BaseObjectAction.Delete, 'Delete', DeleteIcon, null],
+                [ObjectAction.Delete, 'Delete', DeleteIcon, null],
             )
         }
         return results;
@@ -268,7 +333,7 @@ export const BuildInfoDialog = ({
             input: { id: routine.id, objectType: CopyType.Routine },
             onSuccess: ({ data }) => {
                 PubSub.get().publishSnack({ message: `${getTranslation(routine, 'title', [language], true)} copied.`, severity: 'success' });
-                handleAction(BaseObjectAction.Copy, data);
+                handleAction(ObjectAction.Copy, data);
             },
         })
     }, [copy, handleAction, language, routine]);
@@ -280,7 +345,7 @@ export const BuildInfoDialog = ({
             input: { id: routine.id, objectType: ForkType.Routine },
             onSuccess: ({ data }) => {
                 PubSub.get().publishSnack({ message: `${getTranslation(routine, 'title', [language], true)} forked.`, severity: 'success' });
-                handleAction(BaseObjectAction.Fork, data);
+                handleAction(ObjectAction.Fork, data);
             }
         })
     }, [fork, handleAction, language, routine]);
@@ -291,7 +356,7 @@ export const BuildInfoDialog = ({
             mutation: star,
             input: { isStar, forId: routine.id, starFor: StarFor.Routine },
             onSuccess: ({ data }) => {
-                handleAction(isStar ? BaseObjectAction.Star : BaseObjectAction.Unstar, data);
+                handleAction(isStar ? ObjectAction.Star : ObjectAction.StarUndo, data);
             }
         })
     }, [handleAction, routine?.id, star]);
@@ -302,60 +367,56 @@ export const BuildInfoDialog = ({
             mutation: vote,
             input: { isUpvote, forId: routine.id, voteFor: VoteFor.Routine },
             onSuccess: ({ data }) => {
-                handleAction(isUpvote ? BaseObjectAction.Upvote : BaseObjectAction.Downvote, data);
+                handleAction(isUpvote ? ObjectAction.VoteUp : ObjectAction.VoteDown, data);
             }
         })
     }, [handleAction, routine?.id, vote]);
 
-    const onSelect = useCallback((action: BaseObjectAction) => {
+    const onSelect = useCallback((action: ObjectAction) => {
         switch (action) {
-            case BaseObjectAction.Copy:
+            case ObjectAction.Copy:
                 handleCopy();
                 break;
-            case BaseObjectAction.Delete:
+            case ObjectAction.Delete:
                 openDelete();
                 break;
-            case BaseObjectAction.Downvote:
-                handleVote(false);
-                break;
-            case BaseObjectAction.Fork:
+            case ObjectAction.Fork:
                 handleFork();
                 break;
-            case BaseObjectAction.Star:
-                handleStar(true);
+            case ObjectAction.Star:
+            case ObjectAction.StarUndo:
+                handleStar(action === ObjectAction.Star);
                 break;
-            case BaseObjectAction.Unstar:
-                handleStar(false);
-                break;
-            case BaseObjectAction.Upvote:
-                handleVote(true);
+            case ObjectAction.VoteDown:
+            case ObjectAction.VoteUp:
+                handleVote(action === ObjectAction.VoteUp);
                 break;
         }
     }, [handleCopy, handleFork, handleStar, handleVote, openDelete]);
 
-    const languageComponent = useMemo(() => {
-        if (isEditing) return (
-            <LanguageInput
-                currentLanguage={language}
-                handleAdd={handleAddLanguage}
-                handleDelete={handleLanguageDelete}
-                handleCurrent={handleLanguageSelect}
-                selectedLanguages={languages}
-                session={session}
-                zIndex={zIndex}
-            />
-        )
-        return (
-            <SelectLanguageDialog
-                availableLanguages={availableLanguages}
-                canDropdownOpen={availableLanguages.length > 1}
-                currentLanguage={language}
-                handleCurrent={handleLanguageSelect}
-                session={session}
-                zIndex={zIndex}
-            />
-        )
-    }, [availableLanguages, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, isEditing, language, languages, session, zIndex]);
+    // const languageComponent = useMemo(() => {
+    //     if (isEditing) return (
+    //         <LanguageInput
+    //             currentLanguage={language}
+    //             handleAdd={handleAddLanguage}
+    //             handleDelete={handleLanguageDelete}
+    //             handleCurrent={handleLanguageSelect}
+    //             selectedLanguages={languages}
+    //             session={session}
+    //             zIndex={zIndex}
+    //         />
+    //     )
+    //     return (
+    //         <SelectLanguageMenu
+    //             availableLanguages={availableLanguages}
+    //             canDropdownOpen={availableLanguages.length > 1}
+    //             currentLanguage={language}
+    //             handleCurrent={handleLanguageSelect}
+    //             session={session}
+    //             zIndex={zIndex}
+    //         />
+    //     )
+    // }, [availableLanguages, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, isEditing, language, languages, session, zIndex]);
 
     return (
         <>
@@ -369,7 +430,7 @@ export const BuildInfoDialog = ({
                 zIndex={zIndex + 3}
             />
             <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen} sx={sxs?.iconButton}>
-                <InfoIcon sx={sxs?.icon} />
+                <InfoIcon {...sxs?.icon ?? {}} />
             </IconButton>
             <SwipeableDrawer
                 anchor="right"
@@ -429,16 +490,25 @@ export const BuildInfoDialog = ({
                         flexDirection: 'row-reverse',
                         marginLeft: 'auto',
                     }}>
-                        <CloseIcon fontSize="large" />
+                        <CloseIcon />
                     </IconButton>
                 </Box>
                 {/* Main content */}
                 {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
                 <Stack direction="column" spacing={2} padding={1}>
+                    {/* Relationships */}
+                    <RelationshipButtons
+                        disabled={!isEditing}
+                        objectType={ObjectType.Routine}
+                        onRelationshipsChange={onRelationshipsChange}
+                        relationships={relationships}
+                        session={session}
+                        zIndex={zIndex}
+                    />
                     {/* Language */}
-                    {languageComponent}
+                    {/* {languageComponent} */}
                     {/* Resources */}
-                    {resourceList}
+                    {resourceListObject}
                     {/* Description */}
                     <Box sx={{
                         padding: 1,
@@ -450,7 +520,7 @@ export const BuildInfoDialog = ({
                                     fullWidth
                                     id="description"
                                     name="description"
-                                    label="description"
+                                    InputLabelProps={{ shrink: true }}
                                     value={formik.values.description}
                                     multiline
                                     maxRows={3}
@@ -486,6 +556,20 @@ export const BuildInfoDialog = ({
                         }
                     </Box>
                     {/* Inputs/Outputs TODO*/}
+                    {/* Tags */}
+                    {
+                        isEditing ? (
+                            <TagSelector
+                                session={session}
+                                tags={tags}
+                                onTagAdd={addTag}
+                                onTagRemove={removeTag}
+                                onTagsClear={clearTags}
+                            />
+                        ) : tags.length > 0 ? (
+                            <TagList session={session} parentId={routine?.id ?? ''} tags={tags as any[]} />
+                        ) : null
+                    }
                     {/* Is internal checkbox */}
                     <Tooltip placement={'top'} title='Indicates if this routine is meant to be a subroutine for only one other routine. If so, it will not appear in search resutls.'>
                         <FormControlLabel
@@ -503,23 +587,6 @@ export const BuildInfoDialog = ({
                             }
                         />
                     </Tooltip>
-                    {/* Is complete checkbox */}
-                    <Tooltip placement={'top'} title='Indicates if this routine is ready for others to run. If not, it will not show in default search results'>
-                        <FormControlLabel
-                            disabled={!isEditing}
-                            label='Complete'
-                            control={
-                                <Checkbox
-                                    id='routine-info-dialog-is-complete'
-                                    size="small"
-                                    name='isComplete'
-                                    color='secondary'
-                                    checked={formik.values.isComplete}
-                                    onChange={formik.handleChange}
-                                />
-                            }
-                        />
-                    </Tooltip>
                 </Stack>
                 {/* List of actions that can be taken, such as viewing stats, forking, and deleting */}
                 <List sx={{ marginTop: 'auto' }}>
@@ -530,7 +597,7 @@ export const BuildInfoDialog = ({
                             onClick={() => onSelect(value)}
                         >
                             <ListItemIcon>
-                                <Icon />
+                                <Icon fill={palette.background.textSecondary} />
                             </ListItemIcon>
                             <ListItemText primary={label} secondary={secondaryLabel} sx={{
                                 '& .MuiListItemText-secondary': {

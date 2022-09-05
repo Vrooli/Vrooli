@@ -1,5 +1,6 @@
 import { useMutation } from '@apollo/client';
 import { Box, Stack, Tooltip, Typography } from '@mui/material';
+import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from '@shared/icons';
 import { vote, voteVariables } from 'graphql/generated/vote';
 import { voteMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
@@ -60,17 +61,21 @@ export const UpvoteDownvote = ({
         handleVote(event, vote);
     }, [session.id, internalIsUpvoted, handleVote]);
 
-    const upvoteColor = useMemo(() => {
-        if (!session.id) return "rgb(189 189 189)";
-        if (internalIsUpvoted === true) return "#34c38b";
-        return "#687074";
-    }, [internalIsUpvoted, session.id]);
+    const { UpvoteIcon, upvoteColor } = useMemo(() => {
+        const upvoteColor = !session.id ? "rgb(189 189 189)" : 
+            internalIsUpvoted === true ? "#34c38b" : 
+            "#687074";
+        const UpvoteIcon = direction === "column" ? UpvoteWideIcon : UpvoteTallIcon;
+        return { UpvoteIcon, upvoteColor };
+    } , [direction, session.id, internalIsUpvoted]);
 
-    const downvoteColor = useMemo(() => {
-        if (!session.id) return "rgb(189 189 189)";
-        if (internalIsUpvoted === false) return "#af2929";
-        return "#687074";
-    }, [internalIsUpvoted, session.id]);
+    const { DownvoteIcon, downvoteColor } = useMemo(() => {
+        const downvoteColor = !session.id ? "rgb(189 189 189)" :
+            internalIsUpvoted === false ? "#af2929" :
+            "#687074";
+        const DownvoteIcon = direction === "column" ? DownvoteWideIcon : DownvoteTallIcon;
+        return { DownvoteIcon, downvoteColor };
+    } , [direction, session.id, internalIsUpvoted]);
 
     return (
         <Stack direction={direction}>
@@ -90,12 +95,7 @@ export const UpvoteDownvote = ({
                         },
                     }}
                 >
-                    <svg width="36" height="36">
-                        <path
-                            d={direction === 'column' ? "M2 26h32L18 10 2 26z" : "M6 26h24L18 6 6 26z"}
-                            fill={upvoteColor}
-                        ></path>
-                    </svg>
+                    <UpvoteIcon width="36px" height="36px" fill={upvoteColor} />
                 </Box>
             </Tooltip>
             {/* Score */}
@@ -116,12 +116,7 @@ export const UpvoteDownvote = ({
                         },
                     }}
                 >
-                    <svg width="36" height="36">
-                        <path
-                            d={direction === 'column' ? "M2 10h32L18 26 2 10z" : "M6 6h24L18 26 6 6z"}
-                            fill={downvoteColor}
-                        ></path>
-                    </svg>
+                    <DownvoteIcon width="36px" height="36px" fill={downvoteColor} />
                 </Box>
             </Tooltip>
         </Stack>

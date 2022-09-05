@@ -1,59 +1,22 @@
 import { Box, Checkbox, Collapse, Container, FormControlLabel, Grid, IconButton, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { InputOutputListItemProps } from '../types';
-import { inputCreate, InputType, outputCreate } from '@local/shared';
+import { InputType } from '@shared/consts';
+import { inputCreate, outputCreate } from '@shared/validation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { containerShadow } from 'styles';
 import {
     Delete as DeleteIcon,
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
-import { getTranslation, InputTranslationShape, jsonToString, OutputTranslationShape, StandardShape, standardToFieldData, updateArray } from 'utils';
+import { getTranslation, InputTranslationShape, InputTypeOption, InputTypeOptions, jsonToString, OutputTranslationShape, StandardShape, standardToFieldData, updateArray } from 'utils';
 import { useFormik } from 'formik';
 import { Standard } from 'types';
 import { BaseStandardInput, MarkdownInput, PreviewSwitch, Selector, StandardSelectSwitch } from 'components';
 import { FieldData } from 'forms/types';
 import { generateInputComponent } from 'forms/generators';
 import { v4 as uuid } from 'uuid';
-
-type InputTypeOption = { label: string, value: InputType }
-/**
- * Supported input types
- */
-export const InputTypeOptions: InputTypeOption[] = [
-    {
-        label: 'Text',
-        value: InputType.TextField,
-    },
-    {
-        label: 'JSON',
-        value: InputType.JSON,
-    },
-    {
-        label: 'Integer',
-        value: InputType.QuantityBox
-    },
-    {
-        label: 'Radio (Select One)',
-        value: InputType.Radio,
-    },
-    {
-        label: 'Checkbox (Select any)',
-        value: InputType.Checkbox,
-    },
-    {
-        label: 'Switch (On/Off)',
-        value: InputType.Switch,
-    },
-    // {
-    //     label: 'File Upload',
-    //     value: InputType.Dropzone,
-    // },
-    {
-        label: 'Markdown',
-        value: InputType.Markdown
-    },
-]
+import Markdown from 'markdown-to-jsx';
+import { ReorderIcon } from '@shared/icons';
 
 const defaultStandard = (item: InputOutputListItemProps['item'], generatedSchema?: FieldData | null): StandardShape => ({
     __typename: 'Standard',
@@ -91,6 +54,7 @@ export const InputOutputListItem = ({
     handleOpen,
     handleClose,
     handleDelete,
+    handleReorder,
     handleUpdate,
     language,
     session,
@@ -189,39 +153,52 @@ export const InputOutputListItem = ({
         }
     }, [item]);
 
+    const openReorderDialog = useCallback((e: any) => {
+        e.stopPropagation();
+        handleReorder(index);
+    } , [index, handleReorder]);
+
     return (
         <Box
             id={`${isInput ? 'input' : 'output'}-item-${index}`}
             sx={{
-                ...containerShadow,
                 zIndex: 1,
-                borderRadius: '8px',
                 background: 'white',
                 overflow: 'hidden',
                 flexGrow: 1,
-                marginBottom: 2,
             }}
         >
             {/* Top bar, with expand/collapse icon */}
             <Container
                 onClick={toggleOpen}
                 sx={{
-                    background: isInput ? (palette.mode === 'light' ? '#79addf' : '#2668a7') : (palette.mode === 'light' ? '#c15c6d' : '#9e2d40'),
+                    background: palette.primary.main,
                     color: 'white',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
+                    justifyContent: 'left',
                     overflow: 'hidden',
                     height: '48px', // Lighthouse SEO requirement
-                    padding: '0.1em',
                     textAlign: 'center',
                     cursor: 'pointer',
+                    paddingLeft: '8px !important',
+                    paddingRight: '8px !important',
                     '&:hover': {
                         filter: `brightness(120%)`,
                         transition: 'filter 0.2s',
                     },
                 }}
             >
+                {/* Show order in list */}
+                <Tooltip placement="top" title="Order">
+                    <Typography variant="h6" sx={{
+                        margin: '0',
+                        marginRight: 1,
+                        padding: '0',
+                    }}>
+                        {index + 1}.
+                    </Typography>
+                </Tooltip>
                 {/* Show delete icon if editing */}
                 {isEditing && (
                     <Tooltip placement="top" title={`Delete ${isInput ? 'input' : 'output'}. This will not delete the standard`}>
@@ -265,10 +242,16 @@ export const InputOutputListItem = ({
                         </Typography>
                     </Box>
                 )}
-                {isOpen ?
-                    <ExpandLessIcon sx={{ marginLeft: 'auto' }} /> :
-                    <ExpandMoreIcon sx={{ marginLeft: 'auto' }} />
-                }
+                {/* Show reorder icon if editing */}
+                {isEditing && <IconButton onClick={openReorderDialog} sx={{ marginLeft: 'auto' }}>
+                    <ReorderIcon />
+                </IconButton>}
+                <IconButton sx={{ marginLeft: isEditing ? 'unset' : 'auto' }}>
+                    {isOpen ?
+                        <ExpandMoreIcon sx={{ marginLeft: 'auto' }} /> :
+                        <ExpandLessIcon sx={{ marginLeft: 'auto' }} />
+                    }
+                </IconButton>
             </Container>
             <Collapse in={isOpen} sx={{
                 background: palette.background.paper,
@@ -304,7 +287,7 @@ export const InputOutputListItem = ({
                         /> : <Typography variant="body2">{`Description: ${formik.values.description}`}</Typography>}
                     </Grid>
                     <Grid item xs={12}>
-                        <MarkdownInput
+                        {isEditing ? <MarkdownInput
                             id="helpText"
                             placeholder="Detailed information (optional)"
                             value={formik.values.helpText}
@@ -312,7 +295,8 @@ export const InputOutputListItem = ({
                             onChange={(newText: string) => formik.setFieldValue('helpText', newText)}
                             error={formik.touched.helpText && Boolean(formik.errors.helpText)}
                             helperText={formik.touched.helpText ? formik.errors.helpText as string : null}
-                        />
+                        /> : formik.values.helpText.length > 0 ? <Markdown>{`Defailed information: ${formik.values.helpText}`}</Markdown> :
+                            null}
                     </Grid>
                     {/* Select standard */}
                     <Grid item xs={12}>

@@ -1,7 +1,7 @@
 import { CommonProps, Session } from "types";
 import { Forms, TagShape } from "utils";
 import { DropzoneProps as DP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, QuantityBoxProps as QP, SelectorProps as SP, TagSelectorProps as TP } from 'components/inputs/types';
-import { InputType } from "@local/shared";
+import { InputType } from "@shared/consts";
 
 //==============================================================
 /* #region Specific Form Props */

@@ -3,7 +3,8 @@
 // 2. Email sign up, log in, verification, and password reset
 // 3. Guest login
 import { gql } from 'apollo-server-express';
-import { CODE, COOKIE, emailLogInSchema, emailSignUpSchema, passwordSchema, emailRequestPasswordChangeSchema } from '@local/shared';
+import { emailLogInSchema, emailSignUpSchema, passwordSchema, emailRequestPasswordChangeSchema } from '@shared/validation';
+import { CODE, COOKIE} from "@shared/consts";
 import { CustomError } from '../error';
 import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from '../auth/walletAuth';
 import { generateSessionJwt } from '../auth/auth.js';

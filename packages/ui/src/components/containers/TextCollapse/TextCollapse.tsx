@@ -17,7 +17,6 @@ export function TextCollapse({
             helpText={helpText}
             isOpen={isOpen}
             onOpenChange={onOpenChange}
-            showOnNoText={showOnNoText}
             title={title}
         >
             {text ? <Markdown>{text}</Markdown> : null}

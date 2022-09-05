@@ -1,10 +1,11 @@
 import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
-import { DeleteOneType } from '@local/shared';
+import { DeleteOneType } from '@shared/consts';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 import { ReportFor } from 'graphql/generated/globalTypes';
-import { ObjectType } from 'utils';
+import { ObjectType, SearchType } from 'utils';
+import { SvgProps } from '@shared/icons';
 
 export interface BaseObjectDialogProps extends DialogProps {
     children: JSX.Element | JSX.Element[];
@@ -13,7 +14,7 @@ export interface BaseObjectDialogProps extends DialogProps {
      */
     onAction: (state: ObjectDialogAction) => any;
     open: boolean;
-    title: string;
+    title?: string;
     zIndex: number;
 };
 
@@ -24,6 +25,13 @@ export interface DeleteDialogProps {
     objectName: string;
     objectType: DeleteOneType;
     zIndex: number;
+}
+
+export interface DialogTitleProps {
+    ariaLabel: string;
+    helpText?: string;
+    onClose: () => void;
+    title: string;
 }
 
 export interface ListMenuItemData<T> {
@@ -62,6 +70,13 @@ export interface ListMenuProps<T> {
     zIndex: number;
 }
 
+export interface MenuTitleProps {
+    ariaLabel?: string;
+    helpText?: string;
+    onClose: () => void;
+    title?: string;
+}
+
 export enum ObjectDialogAction {
     Add = 'Add',
     Cancel = 'Cancel',
@@ -85,6 +100,14 @@ export interface ProjectDialogProps {
     session: Session;
     zIndex: number;
 };
+
+export interface ReorderInputDialogProps {
+    handleClose: (toIndex?: number) => void;
+    isInput: boolean;
+    listLength: number;
+    startIndex: number;
+    zIndex: number;
+}
 
 export interface ReportDialogProps extends DialogProps {
     forId: string;
@@ -121,7 +144,14 @@ export interface RoutineDialogProps {
     zIndex: number;
 };
 
-export interface ShareDialogProps extends DialogProps {
+export interface ShareObjectDialogProps extends DialogProps {
+    objectType: ObjectType;
+    open: boolean;
+    onClose: () => any;
+    zIndex: number;
+}
+
+export interface ShareSiteDialogProps extends DialogProps {
     open: boolean;
     onClose: () => any;
     zIndex: number;
@@ -142,32 +172,53 @@ export interface UserDialogProps {
 /**
  * All available actions an object can possibly have
  */
-export enum BaseObjectAction {
+export enum ObjectAction {
     Copy = 'Copy',
     Delete = "Delete",
     Donate = "Donate",
-    Downvote = "Downvote",
     Edit = "Edit",
+    FindInPage = "FindInPage",
     Fork = "Fork",
     Report = "Report",
     Share = "Share",
     Star = "Star",
+    StarUndo = "StarUndo",
     Stats = "Stats",
-    Unstar = "Unstar",
-    Update = "Update", // Not a synonym for edit. Used when COMPLETING an edit
-    UpdateCancel = "UpdateCancel",
-    Upvote = "Upvote",
+    VoteDown = "VoteDown",
+    VoteUp = "VoteUp",
 }
 
-export interface BaseObjectActionDialogProps {
+/**
+ * Indicates that a ObjectAction has been completed. 
+ * Basically any action that requires updating state or navigating to a new page.
+ */
+export enum ObjectActionComplete {
+    Copy = 'Copy',
+    Delete = "Delete",
+    EditComplete = "EditComplete",
+    EditCancel = "EditCanel",
+    Fork = "Fork",
+    Report = "Report",
+    Star = "Star",
+    StarUndo = "StarUndo",
+    VoteDown = "VoteDown",
+    VoteUp = "VoteUp",
+}
+
+export interface ObjectActionMenuProps {
     anchorEl: HTMLElement | null;
-    handleActionComplete: (action: BaseObjectAction, data: any) => any;
-    handleEdit: () => any;
     isUpvoted: boolean | null | undefined;
     isStarred: boolean | null | undefined;
     objectId: string;
     objectName: string;
     objectType: ObjectType;
+    /**
+     * Completed actions, which may require updating state or navigating to a new page
+     */
+    onActionComplete: (action: ObjectActionComplete, data: any) => any;/**
+     * Actions which cannot be performed by the menu
+     */
+    onActionStart: (action: ObjectAction.Edit | ObjectAction.Stats) => any;
     onClose: () => any;
     permissions: {
         canDelete?: boolean;
@@ -196,7 +247,7 @@ export interface LinkDialogProps {
 }
 
 export interface BuildInfoDialogProps {
-    handleAction: (action: BaseObjectAction, data: any) => any;
+    handleAction: (action: ObjectAction, data: any) => any;
     handleLanguageChange: (newLanguage: string) => any;
     handleUpdate: (routine: Routine) => any;
     isEditing: boolean;
@@ -204,7 +255,7 @@ export interface BuildInfoDialogProps {
     loading: boolean;
     routine: Routine | null;
     session: Session;
-    sxs?: { icon: any, iconButton: any };
+    sxs?: { icon: SvgProps, iconButton: any };
     zIndex: number;
 }
 
@@ -246,7 +297,7 @@ export interface RunStepsDialogProps {
     zIndex: number;
 }
 
-export interface SelectLanguageDialogProps {
+export interface SelectLanguageMenuProps {
     /**
      * Languages to restrict selection to
      */
@@ -276,15 +327,23 @@ export interface SelectLanguageDialogProps {
     zIndex: number;
 }
 
-export interface AdvancedSearchDialogProps {
+export interface SelectRoutineTypeMenuProps {
+    anchorEl: HTMLElement | null;
     handleClose: () => any;
-    handleSearch: (searchQuery: { [x: string]: any }) => any;
-    isOpen: boolean;
     session: Session;
     zIndex: number;
 }
 
-export interface RunPickerDialogProps {
+export interface AdvancedSearchDialogProps {
+    handleClose: () => any;
+    handleSearch: (searchQuery: { [x: string]: any }) => any;
+    isOpen: boolean;
+    searchType: SearchType;
+    session: Session;
+    zIndex: number;
+}
+
+export interface RunPickerMenuProps {
     anchorEl: HTMLElement | null;
     handleClose: () => any;
     onAdd: (run: Run) => any;

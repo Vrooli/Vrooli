@@ -10,11 +10,9 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import {
-    Close as CloseIcon,
-} from '@mui/icons-material';
 import { noSelect } from 'styles';
 import { PubSub } from 'utils';
+import { CloseIcon } from '@shared/icons';
 
 interface StateButton {
     text: string;
@@ -82,7 +80,7 @@ const AlertDialog = () => {
                     edge="end"
                     onClick={resetState}
                 >
-                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
+                    <CloseIcon fill={palette.primary.contrastText} />
                 </IconButton>
             </DialogTitle>
             <DialogContent>

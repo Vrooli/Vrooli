@@ -4,7 +4,7 @@
 // but wallet must be connected before performing any blockchain-related activities
 // 3. Guest pass - Those who don't want to make an account can still view and run routines, but will not
 // be able to utilize the full functionality of the service
-import { useLocation } from 'wouter';
+import { useLocation } from '@shared/route';
 import {
     Box,
     Button,
@@ -12,13 +12,12 @@ import {
     Stack,
     SxProps,
     Typography,
-    useTheme,
 } from '@mui/material';
 import { Forms, PubSub, useReactSearch } from 'utils';
-import { APP_LINKS, CODE } from '@local/shared';
+import { APP_LINKS, CODE } from '@shared/consts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
-import { HelpButton, WalletInstallDialog, WalletSelectDialog } from 'components';
+import { DialogTitle, HelpButton, WalletInstallDialog, WalletSelectDialog } from 'components';
 import {
     LogInForm,
     ForgotPasswordForm,
@@ -46,10 +45,11 @@ const buttonProps: SxProps = {
     height: '4em',
 }
 
+const emailTitleAria = 'email-login-dialog-title';
+
 export const StartPage = ({
     session,
 }: StartPageProps) => {
-    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const search = useReactSearch();
     const { redirect, verificationCode } = useMemo(() => ({
@@ -172,7 +172,7 @@ export const StartPage = ({
         })
     }, [guestLogIn, setLocation, redirect]);
 
-    const closeWalletConnectDialog = useCallback((providerKey: string | null) => { 
+    const closeWalletConnectDialog = useCallback((providerKey: string | null) => {
         setConnectOpen(false);
         if (providerKey) {
             walletLogin(providerKey);
@@ -207,7 +207,11 @@ export const StartPage = ({
                     paddingTop: { xs: '5vh', sm: '20vh' },
                 }}
             >
-                <Box textAlign="center">
+                <Box sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                }}>
                     <Typography
                         variant="h6"
                         sx={{
@@ -231,18 +235,13 @@ export const StartPage = ({
                 open={emailPopupOpen}
                 disableScrollLock={true}
                 onClose={closeEmailPopup}
+                aria-labelledby={emailTitleAria}
             >
-                <Box
-                    sx={{
-                        width: '100',
-                        borderRadius: '4px 4px 0 0',
-                        padding: 1,
-                        background: palette.primary.dark,
-                        color: 'white',
-                    }}
-                >
-                    <Typography variant="h6" textAlign="center">{formTitle}</Typography>
-                </Box>
+                <DialogTitle
+                    ariaLabel={emailTitleAria}
+                    title={formTitle}
+                    onClose={closeEmailPopup}
+                />
                 <Box sx={{ padding: 1 }}>
                     <Form onFormChange={handleFormChange} />
                 </Box>

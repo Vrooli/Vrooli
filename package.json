@@ -1,7 +1,8 @@
 {
     "private": true,
     "workspaces": [
-        "packages/*"
+        "packages/*",
+        "packages/shared/*"
     ],
     "author": "Vrooli",
     "license": "GPL-3.0",
@@ -10,5 +11,6 @@
     },
     "dependencies": {
         "prisma": "4.0.0"
-    }
+    },
+    "version": "1.3.0"
 }

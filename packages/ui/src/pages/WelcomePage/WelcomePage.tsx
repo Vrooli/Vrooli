@@ -1,4 +1,4 @@
-import { APP_LINKS } from '@local/shared';
+import { APP_LINKS } from '@shared/consts';
 import { Box, Button, Link, Stack, Typography, useTheme } from '@mui/material';
 import {
     Help as FAQIcon,
@@ -7,7 +7,7 @@ import {
     PlayCircle as ExampleIcon,
     YouTube as VideoIcon,
 } from '@mui/icons-material';
-import { useLocation } from 'wouter';
+import { useLocation } from '@shared/route';
 import { clickSize } from 'styles';
 import { useEffect } from 'react';
 import { PubSub } from 'utils';
@@ -33,9 +33,14 @@ export const WelcomePage = () => {
     const [, setLocation] = useLocation();
     const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
 
-    // Show confetti on page load
+    // Show confetti on page load, if it's the user's first time
     useEffect(() => {
-        PubSub.get().publishCelebration();
+        // Check storage for first time
+        const firstTime = localStorage.getItem('firstTime');
+        if (firstTime === null) {
+            PubSub.get().publishCelebration();
+            localStorage.setItem('firstTime', 'false');
+        }
     }, []);
 
     return (

@@ -3,17 +3,14 @@
  * must match a certain schema.
  */
 import { JsonStandardInputProps } from '../types';
-import { jsonStandardInputForm as validationSchema } from '@local/shared';
+import { jsonStandardInputForm as validationSchema } from '@shared/validation';
 import { useEffect, useMemo, useState } from 'react';
 import { useFormik } from 'formik';
 import { Box, IconButton, Stack, TextField, Tooltip, useTheme } from '@mui/material';
 import { HelpButton, StatusButton } from 'components/buttons';
-import { isEqualJSON, isJson, jsonHelpText, jsonToMarkdown, jsonToString, Status, TERTIARY_COLOR } from 'utils';
-import {
-    VisibilityOff as PreviewOffIcon,
-    Visibility as PreviewOnIcon,
-} from '@mui/icons-material';
+import { isEqualJSON, isJson, jsonHelpText, jsonToMarkdown, jsonToString, Status } from 'utils';
 import Markdown from 'markdown-to-jsx';
+import { InvisibleIcon, VisibleIcon } from '@shared/icons';
 
 export const JsonStandardInput = ({
     defaultValue,
@@ -104,15 +101,14 @@ export const JsonStandardInput = ({
                     <IconButton size="small" onClick={togglePreview}>
                         {
                             isPreviewOn ?
-                                <PreviewOffIcon sx={{ fill: palette.primary.contrastText }} /> :
-                                <PreviewOnIcon sx={{ fill: palette.primary.contrastText }} />
+                                <InvisibleIcon fill={palette.primary.contrastText} /> :
+                                <VisibleIcon fill={palette.primary.contrastText} />
                         }
                     </IconButton>
                 </Tooltip>
                 <HelpButton
                     markdown={jsonHelpText}
                     sxRoot={{ marginRight: 1 }}
-                    sx={{ color: TERTIARY_COLOR }}
                 />
             </Box>
             {/* Displays inputted JSON to the left, and info about the current variable being edited to the right */}

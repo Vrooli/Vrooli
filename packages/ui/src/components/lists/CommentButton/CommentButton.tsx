@@ -3,8 +3,8 @@ import { useCallback } from 'react';
 import { CommentButtonProps } from '../types';
 import { Forum as CommentsIcon } from '@mui/icons-material';
 import { multiLineEllipsis } from 'styles';
-import { useLocation } from 'wouter';
-import { objectLinkMap } from 'utils';
+import { useLocation } from '@shared/route';
+import { getObjectSlug, getObjectUrlBase } from 'utils';
 
 export const CommentButton = ({
     commentsCount = 0,
@@ -18,9 +18,7 @@ export const CommentButton = ({
         // Stop propagation
         e.stopPropagation();
         if (!object) return;
-        const linkBases = objectLinkMap[object.__typename];
-        const linkId = object.handle ? object.handle : object.id;
-        setLocation(`${linkBases[1]}/${linkId}#comments`);
+        setLocation(`${getObjectUrlBase(object)}/${getObjectSlug(object)}#comments`)
     }, [object, setLocation]);
 
     return (

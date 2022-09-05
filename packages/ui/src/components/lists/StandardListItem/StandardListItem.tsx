@@ -2,10 +2,11 @@ import { ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme } from
 import { StandardListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, StarFor, VoteFor } from '@local/shared';
-import { useLocation } from 'wouter';
+import { APP_LINKS, StarFor, VoteFor } from '@shared/consts';
+import { useLocation } from '@shared/route';
 import { CommentButton, ReportButton, StarButton, TagList, TextLoading, UpvoteDownvote } from '..';
 import { getTranslation, listItemColor } from 'utils';
+import { smallHorizontalScrollbar } from '../styles';
 
 export function StandardListItem({
     data,
@@ -76,18 +77,18 @@ export function StandardListItem({
                         {loading ? <TextLoading /> :
                             (
                                 <Stack direction="row" spacing={1} sx={{
-                                    overflow: 'auto',
+                                    ...smallHorizontalScrollbar(palette),
                                 }}>
                                     <ListItemText
                                         primary={data?.name}
-                                        sx={{ 
+                                        sx={{
                                             ...multiLineEllipsis(1),
                                             lineBreak: 'anywhere',
                                         }}
                                     />
                                     {!hideRole && canEdit && <ListItemText
                                         primary={`(Can Edit)`}
-                                        sx={{ 
+                                        sx={{
                                             display: 'flex',
                                             alignItems: 'center',
                                             width: '100%',
@@ -103,7 +104,14 @@ export function StandardListItem({
                             sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
                         />}
                         {/* Tags */}
-                        {Array.isArray(data?.tags) && (data?.tags as any).length > 0 ? <TagList session={session} parentId={data?.id ?? ''} tags={data?.tags ?? []} /> : null}
+                        {Array.isArray(data?.tags) && (data?.tags as any).length > 0 ?
+                            <TagList
+                                session={session}
+                                parentId={data?.id ?? ''}
+                                tags={data?.tags ?? []}
+                                sx={{ ...smallHorizontalScrollbar(palette) }}
+                            /> :
+                            null}
                     </Stack>
                     {/* Star/Comment/Report */}
                     <Stack direction="column" spacing={1}>

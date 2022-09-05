@@ -1,19 +1,17 @@
 import {
-    Box,
     IconButton,
     List,
     ListItem,
     ListItemIcon,
     ListItemText,
     Menu,
-    Typography,
     useTheme
 } from '@mui/material';
-import { HelpButton } from 'components';
+import { HelpButton, MenuTitle } from 'components';
 import { useMemo } from 'react';
-import { noSelect } from 'styles';
 import { ListMenuProps } from '../types';
-import { Close as CloseIcon } from '@mui/icons-material';
+
+const titleAria = 'list-menu-title';
 
 export function ListMenu<T>({
     id,
@@ -35,9 +33,10 @@ export function ListMenu<T>({
                 color: 'red',
             },
         }}/>;
+        const fill = !iconColor || ['default', 'unset'].includes(iconColor) ? palette.background.textPrimary : iconColor;
         const itemIcon = Icon ? (
             <ListItemIcon>
-                <Icon sx={{ fill: iconColor || 'default' }} />
+                <Icon fill={fill} />
             </ListItemIcon>
         ) : null;
         const helpIcon = helpData ? (
@@ -52,7 +51,7 @@ export function ListMenu<T>({
                 {helpIcon}
             </ListItem>
         )
-    }), [data, onClose, onSelect])
+    }), [data, onClose, onSelect, palette.background.textPrimary])
 
     return (
         <Menu
@@ -80,32 +79,11 @@ export function ListMenu<T>({
                 }
             }}
         >
-            <Box
-                sx={{
-                    ...noSelect,
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: 1,
-                    background: palette.primary.dark,
-                }}
-            >
-                <Typography
-                    variant="h6"
-                    textAlign="center"
-                    sx={{
-                        width: '-webkit-fill-available',
-                        color: palette.primary.contrastText,
-                    }}
-                >
-                    {title}
-                </Typography>
-                <IconButton
-                    edge="end"
-                    onClick={(e) => { onClose() }}
-                >
-                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
-                </IconButton>
-            </Box>
+            <MenuTitle
+                ariaLabel={titleAria}
+                title={title}
+                onClose={() => { onClose() }}
+            />
             <List>
                 {items}
             </List>

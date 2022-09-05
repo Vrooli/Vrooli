@@ -53,6 +53,7 @@ export const typeDef = gql`
         version: String
         userId: ID
         organizationId: ID
+        projectId: ID
         nodesDelete: [ID!]
         nodesCreate: [NodeCreateInput!]
         nodesUpdate: [NodeUpdateInput!]
@@ -317,7 +318,11 @@ export const resolvers = {
         },
         routines: async (_parent: undefined, { input }: IWrap<RoutineSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RoutineSearchResult> => {
             await rateLimit({ info, max: 1000, req });
-            return readManyHelper({ info, input, model: RoutineModel, prisma, userId: req.userId });
+            // Can only show private if querying your own
+            const privateQuery = input.includePrivate ? 
+                RoutineModel.permissions(prisma).ownershipQuery(req.userId ?? '') : 
+                { isPrivate: false };
+            return readManyHelper({ info, input, model: RoutineModel, prisma, userId: req.userId, additionalQueries: { ...privateQuery } });
         },
         routinesCount: async (_parent: undefined, { input }: IWrap<RoutineCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, max: 1000, req });

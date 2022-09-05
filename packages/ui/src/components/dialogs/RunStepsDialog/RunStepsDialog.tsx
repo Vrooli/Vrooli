@@ -3,8 +3,7 @@
  */
 import { useCallback, useState } from 'react';
 import {
-    AccountTree as TreeIcon,
-    Close as CloseIcon,
+    FormatListNumbered as StepsIcon,
     Launch as OpenStepIcon,
 } from '@mui/icons-material';
 import {
@@ -21,8 +20,9 @@ import {
 import { RunStepsDialogProps } from '../types';
 import { TreeItem, treeItemClasses, TreeView } from '@mui/lab';
 import { RoutineStep } from 'types';
-import { locationArraysMatch, parseSearchParams, routineHasSubroutines, RoutineStepType, stringifySearchParams } from 'utils';
-import { useLocation } from 'wouter';
+import { addSearchParams, locationArraysMatch, routineHasSubroutines, RoutineStepType } from 'utils';
+import { useLocation } from '@shared/route';
+import { MenuTitle } from '../MenuTitle/MenuTitle';
 
 function MinusSquare(props) {
     return (
@@ -121,6 +121,7 @@ export const RunStepsDialog = ({
     const [isOpen, setIsOpen] = useState(false);
     const toggleOpen = useCallback(() => setIsOpen(!isOpen), [isOpen]);
     const closeDialog = () => { setIsOpen(false) };
+    console.log('run steps dialog', zIndex);
 
     /**
      * Checks if a routine is complete. If it is a subroutine,
@@ -162,11 +163,7 @@ export const RunStepsDialog = ({
         // Helper function for navigating to step
         const toLocation = () => {
             // Update URL
-            const searchParams = parseSearchParams(window.location.search);
-            setLocation(stringifySearchParams({
-                run: searchParams.run,
-                step: realLocation
-            }), { replace: true });
+            addSearchParams(setLocation, { step: realLocation });
             // Update current step location
             handleCurrStepLocationUpdate(realLocation);
             // Close dialog
@@ -206,7 +203,7 @@ export const RunStepsDialog = ({
         <>
             {/* Icon for opening/closing dialog */}
             <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
-                <TreeIcon sx={sxs?.icon} />
+                <StepsIcon sx={sxs?.icon} />
             </IconButton>
             {/* The dialog */}
             <SwipeableDrawer
@@ -214,12 +211,8 @@ export const RunStepsDialog = ({
                 open={isOpen}
                 onOpen={() => { }}
                 onClose={closeDialog}
-                ModalProps={{
-                    container: document.getElementById("run-routine-view-dialog"),
-                    style: { position: "absolute" },
-                }}
                 sx={{
-                    zIndex: zIndex + 1,
+                    zIndex,
                     '& .MuiDrawer-paper': {
                         background: palette.background.default,
                         minHeight: '100vh',
@@ -228,33 +221,10 @@ export const RunStepsDialog = ({
                     }
                 }}
             >
-                {/* Title bar */}
-                <Box sx={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    background: palette.primary.dark,
-                    color: palette.primary.contrastText,
-                    padding: 1,
-                }}>
-                    {/* Title */}
-                    <Typography variant="h6" sx={{
-                        flexGrow: 1,
-                        color: palette.primary.contrastText,
-                    }}>
-                        {`Steps (${Math.floor(percentComplete)}% Complete)`}
-                    </Typography>
-                    <IconButton onClick={closeDialog} sx={{
-                        color: palette.primary.contrastText,
-                        borderRadius: 0,
-                        borderBottom: `1px solid ${palette.primary.dark}`,
-                        justifyContent: 'end',
-                        flexDirection: 'row-reverse',
-                        marginLeft: 'auto',
-                    }}>
-                        <CloseIcon />
-                    </IconButton>
-                </Box>
+                <MenuTitle
+                    onClose={closeDialog}
+                    title={`Steps (${Math.floor(percentComplete)}% Complete)`}
+                />
                 {/* Tree display of steps */}
                 <TreeView
                     aria-label="routine steps navigator"

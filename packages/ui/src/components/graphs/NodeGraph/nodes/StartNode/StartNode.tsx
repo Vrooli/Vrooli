@@ -4,7 +4,7 @@ import { StartNodeProps } from '../types';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 import { NodeContextMenu, NodeWidth } from '../..';
-import { BuildAction, useLongPress } from 'utils';
+import { BuildAction, usePress } from 'utils';
 
 export const StartNode = ({
     handleAction,
@@ -47,13 +47,15 @@ export const StartNode = ({
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
+    const openContext = useCallback((target: React.MouseEvent['target']) => {
         if (!isEditing) return;
-        ev.preventDefault();
-        setContextAnchor(ev.currentTarget ?? ev.target)
+        setContextAnchor(target)
     }, [isEditing]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
-    const longPressEvent = useLongPress({ onLongPress: openContext });
+    const pressEvents = usePress({ 
+        onLongPress: openContext,
+        onRightClick: openContext,
+    });
 
     return (
         <>
@@ -70,8 +72,7 @@ export const StartNode = ({
                 <Box
                     id={`node-${node.id}`}
                     aria-owns={contextOpen ? contextId : undefined}
-                    onContextMenu={openContext}
-                    {...longPressEvent}
+                    {...pressEvents}
                     sx={{
                         boxShadow: `0px 0px 12px ${borderColor}`,
                         width: nodeSize,

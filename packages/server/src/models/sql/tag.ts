@@ -2,7 +2,9 @@ import { Count, Tag, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy }
 import { PrismaType, RecursivePartial } from "../../types";
 import { addJoinTablesHelper, addSupplementalFieldsHelper, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, joinRelationshipToPrisma, modelToGraphQL, PartialGraphQLInfo, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
-import { CODE, omit, tagsCreate, tagsUpdate, tagTranslationCreate, tagTranslationUpdate } from "@local/shared";
+import { tagsCreate, tagsUpdate, tagTranslationCreate, tagTranslationUpdate } from "@shared/validation";
+import { CODE } from "@shared/consts";
+import { omit } from '@shared/utils'; 
 import { validateProfanity } from "../../utils/censor";
 import { StarModel } from "./star";
 import { TranslationModel } from "./translation";
@@ -19,12 +21,8 @@ export const tagFormatter = (): FormatConverter<Tag, any> => ({
         '__typename': 'Tag',
         'starredBy': 'User',
     },
-    addJoinTables: (partial) => {
-        return addJoinTablesHelper(partial, joinMapper);
-    },
-    removeJoinTables: (data) => {
-        return removeJoinTablesHelper(data, joinMapper);
-    },
+    addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
+    removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
     removeSupplementalFields: (partial) => {
         const omitted = omit(partial, supplementalFields);
         // Add createdByUserId field so we can calculate isOwn, and id field for add supplemental groupbyid

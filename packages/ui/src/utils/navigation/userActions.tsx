@@ -6,8 +6,9 @@ import {
     Handyman as DevelopIcon,
     School as LearnIcon,
     Science as ResearchIcon,
+    Search as SearchIcon,
 } from '@mui/icons-material';
-import { APP_LINKS as LINKS } from '@local/shared';
+import { APP_LINKS as LINKS } from '@shared/consts';
 import {
     Badge,
     BottomNavigationAction,
@@ -17,19 +18,18 @@ import {
     ListItemIcon,
     ListItemText,
 } from '@mui/material';
-import { ValueOf } from '@local/shared';
 import { openLink } from 'utils';
 import { Session, SetLocation } from 'types';
 
-export const ACTION_TAGS = {
-    Home: 'home',
-    Learn: 'learn',
-    Research: 'research',
-    Develop: 'develop',
-    Profile: 'profile',
-    LogIn: 'logIn',
+export enum ACTION_TAGS {
+    Home = 'Home',
+    Search = 'Search',
+    Learn = 'Learn',
+    Research = 'Research',
+    Develop = 'Develop',
+    Profile = 'Profile',
+    LogIn = 'LogIn',
 }
-export type ACTION_TAGS = ValueOf<typeof ACTION_TAGS>;
 
 export type ActionArray = [string, any, string, (() => any) | null, any, number];
 export interface Action {
@@ -48,7 +48,10 @@ interface GetUserActionsProps {
 }
 export function getUserActions({ session = {}, exclude = [] }: GetUserActionsProps): Action[] {
     // Home action always available
-    let actions: ActionArray[] = [['Home', ACTION_TAGS.Home, LINKS.Home, null, HomeIcon, 0]];
+    let actions: ActionArray[] = [
+        ['Home', ACTION_TAGS.Home, LINKS.Home, null, HomeIcon, 0],
+        ['Search', ACTION_TAGS.Search, LINKS.Search, null, SearchIcon, 0],
+    ];
     // Available for all users
     actions.push(
         ['Learn', ACTION_TAGS.Learn, LINKS.Learn, null, LearnIcon, 0],

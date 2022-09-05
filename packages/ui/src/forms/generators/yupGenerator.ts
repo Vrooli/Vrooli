@@ -1,7 +1,7 @@
 import { FormSchema, YupSchema, YupType } from "../types";
 import { buildYup } from 'schema-to-yup';
 import { FormikConfig } from "formik";
-import { InputType } from "@local/shared";
+import { InputType } from "@shared/consts";
 
 /**
  * Maps input types to their yup types. 

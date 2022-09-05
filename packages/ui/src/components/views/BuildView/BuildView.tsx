@@ -1,38 +1,58 @@
-import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, IconButton, Palette, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, EditableLabel, UnlinkedNodesDialog, BuildInfoDialog, HelpButton } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getTranslation, getUserLanguages, parseSearchParams, stringifySearchParams, TERTIARY_COLOR, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine } from 'utils';
+import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getTranslation, getUserLanguages, parseSearchParams, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine, addSearchParams, keepSearchParams } from 'utils';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
-import { useLocation } from 'wouter';
-import { APP_LINKS, isEqual } from '@local/shared';
+import { useLocation } from '@shared/route';
+import { APP_LINKS } from '@shared/consts';
+import { isEqual } from '@shared/utils';
 import { NodeType } from 'graphql/generated/globalTypes';
-import { BaseObjectAction } from 'components/dialogs/types';
+import { ObjectAction } from 'components/dialogs/types';
 import { BuildViewProps } from '../types';
-import {
-    AddLink as AddLinkIcon,
-    Close as CloseIcon,
-    Compress as CleanUpIcon,
-    Edit as EditIcon,
-} from '@mui/icons-material';
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { StatusMessageArray } from 'components/buttons/types';
 import { StatusButton } from 'components/buttons';
 import { routineUpdate, routineUpdateVariables } from 'graphql/generated/routineUpdate';
 import { routineCreate, routineCreateVariables } from 'graphql/generated/routineCreate';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
+import { AddLinkIcon, CloseIcon, CompressIcon, EditIcon, RedoIcon, UndoIcon } from '@shared/icons';
+import { smallHorizontalScrollbar } from 'components/lists/styles';
 
-//TODO
 const helpText =
     `## What am I looking at?
-Lorem ipsum dolor sit amet consectetur adipisicing elit. 
+This is the **Build** page. Here you can create and edit multi-step routines.
 
+## What is a routine?
+A *routine* is simply a process for completing a task, which takes inputs, performs some action, and outputs some results. By connecting multiple routines together, you can perform arbitrarily complex tasks.
 
-## How does it work?
-Lorem ipsum dolor sit amet consectetur adipisicing elit.
+All valid multi-step routines have a *start* node and at least one *end* node. Each node inbetween stores a list of subroutines, which can be optional or required.
+
+When a user runs the routine, they traverse the routine graph from left to right. Each subroutine is rendered as a page, with components such as TextFields for each input. Where the graph splits, users are given a choice of which subroutine to go to next.
+
+## How do I build a multi-step routine?
+If you are starting from scratch, you will see a *start* node, a *routine list* node, and an *end* node.
+
+You can press the routine list node to toggle it open/closed. The *open* stats allows you to select existing subroutines from Vrooli, or create a new one.
+
+Each link connecting nodes has a circle. Pressing this circle opens a popup menu with options to insert a node, split the graph, or delete the link.
+
+You also have the option to *unlink* nodes. These are stored on the top status bar - along with the status indicator, a button to clean up the graph, a button to add a new link, this help button, and an info button that sets overall routine information.
+
+At the bottom of the screen, there is a slider to control the scale of the graph, and buttons to create/update and cancel the routine.
 `
+
+const commonButtonProps = (palette: Palette) => ({
+    background: palette.secondary.main,
+    marginRight: 1,
+    transition: 'brightness 0.2s ease-in-out',
+    '&:hover': {
+        filter: `brightness(120%)`,
+        background: palette.secondary.main,
+    },
+})
 
 /**
  * Generates a new link object, but doesn't add it to the routine
@@ -62,25 +82,16 @@ export const BuildView = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     /**
-     * On page load, check if editing
+     * On page load, check if editingd
      */
     useEffect(() => {
         const searchParams = parseSearchParams(window.location.search);
-        // If edit param is set or build param is not a valid id, set editing to true
-        if (searchParams.edit || !uuidValidate(searchParams.build ? `${searchParams.build}` : '')) {
+        const routineId = id.length > 0 ? id : window.location.pathname.split('/').pop();
+        // Editing if specified in search params, or id not set (new routine)
+        if (searchParams.edit || !routineId || !uuidValidate(routineId)) {
             setIsEditing(true);
         }
-    }, []);
-
-    /**
-     * Before closing, remove build-related url params
-     */
-    const removeSearchParams = useCallback(() => {
-        const params = parseSearchParams(window.location.search);
-        if (params.build) delete params.build;
-        if (params.edit) delete params.edit;
-        setLocation(stringifySearchParams(params), { replace: true });
-    }, [setLocation]);
+    }, [id]);
 
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
     // Routine mutators
@@ -93,7 +104,76 @@ export const BuildView = ({
     const canEdit = useMemo<boolean>(() => routine?.permissionsRoutine?.canEdit === true, [routine?.permissionsRoutine?.canEdit]);
 
     useEffect(() => {
+        console.log('changedRoutine', changedRoutine);
+    }, [changedRoutine]);
+
+    // Stores previous routine states for undo/redo
+    const [changeStack, setChangeStack] = useState<Routine[]>([]);
+    const [changeStackIndex, setChangeStackIndex] = useState<number>(0);
+    const clearChangeStack = useCallback((routine: Routine | null) => {
+        setChangeStack(routine ? [routine] : []);
+        setChangeStackIndex(routine ? 0 : -1);
+        PubSub.get().publishFastUpdate({ duration: 1000 });
         setChangedRoutine(routine);
+    }, [setChangeStack, setChangeStackIndex]);
+    /**
+     * Moves back one in the change stack
+     */
+    const undo = useCallback(() => {
+        if (changeStackIndex > 0) {
+            setChangeStackIndex(changeStackIndex - 1);
+            PubSub.get().publishFastUpdate({ duration: 1000 });
+            setChangedRoutine(changeStack[changeStackIndex - 1]);
+        }
+    }, [changeStackIndex, changeStack, setChangedRoutine]);
+    const canUndo = useMemo(() => changeStackIndex > 0 && changeStack.length > 0, [changeStackIndex, changeStack]);
+    /**
+     * Moves forward one in the change stack
+     */
+    const redo = useCallback(() => {
+        if (changeStackIndex < changeStack.length - 1) {
+            setChangeStackIndex(changeStackIndex + 1);
+            PubSub.get().publishFastUpdate({ duration: 1000 });
+            setChangedRoutine(changeStack[changeStackIndex + 1]);
+        }
+    }, [changeStackIndex, changeStack, setChangedRoutine]);
+    const canRedo = useMemo(() => changeStackIndex < changeStack.length - 1 && changeStack.length > 0, [changeStackIndex, changeStack]);
+    /**
+     * Adds, to change stack, and removes anything from the change stack after the current index
+     */
+    const addToChangeStack = useCallback((changedRoutine: Routine) => {
+        const newChangeStack = [...changeStack];
+        newChangeStack.splice(changeStackIndex + 1, newChangeStack.length - changeStackIndex - 1);
+        newChangeStack.push(changedRoutine);
+        setChangeStack(newChangeStack);
+        setChangeStackIndex(newChangeStack.length - 1);
+        PubSub.get().publishFastUpdate({ duration: 1000 });
+        setChangedRoutine(changedRoutine);
+    }, [changeStack, changeStackIndex, setChangeStack, setChangeStackIndex, setChangedRoutine]);
+
+    // Handle undo and redo keys
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // CTRL + Y or CTRL + SHIFT + Z = redo
+            if (e.ctrlKey && (e.key === 'y' || e.key === 'Z')) {
+                redo();
+            }
+            // CTRL + Z = undo
+            else if (e.ctrlKey && e.key === 'z') {
+                undo();
+            }
+        };
+
+        // attach the event listener
+        document.addEventListener('keydown', handleKeyDown);
+        // remove the event listener
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [redo, undo]);
+
+    useEffect(() => {
+        clearChangeStack(routine);
         // Update language
         if (routine) {
             const userLanguages = getUserLanguages(session);
@@ -104,7 +184,7 @@ export const BuildView = ({
             else if (routineLanguages.length > 0) setLanguage(routineLanguages[0]);
             else setLanguage(userLanguages[0]);
         }
-    }, [routine, session]);
+    }, [clearChangeStack, routine, session]);
 
     // Add subroutine dialog
     const [addSubroutineNode, setAddSubroutineNode] = useState<string | null>(null);
@@ -216,26 +296,26 @@ export const BuildView = ({
         } else {
             newLinks.push(link as NodeLink);
         }
-        setChangedRoutine({
+        addToChangeStack({
             ...changedRoutine,
             nodeLinks: newLinks,
         });
-    }, [changedRoutine]);
+    }, [addToChangeStack, changedRoutine]);
 
     /**
      * Deletes a link, without deleting any nodes.
      */
     const handleLinkDelete = useCallback((link: NodeLink) => {
         if (!changedRoutine) return;
-        setChangedRoutine({
+        addToChangeStack({
             ...changedRoutine,
             nodeLinks: changedRoutine.nodeLinks.filter(l => l.id !== link.id),
         });
-    }, [changedRoutine]);
+    }, [addToChangeStack, changedRoutine]);
 
-    const handleScaleChange = (newScale: number) => { 
+    const handleScaleChange = (newScale: number) => {
         PubSub.get().publishFastUpdate({ duration: 1000 });
-        setScale(newScale) 
+        setScale(newScale)
     };
     const handleScaleDelta = useCallback((delta: number) => {
         PubSub.get().publishFastUpdate({ duration: 1000 });
@@ -244,6 +324,7 @@ export const BuildView = ({
 
     const handleRunDelete = useCallback((run: Run) => {
         if (!changedRoutine) return;
+        // Doesn't affect change stack
         setChangedRoutine({
             ...changedRoutine,
             runs: changedRoutine.runs.filter(r => r.id !== run.id),
@@ -252,36 +333,39 @@ export const BuildView = ({
 
     const handleRunAdd = useCallback((run: Run) => {
         if (!changedRoutine) return;
+        // Doesn't affect change stack
         setChangedRoutine({
             ...changedRoutine,
             runs: [run, ...changedRoutine.runs],
         });
     }, [changedRoutine]);
 
-    const startEditing = useCallback(() => setIsEditing(true), []);
     /**
      * Creates new routine
      */
     const createRoutine = useCallback(() => {
+        console.log('in create routine start')
         if (!changedRoutine) {
             return;
         }
+        console.log('going to create routine: changedRoutine', changedRoutine)
+        console.log('shaped', shapeRoutineCreate(changedRoutine))
         mutationWrapper({
             mutation: routineCreate,
             input: shapeRoutineCreate({ ...changedRoutine, id: uuid() }),
             successMessage: () => 'Routine created.',
             onSuccess: ({ data }) => {
                 onChange(data.routineCreate);
-                removeSearchParams();
-                handleClose(true);
+                setLocation(`${APP_LINKS.Routine}/${data.routineCreate.id}?build=true`)
             },
         })
-    }, [changedRoutine, handleClose, onChange, removeSearchParams, routineCreate]);
+    }, [changedRoutine, onChange, routineCreate, setLocation]);
 
     /**
      * Mutates routine data
      */
     const updateRoutine = useCallback(() => {
+        console.log('in update routine start', changedRoutine)
         if (!changedRoutine || isEqual(routine, changedRoutine)) {
             PubSub.get().publishSnack({ message: 'No changes detected', severity: 'error' });
             return;
@@ -290,51 +374,68 @@ export const BuildView = ({
             PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: 'error' });
             return;
         }
+        console.log('shapeRoutineUpdate', shapeRoutineUpdate(routine, changedRoutine))
         mutationWrapper({
             mutation: routineUpdate,
             input: shapeRoutineUpdate(routine, changedRoutine),
             successMessage: () => 'Routine updated.',
             onSuccess: ({ data }) => {
-                // Update main routine object
                 onChange(data.routineUpdate);
-                // Remove indication of editing from URL
-                const params = parseSearchParams(window.location.search);
-                if (params.edit) delete params.edit;
-                setLocation(stringifySearchParams(params), { replace: true });
-                // Turn off editing mode
+                keepSearchParams(setLocation, ['build']);
                 setIsEditing(false);
             },
         })
     }, [changedRoutine, onChange, routine, routineUpdate, setLocation])
 
-    /**
-     * If closing with unsaved changes, prompt user to save
-     */
-    const onClose = useCallback(() => {
-        if (isEditing && JSON.stringify(routine) !== JSON.stringify(changedRoutine)) {
+    const startEditing = useCallback(() => {
+        addSearchParams(setLocation, { edit: true });
+        setIsEditing(true);
+    }, [setLocation]);
+
+    const stopEditing = useCallback((shouldClose: boolean = false) => {
+        console.log('in stop editing', shouldClose)
+        if (changeStack.length > 1) {
             PubSub.get().publishAlertDialog({
                 message: 'There are unsaved changes. Would you like to save before exiting?',
                 buttons: [
                     {
                         text: 'Save', onClick: () => {
                             updateRoutine();
-                            removeSearchParams();
-                            handleClose(true);
+                            keepSearchParams(setLocation, ['build']);
+                            setIsEditing(false);
+                            if (shouldClose) handleClose();
                         }
                     },
                     {
                         text: "Don't Save", onClick: () => {
-                            removeSearchParams();
-                            handleClose(false);
+                            keepSearchParams(setLocation, ['build']);
+                            clearChangeStack(routine);
+                            setIsEditing(false);
+                            if (shouldClose) handleClose();
                         }
                     },
                 ]
             });
         } else {
-            removeSearchParams();
-            handleClose(false);
+            keepSearchParams(setLocation, ['build']);
+            clearChangeStack(routine);
+            setIsEditing(false);
+            if (shouldClose) handleClose();
         }
-    }, [changedRoutine, handleClose, isEditing, removeSearchParams, routine, updateRoutine]);
+    }, [changeStack.length, clearChangeStack, handleClose, routine, setLocation, updateRoutine]);
+
+    /**
+     * If closing with unsaved changes, prompt user to save
+     */
+    const onClose = useCallback(() => {
+        if (isEditing) {
+            stopEditing(true);
+        } else {
+            keepSearchParams(setLocation, []);
+            if (!uuidValidate(id)) window.history.back();
+            else handleClose();
+        }
+    }, [handleClose, id, isEditing, setLocation, stopEditing]);
 
     /**
      * On page leave, check if routine has changed. 
@@ -342,14 +443,14 @@ export const BuildView = ({
      */
     useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (isEditing && JSON.stringify(routine) !== JSON.stringify(changedRoutine)) {
+            if (isEditing && changeStack.length > 1) {
                 e.preventDefault()
                 e.returnValue = ''
             }
         };
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [changedRoutine, isEditing, routine, updateRoutine]);
+    }, [changeStack.length, isEditing, routine, updateRoutine]);
 
     const updateRoutineTitle = useCallback((title: string) => {
         if (!changedRoutine) return;
@@ -359,36 +460,40 @@ export const BuildView = ({
             }
             return { ...t }
         })];
-        setChangedRoutine({
+        addToChangeStack({
             ...changedRoutine,
             translations: newTranslations
         });
-    }, [changedRoutine, language]);
+    }, [addToChangeStack, changedRoutine, language]);
 
     const revertChanges = useCallback(() => {
+        // Helper function to revert changes
+        const revert = () => {
+            // If updating routine, revert to original routine
+            if (id) {
+                clearChangeStack(routine);
+                setIsEditing(false);
+            }
+            // If adding new routine, go back
+            else window.history.back();
+        }
         // Confirm if changes have been made
-        if (JSON.stringify(routine) !== JSON.stringify(changedRoutine)) {
+        if (changeStack.length > 1) {
             PubSub.get().publishAlertDialog({
                 message: 'There are unsaved changes. Are you sure you would like to cancel?',
                 buttons: [
                     {
-                        text: 'Yes', onClick: () => {
-                            // If updating routine, revert to original routine
-                            if (id) {
-                                setChangedRoutine(routine);
-                                setIsEditing(false);
-                            }
-                            // If adding new routine, go back
-                            else window.history.back();
-                        }
+                        text: 'Yes', onClick: () => { revert(); }
                     },
                     {
                         text: "No", onClick: () => { }
                     },
                 ]
             });
+        } else {
+            revert();
         }
-    }, [changedRoutine, id, routine])
+    }, [changeStack.length, clearChangeStack, id, routine])
 
     /**
      * Calculates the new set of links for an routine when a node is 
@@ -501,11 +606,11 @@ export const BuildView = ({
      */
     const handleLinkCreate = useCallback((link: NodeLink) => {
         if (!changedRoutine) return;
-        setChangedRoutine({
+        addToChangeStack({
             ...changedRoutine,
             nodeLinks: [...changedRoutine.nodeLinks, link]
         });
-    }, [changedRoutine]);
+    }, [addToChangeStack, changedRoutine]);
 
     /**
      * Updates an existing link between two nodes
@@ -514,11 +619,11 @@ export const BuildView = ({
         if (!changedRoutine) return;
         const linkIndex = changedRoutine.nodeLinks.findIndex(l => l.id === link.id);
         if (linkIndex === -1) return;
-        setChangedRoutine({
+        addToChangeStack({
             ...changedRoutine,
             nodeLinks: updateArray(changedRoutine.nodeLinks, linkIndex, link),
         });
-    }, [changedRoutine]);
+    }, [addToChangeStack, changedRoutine]);
 
     /**
      * Deletes a node, and all links connected to it. 
@@ -529,12 +634,12 @@ export const BuildView = ({
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
         if (nodeIndex === -1) return;
         const linksList = calculateLinksAfterNodeRemove(nodeId);
-        setChangedRoutine({
+        addToChangeStack({
             ...changedRoutine,
             nodes: deleteArrayIndex(changedRoutine.nodes, nodeIndex),
             nodeLinks: linksList,
         });
-    }, [calculateLinksAfterNodeRemove, changedRoutine]);
+    }, [addToChangeStack, calculateLinksAfterNodeRemove, changedRoutine]);
 
     /**
      * Deletes a subroutine from a node
@@ -547,7 +652,7 @@ export const BuildView = ({
         const subroutineIndex = (node.data as NodeDataRoutineList).routines.findIndex((item: NodeDataRoutineListItem) => item.id === subroutineId);
         if (subroutineIndex === -1) return;
         const newRoutineList = deleteArrayIndex((node.data as NodeDataRoutineList).routines, subroutineIndex);
-        setChangedRoutine({
+        addToChangeStack({
             ...changedRoutine,
             nodes: updateArray(changedRoutine.nodes, nodeIndex, {
                 ...node,
@@ -557,7 +662,7 @@ export const BuildView = ({
                 }
             }),
         });
-    }, [changedRoutine]);
+    }, [addToChangeStack, changedRoutine]);
 
     /**
      * Drops or unlinks a node
@@ -569,7 +674,7 @@ export const BuildView = ({
         // If columnIndex and rowIndex null, then it is being unlinked
         if (columnIndex === null && rowIndex === null) {
             const linksList = calculateLinksAfterNodeRemove(nodeId);
-            setChangedRoutine({
+            addToChangeStack({
                 ...changedRoutine,
                 nodes: updateArray(changedRoutine.nodes, nodeIndex, {
                     ...changedRoutine.nodes[nodeIndex],
@@ -668,11 +773,11 @@ export const BuildView = ({
             })
         }
         // Update the routine
-        setChangedRoutine({
+        addToChangeStack({
             ...changedRoutine,
             nodes: updatedNodes,
         });
-    }, [calculateLinksAfterNodeRemove, changedRoutine]);
+    }, [addToChangeStack, calculateLinksAfterNodeRemove, changedRoutine]);
 
     // Move node dialog for context menu (mainly for accessibility)
     const [moveNode, setMoveNode] = useState<Node | null>(null);
@@ -687,14 +792,15 @@ export const BuildView = ({
      * Updates a node's data
      */
     const handleNodeUpdate = useCallback((node: Node) => {
+        console.log('handlenodeupdate starttt', node)
         if (!changedRoutine) return;
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === node.id);
         if (nodeIndex === -1) return;
-        setChangedRoutine({
+        addToChangeStack({
             ...changedRoutine,
             nodes: updateArray(changedRoutine.nodes, nodeIndex, node),
         });
-    }, [changedRoutine]);
+    }, [addToChangeStack, changedRoutine]);
 
     /**
      * Inserts a new routine list node along an edge
@@ -733,9 +839,8 @@ export const BuildView = ({
             nodes: [...nodesList, newNode as any],
             nodeLinks: [...linksList, ...newLinks as any],
         };
-        PubSub.get().publishFastUpdate({ duration: 1000 });
-        setChangedRoutine(newRoutine);
-    }, [changedRoutine, createRoutineListNode]);
+        addToChangeStack(newRoutine);
+    }, [addToChangeStack, changedRoutine, createRoutineListNode]);
 
     /**
      * Inserts a new routine list node, with its own branch
@@ -763,9 +868,8 @@ export const BuildView = ({
             nodes: [...changedRoutine.nodes, newNode as any, newEndNode as any],
             nodeLinks: [...changedRoutine.nodeLinks, newLink as any, newEndLink as any],
         };
-        PubSub.get().publishFastUpdate({ duration: 1000 });
-        setChangedRoutine(newRoutine);
-    }, [changedRoutine, createEndNode, createRoutineListNode]);
+        addToChangeStack(newRoutine);
+    }, [addToChangeStack, changedRoutine, createEndNode, createRoutineListNode]);
 
     /**
      * Adds a subroutine routine list
@@ -782,8 +886,7 @@ export const BuildView = ({
             routine,
         } as any
         if (routineList.isOrdered) routineItem.index = routineList.routines.length
-        PubSub.get().publishFastUpdate({ duration: 1000 });
-        setChangedRoutine({
+        addToChangeStack({
             ...changedRoutine,
             nodes: updateArray(changedRoutine.nodes, nodeIndex, {
                 ...changedRoutine.nodes[nodeIndex],
@@ -793,7 +896,7 @@ export const BuildView = ({
                 }
             }),
         });
-    }, [changedRoutine]);
+    }, [addToChangeStack, changedRoutine]);
 
     /**
      * Reoders a subroutine in a routine list item
@@ -817,7 +920,7 @@ export const BuildView = ({
         routines[aIndex] = { ...routines[aIndex], index: newIndex };
         routines[bIndex] = { ...routines[bIndex], index: oldIndex };
         // Update the routine list
-        setChangedRoutine({
+        addToChangeStack({
             ...changedRoutine,
             nodes: updateArray(changedRoutine.nodes, nodeIndex, {
                 ...changedRoutine.nodes[nodeIndex],
@@ -827,7 +930,7 @@ export const BuildView = ({
                 }
             }),
         });
-    }, [changedRoutine]);
+    }, [addToChangeStack, changedRoutine]);
 
     /**
      * Add a new end node AFTER a node
@@ -852,13 +955,13 @@ export const BuildView = ({
             if (!node) return;
             const newNode: Omit<NodeShape, 'routineId'> = createEndNode((node.columnIndex ?? 1) + 1, (node.rowIndex ?? 0));
             const newLink: NodeLinkShape = generateNewLink(nodeId, newNode.id);
-            setChangedRoutine({
+            addToChangeStack({
                 ...changedRoutine,
                 nodes: [...changedRoutine.nodes, newNode as any],
                 nodeLinks: [...changedRoutine.nodeLinks, newLink as any],
             });
         }
-    }, [changedRoutine, createEndNode, handleNodeInsert]);
+    }, [addToChangeStack, changedRoutine, createEndNode, handleNodeInsert]);
 
     /**
      * Add a new routine list AFTER a node
@@ -883,13 +986,13 @@ export const BuildView = ({
             if (!node) return;
             const newNode: Omit<NodeShape, 'routineId'> = createRoutineListNode((node.columnIndex ?? 1) + 1, (node.rowIndex ?? 0));
             const newLink: NodeLinkShape = generateNewLink(nodeId, newNode.id);
-            setChangedRoutine({
+            addToChangeStack({
                 ...changedRoutine,
                 nodes: [...changedRoutine.nodes, newNode as any],
                 nodeLinks: [...changedRoutine.nodeLinks, newLink as any],
             });
         }
-    }, [changedRoutine, createRoutineListNode, handleNodeInsert]);
+    }, [addToChangeStack, changedRoutine, createRoutineListNode, handleNodeInsert]);
 
     /**
      * Add a new routine list BEFORE a node
@@ -914,13 +1017,13 @@ export const BuildView = ({
             if (!node) return;
             const newNode: Omit<NodeShape, 'routineId'> = createRoutineListNode((node.columnIndex ?? 1) - 1, (node.rowIndex ?? 0));
             const newLink: NodeLinkShape = generateNewLink(newNode.id, nodeId);
-            setChangedRoutine({
+            addToChangeStack({
                 ...changedRoutine,
                 nodes: [...changedRoutine.nodes, newNode as any],
                 nodeLinks: [...changedRoutine.nodeLinks, newLink as any],
             });
         }
-    }, [changedRoutine, createRoutineListNode, handleNodeInsert]);
+    }, [addToChangeStack, changedRoutine, createRoutineListNode, handleNodeInsert]);
 
     /**
      * Updates the current selected subroutine
@@ -928,7 +1031,7 @@ export const BuildView = ({
     const handleSubroutineUpdate = useCallback((updatedSubroutine: NodeDataRoutineListItem) => {
         if (!changedRoutine) return;
         // Update routine
-        setChangedRoutine({
+        addToChangeStack({
             ...changedRoutine,
             nodes: changedRoutine.nodes.map((n: Node) => {
                 if (n.type === NodeType.RoutineList && (n.data as NodeDataRoutineList).routines.some(r => r.id === updatedSubroutine.id)) {
@@ -957,7 +1060,7 @@ export const BuildView = ({
         } as any);
         // Close dialog
         closeRoutineInfo();
-    }, [changedRoutine, closeRoutineInfo]);
+    }, [addToChangeStack, changedRoutine, closeRoutineInfo]);
 
     /**
      * Navigates to a subroutine's build page. Fist checks if there are unsaved changes
@@ -1016,69 +1119,46 @@ export const BuildView = ({
         }
     }, [changedRoutine?.nodes, handleNodeDelete, handleSubroutineDelete, handleSubroutineOpen, handleNodeDrop, handleAddEndAfter, handleAddListAfter, handleAddListBefore]);
 
-    const handleRoutineAction = useCallback((action: BaseObjectAction, data: any) => {
+    const handleRoutineAction = useCallback((action: ObjectAction, data: any) => {
         switch (action) {
-            case BaseObjectAction.Copy:
+            case ObjectAction.Copy:
                 setLocation(`${APP_LINKS.Routine}/${data.copy.routine.id}`);
                 break;
-            case BaseObjectAction.Delete:
+            case ObjectAction.Delete:
                 setLocation(APP_LINKS.Home);
                 break;
-            case BaseObjectAction.Downvote:
-                if (data.vote.success) {
-                    onChange({
-                        ...routine,
-                        isUpvoted: false,
-                    } as any)
-                }
-                break;
-            case BaseObjectAction.Edit:
-                //TODO
-                break;
-            case BaseObjectAction.Fork:
+            case ObjectAction.Fork:
                 setLocation(`${APP_LINKS.Routine}/${data.fork.routine.id}`);
                 break;
-            case BaseObjectAction.Report:
+            case ObjectAction.Report:
                 //TODO
                 break;
-            case BaseObjectAction.Share:
+            case ObjectAction.Share:
                 //TODO
                 break;
-            case BaseObjectAction.Star:
+            case ObjectAction.Star:
+            case ObjectAction.StarUndo:
                 if (data.star.success) {
                     onChange({
                         ...routine,
-                        isStarred: true,
+                        isStarred: action === ObjectAction.Star,
                     } as any)
                 }
                 break;
-            case BaseObjectAction.Stats:
+            case ObjectAction.Stats:
                 //TODO
                 break;
-            case BaseObjectAction.Unstar:
-                if (data.star.success) {
-                    onChange({
-                        ...routine,
-                        isStarred: false,
-                    } as any)
-                }
-                break;
-            case BaseObjectAction.Update:
-                updateRoutine();
-                break;
-            case BaseObjectAction.UpdateCancel:
-                setChangedRoutine(routine);
-                break;
-            case BaseObjectAction.Upvote:
+            case ObjectAction.VoteDown:
+            case ObjectAction.VoteUp:
                 if (data.vote.success) {
                     onChange({
                         ...routine,
-                        isUpvoted: true,
+                        isUpvoted: action === ObjectAction.VoteUp,
                     } as any)
                 }
                 break;
         }
-    }, [setLocation, updateRoutine, routine, onChange]);
+    }, [setLocation, onChange, routine]);
 
     // Open/close unlinked nodes drawer
     const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);
@@ -1153,11 +1233,65 @@ export const BuildView = ({
             const toNode = resultRoutine.nodes.find(n => n.id === link.toId);
             return Boolean(fromNode && toNode);
         });
-        // Increase link refresh rate while nodes are moving
-        PubSub.get().publishFastUpdate({ duration: 1000 });
         // Update changedRoutine with resultRoutine
-        setChangedRoutine(resultRoutine);
-    }, [changedRoutine, columns]);
+        addToChangeStack(resultRoutine);
+    }, [addToChangeStack, changedRoutine, columns]);
+
+    const editActions = useMemo(() => {
+        if (!isEditing) return null;
+        return (<Stack direction="row" spacing={1} sx={{
+            zIndex: 2,
+            height: '48px',
+            background: 'transparent',
+            color: palette.primary.contrastText,
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingTop: '8px',
+        }}>
+            {(canUndo || canRedo) && <Tooltip title={canUndo ? 'Undo' : ''}>
+                <IconButton
+                    id="undo-button"
+                    disabled={!canUndo}
+                    onClick={undo}
+                    aria-label="Undo"
+                    sx={commonButtonProps(palette)}
+                >
+                    <UndoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
+                </IconButton>
+            </Tooltip>}
+            {(canUndo || canRedo) && <Tooltip title={canRedo ? 'Redo' : ''}>
+                <IconButton
+                    id="redo-button"
+                    disabled={!canRedo}
+                    onClick={redo}
+                    aria-label="Redo"
+                    sx={commonButtonProps(palette)}
+                >
+                    <RedoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
+                </IconButton>
+            </Tooltip>}
+            <Tooltip title='Clean up graph'>
+                <IconButton
+                    id="clean-graph-button"
+                    onClick={cleanUpGraph}
+                    aria-label='Clean up graph'
+                    sx={commonButtonProps(palette)}
+                >
+                    <CompressIcon id="clean-up-button-icon" fill={palette.secondary.contrastText} />
+                </IconButton>
+            </Tooltip>
+            <Tooltip title='Add new link'>
+                <IconButton
+                    id="add-link-button"
+                    onClick={openLinkDialog}
+                    aria-label='Add link'
+                    sx={commonButtonProps(palette)}
+                >
+                    <AddLinkIcon id="add-link-button-icon" fill={palette.secondary.contrastText} />
+                </IconButton>
+            </Tooltip>
+        </Stack>)
+    }, [canRedo, canUndo, cleanUpGraph, isEditing, openLinkDialog, palette, redo, undo]);
 
     return (
         <Box sx={{
@@ -1177,7 +1311,7 @@ export const BuildView = ({
                 session={session}
                 zIndex={zIndex + 3}
             />}
-            {/* Popup for editing existing subroutines */}
+            {/* Popup for editing existing multi-step subroutines */}
             {/* TODO */}
             {/* Popup for "Add after" dialog */}
             {addAfterLinkNode && <AddAfterLinkDialog
@@ -1281,10 +1415,7 @@ export const BuildView = ({
                         marginBottom: 'auto',
                     }}
                 >
-                    <CloseIcon sx={{
-                        width: '32px',
-                        height: '32px',
-                    }} />
+                    <CloseIcon width='32px' height='32px' />
                 </IconButton>
             </Stack>
             {/* Second contains additional info and icons */}
@@ -1299,87 +1430,49 @@ export const BuildView = ({
                     height: '48px',
                     background: palette.primary.light,
                     color: palette.primary.contrastText,
+                    // ...smallHorizontalScrollbar(palette) TODO this is needed for mobile, but it breaks Unlinked dialog's overflow-y: visble. Internet solution is to use popover, but this would mess up dragging nodes into container
                 }}
             >
                 <StatusButton status={status.status} messages={status.messages} sx={{
                     marginTop: 'auto',
                     marginBottom: 'auto',
                     marginLeft: 2,
+                    marginRight: 1,
                 }} />
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    {/* Clean up graph */}
-                    {isEditing && <Tooltip title='Clean up graph'>
-                        <IconButton
-                            id="clean-graph-button"
-                            edge="end"
-                            onClick={cleanUpGraph}
-                            aria-label='Clean up graph'
-                            sx={{
-                                background: '#ab9074',
-                                marginLeft: 'auto',
-                                marginRight: 1,
-                                transition: 'brightness 0.2s ease-in-out',
-                                '&:hover': {
-                                    filter: `brightness(105%)`,
-                                    background: '#ab9074',
-                                },
-                            }}
-                        >
-                            <CleanUpIcon id="clean-up-button-icon" sx={{ fill: 'white' }} />
-                        </IconButton>
-                    </Tooltip>}
-                    {/* Add new links to the routine */}
-                    {isEditing && <Tooltip title='Add new link'>
-                        <IconButton
-                            id="add-link-button"
-                            edge="end"
-                            onClick={openLinkDialog}
-                            aria-label='Add link'
-                            sx={{
-                                background: '#9e3984',
-                                marginRight: 1,
-                                transition: 'brightness 0.2s ease-in-out',
-                                '&:hover': {
-                                    filter: `brightness(105%)`,
-                                    background: '#9e3984',
-                                },
-                            }}
-                        >
-                            <AddLinkIcon id="add-link-button-icon" sx={{ fill: 'white' }} />
-                        </IconButton>
-                    </Tooltip>}
-                    {/* Displays unlinked nodes */}
-                    {isEditing && <UnlinkedNodesDialog
+                    <UnlinkedNodesDialog
                         handleNodeDelete={handleNodeDelete}
                         handleToggleOpen={toggleUnlinkedNodes}
                         language={language}
                         nodes={nodesOffGraph}
                         open={isUnlinkedNodesOpen}
                         zIndex={zIndex + 3}
-                    />}
+                    />
                     {/* Edit button */}
                     {canEdit && !isEditing ? (
                         <IconButton aria-label="confirm-title-change" onClick={startEditing} >
-                            <EditIcon sx={{ fill: TERTIARY_COLOR }} />
+                            <EditIcon fill={palette.secondary.light} />
                         </IconButton>
                     ) : null}
                     {/* Help button */}
-                    <HelpButton markdown={helpText} sxRoot={{ margin: "auto", marginRight: 1 }} sx={{ color: TERTIARY_COLOR }} />
-                    {/* Display routine description, insturctions, etc. */}
+                    <HelpButton markdown={helpText} sx={{ fill: palette.secondary.light }} sxRoot={{ margin: "auto", marginRight: 1 }} />
+                    {/* Display overall routine description, insturctions, etc. */}
                     <BuildInfoDialog
                         handleAction={handleRoutineAction}
                         handleLanguageChange={setLanguage}
-                        handleUpdate={(updated: Routine) => { setChangedRoutine(updated); }}
+                        handleUpdate={(updated: Routine) => { addToChangeStack(updated); }}
                         isEditing={isEditing}
                         language={language}
                         loading={loading}
                         routine={changedRoutine}
                         session={session}
-                        sxs={{ icon: { fill: TERTIARY_COLOR }, iconButton: { marginRight: 1 } }}
+                        sxs={{ icon: { fill: palette.secondary.light }, iconButton: { marginRight: 1 } }}
                         zIndex={zIndex + 1}
                     />
                 </Box>
             </Stack>
+            {/* Third displays above graph, only when editing */}
+            {editActions}
             {/* Displays main routine's information and some buttons */}
             <Box sx={{
                 background: palette.background.default,
@@ -1411,7 +1504,7 @@ export const BuildView = ({
                 <BuildBottomContainer
                     canCancelMutate={!loading}
                     canSubmitMutate={!loading && !isEqual(routine, changedRoutine)}
-                    handleCancelAdd={() => { window.history.back(); }}
+                    handleCancelAdd={() => { stopEditing() }}
                     handleCancelUpdate={revertChanges}
                     handleAdd={createRoutine}
                     handleUpdate={updateRoutine}

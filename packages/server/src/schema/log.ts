@@ -8,7 +8,7 @@ import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
 import { CustomError } from '../error';
-import { CODE } from '@local/shared';
+import { CODE } from '@shared/consts';
 import { logSearcher, LogType, paginatedMongoSearch } from '../models';
 
 export const typeDef = gql`

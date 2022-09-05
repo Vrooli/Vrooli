@@ -49,6 +49,7 @@ export interface developPage_developPage_completed_Project {
   handle: string | null;
   score: number;
   stars: number;
+  isComplete: boolean;
   isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
@@ -164,6 +165,7 @@ export interface developPage_developPage_inProgress_Project {
   handle: string | null;
   score: number;
   stars: number;
+  isComplete: boolean;
   isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;
@@ -279,6 +281,7 @@ export interface developPage_developPage_recent_Project {
   handle: string | null;
   score: number;
   stars: number;
+  isComplete: boolean;
   isPrivate: boolean;
   isUpvoted: boolean | null;
   isStarred: boolean;

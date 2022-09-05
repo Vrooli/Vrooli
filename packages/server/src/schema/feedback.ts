@@ -1,4 +1,4 @@
-import { feedbackCreate } from '@local/shared';
+import { feedbackCreate } from '@shared/validation';
 import { gql } from 'apollo-server-express';
 import { IWrap } from '../types';
 import { feedbackNotifyAdmin } from '../worker/email/queue';

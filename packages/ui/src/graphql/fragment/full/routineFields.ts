@@ -301,6 +301,7 @@ export const routineFields = gql`
                 title
             }
         }
+        reportsCount
         resourceLists {
             ...routineResourceListFields
         }

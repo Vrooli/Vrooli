@@ -1,29 +1,29 @@
-import { RunStepStatus } from "@local/shared";
+import { RunStepStatus } from "@shared/consts";
 import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material"
 import { DecisionView, HelpButton, RunStepsDialog } from "components";
 import { SubroutineView } from "components/views/SubroutineView/SubroutineView";
-import { useLocation } from "wouter";
+import { useLocation } from '@shared/route';
 import { RunViewProps } from "../types";
 import {
     ArrowBack as PreviousIcon,
     ArrowForward as NextIcon,
-    Close as CloseIcon,
     DoneAll as CompleteIcon,
 } from '@mui/icons-material';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getRunPercentComplete, getTranslation, getUserLanguages, locationArraysMatch, PubSub, routineHasSubroutines, RoutineStepType, runInputsUpdate, TERTIARY_COLOR, useReactSearch } from "utils";
+import { getRunPercentComplete, getTranslation, getUserLanguages, locationArraysMatch, PubSub, routineHasSubroutines, RoutineStepType, runInputsUpdate, useReactSearch } from "utils";
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { validate as uuidValidate } from 'uuid';
 import { DecisionStep, Node, NodeDataEnd, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, Run, RunInput, RunStep, SubroutineStep } from "types";
-import { parseSearchParams, stringifySearchParams } from "utils/navigation/urlTools";
+import { addSearchParams, removeSearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
 import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
 import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils";
 import { runUpdate, runUpdateVariables } from "graphql/generated/runUpdate";
 import { v4 as uuid } from 'uuid';
+import { CloseIcon } from "@shared/icons";
 
 /**
  * Maximum routine nesting supported
@@ -254,6 +254,7 @@ export const RunView = ({
 }: RunViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    console.log('run view', zIndex)
 
     // Find data in URL (e.g. current step, runID, whether or not this is a test run)
     const params = useReactSearch(null);
@@ -275,10 +276,7 @@ export const RunView = ({
      * Update URL when currStepLocation changes
      */
     useEffect(() => {
-        setLocation(stringifySearchParams({
-            ...params,
-            step: currStepLocation,
-        }), { replace: true });
+        addSearchParams(setLocation, { step: currStepLocation });
     }, [currStepLocation, params, setLocation]);
 
     /**
@@ -305,7 +303,6 @@ export const RunView = ({
      * Converts the overall routine into a tree of steps, and stores it in the steps ref.
      */
     useEffect(() => {
-        console.log('settings steps routine change')
         setSteps(convertRoutineToStep(routine, languages));
     }, [languages, routine]);
 
@@ -338,7 +335,6 @@ export const RunView = ({
      * The number of steps in the current-level node, or -1 if not found.
      */
     const stepsInCurrentNode = useMemo(() => {
-        console.log('calculating stepsincurrentnode', currStepLocation, steps)
         if (!currStepLocation || !steps) return -1;
         // For each step in ids array (except for the last id), find the nested step in the steps array.
         // If it doesn't exist, return -1;
@@ -361,27 +357,20 @@ export const RunView = ({
         return runStep;
     }, [run?.steps, currStepLocation]);
 
-    useEffect(() => {
-        console.log('currStepRunData', currStepRunData);
-    }, [currStepRunData]);
-
     /**
      * Stores user inputs, which are uploaded to the run's data
      */
     const currUserInputs = useRef<{ [inputId: string]: string }>({});
     const handleUserInputsUpdate = useCallback((inputs: { [inputId: string]: string }) => {
-        console.log('handleuserinputsupdate', inputs);
         currUserInputs.current = inputs;
     }, []);
     useEffect(() => {
-        console.log('useeffect runinputs 1', run?.inputs)
         if (!run?.inputs || !Array.isArray(run?.inputs)) return;
         const inputs: { [inputId: string]: string } = {};
         for (const input of run.inputs) {
             inputs[input.input.id] = input.data;
         }
         if (JSON.stringify(inputs) !== JSON.stringify(currUserInputs.current)) {
-            console.log('goop', inputs, currUserInputs.current);
             handleUserInputsUpdate(inputs);
         }
     }, [run?.inputs, handleUserInputsUpdate]);
@@ -473,18 +462,6 @@ export const RunView = ({
             setCurrentStep(currStep);
         }
     }, [currStepLocation, getSubroutine, params, setCurrStepLocation, steps]);
-
-    useEffect(() => {
-        console.log('currsteplocation changed', currStepLocation)
-    }, [currStepLocation])
-
-    useEffect(() => {
-        console.log('params changed', params)
-    }, [params])
-
-    useEffect(() => {
-        console.log('steps changed', steps)
-    }, [steps])
 
     /**
      * When new subroutine data is fetched, inject it into steps. 
@@ -604,17 +581,6 @@ export const RunView = ({
     const subroutineComplete = true;
 
     /**
-     * Clears run-specific search params from URL
-     */
-    const clearSearchParams = useCallback(() => {
-        const params = parseSearchParams(window.location.search);
-        delete params.run;
-        delete params.step;
-        console.log('CLEARING SEARCH PARAMS', params);
-        setLocation(`${window.location.pathname}${stringifySearchParams(params)}`, { replace: true });
-    }, [setLocation]);
-
-    /**
       * Navigate to the previous subroutine
       */
     const toPrevious = useCallback(() => {
@@ -708,12 +674,12 @@ export const RunView = ({
                 successMessage: () => 'Routine completed!🎉',
                 onSuccess: () => {
                     PubSub.get().publishCelebration();
-                    clearSearchParams();
+                    removeSearchParams(setLocation, ['run', 'step']);
                     handleClose();
                 },
             })
         }
-    }, [clearSearchParams, contextSwitches, currStepLocation, currStepRunData, handleClose, logRunComplete, logRunUpdate, nextStep, progress, routine, run, session, setCurrStepLocation, steps, testMode, timeElapsed]);
+    }, [contextSwitches, currStepLocation, currStepRunData, handleClose, logRunComplete, logRunUpdate, nextStep, progress, routine, run, session, setLocation, steps, testMode, timeElapsed]);
 
     /**
      * End routine after reaching end node using a decision step. 
@@ -732,7 +698,7 @@ export const RunView = ({
         // Don't actually do it if in test mode
         if (testMode || !run) {
             if (success) PubSub.get().publishCelebration();
-            clearSearchParams();
+            removeSearchParams(setLocation, ['run', 'step']);
             handleClose();
             return;
         }
@@ -751,11 +717,11 @@ export const RunView = ({
             successMessage: () => 'Routine completed!🎉',
             onSuccess: () => {
                 PubSub.get().publishCelebration();
-                clearSearchParams();
+                removeSearchParams(setLocation, ['run', 'step']);
                 handleClose();
             },
         })
-    }, [testMode, run, logRunComplete, routine, session, clearSearchParams, handleClose]);
+    }, [testMode, run, logRunComplete, routine, session, setLocation, handleClose]);
 
     /**
      * Stores current progress, both for overall routine and the current subroutine
@@ -788,9 +754,9 @@ export const RunView = ({
      */
     const toFinishNotComplete = useCallback(() => {
         saveProgress();
-        clearSearchParams();
+        removeSearchParams(setLocation, ['run', 'step']);
         handleClose();
-    }, [clearSearchParams, handleClose, saveProgress]);
+    }, [handleClose, saveProgress, setLocation]);
 
     /**
      * Navigate to selected decision
@@ -861,10 +827,7 @@ export const RunView = ({
                             onClick={toFinishNotComplete}
                             color="inherit"
                         >
-                            <CloseIcon sx={{
-                                width: '32px',
-                                height: '32px',
-                            }} />
+                            <CloseIcon width='32px' height='32px' />
                         </IconButton>
                         {/* Title and steps */}
                         <Stack direction="row" spacing={1} sx={{
@@ -877,7 +840,7 @@ export const RunView = ({
                                 <Typography variant="h5" component="h2">({currentStepNumber} of {stepsInCurrentNode})</Typography>
                                 : null}
                             {/* Help icon */}
-                            {instructions && <HelpButton markdown={instructions} sx={{ color: TERTIARY_COLOR }} />}
+                            {instructions && <HelpButton markdown={instructions} />}
                         </Stack>
                         {/* Steps explorer drawer */}
                         <RunStepsDialog

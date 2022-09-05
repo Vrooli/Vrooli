@@ -3,7 +3,7 @@
  * must match a certain schema.
  */
 import { MarkdownStandardInputProps } from '../types';
-import { markdownStandardInputForm as validationSchema } from '@local/shared';
+import { markdownStandardInputForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { useEffect } from 'react';
 import { Grid } from '@mui/material';

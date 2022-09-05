@@ -1,10 +1,10 @@
 import { BoxProps, InputProps, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
 import { JSONVariable } from 'forms/types';
 import { ChangeEvent } from 'react';
-import { Organization, Session, Standard, Tag } from 'types';
-import { TagShape } from 'utils';
+import { Organization, Project, Routine, Session, Standard, Tag } from 'types';
+import { ObjectType, TagShape } from 'utils';
 
-export interface AutocompleteSearchBarProps extends SearchBarProps {
+export interface AutocompleteSearchBarProps extends Omit<SearchBarProps, 'sx'> {
     debounce?: number;
     id?: string;
     loading?: boolean;
@@ -15,6 +15,7 @@ export interface AutocompleteSearchBarProps extends SearchBarProps {
     session: Session;
     showSecondaryLabel?: boolean;
     value: string;
+    sxs?: { paper?: { [x: string]: any }, root?: { [x: string]: any } };
 }
 
 export interface DropzoneProps {
@@ -245,6 +246,33 @@ export interface QuantityBoxProps extends BoxProps {
     value: number;
 }
 
+export type RelationshipItemOrganization = Pick<Organization, '__typename' | 'handle' | 'id' | 'permissionsOrganization' | 'translations'>;
+export type RelationshipItemUser = Pick<User, '__typename' | 'handle' | 'id' | 'name'>;
+export type RelationshipItemProject = Pick<Project, '__typename' | 'handle' | 'id' | 'owner' | 'permissionsProject' | 'translations'>;
+export type RelationshipItemRoutine = Pick<Routine, '__typename' | 'id' | 'owner' | 'permissionsRoutine' | 'translations'>;
+
+export type RelationshipOwner = RelationshipItemOrganization | RelationshipItemUser | null;
+export type RelationshipProject = RelationshipItemProject | null;
+export type RelationshipParent = RelationshipItemProject | RelationshipItemRoutine | null;
+
+export type RelationshipsObject = {
+    isComplete: boolean;
+    isPrivate: boolean;
+    owner: RelationshipOwner;
+    parent: RelationshipParent;
+    project: RelationshipProject;
+}
+
+export interface RelationshipButtonsProps {
+    disabled?: boolean;
+    isFormDirty?: boolean;
+    objectType: ObjectType;
+    onRelationshipsChange: (relationships: Partial<RelationshipsObject>) => void;
+    relationships: RelationshipsObject;
+    session: Session;
+    zIndex: number;
+}
+
 export interface SearchBarProps extends InputProps {
     debounce?: number;
     id?: string;
@@ -293,12 +321,4 @@ export interface TagSelectorProps {
 export interface ThemeSwitchProps {
     theme: 'light' | 'dark';
     onChange: (theme: 'light' | 'dark') => any;
-}
-
-export interface UserOrganizationSwitchProps extends UseSwitchProps {
-    session: Session;
-    selected: Organization | null;
-    onChange: (value: Organization | null) => any;
-    disabled?: boolean;
-    zIndex: number;
 }

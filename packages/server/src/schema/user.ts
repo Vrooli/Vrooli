@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { CODE } from '@local/shared';
+import { CODE } from '@shared/consts';
 import { CustomError } from '../error';
 import { countHelper, ProfileModel, readManyHelper, readOneHelper, UserModel } from '../models';
 import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdOrHandleInput, UserSearchInput, UserCountInput, UserSearchResult, User, ProfileEmailUpdateInput, UserSortBy } from './types';

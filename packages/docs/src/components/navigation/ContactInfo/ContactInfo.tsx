@@ -1,4 +1,4 @@
-import { SOCIALS } from '@local/shared';
+import { SOCIALS } from '@shared/consts';
 import {
     BottomNavigation,
     BottomNavigationAction,
@@ -7,7 +7,7 @@ import {
     Tooltip,
     useTheme,
 } from '@mui/material';
-import { DiscordIcon, GitHubIcon, TwitterIcon } from 'assets/img';
+import { DiscordIcon, GitHubIcon, TwitterIcon } from '@shared/icons';
 import { SvgProps } from 'assets/img/types';
 import { ContactInfoProps } from '../types';
 

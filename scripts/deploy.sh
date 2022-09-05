@@ -1,12 +1,12 @@
 #!/bin/bash
 # NOTE 1: Run outside of Docker container, on production server
 # NOTE 2: First run build.sh on development server
-# NOTE 3: If docker-compose was changed since the last build, you should prune the containers and images before running this script.
+# NOTE 3: If docker-compose file was changed since the last build, you should prune the containers and images before running this script.
 # Finishes up the deployment process, which was started by build.sh:
 # 1. Checks if Nginx containers are running
 # 2. Copies current database and build to a safe location, under a temporary directory.
 # 3. Runs git fetch and git pull to get the latest changes.
-# 4. Runs yarn cache clean and yarn to make sure that node_modules are up to date.
+# 4. Runs setup.sh
 # 5. Moves build created by build.sh to the correct location.
 # 6. Restarts docker containers
 #
@@ -117,13 +117,11 @@ info "Pulling latest changes from repository..."
 git fetch
 git pull
 
-# Run yarn cache clean and yarn to make sure that node_modules are up to date.
-info "Cleaning yarn cache..."
-yarn cache clean
-info "Running yarn..."
-yarn
+# Running setup.sh
+info "Running setup.sh..."
+./scripts/setup.sh
 if [ $? -ne 0 ]; then
-    error "Yarn failed"
+    error "setup.sh failed"
     exit 1
 fi
 
@@ -138,6 +136,6 @@ fi
 
 # Restart docker containers.
 info "Restarting docker containers..."
-docker-compose up --build -d
+docker-compose -f docker-compose-prod.yml up --build -d
 
 success "Done! You may need to wait a few minutes for the Docker containers to finish starting up."

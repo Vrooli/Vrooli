@@ -5,16 +5,9 @@ import {
     DialogActions,
     DialogContent,
     DialogContentText,
-    DialogTitle,
-    IconButton,
-    Typography,
-    useTheme,
 } from '@mui/material';
-import {
-    Close as CloseIcon,
-} from '@mui/icons-material';
-import { noSelect } from 'styles';
 import { PubSub } from 'utils';
+import { DialogTitle } from 'components';
 
 interface StateButton {
     text: string;
@@ -31,8 +24,10 @@ const default_state: AlertDialogState = {
     buttons: [{ text: 'Ok' }],
 };
 
+const titleAria = 'alert-dialog-title';
+const descriptionAria = 'alert-dialog-description';
+
 const AlertDialog = () => {
-    const { palette } = useTheme();
     const [state, setState] = useState<AlertDialogState>(default_state)
     let open = Boolean(state.title) || Boolean(state.message);
 
@@ -53,40 +48,16 @@ const AlertDialog = () => {
             open={open}
             disableScrollLock={true}
             onClose={resetState}
-            aria-labelledby="alert-dialog-title"
-            aria-describedby="alert-dialog-description"
+            aria-labelledby={titleAria}
+            aria-describedby={descriptionAria}
         >
-            {/* Title with close icon */}
             <DialogTitle
-                id="alert-dialog-title"
-                sx={{
-                    ...noSelect,
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: 2,
-                    background: palette.primary.dark,
-                    color: palette.primary.contrastText,
-                }}
-            >
-                <Typography
-                    variant="h6"
-                    sx={{
-                        width: '-webkit-fill-available',
-                        textAlign: 'center',
-                    }}
-                >
-                    {state.title}
-                </Typography>
-                <IconButton
-                    aria-label="close"
-                    edge="end"
-                    onClick={resetState}
-                >
-                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
-                </IconButton>
-            </DialogTitle>
+                ariaLabel={titleAria}
+                title={state.title ?? ''}
+                onClose={resetState}
+            />
             <DialogContent>
-                <DialogContentText id="alert-dialog-description" sx={{
+                <DialogContentText id={descriptionAria} sx={{
                     whiteSpace: 'pre-wrap',
                     wordWrap: 'break-word',
                     paddingTop: 2,

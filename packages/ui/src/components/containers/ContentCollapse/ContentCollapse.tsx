@@ -10,9 +10,10 @@ import {
 
 export function ContentCollapse({
     helpText,
+    id,
     isOpen = true,
     onOpenChange,
-    showOnNoText = false,
+    sxs,
     title,
     children,
 }: ContentCollapseProps) {
@@ -31,12 +32,13 @@ export function ContentCollapse({
     }, [internalIsOpen, onOpenChange]);
 
     return (
-        <Box sx={{
+        <Box id={id} sx={{
             padding: 1,
-            color: Boolean(children) ? palette.background.textPrimary : palette.background.textSecondary
+            color: Boolean(children) ? palette.background.textPrimary : palette.background.textSecondary,
+            ...(sxs?.root ?? {}),
         }}>
             {/* Title with help button and collapse */}
-            <Stack direction="row" alignItems="center">
+            <Stack direction="row" alignItems="center" sx={sxs?.titleContainer ?? {}}>
                 <Typography variant="h6">{title}</Typography>
                 {helpText && <HelpButton markdown={helpText} />}
                 <IconButton

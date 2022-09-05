@@ -2,11 +2,12 @@ import { Box, ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme }
 import { OrganizationListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, StarFor } from '@local/shared';
-import { useLocation } from 'wouter';
+import { APP_LINKS, StarFor } from '@shared/consts';
+import { useLocation } from '@shared/route';
 import { ReportButton, StarButton, TagList, TextLoading } from '..';
 import { getTranslation, listItemColor, placeholderColor } from 'utils';
 import { Apartment as ApartmentIcon } from '@mui/icons-material';
+import { smallHorizontalScrollbar } from '../styles';
 
 export function OrganizationListItem({
     data,
@@ -91,18 +92,18 @@ export function OrganizationListItem({
                         {loading ? <TextLoading /> :
                             (
                                 <Stack direction="row" spacing={1} sx={{
-                                    overflow: 'auto',
+                                    ...smallHorizontalScrollbar(palette),
                                 }}>
                                     <ListItemText
                                         primary={name}
-                                        sx={{ 
+                                        sx={{
                                             ...multiLineEllipsis(1),
                                             lineBreak: 'anywhere',
                                         }}
                                     />
                                     {!hideRole && canEdit && <ListItemText
                                         primary={`(Can Edit)`}
-                                        sx={{ 
+                                        sx={{
                                             display: 'flex',
                                             alignItems: 'center',
                                             width: '100%',
@@ -119,7 +120,14 @@ export function OrganizationListItem({
                             sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
                         />}
                         {/* Tags */}
-                        {Array.isArray(data?.tags) && (data?.tags as any).length > 0 ? <TagList session={session} parentId={data?.id ?? ''} tags={data?.tags ?? []} /> : null}
+                        {Array.isArray(data?.tags) && (data?.tags as any).length > 0 ?
+                            <TagList
+                                session={session}
+                                parentId={data?.id ?? ''}
+                                tags={data?.tags ?? []}
+                                sx={{ ...smallHorizontalScrollbar(palette) }}
+                            /> :
+                            null}
                     </Stack>
                     {/* Star/Comment/Report */}
                     <Stack direction="column" spacing={1}>

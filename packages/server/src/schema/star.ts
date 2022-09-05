@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
-import { CODE } from '@local/shared';
+import { CODE, StarSortBy } from '@shared/consts';
 import { CustomError } from '../error';
-import { StarFor, StarInput, StarSearchInput, StarSearchResult, StarSortBy, Success } from './types';
+import { StarFor, StarInput, StarSearchInput, StarSearchResult, Success } from './types';
 import { IWrap } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
@@ -77,7 +77,7 @@ export const resolvers = {
             if (!req.userId || req.apiToken) 
                 throw new CustomError(CODE.Unauthorized, 'Must be logged in to query stars', { code: genErrorCode('0252') });
             await rateLimit({ info, max: 2000, req });
-            return readManyHelper({ info, input, model: StarModel, prisma, userId: req.userId });
+            return readManyHelper({ info, input, model: StarModel, prisma, userId: req.userId, additionalQueries: { userId: req.userId } });
         },
     },
     Mutation: {

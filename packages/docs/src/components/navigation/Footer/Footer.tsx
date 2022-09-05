@@ -1,4 +1,4 @@
-import { APP_LINKS, LANDING_LINKS, LANDING_URL, SOCIALS } from '@local/shared';
+import { APP_LINKS, LANDING_LINKS, LANDING_URL, SOCIALS } from '@shared/consts';
 import {
     Box,
     List,
@@ -10,9 +10,9 @@ import {
     Tooltip,
     useTheme,
 } from '@mui/material';
-import { DiscordIcon, GitHubIcon, TwitterIcon } from 'assets/img';
+import { DiscordIcon, GitHubIcon, TwitterIcon } from '@shared/icons';
 import { CopyrightBreadcrumbs } from 'components';
-import { useLocation } from 'wouter';
+import { useLocation } from '@shared/route';
 import { openLink } from 'utils';
 import { useMemo } from 'react';
 import { SvgProps } from 'assets/img/types';

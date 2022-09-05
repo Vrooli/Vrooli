@@ -5,20 +5,19 @@ import { EmailListProps } from '../types';
 import { useCallback } from 'react';
 import { Email } from 'types';
 import { Box, IconButton, Stack, TextField, useTheme } from '@mui/material';
-import {
-    Add as AddIcon,
-} from '@mui/icons-material';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { PubSub, updateArray } from 'utils';
 import { emailCreateMutation, deleteOneMutation, emailUpdateMutation, sendVerificationEmailMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';
 import { EmailListItem } from '../EmailListItem/EmailListItem';
-import { DeleteOneType, emailCreateButton as validationSchema } from '@local/shared';
+import { emailCreateButton as validationSchema } from '@shared/validation';
+import { DeleteOneType } from '@shared/consts';
 import { emailCreate, emailCreateVariables } from 'graphql/generated/emailCreate';
 import { emailUpdate, emailUpdateVariables } from 'graphql/generated/emailUpdate';
 import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
 import { sendVerificationEmail, sendVerificationEmailVariables } from 'graphql/generated/sendVerificationEmail';
+import { AddIcon } from '@shared/icons';
 
 export const EmailList = ({
     handleUpdate,

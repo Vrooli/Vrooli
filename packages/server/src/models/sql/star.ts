@@ -1,8 +1,9 @@
-import { CODE, isObject, StarFor } from "@local/shared";
+import { CODE, StarFor } from "@shared/consts";
+import { isObject } from '@shared/utils'; 
 import { CustomError } from "../../error";
 import { LogType, Star, StarInput, StarSearchInput, StarSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { deconstructUnion, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, ModelLogic, ObjectMap, PartialGraphQLInfo, readManyHelper, Searcher } from "./base";
+import { deconstructUnion, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, ModelLogic, ObjectMap, onlyValidIds, PartialGraphQLInfo, readManyHelper, Searcher } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { resolveStarTo } from "../../schema/resolvers";
@@ -219,7 +220,7 @@ const starQuerier = (prisma: PrismaType) => ({
         // If userId not passed, return result
         if (!userId) return result;
         // Filter out nulls and undefineds from ids
-        const idsFiltered = ids.filter(id => id !== null && id !== undefined);
+        const idsFiltered = onlyValidIds(ids);
         const fieldName = `${starFor.toLowerCase()}Id`;
         const isStarredArray = await prisma.star.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
         // Replace the nulls in the result array with true or false

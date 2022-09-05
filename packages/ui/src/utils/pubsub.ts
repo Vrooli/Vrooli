@@ -5,14 +5,16 @@
  *      import { PubSub } from 'utils';
  *      PubSub.get().publishSnack({ message: 'Hello World' });
  */
-import { COOKIE, ValueOf } from '@local/shared';
+import { COOKIE, ValueOf } from '@shared/consts';
 import { AlertDialogState, SnackPub } from 'components';
 import { Session } from 'types';
 
 export const Pubs = {
     ...COOKIE,
     Celebration: "celebration",
+    CommandPalette: "commandPalette",
     FastUpdate: "fastUpdate",
+    FindInPage: "findInPage",
     Loading: "loading",
     LogOut: "logout",
     AlertDialog: "alertDialog",
@@ -43,6 +45,12 @@ export class PubSub {
     }
     publishCelebration(duration?: number) {
         this.publish(Pubs.Celebration, duration);
+    }
+    publishCommandPalette() {
+        this.publish(Pubs.CommandPalette);
+    }
+    publishFindInPage() {
+        this.publish(Pubs.FindInPage);
     }
     /**
      * Notifies graph links to re-render quickly for a period of time
@@ -92,6 +100,12 @@ export class PubSub {
     }
     subscribeCelebration(subscriber: (duration?: number) => void) {
         return this.subscribe(Pubs.Celebration, subscriber);
+    }
+    subscribeCommandPalette(subscriber: () => void) {
+        return this.subscribe(Pubs.CommandPalette, subscriber);
+    }
+    subscribeFindInPage(subscriber: () => void) {
+        return this.subscribe(Pubs.FindInPage, subscriber);
     }
     subscribeFastUpdate(subscriber: ({ on, duration }: { on: boolean, duration: number }) => void) {
         return this.subscribe(Pubs.FastUpdate, subscriber);

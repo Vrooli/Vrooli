@@ -1,6 +1,6 @@
 import { emailSignUpMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { BUSINESS_NAME, CODE, emailSignUpSchema } from '@local/shared';
+import { APP_LINKS, BUSINESS_NAME, CODE } from '@shared/consts';
 import { useFormik } from 'formik';
 import {
     Button,
@@ -14,9 +14,9 @@ import {
     useTheme
 } from '@mui/material';
 import { Forms, PubSub } from 'utils';
-import { APP_LINKS } from '@local/shared';
+import { emailSignUpSchema } from '@shared/validation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { useLocation } from 'wouter';
+import { useLocation } from '@shared/route';
 import { emailSignUp, emailSignUpVariables } from 'graphql/generated/emailSignUp';
 import { FormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';

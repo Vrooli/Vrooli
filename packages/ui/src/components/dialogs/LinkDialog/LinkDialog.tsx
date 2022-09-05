@@ -8,26 +8,25 @@ import {
     Dialog,
     DialogContent,
     Grid,
-    IconButton,
     Stack,
     TextField,
     Typography,
-    useTheme
+    useTheme,
 } from '@mui/material';
-import { HelpButton } from 'components';
+import { DialogTitle } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LinkDialogProps } from '../types';
-import { Close as CloseIcon } from '@mui/icons-material';
 import { Node, NodeLink } from 'types';
 import { getTranslation, PubSub } from 'utils';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { v4 as uuid } from 'uuid';
-import { noSelect } from 'styles';
 
 const helpText =
     `This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.
 
 In the future, links will also be able to specify conditions, which must be true in order for the path to be available.`;
+
+const titleAria = "link-dialog-title";
 
 export const LinkDialog = ({
     handleClose,
@@ -82,34 +81,6 @@ export const LinkDialog = ({
     const closeDialog = useCallback(() => { onClose(undefined); }, [onClose]);
 
     /**
-     * Title bar with help button and close icon
-     */
-    const titleBar = useMemo(() => (
-        <Box sx={{
-            ...noSelect,
-            background: palette.primary.dark,
-            color: palette.primary.contrastText,
-            display: 'flex',
-            alignItems: 'left',
-            justifyContent: 'space-between',
-            padding: 1,
-        }}>
-            <Typography component="h2" variant="h4" alignSelf='center' sx={{ marginLeft: 2, marginRight: 'auto' }}>
-                {isAdd ? 'Add Link' : 'Edit Link'}
-                <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
-            </Typography>
-            <Box sx={{ marginLeft: 'auto' }}>
-                <IconButton
-                    edge="start"
-                    onClick={(e) => { onClose() }}
-                >
-                    <CloseIcon sx={{ fill: palette.primary.contrastText, marginLeft: 'auto' }} />
-                </IconButton>
-            </Box>
-        </Box>
-    ), [onClose, isAdd, palette.primary.contrastText, palette.primary.dark]);
-
-    /**
      * Calculate the "From" and "To" options
      */
     const { fromOptions, toOptions } = useMemo(() => {
@@ -150,7 +121,7 @@ export const LinkDialog = ({
      * Container that displays "From" and "To" node selections, with right arrow inbetween
      */
     const nodeSelections = useMemo(() => (
-        <Stack direction="row" justifyContent="center" alignItems="center">
+        <Stack direction="row" justifyContent="center" alignItems="center" pt={2}>
             {/* From selector */}
             <Autocomplete
                 disablePortal
@@ -174,7 +145,7 @@ export const LinkDialog = ({
                 alignItems: 'center',
                 justifyContent: 'center',
             }}>
-                <Typography variant="h6" textAlign="center">
+                <Typography variant="h6" textAlign="center" color={palette.background.textPrimary}>
                     ⮕
                 </Typography>
             </Box>
@@ -193,7 +164,7 @@ export const LinkDialog = ({
                 renderInput={(params) => <TextField {...params} label="To" />}
             />
         </Stack>
-    ), [fromOptions, fromNode, toOptions, toNode, getNodeTitle, handleFromSelect, handleToSelect]);
+    ), [fromOptions, fromNode, palette.background.textPrimary, toOptions, toNode, getNodeTitle, handleFromSelect, handleToSelect]);
 
     /**
      * Container for creating link conditions.
@@ -212,20 +183,26 @@ export const LinkDialog = ({
         <Dialog
             open={isOpen}
             onClose={() => { handleClose() }}
+            aria-labelledby={titleAria}
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': { overflow: 'visible' },
                 '& .MuiDialog-paper': { overflow: 'visible' }
             }}
         >
-            {titleBar}
+            <DialogTitle
+                ariaLabel={titleAria}
+                title={isAdd ? 'Add Link' : 'Edit Link'}
+                helpText={helpText}
+                onClose={onClose}
+            />
             <DialogContent>
                 {nodeSelections}
                 {conditions}
                 {deleteOption}
                 {/* Action buttons */}
-                <Grid container sx={{ padding: 0, paddingTop: '24px' }}>
-                    <Grid item xs={12} sm={6} sx={{ paddingRight: 1 }}>
+                <Grid container spacing={2} pt={2}>
+                    <Grid item xs={12} sm={6}>
                         <Button fullWidth type="submit" onClick={addLink}>Add</Button>
                     </Grid>
                     <Grid item xs={12} sm={6}>
