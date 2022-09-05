@@ -310,11 +310,22 @@ export interface copy_copy_project_owner_Organization_translations {
   name: string;
 }
 
+export interface copy_copy_project_owner_Organization_permissionsOrganization {
+  __typename: "OrganizationPermission";
+  canAddMembers: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  isMember: boolean;
+}
+
 export interface copy_copy_project_owner_Organization {
   __typename: "Organization";
   id: string;
   handle: string | null;
   translations: copy_copy_project_owner_Organization_translations[];
+  permissionsOrganization: copy_copy_project_owner_Organization_permissionsOrganization | null;
 }
 
 export interface copy_copy_project_owner_User {

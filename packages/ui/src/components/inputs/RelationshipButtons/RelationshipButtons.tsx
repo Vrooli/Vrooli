@@ -34,6 +34,7 @@ export const userFromSession = (session: Session): RelationshipOwner => ({
 const commonButtonProps = (palette: Palette) => ({
     width: '69px',
     height: '69px',
+    overflow: 'hidden',
     background: palette.primary.light,
     '&:hover': {
         background: palette.primary.light,

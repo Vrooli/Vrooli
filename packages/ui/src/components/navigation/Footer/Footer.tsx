@@ -36,7 +36,8 @@ export const Footer = () => {
             display={showFooter ? 'block' : 'none'}
             overflow="hidden"
             position="relative"
-            paddingBottom="7vh"
+            // safe-area-inset-bottom is the iOS navigation bar
+            paddingBottom='calc(64px + env(safe-area-inset-bottom))'
             sx={{
                 backgroundColor: palette.primary.dark,
                 color: palette.primary.contrastText,

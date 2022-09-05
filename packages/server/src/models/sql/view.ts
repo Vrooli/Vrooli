@@ -188,6 +188,7 @@ const viewMutater = (prisma: PrismaType) => ({
         })
         // If view already existed, update view time
         if (view) {
+            console.log('view exists', JSON.stringify(view), '\n\n')
             await prisma.view.update({
                 where: { id: view.id },
                 data: {
@@ -206,6 +207,7 @@ const viewMutater = (prisma: PrismaType) => ({
                 }
             })
         }
+        console.log('created view', JSON.stringify(view), '\n\n');
         // Check if a view from this user should increment the view count
         let isOwn = false;
         switch (input.viewFor) {

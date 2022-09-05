@@ -1084,7 +1084,9 @@ export type NodeUpdateInput = {
   loopCreate?: InputMaybe<LoopCreateInput>;
   loopDelete?: InputMaybe<Scalars['ID']>;
   loopUpdate?: InputMaybe<LoopUpdateInput>;
+  nodeEndCreate?: InputMaybe<NodeEndCreateInput>;
   nodeEndUpdate?: InputMaybe<NodeEndUpdateInput>;
+  nodeRoutineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
   nodeRoutineListUpdate?: InputMaybe<NodeRoutineListUpdateInput>;
   routineId?: InputMaybe<Scalars['ID']>;
   rowIndex?: InputMaybe<Scalars['Int']>;
@@ -2472,6 +2474,7 @@ export type RoutineUpdateInput = {
   outputsCreate?: InputMaybe<Array<OutputItemCreateInput>>;
   outputsDelete?: InputMaybe<Array<Scalars['ID']>>;
   outputsUpdate?: InputMaybe<Array<OutputItemUpdateInput>>;
+  projectId?: InputMaybe<Scalars['ID']>;
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
   resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
@@ -2882,6 +2885,7 @@ export type StarSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   excludeTags?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<StarSortBy>;
   take?: InputMaybe<Scalars['Int']>;
 };

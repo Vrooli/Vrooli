@@ -9,6 +9,7 @@ export const organizationFields = gql`
         isPrivate
         isStarred
         stars
+        reportsCount
         permissionsOrganization {
             canAddMembers
             canDelete

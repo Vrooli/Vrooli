@@ -1412,7 +1412,7 @@ export async function readOneHelper<GraphQLModel>({
     // If logged in and object has view count, handle it
     if (userId && objectType in ViewFor) {
         ViewModel.mutate(prisma).view(userId, { forId: object.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language
-    }
+    } else console.log('readonehelper: object type not in viewfor', objectType);
     return (await addSupplementalFields(prisma, userId, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
 }
 

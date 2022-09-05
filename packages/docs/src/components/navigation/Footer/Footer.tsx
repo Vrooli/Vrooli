@@ -15,7 +15,7 @@ import { CopyrightBreadcrumbs } from 'components';
 import { useLocation } from '@shared/route';
 import { openLink } from 'utils';
 import { useMemo } from 'react';
-import { SvgProps } from 'assets/img/types';
+import { SvgProps } from '@shared/icons';
 
 const contactLinks: [string, string, string, string, (props: SvgProps) => JSX.Element][] = [
     ['contact-twitter', 'Find us on Twitter', SOCIALS.Twitter, 'Twitter', TwitterIcon],
@@ -37,7 +37,8 @@ export const Footer = () => {
             display={showFooter ? 'block' : 'none'}
             overflow="hidden"
             position="relative"
-            paddingBottom="7vh"
+            // safe-area-inset-bottom is the iOS navigation bar
+            paddingBottom='calc(64px + env(safe-area-inset-bottom))'
             sx={{
                 backgroundColor: palette.primary.dark,
                 color: palette.primary.contrastText,

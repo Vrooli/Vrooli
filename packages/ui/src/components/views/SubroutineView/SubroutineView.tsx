@@ -238,6 +238,8 @@ export const SubroutineView = ({
             width: 'min(96vw, 600px)',
             borderRadius: '8px',
             overflow: 'overlay',
+            // safe-area-inset-bottom is the iOS navigation bar
+            marginBottom: 'calc(64px + env(safe-area-inset-bottom))',
             ...containerShadow
         }}>
             {/* Popup menu displayed when "More" ellipsis pressed */}

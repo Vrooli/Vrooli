@@ -185,11 +185,22 @@ export interface fork_fork_project_owner_Organization_translations {
   name: string;
 }
 
+export interface fork_fork_project_owner_Organization_permissionsOrganization {
+  __typename: "OrganizationPermission";
+  canAddMembers: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  isMember: boolean;
+}
+
 export interface fork_fork_project_owner_Organization {
   __typename: "Organization";
   id: string;
   handle: string | null;
   translations: fork_fork_project_owner_Organization_translations[];
+  permissionsOrganization: fork_fork_project_owner_Organization_permissionsOrganization | null;
 }
 
 export interface fork_fork_project_owner_User {
