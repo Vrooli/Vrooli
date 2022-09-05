@@ -34,7 +34,6 @@ export const BuildBottomContainer = ({
     runState,
     zIndex,
 }: BuildBottomContainerProps) => {
-    console.log('build bottom container', zIndex);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -109,13 +108,14 @@ export const BuildBottomContainer = ({
     const buttons = useMemo(() => {
         return isEditing ?
             (
-                <Grid container spacing={1} sx={{ width: 'min(100vw, 350px)' }}>
+                // TODO display contents invalidates width, but width wasn't working (making mobile display weird)
+                <Grid container spacing={1} sx={{ display: 'contents', width: 'min(50vw, 350px)' }}> 
                     <GridSubmitButtons
                         disabledCancel={loading || !canCancelMutate}
                         disabledSubmit={loading || !canSubmitMutate}
                         isCreate={isAdding}
                         onCancel={handleCancelAdd}
-                        onSubmit={handleAdd}
+                        onSubmit={isAdding ? handleAdd : handleUpdate}
                     />
                 </Grid>
             ) :
@@ -146,7 +146,7 @@ export const BuildBottomContainer = ({
                     </Tooltip> */}
                 </Stack>
             )
-    }, [canCancelMutate, canSubmitMutate, handleAdd, handleCancelAdd, isAdding, isEditing, loading, runRoutine, runState]);
+    }, [canCancelMutate, canSubmitMutate, handleAdd, handleCancelAdd, handleUpdate, isAdding, isEditing, loading, runRoutine, runState]);
 
     return (
         <Box sx={{
@@ -156,8 +156,8 @@ export const BuildBottomContainer = ({
             justifyContent: 'center',
             bottom: 0,
             paddingTop: 1,
-            paddingLeft: 4,
-            paddingRight: 4,
+            paddingLeft: { xs: 1, sm: 4 },
+            paddingRight: { xs: 1, sm: 4 },
             paddingBottom: 'calc(8px + env(safe-area-inset-bottom))',
             // safe-area-inset-bottom is the iOS navigation bar
             height: 'calc(64px + env(safe-area-inset-bottom))',

@@ -46,8 +46,6 @@ export const EndNodeDialog = ({
         },
     });
 
-    console.log('isvalid', formik.isValid, formik.errors);
-
     const onClose = useCallback(() => {
         formik.resetForm();
         handleClose();
@@ -125,13 +123,12 @@ export const EndNodeDialog = ({
                                         color='secondary'
                                         checked={formik.values.wasSuccessful}
                                         onChange={(_e, checked) => { formik.setFieldValue('wasSuccessful', checked) }}
-                                        onTouchStart={() => { formik.setFieldValue('wasSuccessful', !formik.values.wasSuccessful) }}
                                     />
                                 }
                             />
                         </Tooltip>
                     </Grid>
-                    <GridSubmitButtons
+                    {isEditing && <GridSubmitButtons
                         disabledCancel={formik.isSubmitting}
                         disabledSubmit={formik.isSubmitting || !formik.isValid}
                         errors={formik.errors}
@@ -139,7 +136,7 @@ export const EndNodeDialog = ({
                         onCancel={onClose}
                         onSetSubmitting={formik.setSubmitting}
                         onSubmit={formik.handleSubmit}
-                    />
+                    />}
                 </Grid>
             </form>
         </Dialog>

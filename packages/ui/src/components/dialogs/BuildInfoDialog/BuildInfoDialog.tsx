@@ -179,18 +179,19 @@ export const BuildInfoDialog = ({
     const [languages, setLanguages] = useState<string[]>([]);
 
     useEffect(() => {
-        if (!language || !translations) return;
-        const translation = translations.find(t => language === t.language);
-        if (translation) {
+        if (languages.length === 0 && translations.length > 0) {
+            // setLanguage(translations[0].language);
+            setLanguages(translations.map(t => t.language));
             console.log('buildinfodialog updating formik translation 1')
             formik.setValues({
                 ...formik.values,
                 description: translations[0].description ?? '',
-                instructions: translations[0].instructions,
-                title: translations[0].title,
+                instructions: translations[0].instructions ?? '',
+                title: translations[0].title ?? '',
             })
         }
-    }, [formik, language, translations])
+    }, [formik, languages, setLanguages, translations])
+
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
         formik.setValues({
@@ -257,10 +258,14 @@ export const BuildInfoDialog = ({
         }
     };
 
+    // TODO doesn't really work. resource list query returns empty resources inside, 
+    // and this won't display editor if there are no resources yet. 
+    // Ideally this should create a new resource list if none exists
     const resourceListObject = useMemo(() => {
         if (!routine ||
             !Array.isArray(routine.resourceLists) ||
             routine.resourceLists.length < 1 ||
+            !Array.isArray(routine.resourceLists[0].resources) ||
             routine.resourceLists[0].resources.length < 1) return null;
         return <ResourceListHorizontal
             title={'Resources'}
@@ -493,6 +498,7 @@ export const BuildInfoDialog = ({
                 <Stack direction="column" spacing={2} padding={1}>
                     {/* Relationships */}
                     <RelationshipButtons
+                        disabled={!isEditing}
                         objectType={ObjectType.Routine}
                         onRelationshipsChange={onRelationshipsChange}
                         relationships={relationships}

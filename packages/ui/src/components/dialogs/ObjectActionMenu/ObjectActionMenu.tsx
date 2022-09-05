@@ -194,7 +194,7 @@ export const ObjectActionMenu = ({
             options.push(ObjectAction.Copy);
             options.push(ObjectAction.Fork);
         }
-        options.push(ObjectAction.Stats, ObjectAction.Donate, ObjectAction.Share, ObjectAction.FindInPage)
+        options.push(ObjectAction.Stats, ObjectAction.Donate, ObjectAction.Share);// TODO, ObjectAction.FindInPage)
         if (isLoggedIn && permissions.canReport) {
             options.push(ObjectAction.Report);
         }

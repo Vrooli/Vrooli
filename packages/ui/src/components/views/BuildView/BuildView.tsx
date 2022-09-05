@@ -343,6 +343,7 @@ export const BuildView = ({
      * Creates new routine
      */
     const createRoutine = useCallback(() => {
+        console.log('in create routine start')
         if (!changedRoutine) {
             return;
         }
@@ -354,7 +355,7 @@ export const BuildView = ({
             successMessage: () => 'Routine created.',
             onSuccess: ({ data }) => {
                 onChange(data.routineCreate);
-                keepSearchParams(setLocation, []);
+                keepSearchParams(setLocation, ['build']);
                 handleClose();
             },
         })
@@ -364,6 +365,7 @@ export const BuildView = ({
      * Mutates routine data
      */
     const updateRoutine = useCallback(() => {
+        console.log('in update routine start', changedRoutine)
         if (!changedRoutine || isEqual(routine, changedRoutine)) {
             PubSub.get().publishSnack({ message: 'No changes detected', severity: 'error' });
             return;
@@ -372,13 +374,14 @@ export const BuildView = ({
             PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: 'error' });
             return;
         }
+        console.log('shapeRoutineUpdate', shapeRoutineUpdate(routine, changedRoutine))
         mutationWrapper({
             mutation: routineUpdate,
             input: shapeRoutineUpdate(routine, changedRoutine),
             successMessage: () => 'Routine updated.',
             onSuccess: ({ data }) => {
                 onChange(data.routineUpdate);
-                keepSearchParams(setLocation, []);
+                keepSearchParams(setLocation, ['build']);
                 setIsEditing(false);
             },
         })
@@ -388,7 +391,7 @@ export const BuildView = ({
         addSearchParams(setLocation, { edit: true });
         setIsEditing(true);
     }, [setLocation]);
-    
+
     const stopEditing = useCallback((shouldClose: boolean = false) => {
         console.log('in stop editing', shouldClose)
         if (changeStack.length > 1) {
@@ -406,6 +409,7 @@ export const BuildView = ({
                     {
                         text: "Don't Save", onClick: () => {
                             keepSearchParams(setLocation, ['build']);
+                            clearChangeStack(routine);
                             setIsEditing(false);
                             if (shouldClose) handleClose();
                         }
@@ -414,10 +418,11 @@ export const BuildView = ({
             });
         } else {
             keepSearchParams(setLocation, ['build']);
+            clearChangeStack(routine);
             setIsEditing(false);
             if (shouldClose) handleClose();
         }
-    }, [changeStack.length, handleClose, setLocation, updateRoutine]);
+    }, [changeStack.length, clearChangeStack, handleClose, routine, setLocation, updateRoutine]);
 
     /**
      * If closing with unsaved changes, prompt user to save
@@ -1232,6 +1237,62 @@ export const BuildView = ({
         addToChangeStack(resultRoutine);
     }, [addToChangeStack, changedRoutine, columns]);
 
+    const editActions = useMemo(() => {
+        if (!isEditing) return null;
+        return (<Stack direction="row" spacing={1} sx={{
+            zIndex: 2,
+            height: '48px',
+            background: 'transparent',
+            color: palette.primary.contrastText,
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingTop: '8px',
+        }}>
+            {(canUndo || canRedo) && <Tooltip title={canUndo ? 'Undo' : ''}>
+                <IconButton
+                    id="undo-button"
+                    disabled={!canUndo}
+                    onClick={undo}
+                    aria-label="Undo"
+                    sx={commonButtonProps(palette)}
+                >
+                    <UndoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
+                </IconButton>
+            </Tooltip>}
+            {(canUndo || canRedo) && <Tooltip title={canRedo ? 'Redo' : ''}>
+                <IconButton
+                    id="redo-button"
+                    disabled={!canRedo}
+                    onClick={redo}
+                    aria-label="Redo"
+                    sx={commonButtonProps(palette)}
+                >
+                    <RedoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
+                </IconButton>
+            </Tooltip>}
+            <Tooltip title='Clean up graph'>
+                <IconButton
+                    id="clean-graph-button"
+                    onClick={cleanUpGraph}
+                    aria-label='Clean up graph'
+                    sx={commonButtonProps(palette)}
+                >
+                    <CompressIcon id="clean-up-button-icon" fill={palette.secondary.contrastText} />
+                </IconButton>
+            </Tooltip>
+            <Tooltip title='Add new link'>
+                <IconButton
+                    id="add-link-button"
+                    onClick={openLinkDialog}
+                    aria-label='Add link'
+                    sx={commonButtonProps(palette)}
+                >
+                    <AddLinkIcon id="add-link-button-icon" fill={palette.secondary.contrastText} />
+                </IconButton>
+            </Tooltip>
+        </Stack>)
+    }, [canRedo, canUndo, cleanUpGraph, handleNodeDelete, isEditing, isUnlinkedNodesOpen, language, nodesOffGraph, openLinkDialog, palette, redo, toggleUnlinkedNodes, undo, zIndex]);
+
     return (
         <Box sx={{
             display: 'flex',
@@ -1369,7 +1430,7 @@ export const BuildView = ({
                     height: '48px',
                     background: palette.primary.light,
                     color: palette.primary.contrastText,
-                    ...smallHorizontalScrollbar(palette)
+                    // ...smallHorizontalScrollbar(palette) TODO this is needed for mobile, but it breaks Unlinked dialog's overflow-y: visble. Internet solution is to use popover, but this would mess up dragging nodes into container
                 }}
             >
                 <StatusButton status={status.status} messages={status.messages} sx={{
@@ -1379,60 +1440,14 @@ export const BuildView = ({
                     marginRight: 1,
                 }} />
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    {
-                        isEditing && (<>
-                            {(canUndo || canRedo) && <Tooltip title={canUndo ? 'Undo' : ''}>
-                                <IconButton
-                                    id="undo-button"
-                                    disabled={!canUndo}
-                                    onClick={undo}
-                                    aria-label="Undo"
-                                    sx={commonButtonProps(palette)}
-                                >
-                                    <UndoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
-                                </IconButton>
-                            </Tooltip>}
-                            {(canUndo || canRedo) && <Tooltip title={canRedo ? 'Redo' : ''}>
-                                <IconButton
-                                    id="redo-button"
-                                    disabled={!canRedo}
-                                    onClick={redo}
-                                    aria-label="Redo"
-                                    sx={commonButtonProps(palette)}
-                                >
-                                    <RedoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
-                                </IconButton>
-                            </Tooltip>}
-                            <Tooltip title='Clean up graph'>
-                                <IconButton
-                                    id="clean-graph-button"
-                                    onClick={cleanUpGraph}
-                                    aria-label='Clean up graph'
-                                    sx={commonButtonProps(palette)}
-                                >
-                                    <CompressIcon id="clean-up-button-icon" fill={palette.secondary.contrastText} />
-                                </IconButton>
-                            </Tooltip>
-                            <Tooltip title='Add new link'>
-                                <IconButton
-                                    id="add-link-button"
-                                    onClick={openLinkDialog}
-                                    aria-label='Add link'
-                                    sx={commonButtonProps(palette)}
-                                >
-                                    <AddLinkIcon id="add-link-button-icon" fill={palette.secondary.contrastText} />
-                                </IconButton>
-                            </Tooltip>
-                            <UnlinkedNodesDialog
-                                handleNodeDelete={handleNodeDelete}
-                                handleToggleOpen={toggleUnlinkedNodes}
-                                language={language}
-                                nodes={nodesOffGraph}
-                                open={isUnlinkedNodesOpen}
-                                zIndex={zIndex + 3}
-                            />
-                        </>)
-                    }
+                    <UnlinkedNodesDialog
+                        handleNodeDelete={handleNodeDelete}
+                        handleToggleOpen={toggleUnlinkedNodes}
+                        language={language}
+                        nodes={nodesOffGraph}
+                        open={isUnlinkedNodesOpen}
+                        zIndex={zIndex + 3}
+                    />
                     {/* Edit button */}
                     {canEdit && !isEditing ? (
                         <IconButton aria-label="confirm-title-change" onClick={startEditing} >
@@ -1456,6 +1471,8 @@ export const BuildView = ({
                     />
                 </Box>
             </Stack>
+            {/* Third displays above graph, only when editing */}
+            {editActions}
             {/* Displays main routine's information and some buttons */}
             <Box sx={{
                 background: palette.background.default,

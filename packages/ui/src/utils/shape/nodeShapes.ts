@@ -47,11 +47,10 @@ export const shapeNodeEndCreate = (item: NodeEndShape): NodeEndCreateInput => ({
 export const shapeNodeEndUpdate = (
     original: NodeEndShape,
     updated: NodeEndShape
-): NodeEndUpdateInput | undefined =>
-    shapeUpdate(original, updated, (o, u) => ({
-        id: o.id,
-        wasSuccessful: u.wasSuccessful !== o.wasSuccessful ? u.wasSuccessful : undefined,
-    }), 'id')
+): NodeEndUpdateInput | undefined => shapeUpdate(original, updated, (o, u) => ({
+    id: o.id,
+    wasSuccessful: u.wasSuccessful !== o.wasSuccessful ? u.wasSuccessful : undefined,
+}), 'id')
 
 export const shapeNodeRoutineListItemTranslationCreate = (item: NodeRoutineListItemTranslationShape): NodeRoutineListItemTranslationCreateInput => ({
     id: item.id,
@@ -139,14 +138,15 @@ export const shapeNodeCreate = (item: NodeShape): NodeCreateInput => ({
 export const shapeNodeUpdate = (
     original: NodeShape,
     updated: NodeShape
-): NodeUpdateInput | undefined =>
-    shapeUpdate(original, updated, (o, u) => ({
-        id: o.id,
-        columnIndex: u.columnIndex !== o.columnIndex ? u.columnIndex : undefined,
-        rowIndex: u.rowIndex !== o.rowIndex ? u.rowIndex : undefined,
-        type: u.type !== o.type ? u.type : undefined,
-        // ...shapeNodeLoopUpdate(o.loop, u.loop),
-        nodeEndUpdate: o.data?.__typename === 'NodeEnd' ? shapeNodeEndUpdate(o.data as NodeEndShape, u.data as NodeEndShape) : undefined,
-        nodeRoutineListUpdate: o.data?.__typename === 'NodeRoutineList' ? shapeNodeRoutineListUpdate(o.data as NodeRoutineListShape, u.data as NodeRoutineListShape) : undefined,
-        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeNodeTranslationCreate, shapeNodeTranslationUpdate, 'id')
-    }), 'id')
+): NodeUpdateInput | undefined => shapeUpdate(original, updated, (o, u) => ({
+    id: o.id,
+    columnIndex: u.columnIndex !== o.columnIndex ? u.columnIndex : undefined,
+    rowIndex: u.rowIndex !== o.rowIndex ? u.rowIndex : undefined,
+    type: u.type !== o.type ? u.type : undefined,
+    // ...shapeNodeLoopUpdate(o.loop, u.loop),
+    nodeEndCreate: u.data?.__typename === 'NodeEnd' && !o.data ? shapeNodeEndCreate(u.data as NodeEndShape) : undefined,
+    nodeEndUpdate: u.data?.__typename === 'NodeEnd' && o.data ? shapeNodeEndUpdate(o.data as NodeEndShape, u.data as NodeEndShape) : undefined,
+    nodeRoutineListCreate: u.data?.__typename === 'NodeRoutineList' && !o.data ? shapeNodeRoutineListCreate(u.data as NodeRoutineListShape) : undefined,
+    nodeRoutineListUpdate: u.data?.__typename === 'NodeRoutineList' && o.data ? shapeNodeRoutineListUpdate(o.data as NodeRoutineListShape, u.data as NodeRoutineListShape) : undefined,
+    ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeNodeTranslationCreate, shapeNodeTranslationUpdate, 'id')
+}), 'id')

@@ -88,8 +88,8 @@ export function RelationshipButtons({
         const isProjectAvailable = [ObjectType.Project, ObjectType.Routine, ObjectType.Standard].includes(objectType);
         // Projects (i.e. setting projects assigned to object instead of project object is assigned to) available for organizations and projects
         //TODO
-        // Parent available for routines
-        const isParentAvailable = [ObjectType.Routine].includes(objectType);
+        // Parent available for routines TODO
+        const isParentAvailable = false;//[ObjectType.Routine].includes(objectType);
         return { isCompleteAvailable, isOwnerAvailable, isPrivateAvailable, isProjectAvailable, isParentAvailable }
     }, [objectType])
 

@@ -77,3 +77,13 @@ export interface TextCollapseProps {
     title?: string | null;
     text?: string | null;
 }
+
+export interface EditableTextCollapseProps {
+    helpText?: string;
+    isEditing: boolean;
+    isOpen?: boolean;
+    onOpenChange?: (isOpen: boolean) => void;
+    showOnNoText?: boolean;
+    title?: string | null;
+    text?: string | null;
+}
