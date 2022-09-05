@@ -82,12 +82,13 @@ export const BuildView = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     /**
-     * On page load, check if editing
+     * On page load, check if editingd
      */
     useEffect(() => {
         const searchParams = parseSearchParams(window.location.search);
+        const routineId = id.length > 0 ? id : window.location.pathname.split('/').pop();
         // Editing if specified in search params, or id not set (new routine)
-        if (searchParams.edit || !uuidValidate(id)) {
+        if (searchParams.edit || !routineId || !uuidValidate(routineId)) {
             setIsEditing(true);
         }
     }, [id]);
@@ -355,11 +356,10 @@ export const BuildView = ({
             successMessage: () => 'Routine created.',
             onSuccess: ({ data }) => {
                 onChange(data.routineCreate);
-                keepSearchParams(setLocation, ['build']);
-                handleClose();
+                setLocation(`${APP_LINKS.Routine}/${data.routineCreate.id}?build=true`)
             },
         })
-    }, [changedRoutine, handleClose, onChange, routineCreate, setLocation]);
+    }, [changedRoutine, onChange, routineCreate, setLocation]);
 
     /**
      * Mutates routine data
@@ -1291,7 +1291,7 @@ export const BuildView = ({
                 </IconButton>
             </Tooltip>
         </Stack>)
-    }, [canRedo, canUndo, cleanUpGraph, handleNodeDelete, isEditing, isUnlinkedNodesOpen, language, nodesOffGraph, openLinkDialog, palette, redo, toggleUnlinkedNodes, undo, zIndex]);
+    }, [canRedo, canUndo, cleanUpGraph, isEditing, openLinkDialog, palette, redo, undo]);
 
     return (
         <Box sx={{

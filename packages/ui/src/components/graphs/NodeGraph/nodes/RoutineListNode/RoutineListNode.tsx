@@ -25,6 +25,7 @@ import { NodeDataRoutineList, NodeDataRoutineListItem } from 'types';
 import { getTranslation, BuildAction, updateTranslationFields, PubSub, usePress } from 'utils';
 import { EditableLabel } from 'components/inputs';
 import { AddIcon, CloseIcon } from '@shared/icons';
+import AwesomeDebouncePromise from 'awesome-debounce-promise';
 
 /**
  * Distance before a click is considered a drag
@@ -60,6 +61,16 @@ export const RoutineListNode = ({
 }: RoutineListNodeProps) => {
     const { palette } = useTheme();
 
+    // Default to open if editing and empty
+    const [collapseOpen, setCollapseOpen] = useState<boolean>(isEditing && (node?.data as NodeDataRoutineList)?.routines?.length === 0);
+    const collapseDebounce = useMemo(() => AwesomeDebouncePromise(setCollapseOpen, 20), []);
+    const toggleCollapse = useCallback((target: React.MouseEvent['target']) => {
+        if (isLinked && shouldCollapse((target as any).id)) {
+            PubSub.get().publishFastUpdate({ duration: 1000 });
+            collapseDebounce(!collapseOpen);
+        }
+    }, [collapseDebounce, collapseOpen, isLinked]);
+
     // When fastUpdate is triggered, context menu should never open
     const fastUpdateRef = useRef<boolean>(false);
     const fastUpdateTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -78,14 +89,7 @@ export const RoutineListNode = ({
         return () => { PubSub.get().unsubscribe(fastSub); };
     }, []);
 
-    // Default to open if editing and empty
-    const [collapseOpen, setCollapseOpen] = useState<boolean>(isEditing && (node?.data as NodeDataRoutineList)?.routines?.length === 0);
-    const toggleCollapse = useCallback((target: React.MouseEvent['target']) => {
-        if (isLinked && shouldCollapse((target as any).id)) {
-            PubSub.get().publishFastUpdate({ duration: 1000 });
-            setCollapseOpen(!collapseOpen);
-        }
-    }, [collapseOpen, isLinked]);
+    
 
     const handleNodeUnlink = useCallback(() => { handleAction(BuildAction.UnlinkNode, node.id); }, [handleAction, node.id]);
     const handleNodeDelete = useCallback(() => { handleAction(BuildAction.DeleteNode, node.id); }, [handleAction, node.id]);

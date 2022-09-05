@@ -5,7 +5,7 @@
 import { Box, IconButton, Palette, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import { RelationshipButtonsProps, RelationshipItemOrganization, RelationshipItemProject, RelationshipItemRoutine, RelationshipItemUser, RelationshipOwner } from '../types';
-import { getTranslation, getUserLanguages, ObjectType, PubSub } from 'utils';
+import { getTranslation, getUserLanguages, ObjectType, openObject, PubSub } from 'utils';
 import { ListMenu, OrganizationSelectOrCreateDialog, ProjectSelectOrCreateDialog, RoutineSelectOrCreateDialog, UserSelectDialog } from 'components/dialogs';
 import {
     Apartment as OrganizationIcon,
@@ -17,6 +17,7 @@ import { Session } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { TextShrink } from 'components/text/TextShrink/TextShrink';
 import { CompleteIcon as CompletedIcon, InvisibleIcon, VisibleIcon } from '@shared/icons';
+import { useLocation } from '@shared/route';
 
 /**
  * Converts session to user object
@@ -43,6 +44,7 @@ const commonButtonProps = (palette: Palette) => ({
 const commonIconProps = {
     width: "unset",
     height: "unset",
+    color: "white",
 }
 
 const commonLabelProps = {
@@ -72,6 +74,7 @@ export function RelationshipButtons({
     zIndex,
 }: RelationshipButtonsProps) {
     const { palette } = useTheme();
+    const [, setLocation] = useLocation();
     const languages = useMemo(() => getUserLanguages(session), [session])
 
     // Determine which relationship buttons are available
@@ -106,10 +109,15 @@ export function RelationshipButtons({
     // Owner dialog (select self, organization, or another user)
     const [ownerDialogAnchor, setOwnerDialogAnchor] = useState<any>(null);
     const handleOwnerClick = useCallback((ev: React.MouseEvent<any>) => {
-        if (disabled || !isOwnerAvailable) return;
+        if (!isOwnerAvailable) return;
         ev.stopPropagation();
-        setOwnerDialogAnchor(ev.currentTarget)
-    }, [disabled, isOwnerAvailable]);
+        // If disabled, navigate to owner
+        if (disabled) {
+            if (relationships.owner) openObject(relationships.owner, setLocation);
+        }
+        // Otherwise, open dialog
+        else setOwnerDialogAnchor(ev.currentTarget)
+    }, [disabled, isOwnerAvailable, relationships.owner, setLocation]);
     const closeOwnerDialog = useCallback(() => setOwnerDialogAnchor(null), []);
     const handleOwnerDialogSelect = useCallback((ownerType: OwnerTypesEnum) => {
         if (ownerType === OwnerTypesEnum.Organization) {
@@ -128,12 +136,19 @@ export function RelationshipButtons({
     // Project dialog
     const [isProjectDialogOpen, setProjectDialogOpen] = useState<boolean>(false);
     const handleProjectClick = useCallback((ev: React.MouseEvent<any>) => {
-        if (disabled || !isProjectAvailable) return;
-        // If project was set, remove
-        if (relationships.project) onRelationshipsChange({ project: null });
-        // Otherwise, open project select dialog
-        else setProjectDialogOpen(true);
-    }, [disabled, isProjectAvailable, onRelationshipsChange, relationships.project]);
+        if (!isProjectAvailable) return;
+        ev.stopPropagation();
+        // If disabled, navigate to project
+        if (disabled) {
+            if (relationships.project) openObject(relationships.project, setLocation);
+        }
+        else {
+            // If project was set, remove
+            if (relationships.project) onRelationshipsChange({ project: null });
+            // Otherwise, open project select dialog
+            else setProjectDialogOpen(true);
+        }
+    }, [disabled, isProjectAvailable, onRelationshipsChange, relationships.project, setLocation]);
     const closeProjectDialog = useCallback(() => { setProjectDialogOpen(false); }, [setProjectDialogOpen]);
     const handleProjectSelect = useCallback((project: RelationshipItemProject) => {
         onRelationshipsChange({ project });
@@ -142,28 +157,35 @@ export function RelationshipButtons({
     // Parent dialog
     const [isParentDialogOpen, setParentDialogOpen] = useState<boolean>(false);
     const handleParentClick = useCallback((ev: React.MouseEvent<any>) => {
-        if (disabled || !isParentAvailable) return;
-        // If parent was set, remove
-        if (relationships.parent) onRelationshipsChange({ parent: null });
-        else {
-            // If form is dirty, prompt to confirm (since data will be lost)
-            if (isFormDirty) {
-                PubSub.get().publishAlertDialog({
-                    message: 'Selecting a parent to copy will override existing data. Continue?',
-                    buttons: [
-                        {
-                            text: 'Yes', onClick: () => { setParentDialogOpen(true); }
-                        },
-                        {
-                            text: "No", onClick: () => { }
-                        },
-                    ]
-                });
-            }
-            // Otherwise, open parent select dialog
-            else setParentDialogOpen(true);
+        if (!isParentAvailable) return;
+        ev.stopPropagation();
+        // If disabled, navigate to parent
+        if (disabled) {
+            if (relationships.parent) openObject(relationships.parent, setLocation);
         }
-    }, [disabled, isFormDirty, isParentAvailable, onRelationshipsChange, relationships.parent]);
+        else {
+            // If parent was set, remove
+            if (relationships.parent) onRelationshipsChange({ parent: null });
+            else {
+                // If form is dirty, prompt to confirm (since data will be lost)
+                if (isFormDirty) {
+                    PubSub.get().publishAlertDialog({
+                        message: 'Selecting a parent to copy will override existing data. Continue?',
+                        buttons: [
+                            {
+                                text: 'Yes', onClick: () => { setParentDialogOpen(true); }
+                            },
+                            {
+                                text: "No", onClick: () => { }
+                            },
+                        ]
+                    });
+                }
+                // Otherwise, open parent select dialog
+                else setParentDialogOpen(true);
+            }
+        }
+    }, [disabled, isFormDirty, isParentAvailable, onRelationshipsChange, relationships.parent, setLocation]);
     const closeParentDialog = useCallback(() => { setParentDialogOpen(false); }, [setParentDialogOpen]);
     const handleParentProjectSelect = useCallback((parent: RelationshipItemProject) => {
         onRelationshipsChange({ parent });
@@ -339,11 +361,11 @@ export function RelationshipButtons({
                 alignItems="center"
                 justifyContent="center"
             >
-                {isOwnerAvailable && <TextShrink id="owner" sx={{...commonLabelProps}}>Owner</TextShrink>}
-                {isProjectAvailable && <TextShrink id="project" sx={{...commonLabelProps}}>Project</TextShrink>}
-                {isParentAvailable && <TextShrink id="parent" sx={{...commonLabelProps}}>Parent</TextShrink>}
-                {isPrivateAvailable && <TextShrink id="privacy" sx={{...commonLabelProps}}>Privacy</TextShrink>}
-                {isCompleteAvailable && <TextShrink id="complete" sx={{...commonLabelProps}}>Complete?</TextShrink>}
+                {isOwnerAvailable && <TextShrink id="owner" sx={{ ...commonLabelProps }}>Owner</TextShrink>}
+                {isProjectAvailable && <TextShrink id="project" sx={{ ...commonLabelProps }}>Project</TextShrink>}
+                {isParentAvailable && <TextShrink id="parent" sx={{ ...commonLabelProps }}>Parent</TextShrink>}
+                {isPrivateAvailable && <TextShrink id="privacy" sx={{ ...commonLabelProps }}>Privacy</TextShrink>}
+                {isCompleteAvailable && <TextShrink id="complete" sx={{ ...commonLabelProps }}>Complete?</TextShrink>}
             </Stack>
             {/* Buttons row */}
             <Stack
@@ -374,13 +396,13 @@ export function RelationshipButtons({
                 {/* Privacy button */}
                 {isPrivateAvailable && <Tooltip title={privacyTooltip}>
                     <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handlePrivateClick}>
-                        {PrivacyIcon && <PrivacyIcon { ...commonIconProps } />}
+                        {PrivacyIcon && <PrivacyIcon {...commonIconProps} />}
                     </IconButton>
                 </Tooltip>}
                 {/* Complete button */}
                 {isCompleteAvailable && <Tooltip title={completeTooltip}>
                     <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleCompleteClick}>
-                        {CompleteIcon && <CompleteIcon { ...commonIconProps } />}
+                        {CompleteIcon && <CompleteIcon {...commonIconProps} />}
                     </IconButton>
                 </Tooltip>}
             </Stack>

@@ -178,19 +178,19 @@ export const BuildInfoDialog = ({
     }, [isEditing, routine?.translations]);
     const [languages, setLanguages] = useState<string[]>([]);
 
-    useEffect(() => {
-        if (languages.length === 0 && translations.length > 0) {
-            // setLanguage(translations[0].language);
-            setLanguages(translations.map(t => t.language));
-            console.log('buildinfodialog updating formik translation 1')
-            formik.setValues({
-                ...formik.values,
-                description: translations[0].description ?? '',
-                instructions: translations[0].instructions ?? '',
-                title: translations[0].title ?? '',
-            })
-        }
-    }, [formik, languages, setLanguages, translations])
+    // useEffect(() => {
+    //     if (languages.length === 0 && translations.length > 0) {
+    //         // setLanguage(translations[0].language);
+    //         setLanguages(translations.map(t => t.language));
+    //         console.log('buildinfodialog updating formik translation 1')
+    //         formik.setValues({
+    //             ...formik.values,
+    //             description: translations[0].description ?? '',
+    //             instructions: translations[0].instructions ?? '',
+    //             title: translations[0].title ?? '',
+    //         })
+    //     }
+    // }, [formik, languages, setLanguages, translations])
 
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
@@ -394,29 +394,29 @@ export const BuildInfoDialog = ({
         }
     }, [handleCopy, handleFork, handleStar, handleVote, openDelete]);
 
-    const languageComponent = useMemo(() => {
-        if (isEditing) return (
-            <LanguageInput
-                currentLanguage={language}
-                handleAdd={handleAddLanguage}
-                handleDelete={handleLanguageDelete}
-                handleCurrent={handleLanguageSelect}
-                selectedLanguages={languages}
-                session={session}
-                zIndex={zIndex}
-            />
-        )
-        return (
-            <SelectLanguageMenu
-                availableLanguages={availableLanguages}
-                canDropdownOpen={availableLanguages.length > 1}
-                currentLanguage={language}
-                handleCurrent={handleLanguageSelect}
-                session={session}
-                zIndex={zIndex}
-            />
-        )
-    }, [availableLanguages, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, isEditing, language, languages, session, zIndex]);
+    // const languageComponent = useMemo(() => {
+    //     if (isEditing) return (
+    //         <LanguageInput
+    //             currentLanguage={language}
+    //             handleAdd={handleAddLanguage}
+    //             handleDelete={handleLanguageDelete}
+    //             handleCurrent={handleLanguageSelect}
+    //             selectedLanguages={languages}
+    //             session={session}
+    //             zIndex={zIndex}
+    //         />
+    //     )
+    //     return (
+    //         <SelectLanguageMenu
+    //             availableLanguages={availableLanguages}
+    //             canDropdownOpen={availableLanguages.length > 1}
+    //             currentLanguage={language}
+    //             handleCurrent={handleLanguageSelect}
+    //             session={session}
+    //             zIndex={zIndex}
+    //         />
+    //     )
+    // }, [availableLanguages, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, isEditing, language, languages, session, zIndex]);
 
     return (
         <>
@@ -506,7 +506,7 @@ export const BuildInfoDialog = ({
                         zIndex={zIndex}
                     />
                     {/* Language */}
-                    {languageComponent}
+                    {/* {languageComponent} */}
                     {/* Resources */}
                     {resourceListObject}
                     {/* Description */}
