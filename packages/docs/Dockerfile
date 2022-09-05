@@ -6,7 +6,7 @@ ARG PROJECT_DIR
 WORKDIR ${PROJECT_DIR}
 
 # Copy required files
-COPY --chown=node:node package.json yarn.lock .
+COPY --chown=node:node package.json yarn.lock ./
 COPY --chown=node:node packages/docs packages/docs/
 COPY --chown=node:node packages/shared packages/shared/
 COPY --chown=node:node scripts/* scripts/

@@ -6,7 +6,7 @@ ARG PROJECT_DIR
 WORKDIR ${PROJECT_DIR}
 
 # Copy main package.json, as well as packages this container will use. Doing this first helps with caching (I think).
-COPY --chown=node:node package.json yarn.lock .
+COPY --chown=node:node package.json yarn.lock ./
 COPY --chown=node:node packages/server/package.json packages/server/
 COPY --chown=node:node packages/shared/consts/package.json packages/shared/consts/
 COPY --chown=node:node packages/shared/route/package.json packages/shared/route/
