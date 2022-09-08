@@ -20,7 +20,7 @@ const {
     ResearchPage,
     DevelopPage,
 } = lazily(() => import('./pages/dashboard'));
-const { WelcomePage } = lazily(() => import('./pages/WelcomePage/WelcomePage'));
+const { TutorialPage, WelcomePage } = lazily(() => import('./pages/tutorial'));
 const { SettingsPage } = lazily(() => import('./pages/SettingsPage/SettingsPage'));
 const { StartPage } = lazily(() => import('./pages/StartPage/StartPage'));
 const { StatsPage } = lazily(() => import('./pages/dashboard/StatsPage/StatsPage'));
@@ -190,6 +190,13 @@ export const AllRoutes = (props: CommonProps) => {
                     <Suspense fallback={Fallback}>
                         <Page title={title('Settings')} {...props} mustBeLoggedIn={true} >
                             <SettingsPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route path={LINKS.Tutorial}>
+                    <Suspense fallback={Fallback}>
+                        <Page title={title('Tutorial')} {...props}>
+                            <TutorialPage />
                         </Page>
                     </Suspense>
                 </Route>
