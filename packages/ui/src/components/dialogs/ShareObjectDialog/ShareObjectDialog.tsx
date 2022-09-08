@@ -15,12 +15,12 @@ import { ObjectType } from 'utils';
 
 // Title for social media posts
 const postTitle: { [key in ObjectType]?: string } = {
-    [ObjectType.Comment]: 'Check out this comment on Vrooli',
-    [ObjectType.Organization]: 'Check out this organization on Vrooli',
-    [ObjectType.Project]: 'Check out this project on Vrooli',
-    [ObjectType.Routine]: 'Check out this routine on Vrooli',
-    [ObjectType.Standard]: 'Check out this standard on Vrooli',
-    [ObjectType.User]: 'Check out this user on Vrooli',
+    'Comment': 'Check out this comment on Vrooli',
+    'Organization': 'Check out this organization on Vrooli',
+    'Project': 'Check out this project on Vrooli',
+    'Routine': 'Check out this routine on Vrooli',
+    'Standard': 'Check out this standard on Vrooli',
+    'User': 'Check out this user on Vrooli',
 }
 
 const buttonProps = {
