@@ -5,6 +5,7 @@
 import { EditableTextCollapseProps } from '../types';
 import { ContentCollapse } from 'components';
 import Markdown from 'markdown-to-jsx';
+import { useMemo } from 'react';
 
 export function EditableTextCollapse({
     helpText,
@@ -16,6 +17,11 @@ export function EditableTextCollapse({
     text,
 }: EditableTextCollapseProps) {
     if ((!text || text.trim().length === 0) && !showOnNoText) return null;
+
+    const content = useMemo(() => {
+
+    }, [isEditing, text]);
+    
     //TODO
     return (
         <ContentCollapse

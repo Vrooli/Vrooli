@@ -22,6 +22,8 @@ export * from './DownvoteTallIcon';
 export * from './DownvoteWideIcon';
 export * from './EditIcon';
 export * from './EllipsisIcon';
+export * from './ExpandLessIcon';
+export * from './ExpandMoreIcon';
 export * from './FacebookIcon';
 export * from './GitHubIcon';
 export * from './HelpIcon';

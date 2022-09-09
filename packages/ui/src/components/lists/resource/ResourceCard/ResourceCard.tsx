@@ -1,6 +1,5 @@
 import {
     Box,
-    IconButton,
     Stack,
     Tooltip,
     Typography,
@@ -10,29 +9,11 @@ import { getTranslation, openLink, PubSub, ResourceType, usePress } from 'utils'
 import { useCallback, useMemo } from 'react';
 import { useLocation } from '@shared/route';
 import { ResourceCardProps } from '../../../cards/types';
-import { cardRoot } from '../../../cards/styles';
-import { multiLineEllipsis, noSelect } from 'styles';
-import {
-    Delete as DeleteIcon,
-} from '@mui/icons-material';
+import { containerShadow, multiLineEllipsis, noSelect } from 'styles';
 import { getResourceIcon } from '..';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { urlRegex, walletAddressRegex, adaHandleRegex } from '@shared/validation';
 import { UsedForDisplay } from 'components/dialogs';
-import { EditIcon } from '@shared/icons';
-
-const buttonProps = {
-    position: 'absolute',
-    background: 'white',
-    top: '-15px',
-    color: (t) => t.palette.secondary.dark,
-    borderRadius: '100%',
-    transition: 'brightness 0.2s ease-in-out',
-    '&:hover': {
-        filter: `brightness(120%)`,
-        background: 'white',
-    },
-}
 
 /**
  * Determines if a resource is a URL, wallet payment address, or an ADA handle
@@ -49,10 +30,8 @@ const getResourceType = (link: string): ResourceType | null => {
 export const ResourceCard = ({
     canEdit,
     data,
-    handleEdit,
-    handleDelete,
     index,
-    onRightClick,
+    onContextMenu,
     session,
 }: ResourceCardProps) => {
     const { palette } = useTheme();
@@ -100,81 +79,42 @@ export const ResourceCard = ({
         // If handle, open ADA Handle payment site
         else if (resourceType === ResourceType.Handle) openLink(setLocation, `https://handle.me/${data.link}`);
     }, [data.link, setLocation]);
-    const handleRightClick = useCallback((target: React.MouseEvent['target']) => {
-        if (onRightClick) onRightClick(target, index);
-    }, [onRightClick, index]);
+    const handleContextMenu = useCallback((target: React.MouseEvent['target']) => {
+        if (onContextMenu && canEdit) onContextMenu(target, index);
+    }, [onContextMenu, canEdit, index]);
 
-    const pressEvents = usePress({ 
-        onLongPress: handleRightClick,
+    const pressEvents = usePress({
+        onLongPress: handleContextMenu,
         onClick: handleClick,
-        onRightClick: handleRightClick,
+        onHover: handleContextMenu,
+        onRightClick: handleContextMenu,
     });
-
-    const onEdit = useCallback((e) => {
-        e.stopPropagation();
-        handleEdit(index);
-    }, [handleEdit, index]);
-
-    const onDelete = useCallback((e) => {
-        e.stopPropagation();
-        handleDelete(index);
-    }, [handleDelete, index]);
 
     return (
         <Tooltip placement="top" title={description ?? data.link}>
             <Box
                 {...pressEvents}
+                onContextMenu={(e) => { e.preventDefault() }}
                 sx={{
-                    ...cardRoot,
                     ...noSelect,
+                    ...containerShadow,
+                    background: (t: any) => t.palette.primary.light,
+                    color: (t: any) => t.palette.primary.contrastText,
+                    borderRadius: '16px',
+                    margin: 0,
                     padding: 1,
+                    cursor: canEdit ? 'pointer' : 'default',
                     width: '120px',
                     minWidth: '120px',
                     minHeight: '120px',
                     height: '120px',
-                    position: 'relative'
+                    position: 'relative',
+                    '&:hover': {
+                        filter: canEdit ? `brightness(120%)` : 'none',
+                        transition: 'filter 0.2s',
+                    },
                 } as any}
             >
-                {/* Delete/edit buttons */}
-                <Box sx={{
-                    width: '100%',
-                    height: '100%',
-                    position: 'absolute',
-                    top: '0',
-                    left: '0',
-                    opacity: '0',
-                    transition: 'opacity 0.2s ease-in-out',
-                    '&:hover': {
-                        opacity: canEdit ? '1' : '0',
-                    },
-                }}>
-                    <IconButton size="small" onClick={onEdit} aria-label="close" sx={{
-                        ...buttonProps,
-                        left: '-15px',
-                        background: '#c5ab17',
-                        color: 'white',
-                        transition: 'brightness 0.2s ease-in-out',
-                        '&:hover': {
-                            filter: `brightness(105%)`,
-                            background: '#c5ab17',
-                        },
-                    } as any}>
-                        <EditIcon />
-                    </IconButton>
-                    <IconButton size="small" onClick={onDelete} aria-label="close" sx={{
-                        ...buttonProps,
-                        right: '-15px',
-                        background: palette.error.main,
-                        color: 'white',
-                        transition: 'brightness 0.2s ease-in-out',
-                        '&:hover': {
-                            filter: `brightness(105%)`,
-                            background: palette.error.main,
-                        },
-                    } as any}>
-                        <DeleteIcon />
-                    </IconButton>
-                </Box>
                 {/* Content */}
                 <Stack
                     direction="column"
