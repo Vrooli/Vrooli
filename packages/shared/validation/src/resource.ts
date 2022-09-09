@@ -1,4 +1,4 @@
-import { description, id, idArray, language, title } from './base';
+import { description, id, idArray, language, maxStringErrorMessage, minNumberErrorMessage, requiredErrorMessage, title } from './base';
 import * as yup from 'yup';
 import { ResourceUsedFor } from '@shared/consts';
 
@@ -10,9 +10,9 @@ export const walletAddressRegex = /^addr1[a-zA-Z0-9]{98}$/
 // ADA Handle (i.e. starts with "$", and is 3-16 characters (not including the "$"))
 export const adaHandleRegex = /^\$[a-zA-Z0-9]{3,16}$/
 
-const index = yup.number().integer().min(0)
+const index = yup.number().integer().min(0, minNumberErrorMessage)
 // Link must match one of the regex above
-const link = yup.string().max(1024).test(
+const link = yup.string().max(1024, maxStringErrorMessage).test(
     'link',
     'Must be a URL, Cardano payment address, or ADA Handle',
     (value: string | undefined) => {
@@ -22,22 +22,22 @@ const link = yup.string().max(1024).test(
 const usedFor = yup.string().oneOf(Object.values(ResourceUsedFor))
 
 export const resourceTranslationCreate = yup.object().shape({
-    id: id.required(),
-    language: language.required(),
+    id: id.required(requiredErrorMessage),
+    language: language.required(requiredErrorMessage),
     description: description.notRequired().default(undefined),
     title: title.notRequired().default(undefined),
 });
 export const resourceTranslationUpdate = yup.object().shape({
-    id: id.required(),
+    id: id.required(requiredErrorMessage),
     language: language.notRequired().default(undefined),
     description: description.notRequired().default(undefined),
     title: title.notRequired().default(undefined),
 });
-export const resourceTranslationsCreate = yup.array().of(resourceTranslationCreate.required())
-export const resourceTranslationsUpdate = yup.array().of(resourceTranslationUpdate.required())
+export const resourceTranslationsCreate = yup.array().of(resourceTranslationCreate.required(requiredErrorMessage))
+export const resourceTranslationsUpdate = yup.array().of(resourceTranslationUpdate.required(requiredErrorMessage))
 
 export const resourceCreateForm = yup.object().shape({
-    link: link.required(),
+    link: link.required(requiredErrorMessage),
     description: description.notRequired().default(undefined),
     title: title.notRequired().default(undefined),
     usedFor: usedFor.notRequired().default(undefined),
@@ -50,16 +50,16 @@ export const resourceUpdateForm = yup.object().shape({
 })
 
 export const resourceCreate = yup.object().shape({
-    id: id.required(),
-    listId: id.required(),
+    id: id.required(requiredErrorMessage),
+    listId: id.required(requiredErrorMessage),
     index: index.notRequired().default(undefined),
-    link: link.required(),
+    link: link.required(requiredErrorMessage),
     usedFor: usedFor.notRequired().default(undefined),
     translations: resourceTranslationsCreate,
 })
 
 export const resourceUpdate = yup.object().shape({
-    id: id.required(),
+    id: id.required(requiredErrorMessage),
     listId: id.notRequired().default(undefined),
     index: index.notRequired().default(undefined),
     link: link.notRequired().default(undefined),
@@ -71,5 +71,5 @@ export const resourceUpdate = yup.object().shape({
 
 // Resources created/updated through relationships don't need createdFor and createdForId,
 // as the relationship handles that
-export const resourcesCreate = yup.array().of(resourceCreate.omit(['createdFor', 'createdForId']).required())
-export const resourcesUpdate = yup.array().of(resourceUpdate.omit(['createdFor', 'createdForId']).required())
+export const resourcesCreate = yup.array().of(resourceCreate.omit(['createdFor', 'createdForId']).required(requiredErrorMessage))
+export const resourcesUpdate = yup.array().of(resourceUpdate.omit(['createdFor', 'createdForId']).required(requiredErrorMessage))

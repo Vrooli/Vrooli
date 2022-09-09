@@ -1,6 +1,6 @@
 import { useMutation } from '@apollo/client';
 import { resourceCreateForm as validationSchema } from '@shared/validation';
-import { Button, Dialog, DialogContent, FormControl, Grid, InputLabel, MenuItem, Select, Stack, TextField } from '@mui/material';
+import { Dialog, DialogContent, FormControl, Grid, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
 import { useFormik } from 'formik';
 import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
@@ -13,8 +13,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { LanguageInput } from 'components/inputs';
 import { Resource } from 'types';
 import { v4 as uuid } from 'uuid';
-import { DialogTitle } from 'components';
-import { CancelIcon, CreateIcon, SaveIcon } from '@shared/icons';
+import { DialogTitle, getResourceIcon, GridSubmitButtons } from 'components';
 
 const helpText =
     `## What are resources?
@@ -31,7 +30,7 @@ Resources provide context to the object they are attached to, such as a  user, o
 **For a routine** - Guide, external service
 `
 
-export const UsedForDisplay = {
+export const UsedForDisplay: { [key in ResourceUsedFor]: string } = {
     [ResourceUsedFor.Community]: 'Community',
     [ResourceUsedFor.Context]: 'Context',
     [ResourceUsedFor.Developer]: 'Developer',
@@ -64,6 +63,8 @@ export const ResourceDialog = ({
     listId,
     zIndex,
 }: ResourceDialogProps) => {
+    const { palette } = useTheme();
+
     const [addMutation, { loading: addLoading }] = useMutation<resourceCreate, resourceCreateVariables>(resourceCreateMutation);
     const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate, resourceUpdateVariables>(resourceUpdateMutation);
 
@@ -230,7 +231,7 @@ export const ResourceDialog = ({
                 onClose={handleClose}
             />
             <DialogContent>
-                <form onSubmit={formik.handleSubmit}>
+                <form>
                     <Stack direction="column" spacing={2} paddingTop={2}>
                         {/* Language select */}
                         <LanguageInput
@@ -256,17 +257,33 @@ export const ResourceDialog = ({
                         />
                         {/* Select resource type */}
                         <FormControl fullWidth>
-                            <InputLabel id="rsource-type-label">Reason</InputLabel>
+                            <InputLabel id="resource-type-label">Reason</InputLabel>
                             <Select
                                 labelId="resource-type-label"
                                 id="usedFor"
                                 value={formik.values.usedFor}
                                 label="Resource type"
                                 onChange={(e) => formik.setFieldValue('usedFor', e.target.value)}
+                                sx={{
+                                    '& .MuiSelect-select': {
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        textAlign: 'left',
+                                    },
+                                }}
                             >
-                                {Object.entries(UsedForDisplay).map(([key, value]) => (
-                                    <MenuItem key={key} value={key}>{value}</MenuItem>
-                                ))}
+                                {Object.entries(UsedForDisplay).map(([key, value]) => {
+                                    const Icon = getResourceIcon(key as ResourceUsedFor);
+                                    return (
+                                        <MenuItem key={key} value={key}>
+                                            <ListItemIcon>
+                                                <Icon fill={palette.background.textSecondary} />
+                                            </ListItemIcon>
+                                            <ListItemText>{value}</ListItemText>
+                                        </MenuItem>
+                                    )
+                                })}
                             </Select>
                         </FormControl>
                         {/* Enter title */}
@@ -287,6 +304,8 @@ export const ResourceDialog = ({
                             id="description"
                             name="description"
                             label="Description"
+                            multiline
+                            maxRows={8}
                             value={formik.values.description}
                             onBlur={formik.handleBlur}
                             onChange={formik.handleChange}
@@ -295,20 +314,15 @@ export const ResourceDialog = ({
                         />
                         {/* Action buttons */}
                         <Grid container spacing={1}>
-                            <Grid item xs={6}>
-                                <Button
-                                    fullWidth
-                                    type="submit"
-                                    startIcon={index < 0 ? <CreateIcon /> : <SaveIcon />}
-                                >{index < 0 ? 'Create' : 'Update'}</Button>
-                            </Grid>
-                            <Grid item xs={6}>
-                                <Button
-                                    fullWidth
-                                    onClick={handleClose}
-                                    startIcon={<CancelIcon />}
-                                >Cancel</Button>
-                            </Grid>
+                            <GridSubmitButtons
+                                disabledCancel={formik.isSubmitting || addLoading || updateLoading}
+                                disabledSubmit={formik.isSubmitting || !formik.isValid || addLoading || updateLoading}
+                                errors={formik.errors}
+                                isCreate={index < 0}
+                                onCancel={handleClose}
+                                onSetSubmitting={formik.setSubmitting}
+                                onSubmit={formik.handleSubmit}
+                            />
                         </Grid>
                     </Stack>
                 </form>

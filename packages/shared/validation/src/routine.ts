@@ -1,4 +1,4 @@
-import { description, idArray, id, name, title, language, tagArray, helpText } from './base';
+import { description, idArray, id, name, title, language, tagArray, helpText, maxStringErrorMessage, requiredErrorMessage } from './base';
 import { nodeLinksCreate, nodeLinksUpdate, nodesCreate, nodesUpdate } from './node';
 import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 import { standardCreate } from './standard';
@@ -10,32 +10,32 @@ const isComplete = yup.boolean()
 const isInternal = yup.boolean()
 const isPrivate = yup.boolean()
 const isRequired = yup.boolean()
-const instructions = yup.string().max(8192)
-const version = yup.string().max(16)
+const instructions = yup.string().max(8192, maxStringErrorMessage)
+const version = yup.string().max(16, maxStringErrorMessage)
 
 export const inputTranslationCreate = yup.object().shape({
-    id: id.required(),
-    language: language.required(),
+    id: id.required(requiredErrorMessage),
+    language: language.required(requiredErrorMessage),
     description: description.notRequired().default(undefined),
     helpText: helpText.notRequired().default(undefined),
 });
 export const inputTranslationUpdate = yup.object().shape({
-    id: id.required(),
+    id: id.required(requiredErrorMessage),
     language: language.notRequired().default(undefined),
     description: description.notRequired().default(undefined),
     helpText: helpText.notRequired().default(undefined),
 });
-export const inputTranslationsCreate = yup.array().of(inputTranslationCreate.required())
-export const inputTranslationsUpdate = yup.array().of(inputTranslationUpdate.required())
+export const inputTranslationsCreate = yup.array().of(inputTranslationCreate.required(requiredErrorMessage))
+export const inputTranslationsUpdate = yup.array().of(inputTranslationUpdate.required(requiredErrorMessage))
 export const inputCreate = yup.object().shape({
-    id: id.required(),
+    id: id.required(requiredErrorMessage),
     isRequired: isRequired.notRequired().default(undefined),
-    name: name.required(),
+    name: name.required(requiredErrorMessage),
     standardConnect: id.notRequired().default(undefined),
     standardCreate: standardCreate.notRequired().default(undefined),
 }, [['standardConnect', 'standardCreate']]) // Can only pick one standard
 export const inputUpdate = yup.object().shape({
-    id: id.required(),
+    id: id.required(requiredErrorMessage),
     isRequired: isRequired.notRequired().default(undefined),
     name: name.notRequired().default(undefined),
     // There is purposely no option to delete or update a standard from here
@@ -43,32 +43,32 @@ export const inputUpdate = yup.object().shape({
     standardDisconnect: id.notRequired().default(undefined),
     standardCreate: standardCreate.notRequired().default(undefined),
 })
-export const inputsCreate = yup.array().of(inputCreate.required())
-export const inputsUpdate = yup.array().of(inputUpdate.required())
+export const inputsCreate = yup.array().of(inputCreate.required(requiredErrorMessage))
+export const inputsUpdate = yup.array().of(inputUpdate.required(requiredErrorMessage))
 
 export const outputTranslationCreate = yup.object().shape({
-    id: id.required(),
-    language: language.required(),
+    id: id.required(requiredErrorMessage),
+    language: language.required(requiredErrorMessage),
     description: description.notRequired().default(undefined),
     helpText: helpText.notRequired().default(undefined),
 });
 export const outputTranslationUpdate = yup.object().shape({
-    id: id.required(),
+    id: id.required(requiredErrorMessage),
     language: language.notRequired().default(undefined),
     description: description.notRequired().default(undefined),
     helpText: helpText.notRequired().default(undefined),
 });
-export const outputTranslationsCreate = yup.array().of(outputTranslationCreate.required())
-export const outputTranslationsUpdate = yup.array().of(outputTranslationUpdate.required())
+export const outputTranslationsCreate = yup.array().of(outputTranslationCreate.required(requiredErrorMessage))
+export const outputTranslationsUpdate = yup.array().of(outputTranslationUpdate.required(requiredErrorMessage))
 export const outputCreate = yup.object().shape({
-    id: id.required(),
+    id: id.required(requiredErrorMessage),
     name: name.notRequired().default(undefined),
     standardConnect: id.notRequired().default(undefined),
     standardCreate: standardCreate.notRequired().default(undefined),
     translationsCreate: outputTranslationsCreate.notRequired().default(undefined),
 }, [['standardConnect', 'standardCreate']]) // Can only pick one standard
 export const outputUpdate = yup.object().shape({
-    id: id.required(),
+    id: id.required(requiredErrorMessage),
     name: name.notRequired().default(undefined),
     // There is purposely no option to delete or update a standard from here
     standardConnect: id.notRequired().default(undefined),
@@ -78,33 +78,33 @@ export const outputUpdate = yup.object().shape({
     translationsCreate: outputTranslationsCreate.notRequired().default(undefined),
     translationsUpdate: outputTranslationsUpdate.notRequired().default(undefined),
 })
-export const outputsCreate = yup.array().of(outputCreate.required())
-export const outputsUpdate = yup.array().of(outputUpdate.required())
+export const outputsCreate = yup.array().of(outputCreate.required(requiredErrorMessage))
+export const outputsUpdate = yup.array().of(outputUpdate.required(requiredErrorMessage))
 
 export const routineTranslationCreate = yup.object().shape({
-    id: id.required(),
-    language: language.required(),
+    id: id.required(requiredErrorMessage),
+    language: language.required(requiredErrorMessage),
     description: description.notRequired().default(undefined),
-    instructions: instructions.required(),
-    title: title.required(),
+    instructions: instructions.required(requiredErrorMessage),
+    title: title.required(requiredErrorMessage),
 });
 export const routineTranslationUpdate = yup.object().shape({
-    id: id.required(),
+    id: id.required(requiredErrorMessage),
     language: language.notRequired().default(undefined),
     description: description.notRequired().default(undefined),
     instructions: instructions.notRequired().default(undefined),
     title: title.notRequired().default(undefined),
 });
-export const routineTranslationsCreate = yup.array().of(routineTranslationCreate.required())
-export const routineTranslationsUpdate = yup.array().of(routineTranslationUpdate.required())
+export const routineTranslationsCreate = yup.array().of(routineTranslationCreate.required(requiredErrorMessage))
+export const routineTranslationsUpdate = yup.array().of(routineTranslationUpdate.required(requiredErrorMessage))
 
 export const routineCreateForm = yup.object().shape({
     description: description.notRequired().default(undefined),
     inputs: inputsCreate.notRequired().default([]),
-    instructions: instructions.required(),
+    instructions: instructions.required(requiredErrorMessage),
     isPrivate: isPrivate.notRequired().default(false),
     outputs: outputsCreate.notRequired().default([]),
-    title: title.required(),
+    title: title.required(requiredErrorMessage),
     version: version.notRequired().default(undefined),
 })
 export const routineUpdateForm = routineCreateForm;
@@ -113,7 +113,7 @@ export const routineUpdateForm = routineCreateForm;
  * Information required when creating a routine. 
  */
 export const routineCreate = yup.object().shape({
-    id: id.required(),
+    id: id.required(requiredErrorMessage),
     isAutomatable: isAutomatable.nullable().notRequired().default(undefined),
     isComplete: isComplete.notRequired().default(undefined),
     isInternal: isInternal.nullable().notRequired().default(undefined),
@@ -136,7 +136,7 @@ export const routineCreate = yup.object().shape({
  * Information required when updating a routine
  */
 export const routineUpdate = yup.object().shape({
-    id: id.required(),
+    id: id.required(requiredErrorMessage),
     isAutomatable: isAutomatable.nullable().notRequired().default(undefined),
     isComplete: isComplete.notRequired().default(undefined),
     isInternal: isInternal.nullable().notRequired().default(undefined),
@@ -168,5 +168,5 @@ export const routineUpdate = yup.object().shape({
     translationsUpdate: routineTranslationsUpdate.notRequired().default(undefined),
 }, [['userId', 'organizationId']]) // Makes sure you can't transfer to both a user and an organization
 
-export const routinesCreate = yup.array().of(routineCreate.required())
-export const routinesUpdate = yup.array().of(routineUpdate.required())
+export const routinesCreate = yup.array().of(routineCreate.required(requiredErrorMessage))
+export const routinesUpdate = yup.array().of(routineUpdate.required(requiredErrorMessage))

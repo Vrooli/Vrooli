@@ -7,6 +7,8 @@ import Markdown from 'markdown-to-jsx';
 import { useCallback, useMemo, useState } from 'react';
 import { GridSubmitButtonsProps } from '../types';
 
+const capitalizeFirstLetter = (str: string) => { return str.charAt(0).toUpperCase() + str.slice(1); };
+
 export const GridSubmitButtons = ({
     disabledCancel,
     disabledSubmit,
@@ -34,7 +36,7 @@ export const GridSubmitButtons = ({
 
     // Errors as a markdown list
     const errorMessage = useMemo<string>(() => {
-        return errors ? Object.entries(errors).map(([key, value]) => `- ${key}: ${value}`).join('\n') : '';
+        return errors ? Object.entries(errors).map(([key, value]) => `- ${capitalizeFirstLetter(key)}: ${value}`).join('\n') : '';
     }, [errors]);
 
     const handleSubmit = useCallback((ev: React.MouseEvent | React.TouchEvent) => {

@@ -53,10 +53,11 @@ export const ResourceSocialIconMap = {
  * @param link Resource's link, to check if it is a social media link
  * @returns Icon to display
  */
-export const getResourceIcon = (usedFor: ResourceUsedFor, link: string): any => {
+export const getResourceIcon = (usedFor: ResourceUsedFor, link?: string): any => {
     // Social media is a special case, as the icon depends 
     // on the url
     if (usedFor === ResourceUsedFor.Social) {
+        if (!link) return ResourceSocialIconMap.default;
         const url = new URL(link); // eg. https://www.youtube.com/watch?v=dQw4w9WgXcQ
         const host = url.hostname; // eg. www.youtube.com
         // Remove beginning of hostname (usually "www", but sometimes "m")
