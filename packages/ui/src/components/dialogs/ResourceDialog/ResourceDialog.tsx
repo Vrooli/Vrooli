@@ -1,19 +1,22 @@
-import { useMutation } from '@apollo/client';
+import { useMutation, useQuery } from '@apollo/client';
 import { resourceCreateForm as validationSchema } from '@shared/validation';
-import { Dialog, DialogContent, FormControl, Grid, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
+import { Dialog, DialogContent, FormControl, Grid, IconButton, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
 import { useFormik } from 'formik';
 import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { ResourceDialogProps } from '../types';
-import { getTranslation, getUserLanguages, PubSub, ResourceShape, ResourceTranslationShape, shapeResourceCreate, shapeResourceUpdate, updateArray } from 'utils';
+import { getObjectSlug, getObjectUrlBase, getTranslation, getUserLanguages, listToAutocomplete, PubSub, ResourceShape, ResourceTranslationShape, shapeResourceCreate, shapeResourceUpdate, updateArray } from 'utils';
 import { resourceCreate, resourceCreateVariables } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { resourceUpdate, resourceUpdateVariables } from 'graphql/generated/resourceUpdate';
-import { useCallback, useEffect, useState } from 'react';
-import { LanguageInput } from 'components/inputs';
-import { Resource } from 'types';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AutocompleteSearchBar, LanguageInput } from 'components/inputs';
+import { AutocompleteOption, Resource } from 'types';
 import { v4 as uuid } from 'uuid';
 import { DialogTitle, getResourceIcon, GridSubmitButtons } from 'components';
+import { SearchIcon } from '@shared/icons';
+import { homePage, homePageVariables } from 'graphql/generated/homePage';
+import { homePageQuery } from 'graphql/query';
 
 const helpText =
     `## What are resources?
@@ -50,6 +53,7 @@ export const UsedForDisplay: { [key in ResourceUsedFor]: string } = {
 }
 
 const titleAria = "resource-dialog-title";
+const searchTitleAria = "search-vrooli-for-link-title"
 
 export const ResourceDialog = ({
     mutate,
@@ -210,123 +214,229 @@ export const ResourceDialog = ({
         onClose();
     }
 
+    // Search dialog to find routines, organizations, etc. to link to
+    const [searchString, setSearchString] = useState<string>('');
+    const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
+    const [searchOpen, setSearchOpen] = useState(false);
+    const openSearch = useCallback(() => { 
+        setSearchString('');
+        setSearchOpen(true) 
+    }, []);
+    const closeSearch = useCallback(() => { 
+        setSearchOpen(false) 
+    }, []);
+    const { data: searchData, refetch: refetchSearch, loading: searchLoading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
+    useEffect(() => { open && refetchSearch() }, [open, refetchSearch, searchString]);
+    const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
+        const firstResults: AutocompleteOption[] = [];
+        // Group all query results and sort by number of stars
+        const flattened = (Object.values(searchData?.homePage ?? [])).reduce((acc, curr) => acc.concat(curr), []);
+        const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
+            return b.stars - a.stars;
+        });
+        return [...firstResults, ...queryItems];
+    }, [languages, searchData]);
+    /**
+     * When an autocomplete item is selected, set link as its URL
+     */
+    const onInputSelect = useCallback((newValue: AutocompleteOption) => {
+        if (!newValue) return;
+        // Clear search string and close command palette
+        closeSearch();
+        // Replace current state with search string, so that search is not lost. 
+        // Only do this if the selected item is not a shortcut
+        let newLocation: string;
+        // If selected item is a shortcut, newLocation is in the id field
+        if (newValue.__typename === 'Shortcut') {
+            newLocation = newValue.id
+        }
+        // Otherwise, object url must be constructed
+        else {
+            newLocation = `${getObjectUrlBase(newValue)}/${getObjectSlug(newValue)}`
+        }
+        // Update link
+        formik.setFieldValue('link', `${window.location.origin}${newLocation}`);
+    }, [closeSearch, formik]);
+
+
     return (
-        <Dialog
-            onClose={handleClose}
-            open={open}
-            aria-labelledby={titleAria}
-            sx={{
-                zIndex,
-                '& .MuiDialog-paper': {
-                    width: 'min(500px, 100vw)',
-                    textAlign: 'center',
-                    overflow: 'hidden',
-                }
-            }}
-        >
-            <DialogTitle
-                ariaLabel={titleAria}
-                title={(index < 0) ? 'Add Resource' : 'Update Resource'}
-                helpText={helpText}
+        <>
+            {/* Search objects (for their URL) dialog */}
+            <Dialog
+                open={searchOpen}
+                onClose={closeSearch}
+                aria-labelledby={searchTitleAria}
+                sx={{
+                    '& .MuiDialog-paper': {
+                        border: palette.mode === 'dark' ? `1px solid white` : 'unset',
+                        minWidth: 'min(100%, 600px)',
+                        minHeight: 'min(100%, 200px)',
+                        position: 'absolute',
+                        top: '5%',
+                        overflowY: 'visible',
+                    }
+                }}
+            >
+                <DialogTitle
+                    ariaLabel={searchTitleAria}
+                    title={'Search Vrooli'}
+                    onClose={closeSearch}
+                />
+                <DialogContent sx={{
+                    background: palette.background.default,
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflowY: 'visible',
+                }}>
+                    <AutocompleteSearchBar
+                        id="vrooli-object-search"
+                        autoFocus={true}
+                        placeholder='Search Vrooli for objects to link'
+                        options={autocompleteOptions}
+                        loading={searchLoading}
+                        value={searchString}
+                        onChange={updateSearch}
+                        onInputChange={onInputSelect}
+                        session={session}
+                        showSecondaryLabel={true}
+                        sxs={{
+                            root: { width: '100%' },
+                            paper: { background: palette.background.paper },
+                        }}
+                    />
+                </DialogContent>
+            </Dialog >
+            {/*  Main content */}
+            <Dialog
                 onClose={handleClose}
-            />
-            <DialogContent>
-                <form>
-                    <Stack direction="column" spacing={2} paddingTop={2}>
-                        {/* Language select */}
-                        <LanguageInput
-                            currentLanguage={language}
-                            handleAdd={handleAddLanguage}
-                            handleDelete={handleLanguageDelete}
-                            handleCurrent={handleLanguageSelect}
-                            selectedLanguages={languages}
-                            session={session}
-                            zIndex={zIndex + 1}
-                        />
-                        {/* Enter link */}
-                        <TextField
-                            fullWidth
-                            id="link"
-                            name="link"
-                            label="Link"
-                            value={formik.values.link}
-                            onBlur={formik.handleBlur}
-                            onChange={formik.handleChange}
-                            error={formik.touched.link && Boolean(formik.errors.link)}
-                            helperText={formik.touched.link && formik.errors.link}
-                        />
-                        {/* Select resource type */}
-                        <FormControl fullWidth>
-                            <InputLabel id="resource-type-label">Reason</InputLabel>
-                            <Select
-                                labelId="resource-type-label"
-                                id="usedFor"
-                                value={formik.values.usedFor}
-                                label="Resource type"
-                                onChange={(e) => formik.setFieldValue('usedFor', e.target.value)}
-                                sx={{
-                                    '& .MuiSelect-select': {
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        textAlign: 'left',
-                                    },
-                                }}
-                            >
-                                {Object.entries(UsedForDisplay).map(([key, value]) => {
-                                    const Icon = getResourceIcon(key as ResourceUsedFor);
-                                    return (
-                                        <MenuItem key={key} value={key}>
-                                            <ListItemIcon>
-                                                <Icon fill={palette.background.textSecondary} />
-                                            </ListItemIcon>
-                                            <ListItemText>{value}</ListItemText>
-                                        </MenuItem>
-                                    )
-                                })}
-                            </Select>
-                        </FormControl>
-                        {/* Enter title */}
-                        <TextField
-                            fullWidth
-                            id="title"
-                            name="title"
-                            label="Title"
-                            value={formik.values.title}
-                            onBlur={formik.handleBlur}
-                            onChange={formik.handleChange}
-                            error={formik.touched.title && Boolean(formik.errors.title)}
-                            helperText={(formik.touched.title && formik.errors.title) ?? "Enter title (optional)"}
-                        />
-                        {/* Enter description */}
-                        <TextField
-                            fullWidth
-                            id="description"
-                            name="description"
-                            label="Description"
-                            multiline
-                            maxRows={8}
-                            value={formik.values.description}
-                            onBlur={formik.handleBlur}
-                            onChange={formik.handleChange}
-                            error={formik.touched.description && Boolean(formik.errors.description)}
-                            helperText={(formik.touched.description && formik.errors.description) ?? "Enter description (optional)"}
-                        />
-                        {/* Action buttons */}
-                        <Grid container spacing={1}>
-                            <GridSubmitButtons
-                                disabledCancel={formik.isSubmitting || addLoading || updateLoading}
-                                disabledSubmit={formik.isSubmitting || !formik.isValid || addLoading || updateLoading}
-                                errors={formik.errors}
-                                isCreate={index < 0}
-                                onCancel={handleClose}
-                                onSetSubmitting={formik.setSubmitting}
-                                onSubmit={formik.handleSubmit}
+                open={open}
+                aria-labelledby={titleAria}
+                sx={{
+                    zIndex,
+                    '& .MuiDialog-paper': {
+                        width: 'min(500px, 100vw)',
+                        textAlign: 'center',
+                        overflow: 'hidden',
+                    }
+                }}
+            >
+                <DialogTitle
+                    ariaLabel={titleAria}
+                    title={(index < 0) ? 'Add Resource' : 'Update Resource'}
+                    helpText={helpText}
+                    onClose={handleClose}
+                />
+                <DialogContent>
+                    <form>
+                        <Stack direction="column" spacing={2} paddingTop={2}>
+                            {/* Language select */}
+                            <LanguageInput
+                                currentLanguage={language}
+                                handleAdd={handleAddLanguage}
+                                handleDelete={handleLanguageDelete}
+                                handleCurrent={handleLanguageSelect}
+                                selectedLanguages={languages}
+                                session={session}
+                                zIndex={zIndex + 1}
                             />
-                        </Grid>
-                    </Stack>
-                </form>
-            </DialogContent>
-        </Dialog>
+                            {/* Enter link or search for object */}
+                            <Stack direction="row" spacing={0}>
+                                <TextField
+                                    fullWidth
+                                    id="link"
+                                    name="link"
+                                    label="Link"
+                                    value={formik.values.link}
+                                    onBlur={formik.handleBlur}
+                                    onChange={formik.handleChange}
+                                    error={formik.touched.link && Boolean(formik.errors.link)}
+                                    helperText={formik.touched.link && formik.errors.link}
+                                />
+                                <IconButton
+                                    aria-label='find URL'
+                                    onClick={openSearch}
+                                    sx={{
+                                        background: palette.secondary.main,
+                                        borderRadius: '0 5px 5px 0',
+                                    }}>
+                                    <SearchIcon />
+                                </IconButton>
+                            </Stack>
+                            {/* Select resource type */}
+                            <FormControl fullWidth>
+                                <InputLabel id="resource-type-label">Reason</InputLabel>
+                                <Select
+                                    labelId="resource-type-label"
+                                    id="usedFor"
+                                    value={formik.values.usedFor}
+                                    label="Resource type"
+                                    onChange={(e) => formik.setFieldValue('usedFor', e.target.value)}
+                                    sx={{
+                                        '& .MuiSelect-select': {
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            textAlign: 'left',
+                                        },
+                                    }}
+                                >
+                                    {Object.entries(UsedForDisplay).map(([key, value]) => {
+                                        const Icon = getResourceIcon(key as ResourceUsedFor);
+                                        return (
+                                            <MenuItem key={key} value={key}>
+                                                <ListItemIcon>
+                                                    <Icon fill={palette.background.textSecondary} />
+                                                </ListItemIcon>
+                                                <ListItemText>{value}</ListItemText>
+                                            </MenuItem>
+                                        )
+                                    })}
+                                </Select>
+                            </FormControl>
+                            {/* Enter title */}
+                            <TextField
+                                fullWidth
+                                id="title"
+                                name="title"
+                                label="Title"
+                                value={formik.values.title}
+                                onBlur={formik.handleBlur}
+                                onChange={formik.handleChange}
+                                error={formik.touched.title && Boolean(formik.errors.title)}
+                                helperText={(formik.touched.title && formik.errors.title) ?? "Enter title (optional)"}
+                            />
+                            {/* Enter description */}
+                            <TextField
+                                fullWidth
+                                id="description"
+                                name="description"
+                                label="Description"
+                                multiline
+                                maxRows={8}
+                                value={formik.values.description}
+                                onBlur={formik.handleBlur}
+                                onChange={formik.handleChange}
+                                error={formik.touched.description && Boolean(formik.errors.description)}
+                                helperText={(formik.touched.description && formik.errors.description) ?? "Enter description (optional)"}
+                            />
+                            {/* Action buttons */}
+                            <Grid container spacing={1}>
+                                <GridSubmitButtons
+                                    disabledCancel={formik.isSubmitting || addLoading || updateLoading}
+                                    disabledSubmit={formik.isSubmitting || !formik.isValid || addLoading || updateLoading}
+                                    errors={formik.errors}
+                                    isCreate={index < 0}
+                                    onCancel={handleClose}
+                                    onSetSubmitting={formik.setSubmitting}
+                                    onSubmit={formik.handleSubmit}
+                                />
+                            </Grid>
+                        </Stack>
+                    </form>
+                </DialogContent>
+            </Dialog>
+        </>
     )
 }

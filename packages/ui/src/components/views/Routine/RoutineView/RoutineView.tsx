@@ -375,25 +375,25 @@ export const RoutineView = ({
                     {/* Instructions */}
                     <TextCollapse title="Instructions" text={instructions} />
                     {/* Auto-generated inputs */}
-                    {
-                        Object.keys(formik.values).length > 0 && <Box>
-                            {
-                                Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
-                                    generateInputWithLabel({
-                                        copyInput,
-                                        disabled: false,
-                                        fieldData,
-                                        formik: formik,
-                                        index,
-                                        session,
-                                        textPrimary: palette.background.textPrimary,
-                                        onUpload: () => { },
-                                        zIndex,
-                                    })
-                                ))
-                            }
-                        </Box>
-                    }
+                    <ContentCollapse
+                        title="Inputs"
+                    >
+                        {
+                            Object.keys(formik.values).length > 0 && Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
+                                generateInputWithLabel({
+                                    copyInput,
+                                    disabled: false,
+                                    fieldData,
+                                    formik: formik,
+                                    index,
+                                    session,
+                                    textPrimary: palette.background.textPrimary,
+                                    onUpload: () => { },
+                                    zIndex,
+                                })
+                            ))
+                        }
+                    </ContentCollapse>
                     {/* Stats */}
                     {
                         Array.isArray(routine?.nodes) && (routine as any).nodes.length > 0 &&
@@ -598,7 +598,7 @@ export const RoutineView = ({
                             onChange={(isStar: boolean) => { routine && setRoutine({ ...routine, isStarred: isStar }) }}
                             tooltipPlacement="bottom"
                         />}
-                        <ReportsLink 
+                        <ReportsLink
                             href={`${APP_LINKS.Routine}/reports/${routine?.id}`}
                             reports={routine?.reportsCount}
                         />

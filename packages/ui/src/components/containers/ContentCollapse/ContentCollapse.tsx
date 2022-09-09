@@ -28,9 +28,11 @@ export function ContentCollapse({
         }
     }, [internalIsOpen, onOpenChange]);
 
+    // Calculate fill color
+    const fillColor = sxs?.root?.color ?? (Boolean(children) ? palette.background.textPrimary : palette.background.textSecondary);
+
     return (
         <Box id={id} sx={{
-            padding: 1,
             color: Boolean(children) ? palette.background.textPrimary : palette.background.textSecondary,
             ...(sxs?.root ?? {}),
         }}>
@@ -46,11 +48,11 @@ export function ContentCollapse({
                     {internalIsOpen ?
                         <ExpandMoreIcon
                             id={`toggle-expand-icon-${title}`}
-                            fill={Boolean(children) ? palette.background.textPrimary : palette.background.textSecondary}
+                            fill={fillColor}
                         /> :
                         <ExpandLessIcon
                             id={`toggle-expand-icon-${title}`}
-                            fill={Boolean(children) ? palette.background.textPrimary : palette.background.textSecondary}
+                            fill={fillColor}
                         />}
                 </IconButton>
             </Stack>

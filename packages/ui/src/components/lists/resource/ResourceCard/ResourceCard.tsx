@@ -3,7 +3,6 @@ import {
     Stack,
     Tooltip,
     Typography,
-    useTheme,
 } from '@mui/material';
 import { getTranslation, openLink, PubSub, ResourceType, usePress } from 'utils';
 import { useCallback, useMemo } from 'react';
@@ -34,7 +33,6 @@ export const ResourceCard = ({
     onContextMenu,
     session,
 }: ResourceCardProps) => {
-    const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const { description, title } = useMemo(() => {
@@ -86,12 +84,12 @@ export const ResourceCard = ({
     const pressEvents = usePress({
         onLongPress: handleContextMenu,
         onClick: handleClick,
-        onHover: handleContextMenu,
+        // onHover: handleContextMenu,
         onRightClick: handleContextMenu,
     });
 
     return (
-        <Tooltip placement="top" title={description ?? data.link}>
+        <Tooltip placement="top" title={`${description ? description + ' - ' : ''}${data.link}`}>
             <Box
                 {...pressEvents}
                 onContextMenu={(e) => { e.preventDefault() }}

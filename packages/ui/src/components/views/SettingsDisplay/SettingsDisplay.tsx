@@ -182,7 +182,7 @@ export const SettingsDisplay = ({
                 />
             </Box>
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                <InvisibleIcon />
+                <InvisibleIcon fill={palette.background.textPrimary} />
                 <Typography component="h2" variant="h5" textAlign="center" ml={1}>Hidden Topics</Typography>
                 <HelpButton markdown={hiddenHelpText} />
             </Stack>

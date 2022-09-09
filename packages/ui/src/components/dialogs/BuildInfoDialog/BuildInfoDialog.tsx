@@ -22,7 +22,6 @@ import {
     ListItemText,
     Stack,
     SwipeableDrawer,
-    TextField,
     Tooltip,
     Typography,
     useTheme,
@@ -32,8 +31,7 @@ import { fork, forkVariables } from 'graphql/generated/fork';
 import { star, starVariables } from 'graphql/generated/star';
 import { vote, voteVariables } from 'graphql/generated/vote';
 import { ObjectAction, BuildInfoDialogProps } from '../types';
-import Markdown from 'markdown-to-jsx';
-import { DeleteDialog, EditableLabel, LanguageInput, LinkButton, MarkdownInput, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession } from 'components';
+import { DeleteDialog, EditableLabel, EditableTextCollapse, LanguageInput, LinkButton, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession } from 'components';
 import { AllLanguages, getLanguageSubtag, getOwnedByString, getTranslation, ObjectType, PubSub, RoutineTranslationShape, TagShape, toOwnedBy, updateArray } from 'utils';
 import { useLocation } from '@shared/route';
 import { useFormik } from 'formik';
@@ -495,7 +493,7 @@ export const BuildInfoDialog = ({
                 </Box>
                 {/* Main content */}
                 {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
-                <Stack direction="column" spacing={2} padding={1}>
+                <Stack direction="column" spacing={2} padding={2}>
                     {/* Relationships */}
                     <RelationshipButtons
                         disabled={!isEditing}
@@ -510,50 +508,42 @@ export const BuildInfoDialog = ({
                     {/* Resources */}
                     {resourceListObject}
                     {/* Description */}
-                    <Box sx={{
-                        padding: 1,
-                    }}>
-                        <Typography variant="h6">Description</Typography>
-                        {
-                            isEditing ? (
-                                <TextField
-                                    fullWidth
-                                    id="description"
-                                    name="description"
-                                    InputLabelProps={{ shrink: true }}
-                                    value={formik.values.description}
-                                    multiline
-                                    maxRows={3}
-                                    onBlur={formik.handleBlur}
-                                    onChange={formik.handleChange}
-                                    error={formik.touched.description && Boolean(formik.errors.description)}
-                                    helperText={formik.touched.description && formik.errors.description}
-                                />
-                            ) : (
-                                <Markdown>{getTranslation(routine, 'description', [language]) ?? ''}</Markdown>
-                            )
-                        }
+                    <Box>
+                        <EditableTextCollapse
+                            isEditing={isEditing}
+                            propsTextField={{
+                                    fullWidth: true,
+                                    id: "description",
+                                    name: "description",
+                                    InputLabelProps: { shrink: true },
+                                    value: formik.values.description,
+                                    multiline: true,
+                                    maxRows: 3,
+                                    onBlur: formik.handleBlur,
+                                    onChange: formik.handleChange,
+                                    error: formik.touched.description && Boolean(formik.errors.description),
+                                    helperText: formik.touched.description ? formik.errors.description : null,
+                            }}
+                            text={getTranslation(routine, 'description', [language]) ?? ''}
+                            title="Description"
+                        />
                     </Box>
                     {/* Instructions */}
-                    <Box sx={{
-                        padding: 1,
-                    }}>
-                        <Typography variant="h6">Instructions</Typography>
-                        {
-                            isEditing ? (
-                                <MarkdownInput
-                                    id="instructions"
-                                    placeholder="Instructions"
-                                    value={formik.values.instructions}
-                                    minRows={3}
-                                    onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
-                                    error={formik.touched.instructions && Boolean(formik.errors.instructions)}
-                                    helperText={formik.touched.instructions ? formik.errors.instructions as string : null}
-                                />
-                            ) : (
-                                <Markdown>{getTranslation(routine, 'instructions', [language]) ?? ''}</Markdown>
-                            )
-                        }
+                    <Box>
+                        <EditableTextCollapse
+                            isEditing={isEditing}
+                            propsMarkdownInput={{
+                                id: "instructions",
+                                placeholder: "Instructions",
+                                value: formik.values.instructions,
+                                minRows: 3,
+                                onChange: (newText: string) => formik.setFieldValue('instructions', newText),
+                                error: formik.touched.instructions && Boolean(formik.errors.instructions),
+                                helperText: formik.touched.instructions ? formik.errors.instructions as string : null,
+                            }}
+                            text={getTranslation(routine, 'instructions', [language]) ?? ''}
+                            title="Instructions"
+                        />
                     </Box>
                     {/* Inputs/Outputs TODO*/}
                     {/* Tags */}

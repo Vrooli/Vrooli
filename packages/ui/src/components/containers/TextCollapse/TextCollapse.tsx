@@ -1,4 +1,3 @@
-// Used to display popular/search results of a particular object type
 import { TextCollapseProps } from '../types';
 import { ContentCollapse } from 'components';
 import Markdown from 'markdown-to-jsx';

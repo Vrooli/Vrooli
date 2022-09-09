@@ -1,6 +1,8 @@
 import { BuildRunState } from "utils";
 import { Routine, Run, Session } from "types";
 import { CommentFor } from "graphql/generated/globalTypes";
+import { TextFieldProps } from "@mui/material";
+import { MarkdownInputProps } from "components/inputs/types";
 
 export interface CommentContainerProps {
     language: string;
@@ -83,6 +85,14 @@ export interface EditableTextCollapseProps {
     isEditing: boolean;
     isOpen?: boolean;
     onOpenChange?: (isOpen: boolean) => void;
+    /**
+     * Props for TextField
+     */
+    propsTextField?: TextFieldProps;
+    /**
+     * Props for MarkdownInput. If not set, assumes TextField is used.
+     */
+    propsMarkdownInput?: MarkdownInputProps;
     showOnNoText?: boolean;
     title?: string | null;
     text?: string | null;

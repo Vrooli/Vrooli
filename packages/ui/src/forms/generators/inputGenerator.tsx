@@ -223,8 +223,12 @@ export const toRadio = ({
 }: InputGeneratorProps): React.ReactElement => {
     const props = fieldData.props as RadioProps;
     return (
-        <FormControl component="fieldset" disabled={disabled} key={`field-${fieldData.fieldName}-${index}`}>
-            <FormLabel component="legend">{fieldData.label}</FormLabel>
+        <FormControl
+            component="fieldset"
+            disabled={disabled}
+            key={`field-${fieldData.fieldName}-${index}`}
+            sx={{ paddingLeft: 1 }}
+        >
             <RadioGroup
                 aria-label={fieldData.fieldName}
                 row={props.row}
@@ -492,7 +496,8 @@ export const generateInputWithLabel = ({
     zIndex,
 }: GenerateInputWithLabelProps): React.ReactElement | null => {
     return (<Box key={index} sx={{
-        padding: 1,
+        paddingTop: 1,
+        paddingBottom: 1,
         borderRadius: 1,
     }}>
         {/* Label, help button, and copy iput icon */}

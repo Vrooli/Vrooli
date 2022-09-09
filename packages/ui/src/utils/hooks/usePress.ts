@@ -88,7 +88,7 @@ export const usePress = ({
         // Set timeout. Hover delay is longer than press delay
         hoverTimeout.current = setTimeout(() => {
             if (target.current) onHover?.(target.current);
-        }, delay * 2);
+        }, delay * 3);
         // Store target
         target.current = event.target ?? event.currentTarget as React.MouseEvent['target'];
     }, [onHover, delay]);

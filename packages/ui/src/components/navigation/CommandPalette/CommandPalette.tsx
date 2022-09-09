@@ -117,7 +117,7 @@ const CommandPalette = ({
         if (shouldReload) {
             window.location.reload();
         }
-    }, [close, searchString, setLocation]);
+    }, [close, setLocation]);
 
     return (
         <Dialog

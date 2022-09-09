@@ -3,26 +3,23 @@
  * a TextField or MarkdownInput
  */
 import { EditableTextCollapseProps } from '../types';
-import { ContentCollapse } from 'components';
+import { ContentCollapse, MarkdownInput } from 'components';
 import Markdown from 'markdown-to-jsx';
-import { useMemo } from 'react';
+import { TextField } from '@mui/material';
 
 export function EditableTextCollapse({
     helpText,
     isEditing,
     isOpen,
     onOpenChange,
+    propsTextField,
+    propsMarkdownInput,
     showOnNoText,
     title,
     text,
 }: EditableTextCollapseProps) {
-    if ((!text || text.trim().length === 0) && !showOnNoText) return null;
+    if (!isEditing && (!text || text.trim().length === 0) && !showOnNoText) return null;
 
-    const content = useMemo(() => {
-
-    }, [isEditing, text]);
-    
-    //TODO
     return (
         <ContentCollapse
             helpText={helpText}
@@ -30,7 +27,13 @@ export function EditableTextCollapse({
             onOpenChange={onOpenChange}
             title={title}
         >
-            {text ? <Markdown>{text}</Markdown> : null}
+            {
+                isEditing ? 
+                    propsMarkdownInput ?
+                        <MarkdownInput {...propsMarkdownInput} /> :
+                        <TextField {...(propsTextField ?? {})} /> :
+                    text ? <Markdown>{text}</Markdown> : null
+            }
         </ContentCollapse>
     )
 }

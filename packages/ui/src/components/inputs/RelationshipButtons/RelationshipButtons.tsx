@@ -7,16 +7,10 @@ import { useCallback, useMemo, useState } from 'react';
 import { RelationshipButtonsProps, RelationshipItemOrganization, RelationshipItemProject, RelationshipItemRoutine, RelationshipItemUser, RelationshipOwner } from '../types';
 import { getTranslation, getUserLanguages, ObjectType, openObject, PubSub } from 'utils';
 import { ListMenu, OrganizationSelectOrCreateDialog, ProjectSelectOrCreateDialog, RoutineSelectOrCreateDialog, UserSelectDialog } from 'components/dialogs';
-import {
-    Apartment as OrganizationIcon,
-    DeviceHub as RoutineIcon,
-    Person as SelfIcon,
-    ViewQuilt as ProjIcon,
-} from '@mui/icons-material';
 import { Session } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { TextShrink } from 'components/text/TextShrink/TextShrink';
-import { CompleteIcon as CompletedIcon, InvisibleIcon, VisibleIcon } from '@shared/icons';
+import { CompleteIcon as CompletedIcon, InvisibleIcon, OrganizationIcon, ProjectIcon as ProjIcon, RoutineIcon, UserIcon as SelfIcon, VisibleIcon } from '@shared/icons';
 import { useLocation } from '@shared/route';
 
 /**
@@ -43,8 +37,8 @@ const commonButtonProps = (palette: Palette) => ({
 })
 
 const commonIconProps = {
-    width: "unset",
-    height: "unset",
+    width: "69px",
+    height: "69px",
     color: "white",
 }
 
@@ -379,19 +373,19 @@ export function RelationshipButtons({
                 {/* Owner button */}
                 {isOwnerAvailable && <Tooltip title={ownerTooltip}>
                     <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleOwnerClick}>
-                        {OwnerIcon && <OwnerIcon sx={{ ...commonIconProps }} />}
+                        {OwnerIcon && <OwnerIcon { ...commonIconProps } />}
                     </IconButton>
                 </Tooltip>}
                 {/* Project button */}
                 {isProjectAvailable && <Tooltip title={projectTooltip}>
                     <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleProjectClick}>
-                        {ProjectIcon && <ProjectIcon sx={{ ...commonIconProps }} />}
+                        {ProjectIcon && <ProjectIcon{ ...commonIconProps } />}
                     </IconButton>
                 </Tooltip>}
                 {/* Parent button */}
                 {isParentAvailable && <Tooltip title={parentTooltip}>
                     <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleParentClick}>
-                        {ParentIcon && <ParentIcon sx={{ ...commonIconProps }} />}
+                        {ParentIcon && <ParentIcon { ...commonIconProps } />}
                     </IconButton>
                 </Tooltip>}
                 {/* Privacy button */}
