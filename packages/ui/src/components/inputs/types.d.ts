@@ -322,3 +322,17 @@ export interface ThemeSwitchProps {
     theme: 'light' | 'dark';
     onChange: (theme: 'light' | 'dark') => any;
 }
+
+export interface VersionInputProps extends TextFieldProps {
+    autoFocus?: boolean;
+    error?: boolean;
+    helperText?: string | null | undefined;
+    fullWidth?: boolean;
+    id?: string;
+    label?: string;
+    minimum?: string;
+    name?: string;
+    onBlur?: (event: FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>) => void;
+    onChange: (newVersion: string) => any;
+    value: string;
+}

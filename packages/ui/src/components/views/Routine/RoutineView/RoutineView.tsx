@@ -371,29 +371,27 @@ export const RoutineView = ({
                     {/* Resources */}
                     {resourceList}
                     {/* Description */}
-                    <TextCollapse title="Description" text={description} />
+                    <TextCollapse title="Description" text={description} showOnNoText={loading} />
                     {/* Instructions */}
-                    <TextCollapse title="Instructions" text={instructions} />
+                    <TextCollapse title="Instructions" text={instructions} showOnNoText={loading} />
                     {/* Auto-generated inputs */}
-                    <ContentCollapse
+                    {Object.keys(formik.values).length > 0 && <ContentCollapse
                         title="Inputs"
                     >
-                        {
-                            Object.keys(formik.values).length > 0 && Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
-                                generateInputWithLabel({
-                                    copyInput,
-                                    disabled: false,
-                                    fieldData,
-                                    formik: formik,
-                                    index,
-                                    session,
-                                    textPrimary: palette.background.textPrimary,
-                                    onUpload: () => { },
-                                    zIndex,
-                                })
-                            ))
-                        }
-                    </ContentCollapse>
+                        {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
+                            generateInputWithLabel({
+                                copyInput,
+                                disabled: false,
+                                fieldData,
+                                formik: formik,
+                                index,
+                                session,
+                                textPrimary: palette.background.textPrimary,
+                                onUpload: () => { },
+                                zIndex,
+                            })
+                        ))}
+                    </ContentCollapse>}
                     {/* Stats */}
                     {
                         Array.isArray(routine?.nodes) && (routine as any).nodes.length > 0 &&
@@ -614,7 +612,7 @@ export const RoutineView = ({
                                     padding: 0,
                                 }}
                             >
-                                <EllipsisIcon fill={palette.primary.contrastText} />
+                                <EllipsisIcon fill={palette.background.textSecondary} />
                             </IconButton>
                         </Tooltip>
                     </Stack>

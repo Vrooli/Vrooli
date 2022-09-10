@@ -296,7 +296,7 @@ export function RelationshipButtons({
             zIndex={zIndex}
             sx={{
                 borderRadius: '12px',
-                background: palette.background.paper,
+                background: palette.mode === 'dark' ? palette.background.paper : palette.background.default,
                 overflowX: 'auto',
             }}
         >

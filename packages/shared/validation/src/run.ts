@@ -1,9 +1,8 @@
-import { id, idArray, maxStringErrorMessage, minNumberErrorMessage, requiredErrorMessage, title } from './base';
+import { id, idArray, minNumberErrorMessage, requiredErrorMessage, title, version } from './base';
 import { runInputsCreate, runInputsUpdate } from './runInputs';
 import { stepsCreate, stepsUpdate } from './step';
 import * as yup from 'yup';
 
-const version = yup.string().max(16, maxStringErrorMessage);
 const completedComplexity = yup.number().integer().min(0, minNumberErrorMessage);
 const contextSwitches = yup.number().integer().min(0, minNumberErrorMessage);
 const timeElapsed = yup.number().integer().min(0, minNumberErrorMessage);
@@ -14,7 +13,7 @@ export const runCreate = yup.object().shape({
     isPrivate: isPrivate.notRequired().default(undefined),
     routineId: id.required(requiredErrorMessage),
     title: title.required(requiredErrorMessage),
-    version: version.required(requiredErrorMessage),
+    version: version().required(requiredErrorMessage),
 })
 
 export const runUpdate = yup.object().shape({

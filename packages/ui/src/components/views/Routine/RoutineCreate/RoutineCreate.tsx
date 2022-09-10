@@ -7,7 +7,7 @@ import { routineCreateMutation } from "graphql/mutation";
 import { getUserLanguages, InputShape, ObjectType, OutputShape, parseSearchParams, RoutineTranslationShape, shapeRoutineCreate, TagShape, updateArray } from "utils";
 import { RoutineCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, MarkdownInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
+import { GridSubmitButtons, LanguageInput, MarkdownInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession, VersionInput } from "components";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
@@ -104,7 +104,7 @@ export const RoutineCreate = ({
             description: '',
             instructions: 'Fill out the form below.',
             title: '',
-            version: '1.0',
+            version: '1.0.0',
         },
         validationSchema,
         onSubmit: (values) => {
@@ -281,16 +281,15 @@ export const RoutineCreate = ({
                     />
                 </Grid>
                 <Grid item xs={12}>
-                    <TextField
+                    <VersionInput
                         fullWidth
                         id="version"
                         name="version"
-                        label="version"
                         value={formik.values.version}
                         onBlur={formik.handleBlur}
-                        onChange={formik.handleChange}
+                        onChange={(newVersion: string) => { formik.setFieldValue('version', newVersion) }}
                         error={formik.touched.version && Boolean(formik.errors.version)}
-                        helperText={formik.touched.version && formik.errors.version}
+                        helperText={formik.touched.version ? formik.errors.version : null}
                     />
                 </Grid>
                 <Grid item xs={12}>

@@ -1,7 +1,7 @@
 /**
  * Validation schemas for all standards/inputs/outputs
  */
-import { requiredErrorMessage } from 'base';
+import { requiredErrorMessage } from './base';
 import * as yup from 'yup';
 
 const required = yup.boolean();

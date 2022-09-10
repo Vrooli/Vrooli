@@ -28,7 +28,7 @@ export const standardCreateForm = yup.object().shape({
     default: standardDefault.notRequired().default(undefined),
     description: description.notRequired().default(undefined),
     name: name.notRequired().default(undefined),
-    version: version.notRequired().default(undefined),
+    version: version().notRequired().default(undefined),
     isPrivate: isPrivate.notRequired().default(undefined),
 })
 export const standardUpdateForm = yup.object().shape({
@@ -48,7 +48,7 @@ export const standardCreate = yup.object().shape({
     type: type.required(requiredErrorMessage),
     props: stringifiedJson.required(requiredErrorMessage),
     yup: stringifiedJson.notRequired().default(undefined),
-    version: version.notRequired().default(undefined),
+    version: version().notRequired().default(undefined),
     createdByUserId: id.notRequired().default(undefined), // If associating with yourself, your own id. Cannot associate with another user
     createdByOrganizationId: id.notRequired().default(undefined), // If associating with an organization you are an admin of, the organization's id
     resourceListsCreate: resourceListsCreate.notRequired().default(undefined),

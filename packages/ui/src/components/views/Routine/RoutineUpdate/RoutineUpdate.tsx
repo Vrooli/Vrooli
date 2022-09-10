@@ -9,7 +9,7 @@ import { routineUpdateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
 import { getLastUrlPart, InputShape, ObjectType, OutputShape, PubSub, RoutineTranslationShape, shapeRoutineUpdate, TagShape, updateArray } from "utils";
-import { GridSubmitButtons, LanguageInput, MarkdownInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
+import { GridSubmitButtons, LanguageInput, MarkdownInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession, VersionInput } from "components";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
@@ -131,7 +131,7 @@ export const RoutineUpdate = ({
             version: routine?.version ?? '1.0.0',
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema,
+        validationSchema: validationSchema({ minVersion: routine?.version ?? '0.0.1' }),
         onSubmit: (values) => {
             if (!routine) {
                 PubSub.get().publishSnack({ message: 'Could not find existing routine data.', severity: 'error' });
@@ -290,16 +290,15 @@ export const RoutineUpdate = ({
                 />
             </Grid>
             <Grid item xs={12}>
-                <TextField
+                <VersionInput
                     fullWidth
                     id="version"
                     name="version"
-                    label="version"
                     value={formik.values.version}
                     onBlur={formik.handleBlur}
-                    onChange={formik.handleChange}
+                    onChange={(newVersion: string) => { formik.setFieldValue('version', newVersion) }}
                     error={formik.touched.version && Boolean(formik.errors.version)}
-                    helperText={formik.touched.version && formik.errors.version}
+                    helperText={formik.touched.version ? formik.errors.version : null}
                 />
             </Grid>
             <Grid item xs={12}>

@@ -218,12 +218,12 @@ export const ResourceDialog = ({
     const [searchString, setSearchString] = useState<string>('');
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
     const [searchOpen, setSearchOpen] = useState(false);
-    const openSearch = useCallback(() => { 
+    const openSearch = useCallback(() => {
         setSearchString('');
-        setSearchOpen(true) 
+        setSearchOpen(true)
     }, []);
-    const closeSearch = useCallback(() => { 
-        setSearchOpen(false) 
+    const closeSearch = useCallback(() => {
+        setSearchOpen(false)
     }, []);
     const { data: searchData, refetch: refetchSearch, loading: searchLoading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
     useEffect(() => { open && refetchSearch() }, [open, refetchSearch, searchString]);
@@ -353,6 +353,11 @@ export const ResourceDialog = ({
                                     onChange={formik.handleChange}
                                     error={formik.touched.link && Boolean(formik.errors.link)}
                                     helperText={formik.touched.link && formik.errors.link}
+                                    sx={{
+                                        '& .MuiInputBase-root': {
+                                            borderRadius: '5px 0 0 5px',
+                                        }
+                                    }}
                                 />
                                 <IconButton
                                     aria-label='find URL'
@@ -360,6 +365,7 @@ export const ResourceDialog = ({
                                     sx={{
                                         background: palette.secondary.main,
                                         borderRadius: '0 5px 5px 0',
+                                        height: '56px',
                                     }}>
                                     <SearchIcon />
                                 </IconButton>

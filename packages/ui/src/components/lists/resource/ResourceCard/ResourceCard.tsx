@@ -50,6 +50,7 @@ export const ResourceCard = ({
     }, [data]);
 
     const handleClick = useCallback((target: React.MouseEvent['target']) => {
+        console.log('handle clickkkkkkkkkkk')
         // Find the resource type
         const resourceType = getResourceType(data.link);
         // If null, show error
@@ -92,7 +93,6 @@ export const ResourceCard = ({
         <Tooltip placement="top" title={`${description ? description + ' - ' : ''}${data.link}`}>
             <Box
                 {...pressEvents}
-                onContextMenu={(e) => { e.preventDefault() }}
                 sx={{
                     ...noSelect,
                     ...containerShadow,

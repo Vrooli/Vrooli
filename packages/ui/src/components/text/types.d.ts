@@ -10,3 +10,10 @@ export interface DateDisplayProps extends BoxProps {
 export interface TextShrinkProps extends TypographyProps { 
     id: string;
 }
+
+export interface VersionDisplayProps extends BoxProps {
+    handleVersionChange: (version: number) => void;
+    loading?: boolean;
+    showIcon?: boolean;
+    versions?: string[];
+}

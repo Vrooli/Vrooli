@@ -1,4 +1,4 @@
-import { description, idArray, id, name, title, language, tagArray, helpText, maxStringErrorMessage, requiredErrorMessage } from './base';
+import { description, idArray, id, name, title, language, tagArray, helpText, maxStringErrorMessage, requiredErrorMessage, version } from './base';
 import { nodeLinksCreate, nodeLinksUpdate, nodesCreate, nodesUpdate } from './node';
 import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 import { standardCreate } from './standard';
@@ -11,7 +11,6 @@ const isInternal = yup.boolean()
 const isPrivate = yup.boolean()
 const isRequired = yup.boolean()
 const instructions = yup.string().max(8192, maxStringErrorMessage)
-const version = yup.string().max(16, maxStringErrorMessage)
 
 export const inputTranslationCreate = yup.object().shape({
     id: id.required(requiredErrorMessage),
@@ -105,9 +104,22 @@ export const routineCreateForm = yup.object().shape({
     isPrivate: isPrivate.notRequired().default(false),
     outputs: outputsCreate.notRequired().default([]),
     title: title.required(requiredErrorMessage),
-    version: version.notRequired().default(undefined),
+    version: version().notRequired().default(undefined),
 })
-export const routineUpdateForm = routineCreateForm;
+
+type RoutineUpdateValidationProps = {
+    minVersion?: string,
+}
+
+export const routineUpdateForm = ({ minVersion }: RoutineUpdateValidationProps) => yup.object().shape({
+    description: description.notRequired().default(undefined),
+    inputs: inputsCreate.notRequired().default([]),
+    instructions: instructions.required(requiredErrorMessage),
+    isPrivate: isPrivate.notRequired().default(false),
+    outputs: outputsCreate.notRequired().default([]),
+    title: title.required(requiredErrorMessage),
+    version: version(minVersion).notRequired().default(undefined),
+})
 
 /**
  * Information required when creating a routine. 
@@ -118,7 +130,7 @@ export const routineCreate = yup.object().shape({
     isComplete: isComplete.notRequired().default(undefined),
     isInternal: isInternal.nullable().notRequired().default(undefined),
     isPrivate: isPrivate.notRequired().default(false),
-    version: version.nullable().notRequired().default(undefined),
+    version: version().nullable().notRequired().default(undefined),
     parentId: id.notRequired().default(undefined), // If forked, the parent's id
     createdByUserId: id.notRequired().default(undefined), // If associating with yourself, your own id. Cannot associate with another user
     createdByOrganizationId: id.notRequired().default(undefined), // If associating with an organization you are an admin of, the organization's id
@@ -135,13 +147,13 @@ export const routineCreate = yup.object().shape({
 /**
  * Information required when updating a routine
  */
-export const routineUpdate = yup.object().shape({
+export const routineUpdate = ({ minVersion }: RoutineUpdateValidationProps) => yup.object().shape({
     id: id.required(requiredErrorMessage),
     isAutomatable: isAutomatable.nullable().notRequired().default(undefined),
     isComplete: isComplete.notRequired().default(undefined),
     isInternal: isInternal.nullable().notRequired().default(undefined),
     isPrivate: isPrivate.notRequired().default(false),
-    version: version.nullable().notRequired().default(undefined),
+    version: version(minVersion).nullable().notRequired().default(undefined),
     parentId: id.notRequired().default(undefined), // If forked, the parent's id
     userId: id.notRequired().default(undefined), // If associating with yourself, your own id. Cannot associate with another user
     organizationId: id.notRequired().default(undefined), // If associating with an organization you are an admin of, the organization's id
@@ -169,4 +181,3 @@ export const routineUpdate = yup.object().shape({
 }, [['userId', 'organizationId']]) // Makes sure you can't transfer to both a user and an organization
 
 export const routinesCreate = yup.array().of(routineCreate.required(requiredErrorMessage))
-export const routinesUpdate = yup.array().of(routineUpdate.required(requiredErrorMessage))
