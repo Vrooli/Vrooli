@@ -28,7 +28,6 @@ export const DateDisplay = ({
 
     const pressEvents = usePress({ 
         onHover: open,
-        onHoverEnd: close,
         onLongPress: open, 
         onClick: open,
     });
