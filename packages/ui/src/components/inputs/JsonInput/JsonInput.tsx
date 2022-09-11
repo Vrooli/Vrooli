@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Box, IconButton, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { JsonInputProps } from '../types';
 import { HelpButton, StatusButton } from 'components/buttons';
-import { isJson, jsonHelpText, jsonToMarkdown, Status } from 'utils';
+import { checkJsonErrors, jsonHelpText, jsonToMarkdown, Status } from 'utils';
 import Markdown from 'markdown-to-jsx';
 import { InvisibleIcon, VisibleIcon } from '@shared/icons';
 
@@ -58,7 +58,7 @@ export const JsonInput = ({
     const togglePreview = () => setIsPreviewOn(!isPreviewOn);
     const { previewMarkdown, isValueValid } = useMemo(() => ({
         previewMarkdown: jsonToMarkdown(value),
-        isValueValid: isJson(value),
+        isValueValid: checkJsonErrors(value).length === 0,
     }), [value]);
 
     return (
