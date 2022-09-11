@@ -11,6 +11,7 @@ import {
     Stack,
     TextField,
     Typography,
+    useTheme,
 } from '@mui/material';
 import { DialogTitle } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -39,6 +40,7 @@ export const LinkDialog = ({
     routine,
     zIndex,
 }: LinkDialogProps) => {
+    const { palette } = useTheme();
 
     // Selected "From" and "To" nodes
     const [fromNode, setFromNode] = useState<Node | null>(nodeFrom ?? null);
@@ -119,7 +121,7 @@ export const LinkDialog = ({
      * Container that displays "From" and "To" node selections, with right arrow inbetween
      */
     const nodeSelections = useMemo(() => (
-        <Stack direction="row" justifyContent="center" alignItems="center">
+        <Stack direction="row" justifyContent="center" alignItems="center" pt={2}>
             {/* From selector */}
             <Autocomplete
                 disablePortal
@@ -143,7 +145,7 @@ export const LinkDialog = ({
                 alignItems: 'center',
                 justifyContent: 'center',
             }}>
-                <Typography variant="h6" textAlign="center">
+                <Typography variant="h6" textAlign="center" color={palette.background.textPrimary}>
                     ⮕
                 </Typography>
             </Box>
@@ -162,7 +164,7 @@ export const LinkDialog = ({
                 renderInput={(params) => <TextField {...params} label="To" />}
             />
         </Stack>
-    ), [fromOptions, fromNode, toOptions, toNode, getNodeTitle, handleFromSelect, handleToSelect]);
+    ), [fromOptions, fromNode, palette.background.textPrimary, toOptions, toNode, getNodeTitle, handleFromSelect, handleToSelect]);
 
     /**
      * Container for creating link conditions.
@@ -199,8 +201,8 @@ export const LinkDialog = ({
                 {conditions}
                 {deleteOption}
                 {/* Action buttons */}
-                <Grid container sx={{ padding: 0, paddingTop: '24px' }}>
-                    <Grid item xs={12} sm={6} sx={{ paddingRight: 1 }}>
+                <Grid container spacing={2} pt={2}>
+                    <Grid item xs={12} sm={6}>
                         <Button fullWidth type="submit" onClick={addLink}>Add</Button>
                     </Grid>
                     <Grid item xs={12} sm={6}>

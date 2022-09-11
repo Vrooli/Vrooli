@@ -2,17 +2,12 @@
  * Shows valid/invalid/incomplete status of some object
  */
 import { useCallback, useMemo, useState } from 'react';
-import { Box, Chip, IconButton, Menu, Tooltip, useTheme } from '@mui/material';
+import { Box, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import Markdown from 'markdown-to-jsx';
 import { StatusButtonProps } from '../types';
-import {
-    Mood as ValidIcon,
-    MoodBad as InvalidIcon,
-    SentimentDissatisfied as IncompleteIcon,
-} from '@mui/icons-material';
 import { Status } from 'utils';
 import { noSelect } from 'styles';
-import { CloseIcon } from 'assets/img';
+import { CloseIcon, RoutineIncompleteIcon, RoutineInvalidIcon, RoutineValidIcon } from '@shared/icons';
 
 /**
  * Status indicator and slider change color to represent routine's status
@@ -28,9 +23,9 @@ const STATUS_LABEL = {
     [Status.Valid]: 'Valid',
 }
 const STATUS_ICON = {
-    [Status.Incomplete]: IncompleteIcon,
-    [Status.Invalid]: InvalidIcon,
-    [Status.Valid]: ValidIcon,
+    [Status.Incomplete]: RoutineIncompleteIcon,
+    [Status.Invalid]: RoutineInvalidIcon,
+    [Status.Valid]: RoutineValidIcon,
 }
 
 export const StatusButton = ({
@@ -56,7 +51,7 @@ export const StatusButton = ({
 
     const StatusIcon = useMemo(() => STATUS_ICON[status], [status]);
 
-    const [anchorEl, setAnchorEl] = useState(null);
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = Boolean(anchorEl);
     const openMenu = useCallback((event) => {
         if (!anchorEl) setAnchorEl(event.currentTarget);
@@ -79,33 +74,33 @@ export const StatusButton = ({
     ), [statusMarkdown, palette.primary.dark, palette.primary.contrastText]);
 
     return (
-        <Box sx={{ 
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            ...(sx ?? {})
-        }}>
+        <>
             <Tooltip title='Press for details'>
-                <Chip
-                    icon={<StatusIcon sx={{ fill: 'white' }} />}
-                    label={STATUS_LABEL[status]}
+                <Stack
+                    direction="row"
+                    spacing={1}
                     onClick={openMenu}
                     sx={{
-                        ...noSelect,
+                        ...(noSelect as any),
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        cursor: 'pointer',
                         background: STATUS_COLOR[status],
                         color: 'white',
-                        cursor: 'pointer',
-                        // Hide label on small screens
-                        '& .MuiChip-label': {
-                            display: { xs: 'none', sm: 'block' },
-                        },
-                        // Hiding label messes up spacing with icon
-                        '& .MuiSvgIcon-root': {
-                            marginLeft: '4px',
-                            marginRight: { xs: '4px', sm: '-4px' },
-                        },
-                    }}
-                />
+                        padding: '4px',
+                        borderRadius: '16px',
+                        ...(sx ?? {})
+                    }}>
+                    <StatusIcon fill='white' />
+                    <Typography
+                        variant='body2'
+                        sx={{
+                            // Hide on small screens
+                            display: { xs: 'none', sm: 'inline' },
+                            paddingRight: '4px',
+                        }}>{STATUS_LABEL[status]}</Typography>
+                </Stack>
             </Tooltip>
             <Menu
                 id='status-menu'
@@ -133,6 +128,6 @@ export const StatusButton = ({
             >
                 {menu}
             </Menu>
-        </Box>
+        </>
     )
 }

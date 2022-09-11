@@ -673,7 +673,9 @@ export interface NodeUpdateInput {
   loopDelete?: string | null;
   loopCreate?: LoopCreateInput | null;
   loopUpdate?: LoopUpdateInput | null;
+  nodeEndCreate?: NodeEndCreateInput | null;
   nodeEndUpdate?: NodeEndUpdateInput | null;
+  nodeRoutineListCreate?: NodeRoutineListCreateInput | null;
   nodeRoutineListUpdate?: NodeRoutineListUpdateInput | null;
   routineId?: string | null;
   translationsDelete?: string[] | null;
@@ -1195,6 +1197,7 @@ export interface RoutineUpdateInput {
   version?: string | null;
   userId?: string | null;
   organizationId?: string | null;
+  projectId?: string | null;
   nodesDelete?: string[] | null;
   nodesCreate?: NodeCreateInput[] | null;
   nodesUpdate?: NodeUpdateInput[] | null;
@@ -1409,6 +1412,7 @@ export interface StarSearchInput {
   after?: string | null;
   excludeTags?: boolean | null;
   ids?: string[] | null;
+  searchString?: string | null;
   sortBy?: StarSortBy | null;
   take?: number | null;
 }

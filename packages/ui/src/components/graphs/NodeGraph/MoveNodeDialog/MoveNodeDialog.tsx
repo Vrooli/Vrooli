@@ -4,7 +4,6 @@
 import {
     Autocomplete,
     Box,
-    Button,
     Dialog,
     DialogContent,
     Grid,
@@ -13,6 +12,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
+import { GridSubmitButtons } from 'components/buttons';
 import { DialogTitle } from 'components/dialogs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MoveNodeMenuProps } from '../types';
@@ -137,7 +137,7 @@ export const MoveNodeMenu = ({
                 alignItems: 'center',
                 justifyContent: 'center',
             }}>
-                <Typography variant="h6" textAlign="center">
+                <Typography variant="h6" textAlign="center" color={palette.background.textPrimary}>
                     ⮕
                 </Typography>
             </Box>
@@ -198,13 +198,12 @@ export const MoveNodeMenu = ({
             <DialogContent>
                 {formContent}
                 {/* Action buttons */}
-                <Grid container sx={{ padding: 0, paddingTop: '24px' }}>
-                    <Grid item xs={12} sm={6} sx={{ paddingRight: 1 }}>
-                        <Button fullWidth type="submit" onClick={moveNode}>Move</Button>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                        <Button fullWidth onClick={closeDialog} sx={{ paddingLeft: 1 }}>Cancel</Button>
-                    </Grid>
+                <Grid container spacing={1} sx={{ padding: 0, paddingTop: '24px' }}>
+                    <GridSubmitButtons
+                        isCreate={false}
+                        onCancel={closeDialog}
+                        onSubmit={moveNode}
+                    />
                 </Grid>
             </DialogContent>
         </Dialog>

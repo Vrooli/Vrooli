@@ -33,15 +33,6 @@ export interface ListTitleContainerProps extends TitleContainerProps {
 // label, Icon, disabled, isSubmit, onClick
 export type DialogActionItem = [string, any, boolean, boolean, () => void,]
 
-export interface DialogActionsContainerProps {
-    actions: DialogActionItem[];
-    /**
-     * If true, the actions will be fixed to the bottom of the window
-     */
-    fixed?: boolean;
-    onResize?: ({ height: number, width: number }) => any;
-}
-
 export interface BuildBottomContainerProps {
     canSubmitMutate: boolean;
     canCancelMutate: boolean;
@@ -67,15 +58,29 @@ export interface BuildBottomContainerProps {
 
 export interface ContentCollapseProps {
     helpText?: string;
+    id?: string;
     isOpen?: boolean;
     onOpenChange?: (isOpen: boolean) => void;
-    showOnNoText?: boolean;
+    sxs?: {
+        titleContainer?: { [x: string]: any };
+        root?: { [x: string]: any };
+    }
     title?: string | null;
-    children?: JSX.Element | JSX.Element[] | null;
+    children?: React.ReactNode;
 }
 
 export interface TextCollapseProps {
     helpText?: string;
+    isOpen?: boolean;
+    onOpenChange?: (isOpen: boolean) => void;
+    showOnNoText?: boolean;
+    title?: string | null;
+    text?: string | null;
+}
+
+export interface EditableTextCollapseProps {
+    helpText?: string;
+    isEditing: boolean;
     isOpen?: boolean;
     onOpenChange?: (isOpen: boolean) => void;
     showOnNoText?: boolean;

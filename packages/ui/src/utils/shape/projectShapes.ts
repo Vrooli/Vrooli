@@ -45,6 +45,7 @@ export const shapeProjectCreate = (item: ProjectShape): ProjectCreateInput => ({
     id: item.id,
     // TODO handle
     isComplete: item.isComplete,
+    isPrivate: item.isPrivate,
     parentId: item.parent?.id,
     createdByUserId: item.owner?.__typename === ObjectType.User ? item.owner.id : undefined,
     createdByOrganizationId: item.owner?.__typename === ObjectType.Organization ? item.owner.id : undefined,
@@ -61,6 +62,7 @@ export const shapeProjectUpdate = (
         id: o.id,
         //TODO handle
         isComplete: u.isComplete !== o.isComplete ? u.isComplete : undefined,
+        isPrivate: u.isPrivate !== o.isPrivate ? u.isPrivate : undefined,
         userId: u.owner?.__typename === ObjectType.User ? u.owner.id : undefined,
         organizationId: u.owner?.__typename === ObjectType.Organization ? u.owner.id : undefined,
         ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeProjectTranslationCreate, shapeProjectTranslationUpdate, 'id'),

@@ -46,6 +46,7 @@ export const shapeStandardCreate = (item: StandardShape): StandardCreateInput =>
     id: item.id,
     default: item.default + '', // Make sure default is a string
     isInternal: item.isInternal,
+    isPrivate: item.isPrivate,
     name: item.name,
     props: item.props,
     yup: item.yup,
@@ -65,7 +66,7 @@ export const shapeStandardUpdate = (
 ): StandardUpdateInput | undefined => 
     shapeUpdate(original, updated, (o, u) => ({
         id: o.id,
-        // makingAnonymous: updated.makingAnonymous, TODO
+        isPrivate: u.isPrivate !== o.isPrivate ? u.isPrivate : undefined,
         ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeStandardTranslationCreate, shapeStandardTranslationUpdate, 'id'),
         ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate, 'id'),
         ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate, 'tag', true, true),

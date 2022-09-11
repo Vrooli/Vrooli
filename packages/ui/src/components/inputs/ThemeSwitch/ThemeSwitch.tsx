@@ -2,11 +2,8 @@ import { Box, IconButton, Stack, Typography } from '@mui/material';
 import { useCallback, useMemo } from 'react';
 import { ThemeSwitchProps } from '../types';
 import { noSelect } from 'styles';
-import {
-    DarkMode as DarkIcon,
-    LightMode as LightIcon,
-} from '@mui/icons-material';
 import { PubSub } from 'utils';
+import { DarkModeIcon, LightModeIcon } from '@shared/icons';
 
 export function ThemeSwitch({
     theme,
@@ -20,7 +17,7 @@ export function ThemeSwitch({
     }, [onChange, theme]);
 
     const isDark = useMemo(() => theme === 'dark', [theme]);
-    const Icon = useMemo(() => isDark ? DarkIcon : LightIcon, [isDark]);
+    const Icon = useMemo(() => isDark ? DarkModeIcon : LightModeIcon, [isDark]);
     const trackColor = useMemo(() => isDark ? '#2F3A45' : '#BFC7CF', [isDark]);
 
     return (
@@ -29,35 +26,34 @@ export function ThemeSwitch({
             <Box component="span" sx={{
                 display: 'inline-block',
                 position: 'relative',
-                width: '64px',
+                width: '80px',
                 height: '36px',
                 padding: '8px',
             }}>
                 {/* Track */}
                 <Box component="span" sx={{
+                    display: 'inline-block',
+                    margin: 'auto',
                     backgroundColor: trackColor,
                     borderRadius: '16px',
                     width: '100%',
                     height: '65%',
-                    display: 'block',
                 }}>
                     {/* Thumb */}
                     <IconButton sx={{
-                        backgroundColor: (t) => t.palette.secondary.main,
                         display: 'inline-flex',
-                        width: '30px',
-                        height: '30px',
+                        width: '40px',
+                        height: '40px',
                         position: 'absolute',
                         top: 0,
                         transition: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)',
                         transform: `translateX(${isDark ? '24' : '0'}px)`,
+                        backgroundColor: (t) => t.palette.secondary.main,
+                        '&:hover': {
+                            backgroundColor: (t) => t.palette.secondary.main,
+                        },
                     }}>
-                        <Icon sx={{
-                            position: 'absolute',
-                            display: 'block',
-                            fill: 'white',
-                            borderRadius: '8px',
-                        }} />
+                        <Icon fill="white" />
                     </IconButton>
                 </Box>
                 {/* Input */}

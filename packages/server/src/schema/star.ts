@@ -42,6 +42,7 @@ export const typeDef = gql`
         after: String
         excludeTags: Boolean
         ids: [ID!]
+        searchString: String
         sortBy: StarSortBy
         take: Int
     }

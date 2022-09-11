@@ -4,21 +4,15 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { projectCreateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { projectCreateMutation } from "graphql/mutation";
-import { getUserLanguages, ObjectType, ProjectTranslationShape, shapeProjectCreate, TagShape, updateArray, useReactSearch } from "utils";
+import { getUserLanguages, ObjectType, parseSearchParams, ProjectTranslationShape, shapeProjectCreate, TagShape, updateArray } from "utils";
 import { ProjectCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { DialogActionItem } from "components/containers/types";
-import {
-    Add as CreateIcon,
-    Restore as CancelIcon,
-} from '@mui/icons-material';
-import { LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
-import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
+import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { projectCreate, projectCreateVariables } from "graphql/generated/projectCreate";
-import { RelationshipOwner, RelationshipParent, RelationshipProject } from "components/inputs/types";
+import { RelationshipsObject } from "components/inputs/types";
 
 export const ProjectCreate = ({
     onCreated,
@@ -26,23 +20,21 @@ export const ProjectCreate = ({
     session,
     zIndex,
 }: ProjectCreateProps) => {
-    const params = useReactSearch(null);
 
-    // If this object is complete/incomplete
-    const [isComplete, setIsComplete] = useState(false);
-    const onIsCompleteChange = useCallback((newIsComplete: boolean) => { setIsComplete(newIsComplete) }, [setIsComplete]);
-    // If this object is public or private
-    const [isPrivate, setIsPrivate] = useState(false);
-    const onIsPrivateChange = useCallback((newIsPrivate: boolean) => { setIsPrivate(newIsPrivate) }, [setIsPrivate]);
-    // Who can control the project
-    const [owner, setOwner] = useState<RelationshipOwner>(userFromSession(session));
-    const onOwnerChange = useCallback((owner: RelationshipOwner) => { setOwner(owner); }, [setOwner]);
-    // Object this was forked from
-    const [parent, setParent] = useState<RelationshipParent>(null);
-    const onParentChange = useCallback((parent: RelationshipParent) => { setParent(parent); }, [setParent]);
-    // What project this object is a part of
-    const [project, setProject] = useState<RelationshipProject>(null);
-    const onProjectChange = useCallback((project: RelationshipProject) => { setProject(project); }, [setProject]);
+    const [relationships, setRelationships] = useState<RelationshipsObject>({
+        isComplete: false,
+        isPrivate: false,
+        owner: userFromSession(session),
+        parent: null,
+        project: null,
+    });
+    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
+        console.log('onRelationshipsChange', newRelationshipsObject);
+        setRelationships({
+            ...relationships,
+            ...newRelationshipsObject,
+        });
+    }, [relationships]);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
@@ -80,9 +72,10 @@ export const ProjectCreate = ({
 
     // TODO upgrade to pull data from search params like it's done in AdvancedSearchDialog
     useEffect(() => {
+        const params = parseSearchParams(window.location.search);
         if (typeof params.tag === 'string') setTags([{ tag: params.tag }]);
         else if (Array.isArray(params.tags)) setTags(params.tags.map((t: any) => ({ tag: t })));
-    }, [params]);
+    }, []);
 
     // Handle create
     const [mutation] = useMutation<projectCreate, projectCreateVariables>(projectCreateMutation);
@@ -99,15 +92,24 @@ export const ProjectCreate = ({
                 description: values.description,
                 name: values.name,
             })
+            console.log('onsubmit', values, relationships, shapeProjectCreate({
+                id: uuid(),
+                isComplete: relationships.isComplete,
+                isPrivate: relationships.isPrivate,
+                owner: relationships.owner,
+                parent: relationships.parent,
+                resourceLists: [resourceList],
+                tags: tags,
+                translations: allTranslations,
+            }));
             mutationWrapper({
                 mutation,
                 input: shapeProjectCreate({
                     id: uuid(),
-                    isComplete,
-                    isPrivate,
-                    owner,
-                    parent,
-                    // project, //TODO
+                    isComplete: relationships.isComplete,
+                    isPrivate: relationships.isPrivate,
+                    owner: relationships.owner,
+                    parent: relationships.parent,
                     resourceLists: [resourceList],
                     tags: tags,
                     translations: allTranslations,
@@ -177,28 +179,17 @@ export const ProjectCreate = ({
         setLanguages(newLanguages);
     }, [deleteTranslation, languages, updateFormikTranslation]);
 
-    const actions: DialogActionItem[] = useMemo(() => {
-        const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
-        return [
-            ['Create', CreateIcon, Boolean(!loggedIn || formik.isSubmitting), true, () => { }],
-            ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
-        ] as DialogActionItem[]
-    }, [formik, onCancel, session]);
-    const [formBottom, setFormBottom] = useState<number>(0);
-    const handleResize = useCallback(({ height }: any) => {
-        setFormBottom(height);
-    }, [setFormBottom]);
+    const isLoggedIn = useMemo(() => session?.isLoggedIn === true && uuidValidate(session?.id ?? ''), [session]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            paddingBottom: `${formBottom}px`,
             zIndex,
         }}
         >
-            <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
+            <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                 <Grid item xs={12}>
                     <Typography
                         component="h1"
@@ -210,24 +201,10 @@ export const ProjectCreate = ({
                     >Create Project</Typography>
                 </Grid>
                 <Grid item xs={12}>
-                    {/* <UserOrganizationSwitch TODO delete switches when relationshipbuttons working
-                        session={session}
-                        selected={organizationFor}
-                        onChange={onSwitchChange}
-                        zIndex={zIndex}
-                    /> */}
                     <RelationshipButtons
-                        isComplete={isComplete}
-                        isPrivate={isPrivate}
                         objectType={ObjectType.Project}
-                        onIsCompleteChange={onIsCompleteChange}
-                        onIsPrivateChange={onIsPrivateChange}
-                        onOwnerChange={onOwnerChange}
-                        onProjectChange={onProjectChange}
-                        onParentChange={onParentChange as any}
-                        owner={owner}
-                        parent={parent}
-                        project={project}
+                        onRelationshipsChange={onRelationshipsChange}
+                        relationships={relationships}
                         session={session}
                         zIndex={zIndex}
                     />
@@ -283,7 +260,7 @@ export const ProjectCreate = ({
                         zIndex={zIndex}
                     />
                 </Grid>
-                <Grid item xs={12} marginBottom={4}>
+                <Grid item xs={12}>
                     <TagSelector
                         session={session}
                         tags={tags}
@@ -292,8 +269,16 @@ export const ProjectCreate = ({
                         onTagsClear={clearTags}
                     />
                 </Grid>
+                <GridSubmitButtons
+                    disabledCancel={formik.isSubmitting}
+                    disabledSubmit={Boolean(!isLoggedIn || formik.isSubmitting)}
+                    errors={formik.errors}
+                    isCreate={true}
+                    onCancel={onCancel}
+                    onSetSubmitting={formik.setSubmitting}
+                    onSubmit={formik.handleSubmit}
+                />
             </Grid>
-            <DialogActionsContainer actions={actions} onResize={handleResize} />
         </form>
     )
 }

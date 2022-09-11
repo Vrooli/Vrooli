@@ -326,8 +326,9 @@ export const projectMutater = (prisma: PrismaType) => ({
          */
         const createData = async (input: ProjectCreateInput | ProjectUpdateInput): Promise<{ [x: string]: any }> => ({
             id: input.id,
-            handle: (input as ProjectUpdateInput).handle ?? null,
-            isComplete: input.isComplete,
+            handle: (input as ProjectUpdateInput).handle ?? undefined,
+            isComplete: input.isComplete ?? undefined,
+            isPrivate: input.isPrivate ?? undefined,
             completedAt: (input.isComplete === true) ? new Date().toISOString() : (input.isComplete === false) ? null : undefined,
             parentId: (input as ProjectCreateInput)?.parentId ?? undefined,
             resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, input, true),

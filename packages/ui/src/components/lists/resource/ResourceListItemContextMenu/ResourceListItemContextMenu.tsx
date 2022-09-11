@@ -2,15 +2,14 @@ import { ResourceListItemContextMenuProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import {
     Delete as DeleteIcon,
-    Edit as EditIcon,
     EditLocation as EditLocationIcon,
     MoveDown as MoveDownIcon,
     MoveUp as MoveUpIcon,
-    SvgIconComponent,
 } from '@mui/icons-material';
 import { ListMenu } from 'components';
+import { EditIcon } from '@shared/icons';
 
-const listOptionsMap: { [x: string]: [string, SvgIconComponent] } = {
+const listOptionsMap: { [x: string]: [string, any] } = {
     'addBefore': ['Add resource before', MoveDownIcon],
     'addAfter': ['Add resource after', MoveUpIcon],
     'delete': ['Delete resource', DeleteIcon],

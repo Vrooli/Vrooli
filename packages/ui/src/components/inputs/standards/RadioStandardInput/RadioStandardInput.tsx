@@ -8,9 +8,9 @@ import { useFormik } from 'formik';
 import { useCallback, useEffect } from 'react';
 import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import {
-    Add as AddIcon,
     Delete as DeleteIcon,
 } from '@mui/icons-material';
+import { AddIcon } from '@shared/icons';
 
 /**
  * Create new option

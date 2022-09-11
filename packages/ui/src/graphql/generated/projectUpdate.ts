@@ -84,11 +84,22 @@ export interface projectUpdate_projectUpdate_owner_Organization_translations {
   name: string;
 }
 
+export interface projectUpdate_projectUpdate_owner_Organization_permissionsOrganization {
+  __typename: "OrganizationPermission";
+  canAddMembers: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  isMember: boolean;
+}
+
 export interface projectUpdate_projectUpdate_owner_Organization {
   __typename: "Organization";
   id: string;
   handle: string | null;
   translations: projectUpdate_projectUpdate_owner_Organization_translations[];
+  permissionsOrganization: projectUpdate_projectUpdate_owner_Organization_permissionsOrganization | null;
 }
 
 export interface projectUpdate_projectUpdate_owner_User {

@@ -5,9 +5,6 @@ import { WalletListProps } from '../types';
 import { useCallback, useState } from 'react';
 import { Wallet } from 'types';
 import { Box, Button } from '@mui/material';
-import {
-    Add as AddIcon,
-} from '@mui/icons-material';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { PubSub, updateArray } from 'utils';
@@ -18,6 +15,7 @@ import { DeleteOneType } from '@shared/consts';
 import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
 import { walletUpdate, walletUpdateVariables } from 'graphql/generated/walletUpdate';
 import { WalletInstallDialog, WalletSelectDialog } from 'components';
+import { AddIcon } from '@shared/icons';
 
 export const WalletList = ({
     handleUpdate,

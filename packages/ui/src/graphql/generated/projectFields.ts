@@ -84,11 +84,22 @@ export interface projectFields_owner_Organization_translations {
   name: string;
 }
 
+export interface projectFields_owner_Organization_permissionsOrganization {
+  __typename: "OrganizationPermission";
+  canAddMembers: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canStar: boolean;
+  canReport: boolean;
+  isMember: boolean;
+}
+
 export interface projectFields_owner_Organization {
   __typename: "Organization";
   id: string;
   handle: string | null;
   translations: projectFields_owner_Organization_translations[];
+  permissionsOrganization: projectFields_owner_Organization_permissionsOrganization | null;
 }
 
 export interface projectFields_owner_User {

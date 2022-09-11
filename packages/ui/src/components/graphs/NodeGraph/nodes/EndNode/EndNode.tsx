@@ -1,22 +1,30 @@
 import { Box, Tooltip, Typography } from '@mui/material';
 import React, { useCallback, useMemo, useState } from 'react';
 import { EndNodeProps } from '../types';
-import { DraggableNode, NodeContextMenu, NodeWidth } from '../..';
+import { DraggableNode, EndNodeDialog, NodeContextMenu, NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 import { CSSProperties } from '@mui/styles';
-import { BuildAction, useLongPress } from 'utils';
+import { BuildAction, usePress } from 'utils';
+import { NodeEnd } from 'types';
+
+/**
+ * Distance before a click is considered a drag
+ */
+const DRAG_THRESHOLD = 10;
 
 export const EndNode = ({
+    canDrag = true,
     handleAction,
+    handleUpdate,
     isEditing,
     isLinked = true,
-    node,
-    scale = 1,
     label = 'End',
     labelVisible = true,
+    language,
     linksIn,
-    canDrag = true,
+    node,
+    scale = 1,
     zIndex,
 }: EndNodeProps) => {
 
@@ -25,7 +33,7 @@ export const EndNode = ({
      * Default (grey) for valid or unlinked, 
      * Red for not fully connected (missing in links)
      */
-     const borderColor = useMemo(() => {
+    const borderColor = useMemo(() => {
         if (!isLinked) return 'gray';
         if (linksIn.length === 0) return 'red';
         return 'gray';
@@ -48,33 +56,40 @@ export const EndNode = ({
     const innerCircleSize = useMemo(() => `max(${NodeWidth.End * scale / 1.5}px, 32px)`, [scale]);
     const fontSize = useMemo(() => `min(${NodeWidth.End * scale / 5}px, 2em)`, [scale]);
 
+    // Normal click edit menu (title, wasSuccessful, etc.)
+    const [editDialogOpen, setEditDialogOpen] = useState<boolean>(false);
+    const openEditDialog = useCallback((event: any) => {
+        if (isLinked) {
+            setEditDialogOpen(!editDialogOpen);
+        }
+    }, [isLinked, editDialogOpen]);
+    const handleEditDialogClose = useCallback((updatedNode?: NodeEnd) => {
+        if (updatedNode) handleUpdate(updatedNode);
+        setEditDialogOpen(false);
+    }, [handleUpdate]);
+
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
-        // Ignore if not linked or editing
+    const openContext = useCallback((target: React.MouseEvent['target']) => {
+        // Ignore if not linked or not editing
         if (!canDrag || !isLinked || !isEditing) return;
-        ev.preventDefault();
-        setContextAnchor(ev.currentTarget ?? ev.target)
+        setContextAnchor(target)
     }, [canDrag, isLinked, isEditing]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
-    const longPressEvent = useLongPress({ onLongPress: openContext });
-
-    // Normal click edit menu (title, wasSuccessful, etc.)
-    const [editMenuOpen, setEditMenuOpen] = useState<boolean>(false);
-    const handleNodeMouseUp = useCallback((event: any) => {
-        if (isLinked && !canDrag) {
-            setEditMenuOpen(!editMenuOpen);
-        }
-    }, [canDrag, isLinked, editMenuOpen]);
+    const pressEvents = usePress({ 
+        onLongPress: openContext, 
+        onClick: openEditDialog,
+        onRightClick: openContext,
+    });
 
     return (
         <DraggableNode
             className="handle"
             nodeId={node.id}
             canDrag={canDrag}
-            onClick={handleNodeMouseUp}
+            dragThreshold={DRAG_THRESHOLD}
         >
             {/* Right-click context menu */}
             <NodeContextMenu
@@ -86,22 +101,26 @@ export const EndNode = ({
                 zIndex={zIndex + 1}
             />
             {/* Normal-click menu */}
-            {/* <EndNodeMenu
-                isOpen={contextOpen}
-            > */}
+            <EndNodeDialog
+                handleClose={handleEditDialogClose}
+                isEditing={isEditing}
+                isOpen={editDialogOpen}
+                language={language}
+                node={node}
+                zIndex={zIndex + 1}
+            />
             <Tooltip placement={'top'} title={isEditing ? `Edit "${label ?? 'End'}"` : (label ?? 'End')}>
                 <Box
                     id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
                     aria-owns={contextOpen ? contextId : undefined}
-                    onContextMenu={openContext}
-                    {...longPressEvent}
+                    {...pressEvents}
                     sx={{
                         width: outerCircleSize,
                         height: outerCircleSize,
                         fontSize: fontSize,
                         position: 'relative',
                         display: 'block',
-                        backgroundColor: '#979696',
+                        backgroundColor: node.data?.wasSuccessful === false ? '#7c262a' : '#387e30',
                         color: 'white',
                         borderRadius: '100%',
                         boxShadow: `0px 0px 12px ${borderColor}`,
@@ -124,7 +143,7 @@ export const EndNode = ({
                             left: '50%',
                             transform: 'translate(-50%, -50%)',
                             borderRadius: '100%',
-                            border: '2px solid white',
+                            border: `2px solid ${node.data?.wasSuccessful === false ? '#e97691' : '#9ce793'}`,
                         } as const}
                     >
                         {labelObject}

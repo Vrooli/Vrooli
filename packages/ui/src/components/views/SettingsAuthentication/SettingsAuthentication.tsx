@@ -6,17 +6,15 @@ import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { APP_LINKS } from '@shared/consts';
 import { useFormik } from 'formik';
 import { profileEmailUpdateMutation } from "graphql/mutation";
-import { PubSub, TERTIARY_COLOR } from "utils";
+import { PubSub } from "utils";
 import {
     AccountBalanceWallet as WalletIcon,
     Email as EmailIcon,
-    Restore as RevertIcon,
-    Save as SaveIcon,
 } from '@mui/icons-material';
 import { SettingsAuthenticationProps } from "../types";
 import { useLocation } from '@shared/route';
 import { logOutMutation } from 'graphql/mutation';
-import { HelpButton } from "components/buttons";
+import { GridSubmitButtons, HelpButton } from "components/buttons";
 import { EmailList, WalletList } from "components/lists";
 import { Email, Wallet } from "types";
 import { PasswordTextField } from "components";
@@ -134,7 +132,7 @@ export const SettingsAuthentication = ({
                 alignItems: 'center',
             }}>
                 <Typography component="h1" variant="h4" textAlign="center">Authentication</Typography>
-                <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
+                <HelpButton markdown={helpText} />
             </Box>
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
                 <WalletIcon sx={{ marginRight: 1 }} />
@@ -210,26 +208,15 @@ export const SettingsAuthentication = ({
                             helperText={formik.touched.newPasswordConfirmation ? formik.errors.newPasswordConfirmation : null}
                         />
                     </Grid>
-                    <Grid item xs={12} sm={6}>
-                        <Button
-                            fullWidth
-                            startIcon={<SaveIcon />}
-                            disabled={!Object.values(formik.values).some(v => v.length > 0) || !formik.isValid || formik.isSubmitting}
-                            type="submit"
-                        >
-                            Save
-                        </Button>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                        <Button
-                            fullWidth
-                            startIcon={<RevertIcon />}
-                            disabled={!Object.values(formik.values).some(v => v.length > 0) || formik.isSubmitting}
-                            onClick={() => { formik.resetForm() }}
-                        >
-                            Cancel
-                        </Button>
-                    </Grid>
+                    <GridSubmitButtons
+                        disabledCancel={!Object.values(formik.values).some(v => v.length > 0) || formik.isSubmitting}
+                        disabledSubmit={!Object.values(formik.values).some(v => v.length > 0) || !formik.isValid || formik.isSubmitting}
+                        errors={formik.errors}
+                        isCreate={false}
+                        onCancel={formik.resetForm}
+                        onSetSubmitting={formik.setSubmitting}
+                        onSubmit={formik.handleSubmit}
+                    />
                 </Grid>
             </form>
             <Button color="secondary" onClick={onLogOut} sx={{

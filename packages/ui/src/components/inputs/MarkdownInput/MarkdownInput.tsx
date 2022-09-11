@@ -12,13 +12,12 @@ import {
     List as ListIcon,
     StrikethroughS as StrikethroughIcon,
     Title as HeaderIcon,
-    Visibility as PreviewOnIcon,
-    VisibilityOff as PreviewOffIcon,
 } from '@mui/icons-material';
 import { MarkdownInputProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { noSelect } from 'styles';
 import { PubSub } from 'utils';
+import { InvisibleIcon, VisibleIcon } from '@shared/icons';
 
 enum Headers {
     H1 = 'h1',
@@ -52,12 +51,12 @@ export const MarkdownInput = ({
 
     const [isPreviewOn, setIsPreviewOn] = useState(false);
 
-    const [headerAnchorEl, setHeaderAnchorEl] = useState(null);
+    const [headerAnchorEl, setHeaderAnchorEl] = useState<HTMLElement | null>(null);
     const openHeaderSelect = (event) => { setHeaderAnchorEl(event.currentTarget) };
     const closeHeader = () => { setHeaderAnchorEl(null) };
     const headerSelectOpen = Boolean(headerAnchorEl);
 
-    const [listAnchorEl, setListAnchorEl] = useState(null);
+    const [listAnchorEl, setListAnchorEl] = useState<HTMLElement | null>(null);
     const openListSelect = (event) => { setListAnchorEl(event.currentTarget) };
     const closeList = () => { setListAnchorEl(null) };
     const listSelectOpen = Boolean(listAnchorEl);
@@ -353,8 +352,8 @@ export const MarkdownInput = ({
                         <IconButton size="small" onClick={togglePreview}>
                             {
                                 isPreviewOn ?
-                                    <PreviewOffIcon sx={{ fill: palette.primary.contrastText }} /> :
-                                    <PreviewOnIcon sx={{ fill: palette.primary.contrastText }} />
+                                    <InvisibleIcon fill={palette.primary.contrastText} /> :
+                                    <VisibleIcon fill={palette.primary.contrastText} />
                             }
                         </IconButton>
                     </Tooltip>

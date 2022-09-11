@@ -6,6 +6,7 @@ import { APP_LINKS, StarFor, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { CommentButton, ReportButton, StarButton, TagList, TextLoading, UpvoteDownvote } from '..';
 import { getTranslation, listItemColor } from 'utils';
+import { smallHorizontalScrollbar } from '../styles';
 
 export function RoutineListItem({
     data,
@@ -77,18 +78,18 @@ export function RoutineListItem({
                         {loading ? <TextLoading /> :
                             (
                                 <Stack direction="row" spacing={1} sx={{
-                                    overflow: 'auto',
+                                    ...smallHorizontalScrollbar(palette),
                                 }}>
                                     <ListItemText
                                         primary={title}
-                                        sx={{ 
+                                        sx={{
                                             ...multiLineEllipsis(1),
                                             lineBreak: 'anywhere',
                                         }}
                                     />
                                     {!hideRole && canEdit && <ListItemText
                                         primary={`(Can Edit)`}
-                                        sx={{ 
+                                        sx={{
                                             display: 'flex',
                                             alignItems: 'center',
                                             width: '100%',
@@ -103,7 +104,9 @@ export function RoutineListItem({
                             primary={description}
                             sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
                         />}
-                        <Stack direction="row" spacing={1}>
+                        <Stack direction="row" spacing={1} sx={{
+                            ...smallHorizontalScrollbar(palette),
+                        }}>
                             {/* Incomplete chip */}
                             {
                                 data && !data.isComplete && <Tooltip placement="top" title="Marked as incomplete">

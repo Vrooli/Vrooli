@@ -44,7 +44,7 @@ export function TitleContainer({
                         {/* Title */}
                         <Stack direction="row" justifyContent="center" alignItems="center">
                             <Typography component="h2" variant="h4" textAlign="center">{title}</Typography>
-                            {Boolean(helpText) ? <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} /> : null}
+                            {Boolean(helpText) ? <HelpButton markdown={helpText} /> : null}
                         </Stack>
                     </Box>
                     {/* Main content */}

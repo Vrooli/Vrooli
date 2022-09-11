@@ -8,6 +8,7 @@ import { ReportButton, StarButton } from '..';
 import { getTranslation, listItemColor, placeholderColor } from 'utils';
 import { Person as PersonIcon } from '@mui/icons-material';
 import { TextLoading } from '../TextLoading/TextLoading';
+import { smallHorizontalScrollbar } from '../styles';
 
 export const UserListItem = ({
     data,
@@ -81,7 +82,7 @@ export const UserListItem = ({
                         {loading ? <TextLoading /> :
                             (
                                 <Stack direction="row" spacing={1} sx={{
-                                    overflow: 'auto',
+                                    ...smallHorizontalScrollbar(palette),
                                 }}>
                                     <ListItemText
                                         primary={name}

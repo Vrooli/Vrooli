@@ -173,7 +173,11 @@ export const resolvers = {
         },
         organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<OrganizationSearchResult> => {
             await rateLimit({ info, max: 1000, req });
-            return readManyHelper({ info, input, model: OrganizationModel, prisma, userId: req.userId })
+            // Can only show private if querying your own
+            const privateQuery = input.includePrivate ?
+                OrganizationModel.permissions(prisma).ownershipQuery(req.userId ?? '') :
+                { isPrivate: false };
+            return readManyHelper({ info, input, model: OrganizationModel, prisma, userId: req.userId, additionalQueries: { ...privateQuery } })
         },
         organizationsCount: async (_parent: undefined, { input }: IWrap<OrganizationCountInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, max: 1000, req });

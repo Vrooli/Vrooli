@@ -45,16 +45,40 @@ const isActualObject = (obj: any): boolean => !Array.isArray(obj) && isObject(ob
 /**
  * Checks if a string can be parsed as JSON.
  * @param value The string to check.
- * @returns True if the string can be parsed as JSON, false otherwise.
+ * @returns Error messages if the string is not valid JSON, or empty array if valid.
  */
-export const isJson = (value: { [x: string]: any } | string | null | undefined): boolean => {
+export const checkJsonErrors = (value: { [x: string]: any } | string | null | undefined): string[] => {
+    const errors: string[] = [];
     try {
-        // If already a JSON object, return true
-        if (typeof value === 'object') return true;
-        value && JSON.parse(value);
-        return true;
+        // If null or undefined, return false
+        if (value === null || value === undefined) {
+            errors.push('Cannot be empty');
+            return errors;
+        }
+        // Initialize JSON object
+        let jsonObject: { [x: string]: any };
+        // If a string
+        if (typeof value === 'string') {
+            // Check if empty
+            if (value.trim().length === 0) {
+                errors.push('Cannot be empty');
+                return errors;
+            }
+            // Try to convert to JSON object
+            jsonObject = JSON.parse(value);
+        }
+        // If an object, set as JSON object
+        else jsonObject = value;
+        // Check if jsonObject has any properties
+        if (Object.keys(jsonObject).length === 0) {
+            errors.push('Must have at least one property');
+        }
+        // Check if JSON is too long
+        //TODO
+        return errors;
     } catch (e) {
-        return false;
+        errors.push('Invalid JSON');
+        return errors;
     }
 };
 

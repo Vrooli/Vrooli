@@ -2,8 +2,7 @@ import { NodeContextMenuProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import {
     Delete as DeleteIcon,
-    Edit as EditIcon,
-    FileOpen as OpenIcon,
+    Fullscreen as OpenSubroutineIcon,
 } from '@mui/icons-material';
 import { ListMenu } from 'components';
 import { BuildAction } from 'utils';
@@ -15,9 +14,10 @@ import {
     AddRoutineListAfterIcon, 
     AddRoutineListBeforeIcon, 
     DeleteNodeIcon, 
+    EditIcon, 
     MoveNodeIcon, 
     UnlinkNodeIcon 
-} from 'assets/img';
+} from '@shared/icons';
 
 const allOptionsMap: { [index in Exclude<BuildAction, BuildAction.AddSubroutine>]: [string, any] } = {
     [BuildAction.AddIncomingLink]: ['Add incoming link', AddIncomingLinkIcon],
@@ -28,7 +28,7 @@ const allOptionsMap: { [index in Exclude<BuildAction, BuildAction.AddSubroutine>
     [BuildAction.DeleteNode]: ['Delete node', DeleteNodeIcon],
     [BuildAction.MoveNode]: ['Move node', MoveNodeIcon],
     [BuildAction.UnlinkNode]: ['Unlink node', UnlinkNodeIcon],
-    [BuildAction.OpenSubroutine]: ['Open subroutine', OpenIcon],
+    [BuildAction.OpenSubroutine]: ['Open subroutine', OpenSubroutineIcon],
     [BuildAction.EditSubroutine]: ['Edit subroutine', EditIcon],
     [BuildAction.DeleteSubroutine]: ['Delete subroutine', DeleteIcon],
 }

@@ -1,4 +1,4 @@
-import { Box, Checkbox, CircularProgress, FormControlLabel, Grid, TextField, Tooltip, Typography } from "@mui/material"
+import { Box, CircularProgress, Grid, TextField, Typography } from "@mui/material"
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
@@ -8,19 +8,14 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { routineUpdateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
-import { InputShape, OutputShape, PubSub, RoutineTranslationShape, shapeRoutineUpdate, TagShape, updateArray } from "utils";
-import {
-    Restore as CancelIcon,
-    Save as SaveIcon,
-} from '@mui/icons-material';
-import { DialogActionItem } from "components/containers/types";
-import { LanguageInput, MarkdownInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
-import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
+import { getLastUrlPart, InputShape, ObjectType, OutputShape, PubSub, RoutineTranslationShape, shapeRoutineUpdate, TagShape, updateArray } from "utils";
+import { GridSubmitButtons, LanguageInput, MarkdownInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
-import { Organization, ResourceList } from "types";
+import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { routineUpdate, routineUpdateVariables } from "graphql/generated/routineUpdate";
+import { RelationshipItemRoutine, RelationshipsObject } from "components/inputs/types";
 
 export const RoutineUpdate = ({
     onCancel,
@@ -29,16 +24,26 @@ export const RoutineUpdate = ({
     zIndex,
 }: RoutineUpdateProps) => {
     // Fetch existing data
-    const id = useMemo(() => window.location.pathname.split('/').pop() ?? '', []);
+    const id = useMemo(() => getLastUrlPart(), []);
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { input: { id } } });
     }, [getData, id])
     const routine = useMemo(() => data?.routine, [data]);
 
-    // Handle user/organization switch
-    const [organizationFor, setOrganizationFor] = useState<Organization | null>(null);
-    const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
+    const [relationships, setRelationships] = useState<RelationshipsObject>({
+        isComplete: false,
+        isPrivate: false,
+        owner: userFromSession(session),
+        parent: null,
+        project: null,
+    });
+    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
+        setRelationships({
+            ...relationships,
+            ...newRelationshipsObject,
+        });
+    }, [relationships]);
 
     // Handle inputs
     const [inputsList, setInputsList] = useState<InputShape[]>([]);
@@ -96,8 +101,13 @@ export const RoutineUpdate = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
-        if (routine?.owner?.__typename === 'Organization') setOrganizationFor(routine.owner as Organization);
-        else setOrganizationFor(null);
+        // setRelationships({
+        //     isComplete: routine?.isComplete ?? false,
+        //     isPrivate: routine?.isPrivate ?? false,
+        //     owner: routine?.owner ?? null,
+        //     parent: null,
+        //     // parent: routine?.parent ?? null, TODO
+        // });
         setInputsList(routine?.inputs ?? []);
         setOutputsList(routine?.outputs ?? []);
         setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
@@ -119,7 +129,6 @@ export const RoutineUpdate = ({
             instructions: '',
             title: '',
             version: routine?.version ?? '1.0.0',
-            isComplete: routine?.isComplete ?? true,
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
@@ -140,14 +149,11 @@ export const RoutineUpdate = ({
                 input: shapeRoutineUpdate(routine, {
                     id: routine.id,
                     version: values.version,
-                    isComplete: values.isComplete,
-                    owner: organizationFor ? {
-                        __typename: 'Organization',
-                        id: organizationFor.id,
-                    } : {
-                        __typename: 'User',
-                        id: session.id ?? '',
-                    },
+                    isComplete: relationships.isComplete,
+                    isPrivate: relationships.isPrivate,
+                    owner: relationships.owner,
+                    parent: relationships.parent as RelationshipItemRoutine | null,
+                    project: relationships.project,
                     inputs: inputsList,
                     outputs: outputsList,
                     resourceLists: [resourceList],
@@ -211,17 +217,8 @@ export const RoutineUpdate = ({
         setLanguages(newLanguages);
     }, [deleteTranslation, languages, updateFormikTranslation]);
 
-    const actions: DialogActionItem[] = useMemo(() => [
-        ['Save', SaveIcon, Boolean(formik.isSubmitting || !formik.isValid), true, () => { }],
-        ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
-    ], [formik, onCancel]);
-    const [formBottom, setFormBottom] = useState<number>(0);
-    const handleResize = useCallback(({ height }: any) => {
-        setFormBottom(height);
-    }, [setFormBottom]);
-
     const formInput = useMemo(() => (
-        <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
+        <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12}>
                 <Typography
                     component="h1"
@@ -233,14 +230,15 @@ export const RoutineUpdate = ({
                 >Update Routine</Typography>
             </Grid>
             <Grid item xs={12}>
-                <UserOrganizationSwitch
+                <RelationshipButtons
+                    isFormDirty={formik.dirty}
+                    objectType={ObjectType.Routine}
+                    onRelationshipsChange={onRelationshipsChange}
+                    relationships={relationships}
                     session={session}
-                    selected={organizationFor}
-                    onChange={onSwitchChange}
                     zIndex={zIndex}
                 />
             </Grid>
-            {/* TODO add project selector */}
             <Grid item xs={12}>
                 <LanguageInput
                     currentLanguage={language}
@@ -347,32 +345,23 @@ export const RoutineUpdate = ({
                     onTagsClear={clearTags}
                 />
             </Grid>
-            <Grid item xs={12} marginBottom={4}>
-                <Tooltip placement={'top'} title='Is this routine ready for anyone to use?'>
-                    <FormControlLabel
-                        label='Complete'
-                        control={
-                            <Checkbox
-                                id='routine-is-complete'
-                                name='isComplete'
-                                color='secondary'
-                                checked={formik.values.isComplete}
-                                onChange={formik.handleChange}
-                                onBlur={formik.handleBlur}
-                            />
-                        }
-                    />
-                </Tooltip>
-            </Grid>
+            <GridSubmitButtons
+                disabledCancel={formik.isSubmitting}
+                disabledSubmit={formik.isSubmitting || !formik.isValid}
+                errors={formik.errors}
+                isCreate={false}
+                onCancel={onCancel}
+                onSetSubmitting={formik.setSubmitting}
+                onSubmit={formik.handleSubmit}
+            />
         </Grid>
-    ), [session, organizationFor, onSwitchChange, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, formik, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags]);
+    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, formik, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags, onCancel]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            paddingBottom: `${formBottom}px`,
             zIndex,
         }}
         >
@@ -389,7 +378,6 @@ export const RoutineUpdate = ({
                     <CircularProgress size={100} color="secondary" />
                 </Box>
             ) : formInput}
-            <DialogActionsContainer actions={actions} onResize={handleResize} />
         </form>
     )
 }

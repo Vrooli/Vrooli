@@ -176,7 +176,9 @@ export const resolvers = {
             if (input.objectType === undefined || input.objectType === 'Project') {
                 projects = await readManyAsFeed({
                     ...commonReadParams,
-                    additionalQueries: ProjectModel.permissions(prisma).ownershipQuery(userId),
+                    additionalQueries: input.includePrivate ?
+                        ProjectModel.permissions(prisma).ownershipQuery(userId) :
+                        { isPrivate: false },
                     info: (partial as any).Project,
                     input: {
                         after: input.projectAfter,
@@ -210,7 +212,9 @@ export const resolvers = {
             if (input.objectType === undefined || input.objectType === 'Routine') {
                 routines = await readManyAsFeed({
                     ...commonReadParams,
-                    additionalQueries: RoutineModel.permissions(prisma).ownershipQuery(userId),
+                    additionalQueries: input.includePrivate ?
+                        RoutineModel.permissions(prisma).ownershipQuery(userId) :
+                        { isPrivate: false },
                     info: (partial as any).Routine,
                     input: {
                         after: input.routineAfter,
@@ -292,7 +296,9 @@ export const resolvers = {
             if (input.objectType === undefined || input.objectType === 'Project') {
                 projects = await readManyAsFeed({
                     ...commonReadParams,
-                    additionalQueries: ProjectModel.permissions(prisma).ownershipQuery(userId),
+                    additionalQueries: input.includePrivate ?
+                        ProjectModel.permissions(prisma).ownershipQuery(userId) :
+                        { isPrivate: false },
                     info: (partial as any).Project,
                     input: {
                         after: input.projectAfter,
@@ -326,7 +332,9 @@ export const resolvers = {
             if (input.objectType === undefined || input.objectType === 'Organization') {
                 organizations = await readManyAsFeed({
                     ...commonReadParams,
-                    additionalQueries: OrganizationModel.permissions(prisma).ownershipQuery(userId),
+                    additionalQueries: input.includePrivate ?
+                        OrganizationModel.permissions(prisma).ownershipQuery(userId) :
+                        { isPrivate: false },
                     info: (partial as any).Organization,
                     input: {
                         after: input.organizationAfter,

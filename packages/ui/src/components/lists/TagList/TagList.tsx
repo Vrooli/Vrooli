@@ -5,6 +5,7 @@ import { Chip, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 export const TagList = ({
     session,
     parentId,
+    sx,
     tags,
 }: TagListProps) => {
     const { palette } = useTheme();
@@ -41,9 +42,7 @@ export const TagList = ({
                 spacing={1}
                 justifyContent="left"
                 alignItems="center"
-                sx={{
-                    overflowX: 'auto',
-                }}
+                sx={{...(sx ?? {})}}
             >
                 {chips}
                 {numTagsCutOff > 0 && <Typography variant="body1">+{numTagsCutOff}</Typography>}

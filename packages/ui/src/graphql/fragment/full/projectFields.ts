@@ -75,6 +75,14 @@ export const projectFields = gql`
                     language
                     name
                 }
+                permissionsOrganization {
+                    canAddMembers
+                    canDelete
+                    canEdit
+                    canStar
+                    canReport
+                    isMember
+                }
             }
             ... on User {
                 id

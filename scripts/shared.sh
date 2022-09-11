@@ -1,12 +1,20 @@
-#!/bin/sh
+#!/bin/bash
 HERE=`dirname $0`
+source "${HERE}/prettify.sh"
 
 # Loop through shared folder and convert typescript to javascript
-echo 'Converting shared typescript to javascript'
-for package in $(ls -d ${HERE}/../packages/shared/*); do
-    echo "Converting typescript to javascript in ${package}..."
+header 'Converting shared typescript to javascript'
+cd "${HERE}/../packages/shared"
+for package in $(ls -d ./*); do
+    info "Converting typescript to javascript in ${HERE}/../packages/shared/${package}..."
     cd ${package}
     yarn tsc 
-    echo "Converted typescript to javascript in ${package}"
+    if [ $? -ne 0 ]; then
+        error "Failed to convert typescript to javascript in ${HERE}/../packages/shared/${package}"
+        exit 1
+    fi
+    success "Converted typescript to javascript in ${HERE}/../packages/shared/${package}"
     cd ..
 done
+cd ../../scripts
+success "Finished converting shared typescript to javascript"

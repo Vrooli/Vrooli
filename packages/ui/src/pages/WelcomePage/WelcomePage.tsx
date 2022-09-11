@@ -33,9 +33,14 @@ export const WelcomePage = () => {
     const [, setLocation] = useLocation();
     const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
 
-    // Show confetti on page load
+    // Show confetti on page load, if it's the user's first time
     useEffect(() => {
-        PubSub.get().publishCelebration();
+        // Check storage for first time
+        const firstTime = localStorage.getItem('firstTime');
+        if (firstTime === null) {
+            PubSub.get().publishCelebration();
+            localStorage.setItem('firstTime', 'false');
+        }
     }, []);
 
     return (

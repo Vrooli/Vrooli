@@ -4,7 +4,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { CloseIcon } from 'assets/img';
+import { CloseIcon } from '@shared/icons';
 import { HelpButton } from 'components';
 import { noSelect } from 'styles';
 import { DialogTitleProps } from '../types';
@@ -38,7 +38,7 @@ export const DialogTitle = ({
                 }}
             >
                 {title}
-                {helpText && <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} /> }
+                {helpText && <HelpButton markdown={helpText} sx={{ fill: palette.secondary.light }} /> }
             </Typography>
             <IconButton
                 aria-label="close"

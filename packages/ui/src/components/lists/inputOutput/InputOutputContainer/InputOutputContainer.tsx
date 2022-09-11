@@ -1,14 +1,13 @@
-import { Box, IconButton, Stack, Tooltip, Typography } from '@mui/material';
-import { BaseEdge, HelpButton } from 'components';
+import { IconButton, Stack, Tooltip, useTheme } from '@mui/material';
+import { ContentCollapse } from 'components';
 import { InputOutputContainerProps } from '../types';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import {
-    Add as AddIcon,
-} from '@mui/icons-material';
 import { InputShape, OutputShape, updateArray } from 'utils';
 import { InputOutputListItem } from '../InputOutputListItem/InputOutputListItem';
 import { RoutineInput, RoutineOutput } from 'types';
 import { v4 as uuid } from 'uuid';
+import { AddIcon } from '@shared/icons';
+import { ReorderInputDialog } from 'components/dialogs/ReorderInputDialog/ReorderInputDialog';
 
 const inputHelpText =
     `Inputs specify the information required to complete a routine. 
@@ -45,7 +44,7 @@ const AddButton = ({ index, isInput, handleAdd }: AddButtonProps) => (
             id={`add-${isInput ? 'input' : 'output'}-item-${index}`}
             color="inherit"
             onClick={() => handleAdd(index, {} as any)}
-            aria-label="close"
+            aria-label="add item"
             sx={{
                 zIndex: 1,
                 width: 'fit-content',
@@ -78,14 +77,22 @@ export const InputOutputContainer = ({
     session,
     zIndex,
 }: InputOutputContainerProps) => {
+    const { palette } = useTheme();
+
+    const sortedList = useMemo(() => {
+        return list;
+        // TODO when index added in schema.prisma, sort by index
+        //return list.sort((a, b) => a. - b.index);
+    } , [list]);
+
     const type = useMemo(() => isInput ? 'input' : 'output', [isInput]);
-    // Store open/close state of each list item
+    // Store open/close state of each sortedList item
     const [isOpenArray, setIsOpenArray] = useState<boolean[]>([]);
     useEffect(() => {
-        if (list.length > 0 && list.length !== isOpenArray.length) {
-            setIsOpenArray(list.map(() => false));
+        if (sortedList.length > 0 && sortedList.length !== isOpenArray.length) {
+            setIsOpenArray(sortedList.map(() => false));
         }
-    }, [list, isOpenArray]);
+    }, [sortedList, isOpenArray]);
 
     /**
      * Open item at index, and close all others
@@ -102,14 +109,14 @@ export const InputOutputContainer = ({
     }, [isOpenArray]);
 
     const onItemAdd = useCallback((index: number, newItem: RoutineInput | RoutineOutput) => {
-        const newIsOpenArray = new Array(list.length + 1).fill(false);
-        newIsOpenArray[Math.min(index + 1, list.length)] = true;
+        const newIsOpenArray = new Array(sortedList.length + 1).fill(false);
+        newIsOpenArray[Math.min(index + 1, sortedList.length)] = true;
         setIsOpenArray(newIsOpenArray);
-        const newList = [...list];
+        const newList = [...sortedList];
         let newItemFormatted: RoutineInput | RoutineOutput = {
             ...newItem,
             id: uuid(),
-            name: newItem.name || `${isInput ? 'Input' : 'Output'} ${list.length + 1}`,
+            name: newItem.name || `${isInput ? 'Input' : 'Output'} ${sortedList.length + 1}`,
             standard: newItem.standard || null,
             translations: newItem.translations ? newItem.translations : [{
                 id: uuid(),
@@ -118,84 +125,107 @@ export const InputOutputContainer = ({
             }] as any,
         };
         if (isInput && (newItem as RoutineInput).isRequired !== true && (newItem as RoutineInput).isRequired !== false) (newItemFormatted as RoutineInput).isRequired = true;
-        // Add new item to list at index (splice does not work)
+        // Add new item to sortedList at index (splice does not work)
         const listStart = newList.slice(0, index);
         const listEnd = newList.slice(index);
         const combined = [...listStart, newItemFormatted, ...listEnd];
         // newList.splice(index + 1, 0, newItemFormatted);
         handleUpdate(combined as any);
-    }, [list, language, isInput, handleUpdate]);
+    }, [sortedList, language, isInput, handleUpdate]);
+
+    const onItemReorder = useCallback((fromIndex: number, toIndex: number) => {
+        const newList = [...sortedList];
+        const [removed] = newList.splice(fromIndex, 1);
+        newList.splice(toIndex, 0, removed);
+        handleUpdate(newList as any);
+    }, [handleUpdate, sortedList]);
 
     const onItemUpdate = useCallback((index: number, updatedItem: InputShape | OutputShape) => {
-        handleUpdate(updateArray(list, index, updatedItem));
-    }, [handleUpdate, list]);
+        handleUpdate(updateArray(sortedList, index, updatedItem));
+    }, [handleUpdate, sortedList]);
 
     const onItemDelete = useCallback((index: number) => {
         setIsOpenArray(isOpenArray.filter((_, i) => i !== index));
-        handleUpdate([...list.filter((_, i) => i !== index)]);
-    }, [handleUpdate, list, isOpenArray]);
+        handleUpdate([...sortedList.filter((_, i) => i !== index)]);
+    }, [handleUpdate, sortedList, isOpenArray]);
+
+    // Move item dialog
+    const [moveStartIndex, setMoveStartIndex] = useState<number>(-1);
+    const openMoveDialog = useCallback((index: number) => { setMoveStartIndex(index); }, []);
+    const closeMoveDialog = useCallback((toIndex?: number) => {
+        if (toIndex !== undefined && toIndex >= 0) {
+            onItemReorder(moveStartIndex, toIndex);
+            // If the item was open, open the new item
+            if (isOpenArray[moveStartIndex]) {
+                handleOpen(toIndex);
+            }
+        }
+        setMoveStartIndex(-1);
+    }, [onItemReorder, moveStartIndex, isOpenArray, handleOpen]);
 
     return (
-        <Box
-            id={`${type}-container`}
-            sx={{
-                position: 'relative',
-                maxWidth: '500px',
-                marginLeft: 'auto',
-                marginRight: 'auto',
-            }}
-        >
-            <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                {/* Title */}
-                <Typography component="h2" variant="h5" textAlign="left">{isInput ? 'Inputs' : 'Outputs'}</Typography>
-                {/* Help button */}
-                <HelpButton markdown={isInput ? inputHelpText : outputHelpText} />
-            </Stack>
-            <Stack direction="column">
-                {/* List of inputs. If editing, display delete icon next to each and an add button at the bottom */}
-                {list.map((item, index) => (
-                    <Fragment key={index}>
-                        {isEditing && <AddButton
-                            key={`add-${type}-item-${index}`}
-                            index={index}
-                            isInput={isInput}
-                            handleAdd={onItemAdd}
-                        />}
-                        <InputOutputListItem
-                            key={`${type}-item-${item.id}`}
-                            index={index}
-                            isInput={isInput}
-                            isOpen={isOpenArray.length > index && isOpenArray[index]}
-                            item={item}
-                            isEditing={isEditing}
-                            handleOpen={handleOpen}
-                            handleClose={handleClose}
-                            handleDelete={onItemDelete}
-                            handleUpdate={onItemUpdate}
-                            language={language}
-                            session={session}
-                            zIndex={zIndex}
-                        />
-                    </Fragment>
-                ))}
-                {/* Show add button at bottom of list */}
-                {isEditing && <AddButton
-                key={`add-${type}-item-${list.length}`}
-                    index={list.length}
-                    isInput={isInput}
-                    handleAdd={onItemAdd}
-                />}
-            </Stack>
-            {/* Edges displayed between items (and add button) is actually one edge, since it will be a 
-                straight line anyway */}
-            {((isEditing && list.length > 0) || (!isEditing && list.length > 1)) && <BaseEdge
-                containerId={`${type}-container`}
-                fromId={`add-${type}-item-0`}
-                isEditing={isEditing}
-                thiccness={30}
-                timeBetweenDraws={100}
-                toId={`add-${type}-item-${list.length}`}
-            />}
-        </Box>
+        <>
+            {/* Dialog for reordering item */}
+            <ReorderInputDialog
+                isInput={isInput}
+                handleClose={closeMoveDialog}
+                listLength={sortedList.length}
+                startIndex={moveStartIndex}
+                zIndex={zIndex + 1}
+            />
+            {/* Main content */}
+            <ContentCollapse
+                id={`${type}-container`}
+                helpText={isInput ? inputHelpText : outputHelpText}
+                title={isInput ? 'Inputs' : 'Outputs'}
+                sxs={{
+                    titleContainer: {
+                        display: 'flex',
+                        justifyContent: 'center'
+                    },
+                    root: {
+                        background: palette.primary.dark,
+                        color: palette.primary.contrastText,
+                        border: `1px solid ${palette.background.textPrimary}`,
+                        borderRadius: 2,
+                        padding: 0,
+                        overflow: 'overlay',
+                    }
+                }}
+            >
+                <Stack direction="column" sx={{
+                    background: palette.background.default,
+                }}>
+                    {/* List of inputs. If editing, display delete icon next to each and an add button at the bottom */}
+                    {sortedList.map((item, index) => (
+                        <Fragment key={index}>
+                            <InputOutputListItem
+                                key={`${type}-item-${item.id}`}
+                                index={index}
+                                isInput={isInput}
+                                isOpen={isOpenArray.length > index && isOpenArray[index]}
+                                item={item}
+                                isEditing={isEditing}
+                                handleOpen={handleOpen}
+                                handleClose={handleClose}
+                                handleDelete={onItemDelete}
+                                handleReorder={openMoveDialog}
+                                handleUpdate={onItemUpdate}
+                                language={language}
+                                session={session}
+                                zIndex={zIndex}
+                            />
+                        </Fragment>
+                    ))}
+                    {/* Show add button at bottom of sortedList */}
+                    {isEditing && <AddButton
+                        key={`add-${type}-item-${sortedList.length}`}
+                        index={sortedList.length}
+                        isInput={isInput}
+                        handleAdd={onItemAdd}
+                    />}
+                </Stack>
+            </ContentCollapse>
+        </>
     )
 }

@@ -324,6 +324,7 @@ export const standardMutater = (prisma: PrismaType) => ({
         return {
             id: data.id,
             isInternal: data.isInternal ?? false,
+            isPrivate: data.isPrivate ?? undefined,
             name: await standardQuerier(prisma).generateName(userId ?? '', data),
             default: data.default,
             type: data.type,
@@ -342,6 +343,7 @@ export const standardMutater = (prisma: PrismaType) => ({
             translations.jsonVariable = sortify(translations.jsonVariable);
         }
         return {
+            isPrivate: data.isPrivate ?? undefined,
             resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, false),
             tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Standard'),
             translations,

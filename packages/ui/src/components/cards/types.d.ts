@@ -6,7 +6,7 @@ export interface ResourceCardProps {
     handleEdit: (index: number) => void;
     handleDelete: (index: number) => void;
     index: number;
-    onRightClick: (ev: any, index: number) => void;
+    onRightClick: (target: React.MouseEvent['target'], index: number) => void;
     session: Session;
 }
 

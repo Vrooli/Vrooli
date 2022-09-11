@@ -10,7 +10,7 @@ import { MarkdownInput } from 'components/inputs';
 import { useFormik } from 'formik';
 import { commentCreateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils';
-import { ObjectType, parseSearchParams, PubSub, searchTypeToParams, stringifySearchParams, useReactSearch } from 'utils';
+import { addSearchParams, PubSub, removeSearchParams, searchTypeToParams, useReactSearch } from 'utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TimeFrame } from 'graphql/generated/globalTypes';
 import { comments, commentsVariables } from 'graphql/generated/comments';
@@ -20,9 +20,8 @@ import { Comment, CommentThread as ThreadType } from 'types';
 import { CommentThread } from 'components/lists/comment';
 import { validate as uuidValidate } from 'uuid';
 import { v4 as uuid } from 'uuid';
-import { FormSchema } from 'forms/types';
 
-const { advancedSearchSchema, defaultSortBy, sortByOptions } = searchTypeToParams.Comment;
+const { advancedSearchSchema, defaultSortBy } = searchTypeToParams.Comment;
 
 export function CommentContainer({
     language,
@@ -54,8 +53,8 @@ export function CommentContainer({
         }
     }, [searchParams]);
 
-    const [sortAnchorEl, setSortAnchorEl] = useState(null);
-    const [timeAnchorEl, setTimeAnchorEl] = useState(null);
+    const [sortAnchorEl, setSortAnchorEl] = useState<HTMLElement | null>(null);
+    const [timeAnchorEl, setTimeAnchorEl] = useState<HTMLElement | null>(null);
     const [timeFrameLabel, setTimeFrameLabel] = useState<string>('Time');
     const after = useRef<string | undefined>(undefined);
 
@@ -63,19 +62,14 @@ export function CommentContainer({
      * When sort and filter options change, update the URL
      */
     useEffect(() => {
-        const params = parseSearchParams(window.location.search);
-        if (searchString) params.search = searchString;
-        else delete params.search;
-        if (sortBy) params.sort = sortBy;
-        else delete params.sort;
-        if (timeFrame) {
-            params.time = {
+        addSearchParams(setLocation, {
+            search: searchString.length > 0 ? searchString : undefined,
+            sort: sortBy,
+            time: timeFrame ? {
                 after: timeFrame.after?.toISOString() ?? '',
                 before: timeFrame.before?.toISOString() ?? '',
-            }
-        }
-        else delete params.time;
-        setLocation(stringifySearchParams(params), { replace: true });
+            } : undefined,
+        })
     }, [searchString, sortBy, timeFrame, setLocation]);
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object>({});
@@ -148,13 +142,12 @@ export function CommentContainer({
     const handleAdvancedSearchDialogSubmit = useCallback((values: any) => {
         // Remove undefined and 0 values
         const valuesWithoutBlanks = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== undefined && v !== 0));
-        // Add advanced search params to url search params
-        setLocation(stringifySearchParams({
-            ...searchParams,
-            ...valuesWithoutBlanks
-        }));
+        // Remove schema fields from search params
+        removeSearchParams(setLocation, advancedSearchSchema?.fields?.map(f => f.fieldName) ?? []);
+        // Add set fields to search params
+        addSearchParams(setLocation, valuesWithoutBlanks);
         setAdvancedSearchParams(valuesWithoutBlanks);
-    }, [searchParams, setLocation]);
+    }, [setLocation]);
 
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {

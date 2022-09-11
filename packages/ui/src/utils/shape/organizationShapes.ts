@@ -38,6 +38,7 @@ export const shapeOrganizationTranslationUpdate = (
 export const shapeOrganizationCreate = (item: OrganizationShape): OrganizationCreateInput => ({
     id: item.id,
     isOpenToNewMembers: item.isOpenToNewMembers,
+    isPrivate: item.isPrivate,
     ...shapeCreateList(item, 'translations', shapeOrganizationTranslationCreate),
     ...shapeCreateList(item, 'resourceLists', shapeResourceListCreate),
     ...shapeCreateList(item, 'tags', shapeTagCreate),
@@ -51,6 +52,7 @@ export const shapeOrganizationUpdate = (
     shapeUpdate(original, updated, (o, u) => ({
         id: o.id,
         isOpenToNewMembers: u.isOpenToNewMembers !== o.isOpenToNewMembers ? u.isOpenToNewMembers : undefined,
+        isPrivate: u.isPrivate !== o.isPrivate ? u.isPrivate : undefined,
         ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeOrganizationTranslationCreate, shapeOrganizationTranslationUpdate, 'id'),
         ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate, 'id'),
         ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate, 'tag', true, true),

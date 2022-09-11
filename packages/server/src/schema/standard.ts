@@ -173,7 +173,11 @@ export const resolvers = {
         },
         standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<StandardSearchResult> => {
             await rateLimit({ info, max: 1000, req });
-            return readManyHelper({ info, input, model: StandardModel, prisma, userId: req.userId });
+            // Can only show private if querying your own
+            const privateQuery = input.includePrivate ?
+                StandardModel.permissions(prisma).ownershipQuery(req.userId ?? '') :
+                { isPrivate: false };
+            return readManyHelper({ info, input, model: StandardModel, prisma, userId: req.userId, additionalQueries: { ...privateQuery } });
         },
         standardsCount: async (_parent: undefined, { input }: IWrap<StandardCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, max: 1000, req });

@@ -10,10 +10,8 @@ import {
 } from '@mui/material';
 import React, { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RoutineListNodeProps } from '../types';
-import { DraggableNode, RoutineSubnode } from '..';
+import { DraggableNode, SubroutineNode } from '..';
 import {
-    Add as AddIcon,
-    Close as DeleteIcon,
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
@@ -24,8 +22,10 @@ import {
 } from '../styles';
 import { multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { NodeDataRoutineList, NodeDataRoutineListItem } from 'types';
-import { getTranslation, BuildAction, updateTranslationField, PubSub, useLongPress } from 'utils';
+import { getTranslation, BuildAction, updateTranslationFields, PubSub, usePress } from 'utils';
 import { EditableLabel } from 'components/inputs';
+import { AddIcon, CloseIcon } from '@shared/icons';
+import AwesomeDebouncePromise from 'awesome-debounce-promise';
 
 /**
  * Distance before a click is considered a drag
@@ -61,6 +61,16 @@ export const RoutineListNode = ({
 }: RoutineListNodeProps) => {
     const { palette } = useTheme();
 
+    // Default to open if editing and empty
+    const [collapseOpen, setCollapseOpen] = useState<boolean>(isEditing && (node?.data as NodeDataRoutineList)?.routines?.length === 0);
+    const collapseDebounce = useMemo(() => AwesomeDebouncePromise(setCollapseOpen, 20), []);
+    const toggleCollapse = useCallback((target: React.MouseEvent['target']) => {
+        if (isLinked && shouldCollapse((target as any).id)) {
+            PubSub.get().publishFastUpdate({ duration: 1000 });
+            collapseDebounce(!collapseOpen);
+        }
+    }, [collapseDebounce, collapseOpen, isLinked]);
+
     // When fastUpdate is triggered, context menu should never open
     const fastUpdateRef = useRef<boolean>(false);
     const fastUpdateTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -79,24 +89,7 @@ export const RoutineListNode = ({
         return () => { PubSub.get().unsubscribe(fastSub); };
     }, []);
 
-    // Default to open if editing and empty
-    const [collapseOpen, setCollapseOpen] = useState<boolean>(isEditing && (node?.data as NodeDataRoutineList)?.routines?.length === 0);
-    const handleNodeClick = useCallback((event: any) => {
-        if (isLinked && (!canDrag || shouldCollapse(event.target.id))) {
-            PubSub.get().publishFastUpdate({ duration: 1000 });
-            setCollapseOpen(!collapseOpen);
-        }
-    }, [canDrag, collapseOpen, isLinked]);
-    /**
-     * When not dragging, DraggableNode onClick will not be triggered. So 
-     * we must handle this ourselves.
-     */
-    const handleNodeMouseUp = useCallback((event: any) => {
-        if (isLinked && !canDrag && shouldCollapse(event.target.id)) {
-            PubSub.get().publishFastUpdate({ duration: 1000 });
-            setCollapseOpen(!collapseOpen);
-        }
-    }, [canDrag, isLinked, collapseOpen]);
+    
 
     const handleNodeUnlink = useCallback(() => { handleAction(BuildAction.UnlinkNode, node.id); }, [handleAction, node.id]);
     const handleNodeDelete = useCallback(() => { handleAction(BuildAction.DeleteNode, node.id); }, [handleAction, node.id]);
@@ -104,7 +97,7 @@ export const RoutineListNode = ({
     const handleLabelUpdate = useCallback((newLabel: string) => {
         handleUpdate({
             ...node,
-            translations: updateTranslationField(node, 'title', newLabel, language),
+            translations: updateTranslationFields(node, language, { title: newLabel }),
         });
     }, [handleUpdate, language, node]);
 
@@ -256,7 +249,7 @@ export const RoutineListNode = ({
      * Subroutines, sorted from lowest to highest index
      * */
     const routines = useMemo(() => [...((node?.data as NodeDataRoutineList)?.routines ?? [])].sort((a, b) => a.index - b.index).map(routine => (
-        <RoutineSubnode
+        <SubroutineNode
             key={`${routine.id}`}
             data={routine}
             handleAction={handleSubroutineAction}
@@ -315,21 +308,23 @@ export const RoutineListNode = ({
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
+    const openContext = useCallback((target: React.MouseEvent['target']) => {
         // Ignore if not linked, not editing, or in the middle of an event (drag, collapse, move, etc.)
         if (!canDrag || !isLinked || !isEditing || isLabelDialogOpen.current || fastUpdateRef.current) return;
-        ev.preventDefault();
-        setContextAnchor(ev.currentTarget ?? ev.target)
+        setContextAnchor(target)
     }, [canDrag, isEditing, isLinked, isLabelDialogOpen]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
-    const longPressEvent = useLongPress({ onLongPress: openContext });
+    const pressEvents = usePress({ 
+        onLongPress: openContext,
+        onClick: toggleCollapse,
+        onRightClick: openContext,
+    });
 
     return (
         <DraggableNode
             className="handle"
             canDrag={canDrag}
             nodeId={node.id}
-            onClick={handleNodeClick}
             dragThreshold={DRAG_THRESHOLD}
             sx={{
                 zIndex: 5,
@@ -357,9 +352,7 @@ export const RoutineListNode = ({
                 <Container
                     id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
                     aria-owns={contextOpen ? contextId : undefined}
-                    onContextMenu={openContext}
-                    {...longPressEvent}
-                    onMouseUp={handleNodeMouseUp}
+                    {...pressEvents}
                     sx={{
                         display: 'flex',
                         height: '48px', // Lighthouse SEO requirement
@@ -399,7 +392,7 @@ export const RoutineListNode = ({
                                 onTouchStart={confirmDelete}
                                 color="inherit"
                             >
-                                <DeleteIcon id={`delete-node-icon-button-${node.id}`} />
+                                <CloseIcon id={`delete-node-icon-button-${node.id}`} />
                             </IconButton>
                         )
                     }

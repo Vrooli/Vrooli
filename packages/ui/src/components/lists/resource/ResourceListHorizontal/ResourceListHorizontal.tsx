@@ -4,11 +4,8 @@ import { Box, CircularProgress, Stack, Tooltip, Typography, useTheme } from '@mu
 import { ResourceCard, ResourceListItemContextMenu } from 'components';
 import { ResourceListHorizontalProps } from '../types';
 import { containerShadow } from 'styles';
-import { MouseEvent, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Resource } from 'types';
-import {
-    Add as AddIcon,
-} from '@mui/icons-material';
 import { cardRoot } from 'components/cards/styles';
 import { ResourceDialog } from 'components/dialogs';
 import { updateArray } from 'utils';
@@ -16,6 +13,7 @@ import { resourceDeleteManyMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { resourceDeleteMany, resourceDeleteManyVariables } from 'graphql/generated/resourceDeleteMany';
+import { AddIcon } from '@shared/icons';
 
 export const ResourceListHorizontal = ({
     title = '📌 Resources',
@@ -79,10 +77,9 @@ export const ResourceListHorizontal = ({
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const contextId = useMemo(() => `resource-context-menu-${selectedIndex}`, [selectedIndex]);
-    const openContext = useCallback((ev: MouseEvent<HTMLButtonElement>, index: number) => {
-        setContextAnchor(ev.currentTarget);
+    const openContext = useCallback((target: React.MouseEvent['target'], index: number) => {
+        setContextAnchor(target);
         setSelectedIndex(index);
-        ev.preventDefault();
     }, []);
     const closeContext = useCallback(() => {
         setContextAnchor(null);
@@ -195,7 +192,7 @@ export const ResourceListHorizontal = ({
                                 justifyContent: 'center',
                             }}
                         >
-                            <AddIcon color="primary" sx={{ width: '50px', height: '50px' }} />
+                            <AddIcon fill={palette.primary.main} width='50px' height='50px' />
                         </Box>
                     </Tooltip> : null}
                 </Stack>

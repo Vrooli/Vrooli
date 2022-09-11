@@ -6,7 +6,7 @@ import { SearchList } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { useLocation } from '@shared/route';
 import { HistorySearchPageProps } from "../types";
-import { parseSearchParams, stringifySearchParams, openObject, SearchType, HistorySearchPageTabOption as TabOption } from "utils";
+import { parseSearchParams, openObject, SearchType, HistorySearchPageTabOption as TabOption, addSearchParams } from "utils";
 import { ListRun, ListStar, ListView } from "types";
 
 // Tab data type
@@ -59,14 +59,10 @@ export function HistorySearchPage({
         return Math.max(0, index);
     });
     const handleTabChange = (_e, newIndex: number) => { 
-        // Update "type" in URL and remove all search params not shared by all tabs
-        const { search, sort, time } = parseSearchParams(window.location.search);
-        setLocation(stringifySearchParams({
-            search,
-            sort,
-            time,
+        // Update search params
+        addSearchParams(setLocation, {
             type: tabOptions[newIndex][1],
-        }), { replace: true })
+        });
         // Update tab index
         setTabIndex(newIndex) 
     };
