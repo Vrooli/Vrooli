@@ -60,7 +60,6 @@ const highlightText = (
     if (searchString.trim().length === 0) return [];
     // Finds all text nodes in the document
     let textNodes: Text[] = getTextNodes();
-    console.log('textNodes', textNodes);
     // Normalize the search term
     const normalizedSearchString = normalizeText(searchString);
     // Build the regex
@@ -185,11 +184,12 @@ const FindInPage = () => {
                 '& .MuiDialog-paper': {
                     background: palette.background.paper,
                     border: palette.mode === 'dark' ? `1px solid white` : 'unset',
-                    minWidth: 'min(100%, 375px)',
+                    minWidth: 'min(100%, 350px)',
                     position: 'absolute',
                     top: '0%',
                     right: '0%',
                     overflowY: 'visible',
+                    margin: { xs: '8px', sm: '16px' },
                 },
                 '& .MuiDialogContent-root': {
                     padding: '12px 8px',
@@ -206,7 +206,7 @@ const FindInPage = () => {
                     <Stack direction="row" sx={{
                         background: palette.background.paper,
                         borderRadius: '4px',
-                        border: `1px solid ${palette.background.textPrimary}`,
+                        border: `1px solid ${searchString.length > 0 && results.length === 0 ? 'red' : palette.background.textPrimary}`,
                     }}>
                         {/* Search bar */}
                         <TextField
@@ -218,12 +218,19 @@ const FindInPage = () => {
                             onChange={onSearchChange}
                             size="small"
                             sx={{
+                                paddingLeft: '4px',
+                                paddingTop: '4px',
+                                paddingBottom: '4px',
                                 width: '100%',
                                 border: 'none',
                                 borderRight: `1px solid ${palette.background.textPrimary}`,
                                 '& .MuiInputBase-root': {
                                     height: '100%',
                                 },
+                            }}
+                            variant="standard"
+                            InputProps={{
+                                disableUnderline: true,
                             }}
                         />
                         {/* Display resultIndex and total results */}

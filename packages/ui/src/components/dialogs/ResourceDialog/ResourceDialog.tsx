@@ -290,6 +290,7 @@ export const ResourceDialog = ({
                     justifyContent: 'center',
                     overflowY: 'visible',
                 }}>
+                    {/* Search bar to find object */}
                     <AutocompleteSearchBar
                         id="vrooli-object-search"
                         autoFocus={true}
@@ -306,6 +307,8 @@ export const ResourceDialog = ({
                             paper: { background: palette.background.paper },
                         }}
                     />
+                    {/* If object selected (and supports versioning), version selector */}
+                    {/* TODO */}
                 </DialogContent>
             </Dialog >
             {/*  Main content */}
