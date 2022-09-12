@@ -40,6 +40,15 @@ const useStyles = makeStyles(() => ({
         ul: {
             listStyle: 'circle',
         },
+        // Search highlight classes
+        '.search-highlight': {
+            backgroundColor: '#ff0',
+            color: '#000',
+        },
+        '.search-highlight-current': {
+            backgroundColor: '#3f0',
+            color: '#000',
+        },
         '#page': {
             minWidth: '100vw',
             minHeight: '100vh',
@@ -150,11 +159,11 @@ export function App() {
                 e.preventDefault();
                 PubSub.get().publishCommandPalette();
             }
-            // CTRL + F - Opens Find in Page TODO
-            // else if (e.ctrlKey && e.key === 'f') {
-            //     e.preventDefault();
-            //     PubSub.get().publishFindInPage();
-            // }
+            // CTRL + F - Opens Find in Page
+            else if (e.ctrlKey && e.key === 'f') {
+                e.preventDefault();
+                PubSub.get().publishFindInPage();
+            }
         };
 
         // attach the event listener
