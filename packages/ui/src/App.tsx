@@ -9,7 +9,7 @@ import {
     Snack
 } from 'components';
 import { PubSub, themes, useReactHash } from 'utils';
-import { AllRoutes } from 'Routes';
+import { Routes } from 'Routes';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { ApolloError, useMutation } from '@apollo/client';
@@ -309,7 +309,7 @@ export function App() {
                             }
                             <AlertDialog />
                             <Snack />
-                            <AllRoutes
+                            <Routes
                                 session={session ?? {}}
                                 sessionChecked={session !== undefined}
                             />

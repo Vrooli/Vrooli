@@ -11,6 +11,7 @@ import { ScrollToTop } from 'components';
 import { CommonProps } from 'types';
 import { Page } from 'pages/wrapper/Page';
 import { Box, CircularProgress } from '@mui/material';
+import { Sitemap } from 'Sitemap';
 
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
 const {
@@ -42,17 +43,16 @@ const Fallback = <Box sx={{
     <CircularProgress size={100} />
 </Box>
 
-export const AllRoutes = (props: CommonProps) => {
+export const Routes = (props: CommonProps) => {
 
     const title = useCallback((page: string) => `${page} | ${BUSINESS_NAME}`, []);
 
     return (
         <>
             <ScrollToTop />
-            {/* <Route
-                    path="/sitemap"
-                    element={Sitemap}
-                /> */}
+            <Route path="/sitemap">
+                <Sitemap {...props} />
+            </Route>
             <Switch>
                 {/* ========= #region Dashboard Routes ========= */}
                 {/* Customizable pages available to logged in users */}
