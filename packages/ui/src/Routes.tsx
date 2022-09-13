@@ -11,7 +11,6 @@ import { ScrollToTop } from 'components';
 import { CommonProps } from 'types';
 import { Page } from 'pages/wrapper/Page';
 import { Box, CircularProgress } from '@mui/material';
-import { Sitemap } from 'Sitemap';
 
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
 const {
@@ -50,41 +49,52 @@ export const Routes = (props: CommonProps) => {
     return (
         <>
             <ScrollToTop />
-            <Route path="/sitemap">
-                <Sitemap {...props} />
-            </Route>
             <Switch>
                 {/* ========= #region Dashboard Routes ========= */}
                 {/* Customizable pages available to logged in users */}
-                <Route path={LINKS.Home}>
+                <Route
+                    path={LINKS.Home}
+                    sitemapIndex
+                    priority={1.0}
+                    changeFreq="monthly"
+                >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Home')} {...props}>
                             <HomePage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={LINKS.History}>
+                <Route
+                    path={LINKS.History}
+                    sitemapIndex={false}
+                >
                     <Suspense fallback={Fallback}>
                         <Page title={title('History')} mustBeLoggedIn={true} {...props}>
                             <HistoryPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={LINKS.Learn} >
+                <Route
+                    path={LINKS.Learn}
+                >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Learn')} {...props}>
                             <LearnPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={LINKS.Research}>
+                <Route
+                    path={LINKS.Research}
+                >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Research')} {...props}>
                             <ResearchPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={LINKS.Develop}>
+                <Route
+                    path={LINKS.Develop}
+                >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Develop')} {...props}>
                             <DevelopPage session={props.session} />
@@ -94,21 +104,27 @@ export const Routes = (props: CommonProps) => {
                 {/* ========= #endregion Dashboard Routes ========= */}
 
                 {/* ========= #region Search Routes ========= */}
-                <Route path={`${LINKS.Search}/:params*`}>
+                <Route
+                    path={`${LINKS.Search}/:params*`}
+                >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
                             <SearchPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.HistorySearch}/:params*`}>
+                <Route
+                    path={`${LINKS.HistorySearch}/:params*`}
+                >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
                             <HistorySearchPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.DevelopSearch}/:params*`}>
+                <Route
+                    path={`${LINKS.DevelopSearch}/:params*`}
+                >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
                             <DevelopSearchPage session={props.session} />
@@ -119,28 +135,36 @@ export const Routes = (props: CommonProps) => {
 
                 {/* ========= #region Views Routes ========= */}
                 {/* Views for main Vrooli components (i.e. organizations, projects, routines, standards, users) */}
-                <Route path={`${LINKS.Organization}/:params*`}>
+                <Route
+                    path={`${LINKS.Organization}/:params*`}
+                >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
                             <ObjectPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.Project}/:params*`}>
+                <Route
+                    path={`${LINKS.Project}/:params*`}
+                >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
                             <ObjectPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.Routine}/:params*`}>
+                <Route
+                    path={`${LINKS.Routine}/:params*`}
+                >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
                             <ObjectPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.Standard}/:params*`}>
+                <Route
+                    path={`${LINKS.Standard}/:params*`}
+                >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
                             <ObjectPage session={props.session} />
@@ -148,7 +172,9 @@ export const Routes = (props: CommonProps) => {
                     </Suspense>
                 </Route>
                 {/* Profile editing is done on settings page, so no need for extra route */}
-                <Route path={`${LINKS.Profile}/:id?`}>
+                <Route
+                    path={`${LINKS.Profile}/:id?`}
+                >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
                             <UserViewPage session={props.session} />
@@ -158,14 +184,18 @@ export const Routes = (props: CommonProps) => {
                 {/* =========  #endregion ========= */}
 
                 {/* ========= #region Authentication Routes ========= */}
-                <Route path={LINKS.Start}>
+                <Route
+                    path={LINKS.Start}
+                >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Start')} {...props}>
                             <StartPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.ForgotPassword}/:code?`} >
+                <Route
+                    path={`${LINKS.ForgotPassword}/:code?`}
+                >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Forgot Password')} {...props}>
                             <FormPage title="Forgot Password" maxWidth="700px">
@@ -174,7 +204,9 @@ export const Routes = (props: CommonProps) => {
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.ResetPassword}/:userId?/:code?`}>
+                <Route
+                    path={`${LINKS.ResetPassword}/:userId?/:code?`}
+                >
                     {(params: any) => (
                         <Suspense fallback={Fallback}>
                             <Page title={title('Reset Password')} {...props}>
@@ -186,28 +218,37 @@ export const Routes = (props: CommonProps) => {
                     )}
                 </Route>
                 {/* ========= #endregion ========= */}
-                <Route path={LINKS.Settings}>
+                <Route
+                    path={LINKS.Settings}
+                    sitemapIndex={false}
+                >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Settings')} {...props} mustBeLoggedIn={true} >
                             <SettingsPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={LINKS.Tutorial}>
+                <Route
+                    path={LINKS.Tutorial}
+                >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Tutorial')} {...props}>
                             <TutorialPage />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={LINKS.Welcome}>
+                <Route
+                    path={LINKS.Welcome}
+                >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Welcome')} {...props}>
                             <WelcomePage />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={LINKS.Stats}>
+                <Route
+                    path={LINKS.Stats}
+                >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Stats📊')} {...props}>
                             <StatsPage />

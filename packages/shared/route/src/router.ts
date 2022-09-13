@@ -110,10 +110,22 @@ export const Router = (props: RouterProps): FunctionComponent<Partial<RouterProp
 };
 
 type RouteProps = {
-    path?: string;
-    match?: any;
-    component?: any;
+    /**
+     * If sitemapIndex is true, this specifies the change frequency of the page 
+     */
+    changeFreq?: "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
     children: JSX.Element | ((params: any) => JSX.Element);
+    component?: any;
+    match?: any;
+    path?: string;
+    /**
+     * If sitemapIndex is true, this specifies the priority of the page.
+     */
+    priority?: number;
+    /**
+     * Specifies if this route should be included in the sitemap
+     */
+    sitemapIndex?: boolean;
 }
 
 export const Route = ({ path, match, component, children }: RouteProps) => {
