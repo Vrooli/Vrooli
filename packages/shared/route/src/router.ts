@@ -109,7 +109,7 @@ export const Router = (props: RouterProps): FunctionComponent<Partial<RouterProp
     }) as any;
 };
 
-type RouteProps = {
+export type RouteProps = {
     /**
      * If sitemapIndex is true, this specifies the change frequency of the page 
      */

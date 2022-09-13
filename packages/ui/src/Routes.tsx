@@ -56,7 +56,7 @@ export const Routes = (props: CommonProps) => {
                     path={LINKS.Home}
                     sitemapIndex
                     priority={1.0}
-                    changeFreq="monthly"
+                    changeFreq="weekly"
                 >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Home')} {...props}>
@@ -76,6 +76,9 @@ export const Routes = (props: CommonProps) => {
                 </Route>
                 <Route
                     path={LINKS.Learn}
+                    sitemapIndex
+                    priority={0.8}
+                    changeFreq="weekly"
                 >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Learn')} {...props}>
@@ -85,6 +88,9 @@ export const Routes = (props: CommonProps) => {
                 </Route>
                 <Route
                     path={LINKS.Research}
+                    sitemapIndex
+                    priority={0.8}
+                    changeFreq="weekly"
                 >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Research')} {...props}>
@@ -94,6 +100,9 @@ export const Routes = (props: CommonProps) => {
                 </Route>
                 <Route
                     path={LINKS.Develop}
+                    sitemapIndex
+                    priority={0.8}
+                    changeFreq="weekly"
                 >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Develop')} {...props}>
@@ -106,6 +115,9 @@ export const Routes = (props: CommonProps) => {
                 {/* ========= #region Search Routes ========= */}
                 <Route
                     path={`${LINKS.Search}/:params*`}
+                    sitemapIndex
+                    priority={0.4}
+                    changeFreq="monthly"
                 >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
@@ -115,6 +127,7 @@ export const Routes = (props: CommonProps) => {
                 </Route>
                 <Route
                     path={`${LINKS.HistorySearch}/:params*`}
+                    sitemapIndex={false}
                 >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
@@ -124,6 +137,7 @@ export const Routes = (props: CommonProps) => {
                 </Route>
                 <Route
                     path={`${LINKS.DevelopSearch}/:params*`}
+                    sitemapIndex={false}
                 >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
@@ -137,6 +151,7 @@ export const Routes = (props: CommonProps) => {
                 {/* Views for main Vrooli components (i.e. organizations, projects, routines, standards, users) */}
                 <Route
                     path={`${LINKS.Organization}/:params*`}
+                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each organization
                 >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
@@ -146,6 +161,7 @@ export const Routes = (props: CommonProps) => {
                 </Route>
                 <Route
                     path={`${LINKS.Project}/:params*`}
+                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each project
                 >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
@@ -155,6 +171,7 @@ export const Routes = (props: CommonProps) => {
                 </Route>
                 <Route
                     path={`${LINKS.Routine}/:params*`}
+                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each routine
                 >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
@@ -164,6 +181,7 @@ export const Routes = (props: CommonProps) => {
                 </Route>
                 <Route
                     path={`${LINKS.Standard}/:params*`}
+                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each standard
                 >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
@@ -174,6 +192,7 @@ export const Routes = (props: CommonProps) => {
                 {/* Profile editing is done on settings page, so no need for extra route */}
                 <Route
                     path={`${LINKS.Profile}/:id?`}
+                    sitemapIndex={false} // TODO: Add to sitemap once we can create URLS for each user
                 >
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
@@ -186,6 +205,9 @@ export const Routes = (props: CommonProps) => {
                 {/* ========= #region Authentication Routes ========= */}
                 <Route
                     path={LINKS.Start}
+                    sitemapIndex
+                    priority={0.2}
+                    changeFreq="yearly"
                 >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Start')} {...props}>
@@ -195,6 +217,9 @@ export const Routes = (props: CommonProps) => {
                 </Route>
                 <Route
                     path={`${LINKS.ForgotPassword}/:code?`}
+                    sitemapIndex
+                    priority={0.2}
+                    changeFreq="yearly"
                 >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Forgot Password')} {...props}>
@@ -206,6 +231,9 @@ export const Routes = (props: CommonProps) => {
                 </Route>
                 <Route
                     path={`${LINKS.ResetPassword}/:userId?/:code?`}
+                    sitemapIndex
+                    priority={0.2}
+                    changeFreq="yearly"
                 >
                     {(params: any) => (
                         <Suspense fallback={Fallback}>
@@ -230,6 +258,9 @@ export const Routes = (props: CommonProps) => {
                 </Route>
                 <Route
                     path={LINKS.Tutorial}
+                    sitemapIndex
+                    priority={0.5}
+                    changeFreq="monthly"
                 >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Tutorial')} {...props}>
@@ -239,6 +270,9 @@ export const Routes = (props: CommonProps) => {
                 </Route>
                 <Route
                     path={LINKS.Welcome}
+                    sitemapIndex
+                    priority={0.5}
+                    changeFreq="monthly"
                 >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Welcome')} {...props}>
@@ -248,6 +282,9 @@ export const Routes = (props: CommonProps) => {
                 </Route>
                 <Route
                     path={LINKS.Stats}
+                    sitemapIndex
+                    priority={0.5}
+                    changeFreq="weekly"
                 >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Stats📊')} {...props}>

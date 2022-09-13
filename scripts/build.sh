@@ -109,9 +109,10 @@ if [ $? -ne 0 ]; then
 fi
 
 # Generate sitemap.xml
-ts-node --esm ${HERE}/../packages/ui/src/sitemap.ts
+ts-node --esm --experimental-specifier-resolution node  ./src/sitemap.ts 
 if [ $? -ne 0 ]; then
     error "Failed to generate sitemap.xml"
+    echo "${HERE}/../packages/ui/src/sitemap.ts"
     # This is not a critical error, so we don't exit
 fi
 
