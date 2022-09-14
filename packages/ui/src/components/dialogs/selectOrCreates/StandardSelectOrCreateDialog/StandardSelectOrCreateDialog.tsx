@@ -127,6 +127,7 @@ export const StandardSelectOrCreateDialog = ({
                         </Tooltip>
                     </Stack>
                     <SearchList
+                        id="standard-select-or-create-list"
                         itemKeyPrefix='standard-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
                         searchType={SearchType.Standard}

@@ -188,7 +188,7 @@ export const HistoryPage = ({
                 <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: '5vh' }}>
                     <Typography component="h1" variant="h3" textAlign="center">History</Typography>
                     <AutocompleteSearchBar
-                        id="main-search"
+                        id="history-search"
                         placeholder='Search active/completed runs, stars, and views...'
                         options={autocompleteOptions}
                         loading={loading}

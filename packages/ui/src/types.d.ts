@@ -142,7 +142,8 @@ export type RoutineStep = DecisionStep | SubroutineStep | RoutineListStep
 export interface AutocompleteOption {
     __typename: string;
     id: string;
-    label: string | null;
+    isFromHistory?: boolean;
+    label: string;
     stars?: number;
     [key: string]: any;
 }

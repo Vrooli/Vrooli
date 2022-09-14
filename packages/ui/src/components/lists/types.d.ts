@@ -83,6 +83,7 @@ export interface SearchListProps {
      * True if roles (admin, owner, etc.) should be hidden in list items
      */
     hideRoles?: boolean;
+    id: string;
     itemKeyPrefix: string;
     searchPlaceholder?: string;
     take?: number; // Number of items to fetch per page

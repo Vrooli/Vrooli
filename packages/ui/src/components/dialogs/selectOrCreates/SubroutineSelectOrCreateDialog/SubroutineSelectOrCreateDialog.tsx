@@ -154,6 +154,7 @@ export const SubroutineSelectOrCreateDialog = ({
                         </Tooltip>
                     </Stack>
                     <SearchList
+                        id="subroutine-select-or-create-list"
                         itemKeyPrefix='routine-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
                         searchType={SearchType.Routine}

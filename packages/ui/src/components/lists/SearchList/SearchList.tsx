@@ -40,6 +40,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     canSearch = true,
     handleAdd,
     hideRoles,
+    id,
     itemKeyPrefix,
     noResultsText = 'No results',
     searchPlaceholder = 'Search...',
@@ -340,7 +341,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                 <Box sx={{ width: 'min(100%, 400px)' }}>
                     <AutocompleteSearchBar
-                        id={`search-bar`}
+                        id={`search-bar-${id}`}
                         placeholder={searchPlaceholder}
                         options={autocompleteOptions}
                         loading={loading}

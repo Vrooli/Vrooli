@@ -127,6 +127,7 @@ export const ProjectSelectOrCreateDialog = ({
                         </Tooltip>
                     </Stack>
                     <SearchList
+                        id="project-select-or-create-list"
                         itemKeyPrefix='project-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
                         onObjectSelect={(newValue) => handleProjectSelect(newValue)}

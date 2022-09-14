@@ -474,6 +474,7 @@ export const UserView = ({
                                 canSearch={uuidValidate(id)}
                                 handleAdd={toAddNew}
                                 hideRoles={true}
+                                id="user-view-list"
                                 itemKeyPrefix={itemKeyPrefix}
                                 noResultsText={noResultsText}
                                 searchType={searchType}

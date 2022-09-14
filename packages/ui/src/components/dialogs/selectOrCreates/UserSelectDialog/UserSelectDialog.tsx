@@ -112,6 +112,7 @@ export const UserSelectDialog = ({
                         </Tooltip>
                     </Stack>
                     <SearchList
+                        id="user-select-or-create-list"
                         itemKeyPrefix='user-list-item'
                         noResultsText={"No results. Maybe you should invite them?"}
                         onObjectSelect={(newValue) => handleUserSelect(newValue)}

@@ -127,6 +127,7 @@ export const RoutineSelectOrCreateDialog = ({
                         </Tooltip>
                     </Stack>
                     <SearchList
+                        id="routine-select-or-create-list"
                         itemKeyPrefix='routine-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
                         onObjectSelect={(newValue) => handleRoutineSelect(newValue)}

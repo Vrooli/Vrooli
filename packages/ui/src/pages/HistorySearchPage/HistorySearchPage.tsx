@@ -112,6 +112,7 @@ export function HistorySearchPage({
                 <Typography component="h2" variant="h4">{title}</Typography>
             </Stack>
             {searchType && <SearchList
+                id="history-search-page-list"
                 itemKeyPrefix={itemKeyPrefix}
                 searchPlaceholder={'Search...'}
                 take={20}

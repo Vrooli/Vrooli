@@ -1,9 +1,60 @@
-import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, CircularProgress, IconButton, Input, ListItemText, MenuItem, Paper, Typography, useTheme } from '@mui/material';
+import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, CircularProgress, IconButton, Input, ListItemIcon, ListItemText, MenuItem, Paper, Tooltip, useTheme } from '@mui/material';
 import { AutocompleteSearchBarProps } from '../types';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
 import { AutocompleteOption } from 'types';
-import { SearchIcon } from '@shared/icons';
+import { HistoryIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, StandardIcon, SvgProps, UserIcon } from '@shared/icons';
+import { Delete as DeleteIcon } from '@mui/icons-material';
+import { ObjectType } from 'utils';
+
+type OptionHistory = { timestamp: number, option: AutocompleteOption };
+
+/**
+ * Gets search history from local storage
+ */
+const getSearchHistory = (searchBarId: string): { [label: string]: OptionHistory } => {
+    const existingHistoryString: string = localStorage.getItem(`search-history-${searchBarId}`) ?? '{}';
+    let existingHistory: { [label: string]: OptionHistory } = {};
+    // Try to parse existing history
+    try {
+        const parsedHistory: any = JSON.parse(existingHistoryString);
+        // If it's not an object, set it to an empty object
+        if (typeof existingHistory !== 'object') existingHistory = {};
+        else existingHistory = parsedHistory;
+    } catch (e) {
+        existingHistory = {};
+    }
+    return existingHistory;
+}
+
+/**
+ * Maps object types to icons
+ */
+const typeToIcon = (type: string, fill: string): JSX.Element | null => {
+    let Icon: null | ((props: SvgProps) => JSX.Element) = null;
+    switch (type) {
+        case ObjectType.Organization:
+            Icon = OrganizationIcon;
+            break;
+        case ObjectType.Project:
+            Icon = ProjectIcon;
+            break;
+        case ObjectType.Routine:
+            Icon = RoutineIcon;
+            break;
+        case 'Shortcut':
+            Icon = ShortcutIcon;
+            break;
+        case ObjectType.Standard:
+            Icon = StandardIcon;
+            break;
+        case ObjectType.User:
+            Icon = UserIcon;
+            break;
+    }
+    return Icon ? <Icon fill={fill} /> : null;
+}
+
 
 export function AutocompleteSearchBar({
     id = 'search-bar',
@@ -42,6 +93,40 @@ export function AutocompleteSearchBar({
         onChangeDebounced(value);
     }, [onChangeDebounced]);
 
+    // For testing purposes
+    useEffect(() => {
+        console.log('search history', getSearchHistory(id));
+    }, [id]);
+
+    const [optionsWithHistory, setOptionsWithHistory] = useState<AutocompleteOption[]>(options);
+    useEffect(() => {
+        // Grab history from local storage
+        const searchHistory = getSearchHistory(id);
+        // Filter out history keys that don't contain internal value
+        let filteredHistory = Object.entries(searchHistory).filter(([key]) => key.includes(internalValue));
+        // Order remaining history keys by most recent. Value is stored as { timestamp: string, value: AutocompleteOption }
+        filteredHistory = filteredHistory.sort((a, b) => { return b[1].timestamp - a[1].timestamp });
+        // Convert history keys to options
+        let historyOptions: AutocompleteOption[] = filteredHistory.map(([, value]) => ({ ...value.option, isFromHistory: true }));
+        // Limit to 5 options
+        historyOptions = historyOptions.slice(0, 5);
+        // Filter out options that are in history (use id to check)
+        const filteredOptions = options.filter(option => !historyOptions.some(historyOption => historyOption.id === option.id));
+        // Set options with history
+        setOptionsWithHistory([...historyOptions, ...filteredOptions]);
+    }, [options, internalValue, id]);
+
+    const removeFromHistory = useCallback((option: AutocompleteOption) => {
+        // Get existing history
+        const existingHistory = getSearchHistory(id);
+        // Remove the option from history
+        delete existingHistory[option.label];
+        // Save the new history
+        localStorage.setItem(`search-history-${id}`, JSON.stringify(existingHistory));
+        // Update options with history
+        setOptionsWithHistory(optionsWithHistory.filter(o => o.id !== option.id));
+    }, [id, optionsWithHistory]);
+
     /**
      * If no options but loading, display a loading indicator
      */
@@ -69,19 +154,43 @@ export function AutocompleteSearchBar({
         }
     }, [])
 
+    const handleSelect = useCallback((option: AutocompleteOption) => {
+        // Add to search history
+        const existingHistory = getSearchHistory(id);
+        // If history has more than 500 entries, remove the oldest
+        if (Object.keys(existingHistory).length > 500) {
+            const oldestKey = Object.keys(existingHistory).sort((a, b) => existingHistory[a].timestamp - existingHistory[b].timestamp)[0];
+            delete existingHistory[oldestKey];
+        }
+        // Add new entry
+        existingHistory[option.label] = {
+            timestamp: Date.now(),
+            option: ({ ...option, isFromHistory: true }),
+        };
+        // Save to local storage
+        localStorage.setItem(`search-history-${id}`, JSON.stringify(existingHistory));
+        // Call onInputChange
+        onInputChange(option);
+    }, [id, onInputChange]);
+
     const onSubmit = useCallback((event: React.SyntheticEvent<Element, Event>, value: AutocompleteOption | null, reason: AutocompleteChangeReason, details?: AutocompleteChangeDetails<any> | undefined) => {
         // If there is a highlighted option, use that
         if (highlightedOption) {
-            onInputChange(highlightedOption);
+            handleSelect(highlightedOption);
         }
         // Otherwise, don't submit
-    }, [highlightedOption, onInputChange])
+    }, [highlightedOption, handleSelect])
+
+    const optionColor = useCallback((isFromHistory: boolean | undefined, isSecondary: boolean): string => {
+        if (isFromHistory) return palette.mode === 'dark' ? 'hotpink' : 'purple';
+        return isSecondary ? palette.background.textSecondary : palette.background.textPrimary;
+    }, [palette]);
 
     return (
         <Autocomplete
             disablePortal
             id={id}
-            options={options}
+            options={optionsWithHistory}
             onHighlightChange={onHighlightChange}
             inputValue={internalValue}
             getOptionLabel={(option: AutocompleteOption) => option.label ?? ''}
@@ -96,9 +205,7 @@ export function AutocompleteSearchBar({
                 // If loading, display spinner
                 if (option.__typename === 'Loading') {
                     return (
-                        <MenuItem
-                            key="loading"
-                        >
+                        <MenuItem key="loading">
                             {/* Object title */}
                             <ListItemText sx={{
                                 '& .MuiTypography-root': {
@@ -127,9 +234,18 @@ export function AutocompleteSearchBar({
                             const label = option.label ?? '';
                             setInternalValue(label);
                             onChangeDebounced(label);
-                            onInputChange(option);
+                            handleSelect(option);
+                        }}
+                        sx={{
+                            color: optionColor(option.isFromHistory, false),
                         }}
                     >
+                        {/* Show history icon if from history */}
+                        {option.isFromHistory && (
+                            <ListItemIcon>
+                                <HistoryIcon fill='hotpink' />
+                            </ListItemIcon>
+                        )}
                         {/* Object title */}
                         <ListItemText sx={{
                             '& .MuiTypography-root': {
@@ -140,14 +256,19 @@ export function AutocompleteSearchBar({
                         }}>
                             {option.label}
                         </ListItemText>
-                        {/* Type of object */}
-                        {
-                            showSecondaryLabel ?
-                                <Typography color="text.secondary">
-                                    {option.__typename === 'Shortcut' ? "↪ Shortcut" : option.__typename}
-                                </Typography> :
-                                null
-                        }
+                        {/* Object icon */}
+                        <ListItemIcon>
+                            {typeToIcon(option.__typename, optionColor(option.isFromHistory, true))}
+                        </ListItemIcon>
+                        {/* If history, show delete icon */}
+                        {option.isFromHistory && <Tooltip placement='right' title='Remove'>
+                            <IconButton size="small" onClick={(event) => {
+                                event.stopPropagation();
+                                removeFromHistory(option);
+                            }}>
+                                <DeleteIcon sx={{ fill: "hotpink" }} />
+                            </IconButton>
+                        </Tooltip>}
                     </MenuItem>
                 )
             }}

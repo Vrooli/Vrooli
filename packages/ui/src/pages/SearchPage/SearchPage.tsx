@@ -237,6 +237,7 @@ export function SearchPage({
                 </Tooltip>
             </Stack>
             {searchType && <SearchList
+                id="main-search-page-list"
                 itemKeyPrefix={itemKeyPrefix}
                 searchPlaceholder={'Search...'}
                 take={20}

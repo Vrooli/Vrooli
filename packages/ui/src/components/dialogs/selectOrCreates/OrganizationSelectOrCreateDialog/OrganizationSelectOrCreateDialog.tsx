@@ -129,6 +129,7 @@ export const OrganizationSelectOrCreateDialog = ({
                         </Tooltip>
                     </Stack>
                     <SearchList
+                        id="organization-select-or-create-list"
                         itemKeyPrefix='organization-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
                         onObjectSelect={(newValue) => handleOrganizationSelect(newValue)}

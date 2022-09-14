@@ -1,7 +1,7 @@
 import { BoxProps, InputProps, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
 import { JSONVariable } from 'forms/types';
 import { ChangeEvent } from 'react';
-import { Organization, Project, Routine, Session, Standard, Tag } from 'types';
+import { AutocompleteOption, Organization, Project, Routine, Session, Standard, Tag } from 'types';
 import { ObjectType, TagShape } from 'utils';
 
 export interface AutocompleteSearchBarProps extends Omit<SearchBarProps, 'sx'> {
