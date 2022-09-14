@@ -5,6 +5,8 @@ import { ObjectListItemProps } from "components/lists/types";
 import { Theme } from "@mui/material";
 import { OpenObjectProps } from "utils";
 
+export type ListObjectType = ListOrganization | ListProject | ListRoutine | ListRun | ListStandard | ListStar | ListUser | ListView;
+
 /**
  * Gets label for List, either from its 
  * name or handle
@@ -63,7 +65,7 @@ export const userOptionLabel = (o: ListUser, languages: readonly string[]) => o.
  * @returns label
  */
 export const getListItemLabel = (
-    object: ListOrganization | ListProject | ListRoutine | ListRun | ListStandard | ListStar | ListUser | ListView,
+    object: ListObjectType,
     languages?: readonly string[]
 ): string => {
     const lang = languages ?? getUserLanguages();
@@ -95,7 +97,7 @@ export const getListItemLabel = (
  * @returns stars
  */
 export const getListItemStars = (
-    object: ListOrganization | ListProject | ListRoutine | ListRun | ListStandard | ListStar | ListUser | ListView,
+    object: ListObjectType,
 ): number => {
     switch (object.__typename) {
         case 'Organization':
@@ -111,6 +113,31 @@ export const getListItemStars = (
             return getListItemStars(object.to as any);
         default:
             return 0;
+    }
+}
+
+/**
+ * Gets isStarred for a single object
+ * @param object A searchable object
+ * @returns isStarred
+ */
+export const getListItemIsStarred = (
+    object: ListObjectType,
+): boolean => {
+    switch (object.__typename) {
+        case 'Organization':
+        case 'Project':
+        case 'Routine':
+        case 'Standard':
+        case 'User':
+            return object.isStarred;
+        case 'Run':
+            return object.routine?.isStarred ?? false;
+        case 'Star':
+        case 'View':
+            return getListItemIsStarred(object.to as any);
+        default:
+            return false;
     }
 }
 
@@ -132,6 +159,7 @@ export function listToAutocomplete(
     return objects.map(o => ({
         __typename: o.__typename,
         id: o.id,
+        isStarred: getListItemIsStarred(o),
         label: getListItemLabel(o, languages),
         stars: getListItemStars(o)
     }));

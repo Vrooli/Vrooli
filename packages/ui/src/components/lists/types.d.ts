@@ -105,13 +105,14 @@ export interface SearchQueryVariablesInput<SortBy> {
 }
 
 export interface StarButtonProps {
-    session: Session;
     isStar?: boolean | null; // Defaults to false
-    showStars?: boolean; // Defaults to true. If false, the number of stars is not shown
-    stars?: number | null; // Defaults to 0
     objectId: string;
+    onChange?: (isStar: boolean, event?: any) => void;
+    session: Session;
+    showStars?: boolean; // Defaults to true. If false, the number of stars is not shown
     starFor: StarFor;
-    onChange?: (isStar: boolean) => void;
+    stars?: number | null; // Defaults to 0
+    sxs?: { root?: { [key: string]: any } };
     tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 }
 

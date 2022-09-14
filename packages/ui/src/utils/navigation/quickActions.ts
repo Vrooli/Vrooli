@@ -60,7 +60,7 @@ export const shortcuts: ShortcutItem[] = [
     },
     {
         label: 'Search standards',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Routines}`,
+        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Standards}`,
     },
     {
         label: 'Search users',

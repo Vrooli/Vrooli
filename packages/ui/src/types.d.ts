@@ -143,6 +143,7 @@ export interface AutocompleteOption {
     __typename: string;
     id: string;
     isFromHistory?: boolean;
+    isStarred?: boolean;
     label: string;
     stars?: number;
     [key: string]: any;
