@@ -153,7 +153,7 @@ export const getListItemIsStarred = (
  * }
  */
 export function listToAutocomplete(
-    objects: readonly (ListOrganization | ListProject | ListRoutine | ListRun | ListStandard | ListStar | ListUser | ListView)[],
+    objects: readonly ListObjectType[],
     languages: readonly string[]
 ): AutocompleteOption[] {
     return objects.map(o => ({

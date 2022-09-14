@@ -1,3 +1,4 @@
+export * from './ActionIcon';
 export * from './AddEndNodeAfterIcon';
 export * from './AddIcon';
 export * from './AddIncomingLinkIcon';

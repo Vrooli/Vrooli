@@ -11,7 +11,7 @@ import { routine_routine, routine_routine_inputs, routine_routine_inputs_transla
 import { standard_standard, standard_standard_translations } from 'graphql/generated/standard';
 import { tag_tag, tag_tag_translations } from 'graphql/generated/tag';
 import { user_user } from 'graphql/generated/user';
-import { RoutineStepType } from 'utils';
+import { ListObjectType, RoutineStepType } from 'utils';
 import { FetchResult } from "@apollo/client";
 import { comment_comment } from 'graphql/generated/comment';
 import { comments_comments_threads } from 'graphql/generated/comments';
@@ -139,8 +139,8 @@ export interface RoutineListStep extends BaseStep {
 }
 export type RoutineStep = DecisionStep | SubroutineStep | RoutineListStep
 
-export interface AutocompleteOption {
-    __typename: string;
+export interface ObjectOption {
+    __typename: ListObjectType['__typename'];
     id: string;
     isFromHistory?: boolean;
     isStarred?: boolean;
@@ -148,6 +148,23 @@ export interface AutocompleteOption {
     stars?: number;
     [key: string]: any;
 }
+
+export interface ShortcutOption {
+    __typename: 'Shortcut';
+    isFromHistory?: boolean;
+    label: string;
+    id: string; // Actually URL, but id makes it easier to use
+}
+
+export interface ActionOption {
+    __typename: 'Action';
+    canPerform: (session: Session) => boolean;
+    id: string;
+    isFromHistory?: boolean;
+    label: string;
+}
+
+export type AutocompleteOption = ObjectOption | ShortcutOption | ActionOption;
 
 // Enable Nami integration
 declare global {

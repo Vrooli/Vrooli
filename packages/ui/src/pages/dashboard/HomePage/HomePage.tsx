@@ -9,7 +9,7 @@ import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { HomePageProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import { listToAutocomplete, listToListItems, openObject, OpenObjectProps, SearchPageTabOption, shortcutsItems, useReactSearch } from 'utils';
+import { actionsItems, listToAutocomplete, listToListItems, openObject, OpenObjectProps, SearchPageTabOption, shortcutsItems, useReactSearch } from 'utils';
 import { AutocompleteOption } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { CreateIcon, SearchIcon } from '@shared/icons';
@@ -140,7 +140,7 @@ export const HomePage = ({
         const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
             return b.stars - a.stars;
         });
-        return [...firstResults, ...queryItems, ...shortcutsItems];
+        return [...firstResults, ...queryItems, ...shortcutsItems, ...actionsItems];
     }, [languages, data, searchString]);
 
     /**
@@ -148,6 +148,11 @@ export const HomePage = ({
      */
     const onInputSelect = useCallback((newValue: AutocompleteOption) => {
         if (!newValue) return;
+        // If selected item is an action (i.e. no navigation required), do nothing 
+        // (search bar performs actions automatically)
+        if (newValue.__typename === 'Action') {
+            return;
+        }
         // Replace current state with search string, so that search is not lost. 
         // Only do this if the selected item is not a shortcut
         if (newValue.__typename !== 'Shortcut' && searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
@@ -251,7 +256,7 @@ export const HomePage = ({
                     <ListTitleContainer
                         key={`feed-list-${tab}`}
                         isEmpty={listFeedItems.length === 0}
-                        title={getFeedTitle(`${tab}s`)}
+                        title={getFeedTitle(`${tab}`)}
                         onClick={(e) => toSearchPage(e, tab)}
                         options={[['See more results', (e) => { toSearchPage(e, tab) }]]}
                     >

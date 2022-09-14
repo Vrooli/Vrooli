@@ -240,20 +240,12 @@ export const ResourceDialog = ({
      * When an autocomplete item is selected, set link as its URL
      */
     const onInputSelect = useCallback((newValue: AutocompleteOption) => {
-        if (!newValue) return;
+        // If value is not an object, return;
+        if (!newValue || newValue.__typename === 'Shortcut' || newValue.__typename === 'Action') return;
         // Clear search string and close command palette
         closeSearch();
-        // Replace current state with search string, so that search is not lost. 
-        // Only do this if the selected item is not a shortcut
-        let newLocation: string;
-        // If selected item is a shortcut, newLocation is in the id field
-        if (newValue.__typename === 'Shortcut') {
-            newLocation = newValue.id
-        }
-        // Otherwise, object url must be constructed
-        else {
-            newLocation = `${getObjectUrlBase(newValue)}/${getObjectSlug(newValue)}`
-        }
+        // Create URL
+        const newLocation = `${getObjectUrlBase(newValue)}/${getObjectSlug(newValue)}`
         // Update link
         formik.setFieldValue('link', `${window.location.origin}${newLocation}`);
     }, [closeSearch, formik]);

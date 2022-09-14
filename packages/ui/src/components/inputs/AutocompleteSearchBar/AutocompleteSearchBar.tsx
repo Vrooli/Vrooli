@@ -3,9 +3,9 @@ import { AutocompleteSearchBarProps } from '../types';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
 import { AutocompleteOption } from 'types';
-import { HistoryIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, StandardIcon, SvgProps, UserIcon } from '@shared/icons';
+import { ActionIcon, HistoryIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, StandardIcon, SvgProps, UserIcon } from '@shared/icons';
 import { Delete as DeleteIcon } from '@mui/icons-material';
-import { ObjectType } from 'utils';
+import { getLocalStorageKeys, ObjectType, performAction } from 'utils';
 import { StarFor } from '@shared/consts';
 import { StarButton } from 'components/lists';
 
@@ -39,37 +39,56 @@ const getSearchHistory = (searchBarId: string, userId: string): { [label: string
  */
 const updateHistoryItems = (searchBarId: string, userId: string, options: AutocompleteOption[]) => {
     console.log('update history items start', options)
-    // Get history
-    const existingHistory = getSearchHistory(searchBarId, userId);
-    console.log('existing history', existingHistory)
-    // Find options that are in history, and update if stars or isStarred are different
-    let updatedHistory = options.map(option => {
-        const historyItem = existingHistory[option.label];
-        console.log('update history items historyItem', historyItem)
-        if (historyItem) {
-            const { stars, isStarred } = option;
-            if (stars !== historyItem.option.stars || isStarred !== historyItem.option.isStarred) {
-                return { 
-                    timestamp: historyItem.timestamp,
-                    option: {
-                        ...option,
-                        stars,
-                        isStarred,
-                    }
-                };
+    // Find all search history objects in localStorage
+    const searchHistoryKeys = getLocalStorageKeys({
+        prefix: 'search-history-',
+        suffix: userId,
+    });
+    // For each search history object, perform update
+    searchHistoryKeys.forEach(key => {
+        // Get history data
+        let existingHistory: { [label: string]: OptionHistory } = {};
+        // Try to parse existing history
+        try {
+            const parsedHistory: any = JSON.parse(localStorage.getItem(key) ?? '{}');
+            // If it's not an object, set it to an empty object
+            if (typeof existingHistory !== 'object') existingHistory = {};
+            else existingHistory = parsedHistory;
+        } catch (e) {
+            existingHistory = {};
+        }
+        console.log('existing history', key, existingHistory)
+        // Find options that are in history, and update if stars or isStarred are different
+        let updatedHistory = options.map(option => {
+            // stars and isStarred are not in shortcuts or actions
+            if (option.__typename === 'Shortcut' || option.__typename === 'Action') return null;
+            const historyItem = existingHistory[option.label];
+            console.log('update history items historyItem', historyItem)
+            if (historyItem && historyItem.option.__typename !== 'Shortcut' && historyItem.option.__typename !== 'Action') {
+                const { stars, isStarred } = option;
+                if (stars !== historyItem.option.stars || isStarred !== historyItem.option.isStarred) {
+                    return {
+                        timestamp: historyItem.timestamp,
+                        option: {
+                            ...option,
+                            stars,
+                            isStarred,
+                        }
+                    };
+                }
             }
+            return null;
+        }).filter(Boolean) as OptionHistory[];
+        console.log('update history items updatedHistory', updatedHistory)
+        // Update changed options
+        if (updatedHistory.length > 0) {
+            for (const historyItem of updatedHistory) {
+                existingHistory[historyItem.option.label] = historyItem;
+            }
+            console.log('update history items existingHistory final', existingHistory)
+            localStorage.setItem(key, JSON.stringify(existingHistory));
         }
-        return null;
-    }).filter(Boolean) as OptionHistory[];
-    console.log('update history items updatedHistory', updatedHistory)
-    // Update changed options
-    if (updatedHistory.length > 0) {
-        for (const historyItem of updatedHistory) {
-            existingHistory[historyItem.option.label] = historyItem;
-        }
-        console.log('update history items existingHistory final', existingHistory)
-        localStorage.setItem(`search-history-${searchBarId}-${userId}`, JSON.stringify(existingHistory));
-    }
+    });
 }
 
 /**
@@ -78,6 +97,9 @@ const updateHistoryItems = (searchBarId: string, userId: string, options: Autoco
 const typeToIcon = (type: string, fill: string): JSX.Element | null => {
     let Icon: null | ((props: SvgProps) => JSX.Element) = null;
     switch (type) {
+        case 'Action':
+            Icon = ActionIcon;
+            break;
         case ObjectType.Organization:
             Icon = OrganizationIcon;
             break;
@@ -221,9 +243,19 @@ export function AutocompleteSearchBar({
         };
         // Save to local storage
         localStorage.setItem(`search-history-${id}-${session.id ?? ''}`, JSON.stringify(existingHistory));
-        // Call onInputChange
+        // If action, perform action and clear input
+        if (option.__typename === 'Action') {
+            performAction(option, session);
+            // Update state
+            setInternalValue('');
+            // Remove the highlight
+            setHighlightedOption(null);
+            // Debounce onChange
+            onChangeDebounced('');
+        }
+        // Trigger onInputChange
         onInputChange(option);
-    }, [id, onInputChange, session.id]);
+    }, [id, onChangeDebounced, onInputChange, session, value]);
 
     const onSubmit = useCallback((event: React.SyntheticEvent<Element, Event>, value: AutocompleteOption | null, reason: AutocompleteChangeReason, details?: AutocompleteChangeDetails<any> | undefined) => {
         // If there is a highlighted option, use that
@@ -239,6 +271,7 @@ export function AutocompleteSearchBar({
     }, [palette]);
 
     const handleStar = useCallback((option: AutocompleteOption, isStarred: boolean, event: any) => {
+        if (option.__typename === 'Shortcut' || option.__typename === 'Action') return;
         // Stop propagation so that the option isn't selected
         event.stopPropagation();
         // Update the option's isStarred and stars value
@@ -264,30 +297,6 @@ export function AutocompleteSearchBar({
             // The real onSubmit, since onSubmit is only triggered after 2 presses of the enter key (don't know why)
             onChange={onSubmit}
             renderOption={(props, option) => {
-                // If loading, display spinner
-                if (option.__typename === 'Loading') {
-                    return (
-                        <MenuItem key="loading">
-                            {/* Object title */}
-                            <ListItemText sx={{
-                                '& .MuiTypography-root': {
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                    overflow: 'hidden',
-                                },
-                            }}>
-                                <CircularProgress
-                                    color="secondary"
-                                    size={20}
-                                    sx={{
-                                        marginRight: 1,
-                                    }}
-                                />
-                                {option.label ?? ''}
-                            </ListItemText>
-                        </MenuItem>
-                    )
-                }
                 return (
                     <MenuItem
                         {...props}
@@ -305,7 +314,7 @@ export function AutocompleteSearchBar({
                         {/* Show history icon if from history */}
                         {option.isFromHistory && (
                             <ListItemIcon sx={{ display: { xs: 'none', sm: 'block' } }}>
-                                <HistoryIcon fill='hotpink' />
+                                <HistoryIcon fill={optionColor(true, false)} />
                             </ListItemIcon>
                         )}
                         {/* Object title */}
@@ -319,7 +328,7 @@ export function AutocompleteSearchBar({
                             {option.label}
                         </ListItemText>
                         {/* Star button */}
-                        {option.__typename !== 'Shortcut' && option.stars !== undefined && <StarButton
+                        {option.__typename !== 'Shortcut' && option.__typename !== 'Action' && option.stars !== undefined && <StarButton
                             isStar={option.isStarred}
                             objectId={option.id}
                             onChange={(isStarred, event) => handleStar(option, isStarred, event)}
@@ -340,7 +349,7 @@ export function AutocompleteSearchBar({
                                 event.stopPropagation();
                                 removeFromHistory(option);
                             }}>
-                                <DeleteIcon sx={{ fill: "hotpink" }} />
+                                <DeleteIcon sx={{ fill: optionColor(true, true) }} />
                             </IconButton>
                         </Tooltip>}
                     </MenuItem>

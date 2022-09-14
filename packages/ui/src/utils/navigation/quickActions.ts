@@ -1,13 +1,21 @@
 import { APP_LINKS } from "@shared/consts";
-import { AutocompleteOption } from "types";
-import { DevelopSearchPageTabOption, HistorySearchPageTabOption, SearchPageTabOption } from "utils/display";
+import { ActionOption, Session, ShortcutOption } from "types";
+import { clearSearchHistory, DevelopSearchPageTabOption, HistorySearchPageTabOption, SearchPageTabOption } from "utils/display";
+import { PubSub } from "utils/pubsub";
 
 export interface ShortcutItem {
     label: string;
     link: string;
 }
+
+export interface ActionItem {
+    canPerform: (session: Session) => boolean;
+    id: string;
+    label: string;
+}
+
 /**
- * Shortcuts that can appear in the main search bar or command palette.
+ * Navigation shortcuts that can appear in the main search bar or command palette.
  */
 export const shortcuts: ShortcutItem[] = [
     {
@@ -135,9 +143,62 @@ export const shortcuts: ShortcutItem[] = [
         link: `${APP_LINKS.FAQ}`,
     },
 ]
-// Shape shortcuts to match AutoCompleteListItem format
-export const shortcutsItems: AutocompleteOption[] = shortcuts.map(({ label, link }) => ({
+
+/**
+ * Shape shortcuts to match AutoCompleteListItem format.
+ */
+export const shortcutsItems: ShortcutOption[] = shortcuts.map(({ label, link }) => ({
     __typename: "Shortcut",
     label,
     id: link,
 }))
+
+/**
+ * Action shortcuts that can appear in the main search bar or command palette. 
+ * Instead of taking you to a page, they perform an action (e.g. clear search history).
+ */
+export const actions: ActionItem[] = [
+    {
+        label: 'Clear search history',
+        id: 'clear-search-history',
+        canPerform: () => true,
+    },
+    {
+        label: 'Activate dark mode',
+        id: 'activate-dark-mode',
+        canPerform: (session: Session) => session.theme === 'light',
+    },
+    {
+        label: 'Activate light mode',
+        id: 'activate-light-mode',
+        canPerform: (session: Session) => session.theme === 'dark',
+    },
+]
+
+/**
+ * Shape actions to match AutoCompleteListItem format.
+ */
+export const actionsItems: ActionOption[] = actions.map(({ canPerform, id, label }) => ({
+    __typename: "Action",
+    canPerform,
+    id,
+    label,
+}))
+
+/**
+ * Maps action ids to their corresponding action. 
+ * Actions cannot be stored in the options themselves because localStorage cannot store functions.
+ */
+export const performAction = (option: ActionOption, session: Session): void => {
+    switch (option.id) {
+        case 'clear-search-history':
+            clearSearchHistory(session);
+            break;
+        case 'activate-dark-mode':
+            PubSub.get().publishTheme('dark');
+            break;
+        case 'activate-light-mode':
+            PubSub.get().publishTheme('light');
+            break;
+    }
+}

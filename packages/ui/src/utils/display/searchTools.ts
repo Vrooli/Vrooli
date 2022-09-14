@@ -1,10 +1,12 @@
 import { CommentSortBy, InputType, OrganizationSortBy, ProjectOrOrganizationSortBy, ProjectOrRoutineSortBy, ProjectSortBy, RoutineSortBy, RunSortBy, StandardSortBy, StarSortBy, UserSortBy, ViewSortBy } from '@shared/consts';
-import { Tag } from 'types';
+import { Session, Tag } from 'types';
 import { FormSchema } from 'forms/types';
 import { commentsQuery, organizationsQuery, projectOrOrganizationsQuery, projectsQuery, routinesQuery, runsQuery, standardsQuery, starsQuery, usersQuery, viewsQuery } from 'graphql/query';
 import { DocumentNode } from 'graphql';
 import { projectOrRoutinesQuery } from 'graphql/query/projectOrRoutines';
 import { RunStatus } from 'graphql/generated/globalTypes';
+import { getLocalStorageKeys } from 'utils/localStorage';
+import { PubSub } from 'utils/pubsub';
 
 export const commentSearchSchema: FormSchema = {
     formLayout: {
@@ -930,4 +932,20 @@ export const convertSearchForFormik = (values: { [x: string]: any }, schema: For
     }
     // Return result
     return result;
+}
+
+/**
+ * Clears search history from all search bars
+ */
+export const clearSearchHistory = ({ id }: Session) => {
+    // Find all search history objects in localStorage
+    const searchHistoryKeys = getLocalStorageKeys({
+        prefix: 'search-history-',
+        suffix: id ?? '',
+    });
+    // Clear them
+    searchHistoryKeys.forEach(key => {
+        localStorage.removeItem(key);
+    });
+    PubSub.get().publishSnack({ message: 'Search history cleared.', severity: 'success' });
 }

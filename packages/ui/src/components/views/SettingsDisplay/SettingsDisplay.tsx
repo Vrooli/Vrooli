@@ -1,11 +1,11 @@
-import { Box, Grid, Stack, Typography, useTheme } from "@mui/material"
+import { Box, Button, Grid, Stack, Typography, useTheme } from "@mui/material"
 import { useMutation } from "@apollo/client";
 import { useCallback, useEffect, useState } from "react";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { PubSub, shapeProfileUpdate, TagHiddenShape, TagShape } from "utils";
+import { clearSearchHistory, PubSub, shapeProfileUpdate, TagHiddenShape, TagShape } from "utils";
 import {
     Favorite as InterestsIcon,
 } from '@mui/icons-material';
@@ -14,7 +14,7 @@ import { GridSubmitButtons, HelpButton, TagSelector } from "components";
 import { ThemeSwitch } from "components/inputs";
 import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
 import { v4 as uuid } from 'uuid';
-import { InvisibleIcon } from "@shared/icons";
+import { InvisibleIcon, SearchIcon } from "@shared/icons";
 
 const helpText =
     `Display preferences customize the look and feel of Vrooli. More customizations will be available in the near future.`
@@ -195,6 +195,12 @@ export const SettingsDisplay = ({
                     onTagRemove={removeHiddenTag}
                     onTagsClear={clearHiddenTags}
                 />
+            </Box>
+            <Box sx={{ margin: 2, marginBottom: 5, display: 'flex' }}>
+                <Button color="secondary" startIcon={<SearchIcon />} onClick={() => { clearSearchHistory(session) }} sx={{
+                    marginLeft: 'auto',
+                    marginRight: 'auto',
+                }}>Clear Search History</Button>
             </Box>
             <Grid container spacing={2} p={2}>
                 <GridSubmitButtons
