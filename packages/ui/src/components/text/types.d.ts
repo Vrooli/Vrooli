@@ -9,6 +9,7 @@ export interface DateDisplayProps extends BoxProps {
 
 export interface TextShrinkProps extends TypographyProps { 
     id: string;
+    minFontSize?: string | number;
 }
 
 export interface VersionDisplayProps extends BoxProps {

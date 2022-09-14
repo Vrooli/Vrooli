@@ -58,6 +58,7 @@ export const OrganizationSelectOrCreateDialog = ({
     const handleCreateOpen = useCallback(() => { setIsCreateOpen(true); }, [setIsCreateOpen]);
     const handleCreated = useCallback((organization: Organization) => {
         setIsCreateOpen(false);
+        console.log('organizationselectorcreate calling handleadd 1, handlecreated', organization)
         handleAdd(organization);
         onClose();
     }, [handleAdd, onClose]);
@@ -70,6 +71,7 @@ export const OrganizationSelectOrCreateDialog = ({
     const handleOrganizationSelect = useCallback((organization: Organization) => {
         // Query for full organization data, if not already known (would be known if the same organization was selected last time)
         if (organizationData?.organization?.id === organization.id) {
+            console.log('organizationselectorcreate calling handleadd 2, handleorganizationselect', organization)
             handleAdd(organizationData?.organization);
             onClose();
         } else {
@@ -78,6 +80,7 @@ export const OrganizationSelectOrCreateDialog = ({
     }, [getOrganization, organizationData, handleAdd, onClose]);
     useEffect(() => {
         if (organizationData?.organization) {
+            console.log('organizationselectorcreate calling handleadd 3, useeffect', organizationData?.organization)
             handleAdd(organizationData.organization);
             onClose();
         }

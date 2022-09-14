@@ -26,8 +26,8 @@ export const userFromSession = (session: Session): RelationshipOwner => ({
 })
 
 const commonButtonProps = (palette: Palette) => ({
-    width: '69px',
-    height: '69px',
+    width: { xs: '58px', md: '69px' },
+    height: { xs: '58px', md: '69px' },
     overflow: 'hidden',
     background: palette.primary.light,
     '&:hover': {
@@ -36,16 +36,16 @@ const commonButtonProps = (palette: Palette) => ({
     },
 })
 
-const commonIconProps = {
-    width: "69px",
-    height: "69px",
-    color: "white",
-}
-
-const commonLabelProps = {
+const commonIconProps = (palette: Palette) => ({
     width: '69px',
+    height: '69px',
+    color: "white",
+})
+
+const commonLabelProps = (palette: Palette) => ({
+    width: { xs: '58px', md: '69px' },
     textAlign: 'center',
-}
+})
 
 enum OwnerTypesEnum {
     Self = 'Self',
@@ -120,13 +120,16 @@ export function RelationshipButtons({
         } else if (ownerType === OwnerTypesEnum.AnotherUser) {
             openAnotherUserDialog();
         } else {
+            console.log('onrelationshipschange 1')
             onRelationshipsChange({ owner: userFromSession(session) });
         }
         closeOwnerDialog();
     }, [closeOwnerDialog, onRelationshipsChange, openAnotherUserDialog, openOrganizationDialog, session]);
     const handleOwnerSelect = useCallback((owner: RelationshipOwner) => {
+        if (owner?.id === relationships.owner?.id) return;
+        console.log('onrelationshipschange 2')
         onRelationshipsChange({ owner });
-    }, [onRelationshipsChange]);
+    }, [onRelationshipsChange, relationships.owner?.id]);
 
     // Project dialog
     const [isProjectDialogOpen, setProjectDialogOpen] = useState<boolean>(false);
@@ -146,8 +149,9 @@ export function RelationshipButtons({
     }, [disabled, isProjectAvailable, onRelationshipsChange, relationships.project, setLocation]);
     const closeProjectDialog = useCallback(() => { setProjectDialogOpen(false); }, [setProjectDialogOpen]);
     const handleProjectSelect = useCallback((project: RelationshipItemProject) => {
+        if (project?.id === relationships.project?.id) return;
         onRelationshipsChange({ project });
-    }, [onRelationshipsChange]);
+    }, [onRelationshipsChange, relationships.project?.id]);
 
     // Parent dialog
     const [isParentDialogOpen, setParentDialogOpen] = useState<boolean>(false);
@@ -183,11 +187,13 @@ export function RelationshipButtons({
     }, [disabled, isFormDirty, isParentAvailable, onRelationshipsChange, relationships.parent, setLocation]);
     const closeParentDialog = useCallback(() => { setParentDialogOpen(false); }, [setParentDialogOpen]);
     const handleParentProjectSelect = useCallback((parent: RelationshipItemProject) => {
+        if (parent?.id === relationships.parent?.id) return;
         onRelationshipsChange({ parent });
-    }, [onRelationshipsChange]);
+    }, [onRelationshipsChange, relationships.parent?.id]);
     const handleParentRoutineSelect = useCallback((parent: RelationshipItemRoutine) => {
+        if (parent?.id === relationships.parent?.id) return;
         onRelationshipsChange({ parent });
-    }, [onRelationshipsChange]);
+    }, [onRelationshipsChange, relationships.parent?.id]);
 
     // Handle private click
     const handlePrivateClick = useCallback((ev: React.MouseEvent<any>) => {
@@ -356,11 +362,11 @@ export function RelationshipButtons({
                 alignItems="center"
                 justifyContent="center"
             >
-                {isOwnerAvailable && <TextShrink id="owner" sx={{ ...commonLabelProps }}>Owner</TextShrink>}
-                {isProjectAvailable && <TextShrink id="project" sx={{ ...commonLabelProps }}>Project</TextShrink>}
-                {isParentAvailable && <TextShrink id="parent" sx={{ ...commonLabelProps }}>Parent</TextShrink>}
-                {isPrivateAvailable && <TextShrink id="privacy" sx={{ ...commonLabelProps }}>Privacy</TextShrink>}
-                {isCompleteAvailable && <TextShrink id="complete" sx={{ ...commonLabelProps }}>Complete?</TextShrink>}
+                {isOwnerAvailable && <TextShrink id="owner" sx={{ ...commonLabelProps(palette) }}>Owner</TextShrink>}
+                {isProjectAvailable && <TextShrink id="project" sx={{ ...commonLabelProps(palette) }}>Project</TextShrink>}
+                {isParentAvailable && <TextShrink id="parent" sx={{ ...commonLabelProps(palette) }}>Parent</TextShrink>}
+                {isPrivateAvailable && <TextShrink id="privacy" sx={{ ...commonLabelProps(palette) }}>Privacy</TextShrink>}
+                {isCompleteAvailable && <TextShrink id="complete" sx={{ ...commonLabelProps(palette) }}>Complete?</TextShrink>}
             </Stack>
             {/* Buttons row */}
             <Stack
@@ -373,31 +379,31 @@ export function RelationshipButtons({
                 {/* Owner button */}
                 {isOwnerAvailable && <Tooltip title={ownerTooltip}>
                     <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleOwnerClick}>
-                        {OwnerIcon && <OwnerIcon { ...commonIconProps } />}
+                        {OwnerIcon && <OwnerIcon { ...commonIconProps(palette) } />}
                     </IconButton>
                 </Tooltip>}
                 {/* Project button */}
                 {isProjectAvailable && <Tooltip title={projectTooltip}>
                     <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleProjectClick}>
-                        {ProjectIcon && <ProjectIcon{ ...commonIconProps } />}
+                        {ProjectIcon && <ProjectIcon { ...commonIconProps(palette) } />}
                     </IconButton>
                 </Tooltip>}
                 {/* Parent button */}
                 {isParentAvailable && <Tooltip title={parentTooltip}>
                     <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleParentClick}>
-                        {ParentIcon && <ParentIcon { ...commonIconProps } />}
+                        {ParentIcon && <ParentIcon { ...commonIconProps(palette) } />}
                     </IconButton>
                 </Tooltip>}
                 {/* Privacy button */}
                 {isPrivateAvailable && <Tooltip title={privacyTooltip}>
                     <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handlePrivateClick}>
-                        {PrivacyIcon && <PrivacyIcon {...commonIconProps} />}
+                        {PrivacyIcon && <PrivacyIcon {...commonIconProps(palette) } />}
                     </IconButton>
                 </Tooltip>}
                 {/* Complete button */}
                 {isCompleteAvailable && <Tooltip title={completeTooltip}>
                     <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleCompleteClick}>
-                        {CompleteIcon && <CompleteIcon {...commonIconProps} />}
+                        {CompleteIcon && <CompleteIcon {...commonIconProps(palette) } />}
                     </IconButton>
                 </Tooltip>}
             </Stack>

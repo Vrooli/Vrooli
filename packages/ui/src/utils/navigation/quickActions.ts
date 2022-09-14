@@ -1,5 +1,7 @@
 import { APP_LINKS } from "@shared/consts";
-import { ActionOption, Session, ShortcutOption } from "types";
+import { profileUpdateMutation } from "graphql/mutation";
+import { errorToMessage, initializeApollo } from "graphql/utils";
+import { ActionOption, ApolloError, Session, ShortcutOption } from "types";
 import { clearSearchHistory, DevelopSearchPageTabOption, HistorySearchPageTabOption, SearchPageTabOption } from "utils/display";
 import { PubSub } from "utils/pubsub";
 
@@ -189,16 +191,32 @@ export const actionsItems: ActionOption[] = actions.map(({ canPerform, id, label
  * Maps action ids to their corresponding action. 
  * Actions cannot be stored in the options themselves because localStorage cannot store functions.
  */
-export const performAction = (option: ActionOption, session: Session): void => {
+export const performAction = async (option: ActionOption, session: Session): Promise<void> => {
     switch (option.id) {
         case 'clear-search-history':
             clearSearchHistory(session);
             break;
         case 'activate-dark-mode':
-            PubSub.get().publishTheme('dark');
+            const client = initializeApollo();
+            await client.mutate({ 
+                mutation: profileUpdateMutation,
+                variables: { input: { theme: 'dark' } },
+            }).then(() => {
+                PubSub.get().publishTheme('dark');
+            }).catch((error: ApolloError) => {
+                PubSub.get().publishSnack({ message: errorToMessage(error), severity: 'error', data: error });
+            })
             break;
         case 'activate-light-mode':
-            PubSub.get().publishTheme('light');
+            const client2 = initializeApollo();
+            await client2.mutate({
+                mutation: profileUpdateMutation,
+                variables: { input: { theme: 'light' } },
+            }).then(() => {
+                PubSub.get().publishTheme('light');
+            }).catch((error: ApolloError) => {
+                PubSub.get().publishSnack({ message: errorToMessage(error), severity: 'error', data: error });
+            })
             break;
     }
 }
