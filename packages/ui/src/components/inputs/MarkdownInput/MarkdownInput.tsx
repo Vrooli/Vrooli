@@ -1,7 +1,7 @@
 /**
  * TextField for entering (and previewing) markdown.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Box, Button, IconButton, Popover, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import {
     FormatListBulleted as BulletListIcon,
@@ -18,6 +18,7 @@ import Markdown from 'markdown-to-jsx';
 import { noSelect } from 'styles';
 import { PubSub } from 'utils';
 import { InvisibleIcon, VisibleIcon } from '@shared/icons';
+import AwesomeDebouncePromise from 'awesome-debounce-promise';
 
 enum Headers {
     H1 = 'h1',
@@ -36,6 +37,79 @@ const headerMarkdowns = {
     [Headers.H6]: '###### ',
 }
 
+/**
+ * Determines start index of the current line.
+ * @param text Text to search.
+ * @param selectionStart Index of cursor or selection start.
+ * @returns Index of start of current line.
+ */
+const getLineStart = (text: string, selectionStart: number) => {
+    if (selectionStart < 0 || selectionStart > text.length) return 0;
+    return text.substring(0, selectionStart).lastIndexOf('\n') + 1;
+}
+
+/**
+ * Determines end index of the current line.
+ * @param text Text to search.
+ * @param selectionStart Index of cursor or selection start.
+ * @returns Index of end of current line.
+ */
+const getLineEnd = (text: string, selectionStart: number) => {
+    if (selectionStart < 0 || selectionStart > text.length) return text.length;
+    return text.substring(selectionStart).indexOf('\n') + selectionStart;
+}
+
+
+/**
+ * Determines line the cursor is on
+ * @param text The entire text
+ * @param selectionStart The index of the cursor, or start of highlighted text
+ * @returns The line the cursor is on (or null), as well as its start and end index
+ */
+const getLineOnStart = (text: string, selectionStart: number): [string, number, number] => {
+    const start = getLineStart(text, selectionStart);
+    const end = getLineEnd(text, selectionStart);
+    const line = text.substring(start, end);
+    return [line, start, end];
+}
+
+/**
+ * Determines all lines the cursor or highlighted text is on
+ * @param text The entire text
+ * @param selectionStart The index of the cursor, or start of highlighted text
+ * @param selectionEnd The index of the end of highlighted text
+ * @returns The lines the cursor is on (or null), as well as their start and end index
+ */
+const getLinesOnSelection = (text: string, selectionStart: number, selectionEnd: number): [string[], number, number] => {
+    const start = getLineStart(text, selectionStart);
+    const end = getLineEnd(text, selectionEnd);
+    const lines = text.substring(start, end).split('\n');
+    return [lines, start, end]
+}
+
+/**
+ * Replaces selected text with new text.
+ * @param text Text to replace in.
+ * @param newText Text to replace with.
+ * @param selectionStart Index of cursor or selection start.
+ * @param selectionEnd Index of cursor or selection end.
+ * @returns New text with selected text replaced.
+ */
+const replaceText = (text: string, newText: string, selectionStart: number, selectionEnd: number): string => {
+    return text.substring(0, selectionStart) + newText + text.substring(selectionEnd);
+}
+
+/**
+ * Uses element ID to get selectionStart, selectionEnd, and element.
+ * @param id The ID of the element to get the selection of
+ * @returns Object containing selectionStart, selectionEnd, and element
+ */
+const getSelection = (id: string): { selectionStart: number, selectionEnd: number, textArea: HTMLTextAreaElement } => {
+    const textArea = document.getElementById(id);
+    if (!textArea || !(textArea instanceof HTMLTextAreaElement)) throw new Error(`Element not found: ${id}`);
+    return { selectionStart: textArea.selectionStart, selectionEnd: textArea.selectionEnd, textArea };
+}
+
 // TODO - changing textarea programmatically breaks undo/redo functionality
 export const MarkdownInput = ({
     id,
@@ -48,6 +122,21 @@ export const MarkdownInput = ({
     value,
 }: MarkdownInputProps) => {
     const { palette } = useTheme();
+
+    // Internal value (since value passed back is debounced)
+    const [internalValue, setInternalValue] = useState<string>(value);
+    // Debounce text change
+    const onChangeDebounced = useMemo(() => AwesomeDebouncePromise(
+        onChange,
+        100,
+    ), [onChange]);
+    useEffect(() => setInternalValue(value), [value]);
+    const handleChange = useCallback((newValue: string) => {
+        // Update state
+        setInternalValue(newValue);
+        // Debounce onChange
+        onChangeDebounced(newValue);
+    }, [onChangeDebounced]);
 
     const [isPreviewOn, setIsPreviewOn] = useState(false);
 
@@ -66,7 +155,18 @@ export const MarkdownInput = ({
         const handleKeyDown = (e: any) => {
             // On enter key, check if bullet or number should be added to new line
             if (e.key === 'Enter') {
-                // TODO
+                // // selectionStart is used to determine the line the cursor is on
+                // const { selectionStart, selectionEnd, value } = e.target;
+                // const trimmedLine = getLineOnStart(value, selectionStart)?.trimStart() ?? '';
+                // // Is a bullet if line starts with an asterisk or dash, followed by a space
+                // const isBullet = trimmedLine.startsWith('* ') || trimmedLine.trim()?.startsWith('- ');
+                // // Is a number if line starts with a number, followed by a period and a space
+                // const isNumber = /^\d+\.\s/.test(trimmedLine);
+                // console.log('enter key', trimmedLine, selectionStart, isBullet, isNumber);
+                // if (isBullet || isNumber) {
+                //     console.log('adding bullet or number');
+                //     //TODO
+                // }
             }
         }
         const textarea = document.getElementById(`markdown-input-${id}`);
@@ -78,20 +178,15 @@ export const MarkdownInput = ({
     }, [id]);
 
     const insertHeader = useCallback((header: Headers) => {
-        // Find the textarea element
-        const textarea = document.getElementById(`markdown-input-${id}`) as HTMLTextAreaElement;
-        if (!textarea) return;
-        // Find the current cursor position. Ignore any selection
-        const startPosition = textarea.selectionStart;
+        // Find the current selection
+        const { selectionStart, textArea } = getSelection(`markdown-input-${id}`);
         // Find the start of the line which the select starts on
-        let startLine = textarea.value.substring(0, startPosition).lastIndexOf('\n') + 1;
-        // If not found, add to the beginning
-        if (startLine === -1) startLine = 0;
+        const startLine = getLineStart(textArea.value, selectionStart);
         // Insert the header at the start of the line
-        textarea.value = textarea.value.substring(0, startLine) + headerMarkdowns[header] + textarea.value.substring(startLine);
-        onChange(textarea.value);
+        textArea.value = textArea.value.substring(0, startLine) + headerMarkdowns[header] + textArea.value.substring(startLine);
+        handleChange(textArea.value);
         closeHeader();
-    }, [id, onChange]);
+    }, [handleChange, id]);
 
     /**
      * Pads selection with the given substring
@@ -99,37 +194,29 @@ export const MarkdownInput = ({
      * @param padEnd The substring to add after the selection
      */
     const padSelection = useCallback((padStart: string, padEnd: string) => {
-        // Find the textarea element
-        const textarea = document.getElementById(`markdown-input-${id}`) as HTMLTextAreaElement;
-        if (!textarea) return;
         // Find the current selection
-        const startPosition = textarea.selectionStart;
-        const endPosition = textarea.selectionEnd;
+        const { selectionStart, selectionEnd, textArea } = getSelection(`markdown-input-${id}`);
         // If no selection, return
-        if (startPosition === endPosition) {
+        if (selectionStart === selectionEnd) {
             PubSub.get().publishSnack({ message: 'No text selected', severity: 'Error' });
             return;
         }
         // Insert ~~ before the selection, and ~~ after the selection
-        textarea.value = textarea.value.substring(0, startPosition) + padStart + textarea.value.substring(startPosition, endPosition) + padEnd + textarea.value.substring(endPosition);
-        onChange(textarea.value);
-    }, [id, onChange]);
+        textArea.value = textArea.value.substring(0, selectionStart) + padStart + textArea.value.substring(selectionStart, selectionEnd) + padEnd + textArea.value.substring(selectionEnd);
+        handleChange(textArea.value);
+    }, [handleChange, id]);
 
     const strikethrough = useCallback(() => { padSelection('~~', '~~') }, [padSelection]);
     const bold = useCallback(() => { padSelection('**', '**') }, [padSelection]);
     const italic = useCallback(() => { padSelection('*', '*') }, [padSelection]);
 
     const insertLink = useCallback(() => {
-        // Find the textarea element
-        const textarea = document.getElementById(`markdown-input-${id}`) as HTMLTextAreaElement;
-        if (!textarea) return;
         // Find the current selection
-        const startPosition = textarea.selectionStart;
-        const endPosition = textarea.selectionEnd;
+        const { selectionStart, selectionEnd, textArea } = getSelection(`markdown-input-${id}`);
         // If no selection, insert [link](url) at the cursor
-        if (startPosition === endPosition) {
-            textarea.value = textarea.value.substring(0, startPosition) + '[display text](url)' + textarea.value.substring(endPosition);
-            onChange(textarea.value);
+        if (selectionStart === selectionEnd) {
+            textArea.value = textArea.value.substring(0, selectionStart) + '[display text](url)' + textArea.value.substring(selectionEnd);
+            onChange(textArea.value);
             return;
         }
         // Otherwise, call padSelection
@@ -137,65 +224,45 @@ export const MarkdownInput = ({
     }, [id, onChange, padSelection]);
 
     const insertBulletList = useCallback(() => {
-        // Find the textarea element
-        const textarea = document.getElementById(`markdown-input-${id}`) as HTMLTextAreaElement;
-        if (!textarea) return;
-        const startPosition = textarea.selectionStart;
-        const endPosition = textarea.selectionEnd;
-        // Find the start of the line which the select starts on
-        let startLine = textarea.value.substring(0, startPosition).lastIndexOf('\n') + 1;
-        // If not found, set to beginning
-        if (startLine === -1) startLine = 0;
-        // Create new textarea value
-        let newText = textarea.value.substring(0, startLine) + '* ';
-        for (let i = startLine; i <= endPosition; i++) {
-            const currChar = textarea.value.charAt(i);
-            if (currChar === '\n') {
-                newText += '\n* ';
-            } else {
-                newText += currChar;
-            }
-        }
-        newText += textarea.value.substring(endPosition);
-        // Set the new textarea value
-        textarea.value = newText;
-        onChange(textarea.value);
+        const { selectionStart, selectionEnd, textArea } = getSelection(`markdown-input-${id}`);
+        const [lines, linesStart, linesEnd] = (getLinesOnSelection(textArea.value, selectionStart, selectionEnd) ?? [])
+        const newValue = replaceText(textArea.value, lines.map(line => `* ${line}`).join('\n'), linesStart, linesEnd);
+        textArea.value = newValue;
+        handleChange(newValue);
         closeList();
-    }, [id, onChange]);
+    }, [handleChange, id]);
 
     const insertNumberList = useCallback(() => {
-        // Find the textarea element
-        const textarea = document.getElementById(`markdown-input-${id}`) as HTMLTextAreaElement;
-        if (!textarea) return;
-        const startPosition = textarea.selectionStart;
-        const endPosition = textarea.selectionEnd;
-        // Find the start of the line which the select starts on
-        let startLine = textarea.value.substring(0, startPosition).lastIndexOf('\n') + 1;
-        // If not found, set to beginning
-        if (startLine === -1) startLine = 0;
-        // Create new textarea value
-        let newText = textarea.value.substring(0, startLine) + '1. ';
-        let lineNumber = 2;
-        for (let i = startLine; i <= endPosition; i++) {
-            const currChar = textarea.value.charAt(i);
-            if (currChar === '\n') {
-                newText += '\n' + lineNumber + '. ';
-                lineNumber++;
-            } else {
-                newText += currChar;
-            }
-        }
-        newText += textarea.value.substring(endPosition);
-        // Set the new textarea value
-        textarea.value = newText;
-        onChange(textarea.value);
+        const { selectionStart, selectionEnd, textArea } = getSelection(`markdown-input-${id}`);
+        const [lines, linesStart, linesEnd] = (getLinesOnSelection(textArea.value, selectionStart, selectionEnd) ?? [])
+        const newValue = replaceText(textArea.value, lines.map((line, i) => `${i + 1}. ${line}`).join('\n'), linesStart, linesEnd);
+        textArea.value = newValue;
+        handleChange(newValue);
         closeList();
-    }, [id, onChange]);
+    }, [handleChange, id]);
 
     const togglePreview = useCallback(() => { setIsPreviewOn(on => !on) }, []);
 
+    // Mousedown prevents the textArea from removing its highlight when one 
+    // of the buttons is clicked
+    const handleMouseDown = useCallback((e) => { 
+        if (isPreviewOn) return;
+        // Get selection data
+        const { selectionStart, selectionEnd } = getSelection(`markdown-input-${id}`);
+        // Get target element id
+        const targetId = e.target.id;
+        // If the target is not the textArea, and the selection is not empty, then prevent default
+        if (targetId !== `markdown-input-${id}` && selectionStart !== selectionEnd) { 
+            console.log('preventing default');
+            e.preventDefault() 
+            e.stopPropagation();
+        }
+        console.log('mouse down', e);
+        // e.preventDefault() 
+    }, [id, isPreviewOn]);
+
     return (
-        <Stack direction="column" spacing={0}>
+        <Stack direction="column" spacing={0} onMouseDown={handleMouseDown}>
             {/* Bar above TextField, for inserting markdown and previewing */}
             <Box sx={{
                 display: 'flex',
@@ -210,10 +277,10 @@ export const MarkdownInput = ({
                 <Stack direction="row" spacing={1} sx={{ marginRight: 'auto' }}>
                     {/* Insert header selector */}
                     <Tooltip title="Insert header" placement="top">
-                        <IconButton 
-                            aria-describedby={`markdown-input-header-popover-${id}`} 
+                        <IconButton
+                            aria-describedby={`markdown-input-header-popover-${id}`}
                             disabled={disabled}
-                            size="small" 
+                            size="small"
                             onClick={openHeaderSelect}
                         >
                             <HeaderIcon sx={{ fill: palette.primary.contrastText }} />
@@ -253,9 +320,9 @@ export const MarkdownInput = ({
                     </Popover>
                     {/* Button for bold */}
                     <Tooltip title="Bold" placement="top">
-                        <IconButton 
+                        <IconButton
                             disabled={disabled}
-                            size="small" 
+                            size="small"
                             onClick={bold}
                         >
                             <BoldIcon sx={{ fill: palette.primary.contrastText }} />
@@ -263,9 +330,9 @@ export const MarkdownInput = ({
                     </Tooltip>
                     {/* Button for italic */}
                     <Tooltip title="Italic" placement="top">
-                        <IconButton 
+                        <IconButton
                             disabled={disabled}
-                            size="small" 
+                            size="small"
                             onClick={italic}
                         >
                             <ItalicIcon sx={{ fill: palette.primary.contrastText }} />
@@ -273,9 +340,9 @@ export const MarkdownInput = ({
                     </Tooltip>
                     {/* Button for strikethrough */}
                     <Tooltip title="Strikethrough" placement="top">
-                        <IconButton 
+                        <IconButton
                             disabled={disabled}
-                            size="small" 
+                            size="small"
                             onClick={strikethrough}
                         >
                             <StrikethroughIcon sx={{ fill: palette.primary.contrastText }} />
@@ -283,10 +350,10 @@ export const MarkdownInput = ({
                     </Tooltip>
                     {/* Insert bulleted or numbered list selector */}
                     <Tooltip title="Insert list" placement="top">
-                        <IconButton 
-                            aria-describedby={`markdown-input-list-popover-${id}`} 
+                        <IconButton
+                            aria-describedby={`markdown-input-list-popover-${id}`}
                             disabled={disabled}
-                            size="small" 
+                            size="small"
                             onClick={openListSelect}
                         >
                             <ListIcon sx={{ fill: palette.primary.contrastText }} />
@@ -336,9 +403,9 @@ export const MarkdownInput = ({
                     </Popover>
                     {/* Button for inserting link */}
                     <Tooltip title="Insert link" placement="top">
-                        <IconButton 
+                        <IconButton
                             disabled={disabled}
-                            size="small" 
+                            size="small"
                             onClick={insertLink}
                         >
                             <LinkIcon sx={{ fill: palette.primary.contrastText }} />
@@ -367,9 +434,10 @@ export const MarkdownInput = ({
                             border: `1px solid ${error ? 'red' : 'black'}`,
                             borderRadius: '0 0 0.5rem 0.5rem',
                             borderTop: 'none',
+                            padding: '12px',
                             ...noSelect,
                         }}>
-                            <Markdown>{value}</Markdown>
+                            <Markdown>{internalValue}</Markdown>
                         </Box>
                     ) :
                     (
@@ -378,8 +446,8 @@ export const MarkdownInput = ({
                             disabled={disabled}
                             placeholder={placeholder}
                             rows={minRows}
-                            value={value}
-                            onChange={(e) => { onChange(e.target.value) }}
+                            value={internalValue}
+                            onChange={(e) => { handleChange(e.target.value) }}
                             style={{
                                 padding: '16.5px 14px',
                                 minWidth: '-webkit-fill-available',
