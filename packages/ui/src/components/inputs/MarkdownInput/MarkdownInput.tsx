@@ -1,7 +1,7 @@
 /**
  * TextField for entering (and previewing) markdown.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, IconButton, Popover, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import {
     FormatListBulleted as BulletListIcon,
@@ -123,20 +123,82 @@ export const MarkdownInput = ({
 }: MarkdownInputProps) => {
     const { palette } = useTheme();
 
+    // Stores previous states for undo/redo (since we can't use the browser's undo/redo due to programmatic changes)
+    const changeStack = useRef<string[]>([]);
+    const [changeStackIndex, setChangeStackIndex] = useState<number>(0);
+
     // Internal value (since value passed back is debounced)
     const [internalValue, setInternalValue] = useState<string>(value);
+    useEffect(() => {
+        // If new value is one of the recent items in the stack 
+        // (i.e. debounce is firing while user is still typing),
+        // then don't update the internal value
+        const recentItems = changeStack.current.slice(Math.max(changeStack.current.length - 5, 0));
+        if (value === '' || !recentItems.includes(value)) {
+            setInternalValue(value);
+        }
+    }, [value]);
     // Debounce text change
     const onChangeDebounced = useMemo(() => AwesomeDebouncePromise(
         onChange,
-        100,
+        200,
     ), [onChange]);
-    useEffect(() => setInternalValue(value), [value]);
-    const handleChange = useCallback((newValue: string) => {
-        // Update state
-        setInternalValue(newValue);
-        // Debounce onChange
-        onChangeDebounced(newValue);
-    }, [onChangeDebounced]);
+
+    /**
+     * Moves back one in the change stack
+     */
+    const undo = useCallback(() => {
+        console.log('undo', changeStackIndex, changeStack.current);
+        if (changeStackIndex > 0) {
+            setChangeStackIndex(changeStackIndex - 1);
+            setInternalValue(changeStack.current[changeStackIndex - 1]);
+            onChangeDebounced(changeStack.current[changeStackIndex - 1]);
+        }
+    }, [changeStackIndex, onChangeDebounced]);
+    const canUndo = useMemo(() => changeStackIndex > 0 && changeStack.current.length > 0, [changeStackIndex]);
+    /**
+     * Moves forward one in the change stack
+     */
+    const redo = useCallback(() => {
+        if (changeStackIndex < changeStack.current.length - 1) {
+            setChangeStackIndex(changeStackIndex + 1);
+            setInternalValue(changeStack.current[changeStackIndex + 1]);
+            onChangeDebounced(changeStack.current[changeStackIndex + 1]);
+        }
+    }, [changeStackIndex, onChangeDebounced]);
+    const canRedo = useMemo(() => changeStackIndex < changeStack.current.length - 1 && changeStack.current.length > 0, [changeStackIndex]);
+    /**
+     * Adds, to change stack, and removes anything from the change stack after the current index
+     */
+    const handleChange = useCallback((updatedText: string) => {
+        const newChangeStack = [...changeStack.current];
+        newChangeStack.splice(changeStackIndex + 1, newChangeStack.length - changeStackIndex - 1);
+        newChangeStack.push(updatedText);
+        changeStack.current = newChangeStack;
+        setChangeStackIndex(newChangeStack.length - 1);
+        setInternalValue(updatedText);
+        onChangeDebounced(updatedText);
+    }, [changeStackIndex, onChangeDebounced]);
+
+    // Handle undo and redo keys
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // CTRL + Y or CTRL + SHIFT + Z = redo
+            if (e.ctrlKey && (e.key === 'y' || e.key === 'Z')) {
+                e.preventDefault();
+                redo()
+            }
+            // CTRL + Z = undo
+            else if (e.ctrlKey && e.key === 'z') {
+                e.preventDefault();
+                undo()
+            }
+        };
+        // Attach the event listener
+        document.addEventListener('keydown', handleKeyDown);
+        // Remove the event listener
+        return () => { document.removeEventListener('keydown', handleKeyDown) };
+    }, [redo, undo]);
 
     const [isPreviewOn, setIsPreviewOn] = useState(false);
 
@@ -245,16 +307,16 @@ export const MarkdownInput = ({
 
     // Mousedown prevents the textArea from removing its highlight when one 
     // of the buttons is clicked
-    const handleMouseDown = useCallback((e) => { 
+    const handleMouseDown = useCallback((e) => {
         if (isPreviewOn) return;
         // Get selection data
         const { selectionStart, selectionEnd } = getSelection(`markdown-input-${id}`);
         // Get target element id
         const targetId = e.target.id;
         // If the target is not the textArea, and the selection is not empty, then prevent default
-        if (targetId !== `markdown-input-${id}` && selectionStart !== selectionEnd) { 
+        if (targetId !== `markdown-input-${id}` && selectionStart !== selectionEnd) {
             console.log('preventing default');
-            e.preventDefault() 
+            e.preventDefault()
             e.stopPropagation();
         }
         console.log('mouse down', e);
