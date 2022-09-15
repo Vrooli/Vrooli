@@ -8,7 +8,7 @@ import {
     useTheme
 } from '@mui/material';
 import { BaseObjectDialog, DialogTitle } from 'components';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { RoutineSelectOrCreateDialogProps } from '../types';
 import { Routine } from 'types';
 import { SearchList } from 'components/lists';
@@ -65,20 +65,23 @@ export const RoutineSelectOrCreateDialog = ({
 
     // If routine selected from search, query for full data
     const [getRoutine, { data: routineData }] = useLazyQuery<routine, routineVariables>(routineQuery);
+    const queryingRef = useRef(false);
     const handleRoutineSelect = useCallback((routine: Routine) => {
         // Query for full routine data, if not already known (would be known if the same routine was selected last time)
         if (routineData?.routine?.id === routine.id) {
             handleAdd(routineData?.routine);
             onClose();
         } else {
+            queryingRef.current = true;
             getRoutine({ variables: { input: { id: routine.id } } });
         }
     }, [getRoutine, routineData, handleAdd, onClose]);
     useEffect(() => {
-        if (routineData?.routine) {
+        if (routineData?.routine && queryingRef.current) {
             handleAdd(routineData.routine);
             onClose();
         }
+        queryingRef.current = false;
     }, [handleAdd, onClose, handleCreateClose, routineData]);
 
     return (

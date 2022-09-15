@@ -6,9 +6,9 @@ import { APP_LINKS, StarFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { ReportButton, StarButton } from '..';
 import { getTranslation, listItemColor, placeholderColor } from 'utils';
-import { Person as PersonIcon } from '@mui/icons-material';
 import { TextLoading } from '../TextLoading/TextLoading';
 import { smallHorizontalScrollbar } from '../styles';
+import { UserIcon } from '@shared/icons';
 
 export const UserListItem = ({
     data,
@@ -71,11 +71,7 @@ export const UserListItem = ({
                             display: 'flex',
                         }}
                     >
-                        <PersonIcon sx={{
-                            fill: profileColors[1],
-                            height: '80%',
-                            width: '80%',
-                        }} />
+                        <UserIcon fill={profileColors[1]} width="35px" height="35px" />
                     </Box>
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
                         {/* Name/Title and role */}

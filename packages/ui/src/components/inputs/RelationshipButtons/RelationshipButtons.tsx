@@ -56,7 +56,7 @@ enum OwnerTypesEnum {
 const ownerTypes: ListMenuItemData<OwnerTypesEnum>[] = [
     { label: 'Self', value: OwnerTypesEnum.Self },
     { label: 'Organization', value: OwnerTypesEnum.Organization },
-    { label: 'Another User (Requires Permission)', value: OwnerTypesEnum.AnotherUser },
+    // { label: 'Another User (Requires Permission)', value: OwnerTypesEnum.AnotherUser },
 ]
 
 export function RelationshipButtons({
@@ -120,14 +120,12 @@ export function RelationshipButtons({
         } else if (ownerType === OwnerTypesEnum.AnotherUser) {
             openAnotherUserDialog();
         } else {
-            console.log('onrelationshipschange 1')
             onRelationshipsChange({ owner: userFromSession(session) });
         }
         closeOwnerDialog();
     }, [closeOwnerDialog, onRelationshipsChange, openAnotherUserDialog, openOrganizationDialog, session]);
     const handleOwnerSelect = useCallback((owner: RelationshipOwner) => {
         if (owner?.id === relationships.owner?.id) return;
-        console.log('onrelationshipschange 2')
         onRelationshipsChange({ owner });
     }, [onRelationshipsChange, relationships.owner?.id]);
 

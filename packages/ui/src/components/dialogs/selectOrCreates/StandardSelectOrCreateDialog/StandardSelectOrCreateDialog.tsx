@@ -8,7 +8,7 @@ import {
     useTheme
 } from '@mui/material';
 import { BaseObjectDialog, DialogTitle } from 'components';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StandardSelectOrCreateDialogProps } from '../types';
 import { Standard } from 'types';
 import { SearchList } from 'components/lists';
@@ -65,20 +65,23 @@ export const StandardSelectOrCreateDialog = ({
 
     // If standard selected from search, query for full data
     const [getStandard, { data: standardData }] = useLazyQuery<standard, standardVariables>(standardQuery);
+    const queryingRef = useRef(false);
     const handeStandardSelect = useCallback((standard: Standard) => {
         // Query for full standard data, if not already known (would be known if the same standard was selected last time)
         if (standardData?.standard?.id === standard.id) {
             handleAdd(standardData?.standard);
             onClose();
         } else {
+            queryingRef.current = true;
             getStandard({ variables: { input: { id: standard.id } } });
         }
     }, [getStandard, standardData, handleAdd, onClose]);
     useEffect(() => {
-        if (standardData?.standard) {
+        if (standardData?.standard && queryingRef.current) {
             handleAdd(standardData.standard);
             onClose();
         }
+        queryingRef.current = false;
     }, [handleAdd, onClose, handleCreateClose, standardData]);
 
     return (

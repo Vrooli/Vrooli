@@ -8,7 +8,7 @@ import {
     useTheme
 } from '@mui/material';
 import { BaseObjectDialog, DialogTitle } from 'components';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { OrganizationSelectOrCreateDialogProps } from '../types';
 import { Organization } from 'types';
 import { SearchList } from 'components/lists';
@@ -58,7 +58,6 @@ export const OrganizationSelectOrCreateDialog = ({
     const handleCreateOpen = useCallback(() => { setIsCreateOpen(true); }, [setIsCreateOpen]);
     const handleCreated = useCallback((organization: Organization) => {
         setIsCreateOpen(false);
-        console.log('organizationselectorcreate calling handleadd 1, handlecreated', organization)
         handleAdd(organization);
         onClose();
     }, [handleAdd, onClose]);
@@ -68,22 +67,23 @@ export const OrganizationSelectOrCreateDialog = ({
 
     // If organization selected from search, query for full data
     const [getOrganization, { data: organizationData }] = useLazyQuery<organization, organizationVariables>(organizationQuery);
+    const queryingRef = useRef(false);
     const handleOrganizationSelect = useCallback((organization: Organization) => {
         // Query for full organization data, if not already known (would be known if the same organization was selected last time)
         if (organizationData?.organization?.id === organization.id) {
-            console.log('organizationselectorcreate calling handleadd 2, handleorganizationselect', organization)
             handleAdd(organizationData?.organization);
             onClose();
         } else {
+            queryingRef.current = true;
             getOrganization({ variables: { input: { id: organization.id } } });
         }
     }, [getOrganization, organizationData, handleAdd, onClose]);
     useEffect(() => {
-        if (organizationData?.organization) {
-            console.log('organizationselectorcreate calling handleadd 3, useeffect', organizationData?.organization)
+        if (organizationData?.organization && queryingRef.current) {
             handleAdd(organizationData.organization);
             onClose();
         }
+        queryingRef.current = false;
     }, [handleAdd, onClose, handleCreateClose, organizationData]);
 
     return (
