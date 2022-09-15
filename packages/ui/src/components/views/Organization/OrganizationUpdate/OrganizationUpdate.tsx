@@ -52,15 +52,7 @@ export const OrganizationUpdate = ({
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
-    const addTag = useCallback((tag: TagShape) => {
-        setTags(t => [...t, tag]);
-    }, [setTags]);
-    const removeTag = useCallback((tag: TagShape) => {
-        setTags(tags => tags.filter(t => t.tag !== tag.tag));
-    }, [setTags]);
-    const clearTags = useCallback(() => {
-        setTags([]);
-    }, [setTags]);
+    const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     // Handle translations
     type Translation = OrganizationTranslationShape;
@@ -253,11 +245,9 @@ export const OrganizationUpdate = ({
             </Grid>
             <Grid item xs={12}>
                 <TagSelector
+                    handleTagsUpdate={handleTagsUpdate}
                     session={session}
                     tags={tags}
-                    onTagAdd={addTag}
-                    onTagRemove={removeTag}
-                    onTagsClear={clearTags}
                 />
             </Grid>
             <GridSubmitButtons
@@ -270,7 +260,7 @@ export const OrganizationUpdate = ({
                 onSubmit={formik.handleSubmit}
             />
         </Grid>
-    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, formik.values.name, formik.values.bio, formik.handleBlur, formik.handleChange, formik.touched.name, formik.touched.bio, formik.errors, formik.isSubmitting, formik.isValid, formik.setSubmitting, formik.handleSubmit, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags, onCancel]);
+    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, formik.values.name, formik.values.bio, formik.handleBlur, formik.handleChange, formik.touched.name, formik.touched.bio, formik.errors, formik.isSubmitting, formik.isValid, formik.setSubmitting, formik.handleSubmit, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, onCancel]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{

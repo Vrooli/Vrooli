@@ -48,9 +48,7 @@ export const BuildInfoDialog = ({
     handleLanguageChange,
     handleRelationshipsChange,
     handleResourcesUpdate,
-    handleTagsAdd,
-    handleTagsClear,
-    handleTagsRemove,
+    handleTagsUpdate,
     handleTranslationDelete,
     handleTranslationUpdate,
     handleUpdate,
@@ -450,11 +448,9 @@ export const BuildInfoDialog = ({
                     {
                         isEditing ? (
                             <TagSelector
+                                handleTagsUpdate={handleTagsUpdate}
                                 session={session}
                                 tags={tags}
-                                onTagAdd={handleTagsAdd}
-                                onTagRemove={handleTagsRemove}
-                                onTagsClear={handleTagsClear}
                             />
                         ) : tags.length > 0 ? (
                             <TagList session={session} parentId={routine?.id ?? ''} tags={tags as any[]} />

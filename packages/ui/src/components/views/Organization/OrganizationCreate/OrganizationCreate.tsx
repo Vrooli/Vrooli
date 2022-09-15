@@ -43,15 +43,7 @@ export const OrganizationCreate = ({
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
-    const addTag = useCallback((tag: TagShape) => {
-        setTags(t => [...t, tag]);
-    }, [setTags]);
-    const removeTag = useCallback((tag: TagShape) => {
-        setTags(tags => tags.filter(t => t.tag !== tag.tag));
-    }, [setTags]);
-    const clearTags = useCallback(() => {
-        setTags([]);
-    }, [setTags]);
+    const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     // Handle translations
     type Translation = OrganizationTranslationShape;
@@ -246,11 +238,9 @@ export const OrganizationCreate = ({
                 </Grid>
                 <Grid item xs={12}>
                     <TagSelector
+                        handleTagsUpdate={handleTagsUpdate}
                         session={session}
                         tags={tags}
-                        onTagAdd={addTag}
-                        onTagRemove={removeTag}
-                        onTagsClear={clearTags}
                     />
                 </Grid>
                 <GridSubmitButtons

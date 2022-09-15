@@ -310,9 +310,7 @@ export interface StandardSelectSwitchProps extends UseSwitchProps {
 
 export interface TagSelectorProps {
     disabled?: boolean;
-    onTagAdd: (tag: TagShape | Tag) => any;
-    onTagRemove: (tag: TagShape) => any;
-    onTagsClear: () => any;
+    handleTagsUpdate: (tags: (TagShape | Tag)[]) => any;
     placeholder?: string;
     session: Session;
     tags: (TagShape | Tag)[];

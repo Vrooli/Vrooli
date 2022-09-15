@@ -40,31 +40,26 @@ export const SettingsDisplay = ({
 
     // Handle starred tags
     const [starredTags, setStarredTags] = useState<TagShape[]>([]);
-    const addStarredTag = useCallback((tag: TagShape) => {
-        setStarredTags(t => [...t, tag]);
-    }, [setStarredTags]);
-    const removeStarredTag = useCallback((tag: TagShape) => {
-        setStarredTags(tags => tags.filter(t => t.tag !== tag.tag));
-    }, [setStarredTags]);
-    const clearStarredTags = useCallback(() => {
-        setStarredTags([]);
-    }, [setStarredTags]);
+    const handleStarredTagsUpdate = useCallback((updatedList: TagShape[]) => { setStarredTags(updatedList); }, [setStarredTags]);
 
     // Handle hidden tags
     const [hiddenTags, setHiddenTags] = useState<TagHiddenShape[]>([]);
-    const addHiddenTag = useCallback((tag: TagShape) => {
-        setHiddenTags(t => [...t, {
-            id: uuid(),
-            isBlur: true,
-            tag
-        }]);
-    }, [setHiddenTags]);
-    const removeHiddenTag = useCallback((tag: TagShape) => {
-        setHiddenTags(ht => ht.filter(t => t.tag.tag !== tag.tag));
-    }, [setHiddenTags]);
-    const clearHiddenTags = useCallback(() => {
-        setHiddenTags([]);
-    }, [setHiddenTags]);
+    const handleHiddenTagsUpdate = useCallback((updatedList: TagShape[]) => { 
+        // Hidden tags are wrapped in a shape that includes an isBlur flag. 
+        // Because of this, we must loop through the updatedList to see which tags have been added or removed.
+        const updatedHiddenTags = updatedList.map((tag) => {
+            const existingTag = hiddenTags.find((hiddenTag) => hiddenTag.tag.id === tag.id);
+            if (existingTag) {
+                return existingTag;
+            }
+            return { 
+                id: uuid(),
+                isBlur: true,
+                tag,
+            };
+        });
+        setHiddenTags(updatedHiddenTags);
+    }, [hiddenTags]);
 
     // Handle theme
     const [theme, setTheme] = useState<string>('light');
@@ -173,12 +168,10 @@ export const SettingsDisplay = ({
             </Stack>
             <Box sx={{ margin: 2, marginBottom: 5 }}>
                 <TagSelector
+                    handleTagsUpdate={handleStarredTagsUpdate}
                     session={session}
                     tags={starredTags}
                     placeholder={"Enter interests, followed by commas..."}
-                    onTagAdd={addStarredTag}
-                    onTagRemove={removeStarredTag}
-                    onTagsClear={clearStarredTags}
                 />
             </Box>
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
@@ -188,12 +181,10 @@ export const SettingsDisplay = ({
             </Stack>
             <Box sx={{ margin: 2, marginBottom: 5 }}>
                 <TagSelector
+                    handleTagsUpdate={handleHiddenTagsUpdate}
                     session={session}
                     tags={hiddenTags.map(t => t.tag)}
                     placeholder={"Enter topics you'd like to hide from view, followed by commas..."}
-                    onTagAdd={addHiddenTag}
-                    onTagRemove={removeHiddenTag}
-                    onTagsClear={clearHiddenTags}
                 />
             </Box>
             <Box sx={{ margin: 2, marginBottom: 5, display: 'flex' }}>

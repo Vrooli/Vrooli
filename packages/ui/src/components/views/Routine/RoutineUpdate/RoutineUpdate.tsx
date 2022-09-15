@@ -65,15 +65,7 @@ export const RoutineUpdate = ({
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
-    const addTag = useCallback((tag: TagShape) => {
-        setTags(t => [...t, tag]);
-    }, [setTags]);
-    const removeTag = useCallback((tag: TagShape) => {
-        setTags(tags => tags.filter(t => t.tag !== tag.tag));
-    }, [setTags]);
-    const clearTags = useCallback(() => {
-        setTags([]);
-    }, [setTags]);
+    const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     // Handle translations
     type Translation = RoutineTranslationShape;
@@ -337,11 +329,9 @@ export const RoutineUpdate = ({
             </Grid>
             <Grid item xs={12}>
                 <TagSelector
+                    handleTagsUpdate={handleTagsUpdate}
                     session={session}
                     tags={tags}
-                    onTagAdd={addTag}
-                    onTagRemove={removeTag}
-                    onTagsClear={clearTags}
                 />
             </Grid>
             <GridSubmitButtons
@@ -354,7 +344,7 @@ export const RoutineUpdate = ({
                 onSubmit={formik.handleSubmit}
             />
         </Grid>
-    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, formik, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags, onCancel]);
+    ), [formik, onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, onCancel]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{

@@ -253,9 +253,7 @@ export interface BuildInfoDialogProps {
     handleLanguageChange: (newLanguage: string) => any;
     handleRelationshipsChange: (newRelationshipsObject: Partial<RelationshipsObject>) => void;
     handleResourcesUpdate: (updatedList: ResourceList) => void;
-    handleTagsAdd: (tag: TagShape) => void;
-    handleTagsClear: () => void;
-    handleTagsRemove: (tag: TagShape) => void;
+    handleTagsUpdate: (tags: TagShape[]) => any;
     handleTranslationDelete: (language: string) => void;
     handleTranslationUpdate: (language: string, translation: RoutineTranslationShape) => void;
     handleUpdate: (routine: Routine) => any;

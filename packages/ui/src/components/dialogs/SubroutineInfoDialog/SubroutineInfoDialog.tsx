@@ -89,15 +89,7 @@ export const SubroutineInfoDialog = ({
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
-    const addTag = useCallback((tag: TagShape) => {
-        setTags(t => [...t, tag]);
-    }, [setTags]);
-    const removeTag = useCallback((tag: TagShape) => {
-        setTags(tags => tags.filter(t => t.tag !== tag.tag));
-    }, [setTags]);
-    const clearTags = useCallback(() => {
-        setTags([]);
-    }, [setTags]);
+    const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     // Handle translations
     type Translation = RoutineTranslationShape;
@@ -497,11 +489,9 @@ export const SubroutineInfoDialog = ({
                         <Grid item xs={12} marginBottom={4}>
                             {
                                 canEdit ? <TagSelector
+                                    handleTagsUpdate={handleTagsUpdate}
                                     session={session}
                                     tags={tags}
-                                    onTagAdd={addTag}
-                                    onTagRemove={removeTag}
-                                    onTagsClear={clearTags}
                                 /> :
                                     <TagList session={session} parentId={''} tags={subroutine?.routine?.tags ?? []} />
                             }
