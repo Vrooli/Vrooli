@@ -2,10 +2,11 @@ import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
 import { DeleteOneType } from '@shared/consts';
-import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
+import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, ResourceList, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 import { ReportFor } from 'graphql/generated/globalTypes';
-import { ObjectType, SearchType } from 'utils';
+import { ObjectType, RoutineTranslationShape, SearchType, TagShape } from 'utils';
 import { SvgProps } from '@shared/icons';
+import { RelationshipsObject } from 'components/inputs/types';
 
 export interface BaseObjectDialogProps extends DialogProps {
     children: JSX.Element | JSX.Element[];
@@ -247,15 +248,26 @@ export interface LinkDialogProps {
 }
 
 export interface BuildInfoDialogProps {
+    formik: any,
     handleAction: (action: ObjectAction, data: any) => any;
     handleLanguageChange: (newLanguage: string) => any;
+    handleRelationshipsChange: (newRelationshipsObject: Partial<RelationshipsObject>) => void;
+    handleResourcesUpdate: (updatedList: ResourceList) => void;
+    handleTagsAdd: (tag: TagShape) => void;
+    handleTagsClear: () => void;
+    handleTagsRemove: (tag: TagShape) => void;
+    handleTranslationDelete: (language: string) => void;
+    handleTranslationUpdate: (language: string, translation: RoutineTranslationShape) => void;
     handleUpdate: (routine: Routine) => any;
     isEditing: boolean;
     language: string;
     loading: boolean;
+    relationships: RelationshipsObject;
     routine: Routine | null;
     session: Session;
     sxs?: { icon: SvgProps, iconButton: any };
+    tags: TagShape[];
+    translations: RoutineTranslationShape[];
     zIndex: number;
 }
 

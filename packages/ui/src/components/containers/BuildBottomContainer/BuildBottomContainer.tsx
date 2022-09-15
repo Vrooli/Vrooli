@@ -15,10 +15,9 @@ import { GridSubmitButtons } from 'components/buttons';
 export const BuildBottomContainer = ({
     canSubmitMutate,
     canCancelMutate,
-    handleCancelAdd,
-    handleCancelUpdate,
-    handleAdd,
-    handleUpdate,
+    errors,
+    handleCancel,
+    handleSubmit,
     handleRunDelete,
     handleRunAdd,
     handleScaleChange,
@@ -113,9 +112,10 @@ export const BuildBottomContainer = ({
                     <GridSubmitButtons
                         disabledCancel={loading || !canCancelMutate}
                         disabledSubmit={loading || !canSubmitMutate}
+                        errors={errors}
                         isCreate={isAdding}
-                        onCancel={handleCancelAdd}
-                        onSubmit={isAdding ? handleAdd : handleUpdate}
+                        onCancel={handleCancel}
+                        onSubmit={handleSubmit}
                     />
                 </Grid>
             ) :
@@ -146,7 +146,7 @@ export const BuildBottomContainer = ({
                     </Tooltip> */}
                 </Stack>
             )
-    }, [canCancelMutate, canSubmitMutate, handleAdd, handleCancelAdd, handleUpdate, isAdding, isEditing, loading, runRoutine, runState]);
+    }, [canCancelMutate, canSubmitMutate, errors, handleCancel, handleSubmit, isAdding, isEditing, loading, runRoutine, runState]);
 
     return (
         <Box sx={{

@@ -38,10 +38,9 @@ export type DialogActionItem = [string, any, boolean, boolean, () => void,]
 export interface BuildBottomContainerProps {
     canSubmitMutate: boolean;
     canCancelMutate: boolean;
-    handleCancelAdd: () => void;
-    handleCancelUpdate: () => void;
-    handleAdd: () => void;
-    handleUpdate: () => void;
+    errors: { [key: string]: string };
+    handleCancel: () => void;
+    handleSubmit: () => void;
     handleScaleChange: (scale: number) => void;
     handleRunDelete: (run: Run) => void;
     handleRunAdd: (run: Run) => void;
