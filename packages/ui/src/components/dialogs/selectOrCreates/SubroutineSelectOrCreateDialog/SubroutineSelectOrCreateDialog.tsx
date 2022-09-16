@@ -120,7 +120,10 @@ export const SubroutineSelectOrCreateDialog = ({
                     overflow: 'visible',
                     background: palette.background.default,
                 },
-                '& .MuiDialog-paper': { overflow: 'visible' }
+                '& .MuiDialog-paper': { 
+                    overflow: 'visible',
+                    width: 'min(100%, 600px)',
+                }
             }}
         >
             {/* Popup for creating a new routine */}
