@@ -19,7 +19,7 @@ import { routineUpdate, routineUpdateVariables } from 'graphql/generated/routine
 import { routineCreate, routineCreateVariables } from 'graphql/generated/routineCreate';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
 import { AddLinkIcon, CloseIcon, CompressIcon, EditIcon, RedoIcon, UndoIcon } from '@shared/icons';
-import { routineUpdateForm as validationSchema } from '@shared/validation';
+import { requiredErrorMessage, routineUpdateForm as validationSchema, title as titleValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { RelationshipsObject } from 'components/inputs/types';
 
@@ -1455,6 +1455,7 @@ export const BuildView = ({
                     sxs={{
                         stack: { marginLeft: 'auto' }
                     }}
+                    validationSchema={titleValidation.required(requiredErrorMessage)}
                 />
                 {/* Close Icon */}
                 <IconButton
@@ -1567,7 +1568,11 @@ export const BuildView = ({
                 <BuildBottomContainer
                     canCancelMutate={!loading}
                     canSubmitMutate={!loading && !isEqual(routine, changedRoutine)}
-                    errors={{}} //TODO combine formik and status errors
+                    errors={{
+                        ...(formik.errors ?? {}),
+                        'graph': status.status !== Status.Valid ? status.messages : null,
+                        'unchanged': isEqual(routine, changedRoutine) ? 'No changes made' : null,
+                    }}
                     handleCancel={revertChanges}
                     handleSubmit={() => { formik.submitForm() }}
                     handleScaleChange={handleScaleChange}

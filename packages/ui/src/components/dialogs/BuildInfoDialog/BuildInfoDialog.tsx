@@ -41,6 +41,7 @@ import { mutationWrapper } from 'graphql/utils';
 import { copyMutation, forkMutation, starMutation, voteMutation } from 'graphql/mutation';
 import { v4 as uuid } from 'uuid';
 import { CloseIcon, DownvoteWideIcon, InfoIcon, UpvoteWideIcon } from '@shared/icons';
+import { requiredErrorMessage, title as titleValidation } from '@shared/validation';
 
 export const BuildInfoDialog = ({
     formik,
@@ -357,6 +358,7 @@ export const BuildInfoDialog = ({
                                 >{t ?? (loading ? 'Loading...' : 'Enter title')}</Typography>
                             )}
                             text={getTranslation(routine, 'title', [language], false) ?? ''}
+                            validationSchema={titleValidation.required(requiredErrorMessage)}
                         />
                         {!isEditing && <Stack direction="row" spacing={1}>
                             {ownedBy ? (

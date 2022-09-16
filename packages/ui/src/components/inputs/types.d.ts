@@ -3,6 +3,7 @@ import { JSONVariable } from 'forms/types';
 import { ChangeEvent } from 'react';
 import { AutocompleteOption, Organization, Project, Routine, Session, Standard, Tag } from 'types';
 import { ObjectType, TagShape } from 'utils';
+import { StringSchema } from 'yup';
 
 export interface AutocompleteSearchBarProps extends Omit<SearchBarProps, 'sx'> {
     debounce?: number;
@@ -37,6 +38,7 @@ export interface EditableLabelProps {
     renderLabel: (label: string) => JSX.Element;
     sxs?: { stack?: { [x: string]: any } };
     text: string;
+    validationSchema?: StringSchema<string | undefined, any, string | undefined>;
 }
 
 export interface JsonFormatInputProps {

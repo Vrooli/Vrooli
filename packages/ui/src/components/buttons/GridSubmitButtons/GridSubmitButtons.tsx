@@ -36,16 +36,33 @@ export const GridSubmitButtons = ({
 
     // Errors as a markdown list
     const errorMessage = useMemo<string>(() => {
-        return errors ? Object.entries(errors).map(([key, value]) => `- ${capitalizeFirstLetter(key)}: ${value}`).join('\n') : '';
+        // Filter out null and undefined errors
+        const filteredErrors = Object.entries(errors ?? {}).filter(([key, value]) => value !== null && value !== undefined) as [string, string | string[]][];
+        // Helper to convert string to markdown list item
+        const toListItem = (str: string, level: number) => { return `${'  '.repeat(level)}* ${str}`; };
+        // Convert errors to markdown list
+        const errorList = filteredErrors.map(([key, value]) => {
+            if (Array.isArray(value)) {
+                return toListItem(capitalizeFirstLetter(key), 0) + ': \n' + value.map((str) => toListItem(str, 1)).join('\n');
+            }
+            else {
+                return toListItem(capitalizeFirstLetter(key + ': ' + value), 0);
+            }
+        }).join('\n');
+        console.log('error list', errorList)
+        return errorList;
     }, [errors]);
 
-    const handleSubmit = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
-        // If formik invalid, display errors in popup
-        if (errors && Object.keys(errors).length > 0) openError(ev);
-        else if (!disabledSubmit && typeof onSubmit === 'function') onSubmit();
-    }, [errors, openError, disabledSubmit, onSubmit]);
+    const hasErrors = useMemo(() => Object.values(errors ?? {}).some((value) => value !== null && value !== undefined), [errors]);
+    const isSubmitDisabled = useMemo(() => hasErrors || (disabledSubmit === true), [hasErrors, disabledSubmit]);
 
-    const isSubmitDisabled = useMemo(() => (errors && Object.keys(errors).length > 0) || (disabledSubmit === true), [errors, disabledSubmit]);
+
+    const handleSubmit = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
+        console.log('handle submit', hasErrors, isSubmitDisabled)
+        // If formik invalid, display errors in popup
+        if (hasErrors) openError(ev);
+        else if (!disabledSubmit && typeof onSubmit === 'function') onSubmit();
+    }, [hasErrors, isSubmitDisabled, openError, disabledSubmit, onSubmit]);
 
     return (
         <>
