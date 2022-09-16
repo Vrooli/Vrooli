@@ -17,13 +17,12 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { useLocation } from '@shared/route';
 import { SubroutineInfoDialogProps } from '../types';
-import { getOwnedByString, getTranslation, InputShape, ObjectType, OutputShape, RoutineTranslationShape, TagShape, toOwnedBy, updateArray } from 'utils';
+import { getTranslation, InputShape, ObjectType, OutputShape, RoutineTranslationShape, TagShape, updateArray } from 'utils';
 import Markdown from 'markdown-to-jsx';
 import { routineUpdateForm as validationSchema } from '@shared/validation';
 import { ResourceListUsedFor } from '@shared/consts';
-import { GridSubmitButtons, InputOutputContainer, LanguageInput, LinkButton, MarkdownInput, QuantityBox, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession } from 'components';
+import { GridSubmitButtons, InputOutputContainer, LanguageInput, MarkdownInput, OwnerLabel, QuantityBox, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession } from 'components';
 import { useFormik } from 'formik';
 import { NodeDataRoutineListItem, ResourceList } from 'types';
 import { v4 as uuid } from 'uuid';
@@ -43,7 +42,6 @@ export const SubroutineInfoDialog = ({
     zIndex,
 }: SubroutineInfoDialogProps) => {
     const { palette } = useTheme();
-    const [, setLocation] = useLocation();
 
     const subroutine = useMemo<NodeDataRoutineListItem | undefined>(() => {
         if (!data?.node || !data?.routineItemId) return undefined;
@@ -240,8 +238,6 @@ export const SubroutineInfoDialog = ({
         setLanguages(newLanguages);
     }, [deleteTranslation, languages, updateFormikTranslation]);
 
-    const ownedBy = useMemo<string | null>(() => getOwnedByString(subroutine?.routine, [language]), [subroutine, language]);
-    const toOwner = useCallback(() => { toOwnedBy(subroutine?.routine, setLocation) }, [subroutine, setLocation]);
     const canEdit = useMemo<boolean>(() => isEditing && (subroutine?.routine?.isInternal || subroutine?.routine?.owner?.id === session.id || subroutine?.routine?.permissionsRoutine?.canEdit === true), [isEditing, session.id, subroutine?.routine?.isInternal, subroutine?.routine?.owner?.id, subroutine?.routine?.permissionsRoutine?.canEdit]);
 
     /**
@@ -299,12 +295,7 @@ export const SubroutineInfoDialog = ({
                 <Typography variant="h6" ml={1}>{`(${(subroutine?.index ?? 0) + 1} of ${(data?.node?.routines?.length ?? 1)})`}</Typography>
                 {/* Owned by and version */}
                 <Stack direction="row" sx={{ marginLeft: 'auto' }}>
-                    {ownedBy ? (
-                        <LinkButton
-                            onClick={toOwner}
-                            text={`${ownedBy} - `}
-                        />
-                    ) : null}
+                    <OwnerLabel objectType={ObjectType.Routine} owner={subroutine?.routine?.owner} session={session} />
                     <Typography variant="body1">{subroutine?.routine?.version}</Typography>
                 </Stack>
                 {/* Close button */}

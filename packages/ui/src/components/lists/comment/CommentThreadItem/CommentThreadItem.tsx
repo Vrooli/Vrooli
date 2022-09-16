@@ -1,10 +1,9 @@
 import { Box, Button, CircularProgress, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { CommentThreadItemProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
-import { useLocation } from '@shared/route';
 import { StarButton, TextLoading, UpvoteDownvote } from '../..';
-import { displayDate, getCreatedByString, getTranslation, PubSub, toCreatedBy } from 'utils';
-import { LinkButton, MarkdownInput } from 'components/inputs';
+import { displayDate, getTranslation, PubSub } from 'utils';
+import { MarkdownInput } from 'components/inputs';
 import {
     Delete as DeleteIcon,
     Flag as ReportIcon,
@@ -21,6 +20,7 @@ import { useFormik } from 'formik';
 import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
 import { ReportDialog } from 'components/dialogs';
 import { v4 as uuid } from 'uuid';
+import { OwnerLabel } from 'components/text';
 
 export function CommentThreadItem({
     data,
@@ -35,7 +35,6 @@ export function CommentThreadItem({
     zIndex,
 }: CommentThreadItemProps) {
     const { palette } = useTheme();
-    const [, setLocation] = useLocation();
 
     const { canDelete, canEdit, canReply, canReport, canStar, canVote, text } = useMemo(() => {
         const permissions = data?.permissionsComment;
@@ -50,9 +49,6 @@ export function CommentThreadItem({
             text: getTranslation(data, 'text', languages, true),
         };
     }, [data, session]);
-
-    const ownedBy = useMemo<string | null>(() => getCreatedByString(data, session?.languages ?? navigator.languages), [data, session?.languages]);
-    const toOwner = useCallback(() => { toCreatedBy(data, setLocation) }, [data, setLocation]);
 
     const [replyOpen, setReplyOpen] = useState(false);
     const [addMutation, { loading: loadingAdd }] = useMutation<commentCreate, commentCreateVariables>(commentCreateMutation);
@@ -175,38 +171,36 @@ export function CommentThreadItem({
                     <Stack direction="row" spacing={1}>
                         {/* Username and role */}
                         {
-                            ownedBy && (
-                                <Stack direction="row" spacing={1} sx={{
-                                    overflow: 'auto',
-                                }}>
-                                    <LinkButton
-                                        onClick={toOwner}
-                                        text={ownedBy}
-                                        sxs={{
-                                            text: {
-                                                color: palette.background.textPrimary,
-                                                fontWeight: 'bold',
-                                            }
-                                        }}
-                                    />
-                                    {canEdit && !(data?.creator?.id && data.creator.id === session?.id) && <ListItemText
-                                        primary={`(Can Edit)`}
-                                        sx={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            color: palette.mode === 'light' ? '#fa4f4f' : '#f2a7a7',
-                                        }}
-                                    />}
-                                    {data?.creator?.id && data.creator.id === session?.id && <ListItemText
-                                        primary={`(You)`}
-                                        sx={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            color: palette.mode === 'light' ? '#fa4f4f' : '#f2a7a7',
-                                        }}
-                                    />}
-                                </Stack>
-                            )
+                            <Stack direction="row" spacing={1} sx={{
+                                overflow: 'auto',
+                            }}>
+                                <OwnerLabel
+                                    objectType={objectType}
+                                    owner={data?.creator}
+                                    session={session}
+                                    sxs={{
+                                        label: {
+                                            color: palette.background.textPrimary,
+                                            fontWeight: 'bold',
+                                        }
+                                    }} />
+                                {canEdit && !(data?.creator?.id && data.creator.id === session?.id) && <ListItemText
+                                    primary={`(Can Edit)`}
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        color: palette.mode === 'light' ? '#fa4f4f' : '#f2a7a7',
+                                    }}
+                                />}
+                                {data?.creator?.id && data.creator.id === session?.id && <ListItemText
+                                    primary={`(You)`}
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        color: palette.mode === 'light' ? '#fa4f4f' : '#f2a7a7',
+                                    }}
+                                />}
+                            </Stack>
                         }
                         {/* Time posted */}
                         <ListItemText

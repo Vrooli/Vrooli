@@ -31,8 +31,8 @@ import { fork, forkVariables } from 'graphql/generated/fork';
 import { star, starVariables } from 'graphql/generated/star';
 import { vote, voteVariables } from 'graphql/generated/vote';
 import { ObjectAction, BuildInfoDialogProps } from '../types';
-import { DeleteDialog, EditableLabel, EditableTextCollapse, LanguageInput, LinkButton, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession, VersionInput } from 'components';
-import { AllLanguages, getLanguageSubtag, getOwnedByString, getTranslation, ObjectType, PubSub, toOwnedBy } from 'utils';
+import { DeleteDialog, EditableLabel, EditableTextCollapse, LanguageInput, OwnerLabel, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession, VersionInput } from 'components';
+import { AllLanguages, getLanguageSubtag, getTranslation, ObjectType, PubSub } from 'utils';
 import { useLocation } from '@shared/route';
 import { APP_LINKS, CopyType, DeleteOneType, ForkType, StarFor, VoteFor } from '@shared/consts';
 import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
@@ -67,9 +67,6 @@ export const BuildInfoDialog = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     console.log('buildinfodialog renderrr')
-
-    const ownedBy = useMemo<string | null>(() => getOwnedByString(routine, [language]), [routine, language]);
-    const toOwner = useCallback(() => { toOwnedBy(routine, setLocation) }, [routine, setLocation]);
 
     // Handle languages
     const availableLanguages = useMemo<string[]>(() => {
@@ -361,12 +358,7 @@ export const BuildInfoDialog = ({
                             validationSchema={titleValidation.required(requiredErrorMessage)}
                         />
                         {!isEditing && <Stack direction="row" spacing={1}>
-                            {ownedBy ? (
-                                <LinkButton
-                                    onClick={toOwner}
-                                    text={ownedBy}
-                                />
-                            ) : null}
+                            <OwnerLabel objectType={ObjectType.Routine} owner={routine?.owner} session={session} />
                             <Typography variant="body1"> - {routine?.version}</Typography>
                         </Stack>}
                     </Stack>
