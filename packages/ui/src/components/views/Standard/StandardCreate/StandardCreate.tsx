@@ -1,4 +1,4 @@
-import { Box, Grid, TextField, Typography } from "@mui/material";
+import { Box, Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { standardCreateForm as validationSchema } from '@shared/validation';
@@ -7,7 +7,7 @@ import { standardCreateMutation } from "graphql/mutation";
 import { getUserLanguages, InputTypeOption, InputTypeOptions, ObjectType, parseSearchParams, shapeStandardCreate, StandardTranslationShape, TagShape, updateArray } from "utils";
 import { StandardCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, ResourceListHorizontal, Selector, TagSelector } from "components";
+import { GridSubmitButtons, LanguageInput, PageTitle, ResourceListHorizontal, Selector, TagSelector } from "components";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
@@ -208,14 +208,7 @@ export const StandardCreate = ({
         >
             <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                 <Grid item xs={12}>
-                    <Typography
-                        component="h1"
-                        variant="h3"
-                        sx={{
-                            textAlign: 'center',
-                            sx: { marginTop: 2, marginBottom: 2 },
-                        }}
-                    >Create Standard</Typography>
+                    <PageTitle title="Create Standard" />
                 </Grid>
                 <Grid item xs={12}>
                     <RelationshipButtons

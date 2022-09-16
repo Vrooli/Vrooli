@@ -355,7 +355,7 @@ export function RelationshipButtons({
             />}
             {/* Row of button labels */}
             <Stack
-                spacing={2}
+                spacing={{ xs: 1, sm: 1.5, md: 2 }}
                 direction="row"
                 alignItems="center"
                 justifyContent="center"
@@ -368,7 +368,7 @@ export function RelationshipButtons({
             </Stack>
             {/* Buttons row */}
             <Stack
-                spacing={2}
+                spacing={{ xs: 1, sm: 1.5, md: 2 }}
                 direction="row"
                 alignItems="center"
                 justifyContent="center"
@@ -377,31 +377,31 @@ export function RelationshipButtons({
                 {/* Owner button */}
                 {isOwnerAvailable && <Tooltip title={ownerTooltip}>
                     <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleOwnerClick}>
-                        {OwnerIcon && <OwnerIcon { ...commonIconProps(palette) } />}
+                        {OwnerIcon && <OwnerIcon {...commonIconProps(palette)} />}
                     </IconButton>
                 </Tooltip>}
                 {/* Project button */}
                 {isProjectAvailable && <Tooltip title={projectTooltip}>
                     <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleProjectClick}>
-                        {ProjectIcon && <ProjectIcon { ...commonIconProps(palette) } />}
+                        {ProjectIcon && <ProjectIcon {...commonIconProps(palette)} />}
                     </IconButton>
                 </Tooltip>}
                 {/* Parent button */}
                 {isParentAvailable && <Tooltip title={parentTooltip}>
                     <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleParentClick}>
-                        {ParentIcon && <ParentIcon { ...commonIconProps(palette) } />}
+                        {ParentIcon && <ParentIcon {...commonIconProps(palette)} />}
                     </IconButton>
                 </Tooltip>}
                 {/* Privacy button */}
                 {isPrivateAvailable && <Tooltip title={privacyTooltip}>
                     <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handlePrivateClick}>
-                        {PrivacyIcon && <PrivacyIcon {...commonIconProps(palette) } />}
+                        {PrivacyIcon && <PrivacyIcon {...commonIconProps(palette)} />}
                     </IconButton>
                 </Tooltip>}
                 {/* Complete button */}
                 {isCompleteAvailable && <Tooltip title={completeTooltip}>
                     <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleCompleteClick}>
-                        {CompleteIcon && <CompleteIcon {...commonIconProps(palette) } />}
+                        {CompleteIcon && <CompleteIcon {...commonIconProps(palette)} />}
                     </IconButton>
                 </Tooltip>}
             </Stack>

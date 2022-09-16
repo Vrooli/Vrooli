@@ -1,7 +1,7 @@
 import { useLazyQuery, useQuery } from '@apollo/client';
 import { APP_LINKS, ProjectOrRoutineSortBy, ResourceListUsedFor } from '@shared/consts';
-import { Box, Stack, Typography } from '@mui/material';
-import { HelpButton, ListMenu, ListTitleContainer, ResourceListHorizontal } from 'components';
+import { Box, Stack } from '@mui/material';
+import { ListMenu, ListTitleContainer, PageTitle, ResourceListHorizontal } from 'components';
 import { developPage } from 'graphql/generated/developPage';
 import { profile } from 'graphql/generated/profile';
 import { developPageQuery, profileQuery } from 'graphql/query';
@@ -147,16 +147,7 @@ export const DevelopPage = ({
                 onClose={closeCreateSelect}
                 zIndex={200}
             />
-            {/* Title and help button */}
-            <Stack
-                direction="row"
-                justifyContent="center"
-                alignItems="center"
-                sx={{ marginTop: 2, marginBottom: 2 }}
-            >
-                <Typography component="h1" variant="h3" sx={{ fontSize: { xs: '2rem', sm: '3rem' } }}>Develop Dashboard</Typography>
-                <HelpButton markdown={developPageText} sx={{ width: '40px', height: '40px' }} />
-            </Stack>
+            <PageTitle title="Develop Dashboard" helpText={developPageText} />
             <Stack direction="column" spacing={10}>
                 {/* TODO my organizations list */}
                 {/* Resources */}

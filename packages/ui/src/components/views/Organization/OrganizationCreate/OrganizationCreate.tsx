@@ -1,4 +1,4 @@
-import { Grid, TextField, Typography } from "@mui/material";
+import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { organizationCreateForm as validationSchema } from '@shared/validation';
@@ -7,7 +7,7 @@ import { organizationCreateMutation } from "graphql/mutation";
 import { getUserLanguages, ObjectType, OrganizationTranslationShape, parseSearchParams, shapeOrganizationCreate, TagShape, updateArray } from "utils";
 import { OrganizationCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
@@ -167,14 +167,7 @@ export const OrganizationCreate = ({
         >
             <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                 <Grid item xs={12}>
-                    <Typography
-                        component="h1"
-                        variant="h3"
-                        sx={{
-                            textAlign: 'center',
-                            sx: { marginTop: 2, marginBottom: 2 },
-                        }}
-                    >Create Organization</Typography>
+                    <PageTitle title="Create Organization" />
                 </Grid>
                 <Grid item xs={12}>
                     <RelationshipButtons

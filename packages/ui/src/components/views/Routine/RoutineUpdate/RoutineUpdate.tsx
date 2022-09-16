@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Grid, TextField, Typography } from "@mui/material"
+import { Box, CircularProgress, Grid, TextField } from "@mui/material"
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
@@ -9,7 +9,7 @@ import { routineUpdateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
 import { getLastUrlPart, InputShape, ObjectType, OutputShape, PubSub, RoutineTranslationShape, shapeRoutineUpdate, TagShape, updateArray } from "utils";
-import { GridSubmitButtons, LanguageInput, MarkdownInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession, VersionInput } from "components";
+import { GridSubmitButtons, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession, VersionInput } from "components";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
@@ -212,14 +212,7 @@ export const RoutineUpdate = ({
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12}>
-                <Typography
-                    component="h1"
-                    variant="h3"
-                    sx={{
-                        textAlign: 'center',
-                        sx: { marginTop: 2, marginBottom: 2 },
-                    }}
-                >Update Routine</Typography>
+                <PageTitle title="Update Routine" />
             </Grid>
             <Grid item xs={12}>
                 <RelationshipButtons

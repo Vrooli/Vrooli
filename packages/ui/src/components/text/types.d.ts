@@ -7,7 +7,16 @@ export interface DateDisplayProps extends BoxProps {
     timestamp?: number;
 }
 
-export interface TextShrinkProps extends TypographyProps { 
+export interface PageTitleProps {
+    helpText?: string;
+    title: string;
+    sxs?: { 
+        stack?: { [x: string]: any; };
+        text?: { [x: string]: any; };
+    }
+}
+
+export interface TextShrinkProps extends TypographyProps {
     id: string;
     minFontSize?: string | number;
 }

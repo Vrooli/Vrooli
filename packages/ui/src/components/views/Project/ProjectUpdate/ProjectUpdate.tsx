@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Grid, TextField, Typography } from "@mui/material"
+import { Box, CircularProgress, Grid, TextField } from "@mui/material"
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { project, projectVariables } from "graphql/generated/project";
 import { projectQuery } from "graphql/query";
@@ -8,7 +8,7 @@ import { projectUpdateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { projectUpdateMutation } from "graphql/mutation";
 import { getLastUrlPart, ObjectType, ProjectTranslationShape, PubSub, shapeProjectUpdate, TagShape, updateArray } from "utils";
-import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
@@ -179,14 +179,7 @@ export const ProjectUpdate = ({
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12}>
-                <Typography
-                    component="h1"
-                    variant="h3"
-                    sx={{
-                        textAlign: 'center',
-                        sx: { marginTop: 2, marginBottom: 2 },
-                    }}
-                >Update Project</Typography>
+                <PageTitle title="Update Project" />
             </Grid>
             <Grid item xs={12}>
                 <RelationshipButtons
