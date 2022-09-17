@@ -237,7 +237,7 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
     customQueries(input: RoutineSearchInput): { [x: string]: any } {
         // isComplete routines may be set to true or false generally, and also set exceptions
         let isComplete: any;
-        if (!!input.isCompleteExceptions) {
+        if (Array.isArray(input.isCompleteExceptions) && input.isCompleteExceptions.length > 0) {
             isComplete = { OR: [{ isComplete: input.isComplete }] };
             for (const exception of input.isCompleteExceptions) {
                 if (['createdByOrganization', 'createdByUser', 'organization', 'parent', 'project', 'user'].includes(exception.relation)) {
@@ -249,7 +249,8 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
         }
         // isInternal routines may be set to true or false generally, and also set exceptions
         let isInternal: any;
-        if (!!input.isInternalExceptions) {
+        if (Array.isArray(input.isInternalExceptions) && input.isInternalExceptions.length > 0) {
+            console.log('internal is here', JSON.stringify(input.isInternalExceptions), input.isInternal);
             isInternal = { OR: [{ isInternal: input.isInternal }] };
             for (const exception of input.isInternalExceptions) {
                 if (['createdByOrganization', 'createdByUser', 'organization', 'parent', 'project', 'user'].includes(exception.relation)) {
@@ -264,7 +265,6 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
             ...(input.excludeIds !== undefined ? { NOT: { id: { in: input.excludeIds } } } : {}),
             ...isComplete,
             ...isInternal,
-            ...(input.isInternal !== undefined ? { isInternal: input.isInternal } : {}),
             ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
             ...(input.minComplexity !== undefined ? { complexity: { gte: input.minComplexity } } : {}),
             ...(input.maxComplexity !== undefined ? { complexity: { lte: input.maxComplexity } } : {}),

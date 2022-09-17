@@ -104,7 +104,7 @@ export const translationMutater = () => ({
         if (updateMany) {
             updateMany.forEach(input => validators.update.validateSync(input.data, { abortEarly: false }));
         }
-        this.profanityCheck([...(createMany ?? []), ...(updateMany?.map(u => u.data) ?? [])])
+        this.profanityCheck([...(createMany ?? []), ...(updateMany?.map(u => u.data) ?? [])] as any)
     },
 })
 

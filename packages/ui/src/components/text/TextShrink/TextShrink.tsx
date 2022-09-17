@@ -1,9 +1,4 @@
-/**
- * Text that shrinks to fit its container.
- */
-
 import { Typography } from "@mui/material";
-import { useMemo } from "react";
 import { TextShrinkProps } from "../types";
 
 /**
@@ -32,32 +27,36 @@ const convertToPixels = (size: string | number, id: string): number => {
     return 0;
 }
 
+/**
+ * Calculates the font size that will fit the text in the container
+ */
+const calculateFontSize = (id: string, minFontSize: string | number) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    // Calculate font size and max font size in pixels
+    const minFontSizePx = convertToPixels(minFontSize, id);
+    const fontSizePx = convertToPixels(window.getComputedStyle(el).fontSize, id);
+    // While text is too long, decrease font size
+    if (el.scrollWidth > el.offsetWidth) {
+        let newFontSize = fontSizePx;
+        while (el.scrollWidth > el.offsetWidth && newFontSize > minFontSizePx) {
+            newFontSize -= 0.25;
+            el.style.fontSize = `${newFontSize}px`;
+        }
+    }
+    return el.style.fontSize;
+}
+
+/**
+ * Shrinks text to fit its container. 
+ * Supports rem, em, and px font sizes, and text can be single or multiline.
+ */
 export const TextShrink = ({
     id,
     minFontSize = '0.5rem',
     ...props
 }: TextShrinkProps) => {
-
-    // If text is too long find the largest font size that fits
-    const fontSize = useMemo(() => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        // Calculate font size and max font size in pixels
-        const minFontSizePx = convertToPixels(minFontSize, id);
-        const fontSizePx = convertToPixels(window.getComputedStyle(el).fontSize, id);
-        console.log('finding font size', fontSizePx, minFontSizePx, el.scrollWidth, el.offsetWidth)
-        // While text is too long, decrease font size
-        if (el.scrollWidth > el.offsetWidth) {
-            let newFontSize = fontSizePx;
-            console.log('decreasing font size', newFontSize)
-            while (el.scrollWidth > el.offsetWidth && newFontSize > minFontSizePx) {
-                newFontSize -= 0.5;
-                el.style.fontSize = `${newFontSize}px`;
-            }
-            console.log('final font size', newFontSize)
-        }
-        return el.style.fontSize;
-    }, [id, minFontSize]);
+    const fontSize = calculateFontSize(id, minFontSize);
 
     return (
         <Typography

@@ -357,23 +357,13 @@ export const toTagSelector = ({
     session,
 }: InputGeneratorProps): React.ReactElement => {
     const tags = formik.values[fieldData.fieldName] as TagShape[];
-    const addTag = (tag: TagShape) => {
-        formik.setFieldValue(fieldData.fieldName, [...tags, tag]);
-    };
-    const removeTag = (tag: TagShape) => {
-        formik.setFieldValue(fieldData.fieldName, tags.filter((t) => t.tag !== tag.tag));
-    };
-    const clearTags = () => {
-        formik.setFieldValue(fieldData.fieldName, []);
-    };
+    const handleTagsUpdate = (updatedList: TagShape[]) => { formik.setFieldValue(fieldData.fieldName, updatedList) };
     return (
         <TagSelector
             disabled={disabled}
+            handleTagsUpdate={handleTagsUpdate}
             session={session}
             tags={tags}
-            onTagAdd={addTag}
-            onTagRemove={removeTag}
-            onTagsClear={clearTags}
         />
     );
 }

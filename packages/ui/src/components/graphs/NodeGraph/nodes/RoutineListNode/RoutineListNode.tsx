@@ -22,6 +22,7 @@ import { getTranslation, BuildAction, updateTranslationFields, PubSub, usePress 
 import { EditableLabel } from 'components/inputs';
 import { AddIcon, CloseIcon, ExpandLessIcon, ExpandMoreIcon } from '@shared/icons';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
+import { requiredErrorMessage, title as titleValidation } from '@shared/validation';
 
 /**
  * Distance before a click is considered a drag
@@ -191,6 +192,7 @@ export const RoutineListNode = ({
                     }
                 }}
                 text={label}
+                validationSchema={titleValidation.required(requiredErrorMessage)}
             />
         )
     }, [labelVisible, isEditing, collapseOpen, handleLabelUpdate, onLabelDialogOpen, label, node.id]);

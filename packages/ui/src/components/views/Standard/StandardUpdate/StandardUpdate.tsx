@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Grid, Typography } from "@mui/material"
+import { Box, CircularProgress, Grid } from "@mui/material"
 import { ResourceListUsedFor } from "@shared/consts";
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { standard, standardVariables } from "graphql/generated/standard";
@@ -10,7 +10,7 @@ import { standardUpdateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";
 import { getLastUrlPart, ObjectType, PubSub, shapeStandardUpdate, StandardTranslationShape, TagShape, updateArray } from "utils";
-import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { standardUpdate, standardUpdateVariables } from "graphql/generated/standardUpdate";
@@ -52,15 +52,7 @@ export const StandardUpdate = ({
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
-    const addTag = useCallback((tag: TagShape) => {
-        setTags(t => [...t, tag]);
-    }, [setTags]);
-    const removeTag = useCallback((tag: TagShape) => {
-        setTags(tags => tags.filter(t => t.tag !== tag.tag));
-    }, [setTags]);
-    const clearTags = useCallback(() => {
-        setTags([]);
-    }, [setTags]);
+    const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     // Handle translations
     type Translation = StandardTranslationShape;
@@ -79,13 +71,14 @@ export const StandardUpdate = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
-        // setRelationships({
-        //     isComplete: standard?.isComplete ?? false,
-        //     isPrivate: standard?.isPrivate ?? false,
-        //     owner: standard?.owner ?? null,
-        //     parent: null,
-        //     // parent: standard?.parent ?? null, TODO
-        // });
+        setRelationships({
+            isComplete: false, //TODO
+            isPrivate: standard?.isPrivate ?? false,
+            owner: standard?.creator ?? null,
+            parent: null,
+            // parent: standard?.parent ?? null, TODO
+            project: null // TODO
+        });
         setResourceList(standard?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(standard?.tags ?? []);
         setTranslations(standard?.translations?.map(t => ({
@@ -180,14 +173,7 @@ export const StandardUpdate = ({
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12}>
-                <Typography
-                    component="h1"
-                    variant="h3"
-                    sx={{
-                        textAlign: 'center',
-                        sx: { marginTop: 2, marginBottom: 2 },
-                    }}
-                >Update Standard</Typography>
+                <PageTitle title="Update Standard" />
             </Grid>
             <Grid item xs={12}>
                 <RelationshipButtons
@@ -224,11 +210,9 @@ export const StandardUpdate = ({
             </Grid>
             <Grid item xs={12} marginBottom={4}>
                 <TagSelector
+                    handleTagsUpdate={handleTagsUpdate}
                     session={session}
                     tags={tags}
-                    onTagAdd={addTag}
-                    onTagRemove={removeTag}
-                    onTagsClear={clearTags}
                 />
             </Grid>
             <GridSubmitButtons
@@ -241,7 +225,7 @@ export const StandardUpdate = ({
                 onSubmit={formik.handleSubmit}
             />
         </Grid>
-    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags, formik.isSubmitting, formik.isValid, formik.errors, formik.setSubmitting, formik.handleSubmit, onCancel]);
+    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, formik.isSubmitting, formik.isValid, formik.errors, formik.setSubmitting, formik.handleSubmit, onCancel]);
 
 
     return (

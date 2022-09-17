@@ -1,13 +1,13 @@
 import { Box, IconButton, Palette, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, EditableLabel, UnlinkedNodesDialog, BuildInfoDialog, HelpButton } from 'components';
+import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, EditableLabel, UnlinkedNodesDialog, BuildInfoDialog, HelpButton, userFromSession } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getTranslation, getUserLanguages, parseSearchParams, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine, addSearchParams, keepSearchParams } from 'utils';
-import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, Run } from 'types';
+import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getTranslation, getUserLanguages, parseSearchParams, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine, addSearchParams, keepSearchParams, TagShape, RoutineTranslationShape } from 'utils';
+import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, ResourceList, Routine, Run } from 'types';
 import { useLocation } from '@shared/route';
-import { APP_LINKS } from '@shared/consts';
+import { APP_LINKS, ResourceListUsedFor } from '@shared/consts';
 import { isEqual } from '@shared/utils';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { ObjectAction } from 'components/dialogs/types';
@@ -19,7 +19,9 @@ import { routineUpdate, routineUpdateVariables } from 'graphql/generated/routine
 import { routineCreate, routineCreateVariables } from 'graphql/generated/routineCreate';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
 import { AddLinkIcon, CloseIcon, CompressIcon, EditIcon, RedoIcon, UndoIcon } from '@shared/icons';
-import { smallHorizontalScrollbar } from 'components/lists/styles';
+import { requiredErrorMessage, routineUpdateForm as validationSchema, title as titleValidation } from '@shared/validation';
+import { useFormik } from 'formik';
+import { RelationshipsObject } from 'components/inputs/types';
 
 const helpText =
     `## What am I looking at?
@@ -103,10 +105,6 @@ export const BuildView = ({
     const [scale, setScale] = useState<number>(1);
     const canEdit = useMemo<boolean>(() => routine?.permissionsRoutine?.canEdit === true, [routine?.permissionsRoutine?.canEdit]);
 
-    useEffect(() => {
-        console.log('changedRoutine', changedRoutine);
-    }, [changedRoutine]);
-
     // Stores previous routine states for undo/redo
     const [changeStack, setChangeStack] = useState<Routine[]>([]);
     const [changeStackIndex, setChangeStackIndex] = useState<number>(0);
@@ -155,21 +153,14 @@ export const BuildView = ({
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             // CTRL + Y or CTRL + SHIFT + Z = redo
-            if (e.ctrlKey && (e.key === 'y' || e.key === 'Z')) {
-                redo();
-            }
+            if (e.ctrlKey && (e.key === 'y' || e.key === 'Z')) { redo() }
             // CTRL + Z = undo
-            else if (e.ctrlKey && e.key === 'z') {
-                undo();
-            }
+            else if (e.ctrlKey && e.key === 'z') { undo() }
         };
-
-        // attach the event listener
+        // Attach the event listener
         document.addEventListener('keydown', handleKeyDown);
-        // remove the event listener
-        return () => {
-            document.removeEventListener('keydown', handleKeyDown);
-        };
+        // Remove the event listener
+        return () => { document.removeEventListener('keydown', handleKeyDown) };
     }, [redo, undo]);
 
     useEffect(() => {
@@ -186,17 +177,149 @@ export const BuildView = ({
         }
     }, [clearChangeStack, routine, session]);
 
-    // Add subroutine dialog
-    const [addSubroutineNode, setAddSubroutineNode] = useState<string | null>(null);
-    const closeAddSubroutineDialog = useCallback(() => { setAddSubroutineNode(null); }, []);
+    // Handle translations
+    type Translation = RoutineTranslationShape;
+    const [translations, setTranslations] = useState<Translation[]>([]);
+    const deleteTranslation = useCallback((language: string) => {
+        setTranslations([...translations.filter(t => t.language !== language)]);
+    }, [translations]);
+    const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
+        // Find translation
+        const index = translations.findIndex(t => language === t.language);
+        // Add to array, or update if found
+        return index >= 0 ? updateArray(translations, index, translation) : [...translations, translation];
+    }, [translations]);
+    const updateTranslation = useCallback((language: string, translation: Translation) => {
+        setTranslations(getTranslationsUpdate(language, translation));
+    }, [getTranslationsUpdate]);
 
-    // "Add after" link dialog when there is more than one link (i.e. can't be done automatically)
-    const [addAfterLinkNode, setAddAfterLinkNode] = useState<string | null>(null);
-    const closeAddAfterLinkDialog = useCallback(() => { setAddAfterLinkNode(null); }, []);
+    // Handle relationships
+    const [relationships, setRelationships] = useState<RelationshipsObject>({
+        isComplete: false,
+        isPrivate: false,
+        owner: userFromSession(session),
+        parent: null,
+        project: null,
+    });
+    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
+        setRelationships({
+            ...relationships,
+            ...newRelationshipsObject,
+        });
+    }, [relationships]);
 
-    // "Add before" link dialog when there is more than one link (i.e. can't be done automatically)
-    const [addBeforeLinkNode, setAddBeforeLinkNode] = useState<string | null>(null);
-    const closeAddBeforeLinkDialog = useCallback(() => { setAddBeforeLinkNode(null); }, []);
+    // Handle resources
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
+        setResourceList(updatedList);
+    }, [setResourceList]);
+
+    // Handle tags
+    const [tags, setTags] = useState<TagShape[]>([]);
+    const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
+
+    useEffect(() => {
+        setRelationships({ 
+            isComplete: routine?.isComplete ?? false,
+            isPrivate: routine?.isPrivate ?? false,
+            owner: routine?.owner ?? null,
+            parent: null,
+            // parent: routine?.parent ?? null, TODO
+            project: null, //TODO
+        });
+        setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+        setTags(routine?.tags ?? []);
+        setTranslations(routine?.translations?.map(t => ({
+            id: t.id,
+            language: t.language,
+            description: t.description ?? '',
+            instructions: t.instructions ?? '',
+            title: t.title ?? '',
+        })) ?? []);
+    }, [routine]);
+
+    // Formik validation
+    const formik = useFormik({
+        initialValues: {
+            description: getTranslation(routine, 'description', [language]) ?? '',
+            instructions: getTranslation(routine, 'instructions', [language]) ?? '',
+            isInternal: routine?.isInternal ?? false,
+            title: getTranslation(routine, 'title', [language]) ?? '',
+            version: routine?.version ?? '1.0.0',
+        },
+        enableReinitialize: true, // Needed because existing data is obtained from async fetch
+        validationSchema: validationSchema({ minVersion: routine?.version ?? '0.0.1' }),
+        onSubmit: (values) => {
+            const allTranslations = getTranslationsUpdate(language, {
+                id: uuid(),
+                language,
+                description: values.description,
+                instructions: values.instructions,
+                title: values.title,
+            })
+            // If routine is new, create it
+            if (!uuidValidate(id)) {
+                if (!changedRoutine) {
+                    PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: 'error' });
+                    return;
+                }
+                mutationWrapper({
+                    mutation: routineCreate,
+                    input: shapeRoutineCreate({
+                        ...changedRoutine,
+                        id: uuid(),
+                        isInternal: values.isInternal,
+                        isComplete: relationships.isComplete,
+                        isPrivate: relationships.isPrivate,
+                        owner: relationships.owner,
+                        parent: relationships.parent as Routine | null | undefined,
+                        version: values.version,
+                        resourceLists: [resourceList],
+                        tags: tags,
+                        translations: allTranslations,
+                    }),
+                    successMessage: () => 'Routine created.',
+                    onSuccess: ({ data }) => {
+                        onChange(data.routineCreate);
+                        setLocation(`${APP_LINKS.Routine}/${data.routineCreate.id}?build=true`)
+                    },
+                })
+            }
+            // Otherwise, update it
+            else {
+                // Don't update if no changes
+                if (!changedRoutine || isEqual(routine, changedRoutine)) {
+                    PubSub.get().publishSnack({ message: 'No changes detected', severity: 'error' });
+                    return;
+                }
+                if (!routine || !changedRoutine.id) {
+                    PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: 'error' });
+                    return;
+                }
+                mutationWrapper({
+                    mutation: routineUpdate,
+                    input: shapeRoutineUpdate(routine, {
+                        ...changedRoutine,
+                        isInternal: values.isInternal,
+                        isComplete: relationships.isComplete,
+                        isPrivate: relationships.isPrivate,
+                        owner: relationships.owner,
+                        parent: relationships.parent as Routine | null | undefined,
+                        version: values.version,
+                        resourceLists: [resourceList],
+                        tags: tags,
+                        translations: allTranslations,
+                    }),
+                    successMessage: () => 'Routine updated.',
+                    onSuccess: ({ data }) => {
+                        onChange(data.routineUpdate);
+                        keepSearchParams(setLocation, ['build']);
+                        setIsEditing(false);
+                    },
+                })
+            }
+        },
+    });
 
     /**
      * Calculates:
@@ -266,6 +389,16 @@ export const BuildView = ({
         // Return
         return { columns, nodesOffGraph, nodesById };
     }, [changedRoutine, language]);
+
+    // Add subroutine dialog
+    const [addSubroutineNode, setAddSubroutineNode] = useState<string | null>(null);
+    const closeAddSubroutineDialog = useCallback(() => { setAddSubroutineNode(null); }, []);
+    // "Add after" link dialog when there is more than one link (i.e. can't be done automatically)
+    const [addAfterLinkNode, setAddAfterLinkNode] = useState<string | null>(null);
+    const closeAddAfterLinkDialog = useCallback(() => { setAddAfterLinkNode(null); }, []);
+    // "Add before" link dialog when there is more than one link (i.e. can't be done automatically)
+    const [addBeforeLinkNode, setAddBeforeLinkNode] = useState<string | null>(null);
+    const closeAddBeforeLinkDialog = useCallback(() => { setAddBeforeLinkNode(null); }, []);
 
     // Subroutine info drawer
     const [openedSubroutine, setOpenedSubroutine] = useState<{ node: NodeDataRoutineList, routineItemId: string } | null>(null);
@@ -340,102 +473,10 @@ export const BuildView = ({
         });
     }, [changedRoutine]);
 
-    /**
-     * Creates new routine
-     */
-    const createRoutine = useCallback(() => {
-        console.log('in create routine start')
-        if (!changedRoutine) {
-            return;
-        }
-        console.log('going to create routine: changedRoutine', changedRoutine)
-        console.log('shaped', shapeRoutineCreate(changedRoutine))
-        mutationWrapper({
-            mutation: routineCreate,
-            input: shapeRoutineCreate({ ...changedRoutine, id: uuid() }),
-            successMessage: () => 'Routine created.',
-            onSuccess: ({ data }) => {
-                onChange(data.routineCreate);
-                setLocation(`${APP_LINKS.Routine}/${data.routineCreate.id}?build=true`)
-            },
-        })
-    }, [changedRoutine, onChange, routineCreate, setLocation]);
-
-    /**
-     * Mutates routine data
-     */
-    const updateRoutine = useCallback(() => {
-        console.log('in update routine start', changedRoutine)
-        if (!changedRoutine || isEqual(routine, changedRoutine)) {
-            PubSub.get().publishSnack({ message: 'No changes detected', severity: 'error' });
-            return;
-        }
-        if (!routine || !changedRoutine.id) {
-            PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: 'error' });
-            return;
-        }
-        console.log('shapeRoutineUpdate', shapeRoutineUpdate(routine, changedRoutine))
-        mutationWrapper({
-            mutation: routineUpdate,
-            input: shapeRoutineUpdate(routine, changedRoutine),
-            successMessage: () => 'Routine updated.',
-            onSuccess: ({ data }) => {
-                onChange(data.routineUpdate);
-                keepSearchParams(setLocation, ['build']);
-                setIsEditing(false);
-            },
-        })
-    }, [changedRoutine, onChange, routine, routineUpdate, setLocation])
-
     const startEditing = useCallback(() => {
         addSearchParams(setLocation, { edit: true });
         setIsEditing(true);
     }, [setLocation]);
-
-    const stopEditing = useCallback((shouldClose: boolean = false) => {
-        console.log('in stop editing', shouldClose)
-        if (changeStack.length > 1) {
-            PubSub.get().publishAlertDialog({
-                message: 'There are unsaved changes. Would you like to save before exiting?',
-                buttons: [
-                    {
-                        text: 'Save', onClick: () => {
-                            updateRoutine();
-                            keepSearchParams(setLocation, ['build']);
-                            setIsEditing(false);
-                            if (shouldClose) handleClose();
-                        }
-                    },
-                    {
-                        text: "Don't Save", onClick: () => {
-                            keepSearchParams(setLocation, ['build']);
-                            clearChangeStack(routine);
-                            setIsEditing(false);
-                            if (shouldClose) handleClose();
-                        }
-                    },
-                ]
-            });
-        } else {
-            keepSearchParams(setLocation, ['build']);
-            clearChangeStack(routine);
-            setIsEditing(false);
-            if (shouldClose) handleClose();
-        }
-    }, [changeStack.length, clearChangeStack, handleClose, routine, setLocation, updateRoutine]);
-
-    /**
-     * If closing with unsaved changes, prompt user to save
-     */
-    const onClose = useCallback(() => {
-        if (isEditing) {
-            stopEditing(true);
-        } else {
-            keepSearchParams(setLocation, []);
-            if (!uuidValidate(id)) window.history.back();
-            else handleClose();
-        }
-    }, [handleClose, id, isEditing, setLocation, stopEditing]);
 
     /**
      * On page leave, check if routine has changed. 
@@ -450,7 +491,7 @@ export const BuildView = ({
         };
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [changeStack.length, isEditing, routine, updateRoutine]);
+    }, [changeStack.length, isEditing, routine]);
 
     const updateRoutineTitle = useCallback((title: string) => {
         if (!changedRoutine) return;
@@ -494,6 +535,19 @@ export const BuildView = ({
             revert();
         }
     }, [changeStack.length, clearChangeStack, id, routine])
+
+    /**
+     * If closing with unsaved changes, prompt user to save
+     */
+    const onClose = useCallback(() => {
+        if (isEditing) {
+            revertChanges();
+        } else {
+            keepSearchParams(setLocation, []);
+            if (!uuidValidate(id)) window.history.back();
+            else handleClose();
+        }
+    }, [handleClose, id, isEditing, setLocation, revertChanges]);
 
     /**
      * Calculates the new set of links for an routine when a node is 
@@ -977,8 +1031,7 @@ export const BuildView = ({
         }
         // If only one link, add after that link
         else if (links.length === 1) {
-            const link = links[0];
-            handleNodeInsert(link);
+            handleNodeInsert(links[0]);
         }
         // If no links, create link and node
         else {
@@ -1401,6 +1454,7 @@ export const BuildView = ({
                     sxs={{
                         stack: { marginLeft: 'auto' }
                     }}
+                    validationSchema={titleValidation.required(requiredErrorMessage)}
                 />
                 {/* Close Icon */}
                 <IconButton
@@ -1458,15 +1512,24 @@ export const BuildView = ({
                     <HelpButton markdown={helpText} sx={{ fill: palette.secondary.light }} sxRoot={{ margin: "auto", marginRight: 1 }} />
                     {/* Display overall routine description, insturctions, etc. */}
                     <BuildInfoDialog
+                        formik={formik}
                         handleAction={handleRoutineAction}
                         handleLanguageChange={setLanguage}
+                        handleRelationshipsChange={onRelationshipsChange}
+                        handleResourcesUpdate={handleResourcesUpdate}
+                        handleTagsUpdate={handleTagsUpdate}
+                        handleTranslationDelete={deleteTranslation}
+                        handleTranslationUpdate={updateTranslation}
                         handleUpdate={(updated: Routine) => { addToChangeStack(updated); }}
                         isEditing={isEditing}
                         language={language}
                         loading={loading}
+                        relationships={relationships}
                         routine={changedRoutine}
                         session={session}
                         sxs={{ icon: { fill: palette.secondary.light }, iconButton: { marginRight: 1 } }}
+                        tags={tags}
+                        translations={translations}
                         zIndex={zIndex + 1}
                     />
                 </Box>
@@ -1504,10 +1567,13 @@ export const BuildView = ({
                 <BuildBottomContainer
                     canCancelMutate={!loading}
                     canSubmitMutate={!loading && !isEqual(routine, changedRoutine)}
-                    handleCancelAdd={() => { stopEditing() }}
-                    handleCancelUpdate={revertChanges}
-                    handleAdd={createRoutine}
-                    handleUpdate={updateRoutine}
+                    errors={{
+                        ...(formik.errors ?? {}),
+                        'graph': status.status !== Status.Valid ? status.messages : null,
+                        'unchanged': isEqual(routine, changedRoutine) ? 'No changes made' : null,
+                    }}
+                    handleCancel={revertChanges}
+                    handleSubmit={() => { formik.submitForm() }}
                     handleScaleChange={handleScaleChange}
                     handleRunDelete={handleRunDelete}
                     handleRunAdd={handleRunAdd}

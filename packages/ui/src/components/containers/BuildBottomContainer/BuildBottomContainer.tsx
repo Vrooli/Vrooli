@@ -15,10 +15,9 @@ import { GridSubmitButtons } from 'components/buttons';
 export const BuildBottomContainer = ({
     canSubmitMutate,
     canCancelMutate,
-    handleCancelAdd,
-    handleCancelUpdate,
-    handleAdd,
-    handleUpdate,
+    errors,
+    handleCancel,
+    handleSubmit,
     handleRunDelete,
     handleRunAdd,
     handleScaleChange,
@@ -108,14 +107,17 @@ export const BuildBottomContainer = ({
     const buttons = useMemo(() => {
         return isEditing ?
             (
-                // TODO display contents invalidates width, but width wasn't working (making mobile display weird)
-                <Grid container spacing={1} sx={{ display: 'contents', width: 'min(50vw, 350px)' }}> 
+                <Grid container spacing={1} sx={{
+                    display: { xs: 'contents', md: 'flex' },
+                    width: { xs: '100%', md: '300px' },
+                }}>
                     <GridSubmitButtons
                         disabledCancel={loading || !canCancelMutate}
                         disabledSubmit={loading || !canSubmitMutate}
+                        errors={errors}
                         isCreate={isAdding}
-                        onCancel={handleCancelAdd}
-                        onSubmit={isAdding ? handleAdd : handleUpdate}
+                        onCancel={handleCancel}
+                        onSubmit={handleSubmit}
                     />
                 </Grid>
             ) :
@@ -146,7 +148,7 @@ export const BuildBottomContainer = ({
                     </Tooltip> */}
                 </Stack>
             )
-    }, [canCancelMutate, canSubmitMutate, handleAdd, handleCancelAdd, handleUpdate, isAdding, isEditing, loading, runRoutine, runState]);
+    }, [canCancelMutate, canSubmitMutate, errors, handleCancel, handleSubmit, isAdding, isEditing, loading, runRoutine, runState]);
 
     return (
         <Box sx={{

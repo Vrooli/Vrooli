@@ -5,9 +5,9 @@ import { useLazyQuery } from "@apollo/client";
 import { standard, standardVariables } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, BaseStandardInput, CommentContainer, LinkButton, ResourceListHorizontal, SelectLanguageMenu, StarButton, TextCollapse } from "components";
+import { ObjectActionMenu, BaseStandardInput, CommentContainer, ResourceListHorizontal, SelectLanguageMenu, StarButton, TextCollapse, OwnerLabel } from "components";
 import { StandardViewProps } from "../types";
-import { getCreatedByString, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData, toCreatedBy } from "utils";
+import { getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData } from "utils";
 import { Standard } from "types";
 import { CommentFor, StarFor } from "graphql/generated/globalTypes";
 import { containerShadow } from "styles";
@@ -77,9 +77,6 @@ export const StandardView = ({
     useEffect(() => {
         document.title = `${name} | Vrooli`;
     }, [name]);
-
-    const createdBy = useMemo<string | null>(() => getCreatedByString(standard, [language]), [standard, language]);
-    const toCreator = useCallback(() => { toCreatedBy(standard, setLocation) }, [standard, setLocation]);
 
     const onEdit = useCallback(() => {
         setLocation(`${APP_LINKS.Standard}/edit/${id}`);
@@ -310,12 +307,7 @@ export const StandardView = ({
                                 onChange={(isStar: boolean) => { standard && setStandard({ ...standard, isStarred: isStar }) }}
                                 tooltipPlacement="bottom"
                             />}
-                            {createdBy && (
-                                <LinkButton
-                                    onClick={toCreator}
-                                    text={createdBy}
-                                />
-                            )}
+                            <OwnerLabel objectType={ObjectType.Standard} owner={standard?.creator} session={session} />
                             <Typography variant="body1"> - {standard?.version}</Typography>
                             <SelectLanguageMenu
                                 availableLanguages={availableLanguages}

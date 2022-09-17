@@ -3,6 +3,7 @@ import { Routine, Run, Session } from "types";
 import { CommentFor } from "graphql/generated/globalTypes";
 import { TextFieldProps } from "@mui/material";
 import { MarkdownInputProps } from "components/inputs/types";
+import { GridSubmitButtonsProps } from "components/buttons/types";
 
 export interface CommentContainerProps {
     language: string;
@@ -38,10 +39,9 @@ export type DialogActionItem = [string, any, boolean, boolean, () => void,]
 export interface BuildBottomContainerProps {
     canSubmitMutate: boolean;
     canCancelMutate: boolean;
-    handleCancelAdd: () => void;
-    handleCancelUpdate: () => void;
-    handleAdd: () => void;
-    handleUpdate: () => void;
+    errors: GridSubmitButtonsProps['errors'];
+    handleCancel: () => void;
+    handleSubmit: () => void;
     handleScaleChange: (scale: number) => void;
     handleRunDelete: (run: Run) => void;
     handleRunAdd: (run: Run) => void;

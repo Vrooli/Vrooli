@@ -19,6 +19,7 @@ import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles
 import { BuildAction, getTranslation, updateTranslationFields, usePress } from 'utils';
 import { EditableLabel, NodeContextMenu } from 'components';
 import { CloseIcon } from '@shared/icons';
+import { requiredErrorMessage, title as titleValidation } from '@shared/validation';
 
 /**
  * Decides if a clicked element should trigger opening the subroutine dialog 
@@ -108,6 +109,7 @@ export const SubroutineNode = ({
                     }
                 }}
                 text={title}
+                validationSchema={titleValidation.required(requiredErrorMessage)}
             />
         )
     }, [labelVisible, isEditing, handleLabelUpdate, title, data.id]);

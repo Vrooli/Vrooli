@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Grid, TextField, Typography } from "@mui/material"
+import { Box, CircularProgress, Grid, TextField } from "@mui/material"
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { project, projectVariables } from "graphql/generated/project";
 import { projectQuery } from "graphql/query";
@@ -8,7 +8,7 @@ import { projectUpdateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { projectUpdateMutation } from "graphql/mutation";
 import { getLastUrlPart, ObjectType, ProjectTranslationShape, PubSub, shapeProjectUpdate, TagShape, updateArray } from "utils";
-import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
@@ -52,15 +52,7 @@ export const ProjectUpdate = ({
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
-    const addTag = useCallback((tag: TagShape) => {
-        setTags(t => [...t, tag]);
-    }, [setTags]);
-    const removeTag = useCallback((tag: TagShape) => {
-        setTags(tags => tags.filter(t => t.tag !== tag.tag));
-    }, [setTags]);
-    const clearTags = useCallback(() => {
-        setTags([]);
-    }, [setTags]);
+    const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     // Handle translations
     type Translation = ProjectTranslationShape;
@@ -187,14 +179,7 @@ export const ProjectUpdate = ({
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12}>
-                <Typography
-                    component="h1"
-                    variant="h3"
-                    sx={{
-                        textAlign: 'center',
-                        sx: { marginTop: 2, marginBottom: 2 },
-                    }}
-                >Update Project</Typography>
+                <PageTitle title="Update Project" />
             </Grid>
             <Grid item xs={12}>
                 <RelationshipButtons
@@ -258,11 +243,9 @@ export const ProjectUpdate = ({
             </Grid>
             <Grid item xs={12}>
                 <TagSelector
+                    handleTagsUpdate={handleTagsUpdate}
                     session={session}
                     tags={tags}
-                    onTagAdd={addTag}
-                    onTagRemove={removeTag}
-                    onTagsClear={clearTags}
                 />
             </Grid>
             <GridSubmitButtons
@@ -275,7 +258,7 @@ export const ProjectUpdate = ({
                 onSubmit={formik.handleSubmit}
             />
         </Grid>
-    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, formik.values.name, formik.values.description, formik.handleBlur, formik.handleChange, formik.touched.name, formik.touched.description, formik.errors, formik.isSubmitting, formik.isValid, formik.setSubmitting, formik.handleSubmit, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags, onCancel]);
+    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, formik.values.name, formik.values.description, formik.handleBlur, formik.handleChange, formik.touched.name, formik.touched.description, formik.errors, formik.isSubmitting, formik.isValid, formik.setSubmitting, formik.handleSubmit, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, onCancel]);
 
 
     return (
