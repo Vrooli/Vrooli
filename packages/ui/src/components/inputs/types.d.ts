@@ -239,10 +239,13 @@ export interface QuantityBoxProps extends BoxProps {
     value: number;
 }
 
-export type RelationshipItemOrganization = Pick<Organization, '__typename' | 'handle' | 'id' | 'permissionsOrganization' | 'translations'>;
+export type RelationshipItemOrganization = Pick<Organization, '__typename' | 'handle' | 'id'> & 
+    { translations?: Pick<Organization['translations'][0], 'name' | 'id' | 'language'>[] };
 export type RelationshipItemUser = Pick<User, '__typename' | 'handle' | 'id' | 'name'>;
-export type RelationshipItemProject = Pick<Project, '__typename' | 'handle' | 'id' | 'owner' | 'permissionsProject' | 'translations'>;
-export type RelationshipItemRoutine = Pick<Routine, '__typename' | 'id' | 'owner' | 'permissionsRoutine' | 'translations'>;
+export type RelationshipItemProject = Pick<Project, '__typename' | 'handle' | 'id' | 'owner'> & 
+    { translations?: Pick<Project['translations'][0], 'name' | 'id' | 'language'>[] };
+export type RelationshipItemRoutine = Pick<Routine, '__typename' | 'id' | 'owner'> &
+    { translations?: Pick<Routine['translations'][0], 'title' | 'id' | 'language'>[] };
 
 export type RelationshipOwner = RelationshipItemOrganization | RelationshipItemUser | null;
 export type RelationshipProject = RelationshipItemProject | null;

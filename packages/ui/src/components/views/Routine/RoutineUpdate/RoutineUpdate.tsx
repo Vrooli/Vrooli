@@ -93,13 +93,14 @@ export const RoutineUpdate = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
-        // setRelationships({
-        //     isComplete: routine?.isComplete ?? false,
-        //     isPrivate: routine?.isPrivate ?? false,
-        //     owner: routine?.owner ?? null,
-        //     parent: null,
-        //     // parent: routine?.parent ?? null, TODO
-        // });
+        setRelationships({
+            isComplete: routine?.isComplete ?? false,
+            isPrivate: routine?.isPrivate ?? false,
+            owner: routine?.owner ?? null,
+            parent: null,
+            // parent: routine?.parent ?? null, TODO
+            project: null, // TODO
+        });
         setInputsList(routine?.inputs ?? []);
         setOutputsList(routine?.outputs ?? []);
         setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);

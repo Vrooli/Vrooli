@@ -107,8 +107,10 @@ export const BuildBottomContainer = ({
     const buttons = useMemo(() => {
         return isEditing ?
             (
-                // TODO display contents invalidates width, but width wasn't working (making mobile display weird)
-                <Grid container spacing={1} sx={{ display: 'contents', width: 'min(50vw, 350px)' }}> 
+                <Grid container spacing={1} sx={{
+                    display: { xs: 'contents', md: 'flex' },
+                    width: { xs: '100%', md: '300px' },
+                }}>
                     <GridSubmitButtons
                         disabledCancel={loading || !canCancelMutate}
                         disabledSubmit={loading || !canSubmitMutate}

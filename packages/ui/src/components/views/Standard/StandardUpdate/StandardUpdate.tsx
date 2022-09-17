@@ -71,13 +71,14 @@ export const StandardUpdate = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
-        // setRelationships({
-        //     isComplete: standard?.isComplete ?? false,
-        //     isPrivate: standard?.isPrivate ?? false,
-        //     owner: standard?.owner ?? null,
-        //     parent: null,
-        //     // parent: standard?.parent ?? null, TODO
-        // });
+        setRelationships({
+            isComplete: false, //TODO
+            isPrivate: standard?.isPrivate ?? false,
+            owner: standard?.creator ?? null,
+            parent: null,
+            // parent: standard?.parent ?? null, TODO
+            project: null // TODO
+        });
         setResourceList(standard?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(standard?.tags ?? []);
         setTranslations(standard?.translations?.map(t => ({

@@ -214,7 +214,6 @@ export const RoutineCreate = ({
                         zIndex={zIndex}
                     />
                 </Grid>
-                {/* TODO add project selector */}
                 <Grid item xs={12}>
                     <LanguageInput
                         currentLanguage={language}

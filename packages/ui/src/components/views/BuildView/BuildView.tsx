@@ -219,15 +219,14 @@ export const BuildView = ({
     const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     useEffect(() => {
-        // setRelationships({ TODO
-        //     isComplete: project?.isComplete ?? false,
-        //     isPrivate: project?.isPrivate ?? false,
-        //     owner: null,
-        //     // owner: project?.owner ?? null, TODO
-        //     parent: null,
-        //     // parent: project?.parent ?? null, TODO
-        //     project: null,
-        // });
+        setRelationships({ 
+            isComplete: routine?.isComplete ?? false,
+            isPrivate: routine?.isPrivate ?? false,
+            owner: routine?.owner ?? null,
+            parent: null,
+            // parent: routine?.parent ?? null, TODO
+            project: null, //TODO
+        });
         setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(routine?.tags ?? []);
         setTranslations(routine?.translations?.map(t => ({

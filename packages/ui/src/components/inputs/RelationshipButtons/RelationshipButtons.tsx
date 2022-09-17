@@ -215,22 +215,19 @@ export function RelationshipButtons({
         // If owner is organization, use organization icon
         if (relationships.owner.__typename === 'Organization') {
             const OwnerIcon = OrganizationIcon;
-            // Button color indicates if you can modify the organization, or if someone will have to approve it
-            const canEdit = (relationships.owner as RelationshipItemOrganization).permissionsOrganization?.canEdit === true;
             const ownerName = getTranslation(relationships.owner as RelationshipItemOrganization, 'name', languages, true) ?? 'organization';
             return {
                 OwnerIcon,
-                ownerTooltip: `Owner: ${ownerName}${!canEdit ? ' (requires approval)' : ''}`
+                ownerTooltip: `Owner: ${ownerName}`
             };
         }
         // If owner is user, use self icon
         const OwnerIcon = SelfIcon;
-        // Button color indicates if it's your own account, or if someone will have to approve it
-        const canEdit = relationships.owner.id === session.id;
+        const isSelf = relationships.owner.id === session.id;
         const ownerName = (relationships.owner as RelationshipItemUser).name;
         return {
             OwnerIcon,
-            ownerTooltip: `Owner: ${canEdit ? 'Self' : (ownerName + ' (requires approval)')}`
+            ownerTooltip: `Owner: ${isSelf ? 'Self' : ownerName}`
         };
     }, [disabled, languages, relationships.owner, session.id]);
 
@@ -241,11 +238,10 @@ export function RelationshipButtons({
             ProjectIcon: null,
             projectTooltip: disabled ? '' : 'Press to assign to a project'
         };
-        const canEdit = relationships.project.permissionsProject?.canEdit === true;
         const projectName = getTranslation(relationships.project as RelationshipItemProject, 'name', languages, true) ?? 'project';
         return {
             ProjectIcon: ProjIcon,
-            projectTooltip: `Project: ${projectName}${!canEdit ? ' (requires approval)' : ''}`
+            projectTooltip: `Project: ${projectName}`
         };
     }, [disabled, languages, relationships.project]);
 
@@ -259,22 +255,18 @@ export function RelationshipButtons({
         // If parent is project, use project icon
         if (relationships.parent.__typename === 'Project') {
             const ParentIcon = ProjIcon;
-            // Button color indicates if you can modify the project, or if someone will have to approve it
-            const canEdit = (relationships.parent as RelationshipItemProject).permissionsProject?.canEdit === true;
             const parentName = getTranslation(relationships.parent as RelationshipItemProject, 'name', languages, true) ?? 'project';
             return {
                 ParentIcon,
-                parentTooltip: `Parent: ${parentName}${!canEdit ? ' (requires approval)' : ''}`
+                parentTooltip: `Parent: ${parentName}`
             };
         }
         // If parent is routine, use routine icon
         const ParentIcon = RoutineIcon;
-        // Button color indicates if you can modify the routine, or if someone will have to approve it
-        const canEdit = (relationships.parent as RelationshipItemRoutine).permissionsRoutine?.canEdit === true;
         const parentName = getTranslation(relationships.parent as RelationshipItemRoutine, 'title', languages, true) ?? 'routine';
         return {
             ParentIcon,
-            parentTooltip: `Parent: ${parentName}${!canEdit ? ' (requires approval)' : ''}`
+            parentTooltip: `Parent: ${parentName}`
         };
     }, [disabled, languages, relationships.parent]);
 

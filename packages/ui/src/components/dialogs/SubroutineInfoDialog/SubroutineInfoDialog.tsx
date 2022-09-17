@@ -115,13 +115,14 @@ export const SubroutineInfoDialog = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
-        // setRelationships({
-        //     isComplete: subroutine?.routine?.isComplete ?? false,
-        //     isPrivate: subroutine?.routine?.isPrivate ?? false,
-        //     owner: subroutine?.routine?.owner ?? null,
-        //     parent: null,
-        //     // parent: subroutine?.routine?.parent ?? null, TODO
-        // });
+        setRelationships({
+            isComplete: subroutine?.routine?.isComplete ?? false,
+            isPrivate: subroutine?.routine?.isPrivate ?? false,
+            owner: subroutine?.routine?.owner ?? null,
+            parent: null,
+            // parent: subroutine?.routine?.parent ?? null, TODO
+            project: null //TODO
+        });
         setInputsList(subroutine?.routine?.inputs ?? []);
         setOutputsList(subroutine?.routine?.outputs ?? []);
         setResourceList(subroutine?.routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
