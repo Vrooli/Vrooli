@@ -4,14 +4,17 @@
  */
 import { JsonStandardInputProps } from '../types';
 import { useState } from 'react';
-import { Box, Stack, TextField, useTheme } from '@mui/material';
-import { HelpButton, StatusButton } from 'components/buttons';
-import { checkJsonErrors, jsonHelpText, Status } from 'utils';
+import { Box, Stack, useTheme } from '@mui/material';
+import { HelpButton } from 'components/buttons';
+import { jsonHelpText } from 'utils';
+import Editor from '@monaco-editor/react';
 
-interface JsonStandardInputState {
-    errors: string[];
-    isValid: boolean;
-    value: string;
+type JsonStandardInputState = {
+    value: string,
+    error?: {
+        text: string,
+        line: number,
+    },
 }
 
 export const JsonStandardInput = ({
@@ -21,25 +24,17 @@ export const JsonStandardInput = ({
     const { palette } = useTheme();
 
     const [state, setState] = useState<JsonStandardInputState>({
-        errors: checkJsonErrors(defaultValue),
-        isValid: checkJsonErrors(defaultValue).length === 0,
-        value: defaultValue,
+        value: '{\n\t"msg": "Type json here"\n}',
+        error: undefined,
     });
-
-    const onChange = event => {
-        const errors = checkJsonErrors(event.target.value);
-        setState({
-            errors,
-            isValid: errors.length === 0,
-            value: event.target.value,
-        });
-    }
 
     return (
         <Stack direction="column" spacing={0}>
             {/* Bar above TextField, for status and HelpButton */}
             <Box sx={{
                 display: 'flex',
+								justifyContent: 'space-between',
+								alignItems: 'center',
                 width: '100%',
                 height: '56px',
                 padding: '8px',
@@ -47,38 +42,53 @@ export const JsonStandardInput = ({
                 color: palette.primary.contrastText,
                 borderRadius: '8px 8px 0 0',
             }}>
-                <StatusButton
-                    status={state.isValid ? Status.Valid : Status.Invalid}
-                    messages={state.errors.length === 0 ? ['JSON is valid'] : state.errors}
-                    sx={{
-                        marginLeft: 1,
-                        marginRight: 'auto',
-                    }}
-                />
+							<p style={{ marginLeft: "8px" }}>{
+								state.error ? `Error on line ${state.error.line}: {state.error.text}` : "No errors"
+							}</p>
                 <HelpButton
                     markdown={jsonHelpText}
                     sxRoot={{ marginRight: 1 }}
                 />
             </Box>
-            {/* TextField for entering JSON */}
-            <TextField
-                name="format"
-                disabled={!isEditing}
-                placeholder={"Enter JSON format. Click the '?' button for help."}
-                multiline
+            <Editor
+                height="50vh"
+                defaultLanguage="json"
                 value={state.value}
-                onChange={onChange}
-                sx={{
-                    minWidth: '-webkit-fill-available',
-                    maxWidth: '-webkit-fill-available',
-                    minHeight: '50px',
-                    maxHeight: '800px',
-                    background: 'transparent',
-                    fontFamily: 'inherit',
-                    fontSize: 'inherit',
-                    '& .MuiInputBase-root': {
-                        borderColor: state.isValid ? 'unset' : 'red',
-                        borderRadius: '0 0 8px 8px',
+                onChange={value => {
+									console.log(value);
+                	if (!value) {
+										setState(prev => {
+											return {
+												value,
+												error: { text: "JSON should not be empty", line: 1 },
+											};
+										});
+										return;
+									} else if (value.length >= 8192) {
+										setState(prev => {
+											return {
+												value,
+												error: { text: "JSON max length is 8192", line: 1 },
+											};
+										});
+										return;
+									}
+									setState({
+                  	value,
+										error: undefined,
+                  });
+                }}
+                onValidate={(markers) => {
+									console.log(markers);
+                    if (markers.length > 0) {
+                        const marker = markers[0];
+                        setState(prev => {
+                            return { 
+                                ...prev,
+                                error: { text: marker.message, line: marker.startLineNumber },
+                            };
+                        });
+                        return;
                     }
                 }}
             />
