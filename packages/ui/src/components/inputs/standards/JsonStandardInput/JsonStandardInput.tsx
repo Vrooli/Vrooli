@@ -33,8 +33,8 @@ export const JsonStandardInput = ({
             {/* Bar above TextField, for status and HelpButton */}
             <Box sx={{
                 display: 'flex',
-								justifyContent: 'space-between',
-								alignItems: 'center',
+                justifyContent: 'space-between',
+                alignItems: 'center',
                 width: '100%',
                 height: '56px',
                 padding: '8px',
@@ -42,9 +42,9 @@ export const JsonStandardInput = ({
                 color: palette.primary.contrastText,
                 borderRadius: '8px 8px 0 0',
             }}>
-							<p style={{ marginLeft: "8px" }}>{
-								state.error ? `Error on line ${state.error.line}: {state.error.text}` : "No errors"
-							}</p>
+                <p style={{ marginLeft: "8px" }}>{
+                    state.error ? `Error on line ${state.error.line}: {state.error.text}` : "No errors"
+                }</p>
                 <HelpButton
                     markdown={jsonHelpText}
                     sxRoot={{ marginRight: 1 }}
@@ -55,35 +55,31 @@ export const JsonStandardInput = ({
                 defaultLanguage="json"
                 value={state.value}
                 onChange={value => {
-									console.log(value);
-                	if (!value) {
-										setState(prev => {
-											return {
-												value,
-												error: { text: "JSON should not be empty", line: 1 },
-											};
-										});
-										return;
-									} else if (value.length >= 8192) {
-										setState(prev => {
-											return {
-												value,
-												error: { text: "JSON max length is 8192", line: 1 },
-											};
-										});
-										return;
-									}
-									setState({
-                  	value,
-										error: undefined,
-                  });
+                    console.log(value);
+                    if (!value) {
+                        setState({
+                            value: "",
+                            error: { text: "JSON should not be empty", line: 1 },
+                        });
+                        return;
+                    } else if (value.length >= 8192) {
+                        setState({
+                            value,
+                            error: { text: "JSON max length is 8192", line: 1 },
+                        });
+                        return;
+                    }
+                    setState({
+                        value,
+                        error: undefined,
+                    });
                 }}
                 onValidate={(markers) => {
-									console.log(markers);
+                    console.log(markers);
                     if (markers.length > 0) {
                         const marker = markers[0];
                         setState(prev => {
-                            return { 
+                            return {
                                 ...prev,
                                 error: { text: marker.message, line: marker.startLineNumber },
                             };
