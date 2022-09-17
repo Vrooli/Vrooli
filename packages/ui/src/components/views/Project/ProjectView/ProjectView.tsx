@@ -416,6 +416,7 @@ export const ProjectView = ({
                                 canSearch={uuidValidate(id)}
                                 handleAdd={toAddNew}
                                 hideRoles={true}
+                                id="project-view-list"
                                 itemKeyPrefix={itemKeyPrefix}
                                 noResultsText={noResultsText}
                                 searchType={searchType}

@@ -1,8 +1,9 @@
 import { BoxProps, InputProps, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
 import { JSONVariable } from 'forms/types';
 import { ChangeEvent } from 'react';
-import { Organization, Project, Routine, Session, Standard, Tag } from 'types';
+import { AutocompleteOption, Organization, Project, Routine, Session, Standard, Tag } from 'types';
 import { ObjectType, TagShape } from 'utils';
+import { StringSchema } from 'yup';
 
 export interface AutocompleteSearchBarProps extends Omit<SearchBarProps, 'sx'> {
     debounce?: number;
@@ -37,6 +38,7 @@ export interface EditableLabelProps {
     renderLabel: (label: string) => JSX.Element;
     sxs?: { stack?: { [x: string]: any } };
     text: string;
+    validationSchema?: StringSchema<string | undefined, any, string | undefined>;
 }
 
 export interface JsonFormatInputProps {
@@ -189,15 +191,6 @@ export interface LanguageInputProps {
     zIndex: number;
 }
 
-export interface LinkButtonProps {
-    onClick: (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => any;
-    text: string;
-    sxs?: {
-        button?: { [x: string]: any };
-        text?: { [x: string]: any };
-    }
-}
-
 export interface MarkdownInputProps extends TextFieldProps {
     id: string;
     disabled?: boolean;
@@ -246,10 +239,13 @@ export interface QuantityBoxProps extends BoxProps {
     value: number;
 }
 
-export type RelationshipItemOrganization = Pick<Organization, '__typename' | 'handle' | 'id' | 'permissionsOrganization' | 'translations'>;
+export type RelationshipItemOrganization = Pick<Organization, '__typename' | 'handle' | 'id'> & 
+    { translations?: Pick<Organization['translations'][0], 'name' | 'id' | 'language'>[] };
 export type RelationshipItemUser = Pick<User, '__typename' | 'handle' | 'id' | 'name'>;
-export type RelationshipItemProject = Pick<Project, '__typename' | 'handle' | 'id' | 'owner' | 'permissionsProject' | 'translations'>;
-export type RelationshipItemRoutine = Pick<Routine, '__typename' | 'id' | 'owner' | 'permissionsRoutine' | 'translations'>;
+export type RelationshipItemProject = Pick<Project, '__typename' | 'handle' | 'id' | 'owner'> & 
+    { translations?: Pick<Project['translations'][0], 'name' | 'id' | 'language'>[] };
+export type RelationshipItemRoutine = Pick<Routine, '__typename' | 'id' | 'owner'> &
+    { translations?: Pick<Routine['translations'][0], 'title' | 'id' | 'language'>[] };
 
 export type RelationshipOwner = RelationshipItemOrganization | RelationshipItemUser | null;
 export type RelationshipProject = RelationshipItemProject | null;
@@ -310,9 +306,7 @@ export interface StandardSelectSwitchProps extends UseSwitchProps {
 
 export interface TagSelectorProps {
     disabled?: boolean;
-    onTagAdd: (tag: TagShape | Tag) => any;
-    onTagRemove: (tag: TagShape) => any;
-    onTagsClear: () => any;
+    handleTagsUpdate: (tags: (TagShape | Tag)[]) => any;
     placeholder?: string;
     session: Session;
     tags: (TagShape | Tag)[];
@@ -321,4 +315,18 @@ export interface TagSelectorProps {
 export interface ThemeSwitchProps {
     theme: 'light' | 'dark';
     onChange: (theme: 'light' | 'dark') => any;
+}
+
+export interface VersionInputProps extends TextFieldProps {
+    autoFocus?: boolean;
+    error?: boolean;
+    helperText?: string | null | undefined;
+    fullWidth?: boolean;
+    id?: string;
+    label?: string;
+    minimum?: string;
+    name?: string;
+    onBlur?: (event: FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>) => void;
+    onChange: (newVersion: string) => any;
+    value: string;
 }

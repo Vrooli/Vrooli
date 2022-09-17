@@ -1,5 +1,6 @@
 export * from './BuildView/BuildView';
 export * from './DecisionView/DecisionView';
+export * from './ErrorBoundary/ErrorBoundary';
 export * from './UserView/UserView';
 export * from './Organization';
 export * from './Project';

@@ -8,7 +8,7 @@ import {
     useTheme
 } from '@mui/material';
 import { BaseObjectDialog, DialogTitle } from 'components';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ProjectSelectOrCreateDialogProps } from '../types';
 import { Project } from 'types';
 import { SearchList } from 'components/lists';
@@ -65,20 +65,23 @@ export const ProjectSelectOrCreateDialog = ({
 
     // If project selected from search, query for full data
     const [getProject, { data: projectData }] = useLazyQuery<project, projectVariables>(projectQuery);
+    const queryingRef = useRef(false);
     const handleProjectSelect = useCallback((project: Project) => {
         // Query for full project data, if not already known (would be known if the same project was selected last time)
         if (projectData?.project?.id === project.id) {
             handleAdd(projectData?.project);
             onClose();
         } else {
+            queryingRef.current = true;
             getProject({ variables: { input: { id: project.id } } });
         }
     }, [getProject, projectData, handleAdd, onClose]);
     useEffect(() => {
-        if (projectData?.project) {
+        if (projectData?.project && queryingRef.current) {
             handleAdd(projectData.project);
             onClose();
         }
+        queryingRef.current = false;
     }, [handleAdd, onClose, handleCreateClose, projectData]);
 
     return (
@@ -90,7 +93,10 @@ export const ProjectSelectOrCreateDialog = ({
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': { overflow: 'visible', background: palette.background.default },
-                '& .MuiDialog-paper': { overflow: 'visible' }
+                '& .MuiDialog-paper': { 
+                    overflow: 'visible',
+                    width: 'min(100%, 600px)',
+                }
             }}
         >
             {/* Popup for creating a new project */}
@@ -127,6 +133,7 @@ export const ProjectSelectOrCreateDialog = ({
                         </Tooltip>
                     </Stack>
                     <SearchList
+                        id="project-select-or-create-list"
                         itemKeyPrefix='project-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
                         onObjectSelect={(newValue) => handleProjectSelect(newValue)}

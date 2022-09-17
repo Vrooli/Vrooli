@@ -1,6 +1,7 @@
 /**
  * Validation schemas for all standards/inputs/outputs
  */
+import { requiredErrorMessage } from './base';
 import * as yup from 'yup';
 
 const required = yup.boolean();
@@ -19,7 +20,7 @@ export const textFieldStandardInputForm = yup.object().shape({
 })
 
 export const jsonStandardInputForm = yup.object().shape({
-    format: yup.string().required(),
+    format: yup.string().required(requiredErrorMessage),
     defaultValue: yup.string().notRequired().default(undefined),
     // Object with keys of the format: { label?: string, helperText?: string, yup?: inputYup, defaultValue?: string | object }
     variables: yup.object().test(
@@ -65,8 +66,8 @@ export const radioStandardInputForm = yup.object().shape({
     // Array of objects with keys of the format: { label: string, value: any }
     options: yup.array().of(
         yup.object().shape({
-            label: yup.string().required(),
-            value: yup.mixed().required(),
+            label: yup.string().required(requiredErrorMessage),
+            value: yup.mixed().required(requiredErrorMessage),
         })
     ).notRequired().default(undefined),
     // Display as row or column
@@ -80,7 +81,7 @@ export const checkboxStandardInputForm = yup.object().shape({
     // Array of { label: string }
     options: yup.array().of(
         yup.object().shape({
-            label: yup.string().required(),
+            label: yup.string().required(requiredErrorMessage),
         })
     ).notRequired().default(undefined),
     // Display as row or column

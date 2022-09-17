@@ -1,4 +1,4 @@
-import { Grid, TextField, Typography } from "@mui/material";
+import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { routineCreateForm as validationSchema } from '@shared/validation';
@@ -7,7 +7,7 @@ import { routineCreateMutation } from "graphql/mutation";
 import { getUserLanguages, InputShape, ObjectType, OutputShape, parseSearchParams, RoutineTranslationShape, shapeRoutineCreate, TagShape, updateArray } from "utils";
 import { RoutineCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, MarkdownInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
+import { GridSubmitButtons, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession, VersionInput } from "components";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
@@ -56,15 +56,7 @@ export const RoutineCreate = ({
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
-    const addTag = useCallback((tag: TagShape) => {
-        setTags(t => [...t, tag]);
-    }, [setTags]);
-    const removeTag = useCallback((tag: TagShape) => {
-        setTags(tags => tags.filter(t => t.tag !== tag.tag));
-    }, [setTags]);
-    const clearTags = useCallback(() => {
-        setTags([]);
-    }, [setTags]);
+    const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     // Handle translations
     type Translation = RoutineTranslationShape;
@@ -104,7 +96,7 @@ export const RoutineCreate = ({
             description: '',
             instructions: 'Fill out the form below.',
             title: '',
-            version: '1.0',
+            version: '1.0.0',
         },
         validationSchema,
         onSubmit: (values) => {
@@ -210,14 +202,7 @@ export const RoutineCreate = ({
         >
             <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                 <Grid item xs={12}>
-                    <Typography
-                        component="h1"
-                        variant="h3"
-                        sx={{
-                            textAlign: 'center',
-                            sx: { marginTop: 2, marginBottom: 2 },
-                        }}
-                    >Create Routine</Typography>
+                    <PageTitle title="Create Routine" />
                 </Grid>
                 <Grid item xs={12}>
                     <RelationshipButtons
@@ -229,7 +214,6 @@ export const RoutineCreate = ({
                         zIndex={zIndex}
                     />
                 </Grid>
-                {/* TODO add project selector */}
                 <Grid item xs={12}>
                     <LanguageInput
                         currentLanguage={language}
@@ -281,16 +265,15 @@ export const RoutineCreate = ({
                     />
                 </Grid>
                 <Grid item xs={12}>
-                    <TextField
+                    <VersionInput
                         fullWidth
                         id="version"
                         name="version"
-                        label="version"
                         value={formik.values.version}
                         onBlur={formik.handleBlur}
-                        onChange={formik.handleChange}
+                        onChange={(newVersion: string) => { formik.setFieldValue('version', newVersion) }}
                         error={formik.touched.version && Boolean(formik.errors.version)}
-                        helperText={formik.touched.version && formik.errors.version}
+                        helperText={formik.touched.version ? formik.errors.version : null}
                     />
                 </Grid>
                 <Grid item xs={12}>
@@ -329,11 +312,9 @@ export const RoutineCreate = ({
                 </Grid>
                 <Grid item xs={12}>
                     <TagSelector
+                        handleTagsUpdate={handleTagsUpdate}
                         session={session}
                         tags={tags}
-                        onTagAdd={addTag}
-                        onTagRemove={removeTag}
-                        onTagsClear={clearTags}
                     />
                 </Grid>
                 <GridSubmitButtons

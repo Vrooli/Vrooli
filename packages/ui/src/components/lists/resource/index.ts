@@ -3,27 +3,19 @@ import {
     ConnectWithoutContact as DefaultSocialIcon,
     Download as InstallIcon,
     EventNote as SchedulingIcon,
-    Facebook as FacebookIcon,
     Feed as FeedIcon,
     FormatListNumbered as NotesIcon,
     Help as TutorialIcon,
     HowToVote as ProposalIcon,
     Info as ContextIcon,
-    Instagram as InstagramIcon,
     Link as RelatedIcon,
     Public as CommunityIcon,
-    Reddit as RedditIcon,
     Redeem as DonationIcon,
-    School as LearningIcon,
-    Science as ResearchingIcon,
     Terminal as DeveloperIcon,
-    Twitter as TwitterIcon,
     VideoCameraFront as SocialVideoIcon,
     Web as OfficialWebsiteIcon,
-    YouTube as YouTubeIcon,
 } from '@mui/icons-material';
-import { OverridableComponent } from '@mui/material/OverridableComponent';
-import { SvgIconTypeMap } from '@mui/material';
+import { FacebookIcon, InstagramIcon, LearnIcon, RedditIcon, ResearchIcon, TwitterIcon, YouTubeIcon } from '@shared/icons';
 
 export const ResourceIconMap = {
     [ResourceUsedFor.Community]: CommunityIcon,
@@ -33,12 +25,12 @@ export const ResourceIconMap = {
     [ResourceUsedFor.ExternalService]: OfficialWebsiteIcon,
     [ResourceUsedFor.Feed]: FeedIcon,
     [ResourceUsedFor.Install]: InstallIcon,
-    [ResourceUsedFor.Learning]: LearningIcon,
+    [ResourceUsedFor.Learning]: LearnIcon,
     [ResourceUsedFor.Notes]: NotesIcon,
     [ResourceUsedFor.OfficialWebsite]: OfficialWebsiteIcon,
     [ResourceUsedFor.Proposal]: ProposalIcon,
     [ResourceUsedFor.Related]: RelatedIcon,
-    [ResourceUsedFor.Researching]: ResearchingIcon,
+    [ResourceUsedFor.Researching]: ResearchIcon,
     [ResourceUsedFor.Scheduling]: SchedulingIcon,
     [ResourceUsedFor.Tutorial]: TutorialIcon,
 }
@@ -61,10 +53,11 @@ export const ResourceSocialIconMap = {
  * @param link Resource's link, to check if it is a social media link
  * @returns Icon to display
  */
-export const getResourceIcon = (usedFor: ResourceUsedFor, link: string): OverridableComponent<SvgIconTypeMap<{}, "svg">> & {muiName: string} => {
+export const getResourceIcon = (usedFor: ResourceUsedFor, link?: string): any => {
     // Social media is a special case, as the icon depends 
     // on the url
     if (usedFor === ResourceUsedFor.Social) {
+        if (!link) return ResourceSocialIconMap.default;
         const url = new URL(link); // eg. https://www.youtube.com/watch?v=dQw4w9WgXcQ
         const host = url.hostname; // eg. www.youtube.com
         // Remove beginning of hostname (usually "www", but sometimes "m")

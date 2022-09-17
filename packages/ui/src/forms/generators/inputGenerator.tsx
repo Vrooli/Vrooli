@@ -223,8 +223,12 @@ export const toRadio = ({
 }: InputGeneratorProps): React.ReactElement => {
     const props = fieldData.props as RadioProps;
     return (
-        <FormControl component="fieldset" disabled={disabled} key={`field-${fieldData.fieldName}-${index}`}>
-            <FormLabel component="legend">{fieldData.label}</FormLabel>
+        <FormControl
+            component="fieldset"
+            disabled={disabled}
+            key={`field-${fieldData.fieldName}-${index}`}
+            sx={{ paddingLeft: 1 }}
+        >
             <RadioGroup
                 aria-label={fieldData.fieldName}
                 row={props.row}
@@ -353,23 +357,13 @@ export const toTagSelector = ({
     session,
 }: InputGeneratorProps): React.ReactElement => {
     const tags = formik.values[fieldData.fieldName] as TagShape[];
-    const addTag = (tag: TagShape) => {
-        formik.setFieldValue(fieldData.fieldName, [...tags, tag]);
-    };
-    const removeTag = (tag: TagShape) => {
-        formik.setFieldValue(fieldData.fieldName, tags.filter((t) => t.tag !== tag.tag));
-    };
-    const clearTags = () => {
-        formik.setFieldValue(fieldData.fieldName, []);
-    };
+    const handleTagsUpdate = (updatedList: TagShape[]) => { formik.setFieldValue(fieldData.fieldName, updatedList) };
     return (
         <TagSelector
             disabled={disabled}
+            handleTagsUpdate={handleTagsUpdate}
             session={session}
             tags={tags}
-            onTagAdd={addTag}
-            onTagRemove={removeTag}
-            onTagsClear={clearTags}
         />
     );
 }
@@ -492,7 +486,8 @@ export const generateInputWithLabel = ({
     zIndex,
 }: GenerateInputWithLabelProps): React.ReactElement | null => {
     return (<Box key={index} sx={{
-        padding: 1,
+        paddingTop: 1,
+        paddingBottom: 1,
         borderRadius: 1,
     }}>
         {/* Label, help button, and copy iput icon */}

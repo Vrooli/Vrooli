@@ -1,24 +1,23 @@
-import { id, idArray, title } from './base';
+import { id, idArray, minNumberErrorMessage, requiredErrorMessage, title, version } from './base';
 import { runInputsCreate, runInputsUpdate } from './runInputs';
 import { stepsCreate, stepsUpdate } from './step';
 import * as yup from 'yup';
 
-const version = yup.string().max(16);
-const completedComplexity = yup.number().integer().min(0);
-const contextSwitches = yup.number().integer().min(0);
-const timeElapsed = yup.number().integer().min(0);
+const completedComplexity = yup.number().integer().min(0, minNumberErrorMessage);
+const contextSwitches = yup.number().integer().min(0, minNumberErrorMessage);
+const timeElapsed = yup.number().integer().min(0, minNumberErrorMessage);
 const isPrivate = yup.boolean();
 
 export const runCreate = yup.object().shape({
-    id: id.required(),
+    id: id.required(requiredErrorMessage),
     isPrivate: isPrivate.notRequired().default(undefined),
-    routineId: id.required(),
-    title: title.required(),
-    version: version.required(),
+    routineId: id.required(requiredErrorMessage),
+    title: title.required(requiredErrorMessage),
+    version: version().required(requiredErrorMessage),
 })
 
 export const runUpdate = yup.object().shape({
-    id: id.required(),
+    id: id.required(requiredErrorMessage),
     completedComplexity: completedComplexity.notRequired().default(undefined),
     contextSwitches: contextSwitches.notRequired().default(undefined),
     isPrivate: isPrivate.notRequired().default(undefined),
@@ -31,5 +30,5 @@ export const runUpdate = yup.object().shape({
     inputsDelete: idArray.notRequired().default(undefined),
 })
 
-export const runsCreate = yup.array().of(runCreate.required())
-export const runsUpdate = yup.array().of(runUpdate.required())
+export const runsCreate = yup.array().of(runCreate.required(requiredErrorMessage))
+export const runsUpdate = yup.array().of(runUpdate.required(requiredErrorMessage))

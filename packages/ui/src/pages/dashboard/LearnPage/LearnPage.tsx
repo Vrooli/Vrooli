@@ -1,7 +1,7 @@
 import { useLazyQuery, useQuery } from '@apollo/client';
 import { APP_LINKS } from '@shared/consts';
-import { Box, Stack, Typography } from '@mui/material';
-import { HelpButton, ResourceListHorizontal, ListTitleContainer } from 'components';
+import { Box, Stack } from '@mui/material';
+import { ResourceListHorizontal, ListTitleContainer, PageTitle } from 'components';
 import { ResourceListUsedFor } from 'graphql/generated/globalTypes';
 import { learnPage } from 'graphql/generated/learnPage';
 import { profile } from 'graphql/generated/profile';
@@ -121,16 +121,7 @@ export const LearnPage = ({
             width: 'min(100%, 700px)',
             margin: 'auto',
         }}>
-            {/* Title and help button */}
-            <Stack
-                direction="row"
-                justifyContent="center"
-                alignItems="center"
-                sx={{ marginTop: 2, marginBottom: 2 }}
-            >
-                <Typography component="h1" variant="h3" sx={{ fontSize: { xs: '2rem', sm: '3rem' }}}>Learn Dashboard</Typography>
-                <HelpButton markdown={learnPageText} sx={{ width: '40px', height: '40px' }} />
-            </Stack>
+            <PageTitle title='Learn Dashboard' helpText={learnPageText} />
             <Stack direction="column" spacing={10}>
                 {/* Resources */}
                 {session?.isLoggedIn && <ResourceListHorizontal

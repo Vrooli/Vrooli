@@ -2,7 +2,7 @@ import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Ro
 import { PrismaType, RecursivePartial } from "../../types";
 import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, addSupplementalFieldsHelper, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
-import { inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routinesUpdate, routineTranslationCreate, routineTranslationUpdate } from "@shared/validation";
+import { inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routineTranslationCreate, routineTranslationUpdate, routineUpdate } from "@shared/validation";
 import { CODE, DeleteOneType } from "@shared/consts";
 import { omit } from '@shared/utils'; 
 import { hasProfanity } from "../../utils/censor";
@@ -237,7 +237,7 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
     customQueries(input: RoutineSearchInput): { [x: string]: any } {
         // isComplete routines may be set to true or false generally, and also set exceptions
         let isComplete: any;
-        if (!!input.isCompleteExceptions) {
+        if (Array.isArray(input.isCompleteExceptions) && input.isCompleteExceptions.length > 0) {
             isComplete = { OR: [{ isComplete: input.isComplete }] };
             for (const exception of input.isCompleteExceptions) {
                 if (['createdByOrganization', 'createdByUser', 'organization', 'parent', 'project', 'user'].includes(exception.relation)) {
@@ -249,7 +249,8 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
         }
         // isInternal routines may be set to true or false generally, and also set exceptions
         let isInternal: any;
-        if (!!input.isInternalExceptions) {
+        if (Array.isArray(input.isInternalExceptions) && input.isInternalExceptions.length > 0) {
+            console.log('internal is here', JSON.stringify(input.isInternalExceptions), input.isInternal);
             isInternal = { OR: [{ isInternal: input.isInternal }] };
             for (const exception of input.isInternalExceptions) {
                 if (['createdByOrganization', 'createdByUser', 'organization', 'parent', 'project', 'user'].includes(exception.relation)) {
@@ -264,7 +265,6 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
             ...(input.excludeIds !== undefined ? { NOT: { id: { in: input.excludeIds } } } : {}),
             ...isComplete,
             ...isInternal,
-            ...(input.isInternal !== undefined ? { isInternal: input.isInternal } : {}),
             ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
             ...(input.minComplexity !== undefined ? { complexity: { gte: input.minComplexity } } : {}),
             ...(input.maxComplexity !== undefined ? { complexity: { lte: input.maxComplexity } } : {}),
@@ -730,21 +730,21 @@ export const routineMutater = (prisma: PrismaType) => ({
             organizationIds.push(...onlyValidIds(createMany.map(input => input.createdByOrganizationId)));
             createMany.forEach(input => this.validateNodePositions(input));
             // Check if user will pass max routines limit
-            //TODO
-            // const existingCount = await prisma.routine.count({
-            //     where: {
-            //         OR: [
-            //             { user: { id: userId } },
-            //             { organization: { members: { some: { userId: userId, role: MemberRole.Owner as any } } } },
-            //         ]
-            //     }
-            // })
-            // if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
-            //     throw new CustomError(CODE.MaxRoutinesReached, 'Maximum routines reached on this account', { code: genErrorCode('0094') });
-            // }
+            const existingCount = await prisma.routine.count({
+                where: { ...routinePermissioner(prisma).ownershipQuery(userId) }
+            })
+            if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 2500) {
+                throw new CustomError(CODE.MaxRoutinesReached, 'Maximum routines reached on this account', { code: genErrorCode('0094') });
+            }
         }
         if (updateMany) {
-            routinesUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            // Query version numbers and isCompletes of existing routines. 
+            // Can only update if version number is greater, or if version number is the same and isComplete is false
+            //TODO
+            for (let update of updateMany) {
+                routineUpdate({}).validateSync(update.data, { abortEarly: false });
+                TranslationModel.profanityCheck([update.data]);
+            }
             TranslationModel.profanityCheck(updateMany.map(u => u.data));
             // Add new organizationIds to organizationIds array, if they are set
             organizationIds.push(...updateMany.map(input => input.data.organizationId).filter(id => id))

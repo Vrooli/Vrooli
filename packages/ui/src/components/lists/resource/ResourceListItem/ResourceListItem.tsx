@@ -111,7 +111,7 @@ export function ResourceListItem({
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
                         {/* Name/Title */}
                         {loading ? <TextLoading /> : <ListItemText
-                            primary={title}
+                            primary={title ?? data.link}
                             sx={{ ...multiLineEllipsis(1) }}
                         />}
                         {/* Bio/Description */}

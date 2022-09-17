@@ -108,6 +108,14 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Generate sitemap.xml
+ts-node --esm --experimental-specifier-resolution node  ./src/sitemap.ts 
+if [ $? -ne 0 ]; then
+    error "Failed to generate sitemap.xml"
+    echo "${HERE}/../packages/ui/src/sitemap.ts"
+    # This is not a critical error, so we don't exit
+fi
+
 # Create brave-rewards-verification.txt file
 if [ -z "${BRAVE_REWARDS_TOKEN}" ]; then
     error "BRAVE_REWARDS_TOKEN is not set. Not creating build/.well-known/brave-rewards-verification.txt file."

@@ -82,7 +82,10 @@ export const UserSelectDialog = ({
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': { overflow: 'visible', background: palette.background.default },
-                '& .MuiDialog-paper': { overflow: 'visible' }
+                '& .MuiDialog-paper': {
+                    overflow: 'visible',
+                    width: 'min(100%, 600px)',
+                }
             }}
         >
             {/* Invite user dialog */}
@@ -112,6 +115,7 @@ export const UserSelectDialog = ({
                         </Tooltip>
                     </Stack>
                     <SearchList
+                        id="user-select-or-create-list"
                         itemKeyPrefix='user-list-item'
                         noResultsText={"No results. Maybe you should invite them?"}
                         onObjectSelect={(newValue) => handleUserSelect(newValue)}

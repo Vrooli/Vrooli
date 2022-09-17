@@ -61,7 +61,6 @@ export async function paginatedMongoSearch<ReturnType>({
     if (project) pipeline.push({ $project: project });
     if (group) pipeline.push({ $group: group });
     if (replaceRoot) pipeline.push({ $replaceRoot: replaceRoot });
-    //TODO try catch
     await Log.aggregate(pipeline).cursor({}).eachAsync((log: any) => {
         if (log) {
             paginatedResults.edges.push({

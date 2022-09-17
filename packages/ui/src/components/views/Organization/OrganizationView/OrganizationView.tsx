@@ -462,6 +462,7 @@ export const OrganizationView = ({
                                 canSearch={uuidValidate(id)}
                                 handleAdd={toAddNew}
                                 hideRoles={true}
+                                id="organization-view-list"
                                 itemKeyPrefix={itemKeyPrefix}
                                 noResultsText={noResultsText}
                                 searchType={searchType}

@@ -1,8 +1,8 @@
 import { Box, CircularProgress, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { ObjectActionMenu, LinkButton, ResourceListHorizontal, TextCollapse } from "components";
+import { ObjectActionMenu, OwnerLabel, ResourceListHorizontal, TextCollapse } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { containerShadow } from "styles";
-import { formikToRunInputs, getOwnedByString, getTranslation, getUserLanguages, ObjectType, PubSub, runInputsToFormik, standardToFieldData, toOwnedBy } from "utils";
+import { formikToRunInputs, getTranslation, getUserLanguages, ObjectType, PubSub, runInputsToFormik, standardToFieldData } from "utils";
 import { useLocation } from '@shared/route';
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
@@ -22,13 +22,14 @@ export const SubroutineView = ({
     session,
     zIndex,
 }: SubroutineViewProps) => {
+    console.log('subroutine view', owner, routine?.isInternal, routine?.owner)
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const [internalRoutine, setInternalRoutine] = useState(routine);
     useEffect(() => {
         setInternalRoutine(routine);
-    } , [routine]);
+    }, [routine]);
 
     const { description, instructions, title } = useMemo(() => {
         const languages = session.languages ?? navigator.languages;
@@ -39,13 +40,7 @@ export const SubroutineView = ({
         }
     }, [internalRoutine, session.languages]);
 
-    const ownedBy = useMemo<string | null>(() => {
-        if (!internalRoutine) return null;
-        // If isInternal, owner is same as overall routine owner
-        const ownerObject = internalRoutine.isInternal ? { owner } : internalRoutine;
-        return getOwnedByString(ownerObject, getUserLanguages(session))
-    }, [internalRoutine, owner, session]);
-    const toOwner = useCallback(() => {
+    const confirmLeave = useCallback((toOwner: () => any) => {
         // Confirmation dialog for leaving routine
         PubSub.get().publishAlertDialog({
             message: 'Are you sure you want to stop this routine? You can continue it later.',
@@ -54,15 +49,14 @@ export const SubroutineView = ({
                     text: 'Yes', onClick: () => {
                         // Save progress
                         handleSaveProgress();
-                        // Navigate to owner
-                        const ownerObject = internalRoutine?.isInternal ? { owner } : internalRoutine;
-                        toOwnedBy(ownerObject, setLocation)
+                        // Go to owner
+                        toOwner();
                     }
                 },
                 { text: 'Cancel' },
             ]
         });
-    }, [internalRoutine, handleSaveProgress, owner, setLocation]);
+    }, [handleSaveProgress]);
 
     // The schema and formik keys for the form
     const formValueMap = useMemo<{ [fieldName: string]: FieldData }>(() => {
@@ -285,17 +279,17 @@ export const SubroutineView = ({
                                 marginRight: 1,
                             }}
                         >
-                            <EllipsisIcon fill={palette.primary.contrastText}  />
+                            <EllipsisIcon fill={palette.primary.contrastText} />
                         </IconButton>
                     </Tooltip>
                 </Stack>
                 <Stack direction="row" spacing={1}>
-                    {ownedBy ? (
-                        <LinkButton
-                            onClick={toOwner}
-                            text={ownedBy}
-                        />
-                    ) : null}
+                    <OwnerLabel
+                        confirmOpen={confirmLeave}
+                        objectType={ObjectType.Routine}
+                        owner={internalRoutine?.isInternal ? owner : internalRoutine?.owner}
+                        session={session}
+                    />
                     <Typography variant="body1"> - {internalRoutine?.version}</Typography>
                 </Stack>
             </Stack>

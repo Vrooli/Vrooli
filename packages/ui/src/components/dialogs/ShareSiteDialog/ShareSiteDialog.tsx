@@ -11,6 +11,7 @@ import {
     Twitter as TwitterIcon
 } from '@mui/icons-material';
 import { useState } from 'react';
+import QRCode from "react-qr-code";
 
 // Invite link
 const inviteLink = `https://vrooli.com${APP_LINKS.Start}`;
@@ -91,6 +92,18 @@ export const ShareSiteDialog = ({
                         startIcon={<LinkedInIcon />}
                         sx={{ ...buttonProps }}
                     >Post on LinkedIn</Button>
+                    <Box sx={{
+                        width: '220px',
+                        height: '220px',
+                        background: 'white',
+                        padding: '10px',
+                    }}>
+                        <QRCode
+                            size={200}
+                            style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                            value="https://vrooli.com"
+                        />
+                    </Box>
                 </Stack>
                 { copied ? <Typography variant="h6" component="h4" textAlign="center" mb={1}>🎉 Copied! 🎉</Typography> : null}
             </Box>

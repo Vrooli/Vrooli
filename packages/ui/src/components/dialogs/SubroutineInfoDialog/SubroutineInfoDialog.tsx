@@ -17,13 +17,12 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { useLocation } from '@shared/route';
 import { SubroutineInfoDialogProps } from '../types';
-import { getOwnedByString, getTranslation, InputShape, ObjectType, OutputShape, RoutineTranslationShape, TagShape, toOwnedBy, updateArray } from 'utils';
+import { getTranslation, InputShape, ObjectType, OutputShape, RoutineTranslationShape, TagShape, updateArray } from 'utils';
 import Markdown from 'markdown-to-jsx';
 import { routineUpdateForm as validationSchema } from '@shared/validation';
 import { ResourceListUsedFor } from '@shared/consts';
-import { GridSubmitButtons, InputOutputContainer, LanguageInput, LinkButton, MarkdownInput, QuantityBox, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession } from 'components';
+import { GridSubmitButtons, InputOutputContainer, LanguageInput, MarkdownInput, OwnerLabel, QuantityBox, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession } from 'components';
 import { useFormik } from 'formik';
 import { NodeDataRoutineListItem, ResourceList } from 'types';
 import { v4 as uuid } from 'uuid';
@@ -43,7 +42,6 @@ export const SubroutineInfoDialog = ({
     zIndex,
 }: SubroutineInfoDialogProps) => {
     const { palette } = useTheme();
-    const [, setLocation] = useLocation();
 
     const subroutine = useMemo<NodeDataRoutineListItem | undefined>(() => {
         if (!data?.node || !data?.routineItemId) return undefined;
@@ -89,15 +87,7 @@ export const SubroutineInfoDialog = ({
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
-    const addTag = useCallback((tag: TagShape) => {
-        setTags(t => [...t, tag]);
-    }, [setTags]);
-    const removeTag = useCallback((tag: TagShape) => {
-        setTags(tags => tags.filter(t => t.tag !== tag.tag));
-    }, [setTags]);
-    const clearTags = useCallback(() => {
-        setTags([]);
-    }, [setTags]);
+    const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     // Handle translations
     type Translation = RoutineTranslationShape;
@@ -125,13 +115,14 @@ export const SubroutineInfoDialog = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
-        // setRelationships({
-        //     isComplete: subroutine?.routine?.isComplete ?? false,
-        //     isPrivate: subroutine?.routine?.isPrivate ?? false,
-        //     owner: subroutine?.routine?.owner ?? null,
-        //     parent: null,
-        //     // parent: subroutine?.routine?.parent ?? null, TODO
-        // });
+        setRelationships({
+            isComplete: subroutine?.routine?.isComplete ?? false,
+            isPrivate: subroutine?.routine?.isPrivate ?? false,
+            owner: subroutine?.routine?.owner ?? null,
+            parent: null,
+            // parent: subroutine?.routine?.parent ?? null, TODO
+            project: null //TODO
+        });
         setInputsList(subroutine?.routine?.inputs ?? []);
         setOutputsList(subroutine?.routine?.outputs ?? []);
         setResourceList(subroutine?.routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
@@ -248,8 +239,6 @@ export const SubroutineInfoDialog = ({
         setLanguages(newLanguages);
     }, [deleteTranslation, languages, updateFormikTranslation]);
 
-    const ownedBy = useMemo<string | null>(() => getOwnedByString(subroutine?.routine, [language]), [subroutine, language]);
-    const toOwner = useCallback(() => { toOwnedBy(subroutine?.routine, setLocation) }, [subroutine, setLocation]);
     const canEdit = useMemo<boolean>(() => isEditing && (subroutine?.routine?.isInternal || subroutine?.routine?.owner?.id === session.id || subroutine?.routine?.permissionsRoutine?.canEdit === true), [isEditing, session.id, subroutine?.routine?.isInternal, subroutine?.routine?.owner?.id, subroutine?.routine?.permissionsRoutine?.canEdit]);
 
     /**
@@ -307,12 +296,7 @@ export const SubroutineInfoDialog = ({
                 <Typography variant="h6" ml={1}>{`(${(subroutine?.index ?? 0) + 1} of ${(data?.node?.routines?.length ?? 1)})`}</Typography>
                 {/* Owned by and version */}
                 <Stack direction="row" sx={{ marginLeft: 'auto' }}>
-                    {ownedBy ? (
-                        <LinkButton
-                            onClick={toOwner}
-                            text={`${ownedBy} - `}
-                        />
-                    ) : null}
+                    <OwnerLabel objectType={ObjectType.Routine} owner={subroutine?.routine?.owner} session={session} />
                     <Typography variant="body1">{subroutine?.routine?.version}</Typography>
                 </Stack>
                 {/* Close button */}
@@ -497,11 +481,9 @@ export const SubroutineInfoDialog = ({
                         <Grid item xs={12} marginBottom={4}>
                             {
                                 canEdit ? <TagSelector
+                                    handleTagsUpdate={handleTagsUpdate}
                                     session={session}
                                     tags={tags}
-                                    onTagAdd={addTag}
-                                    onTagRemove={removeTag}
-                                    onTagsClear={clearTags}
                                 /> :
                                     <TagList session={session} parentId={''} tags={subroutine?.routine?.tags ?? []} />
                             }

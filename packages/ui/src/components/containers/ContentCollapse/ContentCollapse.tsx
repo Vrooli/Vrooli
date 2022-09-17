@@ -3,10 +3,7 @@ import { Box, Collapse, IconButton, Stack, Typography, useTheme } from '@mui/mat
 import { ContentCollapseProps } from '../types';
 import { HelpButton } from 'components';
 import { useCallback, useEffect, useState } from 'react';
-import {
-    ExpandLess as ExpandLessIcon,
-    ExpandMore as ExpandMoreIcon,
-} from '@mui/icons-material';
+import { ExpandLessIcon, ExpandMoreIcon } from '@shared/icons';
 
 export function ContentCollapse({
     helpText,
@@ -31,9 +28,11 @@ export function ContentCollapse({
         }
     }, [internalIsOpen, onOpenChange]);
 
+    // Calculate fill color
+    const fillColor = sxs?.root?.color ?? (Boolean(children) ? palette.background.textPrimary : palette.background.textSecondary);
+
     return (
         <Box id={id} sx={{
-            padding: 1,
             color: Boolean(children) ? palette.background.textPrimary : palette.background.textSecondary,
             ...(sxs?.root ?? {}),
         }}>
@@ -44,10 +43,17 @@ export function ContentCollapse({
                 <IconButton
                     id={`toggle-expand-icon-button-${title}`}
                     aria-label={internalIsOpen ? 'Collapse' : 'Expand'}
-                    color="inherit"
                     onClick={toggleOpen}
                 >
-                    {internalIsOpen ? <ExpandMoreIcon id={`toggle-expand-icon-${title}`} /> : <ExpandLessIcon id={`toggle-expand-icon-${title}`} />}
+                    {internalIsOpen ?
+                        <ExpandMoreIcon
+                            id={`toggle-expand-icon-${title}`}
+                            fill={fillColor}
+                        /> :
+                        <ExpandLessIcon
+                            id={`toggle-expand-icon-${title}`}
+                            fill={fillColor}
+                        />}
                 </IconButton>
             </Stack>
             {/* Text */}

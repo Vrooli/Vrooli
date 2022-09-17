@@ -13,13 +13,14 @@ import { starMutation } from 'graphql/mutation';
 import { validate as uuidValidate } from 'uuid';
 
 export const StarButton = ({
-    session,
     isStar = false,
-    stars,
     objectId,
+    onChange,
+    session,
     showStars = true,
     starFor,
-    onChange,
+    stars,
+    sxs,
     tooltipPlacement = "left"
 }: StarButtonProps) => {
     // Used to respond to user clicks immediately, without having 
@@ -28,7 +29,7 @@ export const StarButton = ({
     useEffect(() => setInternalIsStar(isStar ?? false), [isStar]);
 
     const internalStars: number | null = useMemo(() => {
-        if (!stars) return null;
+        if (stars === null || stars === undefined) return null;
         const starNum = stars;
         if (internalIsStar === true && isStar === false) return starNum + 1;
         if (internalIsStar === false && isStar === true) return starNum - 1;
@@ -48,7 +49,7 @@ export const StarButton = ({
         mutationWrapper({
             mutation,
             input: { isStar, starFor, forId: objectId },
-            onSuccess: () => { if (onChange) onChange(isStar) },
+            onSuccess: () => { if (onChange) onChange(isStar, event) },
         })
     }, [session.id, internalIsStar, mutation, starFor, objectId, onChange]);
 
@@ -58,20 +59,21 @@ export const StarButton = ({
     return (
         <Stack
             direction="row"
-            spacing={1}
+            spacing={0.5}
             sx={{
                 marginRight: 0,
                 marginTop: 'auto !important',
                 marginBottom: 'auto !important',
+                ...(sxs?.root ?? {}),
             }}
         >
             <Tooltip placement={tooltipPlacement} title={tooltip}>
                 <Icon onClick={handleClick} sx={{ fill: color, cursor: session?.id ? 'pointer' : 'default' }} />
             </Tooltip>
-            { showStars && stars ? <ListItemText
+            {showStars && internalStars !== null && <ListItemText
                 primary={internalStars}
                 sx={{ ...multiLineEllipsis(1) }}
-            /> : null }
+            />}
         </Stack>
     )
 }

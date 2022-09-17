@@ -1,7 +1,7 @@
 import { useLazyQuery, useQuery } from '@apollo/client';
 import { APP_LINKS, ResourceListUsedFor, ResourceUsedFor } from '@shared/consts';
-import { Box, Stack, Typography } from '@mui/material';
-import { HelpButton, ResourceListHorizontal, ListTitleContainer } from 'components';
+import { Box, Stack } from '@mui/material';
+import { ResourceListHorizontal, ListTitleContainer, PageTitle } from 'components';
 import { profile } from 'graphql/generated/profile';
 import { researchPage } from 'graphql/generated/researchPage';
 import { profileQuery, researchPageQuery } from 'graphql/query';
@@ -179,16 +179,7 @@ export const ResearchPage = ({
             width: 'min(100%, 700px)',
             margin: 'auto',
         }}>
-            {/* Title and help button */}
-            <Stack
-                direction="row"
-                justifyContent="center"
-                alignItems="center"
-                sx={{ marginTop: 2, marginBottom: 2 }}
-            >
-                <Typography component="h1" variant="h3" sx={{ fontSize: { xs: '2rem', sm: '3rem' } }}>Research Dashboard</Typography>
-                <HelpButton markdown={researchPageText} sx={{ width: '40px', height: '40px' }} />
-            </Stack>
+            <PageTitle title="Research Dashboard" helpText={researchPageText} />
             <Stack direction="column" spacing={10}>
                 {/* Resources */}
                 {session?.isLoggedIn && <ResourceListHorizontal

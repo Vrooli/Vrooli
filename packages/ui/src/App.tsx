@@ -9,7 +9,7 @@ import {
     Snack
 } from 'components';
 import { PubSub, themes, useReactHash } from 'utils';
-import { AllRoutes } from 'Routes';
+import { Routes } from 'Routes';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { ApolloError, useMutation } from '@apollo/client';
@@ -39,6 +39,15 @@ const useStyles = makeStyles(() => ({
         // Style bullet points in unordered lists
         ul: {
             listStyle: 'circle',
+        },
+        // Search highlight classes
+        '.search-highlight': {
+            backgroundColor: '#ff0',
+            color: '#000',
+        },
+        '.search-highlight-current': {
+            backgroundColor: '#3f0',
+            color: '#000',
         },
         '#page': {
             minWidth: '100vw',
@@ -150,11 +159,11 @@ export function App() {
                 e.preventDefault();
                 PubSub.get().publishCommandPalette();
             }
-            // CTRL + F - Opens Find in Page TODO
-            // else if (e.ctrlKey && e.key === 'f') {
-            //     e.preventDefault();
-            //     PubSub.get().publishFindInPage();
-            // }
+            // CTRL + F - Opens Find in Page
+            else if (e.ctrlKey && e.key === 'f') {
+                e.preventDefault();
+                PubSub.get().publishFindInPage();
+            }
         };
 
         // attach the event listener
@@ -300,7 +309,7 @@ export function App() {
                             }
                             <AlertDialog />
                             <Snack />
-                            <AllRoutes
+                            <Routes
                                 session={session ?? {}}
                                 sessionChecked={session !== undefined}
                             />

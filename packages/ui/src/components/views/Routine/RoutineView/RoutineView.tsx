@@ -10,9 +10,9 @@ import {
     DoneAll as MarkAsCompleteIcon,
     PlayCircle as StartIcon,
 } from "@mui/icons-material";
-import { ObjectActionMenu, BuildView, LinkButton, ReportsLink, ResourceListHorizontal, RunPickerMenu, RunView, SelectLanguageMenu, StarButton, StatusButton, UpTransition, UpvoteDownvote } from "components";
+import { ObjectActionMenu, BuildView, ReportsLink, ResourceListHorizontal, RunPickerMenu, RunView, SelectLanguageMenu, StarButton, StatusButton, UpTransition, UpvoteDownvote, OwnerLabel } from "components";
 import { RoutineViewProps } from "../types";
-import { formikToRunInputs, getLanguageSubtag, getLastUrlPart, getOwnedByString, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, toOwnedBy, useReactSearch } from "utils";
+import { formikToRunInputs, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, useReactSearch } from "utils";
 import { Routine, Run } from "types";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
@@ -86,9 +86,6 @@ export const RoutineView = ({
         document.title = `${title} | Vrooli`;
     }, [title]);
 
-    const ownedBy = useMemo<string | null>(() => getOwnedByString(routine, [language]), [routine, language]);
-    const toOwner = useCallback(() => { toOwnedBy(routine, setLocation) }, [routine, setLocation]);
-
     const [isBuildOpen, setIsBuildOpen] = useState<boolean>(Boolean(parseSearchParams(window.location.search)?.build));
     /**
      * If routine ID is not valid, create default routine data
@@ -107,7 +104,6 @@ export const RoutineView = ({
     const stopBuild = useCallback(() => {
         setIsBuildOpen(false)
     }, []);
-
 
     const [isRunOpen, setIsRunOpen] = useState(false)
     const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
@@ -371,29 +367,27 @@ export const RoutineView = ({
                     {/* Resources */}
                     {resourceList}
                     {/* Description */}
-                    <TextCollapse title="Description" text={description} />
+                    <TextCollapse title="Description" text={description} showOnNoText={loading} />
                     {/* Instructions */}
-                    <TextCollapse title="Instructions" text={instructions} />
+                    <TextCollapse title="Instructions" text={instructions} showOnNoText={loading} />
                     {/* Auto-generated inputs */}
-                    {
-                        Object.keys(formik.values).length > 0 && <Box>
-                            {
-                                Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
-                                    generateInputWithLabel({
-                                        copyInput,
-                                        disabled: false,
-                                        fieldData,
-                                        formik: formik,
-                                        index,
-                                        session,
-                                        textPrimary: palette.background.textPrimary,
-                                        onUpload: () => { },
-                                        zIndex,
-                                    })
-                                ))
-                            }
-                        </Box>
-                    }
+                    {Object.keys(formik.values).length > 0 && <ContentCollapse
+                        title="Inputs"
+                    >
+                        {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
+                            generateInputWithLabel({
+                                copyInput,
+                                disabled: false,
+                                fieldData,
+                                formik: formik,
+                                index,
+                                session,
+                                textPrimary: palette.background.textPrimary,
+                                onUpload: () => { },
+                                zIndex,
+                            })
+                        ))}
+                    </ContentCollapse>}
                     {/* Stats */}
                     {
                         Array.isArray(routine?.nodes) && (routine as any).nodes.length > 0 &&
@@ -539,12 +533,7 @@ export const RoutineView = ({
                                 alignItems: 'center',
                                 justifyContent: 'center',
                             }}>
-                                {ownedBy && (
-                                    <LinkButton
-                                        onClick={toOwner}
-                                        text={ownedBy}
-                                    />
-                                )}
+                                <OwnerLabel objectType={ObjectType.Routine} owner={routine?.owner} session={session} />
                                 <Typography variant="body1"> - {routine?.version}</Typography>
                                 <SelectLanguageMenu
                                     availableLanguages={availableLanguages}
@@ -598,7 +587,7 @@ export const RoutineView = ({
                             onChange={(isStar: boolean) => { routine && setRoutine({ ...routine, isStarred: isStar }) }}
                             tooltipPlacement="bottom"
                         />}
-                        <ReportsLink 
+                        <ReportsLink
                             href={`${APP_LINKS.Routine}/reports/${routine?.id}`}
                             reports={routine?.reportsCount}
                         />
@@ -614,7 +603,7 @@ export const RoutineView = ({
                                     padding: 0,
                                 }}
                             >
-                                <EllipsisIcon fill={palette.primary.contrastText} />
+                                <EllipsisIcon fill={palette.background.textSecondary} />
                             </IconButton>
                         </Tooltip>
                     </Stack>

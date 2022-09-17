@@ -1,4 +1,4 @@
-import { description, idArray, id, name, language, tagArray } from './base';
+import { description, idArray, id, name, language, tagArray, requiredErrorMessage } from './base';
 import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
@@ -7,23 +7,23 @@ const isComplete = yup.boolean()
 const isPrivate = yup.boolean()
 
 export const projectTranslationCreate = yup.object().shape({
-    id: id.required(),
-    language: language.required(),
+    id: id.required(requiredErrorMessage),
+    language: language.required(requiredErrorMessage),
     description: description.notRequired().default(undefined),
-    name: name.required(),
+    name: name.required(requiredErrorMessage),
 });
 export const projectTranslationUpdate = yup.object().shape({
-    id: id.required(),
+    id: id.required(requiredErrorMessage),
     language: language.notRequired().default(undefined),
     description: description.notRequired().default(undefined),
     name: name.notRequired().default(undefined),
 });
-export const projectTranslationsCreate = yup.array().of(projectTranslationCreate.required())
-export const projectTranslationsUpdate = yup.array().of(projectTranslationUpdate.required())
+export const projectTranslationsCreate = yup.array().of(projectTranslationCreate.required(requiredErrorMessage))
+export const projectTranslationsUpdate = yup.array().of(projectTranslationUpdate.required(requiredErrorMessage))
 
 export const projectCreateForm = yup.object().shape({
     description: description.notRequired().default(undefined),
-    name: name.required(),
+    name: name.required(requiredErrorMessage),
     isPrivate: isPrivate.notRequired().default(undefined),
 })
 export const projectUpdateForm = projectCreateForm;
@@ -31,7 +31,7 @@ export const projectUpdateForm = projectCreateForm;
  * Information required when creating a project. 
  */
 export const projectCreate = yup.object().shape({
-    id: id.required(),
+    id: id.required(requiredErrorMessage),
     isComplete: isComplete.notRequired().default(undefined),
     isPrivate: isPrivate.notRequired().default(undefined),
     parentId: id.notRequired().default(undefined), // If forked, the parent's id
@@ -40,14 +40,14 @@ export const projectCreate = yup.object().shape({
     resourceListsCreate: resourceListsCreate.notRequired().default(undefined),
     tagsConnect: tagArray.notRequired().default(undefined),
     tagsCreate: tagsCreate.notRequired().default(undefined),
-    translationsCreate: projectTranslationsCreate.required(),
+    translationsCreate: projectTranslationsCreate.required(requiredErrorMessage),
 }, [['createdByUserId', 'createdByOrganizationId']]) // Makes sure you can't associate with both a user and an organization
 
 /**
  * Information required when updating a project
  */
 export const projectUpdate = yup.object().shape({
-    id: id.required(),
+    id: id.required(requiredErrorMessage),
     isComplete: isComplete.notRequired().default(undefined),
     isPrivate: isPrivate.notRequired().default(undefined),
     userId: id.notRequired().default(undefined), // Allows you to request transfer ownership of the project
@@ -63,5 +63,5 @@ export const projectUpdate = yup.object().shape({
     translationsUpdate: projectTranslationsUpdate.notRequired().default(undefined),
 }, [['userId', 'organizationId']]) // Makes sure you can't transfer to both a user and an organization
 
-export const projectsCreate = yup.array().of(projectCreate.required())
-export const projectsUpdate = yup.array().of(projectUpdate.required())
+export const projectsCreate = yup.array().of(projectCreate.required(requiredErrorMessage))
+export const projectsUpdate = yup.array().of(projectUpdate.required(requiredErrorMessage))

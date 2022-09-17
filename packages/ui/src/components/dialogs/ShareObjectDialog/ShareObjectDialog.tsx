@@ -12,15 +12,16 @@ import {
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { useState } from 'react';
 import { ObjectType } from 'utils';
+import QRCode from "react-qr-code";
 
 // Title for social media posts
 const postTitle: { [key in ObjectType]?: string } = {
-    [ObjectType.Comment]: 'Check out this comment on Vrooli',
-    [ObjectType.Organization]: 'Check out this organization on Vrooli',
-    [ObjectType.Project]: 'Check out this project on Vrooli',
-    [ObjectType.Routine]: 'Check out this routine on Vrooli',
-    [ObjectType.Standard]: 'Check out this standard on Vrooli',
-    [ObjectType.User]: 'Check out this user on Vrooli',
+    'Comment': 'Check out this comment on Vrooli',
+    'Organization': 'Check out this organization on Vrooli',
+    'Project': 'Check out this project on Vrooli',
+    'Routine': 'Check out this routine on Vrooli',
+    'Standard': 'Check out this standard on Vrooli',
+    'User': 'Check out this user on Vrooli',
 }
 
 const buttonProps = {
@@ -111,6 +112,17 @@ export const ShareObjectDialog = ({
                         startIcon={<LinkedInIcon />}
                         sx={{ ...buttonProps }}
                     >Post on LinkedIn</Button>
+                    <Box sx={{
+                        width: '200px',
+                        height: '200px',
+
+                    }}>
+                        <QRCode
+                            size={200}
+                            style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                            value={window.location.href}
+                        />
+                    </Box>
                 </Stack>
                 {copied ? <Typography variant="h6" component="h4" textAlign="center" mb={1}>🎉 Copied! 🎉</Typography> : null}
             </Box>

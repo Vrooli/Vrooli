@@ -5,8 +5,6 @@ import { inputCreate, outputCreate } from '@shared/validation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     Delete as DeleteIcon,
-    ExpandLess as ExpandLessIcon,
-    ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { getTranslation, InputTranslationShape, InputTypeOption, InputTypeOptions, jsonToString, OutputTranslationShape, StandardShape, standardToFieldData, updateArray } from 'utils';
 import { useFormik } from 'formik';
@@ -16,7 +14,7 @@ import { FieldData } from 'forms/types';
 import { generateInputComponent } from 'forms/generators';
 import { v4 as uuid } from 'uuid';
 import Markdown from 'markdown-to-jsx';
-import { ReorderIcon } from '@shared/icons';
+import { ExpandLessIcon, ExpandMoreIcon, ReorderIcon } from '@shared/icons';
 
 const defaultStandard = (item: InputOutputListItemProps['item'], generatedSchema?: FieldData | null): StandardShape => ({
     __typename: 'Standard',
@@ -248,8 +246,8 @@ export const InputOutputListItem = ({
                 </IconButton>}
                 <IconButton sx={{ marginLeft: isEditing ? 'unset' : 'auto' }}>
                     {isOpen ?
-                        <ExpandMoreIcon sx={{ marginLeft: 'auto' }} /> :
-                        <ExpandLessIcon sx={{ marginLeft: 'auto' }} />
+                        <ExpandMoreIcon fill={palette.secondary.contrastText} /> :
+                        <ExpandLessIcon fill={palette.secondary.contrastText} />
                     }
                 </IconButton>
             </Container>

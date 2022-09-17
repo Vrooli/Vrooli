@@ -49,6 +49,7 @@ export const ResourceListHorizontal = ({
 
     const [deleteMutation] = useMutation<resourceDeleteMany, resourceDeleteManyVariables>(resourceDeleteManyMutation);
     const onDelete = useCallback((index: number) => {
+        console.log('onDelete', index, list);
         if (!list) return;
         const resource = list.resources[index];
         if (mutate && resource.id) {
@@ -121,11 +122,11 @@ export const ResourceListHorizontal = ({
                 anchorEl={contextAnchor}
                 index={selectedIndex}
                 onClose={closeContext}
-                onAddBefore={() => { }}
-                onAddAfter={() => { }}
+                onAddBefore={() => { }} //TODO
+                onAddAfter={() => { }} //TODO
                 onDelete={onDelete}
                 onEdit={() => openUpdateDialog(selectedIndex ?? 0)}
-                onMove={() => { }}
+                onMove={() => { }} //TODO
                 zIndex={zIndex + 1}
             />
             <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>
@@ -154,13 +155,11 @@ export const ResourceListHorizontal = ({
                     {list?.resources?.map((c: Resource, index) => (
                         <ResourceCard
                             canEdit={canEdit}
-                            handleEdit={() => openUpdateDialog(index)}
-                            handleDelete={onDelete}
                             key={`resource-card-${index}`}
                             index={index}
                             session={session}
                             data={c}
-                            onRightClick={openContext}
+                            onContextMenu={openContext}
                             aria-owns={Boolean(selectedIndex) ? contextId : undefined}
                         />
                     ))}

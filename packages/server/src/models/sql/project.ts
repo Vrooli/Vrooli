@@ -222,7 +222,7 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
     customQueries(input: ProjectSearchInput): { [x: string]: any } {
         // isComplete routines may be set to true or false generally, and also set exceptions
         let isComplete: any;
-        if (!!input.isCompleteExceptions) {
+        if (Array.isArray(input.isCompleteExceptions) && input.isCompleteExceptions.length > 0) {
             isComplete = { OR: [{ isComplete: input.isComplete }] };
             for (const exception of input.isCompleteExceptions) {
                 if (['createdByOrganization', 'createdByUser', 'organization', 'project', 'user'].includes(exception.relation)) {

@@ -1,11 +1,11 @@
-import { Box, Grid, Stack, Typography, useTheme } from "@mui/material"
+import { Box, Button, Grid, Stack, Typography, useTheme } from "@mui/material"
 import { useMutation } from "@apollo/client";
 import { useCallback, useEffect, useState } from "react";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { PubSub, shapeProfileUpdate, TagHiddenShape, TagShape } from "utils";
+import { clearSearchHistory, PubSub, shapeProfileUpdate, TagHiddenShape, TagShape } from "utils";
 import {
     Favorite as InterestsIcon,
 } from '@mui/icons-material';
@@ -14,7 +14,7 @@ import { GridSubmitButtons, HelpButton, TagSelector } from "components";
 import { ThemeSwitch } from "components/inputs";
 import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
 import { v4 as uuid } from 'uuid';
-import { InvisibleIcon } from "@shared/icons";
+import { InvisibleIcon, SearchIcon } from "@shared/icons";
 
 const helpText =
     `Display preferences customize the look and feel of Vrooli. More customizations will be available in the near future.`
@@ -40,31 +40,26 @@ export const SettingsDisplay = ({
 
     // Handle starred tags
     const [starredTags, setStarredTags] = useState<TagShape[]>([]);
-    const addStarredTag = useCallback((tag: TagShape) => {
-        setStarredTags(t => [...t, tag]);
-    }, [setStarredTags]);
-    const removeStarredTag = useCallback((tag: TagShape) => {
-        setStarredTags(tags => tags.filter(t => t.tag !== tag.tag));
-    }, [setStarredTags]);
-    const clearStarredTags = useCallback(() => {
-        setStarredTags([]);
-    }, [setStarredTags]);
+    const handleStarredTagsUpdate = useCallback((updatedList: TagShape[]) => { setStarredTags(updatedList); }, [setStarredTags]);
 
     // Handle hidden tags
     const [hiddenTags, setHiddenTags] = useState<TagHiddenShape[]>([]);
-    const addHiddenTag = useCallback((tag: TagShape) => {
-        setHiddenTags(t => [...t, {
-            id: uuid(),
-            isBlur: true,
-            tag
-        }]);
-    }, [setHiddenTags]);
-    const removeHiddenTag = useCallback((tag: TagShape) => {
-        setHiddenTags(ht => ht.filter(t => t.tag.tag !== tag.tag));
-    }, [setHiddenTags]);
-    const clearHiddenTags = useCallback(() => {
-        setHiddenTags([]);
-    }, [setHiddenTags]);
+    const handleHiddenTagsUpdate = useCallback((updatedList: TagShape[]) => { 
+        // Hidden tags are wrapped in a shape that includes an isBlur flag. 
+        // Because of this, we must loop through the updatedList to see which tags have been added or removed.
+        const updatedHiddenTags = updatedList.map((tag) => {
+            const existingTag = hiddenTags.find((hiddenTag) => hiddenTag.tag.id === tag.id);
+            if (existingTag) {
+                return existingTag;
+            }
+            return { 
+                id: uuid(),
+                isBlur: true,
+                tag,
+            };
+        });
+        setHiddenTags(updatedHiddenTags);
+    }, [hiddenTags]);
 
     // Handle theme
     const [theme, setTheme] = useState<string>('light');
@@ -173,28 +168,30 @@ export const SettingsDisplay = ({
             </Stack>
             <Box sx={{ margin: 2, marginBottom: 5 }}>
                 <TagSelector
+                    handleTagsUpdate={handleStarredTagsUpdate}
                     session={session}
                     tags={starredTags}
                     placeholder={"Enter interests, followed by commas..."}
-                    onTagAdd={addStarredTag}
-                    onTagRemove={removeStarredTag}
-                    onTagsClear={clearStarredTags}
                 />
             </Box>
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                <InvisibleIcon />
+                <InvisibleIcon fill={palette.background.textPrimary} />
                 <Typography component="h2" variant="h5" textAlign="center" ml={1}>Hidden Topics</Typography>
                 <HelpButton markdown={hiddenHelpText} />
             </Stack>
             <Box sx={{ margin: 2, marginBottom: 5 }}>
                 <TagSelector
+                    handleTagsUpdate={handleHiddenTagsUpdate}
                     session={session}
                     tags={hiddenTags.map(t => t.tag)}
                     placeholder={"Enter topics you'd like to hide from view, followed by commas..."}
-                    onTagAdd={addHiddenTag}
-                    onTagRemove={removeHiddenTag}
-                    onTagsClear={clearHiddenTags}
                 />
+            </Box>
+            <Box sx={{ margin: 2, marginBottom: 5, display: 'flex' }}>
+                <Button color="secondary" startIcon={<SearchIcon />} onClick={() => { clearSearchHistory(session) }} sx={{
+                    marginLeft: 'auto',
+                    marginRight: 'auto',
+                }}>Clear Search History</Button>
             </Box>
             <Grid container spacing={2} p={2}>
                 <GridSubmitButtons

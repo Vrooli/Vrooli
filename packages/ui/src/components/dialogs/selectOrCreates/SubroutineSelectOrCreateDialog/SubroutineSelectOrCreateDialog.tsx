@@ -8,7 +8,7 @@ import {
     useTheme
 } from '@mui/material';
 import { BaseObjectDialog, DialogTitle } from 'components';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SubroutineSelectOrCreateDialogProps } from '../types';
 import { IsCompleteInput, IsInternalInput, Routine } from 'types';
 import { SearchList } from 'components/lists';
@@ -66,14 +66,17 @@ export const SubroutineSelectOrCreateDialog = ({
 
     // If routine selected from search, query for full data
     const [getRoutine, { data: routineData }] = useLazyQuery<routine, routineVariables>(routineQuery);
+    const queryingRef = useRef(false);
     const handleRoutineSelect = useCallback((routine: Routine) => {
+        queryingRef.current = true;
         getRoutine({ variables: { input: { id: routine.id } } });
     }, [getRoutine]);
     useEffect(() => {
-        if (routineData?.routine) {
+        if (routineData?.routine && queryingRef.current) {
             handleAdd(nodeId, routineData.routine);
             onClose();
         }
+        queryingRef.current = false;
     }, [handleAdd, onClose, handleCreateClose, nodeId, routineData]);
 
     /**
@@ -117,7 +120,10 @@ export const SubroutineSelectOrCreateDialog = ({
                     overflow: 'visible',
                     background: palette.background.default,
                 },
-                '& .MuiDialog-paper': { overflow: 'visible' }
+                '& .MuiDialog-paper': { 
+                    overflow: 'visible',
+                    width: 'min(100%, 600px)',
+                }
             }}
         >
             {/* Popup for creating a new routine */}
@@ -154,6 +160,7 @@ export const SubroutineSelectOrCreateDialog = ({
                         </Tooltip>
                     </Stack>
                     <SearchList
+                        id="subroutine-select-or-create-list"
                         itemKeyPrefix='routine-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
                         searchType={SearchType.Routine}

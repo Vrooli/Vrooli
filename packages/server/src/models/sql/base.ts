@@ -1463,7 +1463,7 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     // Create type-specific queries
     let typeQuery = model.search?.customQueries ? model.search.customQueries(input) : undefined;
     // Combine queries
-    const where = { ...additionalQueries, ...idQuery, ...searchQuery, ...createdQuery, ...updatedQuery, ...typeQuery };
+    const where = combineQueries([additionalQueries, idQuery, searchQuery, createdQuery, updatedQuery, typeQuery]);
     // Determine sort order
     const orderBy = model.search?.getSortQuery ? model.search.getSortQuery(input.sortBy ?? model.search.defaultSort) : undefined;
     // Find requested search array
@@ -1544,11 +1544,7 @@ export async function countHelper<GraphQLModel, CountInput extends CountInputBas
     const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
     // Count objects that match queries
     return await (model.prismaObject(prisma) as any).count({
-        where: {
-            ...where,
-            ...createdQuery,
-            ...updatedQuery,
-        },
+        where: combineQueries([where, createdQuery, updatedQuery])
     });
 }
 
@@ -1952,4 +1948,50 @@ export async function existsArray({ ids, prismaDelegate, where }: ExistsArray): 
     })
     // Convert to array of booleans
     return idsToQuery.map(id => objects.some(({ id: objectId }: { id: string }) => objectId === id));
+}
+
+/**
+ * Helper function for combining Prisma queries. This is basically a spread, 
+ * but it also combines AND, OR, and NOT queries
+ * @param queries Array of query objects to combine
+ * @returns Combined query object, with all fields combined
+ */
+export function combineQueries(queries: ({ [x: string]: any } | null)[]): { [x: string]: any } {
+    const combined: { [x: string]: any } = {};
+    for (const query of queries) {
+        if (!query) continue;
+        for (const [key, value] of Object.entries(query)) {
+            // If key is AND, OR, or NOT, combine
+            if (['AND', 'OR', 'NOT'].includes(key)) {
+                // Value should be an array
+                if (!Array.isArray(value)) {
+                    throw new CustomError(CODE.InternalError, 'Invalid query in combineQueries', { code: genErrorCode('0256'), key, value });
+                }
+                // For AND, combine arrays
+                if (key === 'AND') {
+                    combined[key] = key in combined ? [...combined[key], ...value] : value;
+                }
+                // For OR and NOT, set as value if none exists
+                else if (!(key in combined)) {
+                    combined[key] = value;
+                }
+                // Otherwise, combine values using AND. This is because we can't have duplicate keys
+                else {
+                    // Store temp value 
+                    const temp = combined[key];
+                    // Delete key
+                    delete combined[key];
+                    // Add old and new value to AND array
+                    combined.AND = [
+                        ...(combined.AND || []),
+                        { [key]: temp },
+                        { [key]: value },
+                    ];
+                }
+            }
+            // Otherwise, just add it
+            else combined[key] = value;
+        }
+    }
+    return combined;
 }

@@ -10,7 +10,7 @@ export type RoutineTranslationShape = Omit<ShapeWrapper<RoutineTranslation>, 'la
     title: RoutineTranslationCreateInput['title'];
 }
 
-export type RoutineShape = Omit<ShapeWrapper<Routine>, 'complexity' | 'simplicity' | 'inputs' | 'nodeLinks' | 'owner' | 'nodes' | 'outputs' | 'resourceLists' | 'runs' | 'tags'> & {
+export type RoutineShape = Omit<ShapeWrapper<Routine>, 'complexity' | 'simplicity' | 'inputs' | 'nodeLinks' | 'owner' | 'parent' | 'nodes' | 'outputs' | 'resourceLists' | 'runs' | 'tags'> & {
     id: string;
     inputs: InputShape[];
     nodeLinks?: NodeLinkShape[] | null;

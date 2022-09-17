@@ -5,7 +5,7 @@ import { Status } from 'utils';
 export interface GridSubmitButtonsProps {
     disabledCancel?: boolean;
     disabledSubmit?: boolean;
-    errors?: { [key: string]: string };
+    errors?: { [key: string]: string | string[] | null | undefined };
     isCreate: boolean;
     onCancel: () => void;
     onSetSubmitting?: (isSubmitting: boolean) => void;

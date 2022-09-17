@@ -8,7 +8,7 @@ import {
     useTheme
 } from '@mui/material';
 import { BaseObjectDialog, DialogTitle } from 'components';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { OrganizationSelectOrCreateDialogProps } from '../types';
 import { Organization } from 'types';
 import { SearchList } from 'components/lists';
@@ -67,20 +67,23 @@ export const OrganizationSelectOrCreateDialog = ({
 
     // If organization selected from search, query for full data
     const [getOrganization, { data: organizationData }] = useLazyQuery<organization, organizationVariables>(organizationQuery);
+    const queryingRef = useRef(false);
     const handleOrganizationSelect = useCallback((organization: Organization) => {
         // Query for full organization data, if not already known (would be known if the same organization was selected last time)
         if (organizationData?.organization?.id === organization.id) {
             handleAdd(organizationData?.organization);
             onClose();
         } else {
+            queryingRef.current = true;
             getOrganization({ variables: { input: { id: organization.id } } });
         }
     }, [getOrganization, organizationData, handleAdd, onClose]);
     useEffect(() => {
-        if (organizationData?.organization) {
+        if (organizationData?.organization && queryingRef.current) {
             handleAdd(organizationData.organization);
             onClose();
         }
+        queryingRef.current = false;
     }, [handleAdd, onClose, handleCreateClose, organizationData]);
 
     return (
@@ -92,7 +95,10 @@ export const OrganizationSelectOrCreateDialog = ({
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': { overflow: 'visible', background: palette.background.default },
-                '& .MuiDialog-paper': { overflow: 'visible' }
+                '& .MuiDialog-paper': { 
+                    overflow: 'visible',
+                    width: 'min(100%, 600px)',
+                }
             }}
         >
             {/* Popup for creating a new organization */}
@@ -129,6 +135,7 @@ export const OrganizationSelectOrCreateDialog = ({
                         </Tooltip>
                     </Stack>
                     <SearchList
+                        id="organization-select-or-create-list"
                         itemKeyPrefix='organization-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
                         onObjectSelect={(newValue) => handleOrganizationSelect(newValue)}

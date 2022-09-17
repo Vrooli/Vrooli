@@ -11,10 +11,6 @@ import {
 import React, { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RoutineListNodeProps } from '../types';
 import { DraggableNode, SubroutineNode } from '..';
-import {
-    ExpandLess as ExpandLessIcon,
-    ExpandMore as ExpandMoreIcon,
-} from '@mui/icons-material';
 import { NodeContextMenu, NodeWidth } from '../..';
 import {
     routineNodeCheckboxOption,
@@ -24,8 +20,9 @@ import { multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { NodeDataRoutineList, NodeDataRoutineListItem } from 'types';
 import { getTranslation, BuildAction, updateTranslationFields, PubSub, usePress } from 'utils';
 import { EditableLabel } from 'components/inputs';
-import { AddIcon, CloseIcon } from '@shared/icons';
+import { AddIcon, CloseIcon, ExpandLessIcon, ExpandMoreIcon } from '@shared/icons';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
+import { requiredErrorMessage, title as titleValidation } from '@shared/validation';
 
 /**
  * Distance before a click is considered a drag
@@ -195,6 +192,7 @@ export const RoutineListNode = ({
                     }
                 }}
                 text={label}
+                validationSchema={titleValidation.required(requiredErrorMessage)}
             />
         )
     }, [labelVisible, isEditing, collapseOpen, handleLabelUpdate, onLabelDialogOpen, label, node.id]);

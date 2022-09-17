@@ -4,7 +4,7 @@ import {
     DialogContent,
     useTheme,
 } from '@mui/material';
-import { getObjectSlug, getObjectUrlBase, listToAutocomplete, PubSub, shortcutsItems } from 'utils';
+import { actionsItems, getObjectSlug, getObjectUrlBase, listToAutocomplete, PubSub, shortcutsItems } from 'utils';
 import { AutocompleteSearchBar } from 'components/inputs';
 import { APP_LINKS } from '@shared/consts';
 import { AutocompleteOption } from 'types';
@@ -88,7 +88,7 @@ const CommandPalette = ({
         const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
             return b.stars - a.stars;
         });
-        return [...firstResults, ...queryItems, ...shortcutsItems];
+        return [...firstResults, ...queryItems, ...shortcutsItems, ...actionsItems];
     }, [languages, data, searchString]);
 
     /**
@@ -99,8 +99,11 @@ const CommandPalette = ({
         // Clear search string and close command palette
         close();
         setSearchString('');
-        // Replace current state with search string, so that search is not lost. 
-        // Only do this if the selected item is not a shortcut
+        // If selected item is an action (i.e. no navigation required), do nothing 
+        // (search bar performs actions automatically)
+        if (newValue.__typename === 'Action') {
+            return;
+        }
         let newLocation: string;
         // If selected item is a shortcut, newLocation is in the id field
         if (newValue.__typename === 'Shortcut') {
@@ -117,7 +120,7 @@ const CommandPalette = ({
         if (shouldReload) {
             window.location.reload();
         }
-    }, [close, searchString, setLocation]);
+    }, [close, setLocation]);
 
     return (
         <Dialog

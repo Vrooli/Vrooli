@@ -1,7 +1,6 @@
 import {
     Box,
     IconButton,
-    Typography,
     useTheme
 } from '@mui/material';
 import { CloseIcon } from '@shared/icons';
@@ -27,23 +26,27 @@ export const MenuTitle = ({
                 padding: 2,
                 background: palette.primary.dark,
                 color: palette.primary.contrastText,
+                textAlign: 'center',
+                fontSize: { xs: '1.5rem', sm: '2rem' },
             }}
         >
-            <Typography
-                component="h2" 
-                variant="h5" 
+            <Box sx={{ marginLeft: 'auto' }} >{title}</Box>
+            {helpText && <HelpButton
+                markdown={helpText}
                 sx={{
-                    width: '-webkit-fill-available',
-                    textAlign: 'center',
+                    fill: palette.secondary.light,
                 }}
-            >
-                {title}
-                {helpText && <HelpButton markdown={helpText} sx={{ fill: palette.secondary.light }} /> }
-            </Typography>
+                sxRoot={{
+                    display: 'flex',
+                    marginTop: 'auto',
+                    marginBottom: 'auto',
+                }}
+            />}
             <IconButton
                 aria-label="close"
                 edge="end"
                 onClick={onClose}
+                sx={{ marginLeft: 'auto' }}
             >
                 <CloseIcon fill={palette.primary.contrastText} />
             </IconButton>

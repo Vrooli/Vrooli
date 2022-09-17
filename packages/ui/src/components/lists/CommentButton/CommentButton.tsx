@@ -24,7 +24,7 @@ export const CommentButton = ({
     return (
         <Stack
             direction="row"
-            spacing={1}
+            spacing={0.5}
             sx={{
                 marginRight: 0,
             }}

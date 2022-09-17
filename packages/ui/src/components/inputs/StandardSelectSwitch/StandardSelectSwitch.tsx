@@ -4,9 +4,9 @@ import { StandardSelectSwitchProps } from '../types';
 import { noSelect } from 'styles';
 import { StandardSelectOrCreateDialog } from 'components/dialogs';
 import {
-    Edit as CustomIcon,
     Link as StandardIcon,
 } from '@mui/icons-material';
+import { EditIcon as CustomIcon } from '@shared/icons';
 
 const grey = {
     400: '#BFC7CF',
@@ -79,15 +79,11 @@ export function StandardSelectSwitch({
                             height: '30px',
                             position: 'absolute',
                             top: 0,
+                            padding: '4px',
                             transition: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)',
                             transform: `translateX(${Boolean(selected) ? '24' : '0'}px)`,
                         }}>
-                            <Icon sx={{
-                                position: 'absolute',
-                                display: 'block',
-                                fill: 'white',
-                                borderRadius: '8px',
-                            }} />
+                            <Icon width='30px' height='30px' fill="white" sx={{ fill: 'white '}} />
                         </IconButton>
                     </Box>
                     {/* Input */}

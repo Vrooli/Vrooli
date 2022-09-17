@@ -2,16 +2,16 @@
  * Search list for a single object type
  */
 import { useLazyQuery } from "@apollo/client";
-import { Box, Button, CircularProgress, List, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Button, List, Tooltip, Typography, useTheme } from "@mui/material";
 import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clickSize, containerShadow } from "styles";
 import {
-    AccessTime as TimeIcon,
     Add as AddIcon,
     Build as AdvancedIcon,
     Sort as SortListIcon,
 } from '@mui/icons-material';
+import { HistoryIcon as TimeIcon } from '@shared/icons';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
 import { addSearchParams, getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, parseSearchParams, removeSearchParams, SearchParams, searchTypeToParams, SortValueToLabelMap } from "utils";
 import { useLocation } from '@shared/route';
@@ -36,10 +36,21 @@ const searchButtonStyle = {
     transition: 'transform 0.2s ease-in-out',
 };
 
+/**
+ * Helper method for converting fetched data to an array of object data
+ */
+const parseData = (data: any) => {
+    if (!data) return [];
+    const queryData: any = Object.values(data)[0];
+    if (!queryData || !queryData.edges) return [];
+    return queryData.edges.map((edge, index) => edge.node);
+};
+
 export function SearchList<DataType, SortBy, Query, QueryVariables extends SearchQueryVariablesInput<SortBy>>({
     canSearch = true,
     handleAdd,
     hideRoles,
+    id,
     itemKeyPrefix,
     noResultsText = 'No results',
     searchPlaceholder = 'Search...',
@@ -140,16 +151,6 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         }
     }, [getPageData, pageData]);
 
-    /**
-     * Helper method for converting fetched data to an array of object data
-     */
-    const parseData = useCallback((data: any) => {
-        if (!data) return [];
-        const queryData: any = Object.values(data)[0];
-        if (!queryData || !queryData.edges) return [];
-        return queryData.edges.map((edge, index) => edge.node);
-    }, []);
-
     // Handle advanced search
     useEffect(() => {
         const searchParams = parseSearchParams(window.location.search)
@@ -186,8 +187,6 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
-        // Close advanced search dialog
-        // handleAdvancedSearchDialogClose();
         const parsedData = parseData(pageData);
         if (!parsedData) {
             setAllData([]);
@@ -198,7 +197,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         } else {
             setAllData(parsedData);
         }
-    }, [pageData, parseData, handleAdvancedSearchDialogClose]);
+    }, [pageData, handleAdvancedSearchDialogClose]);
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         return listToAutocomplete(allData as any, getUserLanguages(session)).sort((a: any, b: any) => {
@@ -209,12 +208,13 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     const listItems = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill(searchType),
         hideRoles,
-        items: allData as any,
+        items: (allData.length > 0 ? allData : parseData(pageData)) as any[],
         keyPrefix: itemKeyPrefix,
         loading,
         onClick: (item) => onObjectSelect(item),
         session: session,
-    }), [allData, hideRoles, itemKeyPrefix, loading, searchType, session, onObjectSelect])
+    }), [searchType, hideRoles, allData, pageData, itemKeyPrefix, loading, session, onObjectSelect])
+    console.log('listItems', new Date().getTime(), listItems, loading, pageData)
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
@@ -276,6 +276,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     const searchResultContainer = useMemo(() => {
         const hasItems = listItems.length > 0;
+        console.log('searchResultsContainer', new Date().getTime(), hasItems, listItems);
         return (
             <Box sx={{
                 marginTop: 2,
@@ -287,28 +288,19 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                     background: palette.background.paper,
                     borderRadius: '8px',
                     overflow: 'overlay',
-                } : {}),
-                ...(loading ? {
-                    minHeight: '50px',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                } : {
                     display: 'block',
-                })
+                } : {}),
             }}>
                 {
-                    loading ? (<CircularProgress color="secondary" />) : (
-                        hasItems ? (
-                            <List sx={{ padding: 0 }}>
-                                {listItems}
-                            </List>
-                        ) : (<Typography variant="h6" textAlign="center">{noResultsText}</Typography>)
-                    )
+                    hasItems ? (
+                        <List sx={{ padding: 0 }}>
+                            {listItems}
+                        </List>
+                    ) : (<Typography variant="h6" textAlign="center">{noResultsText}</Typography>)
                 }
             </Box>
         )
-    }, [listItems, loading, noResultsText, palette.background.paper]);
+    }, [listItems, noResultsText, palette.background.paper]);
 
     // Update query params
     useEffect(() => {
@@ -340,7 +332,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                 <Box sx={{ width: 'min(100%, 400px)' }}>
                     <AutocompleteSearchBar
-                        id={`search-bar`}
+                        id={`search-bar-${id}`}
                         placeholder={searchPlaceholder}
                         options={autocompleteOptions}
                         loading={loading}
@@ -366,7 +358,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         onClick={handleTimeOpen}
                         sx={{ ...searchButtonStyle }}
                     >
-                        <TimeIcon sx={{ fill: palette.secondary.main }} />
+                        <TimeIcon fill={palette.secondary.main} />
                         {timeFrameLabel}
                     </Box>
                 </Tooltip>

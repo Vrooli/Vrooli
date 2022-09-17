@@ -218,7 +218,15 @@ export const SettingsProfile = ({
                                 options={handles}
                                 onOpen={fetchHandles}
                                 onChange={(_, value) => { setSelectedHandle(value) }}
-                                renderInput={(params) => <TextField {...params} label="(ADA) Handle" />}
+                                renderInput={(params) => <TextField
+                                    {...params}
+                                    label="(ADA) Handle"
+                                    sx={{
+                                        '& .MuiInputBase-root': {
+                                            borderRadius: '5px 0 0 5px',
+                                        }
+                                    }}
+                                />}
                                 value={selectedHandle}
                                 sx={{
                                     width: '100%',

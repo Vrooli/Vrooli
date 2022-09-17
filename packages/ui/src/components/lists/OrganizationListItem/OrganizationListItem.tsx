@@ -6,8 +6,8 @@ import { APP_LINKS, StarFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { ReportButton, StarButton, TagList, TextLoading } from '..';
 import { getTranslation, listItemColor, placeholderColor } from 'utils';
-import { Apartment as ApartmentIcon } from '@mui/icons-material';
 import { smallHorizontalScrollbar } from '../styles';
+import { OrganizationIcon } from '@shared/icons';
 
 export function OrganizationListItem({
     data,
@@ -73,11 +73,7 @@ export function OrganizationListItem({
                             display: 'flex',
                         }}
                     >
-                        <ApartmentIcon sx={{
-                            fill: profileColors[1],
-                            width: '80%',
-                            height: '80%',
-                        }} />
+                        <OrganizationIcon fill={profileColors[1]} width="35px" height="35px" />
                     </Box>
                     <Stack
                         direction="column"

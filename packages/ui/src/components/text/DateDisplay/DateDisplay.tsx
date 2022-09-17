@@ -5,7 +5,7 @@
 import { Box, LinearProgress, Popover, Typography, useTheme } from "@mui/material";
 import { DateDisplayProps } from "../types";
 import { Today as CalendarIcon } from "@mui/icons-material";
-import { displayDate } from "utils";
+import { displayDate, usePress } from "utils";
 import { useCallback, useState } from "react";
 
 export const DateDisplay = ({
@@ -21,11 +21,16 @@ export const DateDisplay = ({
     // Full date popup
     const [anchorEl, setAnchorEl] = useState<any | null>(null);
     const isOpen = Boolean(anchorEl);
-    const open = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
-        ev.preventDefault();
-        setAnchorEl(ev.currentTarget ?? ev.target)
+    const open = useCallback((target: React.MouseEvent['target']) => {
+        setAnchorEl(target)
     }, []);
     const close = useCallback(() => setAnchorEl(null), []);
+
+    const pressEvents = usePress({ 
+        onHover: open,
+        onLongPress: open, 
+        onClick: open,
+    });
 
     if (loading) return (
         <Box {...props}>
@@ -82,9 +87,9 @@ export const DateDisplay = ({
             {/* Displayed date */}
             <Box
                 {...props}
+                {...pressEvents}
                 display="flex"
                 justifyContent="center"
-                onClick={open}
                 sx={{
                     ...(props.sx ?? {}),
                     cursor: 'pointer',

@@ -4,8 +4,8 @@ import { PreviewSwitchProps } from '../types';
 import { noSelect } from 'styles';
 import {
     Build as BuildIcon,
-    Visibility as PreviewIcon,
 } from '@mui/icons-material';
+import { VisibleIcon } from '@shared/icons';
 
 const grey = {
     400: '#BFC7CF',
@@ -19,7 +19,7 @@ export function PreviewSwitch({
     sx,
 }: PreviewSwitchProps) {
     const { palette } = useTheme();
-    const Icon = useMemo(() => isPreviewOn ? PreviewIcon : BuildIcon, [isPreviewOn]);
+    const Icon = useMemo(() => isPreviewOn ? VisibleIcon : BuildIcon, [isPreviewOn]);
 
     const handleClick = useCallback((ev: React.MouseEvent<any>) => {
         if (disabled) return;

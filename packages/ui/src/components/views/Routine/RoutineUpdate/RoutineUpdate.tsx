@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Grid, TextField, Typography } from "@mui/material"
+import { Box, CircularProgress, Grid, TextField } from "@mui/material"
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
@@ -9,7 +9,7 @@ import { routineUpdateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
 import { getLastUrlPart, InputShape, ObjectType, OutputShape, PubSub, RoutineTranslationShape, shapeRoutineUpdate, TagShape, updateArray } from "utils";
-import { GridSubmitButtons, LanguageInput, MarkdownInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
+import { GridSubmitButtons, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession, VersionInput } from "components";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
@@ -65,15 +65,7 @@ export const RoutineUpdate = ({
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
-    const addTag = useCallback((tag: TagShape) => {
-        setTags(t => [...t, tag]);
-    }, [setTags]);
-    const removeTag = useCallback((tag: TagShape) => {
-        setTags(tags => tags.filter(t => t.tag !== tag.tag));
-    }, [setTags]);
-    const clearTags = useCallback(() => {
-        setTags([]);
-    }, [setTags]);
+    const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     // Handle translations
     type Translation = RoutineTranslationShape;
@@ -101,13 +93,14 @@ export const RoutineUpdate = ({
     }, [getTranslationsUpdate]);
 
     useEffect(() => {
-        // setRelationships({
-        //     isComplete: routine?.isComplete ?? false,
-        //     isPrivate: routine?.isPrivate ?? false,
-        //     owner: routine?.owner ?? null,
-        //     parent: null,
-        //     // parent: routine?.parent ?? null, TODO
-        // });
+        setRelationships({
+            isComplete: routine?.isComplete ?? false,
+            isPrivate: routine?.isPrivate ?? false,
+            owner: routine?.owner ?? null,
+            parent: null,
+            // parent: routine?.parent ?? null, TODO
+            project: null, // TODO
+        });
         setInputsList(routine?.inputs ?? []);
         setOutputsList(routine?.outputs ?? []);
         setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
@@ -131,7 +124,7 @@ export const RoutineUpdate = ({
             version: routine?.version ?? '1.0.0',
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema,
+        validationSchema: validationSchema({ minVersion: routine?.version ?? '0.0.1' }),
         onSubmit: (values) => {
             if (!routine) {
                 PubSub.get().publishSnack({ message: 'Could not find existing routine data.', severity: 'error' });
@@ -220,14 +213,7 @@ export const RoutineUpdate = ({
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12}>
-                <Typography
-                    component="h1"
-                    variant="h3"
-                    sx={{
-                        textAlign: 'center',
-                        sx: { marginTop: 2, marginBottom: 2 },
-                    }}
-                >Update Routine</Typography>
+                <PageTitle title="Update Routine" />
             </Grid>
             <Grid item xs={12}>
                 <RelationshipButtons
@@ -290,16 +276,15 @@ export const RoutineUpdate = ({
                 />
             </Grid>
             <Grid item xs={12}>
-                <TextField
+                <VersionInput
                     fullWidth
                     id="version"
                     name="version"
-                    label="version"
                     value={formik.values.version}
                     onBlur={formik.handleBlur}
-                    onChange={formik.handleChange}
+                    onChange={(newVersion: string) => { formik.setFieldValue('version', newVersion) }}
                     error={formik.touched.version && Boolean(formik.errors.version)}
-                    helperText={formik.touched.version && formik.errors.version}
+                    helperText={formik.touched.version ? formik.errors.version : null}
                 />
             </Grid>
             <Grid item xs={12}>
@@ -338,11 +323,9 @@ export const RoutineUpdate = ({
             </Grid>
             <Grid item xs={12}>
                 <TagSelector
+                    handleTagsUpdate={handleTagsUpdate}
                     session={session}
                     tags={tags}
-                    onTagAdd={addTag}
-                    onTagRemove={removeTag}
-                    onTagsClear={clearTags}
                 />
             </Grid>
             <GridSubmitButtons
@@ -355,7 +338,7 @@ export const RoutineUpdate = ({
                 onSubmit={formik.handleSubmit}
             />
         </Grid>
-    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, formik, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, tags, addTag, removeTag, clearTags, onCancel]);
+    ), [formik, onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, onCancel]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{
