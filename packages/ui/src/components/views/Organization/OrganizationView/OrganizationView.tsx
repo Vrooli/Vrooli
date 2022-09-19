@@ -7,7 +7,6 @@ import { organization, organizationVariables } from "graphql/generated/organizat
 import { organizationQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
-    Apartment as ProfileIcon,
     CardGiftcard as DonateIcon,
     Share as ShareIcon,
 } from "@mui/icons-material";
@@ -20,7 +19,7 @@ import { getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation
 import { ResourceListVertical } from "components/lists";
 import { validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { EditIcon, EllipsisIcon } from "@shared/icons";
+import { EditIcon, EllipsisIcon, OrganizationIcon } from "@shared/icons";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 
 enum TabOptions {
@@ -255,11 +254,7 @@ export const OrganizationView = ({
                     transform: 'translateX(-50%)',
                 }}
             >
-                <ProfileIcon sx={{
-                    fill: profileColors[1],
-                    width: '80%',
-                    height: '80%',
-                }} />
+                <OrganizationIcon fill={profileColors[1]} width='80%' height='80%' />
             </Box>
             <Tooltip title="See all options">
                 <IconButton

@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
 import {
-    AccountCircle as ProfileIcon,
     PersonAdd as RegisterIcon,
 } from '@mui/icons-material';
 import { APP_LINKS as LINKS } from '@shared/consts';
@@ -15,7 +14,7 @@ import {
 } from '@mui/material';
 import { openLink } from 'utils';
 import { Session, SetLocation } from 'types';
-import { DevelopIcon, HomeIcon, LearnIcon, ResearchIcon, SearchIcon } from '@shared/icons';
+import { DevelopIcon, HomeIcon, LearnIcon, ProfileIcon, ResearchIcon, SearchIcon } from '@shared/icons';
 
 export enum ACTION_TAGS {
     Home = 'Home',

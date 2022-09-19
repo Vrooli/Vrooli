@@ -2,8 +2,6 @@
  * Displays nodes associated with a routine, but that are not linked to any other nodes.
  */
 import {
-    ExpandLess as ShrinkIcon,
-    ExpandMore as ExpandIcon,
     Delete as DeleteIcon,
 } from '@mui/icons-material';
 import {
@@ -21,7 +19,7 @@ import { NodeType } from 'graphql/generated/globalTypes';
 import { Node, NodeEnd, NodeRoutineList } from 'types';
 import { EndNode, RedirectNode, RoutineListNode } from 'components';
 import { getTranslation } from 'utils';
-import { UnlinkedNodesIcon } from '@shared/icons';
+import { ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from '@shared/icons';
 
 export const UnlinkedNodesDialog = ({
     handleNodeDelete,
@@ -118,7 +116,7 @@ export const UnlinkedNodesDialog = ({
                     <Typography variant="h6" sx={{ ...noSelect, marginLeft: '8px' }}>{open ? 'Unlinked ' : ''}({nodes.length})</Typography>
                     <Tooltip title={open ? 'Shrink' : 'Expand'}>
                         <IconButton edge="end" color="inherit" aria-label={open ? 'Shrink' : 'Expand'}>
-                            {open ? <ShrinkIcon sx={{ fill: palette.secondary.contrastText }} /> : <ExpandIcon sx={{ fill: palette.secondary.contrastText }} />}
+                            {open ? <ExpandLessIcon fill={palette.secondary.contrastText} /> : <ExpandMoreIcon fill={palette.secondary.contrastText} />}
                         </IconButton>
                     </Tooltip>
                 </Stack>

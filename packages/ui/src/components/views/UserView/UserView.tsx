@@ -8,7 +8,6 @@ import { userQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     CardGiftcard as DonateIcon,
-    Person as ProfileIcon,
     Share as ShareIcon,
 } from "@mui/icons-material";
 import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton, SelectRoutineTypeMenu } from "components";
@@ -19,7 +18,7 @@ import { ResourceList, User } from "types";
 import { SearchListGenerator } from "components/lists/types";
 import { validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { EditIcon, EllipsisIcon } from "@shared/icons";
+import { EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 
 enum TabOptions {
@@ -261,11 +260,7 @@ export const UserView = ({
                     transform: 'translateX(-50%)',
                 }}
             >
-                <ProfileIcon sx={{
-                    fill: profileColors[1],
-                    width: '80%',
-                    height: '80%',
-                }} />
+                <UserIcon fill={profileColors[1]} width='80%' height='80%' />
             </Box>
             <Tooltip title="See all options">
                 <IconButton

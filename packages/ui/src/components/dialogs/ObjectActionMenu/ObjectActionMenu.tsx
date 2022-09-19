@@ -15,14 +15,12 @@ import {
     ForkRight as ForkIcon,
     Flag as ReportIcon,
     Share as ShareIcon,
-    StarOutline as StarIcon,
-    Star as UnstarIcon,
     QueryStats as StatsIcon,
 } from "@mui/icons-material";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
 import { PubSub } from "utils";
 import { CopyType, ForkType } from "graphql/generated/globalTypes";
-import { DownvoteWideIcon, EditIcon, SearchIcon, UpvoteWideIcon } from "@shared/icons";
+import { DownvoteWideIcon, EditIcon, SearchIcon, StarFilledIcon, StarOutlineIcon, UpvoteWideIcon } from "@shared/icons";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
 
 /**
@@ -37,8 +35,8 @@ const allOptionsMap: { [key in ObjectAction]: [string, any, string, boolean] } =
     [ObjectAction.Fork]: ['Fork', ForkIcon, "default", false],
     [ObjectAction.Report]: ['Report', ReportIcon, "default", false],
     [ObjectAction.Share]: ['Share', ShareIcon, "default", false],
-    [ObjectAction.Star]: ['Star', StarIcon, "#cbae30", false],
-    [ObjectAction.StarUndo]: ['Unstar', UnstarIcon, "#cbae30", false],
+    [ObjectAction.Star]: ['Star', StarFilledIcon, "#cbae30", false],
+    [ObjectAction.StarUndo]: ['Unstar', StarOutlineIcon, "#cbae30", false],
     [ObjectAction.Stats]: ['Stats', StatsIcon, "default", true],
     [ObjectAction.VoteDown]: ['Downvote', DownvoteWideIcon, "default", false],
     [ObjectAction.VoteUp]: ['Upvote', UpvoteWideIcon, "default", false],

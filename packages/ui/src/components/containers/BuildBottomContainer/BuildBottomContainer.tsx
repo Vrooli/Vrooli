@@ -1,9 +1,5 @@
-import { Box, Dialog, Grid, IconButton, Slider, Stack, Tooltip, useTheme } from '@mui/material';
+import { Box, Dialog, Grid, IconButton, Palette, Slider, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
-import {
-    Pause as PauseIcon,
-    PlayCircle as RunIcon,
-} from '@mui/icons-material';
 import { BuildRunState, setSearchParams } from 'utils';
 import { BuildBottomContainerProps } from '../types';
 import { useLocation } from '@shared/route';
@@ -11,6 +7,24 @@ import { RunPickerMenu, UpTransition } from 'components/dialogs';
 import { RunView } from 'components/views';
 import { Run } from 'types';
 import { GridSubmitButtons } from 'components/buttons';
+import { PauseIcon, PlayIcon } from '@shared/icons';
+
+const iconButtonProps = {
+    background: '#e4efee', 
+    padding: 0, 
+    width: '48px', 
+    height: '48px',
+    '&:hover': {
+        background: '#e4efee',
+        filter: 'brightness(1.1)',
+    },
+}
+
+const iconProps = (palette: Palette) => ({
+    fill: palette.primary.dark,
+    width: '30px',
+    height: '30px',
+})
 
 export const BuildBottomContainer = ({
     canSubmitMutate,
@@ -130,14 +144,14 @@ export const BuildBottomContainer = ({
                     </Tooltip> */}
                     {runState === BuildRunState.Running ? (
                         <Tooltip title="Pause Routine" placement="top">
-                            <IconButton aria-label="pause-routine" size='large' sx={{ padding: 0, width: '48px', height: '48px' }}>
-                                <PauseIcon sx={{ fill: '#e4efee', marginBottom: 'auto', width: '48px', height: '48px' }} />
+                            <IconButton aria-label="pause-routine" size='large' sx={iconButtonProps}>
+                                <PauseIcon {...iconProps(palette)} />
                             </IconButton>
                         </Tooltip>
                     ) : (
                         <Tooltip title="Run Routine" placement="top">
-                            <IconButton aria-label="run-routine" size='large' onClick={runRoutine} sx={{ padding: 0, width: '48px', height: '48px' }}>
-                                <RunIcon sx={{ fill: '#e4efee', marginBottom: 'auto', width: '48px', height: '48px' }} />
+                            <IconButton aria-label="run-routine" size='large' onClick={runRoutine} sx={iconButtonProps}>
+                                <PlayIcon {...iconProps(palette)} />
                             </IconButton>
                         </Tooltip>
                     )}
@@ -148,7 +162,7 @@ export const BuildBottomContainer = ({
                     </Tooltip> */}
                 </Stack>
             )
-    }, [canCancelMutate, canSubmitMutate, errors, handleCancel, handleSubmit, isAdding, isEditing, loading, runRoutine, runState]);
+    }, [canCancelMutate, canSubmitMutate, errors, handleCancel, handleSubmit, isAdding, isEditing, loading, palette, runRoutine, runState]);
 
     return (
         <Box sx={{

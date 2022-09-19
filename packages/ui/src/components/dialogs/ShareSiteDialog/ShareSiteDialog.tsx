@@ -7,11 +7,10 @@ import { ShareSiteDialogProps } from '../types';
 import {
     ContentCopy as CopyIcon,
     Email as EmailIcon,
-    LinkedIn as LinkedInIcon,
-    Twitter as TwitterIcon
 } from '@mui/icons-material';
 import { useState } from 'react';
 import QRCode from "react-qr-code";
+import { LinkedInIcon, TwitterIcon } from '@shared/icons';
 
 // Invite link
 const inviteLink = `https://vrooli.com${APP_LINKS.Start}`;
@@ -74,22 +73,22 @@ export const ShareSiteDialog = ({
                 <Stack direction="column" spacing={1} mb={2} sx={{ alignItems: 'center' }}>
                     <Button 
                         onClick={copyInviteLink} 
-                        startIcon={<CopyIcon />}
+                        startIcon={<CopyIcon fill="black" />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
                     >Copy link</Button>
                     <Button 
                         onClick={() => openLink(`mailto:?subject=${encodeURIComponent(postTitle)}&body=${encodeURIComponent(postText)}`)} 
-                        startIcon={<EmailIcon />}
+                        startIcon={<EmailIcon fill="black" />}
                         sx={{ ...buttonProps }}
                     >Share by email</Button>
                     <Button 
                         onClick={() => openLink(`https://twitter.com/intent/tweet?text=${encodeURIComponent(postText)}`)}
-                        startIcon={<TwitterIcon />} 
+                        startIcon={<TwitterIcon fill="black" />} 
                         sx={{ ...buttonProps }}
                     >Tweet about us</Button>
                     <Button 
                         onClick={() => openLink(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(inviteLink)}&title=${encodeURIComponent(postTitle)}&summary=${encodeURIComponent(postText)}`)} 
-                        startIcon={<LinkedInIcon />}
+                        startIcon={<LinkedInIcon fill="black" />}
                         sx={{ ...buttonProps }}
                     >Post on LinkedIn</Button>
                     <Box sx={{

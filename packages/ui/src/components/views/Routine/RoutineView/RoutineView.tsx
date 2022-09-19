@@ -8,7 +8,6 @@ import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     AccountTree as GraphIcon,
     DoneAll as MarkAsCompleteIcon,
-    PlayCircle as StartIcon,
 } from "@mui/icons-material";
 import { ObjectActionMenu, BuildView, ReportsLink, ResourceListHorizontal, RunPickerMenu, RunView, SelectLanguageMenu, StarButton, StatusButton, UpTransition, UpvoteDownvote, OwnerLabel } from "components";
 import { RoutineViewProps } from "../types";
@@ -25,7 +24,7 @@ import { useFormik } from "formik";
 import { FieldData } from "forms/types";
 import { generateInputWithLabel } from "forms/generators";
 import { CommentContainer, ContentCollapse, TextCollapse } from "components/containers";
-import { EditIcon, EllipsisIcon } from "@shared/icons";
+import { EditIcon, EllipsisIcon, PlayIcon } from "@shared/icons";
 
 const statsHelpText =
     `Statistics are calculated to measure various aspects of a routine. 
@@ -308,8 +307,8 @@ export const RoutineView = ({
                 {/* Show continue if routine already has progress TODO */}
                 {status === Status.Valid && <Grid item xs={12} sm={6}>
                     {routine && routine.runs?.length > 0 ?
-                        <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Continue</Button> :
-                        <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
+                        <Button startIcon={<PlayIcon />} fullWidth onClick={runRoutine} color="secondary">Continue</Button> :
+                        <Button startIcon={<PlayIcon />} fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
                     }
                 </Grid>}
             </Grid>

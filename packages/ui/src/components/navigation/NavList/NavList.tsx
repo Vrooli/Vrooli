@@ -2,9 +2,6 @@ import {
     ContactInfo,
     PopupMenu
 } from 'components';
-import {
-    AccountCircle as ProfileIcon,
-} from '@mui/icons-material';
 import { Action, actionsToMenu, ACTION_TAGS, getUserActions, openLink } from 'utils';
 import { Button, Container, IconButton, Theme, useTheme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
@@ -12,6 +9,7 @@ import { useLocation } from '@shared/route';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NavListProps } from '../types';
 import { APP_LINKS } from '@shared/consts';
+import { ProfileIcon } from '@shared/icons';
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
@@ -97,7 +95,7 @@ export const NavList = ({
                     onClick={() => { setLocation(APP_LINKS.Profile) }}
                     aria-label="profile"
                 >
-                    <ProfileIcon sx={{ fill: 'white', width: '40px', height: '40px' }} />
+                    <ProfileIcon fill='white' width='40px' height='40px' />
                 </IconButton>
             )}
         </Container>

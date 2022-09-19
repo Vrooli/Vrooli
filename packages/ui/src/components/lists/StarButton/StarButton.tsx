@@ -1,16 +1,13 @@
-import { ListItemText, Stack, Tooltip } from '@mui/material';
+import { Box, ListItemText, Stack, Tooltip } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StarButtonProps } from '../types';
-import {
-    Star as IsStarredIcon,
-    StarBorder as IsNotStarredIcon,
-} from '@mui/icons-material';
 import { multiLineEllipsis } from 'styles';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { useMutation } from '@apollo/client';
 import { star, starVariables } from 'graphql/generated/star';
 import { starMutation } from 'graphql/mutation';
 import { validate as uuidValidate } from 'uuid';
+import { StarFilledIcon, StarOutlineIcon } from '@shared/icons';
 
 export const StarButton = ({
     isStar = false,
@@ -53,7 +50,7 @@ export const StarButton = ({
         })
     }, [session.id, internalIsStar, mutation, starFor, objectId, onChange]);
 
-    const Icon = internalIsStar ? IsStarredIcon : IsNotStarredIcon;
+    const Icon = internalIsStar ? StarFilledIcon : StarOutlineIcon;
     const tooltip = internalIsStar ? 'Remove from favorites' : 'Add to favorites';
     const color = session?.id ? '#cbae30' : 'rgb(189 189 189)';
     return (
@@ -68,7 +65,9 @@ export const StarButton = ({
             }}
         >
             <Tooltip placement={tooltipPlacement} title={tooltip}>
-                <Icon onClick={handleClick} sx={{ fill: color, cursor: session?.id ? 'pointer' : 'default' }} />
+                <Box onClick={handleClick} sx={{ display: 'contents', cursor: session?.id ? 'pointer' : 'default' }}>
+                    <Icon fill={color} />
+                </Box>
             </Tooltip>
             {showStars && internalStars !== null && <ListItemText
                 primary={internalStars}

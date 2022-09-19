@@ -8,8 +8,6 @@ import {
     Delete as DeleteIcon,
     ForkRight as ForkIcon,
     QueryStats as StatsIcon,
-    StarOutline as StarIcon,
-    Star as UnstarIcon,
 } from '@mui/icons-material';
 import {
     Box,
@@ -40,7 +38,7 @@ import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
 import { copyMutation, forkMutation, starMutation, voteMutation } from 'graphql/mutation';
 import { v4 as uuid } from 'uuid';
-import { CloseIcon, DownvoteWideIcon, InfoIcon, UpvoteWideIcon } from '@shared/icons';
+import { CloseIcon, DownvoteWideIcon, InfoIcon, StarFilledIcon, StarOutlineIcon, UpvoteWideIcon } from '@shared/icons';
 import { requiredErrorMessage, title as titleValidation } from '@shared/validation';
 
 export const BuildInfoDialog = ({
@@ -175,8 +173,8 @@ export const BuildInfoDialog = ({
                 [ObjectAction.VoteUp, 'Upvote', UpvoteWideIcon, null]
             );
             results.push(routine?.isStarred ?
-                [ObjectAction.StarUndo, 'Unstar', UnstarIcon, null] :
-                [ObjectAction.Star, 'Star', StarIcon, null]
+                [ObjectAction.StarUndo, 'Unstar', StarOutlineIcon, null] :
+                [ObjectAction.Star, 'Star', StarFilledIcon, null]
             );
         }
         // If not editing, show "Stats" and "Fork" buttons

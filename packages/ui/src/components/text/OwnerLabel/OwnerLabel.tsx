@@ -61,15 +61,15 @@ export const OwnerLabel = ({
     }, [confirmOpen, toOwner]);
 
     return (
-        <Tooltip title={`Press to view ${objectType === ObjectType.Standard ? 'creator' : 'owner'}`}>
-            <Link
-                href={ownerLink}
-                onClick={handleClick}
-                style={{
-                    minWidth: 'auto',
-                    padding: 0,
-                }}
-            >
+        <Link
+            href={ownerLink}
+            onClick={handleClick}
+            style={{
+                minWidth: 'auto',
+                padding: 0,
+            }}
+        >
+            <Tooltip title={`Press to view ${objectType === ObjectType.Standard ? 'creator' : 'owner'}`}>
                 <Typography
                     variant="body1"
                     sx={{
@@ -85,7 +85,7 @@ export const OwnerLabel = ({
                 >
                     {ownerLabel}
                 </Typography>
-            </Link>
-        </Tooltip>
+            </Tooltip>
+        </Link>
     )
 }

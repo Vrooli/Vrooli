@@ -1,9 +1,8 @@
 import {
-    Apartment as OrganizationIcon,
-    Person as UserIcon,
     UnfoldMore as OpenIcon,
 } from '@mui/icons-material';
 import { Box, IconButton, Stack, useTheme } from '@mui/material';
+import { OrganizationIcon, UserIcon } from '@shared/icons';
 import { useMemo } from 'react';
 import { ObjectType, placeholderColor } from 'utils';
 import { CommentConnectorProps } from '../types';
@@ -46,11 +45,7 @@ export const CommentConnector = ({
                 display: 'flex',
             }}
         >
-            <ProfileIcon sx={{
-                fill: profileColors[1],
-                width: '80%',
-                height: '80%',
-            }} />
+            <ProfileIcon fill={profileColors[1]} width='80%' height='80%' />
         </Box>
     ), [ProfileIcon, profileColors]);
 

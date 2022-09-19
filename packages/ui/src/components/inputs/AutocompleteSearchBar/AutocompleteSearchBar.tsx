@@ -3,7 +3,7 @@ import { AutocompleteSearchBarProps } from '../types';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
 import { AutocompleteOption } from 'types';
-import { ActionIcon, HistoryIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, StandardIcon, SvgProps, UserIcon } from '@shared/icons';
+import { ActionIcon, HistoryIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, StandardIcon, StarFilledIcon, SvgProps, UserIcon, VisibleIcon } from '@shared/icons';
 import { Delete as DeleteIcon } from '@mui/icons-material';
 import { getLocalStorageKeys, ObjectType, performAction } from 'utils';
 import { StarFor } from '@shared/consts';
@@ -104,14 +104,23 @@ const typeToIcon = (type: string, fill: string): JSX.Element | null => {
         case ObjectType.Routine:
             Icon = RoutineIcon;
             break;
+        case ObjectType.Run:
+            Icon = PlayIcon;
+            break;
         case 'Shortcut':
             Icon = ShortcutIcon;
             break;
         case ObjectType.Standard:
             Icon = StandardIcon;
             break;
+        case ObjectType.Star:
+            Icon = StarFilledIcon;
+            break;
         case ObjectType.User:
             Icon = UserIcon;
+            break;
+        case ObjectType.View:
+            Icon = VisibleIcon;
             break;
     }
     return Icon ? <Icon fill={fill} /> : null;

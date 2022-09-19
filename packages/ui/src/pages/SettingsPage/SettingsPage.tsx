@@ -5,7 +5,6 @@ import {
     Lock as AuthenticationIcon,
     LightMode as DisplayIcon,
     Notifications as NotificationsIcon,
-    AccountCircle as ProfileIcon,
     SvgIconComponent
 } from '@mui/icons-material';
 import { useLazyQuery } from '@apollo/client';
@@ -18,6 +17,7 @@ import { SettingsAuthentication } from 'components/views/SettingsAuthentication/
 import { SettingsDisplay } from 'components/views/SettingsDisplay/SettingsDisplay';
 import { SettingsNotifications } from 'components/views/SettingsNotifications/SettingsNotifications';
 import { useReactSearch } from 'utils';
+import { ProfileIcon } from '@shared/icons';
 
 /**
  * All settings forms. Same as their route names.
@@ -29,7 +29,7 @@ enum SettingsForm {
     Authentication = 'authentication',
 }
 
-const settingPages: { [x: string]: [SettingsForm, string, SvgIconComponent] } = {
+const settingPages: { [x: string]: [SettingsForm, string, any] } = {
     [SettingsForm.Profile]: [SettingsForm.Profile, 'Profile', ProfileIcon],
     [SettingsForm.Display]: [SettingsForm.Display, 'Display', DisplayIcon],
     [SettingsForm.Notifications]: [SettingsForm.Notifications, 'Notifications', NotificationsIcon],
@@ -74,7 +74,7 @@ export function SettingsPage({
                     }}
                 >
                     <ListItemIcon>
-                        <Icon />
+                        <Icon fill='rgba(0, 0, 0, 0.54)' />
                     </ListItemIcon>
                 </ListItem>
             )

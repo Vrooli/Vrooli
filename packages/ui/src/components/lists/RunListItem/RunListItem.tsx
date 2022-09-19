@@ -7,8 +7,8 @@ import { APP_LINKS, RunSortBy, StarFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { StarButton, TagList, TextLoading } from '..';
 import { displayDate, getTranslation, LabelledSortOption, labelledSortOptions, listItemColor } from 'utils';
-import { Apartment as ApartmentIcon } from '@mui/icons-material';
 import { RunStatus } from 'graphql/generated/globalTypes';
+import { RoutineIcon } from '@shared/icons';
 
 // Color options for profile picture
 // [background color, silhouette color]
@@ -103,11 +103,7 @@ export function RunListItem({
                             display: { xs: 'none', sm: 'flex' },
                         }}
                     >
-                        <ApartmentIcon sx={{
-                            fill: profileColors[1],
-                            width: '80%',
-                            height: '80%',
-                        }} />
+                        <RoutineIcon fill={profileColors[1]} width='80%' height='80%' />
                     </Box>
                     <Stack
                         direction="column"

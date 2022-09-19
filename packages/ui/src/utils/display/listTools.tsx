@@ -34,12 +34,19 @@ export const projectOptionLabel = (o: ListProject, languages: readonly string[])
 export const routineOptionLabel = (o: ListRoutine, languages: readonly string[]) => getTranslation(o, 'title', languages, true) ?? '';
 
 /**
- * Gets label for run, from its title
+ * Gets label for run, using title and time started
  * @param o Run object
  * @param languages User languages
  * @returns label
  */
-export const runOptionLabel = (o: ListRun, languages: readonly string[]) => o.title ?? getTranslation(o.routine, 'title', languages, true) ?? '';
+export const runOptionLabel = (o: ListRun, languages: readonly string[]) => {
+    const title = o.title ?? getTranslation(o.routine, 'title', languages, true) ?? '';
+    const date = o.timeStarted ? (new Date(o.timeStarted)) : null;
+    if (date) {
+        return `${title} (${date.toLocaleDateString()} ${date.toLocaleTimeString()})`;
+    }
+    return title;
+}
 
 /**
 * Gets label for routine, from its name
