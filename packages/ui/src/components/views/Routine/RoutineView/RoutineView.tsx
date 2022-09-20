@@ -9,7 +9,7 @@ import {
     AccountTree as GraphIcon,
     DoneAll as MarkAsCompleteIcon,
 } from "@mui/icons-material";
-import { ObjectActionMenu, BuildView, ReportsLink, ResourceListHorizontal, RunPickerMenu, RunView, SelectLanguageMenu, StarButton, StatusButton, UpTransition, UpvoteDownvote, OwnerLabel } from "components";
+import { ObjectActionMenu, BuildView, ReportsLink, ResourceListHorizontal, RunPickerMenu, RunView, SelectLanguageMenu, StarButton, StatusButton, UpTransition, UpvoteDownvote, OwnerLabel, VersionDisplay } from "components";
 import { RoutineViewProps } from "../types";
 import { formikToRunInputs, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, useReactSearch } from "utils";
 import { Routine, Run } from "types";
@@ -533,7 +533,10 @@ export const RoutineView = ({
                                 justifyContent: 'center',
                             }}>
                                 <OwnerLabel objectType={ObjectType.Routine} owner={routine?.owner} session={session} />
-                                <Typography variant="body1"> - {routine?.version}</Typography>
+                                <VersionDisplay
+                                    currentVersion={routine?.version}
+                                    prefix={" - "}
+                                />
                                 <SelectLanguageMenu
                                     availableLanguages={availableLanguages}
                                     canDropdownOpen={availableLanguages.length > 1}

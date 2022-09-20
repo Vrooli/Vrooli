@@ -9,6 +9,7 @@ export * from './LinkDialog/LinkDialog';
 export * from './ListMenu/ListMenu';
 export * from './MenuTitle/MenuTitle';
 export * from './ObjectActionMenu/ObjectActionMenu';
+export * from './PopoverWithArrow/PopoverWithArrow';
 export * from './ReportDialog/ReportDialog';
 export * from './ResourceDialog/ResourceDialog';
 export * from './RunPickerMenu/RunPickerMenu';

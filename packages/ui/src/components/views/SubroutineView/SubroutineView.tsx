@@ -1,5 +1,5 @@
 import { Box, CircularProgress, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { ObjectActionMenu, OwnerLabel, ResourceListHorizontal, TextCollapse } from "components";
+import { ObjectActionMenu, OwnerLabel, ResourceListHorizontal, TextCollapse, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { containerShadow } from "styles";
 import { formikToRunInputs, getTranslation, getUserLanguages, ObjectType, PubSub, runInputsToFormik, standardToFieldData } from "utils";
@@ -40,7 +40,7 @@ export const SubroutineView = ({
         }
     }, [internalRoutine, session.languages]);
 
-    const confirmLeave = useCallback((toOwner: () => any) => {
+    const confirmLeave = useCallback((callback: () => any) => {
         // Confirmation dialog for leaving routine
         PubSub.get().publishAlertDialog({
             message: 'Are you sure you want to stop this routine? You can continue it later.',
@@ -49,8 +49,8 @@ export const SubroutineView = ({
                     text: 'Yes', onClick: () => {
                         // Save progress
                         handleSaveProgress();
-                        // Go to owner
-                        toOwner();
+                        // Trigger callback
+                        callback();
                     }
                 },
                 { text: 'Cancel' },
@@ -290,7 +290,11 @@ export const SubroutineView = ({
                         owner={internalRoutine?.isInternal ? owner : internalRoutine?.owner}
                         session={session}
                     />
-                    <Typography variant="body1"> - {internalRoutine?.version}</Typography>
+                    <VersionDisplay
+                        confirmVersionChange={confirmLeave}
+                        currentVersion={internalRoutine?.version}
+                        prefix={" - "}
+                    />
                 </Stack>
             </Stack>
             {/* Stack that shows routine info, such as resources, description, inputs/outputs */}

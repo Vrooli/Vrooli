@@ -5,7 +5,7 @@ import { useLazyQuery } from "@apollo/client";
 import { standard, standardVariables } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, BaseStandardInput, CommentContainer, ResourceListHorizontal, SelectLanguageMenu, StarButton, TextCollapse, OwnerLabel } from "components";
+import { ObjectActionMenu, BaseStandardInput, CommentContainer, ResourceListHorizontal, SelectLanguageMenu, StarButton, TextCollapse, OwnerLabel, VersionDisplay } from "components";
 import { StandardViewProps } from "../types";
 import { getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData } from "utils";
 import { Standard } from "types";
@@ -308,7 +308,10 @@ export const StandardView = ({
                                 tooltipPlacement="bottom"
                             />}
                             <OwnerLabel objectType={ObjectType.Standard} owner={standard?.creator} session={session} />
-                            <Typography variant="body1"> - {standard?.version}</Typography>
+                            <VersionDisplay
+                                currentVersion={standard?.version}
+                                prefix={" - "}
+                            />
                             <SelectLanguageMenu
                                 availableLanguages={availableLanguages}
                                 canDropdownOpen={availableLanguages.length > 1}

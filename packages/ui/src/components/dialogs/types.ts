@@ -1,4 +1,4 @@
-import { DialogProps } from '@mui/material';
+import { DialogProps, PopoverProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
 import { DeleteOneType } from '@shared/consts';
@@ -374,4 +374,14 @@ export interface WalletSelectDialogProps {
     onClose: (selectedKey: string | null) => any;
     open: boolean;
     zIndex: number;
+}
+
+export interface PopoverWithArrowProps extends Omit<PopoverProps, 'open' | 'sx'> {
+    anchorEl: HTMLElement | null;
+    children: React.ReactNode;
+    handleClose: () => any;
+    sxs?: {
+        root?: { [x: string]: any };
+        content?: { [x: string]: any };
+    }
 }

@@ -35,8 +35,9 @@ export interface TextShrinkProps extends TypographyProps {
 }
 
 export interface VersionDisplayProps extends BoxProps {
-    handleVersionChange: (version: number) => void;
+    confirmVersionChange?: (callback: () => void) => void;
+    currentVersion: string | null | undefined;
     loading?: boolean;
-    showIcon?: boolean;
+    prefix?: string;
     versions?: string[];
 }

@@ -29,7 +29,7 @@ import { fork, forkVariables } from 'graphql/generated/fork';
 import { star, starVariables } from 'graphql/generated/star';
 import { vote, voteVariables } from 'graphql/generated/vote';
 import { ObjectAction, BuildInfoDialogProps } from '../types';
-import { DeleteDialog, EditableLabel, EditableTextCollapse, LanguageInput, OwnerLabel, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession, VersionInput } from 'components';
+import { DeleteDialog, EditableLabel, EditableTextCollapse, LanguageInput, OwnerLabel, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession, VersionDisplay, VersionInput } from 'components';
 import { AllLanguages, getLanguageSubtag, getTranslation, ObjectType, PubSub } from 'utils';
 import { useLocation } from '@shared/route';
 import { APP_LINKS, CopyType, DeleteOneType, ForkType, StarFor, VoteFor } from '@shared/consts';
@@ -357,7 +357,10 @@ export const BuildInfoDialog = ({
                         />
                         {!isEditing && <Stack direction="row" spacing={1}>
                             <OwnerLabel objectType={ObjectType.Routine} owner={routine?.owner} session={session} />
-                            <Typography variant="body1"> - {routine?.version}</Typography>
+                            <VersionDisplay
+                                currentVersion={routine?.version}
+                                prefix={" - "}
+                            />
                         </Stack>}
                     </Stack>
                     <IconButton onClick={closeMenu} sx={{

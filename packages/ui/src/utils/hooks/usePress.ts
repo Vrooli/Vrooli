@@ -77,7 +77,6 @@ export const usePress = ({
     const isPressed = useRef<boolean>(false);
 
     const hover = useCallback((event: React.MouseEvent | React.TouchEvent) => {
-        console.log('usepress hover', isPressed.current, event);
         // Ignore if pressing
         if (isPressed.current) return;
         // Cancel if already triggered
@@ -94,7 +93,6 @@ export const usePress = ({
     }, [onHover, delay]);
 
     const start = useCallback((event: React.MouseEvent | React.TouchEvent) => {
-        console.log("start", event);
         // Cancel hover timeout
         if (hoverTimeout.current) {
             clearTimeout(hoverTimeout.current);
@@ -163,10 +161,8 @@ export const usePress = ({
             target.current
         ) {
             if (isRightClick.current) {
-                console.log('usepress onrightclick');
                 typeof onRightClick === "function" && onRightClick(target.current);
             } else {
-                console.log('usepress onclick');
                 typeof onClick === "function" && onClick(target.current);
             }
         }
