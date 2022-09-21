@@ -1,12 +1,6 @@
-import { StarFor, VoteFor } from '@shared/consts';
+import { VoteFor } from '@shared/consts';
 import { SearchType } from 'components/dialogs';
 import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListUser, Session, Tag } from 'types';
-
-export interface CommentButtonProps {
-    commentsCount: number | null; // Defaults to 0
-    object: { id: string, handle?: string | null, __typename: string } | null;
-    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
-}
 
 export interface ObjectListItemProps<DataType> {
     data: DataType | null;
@@ -58,12 +52,6 @@ export interface DateRangeMenuProps {
     onSubmit: (after?: Date | undefined, before?: Date | undefined) => void;
 }
 
-export interface ReportButtonProps {
-    reportsCount: number | null; // Defaults to 0
-    object: { id: string, __typename: string } | null;
-    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
-}
-
 /**
  * Return type for a SearchList generator function
  */
@@ -102,18 +90,6 @@ export interface SearchQueryVariablesInput<SortBy> {
     searchString?: string | null;
     after?: string | null;
     take?: number | null;
-}
-
-export interface StarButtonProps {
-    isStar?: boolean | null; // Defaults to false
-    objectId: string;
-    onChange?: (isStar: boolean, event?: any) => void;
-    session: Session;
-    showStars?: boolean; // Defaults to true. If false, the number of stars is not shown
-    starFor: StarFor;
-    stars?: number | null; // Defaults to 0
-    sxs?: { root?: { [key: string]: any } };
-    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 }
 
 export interface StatsListProps {

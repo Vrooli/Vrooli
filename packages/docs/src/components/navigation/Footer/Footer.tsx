@@ -10,14 +10,13 @@ import {
     Tooltip,
     useTheme,
 } from '@mui/material';
-import { DiscordIcon, GitHubIcon, TwitterIcon } from '@shared/icons';
+import { DiscordIcon, GitHubIcon, SvgComponent, TwitterIcon } from '@shared/icons';
 import { CopyrightBreadcrumbs } from 'components';
 import { useLocation } from '@shared/route';
 import { openLink } from 'utils';
 import { useMemo } from 'react';
-import { SvgProps } from '@shared/icons';
 
-const contactLinks: [string, string, string, string, (props: SvgProps) => JSX.Element][] = [
+const contactLinks: [string, string, string, string, SvgComponent][] = [
     ['contact-twitter', 'Find us on Twitter', SOCIALS.Twitter, 'Twitter', TwitterIcon],
     ['contact-discord', 'Have a question or feedback? Post it on our Discord!', SOCIALS.Discord, 'Join our Discord', DiscordIcon],
     ['contact-github', 'Check out the source code, or contribute :)', SOCIALS.GitHub, 'Source Code', GitHubIcon],

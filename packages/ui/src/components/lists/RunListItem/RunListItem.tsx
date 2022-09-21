@@ -5,10 +5,11 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { APP_LINKS, RunSortBy, StarFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { StarButton, TagList, TextLoading } from '..';
+import { TagList, TextLoading } from '..';
 import { displayDate, getTranslation, LabelledSortOption, labelledSortOptions, listItemColor } from 'utils';
 import { RunStatus } from 'graphql/generated/globalTypes';
 import { RoutineIcon } from '@shared/icons';
+import { StarButton } from 'components/buttons';
 
 // Color options for profile picture
 // [background color, silhouette color]

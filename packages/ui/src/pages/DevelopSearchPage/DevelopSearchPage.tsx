@@ -2,7 +2,7 @@
  * Search page for personal objects (active runs, completed runs, views, stars)
  */
 import { Box, Stack, Tab, Tabs, Typography } from "@mui/material";
-import { SearchList } from "components";
+import { PageContainer, SearchList } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { useLocation } from '@shared/route';
 import { DevelopSearchPageProps } from "../types";
@@ -58,13 +58,13 @@ export function DevelopSearchPage({
         const index = availableTypes.indexOf(searchParams.type as TabOption);
         return Math.max(0, index);
     });
-    const handleTabChange = (_e, newIndex: number) => { 
+    const handleTabChange = (_e, newIndex: number) => {
         // Update search params
         addSearchParams(setLocation, {
             type: tabOptions[newIndex][1],
         });
         // Update tab index
-        setTabIndex(newIndex) 
+        setTabIndex(newIndex)
     };
 
     // On tab change, update BaseParams, document title, where, and URL
@@ -78,10 +78,7 @@ export function DevelopSearchPage({
     }, [tabIndex]);
 
     return (
-        <Box id='page' sx={{
-            padding: '0.5em',
-            paddingTop: { xs: '64px', md: '80px' },
-        }}>
+        <PageContainer>
             {/* Navigate between search pages */}
             <Box display="flex" justifyContent="center" width="100%">
                 <Tabs
@@ -122,6 +119,6 @@ export function DevelopSearchPage({
                 zIndex={200}
                 where={where}
             />}
-        </Box >
+        </PageContainer>
     )
 }

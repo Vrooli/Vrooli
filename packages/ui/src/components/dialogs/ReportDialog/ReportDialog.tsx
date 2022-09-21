@@ -178,7 +178,7 @@ export const ReportDialog = ({
                         />
                         {/* Details multi-line text field */}
                         {/* Action buttons */}
-                        <Grid container sx={{ padding: 0 }}>
+                        <Grid container spacing={1}>
                             <GridSubmitButtons
                                 disabledCancel={formik.isSubmitting}
                                 disabledSubmit={formik.isSubmitting || !formik.isValid}

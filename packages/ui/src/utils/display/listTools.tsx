@@ -168,7 +168,9 @@ export function listToAutocomplete(
         id: o.id,
         isStarred: getListItemIsStarred(o),
         label: getListItemLabel(o, languages),
-        stars: getListItemStars(o)
+        routine: o.__typename === 'Run' ? o.routine : undefined,
+        stars: getListItemStars(o),
+        to: o.__typename === 'View' || o.__typename === 'Star' ? o.to : undefined,
     }));
 }
 

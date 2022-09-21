@@ -4,7 +4,7 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { APP_LINKS, StarFor, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { CommentButton, ReportButton, StarButton, TagList, TextLoading, UpvoteDownvote } from 'components';
+import { CommentsButton, ReportsButton, StarButton, TagList, TextLoading, UpvoteDownvote } from 'components';
 import { getTranslation, listItemColor } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 
@@ -135,11 +135,11 @@ export function ProjectListItem({
                             isStar={data?.isStarred}
                             stars={data?.stars}
                         />}
-                        {canComment && <CommentButton
+                        {canComment && <CommentsButton
                             commentsCount={data?.commentsCount ?? 0}
                             object={data}
                         />}
-                        {canReport && reportsCount > 0 && <ReportButton
+                        {canReport && reportsCount > 0 && <ReportsButton
                             reportsCount={data?.reportsCount ?? 0}
                             object={data}
                         />}

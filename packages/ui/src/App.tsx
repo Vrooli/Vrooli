@@ -49,16 +49,6 @@ const useStyles = makeStyles(() => ({
             backgroundColor: '#3f0',
             color: '#000',
         },
-        '#page': {
-            minWidth: '100vw',
-            minHeight: '100vh',
-        },
-        '@media (min-width:500px)': {
-            '#page': {
-                paddingLeft: 'max(1em, calc(15% - 75px))',
-                paddingRight: 'max(1em, calc(15% - 75px))',
-            }
-        },
         '@font-face': {
             fontFamily: 'Lato',
             src: `local('Lato'), url(${SakBunderan}) format('truetype')`,

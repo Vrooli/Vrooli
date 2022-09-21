@@ -1,16 +1,16 @@
 import { ListItemText, Stack, Tooltip } from '@mui/material';
 import { useCallback } from 'react';
-import { CommentButtonProps } from '../types';
+import { CommentsButtonProps } from '../types';
 import { Forum as CommentsIcon } from '@mui/icons-material';
 import { multiLineEllipsis } from 'styles';
 import { useLocation } from '@shared/route';
 import { getObjectSlug, getObjectUrlBase } from 'utils';
 
-export const CommentButton = ({
+export const CommentsButton = ({
     commentsCount = 0,
     object,
     tooltipPlacement = "left",
-}: CommentButtonProps) => {
+}: CommentsButtonProps) => {
     const [, setLocation] = useLocation();
 
     // When clicked, navigate to object's comment section

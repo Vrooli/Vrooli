@@ -1,14 +1,12 @@
 import { Box, Button, CircularProgress, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { CommentThreadItemProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
-import { StarButton, TextLoading, UpvoteDownvote } from '../..';
+import { TextLoading, UpvoteDownvote } from '../..';
 import { displayDate, getTranslation, PubSub } from 'utils';
 import { MarkdownInput } from 'components/inputs';
 import {
     Delete as DeleteIcon,
-    Flag as ReportIcon,
     Reply as ReplyIcon,
-    Share as ShareIcon,
 } from '@mui/icons-material';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
@@ -18,9 +16,10 @@ import { commentCreate, commentCreateVariables } from 'graphql/generated/comment
 import { commentCreateMutation, deleteOneMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';
 import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
-import { ReportDialog } from 'components/dialogs';
 import { v4 as uuid } from 'uuid';
 import { OwnerLabel } from 'components/text';
+import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
+import { ReportButton, StarButton } from 'components/buttons';
 
 export function CommentThreadItem({
     data,
@@ -101,14 +100,6 @@ export function CommentThreadItem({
         formik.submitForm();
     }, [formik]);
 
-    const handleShare = useCallback(() => {
-        //TODO
-    }, []);
-
-    const [reportOpen, setReportOpen] = useState<boolean>(false);
-    const openReport = useCallback(() => setReportOpen(true), [setReportOpen]);
-    const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
-
     const [deleteMutation, { loading: loadingDelete }] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation);
     const handleDelete = useCallback(() => {
         if (!data) return;
@@ -142,14 +133,6 @@ export function CommentThreadItem({
 
     return (
         <>
-            <ReportDialog
-                forId={data?.id ?? ''}
-                onClose={closeReport}
-                open={reportOpen}
-                reportFor={ReportFor.Comment}
-                session={session}
-                zIndex={zIndex + 1}
-            />
             <ListItem
                 id={`comment-${data?.id}`}
                 disablePadding
@@ -238,38 +221,25 @@ export function CommentThreadItem({
                             <IconButton
                                 onClick={openReplyInput}
                                 sx={{
-                                    color: palette.background.textPrimary,
+                                    color: palette.background.textSecondary,
                                 }}
                             >
                                 <ReplyIcon />
                             </IconButton>
                         </Tooltip>}
-                        <Tooltip title="Share" placement='top'>
-                            <IconButton
-                                onClick={handleShare}
-                                sx={{
-                                    color: palette.background.textPrimary,
-                                }}
-                            >
-                                <ShareIcon />
-                            </IconButton>
-                        </Tooltip>
-                        {canReport && <Tooltip title="Report" placement='top'>
-                            <IconButton
-                                onClick={openReport}
-                                sx={{
-                                    color: palette.background.textPrimary,
-                                }}
-                            >
-                                <ReportIcon />
-                            </IconButton>
-                        </Tooltip>}
+                        <ShareButton objectType={objectType} zIndex={zIndex} />
+                        {canReport && <ReportButton
+                            forId={data?.id ?? ''}
+                            reportFor={objectType as any as ReportFor}
+                            session={session}
+                            zIndex={zIndex}
+                        />}
                         {canDelete && <Tooltip title="Delete" placement='top'>
                             <IconButton
                                 onClick={handleDelete}
                                 disabled={loadingDelete}
                                 sx={{
-                                    color: palette.background.textPrimary,
+                                    color: palette.background.textSecondary,
                                 }}
                             >
                                 <DeleteIcon />

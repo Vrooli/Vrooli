@@ -1961,11 +1961,12 @@ export function combineQueries(queries: ({ [x: string]: any } | null)[]): { [x: 
     for (const query of queries) {
         if (!query) continue;
         for (const [key, value] of Object.entries(query)) {
+            let currValue = value;
             // If key is AND, OR, or NOT, combine
             if (['AND', 'OR', 'NOT'].includes(key)) {
                 // Value should be an array
                 if (!Array.isArray(value)) {
-                    throw new CustomError(CODE.InternalError, 'Invalid query in combineQueries', { code: genErrorCode('0256'), key, value });
+                    currValue = [value];
                 }
                 // For AND, combine arrays
                 if (key === 'AND') {

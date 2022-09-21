@@ -1,5 +1,4 @@
 import { useCallback, useMemo } from "react";
-import { Box } from "@mui/material"
 import { ObjectPageProps } from "../types";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { useLocation } from '@shared/route';
@@ -7,7 +6,7 @@ import { APP_LINKS } from "@shared/consts";
 import { lazily } from "react-lazily";
 import { ObjectType, parseSearchParams } from "utils";
 import { Organization, Project, Routine, Session, Standard, User } from "types";
-import { CommentReportsView, OrganizationReportsView, ProjectReportsView, RoutineReportsView, StandardReportsView, TagReportsView, UserReportsView } from "components";
+import { CommentReportsView, OrganizationReportsView, PageContainer, ProjectReportsView, RoutineReportsView, StandardReportsView, TagReportsView, UserReportsView } from "components";
 
 const { OrganizationCreate, OrganizationUpdate, OrganizationView } = lazily(() => import('../../components/views/Organization'));
 const { ProjectCreate, ProjectUpdate, ProjectView } = lazily(() => import('../../components/views/Project'));
@@ -194,12 +193,8 @@ export const ObjectPage = ({
     }, [objectType, onAction, pageType, session]);
 
     return (
-        <Box sx={{
-            minHeight: '100vh',
-            paddingTop: { xs: '64px', md: '80px' },
-            paddingBottom: 'calc(56px + env(safe-area-inset-bottom))',
-        }}>
+        <PageContainer sx={{ paddingLeft: 0, paddingRight: 0, display: 'none' }}>
             {displayedPage}
-        </Box>
+        </PageContainer>
     )
 }

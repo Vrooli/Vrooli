@@ -66,7 +66,7 @@ export const InputOutputListItem = ({
         setStandard(item.standard ?? defaultStandard(item));
     }, [item])
 
-    const canEditStandard = useMemo(() => standard.isInternal === true, [standard.isInternal]);
+    const canEditStandard = useMemo(() => isEditing && standard.isInternal === true, [isEditing, standard.isInternal]);
 
     /**
      * Schema only available when defining custom (internal) standard

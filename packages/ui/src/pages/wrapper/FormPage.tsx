@@ -1,4 +1,5 @@
 import { Box, Container, Typography, useTheme } from '@mui/material';
+import { PageContainer } from 'components';
 
 interface Props {
     title: string;
@@ -16,11 +17,7 @@ export const FormPage = ({
     const { palette } = useTheme();
 
     return (
-        <Box id='page' sx={{
-            maxWidth: maxWidth,
-            padding: { sx: '0', md: '0.5em' },
-            paddingTop: { xs: '64px', md: '80px' },
-        }}>
+        <PageContainer>
             <Box sx={{
                 backgroundColor: palette.background.paper,
                 display: 'grid',
@@ -46,6 +43,6 @@ export const FormPage = ({
                     {children}
                 </Container>
             </Box>
-        </Box >
+        </PageContainer>
     );
 }

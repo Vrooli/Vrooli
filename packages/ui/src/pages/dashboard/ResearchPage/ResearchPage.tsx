@@ -1,7 +1,7 @@
 import { useLazyQuery, useQuery } from '@apollo/client';
 import { APP_LINKS, ResourceListUsedFor, ResourceUsedFor } from '@shared/consts';
-import { Box, Stack } from '@mui/material';
-import { ResourceListHorizontal, ListTitleContainer, PageTitle } from 'components';
+import { Stack } from '@mui/material';
+import { ResourceListHorizontal, ListTitleContainer, PageTitle, PageContainer } from 'components';
 import { profile } from 'graphql/generated/profile';
 import { researchPage } from 'graphql/generated/researchPage';
 import { profileQuery, researchPageQuery } from 'graphql/query';
@@ -133,8 +133,8 @@ export const ResearchPage = ({
 
     const toSeeAllProcesses = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.Search}${stringifySearchParams({ 
-            tags: ['Research'], 
+        setLocation(`${APP_LINKS.Search}${stringifySearchParams({
+            tags: ['Research'],
             type: SearchPageTabOption.Routines,
         })}`);
     }, [setLocation]);
@@ -159,7 +159,7 @@ export const ResearchPage = ({
     const toSeeAllNeedVotes = useCallback((event: any) => {
         event?.stopPropagation();
         setLocation(`${APP_LINKS.Search}${stringifySearchParams({
-            resourceTypes: [ResourceUsedFor.Proposal], 
+            resourceTypes: [ResourceUsedFor.Proposal],
             type: SearchPageTabOption.Projects,
         })}`);
     }, [setLocation]);
@@ -170,15 +170,10 @@ export const ResearchPage = ({
             resourceTypes: [ResourceUsedFor.Donation],
             type: SearchPageTabOption.Projects,
         })}`);
-    } , [setLocation]);
+    }, [setLocation]);
 
     return (
-        <Box id='page' sx={{
-            padding: '0.5em',
-            paddingTop: { xs: '64px', md: '80px' },
-            width: 'min(100%, 700px)',
-            margin: 'auto',
-        }}>
+        <PageContainer>
             <PageTitle title="Research Dashboard" helpText={researchPageText} />
             <Stack direction="column" spacing={10}>
                 {/* Resources */}
@@ -238,6 +233,6 @@ export const ResearchPage = ({
                     {needMembers}
                 </ListTitleContainer>
             </Stack>
-        </Box>
+        </PageContainer>
     )
 }

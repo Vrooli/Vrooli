@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { historyPage, historyPageVariables } from 'graphql/generated/historyPage';
 import { useQuery } from '@apollo/client';
 import { historyPageQuery } from 'graphql/query';
-import { AutocompleteSearchBar, ListTitleContainer } from 'components';
+import { AutocompleteSearchBar, ListTitleContainer, PageContainer } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { HistoryPageProps } from '../types';
@@ -120,39 +120,36 @@ export const HistoryPage = ({
 
     const toSeeAllActiveRuns = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ 
-            type: HistorySearchPageTabOption.Runs, 
-            status: RunStatus.InProgress 
+        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({
+            type: HistorySearchPageTabOption.Runs,
+            status: RunStatus.InProgress
         })}`);
     }, [setLocation]);
 
     const toSeeAllCompletedRuns = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ 
+        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({
             type: HistorySearchPageTabOption.Runs,
-            status: RunStatus.Completed 
+            status: RunStatus.Completed
         })}`);
     }, [setLocation]);
 
     const toSeeAllViewed = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ 
+        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({
             type: HistorySearchPageTabOption.Viewed,
         })}`);
-    } , [setLocation]);
+    }, [setLocation]);
 
     const toSeeAllStarred = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ 
+        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({
             type: HistorySearchPageTabOption.Starred,
         })}`);
-    } , [setLocation]);
+    }, [setLocation]);
 
     return (
-        <Box id='page' sx={{
-            padding: '0.5em',
-            paddingTop: { xs: '64px', md: '80px' },
-        }}>
+        <PageContainer>
             {/* Navigate between normal home page (shows popular results) and history page (shows personalized results) */}
             <Box display="flex" justifyContent="center" width="100%">
                 <Tabs
@@ -238,6 +235,6 @@ export const HistoryPage = ({
                     {starred}
                 </ListTitleContainer>
             </Stack>
-        </Box>
+        </PageContainer>
     )
 }

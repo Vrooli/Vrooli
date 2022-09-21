@@ -3,11 +3,11 @@ import { AutocompleteSearchBarProps } from '../types';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
 import { AutocompleteOption } from 'types';
-import { ActionIcon, HistoryIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, StandardIcon, StarFilledIcon, SvgProps, UserIcon, VisibleIcon } from '@shared/icons';
+import { ActionIcon, HistoryIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, StandardIcon, StarFilledIcon, SvgComponent, UserIcon, VisibleIcon } from '@shared/icons';
 import { Delete as DeleteIcon } from '@mui/icons-material';
 import { getLocalStorageKeys, ObjectType, performAction } from 'utils';
 import { StarFor } from '@shared/consts';
-import { StarButton } from 'components/lists';
+import { StarButton } from 'components/buttons';
 
 type OptionHistory = { timestamp: number, option: AutocompleteOption };
 
@@ -90,7 +90,7 @@ const updateHistoryItems = (searchBarId: string, userId: string, options: Autoco
  * Maps object types to icons
  */
 const typeToIcon = (type: string, fill: string): JSX.Element | null => {
-    let Icon: null | ((props: SvgProps) => JSX.Element) = null;
+    let Icon: null | SvgComponent = null;
     switch (type) {
         case 'Action':
             Icon = ActionIcon;

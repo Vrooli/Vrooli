@@ -1,7 +1,7 @@
 import { useLazyQuery, useQuery } from '@apollo/client';
 import { APP_LINKS, ProjectOrRoutineSortBy, ResourceListUsedFor } from '@shared/consts';
-import { Box, Stack } from '@mui/material';
-import { ListMenu, ListTitleContainer, PageTitle, ResourceListHorizontal } from 'components';
+import { Stack } from '@mui/material';
+import { ListMenu, ListTitleContainer, PageContainer, PageTitle, ResourceListHorizontal } from 'components';
 import { developPage } from 'graphql/generated/developPage';
 import { profile } from 'graphql/generated/profile';
 import { developPageQuery, profileQuery } from 'graphql/query';
@@ -131,12 +131,7 @@ export const DevelopPage = ({
     }, [setLocation]);
 
     return (
-        <Box id='page' sx={{
-            padding: '0.5em',
-            paddingTop: { xs: '64px', md: '80px' },
-            width: 'min(100%, 700px)',
-            margin: 'auto',
-        }}>
+        <PageContainer>
             {/* Create new dialog */}
             <ListMenu
                 id={`create-project-or-routine-menu`}
@@ -189,6 +184,6 @@ export const DevelopPage = ({
                     {completed}
                 </ListTitleContainer>
             </Stack>
-        </Box>
+        </PageContainer>
     )
 }

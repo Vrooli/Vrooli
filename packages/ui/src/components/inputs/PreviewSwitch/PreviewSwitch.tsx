@@ -2,10 +2,7 @@ import { Box, IconButton, Stack, Typography, useTheme } from '@mui/material';
 import { useCallback, useMemo } from 'react';
 import { PreviewSwitchProps } from '../types';
 import { noSelect } from 'styles';
-import {
-    Build as BuildIcon,
-} from '@mui/icons-material';
-import { VisibleIcon } from '@shared/icons';
+import { BuildIcon, SvgComponent, VisibleIcon } from '@shared/icons';
 
 const grey = {
     400: '#BFC7CF',
@@ -19,7 +16,7 @@ export function PreviewSwitch({
     sx,
 }: PreviewSwitchProps) {
     const { palette } = useTheme();
-    const Icon = useMemo(() => isPreviewOn ? VisibleIcon : BuildIcon, [isPreviewOn]);
+    const Icon = useMemo<SvgComponent>(() => isPreviewOn ? VisibleIcon : BuildIcon, [isPreviewOn]);
 
     const handleClick = useCallback((ev: React.MouseEvent<any>) => {
         if (disabled) return;
@@ -28,7 +25,7 @@ export function PreviewSwitch({
 
     return (
         <Stack direction="row" spacing={1} justifyContent="center" sx={{ ...(sx ?? {}) }}>
-            <Typography variant="h6" sx={{ ...noSelect }}>{isPreviewOn ? 'Preview mode' : 'Build mode'}</Typography>
+            <Typography variant="h6" sx={{ ...noSelect }}>{isPreviewOn ? 'Preview' : 'Schema'}</Typography>
             <Box component="span" sx={{
                 display: 'inline-block',
                 position: 'relative',
@@ -50,17 +47,13 @@ export function PreviewSwitch({
                         display: 'inline-flex',
                         width: '30px',
                         height: '30px',
+                        padding: 0,
                         position: 'absolute',
                         top: 0,
                         transition: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)',
                         transform: `translateX(${isPreviewOn ? '24' : '0'}px)`,
                     }}>
-                        <Icon sx={{
-                            position: 'absolute',
-                            display: 'block',
-                            fill: 'white',
-                            borderRadius: '8px',
-                        }} />
+                        <Icon fill="white" width="80%" height="80%" />
                     </IconButton>
                 </Box>
                 {/* Input */}

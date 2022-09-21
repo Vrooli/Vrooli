@@ -18,6 +18,7 @@ import { SettingsDisplay } from 'components/views/SettingsDisplay/SettingsDispla
 import { SettingsNotifications } from 'components/views/SettingsNotifications/SettingsNotifications';
 import { useReactSearch } from 'utils';
 import { ProfileIcon } from '@shared/icons';
+import { PageContainer } from 'components';
 
 /**
  * All settings forms. Same as their route names.
@@ -47,7 +48,7 @@ export function SettingsPage({
     }), [searchParams]);
 
     // Fetch profile data
-    const [getData, { data, loading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all'});
+    const [getData, { data, loading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all' });
     useEffect(() => {
         if (session?.id) getData();
     }, [getData, session])
@@ -95,13 +96,7 @@ export function SettingsPage({
     }, [selectedPage, session, profile, onUpdated]);
 
     return (
-        <Box id='page' sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: { xs: '0', sm: '0.5em' },
-            paddingTop: { xs: '64px', sm: '80px' },
-        }}>
+        <PageContainer>
             <Box sx={{
                 boxShadow: { xs: 'none', sm: '0px 0px 12px gray' },
                 borderRadius: { xs: 0, sm: 2 },
@@ -135,6 +130,6 @@ export function SettingsPage({
                     {loading ? <CircularProgress color="secondary" /> : mainContent}
                 </Box>
             </Box>
-        </Box>
+        </PageContainer>
     )
 }

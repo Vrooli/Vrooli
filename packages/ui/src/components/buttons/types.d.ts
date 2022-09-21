@@ -1,6 +1,14 @@
 import { ButtonProps } from '@mui/material';
+import { ReportFor, StarFor } from '@shared/consts';
 import { SvgProps } from 'assets/img/types';
-import { Status } from 'utils';
+import { Session } from 'types';
+import { ObjectType, Status } from 'utils';
+
+export interface CommentsButtonProps {
+    commentsCount: number | null; // Defaults to 0
+    object: { id: string, handle?: string | null, __typename: string } | null;
+    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
+}
 
 export interface GridSubmitButtonsProps {
     disabledCancel?: boolean;
@@ -37,6 +45,35 @@ export interface PopupMenuProps extends ButtonProps {
     children: any
 };
 
+export interface ReportButtonProps {
+    forId: string;
+    reportFor: ReportFor;
+    session: Session;
+    zIndex: number;
+}
+
+export interface ReportsButtonProps {
+    reportsCount: number | null; // Defaults to 0
+    object: { id: string, __typename: string } | null;
+    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
+}
+
+export interface ShareButtonProps {
+    objectType: ObjectType;
+    zIndex: number;
+}
+
+export interface StarButtonProps {
+    isStar?: boolean | null; // Defaults to false
+    objectId: string;
+    onChange?: (isStar: boolean, event?: any) => void;
+    session: Session;
+    showStars?: boolean; // Defaults to true. If false, the number of stars is not shown
+    starFor: StarFor;
+    stars?: number | null; // Defaults to 0
+    sxs?: { root?: { [key: string]: any } };
+    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
+}
 
 export interface StatusMessageArray {
     status: Status;

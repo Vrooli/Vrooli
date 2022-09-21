@@ -4,7 +4,7 @@ import { centeredDiv } from 'styles';
 import { homePage, homePageVariables } from 'graphql/generated/homePage';
 import { useQuery } from '@apollo/client';
 import { homePageQuery } from 'graphql/query';
-import { AutocompleteSearchBar, ListTitleContainer, TitleContainer, ListMenu } from 'components';
+import { AutocompleteSearchBar, ListTitleContainer, TitleContainer, ListMenu, PageContainer } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { HomePageProps } from '../types';
@@ -289,10 +289,7 @@ export const HomePage = ({
     }, [setLocation]);
 
     return (
-        <Box id='page' sx={{
-            padding: '0.5em',
-            paddingTop: { xs: '64px', md: '80px' },
-        }}>
+        <PageContainer>
             {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}
             {showHistoryTab && (
                 <Box display="flex" justifyContent="center" width="100%">
@@ -414,6 +411,6 @@ export const HomePage = ({
                     <Box pl={2} pr={2}><Markdown>{faqText}</Markdown></Box>
                 </TitleContainer>
             </Stack>
-        </Box>
+        </PageContainer>
     )
 }

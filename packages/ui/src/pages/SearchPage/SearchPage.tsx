@@ -2,7 +2,7 @@
  * Search page for organizations, projects, routines, standards, and users
  */
 import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material";
-import { SearchList, SelectRoutineTypeMenu, ShareSiteDialog } from "components";
+import { PageContainer, SearchList, SelectRoutineTypeMenu, ShareSiteDialog } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
 import { useLocation } from '@shared/route';
@@ -179,10 +179,7 @@ export function SearchPage({
     ), [onPopupButtonClick, popupButton, popupTitle, popupTooltip]);
 
     return (
-        <Box id='page' sx={{
-            padding: '0.5em',
-            paddingTop: { xs: '64px', md: '80px' },
-        }}>
+        <PageContainer>
             {/* Invite dialog for organizations and users */}
             <ShareSiteDialog
                 onClose={closeShareDialog}
@@ -249,6 +246,6 @@ export function SearchPage({
                 where={where}
             />}
             {popupButtonContainer}
-        </Box >
+        </PageContainer>
     )
 }

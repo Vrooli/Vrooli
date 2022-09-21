@@ -6,15 +6,12 @@ import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
 import { clearSearchHistory, PubSub, shapeProfileUpdate, TagHiddenShape, TagShape } from "utils";
-import {
-    Favorite as InterestsIcon,
-} from '@mui/icons-material';
 import { SettingsDisplayProps } from "../types";
 import { GridSubmitButtons, HelpButton, TagSelector } from "components";
 import { ThemeSwitch } from "components/inputs";
 import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
 import { v4 as uuid } from 'uuid';
-import { InvisibleIcon, SearchIcon } from "@shared/icons";
+import { HeartFilledIcon, InvisibleIcon, SearchIcon } from "@shared/icons";
 
 const helpText =
     `Display preferences customize the look and feel of Vrooli. More customizations will be available in the near future.`
@@ -162,7 +159,7 @@ export const SettingsDisplay = ({
                 />
             </Box>
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                <InterestsIcon />
+                <HeartFilledIcon fill={palette.background.textPrimary} />
                 <Typography component="h2" variant="h5" textAlign="center" ml={1}>Favorite Topics</Typography>
                 <HelpButton markdown={interestsHelpText} />
             </Stack>

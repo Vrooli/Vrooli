@@ -1,10 +1,10 @@
-import { ListItemText, Stack, Tooltip } from '@mui/material';
+import { Box, ListItemText, Stack, Tooltip } from '@mui/material';
 import { useCallback } from 'react';
-import { ReportButtonProps } from '../types';
-import { Flag as ReportsIcon } from '@mui/icons-material';
+import { ReportsButtonProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { APP_LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
+import { ReportIcon } from '@shared/icons';
 
 function determineLink(typename?: string) {
     switch (typename) {
@@ -18,11 +18,11 @@ function determineLink(typename?: string) {
     }
 }
 
-export const ReportButton = ({
+export const ReportsButton = ({
     reportsCount = 0,
     object,
     tooltipPlacement = "left",
-}: ReportButtonProps) => {
+}: ReportsButtonProps) => {
     const [, setLocation] = useLocation();
 
     // When clicked, navigate to reports page
@@ -42,13 +42,9 @@ export const ReportButton = ({
             }}
         >
             <Tooltip placement={tooltipPlacement} title={'View reports'}>
-                <ReportsIcon
-                    onClick={handleClick}
-                    sx={{
-                        fill: '#a96666',
-                        cursor: 'pointer'
-                    }}
-                />
+                <Box onClick={handleClick} sx={{ display: 'contents', cursor: 'pointer' }}>
+                    <ReportIcon fill='#a96666' />
+                </Box>
             </Tooltip>
             <ListItemText
                 primary={reportsCount}

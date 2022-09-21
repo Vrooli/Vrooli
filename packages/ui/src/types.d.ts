@@ -141,12 +141,21 @@ export type RoutineStep = DecisionStep | SubroutineStep | RoutineListStep
 
 export interface ObjectOption {
     __typename: ListObjectType['__typename'];
+    handle?: string | null;
     id: string;
     isFromHistory?: boolean;
     isStarred?: boolean;
     label: string;
     stars?: number;
     [key: string]: any;
+    routine?: {
+        id: string
+    } | null,
+    to?: { 
+        __typename: string,
+        handle?: string | null,
+        id?: string,
+    }
 }
 
 export interface ShortcutOption {

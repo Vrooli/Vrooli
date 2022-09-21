@@ -5,6 +5,7 @@
 import { APP_LINKS } from "@shared/consts";
 import { SetLocation } from "types";
 import { PubSub } from "utils/pubsub";
+import { stringifySearchParams } from "./urlTools";
 
 export enum ObjectType {
     Comment = 'Comment',
@@ -17,6 +18,36 @@ export enum ObjectType {
     Tag = 'Tag',
     User = 'User',
     View = 'View',
+}
+
+/**
+ * Gets URL base for object type
+ * @param object Object to get base for
+ * @returns Search URL base for object type
+ */
+export const getObjectUrlBase = (object: Omit<OpenObjectProps['object'], 'id'>): string => {
+    switch (object.__typename) {
+        case ObjectType.Organization:
+            return APP_LINKS.Organization;
+        case ObjectType.Project:
+            return APP_LINKS.Project;
+        case ObjectType.Routine:
+            return APP_LINKS.Routine;
+        case ObjectType.Standard:
+            return APP_LINKS.Standard;
+        case ObjectType.User:
+            return APP_LINKS.Profile;
+        case ObjectType.Star:
+        case ObjectType.View:
+            return getObjectUrlBase(object.to as any);
+        case ObjectType.Run:
+            return getObjectUrlBase({
+                __typename: ObjectType.Routine,
+                id: object.routine?.id,
+            } as any);
+        default:
+            return '';
+    }
 }
 
 /**
@@ -33,15 +64,26 @@ export const getObjectSlug = (object: any) => {
     return object.handle ? object.handle : object.id;
 }
 
+/**
+ * Determines string for object's search params
+ * @param object Object being navigated to
+ * @returns Stringified search params for object
+ */
+export const getObjectSearchParams = (object: any) => {
+    // If object is a run
+    if (object.__typename === ObjectType.Run) return stringifySearchParams({ run: object.id });
+    return '';
+}
+
 export type OpenObjectProps = {
-    object: { 
-        __typename: string 
-        handle?: string | null, 
-        id: string, 
+    object: {
+        __typename: string
+        handle?: string | null,
+        id: string,
         routine?: {
             id: string
         } | null,
-        to?: { 
+        to?: {
             __typename: string,
             handle?: string | null,
             id?: string,
@@ -58,30 +100,8 @@ export const openObject = (object: OpenObjectProps['object'], setLocation: OpenO
     // Check if __typename is in objectLinkMap
     if (!ObjectType.hasOwnProperty(object.__typename)) {
         PubSub.get().publishSnack({ message: 'Could not parse object type.', severity: 'error' });
-        return; 
+        return;
     }
     // Navigate to object page
-    setLocation(`${getObjectUrlBase(object)}/${getObjectSlug(object)}`);
-}
-
-/**
- * Gets URL base for object type
- * @param object Object to get base for
- * @returns Search URL base for object type
- */
-export const getObjectUrlBase = (object: { __typename: string }): string => {
-    switch (object.__typename) {
-        case ObjectType.Organization:
-            return APP_LINKS.Organization;
-        case ObjectType.Project:
-            return APP_LINKS.Project;
-        case ObjectType.Routine:
-            return APP_LINKS.Routine;
-        case ObjectType.Standard:
-            return APP_LINKS.Standard;
-        case ObjectType.User:
-            return APP_LINKS.Profile;
-        default:
-            return '';
-    }
+    setLocation(`${getObjectUrlBase(object)}/${getObjectSlug(object)}${getObjectSearchParams(object)}`);
 }

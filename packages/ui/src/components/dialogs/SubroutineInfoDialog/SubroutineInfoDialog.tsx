@@ -19,10 +19,9 @@ import {
 } from '@mui/material';
 import { SubroutineInfoDialogProps } from '../types';
 import { getTranslation, InputShape, ObjectType, OutputShape, RoutineTranslationShape, TagShape, updateArray } from 'utils';
-import Markdown from 'markdown-to-jsx';
 import { routineUpdateForm as validationSchema } from '@shared/validation';
 import { ResourceListUsedFor } from '@shared/consts';
-import { GridSubmitButtons, InputOutputContainer, LanguageInput, MarkdownInput, OwnerLabel, QuantityBox, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession } from 'components';
+import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, OwnerLabel, QuantityBox, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession, VersionInput } from 'components';
 import { useFormik } from 'formik';
 import { NodeDataRoutineListItem, ResourceList } from 'types';
 import { v4 as uuid } from 'uuid';
@@ -148,7 +147,7 @@ export const SubroutineInfoDialog = ({
             version: subroutine?.routine?.version ?? '',
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema,
+        validationSchema: validationSchema({ minVersion: subroutine?.routine?.version ?? '0.0.1' }),
         onSubmit: (values) => {
             if (!subroutine) return;
             const resourceIndex = Array.isArray(subroutine?.routine?.resourceLists) ? (subroutine?.routine?.resourceLists?.findIndex(list => list.usedFor === ResourceListUsedFor.Display) ?? -1) : -1;
@@ -344,7 +343,6 @@ export const SubroutineInfoDialog = ({
                         <Grid item xs={12}>
                             {
                                 canEdit && <Box sx={{
-                                    padding: 1,
                                     marginBottom: 2,
                                 }}>
                                     <Typography variant="h6">Order</Typography>
@@ -382,62 +380,53 @@ export const SubroutineInfoDialog = ({
                         }
                         {/* Description */}
                         <Grid item xs={12} sm={6}>
-                            <Box sx={{
-                                padding: 1,
-                            }}>
-                                <Typography variant="h6">Description</Typography>
-                                {
-                                    canEdit ? (
-                                        <MarkdownInput
-                                            id="description"
-                                            placeholder="Description"
-                                            value={formik.values.description}
-                                            minRows={2}
-                                            onChange={(newText: string) => formik.setFieldValue('description', newText)}
-                                            error={formik.touched.description && Boolean(formik.errors.description)}
-                                            helperText={formik.touched.description ? formik.errors.description : null}
-                                        />
-                                    ) : (
-                                        <Markdown>{formik.values.description}</Markdown>
-                                    )
-                                }
-                            </Box>
+                            <EditableTextCollapse
+                                isEditing={canEdit}
+                                propsTextField={{
+                                    fullWidth: true,
+                                    id: "description",
+                                    name: "description",
+                                    InputLabelProps: { shrink: true },
+                                    value: formik.values.description,
+                                    multiline: true,
+                                    maxRows: 3,
+                                    onBlur: formik.handleBlur,
+                                    onChange: formik.handleChange,
+                                    error: formik.touched.description && Boolean(formik.errors.description),
+                                    helperText: formik.touched.description ? formik.errors.description : null,
+                                }}
+                                text={formik.values.description}
+                                title="Description"
+                            />
                         </Grid>
                         {/* Instructions */}
                         <Grid item xs={12} sm={6}>
-                            <Box sx={{
-                                padding: 1,
-                            }}>
-                                <Typography variant="h6">Instructions</Typography>
-                                {
-                                    canEdit ? (
-                                        <MarkdownInput
-                                            id="instructions"
-                                            placeholder="Instructions"
-                                            value={formik.values.instructions}
-                                            minRows={2}
-                                            onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
-                                            error={formik.touched.instructions && Boolean(formik.errors.instructions)}
-                                            helperText={formik.touched.instructions ? formik.errors.instructions : null}
-                                        />
-                                    ) : (
-                                        <Markdown>{formik.values.instructions}</Markdown>
-                                    )
-                                }
-                            </Box>
+                            <EditableTextCollapse
+                                isEditing={isEditing}
+                                propsMarkdownInput={{
+                                    id: "instructions",
+                                    placeholder: "Instructions",
+                                    value: formik.values.instructions,
+                                    minRows: 3,
+                                    onChange: (newText: string) => formik.setFieldValue('instructions', newText),
+                                    error: formik.touched.instructions && Boolean(formik.errors.instructions),
+                                    helperText: formik.touched.instructions ? formik.errors.instructions as string : null,
+                                }}
+                                text={formik.values.instructions}
+                                title="Instructions"
+                            />
                         </Grid>
                         {
                             canEdit && <Grid item xs={12}>
-                                <TextField
+                                <VersionInput
                                     fullWidth
                                     id="version"
                                     name="version"
-                                    label="version"
                                     value={formik.values.version}
                                     onBlur={formik.handleBlur}
-                                    onChange={formik.handleChange}
+                                    onChange={(newVersion: string) => { formik.setFieldValue('version', newVersion) }}
                                     error={formik.touched.version && Boolean(formik.errors.version)}
-                                    helperText={formik.touched.version && formik.errors.version}
+                                    helperText={formik.touched.version ? formik.errors.version : null}
                                 />
                             </Grid>
                         }

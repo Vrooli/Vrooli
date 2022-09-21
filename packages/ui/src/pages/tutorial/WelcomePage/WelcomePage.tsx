@@ -5,6 +5,7 @@ import { clickSize } from 'styles';
 import { useEffect } from 'react';
 import { PubSub } from 'utils';
 import { ArticleIcon, HelpIcon, PlayIcon, ProfileIcon, YouTubeIcon } from '@shared/icons';
+import { PageContainer } from 'components';
 
 const buttonProps = {
     height: "48px",
@@ -37,19 +38,7 @@ export const WelcomePage = () => {
     }, []);
 
     return (
-        <Box
-            sx={{
-                minHeight: '100vh',
-                width: '100vw',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                textAlign: 'center',
-                animation: 'gradient 15s ease infinite',
-                overflowX: 'hidden',
-                paddingTop: { xs: '64px', md: '80px' },
-            }}
-        >
+        <PageContainer>
             <Box sx={{
                 boxShadow: `rgb(0 0 0 / 50%) 0px 0px 35px 0px`,
                 padding: 2,
@@ -103,6 +92,6 @@ export const WelcomePage = () => {
                     </Link>
                 </Box>
             </Box>
-        </Box>
+        </PageContainer>
     )
 }

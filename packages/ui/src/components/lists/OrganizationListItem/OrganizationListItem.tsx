@@ -4,10 +4,11 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { APP_LINKS, StarFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { ReportButton, StarButton, TagList, TextLoading } from '..';
+import { TagList, TextLoading } from '..';
 import { getTranslation, listItemColor, placeholderColor } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { OrganizationIcon } from '@shared/icons';
+import { ReportsButton, StarButton } from 'components/buttons';
 
 export function OrganizationListItem({
     data,
@@ -134,7 +135,7 @@ export function OrganizationListItem({
                             isStar={data?.isStarred}
                             stars={data?.stars}
                         />}
-                        {canReport && reportsCount > 0 && <ReportButton
+                        {canReport && reportsCount > 0 && <ReportsButton
                             reportsCount={data?.reportsCount ?? 0}
                             object={data}
                         />}

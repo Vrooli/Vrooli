@@ -4,11 +4,11 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { APP_LINKS, StarFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { ReportButton, StarButton } from '..';
 import { getTranslation, listItemColor, placeholderColor } from 'utils';
 import { TextLoading } from '../TextLoading/TextLoading';
 import { smallHorizontalScrollbar } from '../styles';
 import { UserIcon } from '@shared/icons';
+import { ReportsButton, StarButton } from 'components/buttons';
 
 export const UserListItem = ({
     data,
@@ -114,7 +114,7 @@ export const UserListItem = ({
                             isStar={data?.isStarred}
                             stars={data?.stars}
                         />}
-                        {!isOwn && reportsCount > 0 && <ReportButton
+                        {!isOwn && reportsCount > 0 && <ReportsButton
                             reportsCount={data?.reportsCount ?? 0}
                             object={data}
                         />}
