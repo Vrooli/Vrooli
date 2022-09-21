@@ -1,4 +1,5 @@
 import { Organization, Project, Routine, Standard, User } from "types";
+import { ObjectType } from "typescript";
 
 export interface OrganizationSelectOrCreateDialogProps {
     handleAdd: (organization: Organization) => any;
@@ -36,8 +37,9 @@ export interface SubroutineSelectOrCreateDialogProps {
     handleAdd: (nodeId: string, subroutine: Routine) => any;
     handleClose: () => any;
     isOpen: boolean;
+    owner: { __typename: ObjectType.Organization | ObjectType.User, id: string } | null;
     nodeId: string;
-    routineId: string;
+    routineId: string | null | undefined;
     session: Session;
     zIndex: number;
 }

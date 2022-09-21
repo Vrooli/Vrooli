@@ -1,5 +1,5 @@
 import { User, UserSortBy, UserSearchInput, ResourceListUsedFor, } from "../../schema/types";
-import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, FormatConverter, getSearchStringQueryHelper, PartialGraphQLInfo, removeCountFieldsHelper, removeJoinTablesHelper, Searcher } from "./base";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, FormatConverter, getSearchStringQueryHelper, PartialGraphQLInfo, removeCountFieldsHelper, removeJoinTablesHelper, Searcher } from "./base";
 import { PrismaType, RecursivePartial } from "../../types";
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
@@ -63,18 +63,18 @@ export const userSearcher = (): Searcher<UserSearchInput> => ({
         })
     },
     customQueries(input: UserSearchInput): { [x: string]: any } {
-        return {
-            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-            ...(input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            ...(input.organizationId !== undefined ? { organizations: { some: { organizationId: input.organizationId } } } : {}),
-            ...(input.projectId !== undefined ? { projects: { some: { projectId: input.projectId } } } : {}),
-            ...(input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
-            ...(input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
-            ...(input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
-            ...(input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
-            ...(input.standardId !== undefined ? { standards: { some: { id: input.standardId } } } : {}),
-        }
+        return combineQueries([
+            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
+            (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
+            (input.organizationId !== undefined ? { organizations: { some: { organizationId: input.organizationId } } } : {}),
+            (input.projectId !== undefined ? { projects: { some: { projectId: input.projectId } } } : {}),
+            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            (input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
+            (input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
+            (input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
+            (input.standardId !== undefined ? { standards: { some: { id: input.standardId } } } : {}),
+        ])
     },
 })
 

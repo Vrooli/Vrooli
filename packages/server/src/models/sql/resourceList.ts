@@ -2,7 +2,7 @@ import { resourceListsCreate, resourceListsUpdate, resourceListTranslationsCreat
 import { CODE } from "@shared/consts";
 import { ResourceList, ResourceListCreateInput, ResourceListUpdateInput, Count, ResourceListSortBy, ResourceListSearchInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { combineQueries, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { TranslationModel } from "./translation";
 import { ResourceModel } from "./resource";
@@ -42,9 +42,9 @@ export const resourceListSearcher = (): Searcher<ResourceListSearchInput> => ({
         })
     },
     customQueries(input: ResourceListSearchInput): { [x: string]: any } {
-        return {
-            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-        }
+        return combineQueries([
+            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+        ])
     },
 })
 

@@ -1,6 +1,6 @@
 import { Count, Tag, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { addJoinTablesHelper, addSupplementalFieldsHelper, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, joinRelationshipToPrisma, modelToGraphQL, PartialGraphQLInfo, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, joinRelationshipToPrisma, modelToGraphQL, PartialGraphQLInfo, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { tagsCreate, tagsUpdate, tagTranslationCreate, tagTranslationUpdate } from "@shared/validation";
 import { CODE } from "@shared/consts";
@@ -63,11 +63,11 @@ export const tagSearcher = (): Searcher<TagSearchInput> => ({
         })
     },
     customQueries(input: TagSearchInput): { [x: string]: any } {
-        return {
-            ...(input.excludeIds !== undefined ? { id: { not: { in: input.excludeIds } } } : {}),
-            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-        }
+        return combineQueries([
+            (input.excludeIds !== undefined ? { id: { not: { in: input.excludeIds } } } : {}),
+            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
+        ])
     },
 })
 

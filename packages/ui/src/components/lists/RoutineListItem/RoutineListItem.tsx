@@ -121,6 +121,19 @@ export function RoutineListItem({
                                         }} />
                                 </Tooltip>
                             }
+                            {/* Internal chip */}
+                            {
+                                data && data.isInternal && <Tooltip placement="top" title="Marked as internal. Only the owner can use this routine">
+                                    <Chip
+                                        label="Internal"
+                                        size="small"
+                                        sx={{
+                                            backgroundColor: palette.warning.main,
+                                            color: palette.error.contrastText,
+                                            width: 'fit-content',
+                                        }} />
+                                </Tooltip>
+                            }
                             {/* Tags */}
                             {Array.isArray(data?.tags) && (data?.tags as any).length > 0 ? <TagList session={session} parentId={data?.id ?? ''} tags={data?.tags ?? []} /> : null}
                         </Stack>

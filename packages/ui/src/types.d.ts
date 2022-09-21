@@ -16,6 +16,7 @@ import { FetchResult } from "@apollo/client";
 import { comment_comment } from 'graphql/generated/comment';
 import { comments_comments_threads } from 'graphql/generated/comments';
 import { run_run_inputs, run_run_steps } from 'graphql/generated/run';
+import { SearchException } from 'graphql/generated/globalTypes';
 
 // Top-level props that can be passed into any routed component
 export type SessionChecked = boolean;
@@ -95,11 +96,11 @@ export type ShapeWrapper<T> = Partial<Omit<T, '__typename' | 'createdAt' | 'crea
 // Common query input groups
 export type IsCompleteInput = {
     isComplete?: boolean;
-    isCompleteExceptions: { id: string, relation: string }[];
+    isCompleteExceptions?: SearchException[];
 }
 export type IsInternalInput = {
     isInternal?: boolean;
-    isInternalExceptions: { id: string, relation: string }[];
+    isInternalExceptions?: SearchException[];
 }
 
 /**

@@ -51,12 +51,12 @@ export const runInputFormatter = (): FormatConverter<RunInput, any> => ({
 //         })
 //     },
 //     customQueries(input: RunSearchInput): { [x: string]: any } {
-//         return {
-//             ...(input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
-//             ...(input.completedTimeFrame !== undefined ? timeFrameToPrisma('timeCompleted', input.completedTimeFrame) : {}),
-//             ...(input.startedTimeFrame !== undefined ? timeFrameToPrisma('timeStarted', input.startedTimeFrame) : {}),
-//             ...(input.status !== undefined ? { status: input.status } : {}),
-//         }
+//         return combineQueries([
+//             (input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
+//             (input.completedTimeFrame !== undefined ? timeFrameToPrisma('timeCompleted', input.completedTimeFrame) : {}),
+//             (input.startedTimeFrame !== undefined ? timeFrameToPrisma('timeStarted', input.startedTimeFrame) : {}),
+//             (input.status !== undefined ? { status: input.status } : {}),
+//         ])
 //     },
 // })
 

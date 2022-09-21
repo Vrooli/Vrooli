@@ -1,5 +1,5 @@
 // Components for providing basic functionality to model objects
-import { CopyInput, CopyType, Count, DeleteManyInput, DeleteOneInput, ForkInput, PageInfo, Success, TimeFrame } from '../../schema/types';
+import { CopyInput, CopyType, Count, DeleteManyInput, DeleteOneInput, ForkInput, PageInfo, Success, TimeFrame, VisibilityType } from '../../schema/types';
 import { PrismaType, RecursivePartial } from '../../types';
 import { GraphQLResolveInfo } from 'graphql';
 import { CommentModel } from './comment';
@@ -97,7 +97,7 @@ export type ModelLogic<GraphQLModel, SearchInput, PermissionObject> = {
     prismaObject: (prisma: PrismaType) => PrismaType[keyof PrismaType];
     search?: Searcher<SearchInput>;
     mutate?: (prisma: PrismaType) => Mutater<GraphQLModel>;
-    permissions?: (prisma: PrismaType) => Permissioner<PermissionObject, SearchInput>;
+    permissions?: () => Permissioner<PermissionObject, SearchInput>;
     verify?: { [x: string]: any };
     query?: (prisma: PrismaType) => Querier;
 }
@@ -196,7 +196,7 @@ export type Searcher<SearchInput> = {
     defaultSort: any;
     getSortQuery: (sortBy: string) => any;
     getSearchStringQuery: (searchString: string, languages?: string[]) => any;
-    customQueries?: (input: SearchInput) => { [x: string]: any };
+    customQueries?: (input: SearchInput, userId: string | null | undefined) => { [x: string]: any };
 }
 
 /**
@@ -219,9 +219,10 @@ export type Permissioner<PermissionObject, SearchInput> = {
     /**
      * Permissions for the object
      */
-    get({ objects, permissions, userId }: {
+    get({ objects, permissions, prisma, userId }: {
         objects: ({ id: string } & { [x: string]: any })[],
         permissions?: PermissionObject[] | null,
+        prisma: PrismaType,
         userId: string | null,
     }): Promise<PermissionObject[]>
     /**
@@ -233,6 +234,7 @@ export type Permissioner<PermissionObject, SearchInput> = {
      */
     canSearch?({ input, userId }: {
         input: SearchInput,
+        prisma: PrismaType,
         userId: string | null,
     }): Promise<'full' | 'public' | 'none'>
     /**
@@ -1356,7 +1358,7 @@ export async function permissionsCheck<PermissionObject>({
 }: PermissionsHelper<PermissionObject>): Promise<boolean> {
     if (!model.permissions) return true;
     // Query object's permissions
-    const perms = await model.permissions(prisma).get({ objects: [object], userId });
+    const perms = await model.permissions().get({ objects: [object], prisma, userId });
     for (const action of actions) {
         if (!perms[0][action as keyof PermissionObject]) {
             return false;
@@ -1461,7 +1463,7 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     // Determine updatedTimeFrame query
     const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
     // Create type-specific queries
-    let typeQuery = model.search?.customQueries ? model.search.customQueries(input) : undefined;
+    let typeQuery = model.search?.customQueries ? model.search.customQueries(input, userId) : undefined;
     // Combine queries
     const where = combineQueries([additionalQueries, idQuery, searchQuery, createdQuery, updatedQuery, typeQuery]);
     // Determine sort order
@@ -1957,6 +1959,7 @@ export async function existsArray({ ids, prismaDelegate, where }: ExistsArray): 
  * @returns Combined query object, with all fields combined
  */
 export function combineQueries(queries: ({ [x: string]: any } | null)[]): { [x: string]: any } {
+    console.log('combineQueries start', JSON.stringify(queries), '\n\n');
     const combined: { [x: string]: any } = {};
     for (const query of queries) {
         if (!query) continue;
@@ -1970,11 +1973,11 @@ export function combineQueries(queries: ({ [x: string]: any } | null)[]): { [x: 
                 }
                 // For AND, combine arrays
                 if (key === 'AND') {
-                    combined[key] = key in combined ? [...combined[key], ...value] : value;
+                    combined[key] = key in combined ? [...combined[key], ...currValue] : currValue;
                 }
                 // For OR and NOT, set as value if none exists
                 else if (!(key in combined)) {
-                    combined[key] = value;
+                    combined[key] = currValue;
                 }
                 // Otherwise, combine values using AND. This is because we can't have duplicate keys
                 else {
@@ -1986,7 +1989,7 @@ export function combineQueries(queries: ({ [x: string]: any } | null)[]): { [x: 
                     combined.AND = [
                         ...(combined.AND || []),
                         { [key]: temp },
-                        { [key]: value },
+                        { [key]: currValue },
                     ];
                 }
             }
@@ -1994,5 +1997,172 @@ export function combineQueries(queries: ({ [x: string]: any } | null)[]): { [x: 
             else combined[key] = value;
         }
     }
+    console.log('combineQueries end', JSON.stringify(combined), '\n\n');
     return combined;
+}
+
+type ExceptionsBuilderProps = {
+    /**
+     * Fields that are allowed to be queried. Supports nested fields through dot notation
+     */
+    canQuery: string[],
+    /**
+     * Default for main field
+     */
+    defaultValue?: any,
+    /**
+     * Field to check for stringified exceptions
+     */
+    exceptionField: string,
+    /**
+     * Input object, with exceptions in one of the fields
+     */
+    input: { [x: string]: any },
+    /**
+     * Main field being queried
+     */
+    mainField: string,
+}
+
+/**
+ * Assembles custom query exceptions (i.e. query has some condition OR <exceptions>). 
+ * If an 'id' field is allowed (e.g. 'parent.id') and the current value is a string, then we treat as 
+ * a 'connect' query (i.e. assume that the string is a primary key for the object)
+ */
+export function exceptionsBuilder({
+    canQuery,
+    defaultValue,
+    exceptionField,
+    input,
+    mainField,
+}: ExceptionsBuilderProps): { [x: string]: any } {
+    console.log('exceptions builder start', mainField, exceptionField, JSON.stringify(input), '\n\n');
+    // Initialize result
+    const result: { [x: string]: any } = { [mainField]: input[mainField] ?? defaultValue };
+    // Helper function for checking if a stringified object is a primitive or an array of primitives.
+    // Returns boolean indicating whether it is a primitive, and the parsed object
+    const getPrimitive = (x: string): [boolean, any] => {
+        console.log('getprimitive start', x)
+        const primitiveCheck = (y: any): boolean => { return y === null || typeof y === 'string' || typeof y === 'number' || typeof y === 'boolean' };
+        let value: any;
+        try { value = JSON.parse(x); }
+        catch (err) { console.log('caught error parsing', err); return [false, undefined]; }
+        if (Array.isArray(value)) {
+            if (value.every(primitiveCheck)) return [true, value]
+        }
+        else if (primitiveCheck(value)) return [true, value];
+        return [false, value];
+    }
+    /**
+     * Helper function for converting a list of fields to a nested object
+     * @param fields List of fields to convert
+     * @param value Value to assign to the last field
+     */
+    const fieldsToObject = (fields: string[], value: any): { [x: string]: any } => {
+        if (fields.length === 0) return value;
+        const [field, ...rest] = fields;
+        return { [field]: fieldsToObject(rest, value) };
+    }
+    /**
+     * Helper function to add an object to the result's OR array
+     * @param allowed Fields that are allowed to be queried
+     * @param field Field's name
+     * @param value Field's stringified value
+     * @param recursedFields Nested fields in current recursion. These are used to generated nested queries
+     */
+    const addToOr = (allowed: string[], field: string, value: string, recursedFields: string[] = []): void => {
+        const [isPrimitive, parsedValue] = getPrimitive(value);
+        console.log('addtoor start', field, allowed, isPrimitive, parsedValue, '\n\n');
+        // Check if field is allowed
+        if (isPrimitive && allowed.includes(field)) {
+            console.log('in addtoor 1')
+            // If not array, add to result
+            if (!Array.isArray(parsedValue)) result.OR.push(fieldsToObject([...recursedFields, field], parsedValue));
+            // Otherwise, wrap in { in: } and add to result
+            else result.OR.push(fieldsToObject([...recursedFields, field], { in: parsedValue }));
+        }
+        // Check if field is allowed with 'id' appended
+        else if (allowed.includes(`${field}.id`)) {
+            console.log('in addtoor 2')
+            // If not array, add to result
+            if (!Array.isArray(parsedValue) && typeof parsedValue === 'string') result.OR.push(fieldsToObject([...recursedFields, field, 'id'], parsedValue));
+            // Otherwise, wrap in { in: } and add to result
+            else if (Array.isArray(parsedValue) && parsedValue.every(x => typeof x === 'string')) result.OR.push(fieldsToObject([...recursedFields, field, 'id'], { in: parsedValue }));
+        }
+        // Otherwise, check if we should recurse
+        else if (typeof parsedValue === 'object' && field in parsedValue) {
+            const matchingFields = allowed.filter(x => x.startsWith(`${field}.`));
+            console.log('in addtoor 3', matchingFields)
+            if (matchingFields.length > 0) {
+                addToOr(
+                    allowed.filter(x => x.startsWith(`${field}.`)),
+                    field,
+                    JSON.stringify(parsedValue[field]),
+                    [...recursedFields, field],
+                );
+            }
+        }
+    }
+    console.log('exceptions builder a', JSON.stringify(result), '\n\n');
+    if (!(typeof input === 'object' && mainField in input)) return result;
+    console.log('exceptions builder b');
+    // Get mainField value
+    console.log('exceptions builder c', result[mainField]);
+    // If exceptionField is present, wrap in OR
+    if (exceptionField in input) {
+        result.OR = [{ [mainField]: result[mainField] }];
+        delete result[mainField];
+        // If exceptionField is an array, add each item to OR
+        if (Array.isArray(input[exceptionField])) {
+            // Delete mainField from result, since it will be in OR
+            for (const exception of input[exceptionField]) {
+                addToOr(canQuery, lowercaseFirstLetter(exception.field), exception.value);
+            }
+        }
+        // Otherwise, add exceptionField to OR
+        else {
+            addToOr(canQuery, lowercaseFirstLetter(input[exceptionField].field), input[exceptionField].value);
+        }
+    }
+    console.log('exceptions builder end', JSON.stringify(result), '\n\n');
+    return result;
+}
+
+type VisibilityBuilderProps<GraphQLModelType> = {
+    model: ModelLogic<GraphQLModelType, any, any>,
+    userId: string | null | undefined,
+    visibility?: VisibilityType | null | undefined,
+}
+
+/**
+ * Assembles visibility query
+ */
+export function visibilityBuilder<GraphQLModelType>({
+    model,
+    userId,
+    visibility,
+}: VisibilityBuilderProps<GraphQLModelType>): { [x: string]: any } {
+    // If visibility is set to public or not defined, 
+    // or user is not logged in, or model does not have 
+    // the correct data to query for ownership
+    if (!visibility || visibility === VisibilityType.Public || !userId || !model.permissions) {
+        return { isPrivate: false };
+    }
+    // If visibility is set to private
+    else if (visibility === VisibilityType.Private) {
+        return model.permissions().ownershipQuery(userId);
+    }
+    // Otherwise, must be set to both
+    else {
+        let query: { [x: string]: any } = model.permissions().ownershipQuery(userId);
+        // If query has OR field with an array value, add isPrivate: false to array
+        if ('OR' in query && Array.isArray(query.OR)) {
+            query.OR.push({ isPrivate: false });
+        }
+        // Otherwise, wrap query in OR with isPrivate: false
+        else {
+            query = { OR: [query, { isPrivate: false }] };
+        }
+        return query;
+    }
 }

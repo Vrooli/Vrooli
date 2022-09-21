@@ -44,7 +44,6 @@ export const BaseObjectDialog = ({
                     background: palette.mode === 'light' ? '#c2cadd' : palette.background.default,
                     flex: 'auto',
                     padding: 0,
-                    paddingTop: { xs: '56px', sm: '64px' },
                     width: '100%',
                 }}
             >

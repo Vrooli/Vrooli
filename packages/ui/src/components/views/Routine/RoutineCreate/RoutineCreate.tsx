@@ -1,4 +1,4 @@
-import { Grid, TextField } from "@mui/material";
+import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { routineCreateForm as validationSchema } from '@shared/validation';
@@ -16,6 +16,7 @@ import { routineCreate, routineCreateVariables } from "graphql/generated/routine
 import { RelationshipItemRoutine, RelationshipsObject } from "components/inputs/types";
 
 export const RoutineCreate = ({
+    isSubroutine = false,
     onCreated,
     onCancel,
     session,
@@ -95,6 +96,7 @@ export const RoutineCreate = ({
         initialValues: {
             description: '',
             instructions: 'Fill out the form below.',
+            isInternal: false,
             title: '',
             version: '1.0.0',
         },
@@ -112,6 +114,7 @@ export const RoutineCreate = ({
                 input: shapeRoutineCreate({
                     id: uuid(),
                     version: values.version,
+                    isInternal: values.isInternal,
                     isComplete: relationships.isComplete,
                     isPrivate: relationships.isPrivate,
                     owner: relationships.owner,
@@ -271,7 +274,13 @@ export const RoutineCreate = ({
                         name="version"
                         value={formik.values.version}
                         onBlur={formik.handleBlur}
-                        onChange={(newVersion: string) => { formik.setFieldValue('version', newVersion) }}
+                        onChange={(newVersion: string) => {
+                            formik.setFieldValue('version', newVersion);
+                            setRelationships({
+                                ...relationships,
+                                isComplete: false,
+                            })
+                        }}
                         error={formik.touched.version && Boolean(formik.errors.version)}
                         helperText={formik.touched.version ? formik.errors.version : null}
                     />
@@ -317,6 +326,26 @@ export const RoutineCreate = ({
                         tags={tags}
                     />
                 </Grid>
+                {/* Is internal checkbox */}
+                {isSubroutine && (
+                    <Grid item xs={12}>
+                        <Tooltip placement={'top'} title='Indicates if this routine is meant to be a subroutine for only one other routine. If so, it will not appear in search resutls.'>
+                            <FormControlLabel
+                                label='Internal'
+                                control={
+                                    <Checkbox
+                                        id='routine-info-dialog-is-internal'
+                                        size="small"
+                                        name='isInternal'
+                                        color='secondary'
+                                        checked={formik.values.isInternal}
+                                        onChange={formik.handleChange}
+                                    />
+                                }
+                            />
+                        </Tooltip>
+                    </Grid>
+                )}
                 <GridSubmitButtons
                     disabledCancel={formik.isSubmitting}
                     disabledSubmit={Boolean(!isLoggedIn || formik.isSubmitting)}

@@ -4,7 +4,7 @@ import { omit } from '@shared/utils';
 import { CustomError } from "../../error";
 import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, Count } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, Querier, addSupplementalFieldsHelper, Permissioner, permissionsCheck, getSearchStringQueryHelper, onlyValidIds } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, Querier, addSupplementalFieldsHelper, Permissioner, permissionsCheck, getSearchStringQueryHelper, onlyValidIds, combineQueries } from "./base";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
 import { StarModel } from "./star";
@@ -67,7 +67,7 @@ export const commentFormatter = (): FormatConverter<Comment, CommentPermission> 
             resolvers: [
                 ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Comment')],
                 ['isUpvoted', async (ids) => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Routine')],
-                ['permissionsComment', async () => await CommentModel.permissions(prisma).get({ objects, permissions, userId })],
+                ['permissionsComment', async () => await CommentModel.permissions().get({ objects, permissions, prisma, userId })],
             ]
         });
     },
@@ -134,23 +134,24 @@ export const commentSearcher = (): Searcher<CommentSearchInput> => ({
         })
     },
     customQueries(input: CommentSearchInput): { [x: string]: any } {
-        return {
-            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            ...(input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
-            ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-            ...(input.userId !== undefined ? { userId: input.userId } : {}),
-            ...(input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
-            ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
-            ...(input.routineId !== undefined ? { routineId: input.routineId } : {}),
-            ...(input.standardId !== undefined ? { standardId: input.standardId } : {}),
-        }
+        return combineQueries([
+            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            (input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
+            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
+            (input.userId !== undefined ? { userId: input.userId } : {}),
+            (input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
+            (input.projectId !== undefined ? { projectId: input.projectId } : {}),
+            (input.routineId !== undefined ? { routineId: input.routineId } : {}),
+            (input.standardId !== undefined ? { standardId: input.standardId } : {}),
+        ])
     },
 })
 
-export const commentPermissioner = (prisma: PrismaType): Permissioner<CommentPermission, CommentSearchInput> => ({
+export const commentPermissioner = (): Permissioner<CommentPermission, CommentSearchInput> => ({
     async get({
         objects,
         permissions,
+        prisma,
         userId,
     }) {
         // Initialize result with ID
@@ -192,8 +193,9 @@ export const commentPermissioner = (prisma: PrismaType): Permissioner<CommentPer
         }
         // Find permissions for every organization
         const organizationIds = onlyValidIds(ownerData.map(x => x.organization?.id))
-        const orgPermissions = await OrganizationModel.permissions(prisma).get({
+        const orgPermissions = await OrganizationModel.permissions().get({
             objects: organizationIds.map(x => ({ id: x })),
+            prisma,
             userId
         });
         // Find which objects have ownership permissions

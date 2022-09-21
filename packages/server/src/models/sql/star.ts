@@ -3,7 +3,7 @@ import { isObject } from '@shared/utils';
 import { CustomError } from "../../error";
 import { LogType, Star, StarInput, StarSearchInput, StarSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { deconstructUnion, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, ModelLogic, ObjectMap, onlyValidIds, PartialGraphQLInfo, readManyHelper, Searcher } from "./base";
+import { combineQueries, deconstructUnion, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, ModelLogic, ObjectMap, onlyValidIds, PartialGraphQLInfo, readManyHelper, Searcher } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { resolveStarTo } from "../../schema/resolvers";
@@ -125,9 +125,9 @@ export const starSearcher = (): Searcher<StarSearchInput> => ({
         })
     },
     customQueries(input: StarSearchInput): { [x: string]: any } {
-        return {
-            ...(input.excludeTags === true ? { tagId: null } : {}),
-        }
+        return combineQueries([
+            (input.excludeTags === true ? { tagId: null } : {}),
+        ])
     },
 })
 

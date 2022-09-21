@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { countHelper, createHelper, readManyHelper, readOneHelper, StandardModel, updateHelper } from '../models';
+import { countHelper, createHelper, readManyHelper, readOneHelper, StandardModel, updateHelper, visibilityBuilder } from '../models';
 import { IWrap, RecursivePartial } from '../types';
 import { FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSearchResult, StandardSortBy } from './types';
 import { Context } from '../context';
@@ -118,7 +118,6 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        includePrivate: Boolean  
         languages: [String!]
         minScore: Int
         minStars: Int
@@ -134,6 +133,7 @@ export const typeDef = gql`
         type: String
         updatedTimeFrame: TimeFrame
         userId: ID
+        visibility: VisibilityType
     }
 
     type StandardSearchResult {
@@ -173,11 +173,7 @@ export const resolvers = {
         },
         standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<StandardSearchResult> => {
             await rateLimit({ info, max: 1000, req });
-            // Can only show private if querying your own
-            const privateQuery = input.includePrivate ?
-                StandardModel.permissions(prisma).ownershipQuery(req.userId ?? '') :
-                { isPrivate: false };
-            return readManyHelper({ info, input, model: StandardModel, prisma, userId: req.userId, additionalQueries: { ...privateQuery } });
+            return readManyHelper({ info, input, model: StandardModel, prisma, userId: req.userId });
         },
         standardsCount: async (_parent: undefined, { input }: IWrap<StandardCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, max: 1000, req });

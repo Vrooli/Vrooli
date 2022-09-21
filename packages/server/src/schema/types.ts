@@ -29,11 +29,6 @@ export type ApiKeyStatus = {
   nextResetAt: Scalars['Date'];
 };
 
-export type BooleanSearchException = {
-  id: Scalars['ID'];
-  relation: Scalars['String'];
-};
-
 export type Comment = {
   __typename?: 'Comment';
   commentedOn: CommentedOn;
@@ -1164,7 +1159,6 @@ export type OrganizationSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  includePrivate?: InputMaybe<Scalars['Boolean']>;
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   minStars?: InputMaybe<Scalars['Int']>;
@@ -1181,6 +1175,7 @@ export type OrganizationSearchInput = {
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
+  visibility?: InputMaybe<VisibilityType>;
 };
 
 export type OrganizationSearchResult = {
@@ -1429,7 +1424,6 @@ export type ProjectOrOrganizationSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  includePrivate?: InputMaybe<Scalars['Boolean']>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
@@ -1440,7 +1434,7 @@ export type ProjectOrOrganizationSearchInput = {
   organizationRoutineId?: InputMaybe<Scalars['ID']>;
   projectAfter?: InputMaybe<Scalars['String']>;
   projectIsComplete?: InputMaybe<Scalars['Boolean']>;
-  projectIsCompleteExceptions?: InputMaybe<Array<BooleanSearchException>>;
+  projectIsCompleteExceptions?: InputMaybe<Array<SearchException>>;
   projectMinScore?: InputMaybe<Scalars['Int']>;
   projectOrganizationId?: InputMaybe<Scalars['ID']>;
   projectParentId?: InputMaybe<Scalars['ID']>;
@@ -1453,6 +1447,7 @@ export type ProjectOrOrganizationSearchInput = {
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
+  visibility?: InputMaybe<VisibilityType>;
 };
 
 export type ProjectOrOrganizationSearchResult = {
@@ -1489,9 +1484,8 @@ export type ProjectOrRoutineSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  includePrivate?: InputMaybe<Scalars['Boolean']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isCompleteExceptions?: InputMaybe<Array<BooleanSearchException>>;
+  isCompleteExceptions?: InputMaybe<Array<SearchException>>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
@@ -1518,6 +1512,7 @@ export type ProjectOrRoutineSearchInput = {
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
+  visibility?: InputMaybe<VisibilityType>;
 };
 
 export type ProjectOrRoutineSearchResult = {
@@ -1558,9 +1553,8 @@ export type ProjectSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  includePrivate?: InputMaybe<Scalars['Boolean']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isCompleteExceptions?: InputMaybe<Array<BooleanSearchException>>;
+  isCompleteExceptions?: InputMaybe<Array<SearchException>>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
@@ -1576,6 +1570,7 @@ export type ProjectSearchInput = {
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
+  visibility?: InputMaybe<VisibilityType>;
 };
 
 export type ProjectSearchResult = {
@@ -2378,11 +2373,10 @@ export type RoutineSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  includePrivate?: InputMaybe<Scalars['Boolean']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isCompleteExceptions?: InputMaybe<Array<BooleanSearchException>>;
+  isCompleteExceptions?: InputMaybe<Array<SearchException>>;
   isInternal?: InputMaybe<Scalars['Boolean']>;
-  isInternalExceptions?: InputMaybe<Array<BooleanSearchException>>;
+  isInternalExceptions?: InputMaybe<Array<SearchException>>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   maxComplexity?: InputMaybe<Scalars['Int']>;
   maxSimplicity?: InputMaybe<Scalars['Int']>;
@@ -2405,6 +2399,7 @@ export type RoutineSearchInput = {
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
+  visibility?: InputMaybe<VisibilityType>;
 };
 
 export type RoutineSearchResult = {
@@ -2598,7 +2593,6 @@ export type RunSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  includePrivate?: InputMaybe<Scalars['Boolean']>;
   routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RunSortBy>;
@@ -2606,6 +2600,7 @@ export type RunSearchInput = {
   status?: InputMaybe<RunStatus>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
+  visibility?: InputMaybe<VisibilityType>;
 };
 
 export type RunSearchResult = {
@@ -2685,6 +2680,11 @@ export type RunUpdateInput = {
   stepsDelete?: InputMaybe<Array<Scalars['ID']>>;
   stepsUpdate?: InputMaybe<Array<RunStepUpdateInput>>;
   timeElapsed?: InputMaybe<Scalars['Int']>;
+};
+
+export type SearchException = {
+  field: Scalars['String'];
+  value: Scalars['String'];
 };
 
 export type SendVerificationEmailInput = {
@@ -2778,7 +2778,6 @@ export type StandardSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  includePrivate?: InputMaybe<Scalars['Boolean']>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
@@ -2794,6 +2793,7 @@ export type StandardSearchInput = {
   type?: InputMaybe<Scalars['String']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
+  visibility?: InputMaybe<VisibilityType>;
 };
 
 export type StandardSearchResult = {
@@ -3172,6 +3172,12 @@ export type ViewSearchResult = {
 export enum ViewSortBy {
   LastViewedAsc = 'LastViewedAsc',
   LastViewedDesc = 'LastViewedDesc'
+}
+
+export enum VisibilityType {
+  Both = 'Both',
+  Private = 'Private',
+  Public = 'Public'
 }
 
 export type Vote = {

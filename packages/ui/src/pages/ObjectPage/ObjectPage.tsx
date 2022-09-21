@@ -193,7 +193,7 @@ export const ObjectPage = ({
     }, [objectType, onAction, pageType, session]);
 
     return (
-        <PageContainer sx={{ paddingLeft: 0, paddingRight: 0, display: 'none' }}>
+        <PageContainer sx={{ paddingLeft: 0, paddingRight: 0 }}>
             {displayedPage}
         </PageContainer>
     )

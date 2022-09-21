@@ -1,10 +1,10 @@
 import { standardsCreate, standardsUpdate, standardTranslationCreate, standardTranslationUpdate } from "@shared/validation";
 import { CODE, DeleteOneType } from "@shared/consts";
-import { omit } from '@shared/utils'; 
+import { omit } from '@shared/utils';
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count, StandardPermission } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addSupplementalFieldsHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput, visibilityBuilder } from "./base";
 import { validateProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -61,16 +61,17 @@ export const standardFormatter = (): FormatConverter<Standard, StandardPermissio
                 ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Standard')],
                 ['isUpvoted', async (ids) => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Standard')],
                 ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Standard')],
-                ['permissionsStandard', async () => await StandardModel.permissions(prisma).get({ objects, permissions, userId })],
+                ['permissionsStandard', async () => await StandardModel.permissions().get({ objects, permissions, prisma, userId })],
             ]
         });
     }
 })
 
-export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardPermission, StandardSearchInput> => ({
+export const standardPermissioner = (): Permissioner<StandardPermission, StandardSearchInput> => ({
     async get({
         objects,
         permissions,
+        prisma,
         userId,
     }) {
         // Initialize result with ID
@@ -85,9 +86,9 @@ export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardP
         }));
         if (!userId) return result;
         const ids = objects.map(x => x.id);
-        let creatorData: { 
-            id: string, 
-            user?: { id: string } | null | undefined, 
+        let creatorData: {
+            id: string,
+            user?: { id: string } | null | undefined,
             organization?: { id: string } | null | undefined
         }[] = [];
         // If some creator data missing, query for creator data.
@@ -112,9 +113,10 @@ export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardP
         }
         // Find permissions for every organization
         const organizationIds = onlyValidIds(creatorData.map(x => x.organization?.id));
-        const orgPermissions = await OrganizationModel.permissions(prisma).get({ 
+        const orgPermissions = await OrganizationModel.permissions().get({
             objects: organizationIds.map(x => ({ id: x })),
-            userId 
+            prisma,
+            userId
         });
         // Find which objects have ownership permissions
         for (let i = 0; i < objects.length; i++) {
@@ -137,6 +139,7 @@ export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardP
     },
     async canSearch({
         input,
+        prisma,
         userId
     }) {
         //TODO
@@ -167,8 +170,9 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({ searchString,
-            resolver: ({ insensitive }) => ({ 
+        return getSearchStringQueryHelper({
+            searchString,
+            resolver: ({ insensitive }) => ({
                 OR: [
                     { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
                     { name: { ...insensitive } },
@@ -177,35 +181,36 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
             })
         })
     },
-    customQueries(input: StandardSearchInput): { [x: string]: any } {
-        return {
+    customQueries(input: StandardSearchInput, userId: string | null | undefined): { [x: string]: any } {
+        return combineQueries([
             /**
              * isInternal routines should never appear in the query, since they are 
              * only meant for a single input/output
              */
-            isInternal: false,
-            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            ...(input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
-            ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-            ...(input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            ...(input.userId !== undefined ? { createdByUserId: input.userId } : {}),
-            ...(input.organizationId !== undefined ? { createdByOrganizationId: input.organizationId } : {}),
-            ...(input.projectId !== undefined ? {
+            { isInternal: false },
+            visibilityBuilder({ model: StandardModel, userId, visibility: input.visibility }),
+            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            (input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
+            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
+            (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
+            (input.userId !== undefined ? { createdByUserId: input.userId } : {}),
+            (input.organizationId !== undefined ? { createdByOrganizationId: input.organizationId } : {}),
+            (input.projectId !== undefined ? {
                 OR: [
                     { createdByUser: { projects: { some: { id: input.projectId } } } },
                     { createdByOrganization: { projects: { some: { id: input.projectId } } } },
                 ]
             } : {}),
-            ...(input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
-            ...(input.routineId !== undefined ? {
+            (input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
+            (input.routineId !== undefined ? {
                 OR: [
                     { routineInputs: { some: { routineId: input.routineId } } },
                     { routineOutputs: { some: { routineId: input.routineId } } },
                 ]
             } : {}),
-            ...(input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
-            ...(!!input.type ? { type: { contains: input.type.trim(), mode: 'insensitive' } } : {}),
-        }
+            (input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
+            (!!input.type ? { type: { contains: input.type.trim(), mode: 'insensitive' } } : {}),
+        ])
     },
 })
 

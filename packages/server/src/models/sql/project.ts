@@ -3,8 +3,8 @@ import { CODE } from "@shared/consts";
 import { omit } from '@shared/utils';
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
-import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor, ProjectPermission, OrganizationPermission } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFieldsHelper, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, Permissioner, permissionsCheck, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor, ProjectPermission, OrganizationPermission, VisibilityType } from "../../schema/types";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, exceptionsBuilder, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, Permissioner, permissionsCheck, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput, visibilityBuilder } from "./base";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -66,16 +66,17 @@ export const projectFormatter = (): FormatConverter<Project, ProjectPermission> 
                 ['isStarred', async (ids) => StarModel.query(prisma).getIsStarreds(userId, ids, 'Project')],
                 ['isUpvoted', async (ids) => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Project')],
                 ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Project')],
-                ['permissionsProject', async () => await ProjectModel.permissions(prisma).get({ objects, permissions, userId })],
+                ['permissionsProject', async () => await ProjectModel.permissions().get({ objects, permissions, prisma, userId })],
             ]
         });
     }
 })
 
-export const projectPermissioner = (prisma: PrismaType): Permissioner<ProjectPermission, ProjectSearchInput> => ({
+export const projectPermissioner = (): Permissioner<ProjectPermission, ProjectSearchInput> => ({
     async get({
         objects,
         permissions,
+        prisma,
         userId,
     }) {
         // Initialize result with ID
@@ -117,8 +118,9 @@ export const projectPermissioner = (prisma: PrismaType): Permissioner<ProjectPer
         }
         // Find permissions for every organization
         const organizationIds = onlyValidIds(ownerData.map(x => x.organization?.id));
-        const orgPermissions = await OrganizationModel.permissions(prisma).get({
+        const orgPermissions = await OrganizationModel.permissions().get({
             objects: organizationIds.map(x => ({ id: x })),
+            prisma,
             userId
         });
         // Find which objects have ownership permissions
@@ -142,13 +144,14 @@ export const projectPermissioner = (prisma: PrismaType): Permissioner<ProjectPer
     },
     async canSearch({
         input,
+        prisma,
         userId
     }) {
         // Check permissions of specified objects TODO need better approach, but this will do for now
         if (input.ids) {
-            const permissions = await this.get({ objects: input.ids.map(id => ({ id })), permissions: [], userId });
+            const permissions = await this.get({ objects: input.ids.map(id => ({ id })), permissions: [], prisma, userId });
             // Check if trying to view hidden objects
-            if (input.includePrivate === true && !permissions.every(x => x.canView)) return 'none';
+            if (!permissions.every(x => x.canView)) return 'none';
             // If you own all data, you have full search permissions
             if (permissions.every(x => x.canEdit)) return 'full';
         }
@@ -219,33 +222,28 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
             })
         })
     },
-    customQueries(input: ProjectSearchInput): { [x: string]: any } {
-        // isComplete routines may be set to true or false generally, and also set exceptions
-        let isComplete: any;
-        if (Array.isArray(input.isCompleteExceptions) && input.isCompleteExceptions.length > 0) {
-            isComplete = { OR: [{ isComplete: input.isComplete }] };
-            for (const exception of input.isCompleteExceptions) {
-                if (['createdByOrganization', 'createdByUser', 'organization', 'project', 'user'].includes(exception.relation)) {
-                    isComplete.OR.push({ [exception.relation]: { id: exception.id } });
-                }
-            }
-        } else {
-            isComplete = { isComplete: input.isComplete };
-        }
-        return {
-            ...isComplete,
-            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            ...(input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
-            ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-            ...(input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            ...(input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
-            ...(input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
-            ...(input.userId !== undefined ? { userId: input.userId } : {}),
-            ...(input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
-            ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
-            ...(input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
-            ...(input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
-        }
+    customQueries(input: ProjectSearchInput, userId: string | null | undefined): { [x: string]: any } {
+        const isComplete = exceptionsBuilder({
+            canQuery: ['createdByOrganization', 'createdByUser', 'organization.id', 'project.id', 'user.id'],
+            exceptionField: 'isCompleteExceptions',
+            input,
+            mainField: 'isComplete',
+        })
+        return combineQueries([
+            isComplete,
+            visibilityBuilder({ model: ProjectModel, userId, visibility: input.visibility }),
+            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            (input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
+            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
+            (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
+            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            (input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
+            (input.userId !== undefined ? { userId: input.userId } : {}),
+            (input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
+            (input.parentId !== undefined ? { parentId: input.parentId } : {}),
+            (input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
+            (input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
+        ])
     },
 })
 

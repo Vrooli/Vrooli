@@ -1,6 +1,6 @@
 import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeRoutineListItem, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemCreateInput, RoutinePermission } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, addSupplementalFieldsHelper, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, exceptionsBuilder, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput, visibilityBuilder } from "./base";
 import { CustomError } from "../../error";
 import { inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routineTranslationCreate, routineTranslationUpdate, routineUpdate } from "@shared/validation";
 import { CODE, DeleteOneType } from "@shared/consts";
@@ -18,6 +18,7 @@ import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
 import { runFormatter } from "./run";
 import { v4 as uuid } from 'uuid';
+import { ProjectModel } from "./project";
 
 type NodeWeightData = {
     simplicity: number,
@@ -79,7 +80,7 @@ export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> 
                 ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Routine')],
                 ['isUpvoted', async (ids) => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Routine')],
                 ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Routine')],
-                ['permissionsRoutine', async () => await RoutineModel.permissions(prisma).get({ objects, permissions, userId })],
+                ['permissionsRoutine', async () => await RoutineModel.permissions().get({ objects, permissions, prisma, userId })],
                 ['runs', async (ids) => {
                     if (userId) {
                         // Find requested fields of runs. Also add routineId, so we 
@@ -118,10 +119,11 @@ export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> 
     }
 })
 
-export const routinePermissioner = (prisma: PrismaType): Permissioner<RoutinePermission, RoutineSearchInput> => ({
+export const routinePermissioner = (): Permissioner<RoutinePermission, RoutineSearchInput> => ({
     async get({
         objects,
         permissions,
+        prisma,
         userId,
     }) {
         // Initialize result with ID
@@ -165,8 +167,9 @@ export const routinePermissioner = (prisma: PrismaType): Permissioner<RoutinePer
         }
         // Find permissions for every organization
         const organizationIds: string[] = ownerData.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
-        const orgPermissions = await OrganizationModel.permissions(prisma).get({ 
+        const orgPermissions = await OrganizationModel.permissions().get({ 
             objects: organizationIds.map(x => ({ id: x })),
+            prisma,
             userId 
         });
         // Find which objects have ownership permissions
@@ -190,6 +193,7 @@ export const routinePermissioner = (prisma: PrismaType): Permissioner<RoutinePer
     },
     async canSearch({
         input,
+        prisma,
         userId
     }) {
         //TODO
@@ -234,56 +238,45 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
             })
         })
     },
-    customQueries(input: RoutineSearchInput): { [x: string]: any } {
-        // isComplete routines may be set to true or false generally, and also set exceptions
-        let isComplete: any;
-        if (Array.isArray(input.isCompleteExceptions) && input.isCompleteExceptions.length > 0) {
-            isComplete = { OR: [{ isComplete: input.isComplete }] };
-            for (const exception of input.isCompleteExceptions) {
-                if (['createdByOrganization', 'createdByUser', 'organization', 'parent', 'project', 'user'].includes(exception.relation)) {
-                    isComplete.OR.push({ [exception.relation]: { id: exception.id } });
-                }
-            }
-        } else {
-            isComplete = { isComplete: input.isComplete };
-        }
-        // isInternal routines may be set to true or false generally, and also set exceptions
-        let isInternal: any;
-        if (Array.isArray(input.isInternalExceptions) && input.isInternalExceptions.length > 0) {
-            console.log('internal is here', JSON.stringify(input.isInternalExceptions), input.isInternal);
-            isInternal = { OR: [{ isInternal: input.isInternal }] };
-            for (const exception of input.isInternalExceptions) {
-                if (['createdByOrganization', 'createdByUser', 'organization', 'parent', 'project', 'user'].includes(exception.relation)) {
-                    isInternal.OR.push({ [exception.relation]: { id: exception.id } });
-                }
-            }
-        } else {
-            isInternal = { isInternal: input.isInternal };
-        }
-        return {
-            ...(input.excludeIds !== undefined ? { NOT: { id: { in: input.excludeIds } } } : {}),
-            ...(input.excludeIds !== undefined ? { NOT: { id: { in: input.excludeIds } } } : {}),
-            ...isComplete,
-            ...isInternal,
-            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            ...(input.minComplexity !== undefined ? { complexity: { gte: input.minComplexity } } : {}),
-            ...(input.maxComplexity !== undefined ? { complexity: { lte: input.maxComplexity } } : {}),
-            ...(input.minSimplicity !== undefined ? { simplicity: { gte: input.minSimplicity } } : {}),
-            ...(input.maxSimplicity !== undefined ? { simplicity: { lte: input.maxSimplicity } } : {}),
-            ...(input.maxTimesCompleted !== undefined ? { timesCompleted: { lte: input.maxTimesCompleted } } : {}),
-            ...(input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
-            ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-            ...(input.minTimesCompleted !== undefined ? { timesCompleted: { gte: input.minTimesCompleted } } : {}),
-            ...(input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            ...(input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
-            ...(input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
-            ...(input.userId !== undefined ? { userId: input.userId } : {}),
-            ...(input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
-            ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
-            ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
-            ...(input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
-            ...(input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
-        }
+    customQueries(input: RoutineSearchInput, userId: string | null | undefined): { [x: string]: any } {
+        const isComplete = exceptionsBuilder({
+            canQuery: ['createdByOrganization', 'createdByUser', 'organization.id', 'project.id', 'user.id'],
+            exceptionField: 'isCompleteExceptions',
+            input,
+            mainField: 'isComplete',
+        })
+        const isInternal = exceptionsBuilder({
+            canQuery: ['createdByOrganization', 'createdByUser', 'organization.id', 'project.id', 'user.id'],
+            defaultValue: false,
+            exceptionField: 'isInternalExceptions',
+            input,
+            mainField: 'isInternal',
+        })
+        console.log('before routine customqueries combinequeries', JSON.stringify(isComplete), '\n', JSON.stringify(isInternal), '\n');
+        return combineQueries([
+            isComplete,
+            isInternal,
+            visibilityBuilder({ model: RoutineModel, userId, visibility: input.visibility }),
+            (input.excludeIds !== undefined ? { NOT: { id: { in: input.excludeIds } } } : {}),
+            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            (input.minComplexity !== undefined ? { complexity: { gte: input.minComplexity } } : {}),
+            (input.maxComplexity !== undefined ? { complexity: { lte: input.maxComplexity } } : {}),
+            (input.minSimplicity !== undefined ? { simplicity: { gte: input.minSimplicity } } : {}),
+            (input.maxSimplicity !== undefined ? { simplicity: { lte: input.maxSimplicity } } : {}),
+            (input.maxTimesCompleted !== undefined ? { timesCompleted: { lte: input.maxTimesCompleted } } : {}),
+            (input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
+            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
+            (input.minTimesCompleted !== undefined ? { timesCompleted: { gte: input.minTimesCompleted } } : {}),
+            (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
+            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            (input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
+            (input.userId !== undefined ? { userId: input.userId } : {}),
+            (input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
+            (input.projectId !== undefined ? { projectId: input.projectId } : {}),
+            (input.parentId !== undefined ? { parentId: input.parentId } : {}),
+            (input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
+            (input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
+        ])
     },
 })
 
@@ -512,6 +505,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             simplicity: simplicity,
             isInternal: data.isInternal ?? undefined,
             parentId: (data as RoutineCreateInput)?.parentId ?? undefined,
+            projectId: data.projectId ?? undefined,
             version: data.version ?? undefined,
             versionGroupId: isAdd ? uuid() : undefined,
             resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, isAdd),
@@ -721,17 +715,19 @@ export const routineMutater = (prisma: PrismaType) => ({
         if (!createMany && !updateMany && !deleteMany) return;
         if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0093') });
-        // Collect organizationIds from each object, and check if the user is an admin/owner of every organization
+        // Collect organizationIds and projectIds from each object, and check if the user is an admin/owner of each
         const organizationIds: (string | null | undefined)[] = [];
+        const projectIds: (string | null | undefined)[] = [];
         if (createMany) {
             routinesCreate.validateSync(createMany, { abortEarly: false });
             TranslationModel.profanityCheck(createMany);
-            // Add createdByOrganizationIds to organizationIds array, if they are set
+            // Add IDs
             organizationIds.push(...onlyValidIds(createMany.map(input => input.createdByOrganizationId)));
+            projectIds.push(...onlyValidIds(createMany.map(input => input.projectId)));
             createMany.forEach(input => this.validateNodePositions(input));
             // Check if user will pass max routines limit
             const existingCount = await prisma.routine.count({
-                where: { ...routinePermissioner(prisma).ownershipQuery(userId) }
+                where: { ...routinePermissioner().ownershipQuery(userId) }
             })
             if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 2500) {
                 throw new CustomError(CODE.MaxRoutinesReached, 'Maximum routines reached on this account', { code: genErrorCode('0094') });
@@ -746,8 +742,9 @@ export const routineMutater = (prisma: PrismaType) => ({
                 TranslationModel.profanityCheck([update.data]);
             }
             TranslationModel.profanityCheck(updateMany.map(u => u.data));
-            // Add new organizationIds to organizationIds array, if they are set
-            organizationIds.push(...updateMany.map(input => input.data.organizationId).filter(id => id))
+            // Add IDs
+            organizationIds.push(...updateMany.map(update => update.data.organizationId));
+            projectIds.push(...updateMany.map(update => update.data.projectId));
             // Add existing organizationIds to organizationIds array, if userId does not match the object's userId
             const objects = await prisma.routine.findMany({
                 where: { id: { in: updateMany.map(input => input.where.id) } },
@@ -765,7 +762,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             const userIds = objects.filter(object => Boolean(object.userId)).map(object => object.userId);
             if (userIds.some(id => id !== userId))
                 throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0242') })
-            // Add to organizationIds array, to check ownership status
+            // Add IDs
             organizationIds.push(...objects.filter(object => !userId.includes(object.organizationId ?? '')).map(object => object.organizationId));
         }
         // Find role for every organization
@@ -773,6 +770,12 @@ export const routineMutater = (prisma: PrismaType) => ({
         // If any role is undefined, the user is not authorized to delete one or more objects
         if (roles.some(role => !role))
             throw new CustomError(CODE.Unauthorized, 'Not authorized.', { code: genErrorCode('0095') })
+        // Find role for every project
+        // TODO
+        // const projectRoles = await ProjectModel.query(prisma).hasRole(userId ?? '', projectIds);
+        // // If any role is undefined, the user is not authorized to delete one or more objects
+        // if (projectRoles.some(role => !role))
+        //     throw new CustomError(CODE.Unauthorized, 'Not authorized.', { code: genErrorCode('0256') })
     },
     /**
      * Performs adds, updates, and deletes of routines. First validates that every action is allowed.

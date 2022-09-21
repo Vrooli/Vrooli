@@ -8,9 +8,16 @@ import { Context } from '../context';
 import { CustomError } from '../error';
 import { rateLimit } from '../rateLimit';
 import { resolveContributor } from './resolvers';
+import { VisibilityType } from './types';
 
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
 export const typeDef = gql`
+    enum VisibilityType {
+        Both
+        Public
+        Private
+    }
+
     scalar Date
     scalar Upload
 
@@ -69,10 +76,10 @@ export const typeDef = gql`
         ids: [ID!]!
     }
 
-    # Input for an exception to a boolean search query parameter
-    input BooleanSearchException {
-        id: ID!
-        relation: String!
+    # Input for an exception to a search query parameter
+    input SearchException {
+        field: String!
+        value: String! # JSON string
     }
 
     # Base query. Must contain something,
@@ -90,6 +97,7 @@ export const typeDef = gql`
 `
 
 export const resolvers = {
+    VisibilityType: VisibilityType,
     Upload: GraphQLUpload,
     Date: new GraphQLScalarType({
         name: "Date",

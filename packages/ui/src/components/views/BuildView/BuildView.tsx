@@ -1360,12 +1360,11 @@ export const BuildView = ({
                 handleClose={closeAddSubroutineDialog}
                 isOpen={Boolean(addSubroutineNode)}
                 nodeId={addSubroutineNode}
-                routineId={routine?.id ?? ''}
+                owner={relationships.owner}
+                routineId={routine?.id}
                 session={session}
                 zIndex={zIndex + 3}
             />}
-            {/* Popup for editing existing multi-step subroutines */}
-            {/* TODO */}
             {/* Popup for "Add after" dialog */}
             {addAfterLinkNode && <AddAfterLinkDialog
                 handleSelect={handleNodeInsert}

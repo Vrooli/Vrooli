@@ -2,7 +2,7 @@ import { resourceCreate, resourcesCreate, resourcesUpdate, resourceUpdate } from
 import { CODE } from "@shared/consts";
 import { Resource, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Count } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, ModelLogic, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { combineQueries, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, ModelLogic, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
@@ -43,9 +43,9 @@ export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
     },
     customQueries(input: ResourceSearchInput): { [x: string]: any } {
         // const forQuery = (input.forId && input.forType) ? { [forMap[input.forType]]: input.forId } : {};
-        return {
-            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-        }
+        return combineQueries([
+            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+        ])
     },
 })
 
@@ -79,15 +79,15 @@ export const resourceMutater = (prisma: PrismaType) => ({
         const isOwner = async (userId: string, data: any) => {
             if (!data.list) return false;
             if (data.list.organization) {
-                const permissions = await OrganizationModel.permissions(prisma).get({ objects: [data.list.organization], userId });
+                const permissions = await OrganizationModel.permissions().get({ objects: [data.list.organization], prisma, userId });
                 return permissions[0].canEdit;
             }
             else if (data.list.project) {
-                const permissions = await ProjectModel.permissions(prisma).get({ objects: [data.list.project], userId });
+                const permissions = await ProjectModel.permissions().get({ objects: [data.list.project], prisma, userId });
                 return permissions[0].canEdit
             }
             else if (data.list.routine) {
-                const permissions = await RoutineModel.permissions(prisma).get({ objects: [data.list.routine], userId });
+                const permissions = await RoutineModel.permissions().get({ objects: [data.list.routine], prisma, userId });
                 return permissions[0].canEdit;
             }
             else if (data.list.user) {

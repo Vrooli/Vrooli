@@ -3,7 +3,7 @@ import { isObject } from '@shared/utils'
 import { CustomError } from "../../error";
 import { Count, LogType, User, ViewSearchInput, ViewSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { deconstructUnion, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, ModelLogic, ObjectMap, onlyValidIds, PartialGraphQLInfo, readManyHelper, Searcher, timeFrameToPrisma } from "./base";
+import { combineQueries, deconstructUnion, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, ModelLogic, ObjectMap, onlyValidIds, PartialGraphQLInfo, readManyHelper, Searcher, timeFrameToPrisma } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { OrganizationModel } from "./organization";
@@ -137,9 +137,9 @@ export const viewSearcher = (): Searcher<ViewSearchInput> => ({
         })
     },
     customQueries(input: ViewSearchInput): { [x: string]: any } {
-        return {
-            ...(input.lastViewedTimeFrame !== undefined ? timeFrameToPrisma('lastViewed', input.lastViewedTimeFrame) : {}),
-        }
+        return combineQueries([
+            (input.lastViewedTimeFrame !== undefined ? timeFrameToPrisma('lastViewed', input.lastViewedTimeFrame) : {}),
+        ])
     },
 })
 

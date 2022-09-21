@@ -70,13 +70,13 @@ export const typeDef = gql`
         completedTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
-        includePrivate: Boolean
         status: RunStatus
         routineId: ID
         searchString: String
         sortBy: RunSortBy
         take: Int
         updatedTimeFrame: TimeFrame
+        visibility: VisibilityType
     }
 
     # Return type for search result

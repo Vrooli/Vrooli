@@ -83,7 +83,7 @@ export const shapeRoutineUpdate = (
     isPrivate: u.isPrivate !== o.isPrivate ? u.isPrivate : undefined,
     version: u.version !== o.version ? u.version : undefined,
     parentId: u.parent?.id !== o.parent?.id ? u.parent?.id : undefined,
-    // projectId: u.p
+    projectId: u.project?.id !== o.project?.id ? u.project?.id : undefined,
     userId: u.owner?.__typename === ObjectType.User ? u.owner.id : undefined,
     organizationId: u.owner?.__typename === ObjectType.Organization ? u.owner.id : undefined,
     ...shapeUpdateList({

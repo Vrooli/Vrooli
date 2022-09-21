@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
 import { FindByIdOrHandleInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, Success, ProjectCountInput, ProjectSearchResult, ProjectSortBy } from './types';
 import { Context } from '../context';
-import { countHelper, createHelper, ProjectModel, readManyHelper, readOneHelper, updateHelper } from '../models';
+import { countHelper, createHelper, ProjectModel, readManyHelper, readOneHelper, updateHelper, visibilityBuilder } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
 
@@ -118,9 +118,8 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        includePrivate: Boolean
         isComplete: Boolean
-        isCompleteExceptions: [BooleanSearchException!]
+        isCompleteExceptions: [SearchException!]
         languages: [String!]
         minScore: Int
         minStars: Int
@@ -136,6 +135,7 @@ export const typeDef = gql`
         take: Int
         updatedTimeFrame: TimeFrame
         userId: ID
+        visibility: VisibilityType
     }
 
     # Return type for search result
@@ -177,11 +177,7 @@ export const resolvers = {
         },
         projects: async (_parent: undefined, { input }: IWrap<ProjectSearchInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<ProjectSearchResult> => {
             await rateLimit({ info, max: 1000, req });
-            // Can only show private if querying your own
-            const privateQuery = input.includePrivate ? 
-                ProjectModel.permissions(prisma).ownershipQuery(req.userId ?? '') : 
-                { isPrivate: false };
-            return readManyHelper({ info, input, model: ProjectModel, prisma, userId: req.userId, additionalQueries: { ...privateQuery } })
+            return readManyHelper({ info, input, model: ProjectModel, prisma, userId: req.userId })
         },
         projectsCount: async (_parent: undefined, { input }: IWrap<ProjectCountInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, max: 1000, req });

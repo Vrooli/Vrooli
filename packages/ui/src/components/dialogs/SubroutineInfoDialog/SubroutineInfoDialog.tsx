@@ -4,16 +4,13 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    AccountTree as GraphIcon,
-} from '@mui/icons-material';
-import {
     Box,
-    Button,
     Grid,
     IconButton,
     Stack,
     SwipeableDrawer,
     TextField,
+    Tooltip,
     Typography,
     useTheme,
 } from '@mui/material';
@@ -27,6 +24,7 @@ import { NodeDataRoutineListItem, ResourceList } from 'types';
 import { v4 as uuid } from 'uuid';
 import { CloseIcon } from '@shared/icons';
 import { RelationshipItemRoutine, RelationshipsObject } from 'components/inputs/types';
+import { OpenInNew as OpenInNewIcon } from '@mui/icons-material';
 
 export const SubroutineInfoDialog = ({
     data,
@@ -293,7 +291,14 @@ export const SubroutineInfoDialog = ({
                 {/* Subroutine title and position */}
                 <Typography variant="h5">{formik.values.title}</Typography>
                 <Typography variant="h6" ml={1}>{`(${(subroutine?.index ?? 0) + 1} of ${(data?.node?.routines?.length ?? 1)})`}</Typography>
-                {/* Owned by and version */}
+                {/* Button to open in full page */}
+                {!subroutine?.routine?.isInternal && (
+                    <Tooltip title="Open in full page">
+                        <IconButton onClick={toGraph}>
+                            <OpenInNewIcon sx={{ fill: palette.primary.contrastText }} />
+                        </IconButton>
+                    </Tooltip>
+                )}{/* Owned by and version */}
                 <Stack direction="row" sx={{ marginLeft: 'auto' }}>
                     <OwnerLabel objectType={ObjectType.Routine} owner={subroutine?.routine?.owner} session={session} />
                     <Typography variant="body1">{subroutine?.routine?.version}</Typography>
@@ -424,7 +429,13 @@ export const SubroutineInfoDialog = ({
                                     name="version"
                                     value={formik.values.version}
                                     onBlur={formik.handleBlur}
-                                    onChange={(newVersion: string) => { formik.setFieldValue('version', newVersion) }}
+                                    onChange={(newVersion: string) => {
+                                        formik.setFieldValue('version', newVersion);
+                                        setRelationships({
+                                            ...relationships,
+                                            isComplete: false,
+                                        })
+                                    }}
                                     error={formik.touched.version && Boolean(formik.errors.version)}
                                     helperText={formik.touched.version ? formik.errors.version : null}
                                 />
@@ -494,28 +505,6 @@ export const SubroutineInfoDialog = ({
                     }
                 </form>
             </Box>
-            {/* Bottom nav container */}
-
-            {/* If subroutine has its own subroutines, display button to switch to that graph */}
-            {(subroutine as any)?.nodesCount > 0 && (
-                <Box sx={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: 1,
-                    background: palette.primary.dark,
-                }}>
-                    <Button
-                        color="secondary"
-                        startIcon={<GraphIcon />}
-                        onClick={toGraph}
-                        sx={{
-                            marginLeft: 'auto'
-                        }}
-                    >View Graph</Button>
-                </Box>
-            )}
         </SwipeableDrawer>
     );
 }

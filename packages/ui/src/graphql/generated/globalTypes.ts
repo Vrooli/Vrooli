@@ -294,17 +294,18 @@ export enum ViewSortBy {
   LastViewedDesc = "LastViewedDesc",
 }
 
+export enum VisibilityType {
+  Both = "Both",
+  Private = "Private",
+  Public = "Public",
+}
+
 export enum VoteFor {
   Comment = "Comment",
   Project = "Project",
   Routine = "Routine",
   Standard = "Standard",
   Tag = "Tag",
-}
-
-export interface BooleanSearchException {
-  id: string;
-  relation: string;
 }
 
 export interface CommentCreateInput {
@@ -704,7 +705,6 @@ export interface OrganizationSearchInput {
   after?: string | null;
   createdTimeFrame?: TimeFrame | null;
   ids?: string[] | null;
-  includePrivate?: boolean | null;
   isOpenToNewMembers?: boolean | null;
   languages?: string[] | null;
   minStars?: number | null;
@@ -721,6 +721,7 @@ export interface OrganizationSearchInput {
   take?: number | null;
   updatedTimeFrame?: TimeFrame | null;
   userId?: string | null;
+  visibility?: VisibilityType | null;
 }
 
 export interface OrganizationTranslationCreateInput {
@@ -839,7 +840,6 @@ export interface ProjectOrOrganizationSearchInput {
   createdTimeFrame?: TimeFrame | null;
   excludeIds?: string[] | null;
   ids?: string[] | null;
-  includePrivate?: boolean | null;
   languages?: string[] | null;
   minStars?: number | null;
   minViews?: number | null;
@@ -850,7 +850,7 @@ export interface ProjectOrOrganizationSearchInput {
   organizationRoutineId?: string | null;
   projectAfter?: string | null;
   projectIsComplete?: boolean | null;
-  projectIsCompleteExceptions?: BooleanSearchException[] | null;
+  projectIsCompleteExceptions?: SearchException[] | null;
   projectMinScore?: number | null;
   projectOrganizationId?: string | null;
   projectParentId?: string | null;
@@ -863,15 +863,15 @@ export interface ProjectOrOrganizationSearchInput {
   take?: number | null;
   updatedTimeFrame?: TimeFrame | null;
   userId?: string | null;
+  visibility?: VisibilityType | null;
 }
 
 export interface ProjectOrRoutineSearchInput {
   createdTimeFrame?: TimeFrame | null;
   excludeIds?: string[] | null;
   ids?: string[] | null;
-  includePrivate?: boolean | null;
   isComplete?: boolean | null;
-  isCompleteExceptions?: BooleanSearchException[] | null;
+  isCompleteExceptions?: SearchException[] | null;
   languages?: string[] | null;
   minScore?: number | null;
   minStars?: number | null;
@@ -898,15 +898,15 @@ export interface ProjectOrRoutineSearchInput {
   take?: number | null;
   updatedTimeFrame?: TimeFrame | null;
   userId?: string | null;
+  visibility?: VisibilityType | null;
 }
 
 export interface ProjectSearchInput {
   after?: string | null;
   createdTimeFrame?: TimeFrame | null;
   ids?: string[] | null;
-  includePrivate?: boolean | null;
   isComplete?: boolean | null;
-  isCompleteExceptions?: BooleanSearchException[] | null;
+  isCompleteExceptions?: SearchException[] | null;
   languages?: string[] | null;
   minScore?: number | null;
   minStars?: number | null;
@@ -922,6 +922,7 @@ export interface ProjectSearchInput {
   take?: number | null;
   updatedTimeFrame?: TimeFrame | null;
   userId?: string | null;
+  visibility?: VisibilityType | null;
 }
 
 export interface ProjectTranslationCreateInput {
@@ -1143,11 +1144,10 @@ export interface RoutineSearchInput {
   createdTimeFrame?: TimeFrame | null;
   excludeIds?: string[] | null;
   ids?: string[] | null;
-  includePrivate?: boolean | null;
   isComplete?: boolean | null;
-  isCompleteExceptions?: BooleanSearchException[] | null;
+  isCompleteExceptions?: SearchException[] | null;
   isInternal?: boolean | null;
-  isInternalExceptions?: BooleanSearchException[] | null;
+  isInternalExceptions?: SearchException[] | null;
   languages?: string[] | null;
   minComplexity?: number | null;
   maxComplexity?: number | null;
@@ -1170,6 +1170,7 @@ export interface RoutineSearchInput {
   take?: number | null;
   updatedTimeFrame?: TimeFrame | null;
   userId?: string | null;
+  visibility?: VisibilityType | null;
 }
 
 export interface RoutineTranslationCreateInput {
@@ -1283,13 +1284,13 @@ export interface RunSearchInput {
   completedTimeFrame?: TimeFrame | null;
   excludeIds?: string[] | null;
   ids?: string[] | null;
-  includePrivate?: boolean | null;
   status?: RunStatus | null;
   routineId?: string | null;
   searchString?: string | null;
   sortBy?: RunSortBy | null;
   take?: number | null;
   updatedTimeFrame?: TimeFrame | null;
+  visibility?: VisibilityType | null;
 }
 
 export interface RunStepCreateInput {
@@ -1324,6 +1325,11 @@ export interface RunUpdateInput {
   inputsUpdate?: RunInputUpdateInput[] | null;
 }
 
+export interface SearchException {
+  field: string;
+  value: string;
+}
+
 export interface SendVerificationEmailInput {
   emailAddress: string;
 }
@@ -1355,7 +1361,6 @@ export interface StandardSearchInput {
   after?: string | null;
   createdTimeFrame?: TimeFrame | null;
   ids?: string[] | null;
-  includePrivate?: boolean | null;
   languages?: string[] | null;
   minScore?: number | null;
   minStars?: number | null;
@@ -1371,6 +1376,7 @@ export interface StandardSearchInput {
   type?: string | null;
   updatedTimeFrame?: TimeFrame | null;
   userId?: string | null;
+  visibility?: VisibilityType | null;
 }
 
 export interface StandardTranslationCreateInput {

@@ -3,7 +3,7 @@ import { CODE } from "@shared/consts";
 import { CustomError } from "../../error";
 import { Count, LogType, Run, RunCancelInput, RunCompleteInput, RunCreateInput, RunSearchInput, RunSortBy, RunStatus, RunUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, ValidateMutationsInput, Permissioner, getSearchStringQueryHelper } from "./base";
+import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, ValidateMutationsInput, Permissioner, getSearchStringQueryHelper, combineQueries } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { RunStepModel } from "./runStep";
@@ -40,8 +40,9 @@ export const runSearcher = (): Searcher<RunSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({ searchString,
-            resolver: ({ insensitive }) => ({ 
+        return getSearchStringQueryHelper({
+            searchString,
+            resolver: ({ insensitive }) => ({
                 OR: [
                     {
                         routine: {
@@ -59,12 +60,12 @@ export const runSearcher = (): Searcher<RunSearchInput> => ({
         })
     },
     customQueries(input: RunSearchInput): { [x: string]: any } {
-        return {
-            ...(input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
-            ...(input.completedTimeFrame !== undefined ? timeFrameToPrisma('timeCompleted', input.completedTimeFrame) : {}),
-            ...(input.startedTimeFrame !== undefined ? timeFrameToPrisma('timeStarted', input.startedTimeFrame) : {}),
-            ...(input.status !== undefined ? { status: input.status } : {}),
-        }
+        return combineQueries([
+            (input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
+            (input.completedTimeFrame !== undefined ? timeFrameToPrisma('timeCompleted', input.completedTimeFrame) : {}),
+            (input.startedTimeFrame !== undefined ? timeFrameToPrisma('timeStarted', input.startedTimeFrame) : {}),
+            (input.status !== undefined ? { status: input.status } : {}),
+        ])
     },
 })
 
@@ -74,10 +75,11 @@ export const runVerifier = () => ({
     },
 })
 
-export const runPermissioner = (prisma: PrismaType): Permissioner<{ canDelete: boolean, canEdit: boolean }, RunSearchInput> => ({
+export const runPermissioner = (): Permissioner<{ canDelete: boolean, canEdit: boolean }, RunSearchInput> => ({
     async get({
         objects,
         permissions,
+        prisma,
         userId,
     }) {
         //TODO
@@ -89,6 +91,7 @@ export const runPermissioner = (prisma: PrismaType): Permissioner<{ canDelete: b
     },
     async canSearch({
         input,
+        prisma,
         userId
     }) {
         //TODO

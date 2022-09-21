@@ -282,7 +282,13 @@ export const RoutineUpdate = ({
                     name="version"
                     value={formik.values.version}
                     onBlur={formik.handleBlur}
-                    onChange={(newVersion: string) => { formik.setFieldValue('version', newVersion) }}
+                    onChange={(newVersion: string) => { 
+                        formik.setFieldValue('version', newVersion);
+                        setRelationships({
+                            ...relationships,
+                            isComplete: false,
+                        })
+                    }}
                     error={formik.touched.version && Boolean(formik.errors.version)}
                     helperText={formik.touched.version ? formik.errors.version : null}
                 />

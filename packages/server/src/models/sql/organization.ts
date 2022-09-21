@@ -1,6 +1,6 @@
 import { PrismaType, RecursivePartial } from "../../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor, OrganizationPermission } from "../../schema/types";
-import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, Permissioner, getSearchStringQueryHelper, onlyValidIds } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, Permissioner, getSearchStringQueryHelper, onlyValidIds, visibilityBuilder, combineQueries } from "./base";
 import { CustomError } from "../../error";
 import { organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@shared/validation";
 import { CODE } from '@shared/consts';
@@ -48,16 +48,17 @@ export const organizationFormatter = (): FormatConverter<Organization, Organizat
             resolvers: [
                 ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Organization')],
                 ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Organization')],
-                ['permissionsOrganization', async () => await OrganizationModel.permissions(prisma).get({ objects, permissions, userId })],
+                ['permissionsOrganization', async () => await OrganizationModel.permissions().get({ objects, permissions, prisma, userId })],
             ]
         });
     }
 })
 
-export const organizationPermissioner = (prisma: PrismaType): Permissioner<OrganizationPermission, OrganizationSearchInput> => ({
+export const organizationPermissioner = (): Permissioner<OrganizationPermission, OrganizationSearchInput> => ({
     async get({
         objects,
         permissions,
+        prisma,
         userId,
     }) {
         // Initialize result with ID
@@ -90,6 +91,7 @@ export const organizationPermissioner = (prisma: PrismaType): Permissioner<Organ
     },
     async canSearch({
         input,
+        prisma,
         userId
     }) {
         //TODO
@@ -124,21 +126,22 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
             })
         })
     },
-    customQueries(input: OrganizationSearchInput): { [x: string]: any } {
-        return {
-            ...(input.isOpenToNewMembers !== undefined ? { isOpenToNewMembers: true } : {}),
-            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-            ...(input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            ...(input.projectId !== undefined ? { projects: { some: { projectId: input.projectId } } } : {}),
-            ...(input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
-            ...(input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
-            ...(input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
-            ...(input.userId !== undefined ? { members: { some: { userId: input.userId } } } : {}),
-            ...(input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
-            ...(input.standardId !== undefined ? { standards: { some: { id: input.standardId } } } : {}),
-            ...(input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
-        }
+    customQueries(input: OrganizationSearchInput, userId: string | null | undefined): { [x: string]: any } {
+        return combineQueries([
+            visibilityBuilder({ model: OrganizationModel, userId, visibility: input.visibility }),
+            (input.isOpenToNewMembers !== undefined ? { isOpenToNewMembers: true } : {}),
+            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
+            (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
+            (input.projectId !== undefined ? { projects: { some: { projectId: input.projectId } } } : {}),
+            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            (input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
+            (input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
+            (input.userId !== undefined ? { members: { some: { userId: input.userId } } } : {}),
+            (input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
+            (input.standardId !== undefined ? { standards: { some: { id: input.standardId } } } : {}),
+            (input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
+        ])
     },
 })
 
