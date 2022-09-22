@@ -9,7 +9,7 @@ import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
-import { OrganizationModel } from "./organization";
+import { OrganizationModel, organizationQuerier } from "./organization";
 
 //==============================================================
 /* #region Custom Components */
@@ -217,8 +217,8 @@ export const commentPermissioner = (): Permissioner<CommentPermission, CommentSe
     },
     ownershipQuery: (userId) => ({
         OR: [
-            { organization: { roles: { some: { assignees: { some: { user: { id: userId } } } } } } },
-            { user: { id: userId } }
+            organizationQuerier().hasRoleInOrganizationQuery(userId),
+            { user: { id: userId } },
         ]
     }),
 })

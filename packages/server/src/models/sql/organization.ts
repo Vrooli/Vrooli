@@ -74,7 +74,7 @@ export const organizationPermissioner = (): Permissioner<OrganizationPermission,
         if (!userId) return result;
         const ids = objects.map(x => x.id);
         // Get user's admin roles for each organization
-        const roles = await OrganizationModel.query(prisma).hasRole(userId ?? '', ids);
+        const roles = await OrganizationModel.query().hasRole(prisma, userId ?? '', ids);
         // Find which organizations the user has admin roles for
         for (let i = 0; i < objects.length; i++) {
             const role = roles[i];
@@ -97,9 +97,7 @@ export const organizationPermissioner = (): Permissioner<OrganizationPermission,
         //TODO
         return 'full';
     },
-    ownershipQuery: (userId) => ({
-        roles: { some: { assignees: { some: { user: { id: userId } } } } },
-    }),
+    ownershipQuery: (userId) => organizationQuerier().hasRoleInOrganizationQuery(userId).organization,
 })
 
 export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
@@ -145,7 +143,19 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
     },
 })
 
-export const organizationQuerier = (prisma: PrismaType) => ({
+export const organizationQuerier = () => ({
+    /**
+     * Query for checking if a user has a specific role in an organization
+     */
+    hasRoleInOrganizationQuery: (userId: string, title: string = 'Admin') => (
+        { organization: { roles: { some: { title, assignees: { some: { user: { id: userId } } } } } } }
+    ),
+    /**
+     * Query for checking if a user is a member of an organization
+     */
+    isMemberOfOrganizationQuery: (userId: string) => (
+        { organization: { members: { some: { userId } } } }
+    ),
     /**
      * Determines if a user has a role of a list of organizations
      * @param userId The user's ID
@@ -153,7 +163,7 @@ export const organizationQuerier = (prisma: PrismaType) => ({
      * @param title The name of the role
      * @returns Array in the same order as the ids, with either admin/owner role data or undefined
      */
-    async hasRole(userId: string, organizationIds: (string | null | undefined)[], title: string = 'Admin'): Promise<Array<role | undefined>> {
+    async hasRole(prisma: PrismaType, userId: string, organizationIds: (string | null | undefined)[], title: string = 'Admin'): Promise<Array<role | undefined>> {
         if (organizationIds.length === 0) return [];
         // Take out nulls
         const idsToQuery = onlyValidIds(organizationIds);

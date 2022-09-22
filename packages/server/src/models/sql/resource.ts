@@ -51,13 +51,13 @@ export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
 
 export const resourceMutater = (prisma: PrismaType) => ({
     /**
-     * Verify that the user can add these resources to the given project
+     * Verify that the user can add these resources to the given object
      */
     async authorizedAdd(userId: string, resources: ResourceCreateInput[], prisma: PrismaType): Promise<void> {
         //TODO
     },
     /**
-     * Verify that the user can update/delete these resources to the given project
+     * Verify that the user can update/delete these resources to the given object
      */
     async authorizedUpdateOrDelete(userId: string, resourceIds: string[], prisma: PrismaType): Promise<void> {
         // Query all resources to find their owner
@@ -154,11 +154,12 @@ export const resourceMutater = (prisma: PrismaType) => ({
         if (!createMany && !updateMany && !deleteMany) return;
         if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0087') });
+        
+        // Check for max resources on object TODO
         if (createMany) {
             resourcesCreate.validateSync(createMany, { abortEarly: false });
             TranslationModel.profanityCheck(createMany);
             await this.authorizedAdd(userId as string, createMany, prisma);
-            // Check for max resources on object TODO
         }
         if (updateMany) {
             resourcesUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });

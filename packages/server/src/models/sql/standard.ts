@@ -4,9 +4,9 @@ import { omit } from '@shared/utils';
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count, StandardPermission } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, validateMaxObjects, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
 import { validateProfanity } from "../../utils/censor";
-import { OrganizationModel } from "./organization";
+import { OrganizationModel, organizationQuerier } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -147,7 +147,7 @@ export const standardPermissioner = (): Permissioner<StandardPermission, Standar
     },
     ownershipQuery: (userId) => ({
         OR: [
-            { createdByOrganization: { roles: { some: { assignees: { some: { user: { id: userId } } } } } } },
+            organizationQuerier().hasRoleInOrganizationQuery(userId),
             { createdByUser: { id: userId } }
         ]
     }),
@@ -450,10 +450,11 @@ export const standardMutater = (prisma: PrismaType) => ({
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0103') });
         // Validate userIds, organizationIds, and projectIds
         await validateObjectOwnership({ userId, createMany, updateMany, deleteMany, prisma, objectType: 'Standard' });
+        // Validate max objects
+        await validateMaxObjects({ userId, createMany, updateMany, deleteMany, prisma, objectType: 'Standard', maxCount: 2500 });
         if (createMany) {
             standardsCreate.validateSync(createMany, { abortEarly: false });
             standardVerifier().profanityCheck(createMany);
-            // Check for max standards created by owner TODO
         }
         if (updateMany) {
             standardsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });

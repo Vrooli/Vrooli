@@ -10,6 +10,7 @@ import { RunStepModel } from "./runStep";
 import { run } from "@prisma/client";
 import { validateProfanity } from "../../utils/censor";
 import { RunInputModel } from "./runInput";
+import { organizationQuerier } from "./organization";
 
 //==============================================================
 /* #region Custom Components */
@@ -100,7 +101,7 @@ export const runPermissioner = (): Permissioner<{ canDelete: boolean, canEdit: b
     ownershipQuery: (userId) => ({
         routine: {
             OR: [
-                { organization: { roles: { some: { assignees: { some: { user: { id: userId } } } } } } },
+                organizationQuerier().hasRoleInOrganizationQuery(userId),
                 { user: { id: userId } }
             ]
         }

@@ -1,12 +1,12 @@
 import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeRoutineListItem, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemCreateInput, RoutinePermission } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, exceptionsBuilder, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, exceptionsBuilder, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, validateMaxObjects, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
 import { CustomError } from "../../error";
 import { inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routineTranslationCreate, routineTranslationUpdate, routineUpdate } from "@shared/validation";
 import { CODE, DeleteOneType } from "@shared/consts";
 import { omit } from '@shared/utils'; 
 import { hasProfanity } from "../../utils/censor";
-import { OrganizationModel } from "./organization";
+import { OrganizationModel, organizationQuerier } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -18,7 +18,6 @@ import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
 import { runFormatter } from "./run";
 import { v4 as uuid } from 'uuid';
-import { ProjectModel } from "./project";
 
 type NodeWeightData = {
     simplicity: number,
@@ -201,7 +200,7 @@ export const routinePermissioner = (): Permissioner<RoutinePermission, RoutineSe
     },
     ownershipQuery: (userId) => ({
         OR: [
-            { organization: { roles: { some: { assignees: { some: { user: { id: userId } } } } } } },
+            organizationQuerier().hasRoleInOrganizationQuery(userId),
             { user: { id: userId } }
         ]
     })
@@ -717,17 +716,12 @@ export const routineMutater = (prisma: PrismaType) => ({
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0093') });
         // Validate userIds, organizationIds, and projectIds
         await validateObjectOwnership({ userId, createMany, updateMany, deleteMany, prisma, objectType: 'Routine' });
+        // Validate max objects
+        await validateMaxObjects({ userId, createMany, updateMany, deleteMany, prisma, objectType: 'Routine', maxCount: 2500 });
         if (createMany) {
             routinesCreate.validateSync(createMany, { abortEarly: false });
             TranslationModel.profanityCheck(createMany);
             createMany.forEach(input => this.validateNodePositions(input));
-            // Check if user will pass max routines limit
-            const existingCount = await prisma.routine.count({
-                where: { ...routinePermissioner().ownershipQuery(userId) }
-            })
-            if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 2500) {
-                throw new CustomError(CODE.MaxRoutinesReached, 'Maximum routines reached on this account', { code: genErrorCode('0094') });
-            }
         }
         if (updateMany) {
             // Query version numbers and isCompletes of existing routines. 
@@ -1002,7 +996,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         }
         // If routine is marked as internal and it doesn't belong to you
         else if (routine.isInternal && routine.userId !== userId) {
-            const roles = await OrganizationModel.query(prisma).hasRole(userId, [routine.organizationId]);
+            const roles = await OrganizationModel.query().hasRole(prisma, userId, [routine.organizationId]);
             if (roles.some(role => !role))
                 throw new CustomError(CODE.Unauthorized, 'Not authorized to copy', { code: genErrorCode('0226') })
         }
