@@ -74,68 +74,64 @@ export const standardPermissioner = (): Permissioner<StandardPermission, Standar
         prisma,
         userId,
     }) {
-        // Initialize result with ID
-        const result = objects.map((o) => ({
-            canComment: true,
-            canDelete: false,
-            canEdit: false,
-            canReport: true,
-            canStar: true,
-            canView: true,
-            canVote: true,
+        // Initialize result with default permissions
+        const result: (StandardPermission & { id?: string })[] = objects.map((o) => ({
+            id: o.id,
+            canComment: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
+            canDelete: false, // own && !isDeleted
+            canEdit: false, // own && !isDeleted
+            canReport: true, // !own && !isDeleted && !isInternal && !isPrivate
+            canStar: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
+            canView: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
+            canVote: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
         }));
-        if (!userId) return result;
-        const ids = objects.map(x => x.id);
-        let creatorData: {
-            id: string,
-            user?: { id: string } | null | undefined,
-            organization?: { id: string } | null | undefined
-        }[] = [];
-        // If some creator data missing, query for creator data.
-        if (onlyValidIds(objects.map(x => x.creator)).length < objects.length) {
-            creatorData = await prisma.standard.findMany({
-                where: { id: { in: ids } },
-                select: {
-                    id: true,
-                    createdByUser: { select: { id: true } },
-                    createdByOrganization: { select: { id: true } },
+        // Check ownership
+        if (userId) {
+            // Query for objects owned by user, or an organization they have an admin role in
+            const owned = await prisma.standard.findMany({
+                where: {
+                    id: { in: onlyValidIds(objects.map(o => o.id)) },
+                    ...this.ownershipQuery(userId),
                 },
-            });
-        } else {
-            creatorData = objects.map((x) => {
-                const isOrg = Boolean(Array.isArray(x.creator?.translations) && x.creator.translations.length > 0 && x.creator.translations[0].name);
-                return ({
-                    id: x.id,
-                    user: isOrg ? null : x.creator,
-                    organization: isOrg ? x.creator : null,
-                });
+                select: { id: true, isDeleted: true },
+            })
+            // Set permissions for owned objects
+            owned.forEach((o) => {
+                const index = objects.findIndex((r) => r.id === o.id);
+                result[index] = {
+                    ...result[index],
+                    canComment: !o.isDeleted,
+                    canDelete: !o.isDeleted,
+                    canEdit: !o.isDeleted,
+                    canReport: false,
+                    canStar: !o.isDeleted,
+                    canView: !o.isDeleted,
+                    canVote: !o.isDeleted,
+                }
             });
         }
-        // Find permissions for every organization
-        const organizationIds = onlyValidIds(creatorData.map(x => x.organization?.id));
-        const orgPermissions = await OrganizationModel.permissions().get({
-            objects: organizationIds.map(x => ({ id: x })),
-            prisma,
-            userId
-        });
-        // Find which objects have ownership permissions
-        for (let i = 0; i < objects.length; i++) {
-            const unformatted = creatorData.find(y => y.id === objects[i].id);
-            if (!unformatted) continue;
-            // Check if user owns object directly, or through organization
-            if (unformatted.user?.id !== userId) {
-                const orgIdIndex = organizationIds.findIndex(id => id === unformatted?.organization?.id);
-                if (orgIdIndex < 0) continue;
-                if (!orgPermissions[orgIdIndex].canEdit) continue;
+        // Query all objects
+        const all = await prisma.standard.findMany({
+            where: {
+                id: { in: onlyValidIds(objects.map(o => o.id)) },
+            },
+            select: { id: true, isDeleted: true, isInternal: true, isPrivate: true },
+        })
+        // Set permissions for all objects
+        all.forEach((o) => {
+            const index = objects.findIndex((r) => r.id === o.id);
+            result[index] = {
+                ...result[index],
+                canComment: result[index].canComment || (!o.isDeleted && !o.isInternal && !o.isPrivate),
+                canReport: result[index].canReport === false ? false : (!o.isDeleted && !o.isInternal && !o.isPrivate),
+                canStar: result[index].canStar || (!o.isDeleted && !o.isInternal && !o.isPrivate),
+                canView: result[index].canView || (!o.isDeleted && !o.isInternal && !o.isPrivate),
+                canVote: result[index].canVote || (!o.isDeleted && !o.isInternal && !o.isPrivate),
             }
-            // Set creator permissions
-            result[i].canDelete = true;
-            result[i].canEdit = true;
-            result[i].canView = true;
-        }
-        // TODO isPrivate view check
-        // TODO check relationships for permissions
-        return result;
+        });
+        // Return result with IDs removed
+        result.forEach((r) => delete r.id);
+        return result as StandardPermission[];
     },
     async canSearch({
         input,
@@ -147,7 +143,7 @@ export const standardPermissioner = (): Permissioner<StandardPermission, Standar
     },
     ownershipQuery: (userId) => ({
         OR: [
-            organizationQuerier().hasRoleInOrganizationQuery(userId),
+            { createdByOrganization: organizationQuerier().hasRoleInOrganizationQuery(userId).organization },
             { createdByUser: { id: userId } }
         ]
     }),

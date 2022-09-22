@@ -61,33 +61,66 @@ export const organizationPermissioner = (): Permissioner<OrganizationPermission,
         prisma,
         userId,
     }) {
-        // Initialize result with ID
-        const result = objects.map((o) => ({
-            canAddMembers: true,
-            canDelete: false,
-            canEdit: false,
-            canReport: true,
-            canStar: true,
-            canView: true,
-            isMember: false,
+        // Initialize result with default permissions
+        const result: (OrganizationPermission & { id?: string })[] = objects.map((o) => ({
+            id: o.id,
+            canAddMembers: false, // own, even if isOpenToNewMembers is false or isPrivate is true
+            canDelete: false, // own
+            canEdit: false, // own
+            canReport: true, // !own && !isPrivate
+            canStar: false, // own || !isPrivate
+            canView: false, // own || !isPrivate
+            isMember: false, // is member, not necessarily owner
         }));
-        if (!userId) return result;
-        const ids = objects.map(x => x.id);
-        // Get user's admin roles for each organization
-        const roles = await OrganizationModel.query().hasRole(prisma, userId ?? '', ids);
-        // Find which organizations the user has admin roles for
-        for (let i = 0; i < objects.length; i++) {
-            const role = roles[i];
-            if (!role) continue;
-            // Set owner permissions
-            result[i].canDelete = true;
-            result[i].canEdit = true;
-            result[i].canView = true;
-            result[i].isMember = true;
+        // Check ownership
+        if (userId) {
+            // Query for all roles
+            const roles = await prisma.role.findMany({
+                where: {
+                    organization: { id: { in: onlyValidIds(objects.map((o) => o.id)) } },
+                    assignees: { some: { user: { id: userId } } }
+                },
+                select: { title: true, organizationId: true }
+            });
+            // Loop through roles to set permissions.
+            // A role with title 'Admin' means you are the owner. Other roles mean 
+            // you are a member.
+            for (const role of roles) {
+                const index = result.findIndex((r) => r.id === role.organizationId);
+                if (index >= 0) {
+                    result[index] = {
+                        ...result[index],
+                        canAddMembers: result[index].canAddMembers || role.title === 'Admin',
+                        canDelete: result[index].canDelete || role.title === 'Admin',
+                        canEdit: result[index].canEdit || role.title === 'Admin',
+                        canReport: result[index].canReport === false ? false : role.title !== 'Admin',
+                        canStar: result[index].canStar || role.title === 'Admin',
+                        canView: result[index].canView || role.title === 'Admin',
+                        isMember: true,
+                    }
+                }
+            }
         }
-        // TODO isPrivate view check
-        // TODO check relationships for permissions
-        return result;
+        // Query all objects
+        const all = await prisma.organization.findMany({
+            where: {
+                id: { in: onlyValidIds(objects.map(o => o.id)) },
+            },
+            select: { id: true, isPrivate: true },
+        })
+        // Set permissions for all objects
+        all.forEach((o) => {
+            const index = objects.findIndex((r) => r.id === o.id);
+            result[index] = {
+                ...result[index],
+                canReport: result[index].canReport === false ? false : !o.isPrivate,
+                canStar: result[index].canStar || !o.isPrivate,
+                canView: result[index].canView || !o.isPrivate,
+            }
+        });
+        // Return result with IDs removed
+        result.forEach((r) => delete r.id);
+        return result as OrganizationPermission[];
     },
     async canSearch({
         input,

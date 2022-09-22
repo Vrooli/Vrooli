@@ -1,9 +1,9 @@
 import { runsCreate, runsUpdate } from "@shared/validation";
 import { CODE } from "@shared/consts";
 import { CustomError } from "../../error";
-import { Count, LogType, Run, RunCancelInput, RunCompleteInput, RunCreateInput, RunSearchInput, RunSortBy, RunStatus, RunUpdateInput } from "../../schema/types";
+import { Count, LogType, Run, RunCancelInput, RunCompleteInput, RunCreateInput, RunPermission, RunSearchInput, RunSortBy, RunStatus, RunUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, ValidateMutationsInput, Permissioner, getSearchStringQueryHelper, combineQueries } from "./base";
+import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, ValidateMutationsInput, Permissioner, getSearchStringQueryHelper, combineQueries, onlyValidIds } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { RunStepModel } from "./runStep";
@@ -11,6 +11,7 @@ import { run } from "@prisma/client";
 import { validateProfanity } from "../../utils/censor";
 import { RunInputModel } from "./runInput";
 import { organizationQuerier } from "./organization";
+import { routinePermissioner } from "./routine";
 
 //==============================================================
 /* #region Custom Components */
@@ -76,19 +77,65 @@ export const runVerifier = () => ({
     },
 })
 
-export const runPermissioner = (): Permissioner<{ canDelete: boolean, canEdit: boolean }, RunSearchInput> => ({
+export const runPermissioner = (): Permissioner<RunPermission, RunSearchInput> => ({
     async get({
         objects,
         permissions,
         prisma,
         userId,
     }) {
-        //TODO
-        return objects.map((o) => ({
-            canDelete: true,
-            canEdit: true,
-            canView: true,
+        // Initialize result with default permissions
+        const result: (RunPermission & { id?: string })[] = objects.map((o) => ({
+            id: o.id,
+            canDelete: false, // own || (own associated routine && !isPrivate)
+            canEdit: false, // own
+            canView: false, // own || (own associated routine && !isPrivate)
         }));
+        // Check ownership
+        if (userId) {
+            // Query for objects with matching userId
+            const owned = await prisma.run.findMany({
+                where: {
+                    id: { in: onlyValidIds(objects.map(o => o.id)) },
+                    userId,
+                },
+                select: { id: true },
+            })
+            // Set permissions for owned objects
+            owned.forEach((o) => {
+                const index = objects.findIndex((r) => r.id === o.id);
+                result[index] = {
+                    ...result[index],
+                    canDelete: true,
+                    canEdit: true,
+                    canView: true,
+                }
+            });
+        }
+        // Query all runs marked as public, where you own the associated routine
+        const all = await prisma.run.findMany({
+            where: {
+                id: { in: onlyValidIds(objects.map(o => o.id)) },
+                isPrivate: false,
+                AND: [
+                    { routineId: null },
+                    routinePermissioner().ownershipQuery(userId ?? ''),
+                ]
+            },
+            select: { id: true },
+        })
+        // Set permissions for found objects
+        all.forEach((o) => {
+            const index = objects.findIndex((r) => r.id === o.id);
+            result[index] = {
+                ...result[index],
+                canDelete: true,
+                canView: true,
+            }
+        });
+        // Return result with IDs removed
+        result.forEach((r) => delete r.id);
+        return result as RunPermission[];
     },
     async canSearch({
         input,

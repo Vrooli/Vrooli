@@ -2490,6 +2490,7 @@ export type Run = {
   id: Scalars['ID'];
   inputs: Array<RunInput>;
   isPrivate: Scalars['Boolean'];
+  permissionsRun: RunPermission;
   routine?: Maybe<Routine>;
   status: RunStatus;
   steps: Array<RunStep>;
@@ -2585,6 +2586,13 @@ export enum RunInputSortBy {
 export type RunInputUpdateInput = {
   data: Scalars['String'];
   id: Scalars['ID'];
+};
+
+export type RunPermission = {
+  __typename?: 'RunPermission';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canView: Scalars['Boolean'];
 };
 
 export type RunSearchInput = {

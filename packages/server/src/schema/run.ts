@@ -37,6 +37,7 @@ export const typeDef = gql`
         completedComplexity: Int!
         contextSwitches: Int!
         isPrivate: Boolean!
+        permissionsRun: RunPermission!
         timeStarted: Date
         timeElapsed: Int
         timeCompleted: Date
@@ -46,6 +47,12 @@ export const typeDef = gql`
         steps: [RunStep!]!
         inputs: [RunInput!]!
         user: User!
+    }
+
+    type RunPermission {
+        canDelete: Boolean!
+        canEdit: Boolean!
+        canView: Boolean!
     }
 
     type RunStep {

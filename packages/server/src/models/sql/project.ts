@@ -79,68 +79,64 @@ export const projectPermissioner = (): Permissioner<ProjectPermission, ProjectSe
         prisma,
         userId,
     }) {
-        // Initialize result with ID
-        const result = objects.map((o) => ({
-            canComment: true,
-            canDelete: false,
-            canEdit: false,
-            canReport: true,
-            canStar: true,
-            canVote: true,
-            canView: true,
+        // Initialize result with default permissions
+        const result: (ProjectPermission & { id?: string })[] = objects.map((o) => ({
+            id: o.id,
+            canComment: false, // own || !isPrivate
+            canDelete: false, // own 
+            canEdit: false, // own
+            canReport: true, // !own && !isPrivate
+            canStar: false, // own || !isPrivate
+            canView: false, // own || !isPrivate
+            canVote: false, // own || !isPrivate
         }));
-        if (!userId) return result;
-        const ids = objects.map(x => x.id);
-        let ownerData: {
-            id: string,
-            user?: { id: string } | null | undefined,
-            organization?: { id: string } | null | undefined
-        }[] = [];
-        // If some owner data missing, query for owner data.
-        if (onlyValidIds(objects.map(x => x.owner)).length < objects.length) {
-            ownerData = await prisma.project.findMany({
-                where: { id: { in: ids } },
-                select: {
-                    id: true,
-                    user: { select: { id: true } },
-                    organization: { select: { id: true } },
+        // Check ownership
+        if (userId) {
+            // Query for objects owned by user, or an organization they have an admin role in
+            const owned = await prisma.project.findMany({
+                where: {
+                    id: { in: onlyValidIds(objects.map(o => o.id)) },
+                    ...this.ownershipQuery(userId),
                 },
-            });
-        } else {
-            ownerData = objects.map((x) => {
-                const isOrg = Boolean(Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name);
-                return ({
-                    id: x.id,
-                    user: isOrg ? null : x.owner,
-                    organization: isOrg ? x.owner : null,
-                });
+                select: { id: true },
+            })
+            // Set permissions for owned objects
+            owned.forEach((o) => {
+                const index = objects.findIndex((r) => r.id === o.id);
+                result[index] = {
+                    ...result[index],
+                    canComment: true,
+                    canDelete: true,
+                    canEdit: true,
+                    canReport: false,
+                    canStar: true,
+                    canView: true,
+                    canVote: true,
+                }
             });
         }
-        // Find permissions for every organization
-        const organizationIds = onlyValidIds(ownerData.map(x => x.organization?.id));
-        const orgPermissions = await OrganizationModel.permissions().get({
-            objects: organizationIds.map(x => ({ id: x })),
-            prisma,
-            userId
-        });
-        // Find which objects have ownership permissions
-        for (let i = 0; i < objects.length; i++) {
-            const unformatted = ownerData.find(y => y.id === objects[i].id);
-            if (!unformatted) continue;
-            // Check if user owns object directly, or through organization
-            if (unformatted.user?.id !== userId) {
-                const orgIdIndex = organizationIds.findIndex(id => id === unformatted?.organization?.id);
-                if (orgIdIndex < 0) continue;
-                if (!orgPermissions[orgIdIndex].canEdit) continue;
+        // Query all objects
+        const all = await prisma.project.findMany({
+            where: {
+                id: { in: onlyValidIds(objects.map(o => o.id)) },
+            },
+            select: { id: true, isPrivate: true },
+        })
+        // Set permissions for all objects
+        all.forEach((o) => {
+            const index = objects.findIndex((r) => r.id === o.id);
+            result[index] = {
+                ...result[index],
+                canComment: result[index].canComment || !o.isPrivate,
+                canReport: result[index].canReport === false ? false : !o.isPrivate,
+                canStar: result[index].canStar || !o.isPrivate,
+                canView: result[index].canView || !o.isPrivate,
+                canVote: result[index].canVote || !o.isPrivate,
             }
-            // Set owner permissions
-            result[i].canDelete = true;
-            result[i].canEdit = true;
-            result[i].canView = true;
-        }
-        // TODO isPrivate view check
-        // TODO check relationships for permissions
-        return result;
+        });
+        // Return result with IDs removed
+        result.forEach((r) => delete r.id);
+        return result as ProjectPermission[];
     },
     async canSearch({
         input,

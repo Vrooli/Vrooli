@@ -191,7 +191,6 @@ export const profileVerifier = () => ({
     },
     /**
     * Updates email object with new verification code, and sends email to user with link
-    * @param user User object
     */
     async setupVerificationCode(emailAddress: string, prisma: PrismaType): Promise<void> {
         // Generate new code
