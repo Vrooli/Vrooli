@@ -4,7 +4,7 @@ import { omit } from '@shared/utils';
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count, StandardPermission } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput, visibilityBuilder } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
 import { validateProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -448,42 +448,17 @@ export const standardMutater = (prisma: PrismaType) => ({
         if (!createMany && !updateMany && !deleteMany) return;
         if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0103') });
-        // Collect organizationIds from each object, and check if the user is an admin/owner of every organization
-        const organizationIds: (string | null | undefined)[] = [];
+        // Validate userIds, organizationIds, and projectIds
+        await validateObjectOwnership({ userId, createMany, updateMany, deleteMany, prisma, objectType: 'Standard' });
         if (createMany) {
             standardsCreate.validateSync(createMany, { abortEarly: false });
             standardVerifier().profanityCheck(createMany);
-            // Add createdByOrganizationIds to organizationIds array, if they are set
-            organizationIds.push(...onlyValidIds(createMany.map(input => input.createdByOrganizationId)));
-            // Check for max standards created by user TODO
+            // Check for max standards created by owner TODO
         }
         if (updateMany) {
             standardsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
             standardVerifier().profanityCheck(updateMany.map(u => u.data));
-            // Add existing organizationIds to organizationIds array, if userId does not match the object's userId
-            const objects = await prisma.standard.findMany({
-                where: { id: { in: updateMany.map(input => input.where.id) } },
-                select: { id: true, createdByUserId: true, createdByOrganizationId: true },
-            });
-            organizationIds.push(...objects.filter(object => object.createdByUserId !== userId).map(object => object.createdByOrganizationId));
         }
-        if (deleteMany) {
-            const objects = await prisma.standard.findMany({
-                where: { id: { in: deleteMany } },
-                select: { id: true, createdByUserId: true, createdByOrganizationId: true },
-            });
-            // Split objects by userId and organizationId
-            const userIds = objects.filter(object => Boolean(object.createdByUserId)).map(object => object.createdByUserId);
-            if (userIds.some(id => id !== userId))
-                throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0244') })
-            // Add to organizationIds array, to check ownership status
-            organizationIds.push(...objects.filter(object => !userId.includes(object.createdByOrganizationId ?? '')).map(object => object.createdByOrganizationId));
-        }
-        // Find role for every organization
-        const roles = await OrganizationModel.query(prisma).hasRole(userId, organizationIds);
-        // If any role is undefined, the user is not authorized to delete one or more objects
-        if (roles.some(role => !role))
-            throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0251') })
     },
     async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<StandardCreateInput, StandardUpdateInput>): Promise<CUDResult<Standard>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });

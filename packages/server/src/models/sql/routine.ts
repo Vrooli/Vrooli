@@ -1,6 +1,6 @@
 import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeRoutineListItem, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemCreateInput, RoutinePermission } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, exceptionsBuilder, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput, visibilityBuilder } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, exceptionsBuilder, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
 import { CustomError } from "../../error";
 import { inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routineTranslationCreate, routineTranslationUpdate, routineUpdate } from "@shared/validation";
 import { CODE, DeleteOneType } from "@shared/consts";
@@ -715,15 +715,11 @@ export const routineMutater = (prisma: PrismaType) => ({
         if (!createMany && !updateMany && !deleteMany) return;
         if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0093') });
-        // Collect organizationIds and projectIds from each object, and check if the user is an admin/owner of each
-        const organizationIds: (string | null | undefined)[] = [];
-        const projectIds: (string | null | undefined)[] = [];
+        // Validate userIds, organizationIds, and projectIds
+        await validateObjectOwnership({ userId, createMany, updateMany, deleteMany, prisma, objectType: 'Routine' });
         if (createMany) {
             routinesCreate.validateSync(createMany, { abortEarly: false });
             TranslationModel.profanityCheck(createMany);
-            // Add IDs
-            organizationIds.push(...onlyValidIds(createMany.map(input => input.createdByOrganizationId)));
-            projectIds.push(...onlyValidIds(createMany.map(input => input.projectId)));
             createMany.forEach(input => this.validateNodePositions(input));
             // Check if user will pass max routines limit
             const existingCount = await prisma.routine.count({
@@ -742,40 +738,8 @@ export const routineMutater = (prisma: PrismaType) => ({
                 TranslationModel.profanityCheck([update.data]);
             }
             TranslationModel.profanityCheck(updateMany.map(u => u.data));
-            // Add IDs
-            organizationIds.push(...updateMany.map(update => update.data.organizationId));
-            projectIds.push(...updateMany.map(update => update.data.projectId));
-            // Add existing organizationIds to organizationIds array, if userId does not match the object's userId
-            const objects = await prisma.routine.findMany({
-                where: { id: { in: updateMany.map(input => input.where.id) } },
-                select: { id: true, userId: true, organizationId: true },
-            });
-            organizationIds.push(...objects.filter(object => object.userId !== userId).map(object => object.organizationId));
             updateMany.forEach(input => this.validateNodePositions(input.data));
         }
-        if (deleteMany) {
-            const objects = await prisma.routine.findMany({
-                where: { id: { in: deleteMany } },
-                select: { id: true, userId: true, organizationId: true },
-            });
-            // Split objects by userId and organizationId
-            const userIds = objects.filter(object => Boolean(object.userId)).map(object => object.userId);
-            if (userIds.some(id => id !== userId))
-                throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0242') })
-            // Add IDs
-            organizationIds.push(...objects.filter(object => !userId.includes(object.organizationId ?? '')).map(object => object.organizationId));
-        }
-        // Find role for every organization
-        const roles = await OrganizationModel.query(prisma).hasRole(userId ?? '', organizationIds);
-        // If any role is undefined, the user is not authorized to delete one or more objects
-        if (roles.some(role => !role))
-            throw new CustomError(CODE.Unauthorized, 'Not authorized.', { code: genErrorCode('0095') })
-        // Find role for every project
-        // TODO
-        // const projectRoles = await ProjectModel.query(prisma).hasRole(userId ?? '', projectIds);
-        // // If any role is undefined, the user is not authorized to delete one or more objects
-        // if (projectRoles.some(role => !role))
-        //     throw new CustomError(CODE.Unauthorized, 'Not authorized.', { code: genErrorCode('0256') })
     },
     /**
      * Performs adds, updates, and deletes of routines. First validates that every action is allowed.
