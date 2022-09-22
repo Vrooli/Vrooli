@@ -322,7 +322,7 @@ export const resolvers = {
         },
         routinesCount: async (_parent: undefined, { input }: IWrap<RoutineCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, max: 1000, req });
-            return countHelper({ input, model: RoutineModel, prisma });
+            return countHelper({ input, model: RoutineModel, prisma, userId: req.userId });
         },
     },
     Mutation: {

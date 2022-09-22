@@ -197,7 +197,7 @@ export const resolvers = {
         },
         runsCount: async (_parent: undefined, { input }: IWrap<RunCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, max: 1000, req });
-            return countHelper({ input, model: RunModel, prisma, where: { userId: req.userId ?? undefined } });
+            return countHelper({ input, model: RunModel, prisma, userId: req.userId });
         },
     },
     Mutation: {

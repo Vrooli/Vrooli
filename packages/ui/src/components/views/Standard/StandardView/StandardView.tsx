@@ -123,9 +123,11 @@ export const StandardView = ({
                 break;
             case ObjectActionComplete.Fork:
                 setLocation(`${APP_LINKS.Standard}/${data.fork.standard.id}`);
+                window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
                 setLocation(`${APP_LINKS.Standard}/${data.copy.standard.id}`);
+                window.location.reload();
                 break;
         }
     }, [standard, setLocation]);

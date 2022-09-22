@@ -2,7 +2,7 @@ import { CODE, VoteFor } from "@shared/consts";
 import { CustomError } from "../../error";
 import { LogType, Vote, VoteInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { deconstructUnion, FormatConverter, onlyValidIds } from "./base";
+import { deconstructUnion, FormatConverter, GraphQLModelType, onlyValidIds } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 
@@ -182,6 +182,7 @@ export const VoteModel = ({
     format: voteFormatter(),
     mutate: voteMutater,
     query: voteQuerier,
+    type: 'Vote',
 })
 
 //==============================================================

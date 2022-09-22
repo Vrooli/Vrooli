@@ -6,7 +6,7 @@ import { CustomError } from "../../error";
 import { Count, Report, ReportCreateInput, ReportSearchInput, ReportSortBy, ReportUpdateInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
 import { validateProfanity } from "../../utils/censor";
-import { addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, PartialGraphQLInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, modelToGraphQL, PartialGraphQLInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
 
 //==============================================================
@@ -204,6 +204,7 @@ export const ReportModel = ({
     format: reportFormatter(),
     mutate: reportMutater,
     search: reportSearcher(),
+    type: 'Report',
     verify: reportVerifier(),
 })
 

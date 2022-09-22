@@ -149,9 +149,11 @@ export const ProjectView = ({
                 break;
             case ObjectActionComplete.Fork:
                 setLocation(`${APP_LINKS.Project}/${data.fork.project.id}`);
+                window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
                 setLocation(`${APP_LINKS.Project}/${data.copy.project.id}`);
+                window.location.reload();
                 break;
         }
     }, [project, setLocation]);

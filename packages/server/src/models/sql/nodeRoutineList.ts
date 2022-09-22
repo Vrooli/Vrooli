@@ -1,5 +1,5 @@
 import { Node, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from "../../schema/types";
-import { FormatConverter, relationshipToPrisma, RelationshipTypes } from "./base";
+import { FormatConverter, GraphQLModelType, relationshipToPrisma, RelationshipTypes } from "./base";
 import { nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeRoutineListItemTranslationCreate, nodeRoutineListItemTranslationUpdate } from "@shared/validation";
 import { PrismaType } from "../../types";
 import { RoutineModel } from "./routine";
@@ -129,6 +129,7 @@ export const NodeRoutineListModel = ({
     prismaObject: (prisma: PrismaType) => prisma.node_routine_list,
     format: nodeRoutineListFormatter(),
     mutate: nodeRoutineListMutater,
+    type: 'NodeRoutineList',
 })
 
 //==============================================================

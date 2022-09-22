@@ -302,6 +302,7 @@ export const ViewModel = ({
     format: viewFormatter(),
     search: viewSearcher(),
     query: viewQuerier,
+    type: 'View',
 })
 
 //==============================================================

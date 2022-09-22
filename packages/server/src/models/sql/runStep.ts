@@ -3,7 +3,7 @@ import { CODE } from "@shared/consts";
 import { CustomError } from "../../error";
 import { Count, RunStep, RunStepCreateInput, RunStepStatus, RunStepUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
 import { validateProfanity } from "../../utils/censor";
 
@@ -177,5 +177,6 @@ export const RunStepModel = ({
     prismaObject: (prisma: PrismaType) => prisma.run_step,
     format: runStepFormatter(),
     mutate: runStepMutater,
+    type: 'RunStep',
     verify: runStepVerifier(),
 })

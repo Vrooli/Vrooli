@@ -200,9 +200,11 @@ export const OrganizationView = ({
                 break;
             case ObjectActionComplete.Fork:
                 setLocation(`${APP_LINKS.Organization}/${data.fork.organization.id}`);
+                window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
                 setLocation(`${APP_LINKS.Organization}/${data.copy.organization.id}`);
+                window.location.reload();
                 break;
         }
     }, [organization, setLocation]);

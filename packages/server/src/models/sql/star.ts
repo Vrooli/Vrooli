@@ -249,6 +249,7 @@ export const StarModel = ({
     mutate: starMutater,
     query: starQuerier,
     search: starSearcher(),
+    type: 'Star',
 })
 
 //==============================================================

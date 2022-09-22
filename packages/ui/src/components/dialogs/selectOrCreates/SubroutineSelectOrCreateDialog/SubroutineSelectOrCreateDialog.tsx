@@ -102,7 +102,7 @@ export const SubroutineSelectOrCreateDialog = ({
             incomplete.isCompleteExceptions = [exception];
             internal.isInternalExceptions = [exception];
         }
-        return { ...excludeIds, ...incomplete, ...internal, visibility: VisibilityType.Both };
+        return { ...excludeIds, ...incomplete, ...internal, visibility: VisibilityType.All };
     }, [owner, routineId]);
 
     return (

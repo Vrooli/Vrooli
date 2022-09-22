@@ -2,7 +2,7 @@ import { runInputsCreate, runInputsUpdate } from "@shared/validation";
 import { CODE } from "@shared/consts";
 import { CustomError } from "../../error";
 import { Count, RunInputCreateInput, RunInputUpdateInput, RunInput } from "../../schema/types";
-import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
 import { validateProfanity } from "../../utils/censor";
 import { PrismaType } from "../../types";
@@ -210,5 +210,6 @@ export const RunInputModel = ({
     format: runInputFormatter(),
     mutate: runInputMutater,
     // search: runInputSearcher(),
+    type: 'RunInput',
     verify: runInputVerifier(),
 })

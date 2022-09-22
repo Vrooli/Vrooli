@@ -446,5 +446,6 @@ export const RunModel = ({
     mutate: runMutater,
     permissions: runPermissioner,
     search: runSearcher(),
+    type: 'Run',
     verify: runVerifier(),
 })

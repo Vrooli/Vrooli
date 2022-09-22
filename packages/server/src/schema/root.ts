@@ -13,7 +13,7 @@ import { VisibilityType } from './types';
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
 export const typeDef = gql`
     enum VisibilityType {
-        Both
+        All
         Public
         Private
     }

@@ -149,7 +149,7 @@ export const resolvers = {
         },
         commentsCount: async (_parent: undefined, { input }: IWrap<CommentCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, max: 1000, req });
-            return countHelper({ input, model: CommentModel, prisma })
+            return countHelper({ input, model: CommentModel, prisma, userId: req.userId })
         },
     },
     Mutation: {

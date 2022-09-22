@@ -1,5 +1,5 @@
 import { Count, Node, NodeCreateInput, NodeUpdateInput } from "../../schema/types";
-import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, onlyValidIds } from "./base";
+import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, onlyValidIds, GraphQLModelType } from "./base";
 import { CustomError } from "../../error";
 import { CODE } from "@shared/consts";
 import { nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeTranslationCreate, nodeTranslationUpdate, whilesCreate, whilesUpdate, whensCreate, whensUpdate, loopsCreate, loopsUpdate, nodesCreate, nodesUpdate } from "@shared/validation";
@@ -426,6 +426,7 @@ export const NodeModel = ({
     prismaObject: (prisma: PrismaType) => prisma.node,
     format: nodeFormatter(),
     mutate: nodeMutater,
+    type: 'Node',
     verify: nodeVerifier(),
 })
 

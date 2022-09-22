@@ -84,7 +84,7 @@ export const GraphQLModelType = {
     View: 'View',
     Vote: 'Vote',
     Wallet: 'Wallet',
-} as const
+}
 export type GraphQLModelType = ValueOf<typeof GraphQLModelType>;
 
 /**
@@ -100,6 +100,7 @@ export type ModelLogic<GraphQLModel, SearchInput, PermissionObject> = {
     permissions?: () => Permissioner<PermissionObject, SearchInput>;
     verify?: { [x: string]: any };
     query?: (prisma: PrismaType) => Querier;
+    type: GraphQLModelType;
 }
 
 /**
@@ -776,9 +777,9 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
  * @param time Time frame to convert
  * @param fieldName Name of time field (typically created_at or updated_at)
  */
-export const timeFrameToPrisma = (fieldName: string, time?: TimeFrame | null | undefined): any => {
+export const timeFrameToPrisma = (fieldName: string, time?: TimeFrame | null | undefined): { [x: string]: any } | undefined => {
     if (!time || (!time.before && !time.after)) return undefined;
-    let where: any = ({ [fieldName]: {} });
+    let where: { [x: string]: any } = ({ [fieldName]: {} });
     if (time.before) where[fieldName].lte = time.before;
     if (time.after) where[fieldName].gte = time.after;
     return where;
@@ -1525,7 +1526,9 @@ type CountHelperProps<GraphQLModel, CountInput extends CountInputBase> = {
     input: CountInput;
     model: ModelLogic<GraphQLModel, any, any>;
     prisma: PrismaType;
+    userId: string | null;
     where?: { [x: string]: any };
+    visibility?: VisibilityType;
 }
 
 /**
@@ -1536,17 +1539,22 @@ export async function countHelper<GraphQLModel, CountInput extends CountInputBas
     input,
     model,
     prisma,
+    userId,
     where,
+    visibility = VisibilityType.Public,
 }: CountHelperProps<GraphQLModel, CountInput>): Promise<number> {
-    // Check permissions
-    //TODO use same permissions as readmanyhelper, to determine if private should be counted
     // Create query for created metric
     const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
     // Create query for created metric
     const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
+    // Create query for visibility, if supported
+    let visibilityQuery: { [x: string]: any } | undefined;
+    if (([GraphQLModelType.Organization, GraphQLModelType.Project, GraphQLModelType.Routine, GraphQLModelType.Run, GraphQLModelType.Standard] as string[]).includes(model.type)) {
+        visibilityQuery = visibilityBuilder({ model, userId, visibility });
+    }
     // Count objects that match queries
     return await (model.prismaObject(prisma) as any).count({
-        where: combineQueries([where, createdQuery, updatedQuery])
+        where: combineQueries([where, createdQuery, updatedQuery, visibilityQuery])
     });
 }
 
@@ -1578,10 +1586,7 @@ export async function createHelper<GraphQLModel>({
     const partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0027') });
-    // Check permissions
-    // TODO will need custom permissions. Needs to use input fields to determine which permissions to check.
-    // e.g. A routine with a projectId must verify that the user has permission to create a routine in the project (i.e. owns project and hasn't reached max routines inside).
-    // Then it also needs to check that the user hasn't reached a max number of overall routines.
+    // Create objects. cud will check permissions
     const cudResult = await model.mutate!(prisma).cud!({ partialInfo, userId, createMany: [input] });
     const { created } = cudResult;
     if (created && created.length > 0) {
@@ -1632,12 +1637,9 @@ export async function updateHelper<GraphQLModel>({
     let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0031') });
-    // Check permissions
-    //TODO use same permissions as readonehelper (but for updating obviously), but also similar custom
-    // logic to createHelper. For example, if a routine is being moved to another project, then need to check 
-    // permissions for current and new project.
     // Shape update input to match prisma update shape (i.e. "where" and "data" fields)
     const shapedInput = { where: where(input), data: input };
+    // Update objects. cud will check permissions
     const { updated } = await model.mutate!(prisma).cud!({ partialInfo, userId, updateMany: [shapedInput] });
     if (updated && updated.length > 0) {
         // If organization, project, routine, or standard, log for stats
@@ -1679,8 +1681,7 @@ export async function deleteOneHelper({
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete object', { code: genErrorCode('0033') });
     if (!model.mutate || !model.mutate(prisma).cud)
         throw new CustomError(CODE.InternalError, 'Model does not support delete', { code: genErrorCode('0034') });
-    // Check permissions
-    // TODO
+    // Delete object. cud will check permissions
     const { deleted } = await model.mutate!(prisma).cud!({ partialInfo: {}, userId, deleteMany: [input.id] });
     if (deleted?.count && deleted.count > 0) {
         // If organization, project, routine, or standard, log for stats
@@ -1721,8 +1722,7 @@ export async function deleteManyHelper({
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete objects', { code: genErrorCode('0035') });
     if (!model.mutate || !model.mutate(prisma).cud)
         throw new CustomError(CODE.InternalError, 'Model does not support delete', { code: genErrorCode('0036') });
-    // Check permissions
-    //TODO
+    // Delete objects. cud will check permissions
     const { deleted } = await model.mutate!(prisma).cud!({ partialInfo: {}, userId, deleteMany: input.ids });
     if (!deleted)
         throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in deleteManyHelper', { code: genErrorCode('0037') });
@@ -1766,7 +1766,10 @@ export async function copyHelper({
     if (!model.mutate || !model.mutate(prisma).duplicate)
         throw new CustomError(CODE.InternalError, 'Model does not support copy', { code: genErrorCode('0230') });
     // Check permissions
-    //TODO
+    const permissions: { [x: string]: any }[] = model.permissions ? await model.permissions().get({ objects: [{ id: input.id }], prisma, userId }): [{}];
+    if (!permissions[0].canFork && !permissions[0].canCopy) {
+        throw new CustomError(CODE.Unauthorized, 'Not allowed to copy object', { code: genErrorCode('0263') });
+    }
     // Partially convert info
     let partialInfo = toPartialGraphQLInfo(info, ({
         '__typename': 'Copy',
@@ -1824,7 +1827,10 @@ export async function forkHelper({
     if (!model.mutate || !model.mutate(prisma).duplicate)
         throw new CustomError(CODE.InternalError, 'Model does not support fork', { code: genErrorCode('0234') });
     // Check permissions
-    //TODO
+    const permissions: { [x: string]: any }[] = model.permissions ? await model.permissions().get({ objects: [{ id: input.id }], prisma, userId }): [{}];
+    if (!permissions[0].canFork && !permissions[0].canCopy) {
+        throw new CustomError(CODE.Unauthorized, 'Not allowed to fork object', { code: genErrorCode('0262') });
+    }
     // Partially convert info
     let partialInfo = toPartialGraphQLInfo(info, ({
         '__typename': 'Fork',
@@ -1958,7 +1964,7 @@ export async function existsArray({ ids, prismaDelegate, where }: ExistsArray): 
  * @param queries Array of query objects to combine
  * @returns Combined query object, with all fields combined
  */
-export function combineQueries(queries: ({ [x: string]: any } | null)[]): { [x: string]: any } {
+export function combineQueries(queries: ({ [x: string]: any } | null | undefined)[]): { [x: string]: any } {
     console.log('combineQueries start', JSON.stringify(queries), '\n\n');
     const combined: { [x: string]: any } = {};
     for (const query of queries) {
@@ -2148,11 +2154,11 @@ export function visibilityBuilder<GraphQLModelType>({
     if (!visibility || visibility === VisibilityType.Public || !userId || !model.permissions) {
         return { isPrivate: false };
     }
-    // If visibility is set to private
+    // If visibility is set to private, query private objects that you own
     else if (visibility === VisibilityType.Private) {
-        return model.permissions().ownershipQuery(userId);
+        return combineQueries([{ isPrivate: true }, model.permissions().ownershipQuery(userId)])
     }
-    // Otherwise, must be set to both
+    // Otherwise, must be set to All
     else {
         let query: { [x: string]: any } = model.permissions().ownershipQuery(userId);
         // If query has OR field with an array value, add isPrivate: false to array

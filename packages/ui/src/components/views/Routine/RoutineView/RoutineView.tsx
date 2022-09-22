@@ -223,9 +223,11 @@ export const RoutineView = ({
                 break;
             case ObjectActionComplete.Fork:
                 setLocation(`${APP_LINKS.Routine}/${data.fork.routine.id}`);
+                window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
                 setLocation(`${APP_LINKS.Routine}/${data.copy.routine.id}`);
+                window.location.reload();
                 break;
         }
     }, [routine, setLocation]);

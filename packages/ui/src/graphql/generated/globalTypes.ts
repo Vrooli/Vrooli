@@ -295,7 +295,7 @@ export enum ViewSortBy {
 }
 
 export enum VisibilityType {
-  Both = "Both",
+  All = "All",
   Private = "Private",
   Public = "Public",
 }

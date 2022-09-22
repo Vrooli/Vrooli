@@ -1,5 +1,5 @@
 import { User, UserSortBy, UserSearchInput, ResourceListUsedFor, } from "../../schema/types";
-import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, FormatConverter, getSearchStringQueryHelper, PartialGraphQLInfo, removeCountFieldsHelper, removeJoinTablesHelper, Searcher } from "./base";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, PartialGraphQLInfo, removeCountFieldsHelper, removeJoinTablesHelper, Searcher } from "./base";
 import { PrismaType, RecursivePartial } from "../../types";
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
@@ -90,6 +90,7 @@ export const UserModel = ({
     prismaObject: (prisma: PrismaType) => prisma.user,
     format: userFormatter(),
     search: userSearcher(),
+    type: 'User',
 })
 
 //==============================================================

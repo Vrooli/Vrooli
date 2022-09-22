@@ -1,7 +1,7 @@
 import { PrismaType, RecursivePartial } from "../../types";
 import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success, Tag, TagCreateInput, TagHidden, User, UserDeleteInput } from "../../schema/types";
 import { sendResetPasswordLink, sendVerificationLink } from "../../worker/email/queue";
-import { addJoinTablesHelper, addSupplementalFields, FormatConverter, GraphQLInfo, modelToGraphQL, padSelect, PartialGraphQLInfo, readOneHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo } from "./base";
+import { addJoinTablesHelper, addSupplementalFields, FormatConverter, GraphQLInfo, GraphQLModelType, modelToGraphQL, padSelect, PartialGraphQLInfo, readOneHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo } from "./base";
 import { user } from "@prisma/client";
 import { CODE } from "@shared/consts";
 import { profileUpdateSchema, userTranslationCreate, userTranslationUpdate } from "@shared/validation";
@@ -566,5 +566,6 @@ export const ProfileModel = ({
     mutate: profileMutater,
     port: porter,
     query: profileQuerier,
+    type: 'Profile',
     verify: profileVerifier(),
 })

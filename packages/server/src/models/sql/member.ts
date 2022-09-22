@@ -1,6 +1,6 @@
 import { PrismaType } from "../../types";
 import { Member } from "../../schema/types";
-import { FormatConverter } from "./base";
+import { FormatConverter, GraphQLModelType } from "./base";
 
 //==============================================================
 /* #region Custom Components */
@@ -25,6 +25,7 @@ export const memberFormatter = (): FormatConverter<Member, any> => ({
 export const MemberModel = ({
     prismaObject: (prisma: PrismaType) => prisma.organization_users,
     format: memberFormatter(),
+    type: 'Member',
 })
 
 //==============================================================

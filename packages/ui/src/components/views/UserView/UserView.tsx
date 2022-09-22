@@ -205,9 +205,11 @@ export const UserView = ({
                 break;
             case ObjectActionComplete.Fork:
                 setLocation(`${APP_LINKS.User}/${data.fork.user.id}`);
+                window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
                 setLocation(`${APP_LINKS.User}/${data.copy.user.id}`);
+                window.location.reload();
                 break;
         }
     }, [user, setLocation]);
