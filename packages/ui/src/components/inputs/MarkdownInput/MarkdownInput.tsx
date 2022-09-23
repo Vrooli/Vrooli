@@ -2,22 +2,12 @@
  * TextField for entering (and previewing) markdown.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Button, IconButton, Popover, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import {
-    FormatListBulleted as BulletListIcon,
-    FormatListNumbered as NumberListIcon,
-    FormatBold as BoldIcon,
-    FormatItalic as ItalicIcon,
-    InsertLink as LinkIcon,
-    List as ListIcon,
-    StrikethroughS as StrikethroughIcon,
-    Title as HeaderIcon,
-} from '@mui/icons-material';
+import { Box, IconButton, Popover, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { MarkdownInputProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { noSelect } from 'styles';
 import { PubSub } from 'utils';
-import { InvisibleIcon, RedoIcon, UndoIcon, VisibleIcon } from '@shared/icons';
+import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListIcon, ListNumberIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from '@shared/icons';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
 
 enum Headers {
@@ -28,6 +18,7 @@ enum Headers {
     H5 = 'h5',
     H6 = 'h6',
 }
+
 const headerMarkdowns = {
     [Headers.H1]: '# ',
     [Headers.H2]: '## ',
@@ -36,6 +27,12 @@ const headerMarkdowns = {
     [Headers.H5]: '##### ',
     [Headers.H6]: '###### ',
 }
+
+const dropDownButtonProps = ({
+    borderRadius: 0,
+    width: '48px',
+    height: '48px',
+})
 
 /**
  * Determines start index of the current line.
@@ -359,7 +356,7 @@ export const MarkdownInput = ({
                             size="small"
                             onClick={openHeaderSelect}
                         >
-                            <HeaderIcon sx={{ fill: palette.primary.contrastText }} />
+                            <HeaderIcon fill={palette.primary.contrastText} />
                         </IconButton>
                     </Tooltip>
                     <Popover
@@ -377,21 +374,30 @@ export const MarkdownInput = ({
                             background: palette.primary.light,
                             color: palette.primary.contrastText,
                         }}>
-                            {
-                                [Headers.H1, Headers.H2, Headers.H3].map((size) => (
-                                    <Button
-                                        key={size}
-                                        color="primary"
-                                        size="small"
-                                        onClick={() => insertHeader(size as Headers)}
-                                        sx={{
-                                            minHeight: '48px',
-                                        }}
-                                    >
-                                        {size}
-                                    </Button>
-                                ))
-                            }
+                            <Tooltip title="Header 1 (Largest)" placement="top">
+                                <IconButton
+                                    onClick={() => insertHeader(Headers.H1)}
+                                    sx={dropDownButtonProps}
+                                >
+                                    <Header1Icon fill={palette.primary.contrastText} />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Header 2" placement="top">
+                                <IconButton
+                                    onClick={() => insertHeader(Headers.H2)}
+                                    sx={dropDownButtonProps}
+                                >
+                                    <Header2Icon fill={palette.primary.contrastText} />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Header 3 (Smallest)" placement="top">
+                                <IconButton
+                                    onClick={() => insertHeader(Headers.H3)}
+                                    sx={dropDownButtonProps}
+                                >
+                                    <Header3Icon fill={palette.primary.contrastText} />
+                                </IconButton>
+                            </Tooltip>
                         </Stack>
                     </Popover>
                     {/* Button for bold */}
@@ -401,7 +407,7 @@ export const MarkdownInput = ({
                             size="small"
                             onClick={bold}
                         >
-                            <BoldIcon sx={{ fill: palette.primary.contrastText }} />
+                            <BoldIcon fill={palette.primary.contrastText} />
                         </IconButton>
                     </Tooltip>
                     {/* Button for italic */}
@@ -411,7 +417,7 @@ export const MarkdownInput = ({
                             size="small"
                             onClick={italic}
                         >
-                            <ItalicIcon sx={{ fill: palette.primary.contrastText }} />
+                            <ItalicIcon fill={palette.primary.contrastText} />
                         </IconButton>
                     </Tooltip>
                     {/* Button for strikethrough */}
@@ -421,7 +427,7 @@ export const MarkdownInput = ({
                             size="small"
                             onClick={strikethrough}
                         >
-                            <StrikethroughIcon sx={{ fill: palette.primary.contrastText }} />
+                            <StrikethroughIcon fill={palette.primary.contrastText} />
                         </IconButton>
                     </Tooltip>
                     {/* Insert bulleted or numbered list selector */}
@@ -432,7 +438,7 @@ export const MarkdownInput = ({
                             size="small"
                             onClick={openListSelect}
                         >
-                            <ListIcon sx={{ fill: palette.primary.contrastText }} />
+                            <ListIcon fill={palette.primary.contrastText} />
                         </IconButton>
                     </Tooltip>
                     <Popover
@@ -450,30 +456,20 @@ export const MarkdownInput = ({
                             color: palette.primary.contrastText,
                         }}>
                             <Tooltip title="Bulleted list" placement="top">
-                                <Button
-                                    color="primary"
-                                    size="small"
+                                <IconButton
                                     onClick={insertBulletList}
-                                    sx={{ minHeight: '48px', }}
-                                    startIcon={<BulletListIcon sx={{
-                                        marginLeft: 1,
-                                        fill: palette.primary.contrastText,
-                                        transform: 'scale(1.5)',
-                                    }} />}
-                                />
+                                    sx={dropDownButtonProps}
+                                >
+                                    <ListBulletIcon fill={palette.primary.contrastText} />
+                                </IconButton>
                             </Tooltip>
                             <Tooltip title="Numbered list" placement="top">
-                                <Button
-                                    color="primary"
-                                    size="small"
+                                <IconButton
                                     onClick={insertNumberList}
-                                    sx={{ minHeight: '48px', }}
-                                    startIcon={<NumberListIcon sx={{
-                                        marginLeft: 1,
-                                        fill: palette.primary.contrastText,
-                                        transform: 'scale(1.5)',
-                                    }} />}
-                                />
+                                    sx={dropDownButtonProps}
+                                >
+                                    <ListNumberIcon fill={palette.primary.contrastText} />
+                                </IconButton>
                             </Tooltip>
                         </Stack>
                     </Popover>
@@ -484,7 +480,7 @@ export const MarkdownInput = ({
                             size="small"
                             onClick={insertLink}
                         >
-                            <LinkIcon sx={{ fill: palette.primary.contrastText }} />
+                            <LinkIcon fill={palette.primary.contrastText} />
                         </IconButton>
                     </Tooltip>
                 </Stack>
