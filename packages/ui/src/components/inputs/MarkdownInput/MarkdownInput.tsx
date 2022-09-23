@@ -175,26 +175,6 @@ export const MarkdownInput = ({
         onChangeDebounced(updatedText);
     }, [changeStackIndex, onChangeDebounced]);
 
-    // Handle undo and redo keys
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            // CTRL + Y or CTRL + SHIFT + Z = redo
-            if (e.ctrlKey && (e.key === 'y' || e.key === 'Z')) {
-                e.preventDefault();
-                redo()
-            }
-            // CTRL + Z = undo
-            else if (e.ctrlKey && e.key === 'z') {
-                e.preventDefault();
-                undo()
-            }
-        };
-        // Attach the event listener
-        document.addEventListener('keydown', handleKeyDown);
-        // Remove the event listener
-        return () => { document.removeEventListener('keydown', handleKeyDown) };
-    }, [redo, undo]);
-
     const [isPreviewOn, setIsPreviewOn] = useState(false);
 
     const [headerAnchorEl, setHeaderAnchorEl] = useState<HTMLElement | null>(null);
@@ -207,54 +187,21 @@ export const MarkdownInput = ({
     const closeList = () => { setListAnchorEl(null) };
     const listSelectOpen = Boolean(listAnchorEl);
 
-    // Listen for text input changes
-    useEffect(() => {
-        const handleKeyDown = (e: any) => {
-            // On enter key, check if bullet or number should be added to new line
-            if (e.key === 'Enter') {
-                // Value here is the current value of the text area, not what it will be once the key is pressed
-                const { selectionStart, selectionEnd, value } = e.target;
-                let [trimmedLine] = getLineAtIndex(value, selectionStart);
-                console.log('trimmed line a', trimmedLine, trimmedLine.length)
-                trimmedLine = trimmedLine.trimStart();
-                console.log('trimmed line b', trimmedLine, trimmedLine.length)
-                // Is a bullet if line starts with an asterisk or dash, followed by a space
-                const isBullet = trimmedLine.startsWith('* ') || trimmedLine.trim()?.startsWith('- ');
-                // Is a number if line starts with a number, followed by a period and a space
-                const isNumber = /^\d+\.\s/.test(trimmedLine);
-                console.log('enter key', trimmedLine, selectionStart, isBullet, isNumber);
-                // If a bullet or number, delete selection and add bullet/number to new line
-                if (isBullet) {
-                    e.preventDefault();
-                    const { textArea } = getSelection(`markdown-input-${id}`);
-                    textArea.value = replaceText(value, '\n* ', selectionStart, selectionEnd)
-                    handleChange(textArea.value);
-                }
-                else if (isNumber) {
-                    e.preventDefault();
-                    const { textArea } = getSelection(`markdown-input-${id}`);
-                    // Get the number of the current line
-                    const currentLineNumber = Number(trimmedLine.match(/^\d+/)![0]);
-                    textArea.value = replaceText(value, `\n${currentLineNumber + 1}. `, selectionStart, selectionEnd);
-                    handleChange(textArea.value);
-                }
-            }
-        }
-        const textarea = document.getElementById(`markdown-input-${id}`);
-        if (!textarea) return;
-        // Add listener for key press
-        textarea.addEventListener('keydown', handleKeyDown);
-        // Remove listener on unmount
-        return () => textarea.removeEventListener('keydown', handleKeyDown);
-    }, [handleChange, id]);
-
     const insertHeader = useCallback((header: Headers) => {
         // Find the current selection
         const { selectionStart, textArea } = getSelection(`markdown-input-${id}`);
         // Find the start of the line which the select starts on
         const startLine = getLineStart(textArea.value, selectionStart);
-        // Insert the header at the start of the line
-        textArea.value = textArea.value.substring(0, startLine) + headerMarkdowns[header] + textArea.value.substring(startLine);
+        // Determine header to insert
+        const headerText = headerMarkdowns[header];
+        // Check if the line already starts with the header
+        if (textArea.value.substring(startLine, startLine + headerText.length) === headerText) {
+            // If so, remove the header
+            textArea.value = replaceText(textArea.value, '', startLine, startLine + headerText.length);
+        } else {
+            // If not, insert the header
+            textArea.value = replaceText(textArea.value, headerText, startLine, startLine);
+        }
         handleChange(textArea.value);
         closeHeader();
     }, [handleChange, id]);
@@ -330,6 +277,104 @@ export const MarkdownInput = ({
         // e.preventDefault() 
     }, [id, isPreviewOn]);
 
+    // Listen for text input changes
+    useEffect(() => {
+        const handleKeyDown = (e: any) => {
+            // On enter key, check if bullet or number should be added to new line
+            if (e.key === 'Enter') {
+                // Value here is the current value of the text area, not what it will be once the key is pressed
+                const { selectionStart, selectionEnd, value } = e.target;
+                let [trimmedLine] = getLineAtIndex(value, selectionStart);
+                trimmedLine = trimmedLine.trimStart();
+                // Is a bullet if line starts with an asterisk or dash, followed by a space
+                const isBullet = trimmedLine.startsWith('* ') || trimmedLine.trim()?.startsWith('- ');
+                // Is a number if line starts with a number, followed by a period and a space
+                const isNumber = /^\d+\.\s/.test(trimmedLine);
+                // If a bullet or number, delete selection and add bullet/number to new line
+                if (isBullet) {
+                    e.preventDefault();
+                    const { textArea } = getSelection(`markdown-input-${id}`);
+                    textArea.value = replaceText(value, '\n* ', selectionStart, selectionEnd)
+                    handleChange(textArea.value);
+                }
+                else if (isNumber) {
+                    e.preventDefault();
+                    const { textArea } = getSelection(`markdown-input-${id}`);
+                    // Get the number of the current line
+                    const currentLineNumber = Number(trimmedLine.match(/^\d+/)![0]);
+                    textArea.value = replaceText(value, `\n${currentLineNumber + 1}. `, selectionStart, selectionEnd);
+                    handleChange(textArea.value);
+                }
+            }
+            // ALT + 1 - Insert header 1
+            else if (e.altKey && e.key === '1') {
+                e.preventDefault();
+                insertHeader(Headers.H1);
+            }
+            // ALT + 2 - Insert header 2
+            else if (e.altKey && e.key === '2') {
+                e.preventDefault();
+                insertHeader(Headers.H2);
+            }
+            // ALT + 3 - Insert header 3
+            else if (e.altKey && e.key === '3') {
+                e.preventDefault();
+                insertHeader(Headers.H3);
+            }
+            // CTRL + B - Bold
+            else if (e.ctrlKey && e.key === 'b') {
+                e.preventDefault();
+                bold();
+            }
+            // CTRL + I - Italic
+            else if (e.ctrlKey && e.key === 'i') {
+                e.preventDefault();
+                italic();
+            }
+            // CTRL + SHIFT + S - Strikethrough
+            else if (e.ctrlKey && e.key === 'S') {
+                e.preventDefault();
+                strikethrough();
+            }
+            // ALT + 4 - Bullet list
+            else if (e.altKey && e.key === '4') {
+                e.preventDefault();
+                insertBulletList();
+            }
+            // ALT + 5 - Number list
+            else if (e.altKey && e.key === '5') {
+                e.preventDefault();
+                insertNumberList();
+            }
+            // CTRL + K - Insert link
+            else if (e.ctrlKey && e.key === 'k') {
+                e.preventDefault();
+                insertLink();
+            }
+            // CTRL + Y or CTRL + SHIFT + Z = redo
+            else if (e.ctrlKey && (e.key === 'y' || e.key === 'Z')) {
+                e.preventDefault();
+                redo()
+            }
+            // CTRL + Z = undo
+            else if (e.ctrlKey && e.key === 'z') {
+                e.preventDefault();
+                undo()
+            }
+            // ALT + 6 - Toggle preview
+            else if (e.altKey && e.key === '6') {
+                e.preventDefault();
+                togglePreview();
+            }
+        }
+        const textarea = document.getElementById(`markdown-input-${id}`);
+        if (!textarea) return;
+        // Add listener for key press
+        textarea.addEventListener('keydown', handleKeyDown);
+        // Remove listener on unmount
+        return () => textarea.removeEventListener('keydown', handleKeyDown);
+    }, [bold, handleChange, id, insertBulletList, insertHeader, insertLink, insertNumberList, italic, redo, strikethrough, togglePreview, undo]);
+
     return (
         <Stack direction="column" spacing={0} onMouseDown={handleMouseDown}>
             {/* Bar above TextField, for inserting markdown and previewing */}
@@ -349,7 +394,7 @@ export const MarkdownInput = ({
                     sx={{ marginRight: 'auto' }}
                 >
                     {/* Insert header selector */}
-                    <Tooltip title="Insert header" placement="top">
+                    <Tooltip title="Insert header (Title)" placement="top">
                         <IconButton
                             aria-describedby={`markdown-input-header-popover-${id}`}
                             disabled={disabled}
@@ -374,7 +419,7 @@ export const MarkdownInput = ({
                             background: palette.primary.light,
                             color: palette.primary.contrastText,
                         }}>
-                            <Tooltip title="Header 1 (Largest)" placement="top">
+                            <Tooltip title="Header 1 (ALT + 1)" placement="top">
                                 <IconButton
                                     onClick={() => insertHeader(Headers.H1)}
                                     sx={dropDownButtonProps}
@@ -382,7 +427,7 @@ export const MarkdownInput = ({
                                     <Header1Icon fill={palette.primary.contrastText} />
                                 </IconButton>
                             </Tooltip>
-                            <Tooltip title="Header 2" placement="top">
+                            <Tooltip title="Header 2 (ALT + 2)" placement="top">
                                 <IconButton
                                     onClick={() => insertHeader(Headers.H2)}
                                     sx={dropDownButtonProps}
@@ -390,7 +435,7 @@ export const MarkdownInput = ({
                                     <Header2Icon fill={palette.primary.contrastText} />
                                 </IconButton>
                             </Tooltip>
-                            <Tooltip title="Header 3 (Smallest)" placement="top">
+                            <Tooltip title="Header 3 (ALT + 3)" placement="top">
                                 <IconButton
                                     onClick={() => insertHeader(Headers.H3)}
                                     sx={dropDownButtonProps}
@@ -401,7 +446,7 @@ export const MarkdownInput = ({
                         </Stack>
                     </Popover>
                     {/* Button for bold */}
-                    <Tooltip title="Bold" placement="top">
+                    <Tooltip title="Bold (CTRL + B)" placement="top">
                         <IconButton
                             disabled={disabled}
                             size="small"
@@ -411,7 +456,7 @@ export const MarkdownInput = ({
                         </IconButton>
                     </Tooltip>
                     {/* Button for italic */}
-                    <Tooltip title="Italic" placement="top">
+                    <Tooltip title="Italic (CTRL + I)" placement="top">
                         <IconButton
                             disabled={disabled}
                             size="small"
@@ -421,7 +466,7 @@ export const MarkdownInput = ({
                         </IconButton>
                     </Tooltip>
                     {/* Button for strikethrough */}
-                    <Tooltip title="Strikethrough" placement="top">
+                    <Tooltip title="Strikethrough (CTRL + SHIFT + S)" placement="top">
                         <IconButton
                             disabled={disabled}
                             size="small"
@@ -455,7 +500,7 @@ export const MarkdownInput = ({
                             background: palette.primary.light,
                             color: palette.primary.contrastText,
                         }}>
-                            <Tooltip title="Bulleted list" placement="top">
+                            <Tooltip title="Bulleted list (ALT + 4)" placement="top">
                                 <IconButton
                                     onClick={insertBulletList}
                                     sx={dropDownButtonProps}
@@ -463,7 +508,7 @@ export const MarkdownInput = ({
                                     <ListBulletIcon fill={palette.primary.contrastText} />
                                 </IconButton>
                             </Tooltip>
-                            <Tooltip title="Numbered list" placement="top">
+                            <Tooltip title="Numbered list (ALT + 5)" placement="top">
                                 <IconButton
                                     onClick={insertNumberList}
                                     sx={dropDownButtonProps}
@@ -474,7 +519,7 @@ export const MarkdownInput = ({
                         </Stack>
                     </Popover>
                     {/* Button for inserting link */}
-                    <Tooltip title="Insert link" placement="top">
+                    <Tooltip title="Insert link (CTRL + K)" placement="top">
                         <IconButton
                             disabled={disabled}
                             size="small"
@@ -490,7 +535,7 @@ export const MarkdownInput = ({
                     spacing={{ xs: 0, sm: 0.5, md: 1 }}
                 >
                     {/* Undo */}
-                    {(canUndo || canRedo) && <Tooltip title={canUndo ? 'Undo' : ''}>
+                    {(canUndo || canRedo) && <Tooltip title={canUndo ? 'Undo (CTRL + Z)' : ''}>
                         <IconButton
                             id="undo-button"
                             disabled={!canUndo}
@@ -502,7 +547,7 @@ export const MarkdownInput = ({
                         </IconButton>
                     </Tooltip>}
                     {/* Redo */}
-                    {(canUndo || canRedo) && <Tooltip title={canRedo ? 'Redo' : ''}>
+                    {(canUndo || canRedo) && <Tooltip title={canRedo ? 'Redo (CTRL + Y)' : ''}>
                         <IconButton
                             id="redo-button"
                             disabled={!canRedo}
@@ -514,7 +559,7 @@ export const MarkdownInput = ({
                         </IconButton>
                     </Tooltip>}
                     {/* Preview */}
-                    <Tooltip title={isPreviewOn ? 'Press to edit' : 'Press to preview'} placement="top">
+                    <Tooltip title={isPreviewOn ? 'Press to edit (ALT + 6)' : 'Press to preview (ALT + 6)'} placement="top">
                         <IconButton size="small" onClick={togglePreview}>
                             {
                                 isPreviewOn ?

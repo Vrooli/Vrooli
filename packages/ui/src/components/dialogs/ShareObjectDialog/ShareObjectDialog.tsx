@@ -6,13 +6,12 @@ import { ShareObjectDialogProps } from '../types';
 import {
     ContentCopy as CopyIcon,
     Email as EmailIcon,
-    LinkedIn as LinkedInIcon,
-    Twitter as TwitterIcon
 } from '@mui/icons-material';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { useState } from 'react';
 import { ObjectType } from 'utils';
 import QRCode from "react-qr-code";
+import { LinkedInIcon, TwitterIcon } from '@shared/icons';
 
 // Title for social media posts
 const postTitle: { [key in ObjectType]?: string } = {
@@ -104,12 +103,12 @@ export const ShareObjectDialog = ({
                     >Share by email</Button>
                     <Button
                         onClick={() => openLink(`https://twitter.com/intent/tweet?text=${encodeURIComponent(getLink())}`)}
-                        startIcon={<TwitterIcon />}
+                        startIcon={<TwitterIcon fill='black' />}
                         sx={{ ...buttonProps }}
                     >Tweet</Button>
                     <Button
                         onClick={() => openLink(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(getLink())}&title=${encodeURIComponent(postTitle[objectType] ?? '')}&summary=${encodeURIComponent(getLink())}`)}
-                        startIcon={<LinkedInIcon />}
+                        startIcon={<LinkedInIcon fill='black' />}
                         sx={{ ...buttonProps }}
                     >Post on LinkedIn</Button>
                     <Box sx={{

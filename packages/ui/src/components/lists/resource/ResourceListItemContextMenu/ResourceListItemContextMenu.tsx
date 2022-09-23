@@ -1,13 +1,12 @@
 import { ResourceListItemContextMenuProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import {
-    Delete as DeleteIcon,
     MoveDown as MoveDownIcon,
     MoveUp as MoveUpIcon,
     OpenWith as MoveIcon,
 } from '@mui/icons-material';
 import { ListMenu } from 'components';
-import { EditIcon } from '@shared/icons';
+import { DeleteIcon, EditIcon } from '@shared/icons';
 
 export enum ResourceContextMenuOption {
     AddBefore = 'AddBefore',

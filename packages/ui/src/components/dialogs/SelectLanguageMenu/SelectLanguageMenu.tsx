@@ -3,14 +3,13 @@ import { SelectLanguageMenuProps } from '../types';
 import {
     ArrowDropDown as ArrowDropDownIcon,
     ArrowDropUp as ArrowDropUpIcon,
-    Delete as DeleteIcon,
     Language as LanguageIcon,
 } from '@mui/icons-material';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { AllLanguages, getUserLanguages } from 'utils';
 import { FixedSizeList } from 'react-window';
 import { MenuTitle } from 'components';
-import { CompleteIcon } from '@shared/icons';
+import { CompleteIcon, DeleteIcon } from '@shared/icons';
 
 const titleAria = 'select-language-dialog-title';
 
@@ -197,15 +196,7 @@ export const SelectLanguageMenu = ({
                                             size="small"
                                             onClick={(e) => onDelete(e, option[0])}
                                         >
-                                            <DeleteIcon
-                                                sx={{
-                                                    color: (isCurrent) ? palette.secondary.contrastText : palette.background.textPrimary,
-                                                    '&:hover': {
-                                                        color: palette.error.main,
-                                                    },
-                                                    fontSize: '1.5rem',
-                                                }}
-                                            />
+                                            <DeleteIcon fill={isCurrent ? palette.secondary.contrastText : palette.background.textPrimary} />
                                         </IconButton>
                                     )}
                                 </ListItem>

@@ -5,7 +5,6 @@ import { TextLoading, UpvoteDownvote } from '../..';
 import { displayDate, getTranslation, PubSub } from 'utils';
 import { MarkdownInput } from 'components/inputs';
 import {
-    Delete as DeleteIcon,
     Reply as ReplyIcon,
 } from '@mui/icons-material';
 import { useMutation } from '@apollo/client';
@@ -20,6 +19,7 @@ import { v4 as uuid } from 'uuid';
 import { OwnerLabel } from 'components/text';
 import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
 import { ReportButton, StarButton } from 'components/buttons';
+import { DeleteIcon } from '@shared/icons';
 
 export function CommentThreadItem({
     data,
@@ -238,11 +238,8 @@ export function CommentThreadItem({
                             <IconButton
                                 onClick={handleDelete}
                                 disabled={loadingDelete}
-                                sx={{
-                                    color: palette.background.textSecondary,
-                                }}
                             >
-                                <DeleteIcon />
+                                <DeleteIcon fill={palette.background.textSecondary} />
                             </IconButton>
                         </Tooltip>}
                     </Stack>}

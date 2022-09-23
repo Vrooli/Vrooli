@@ -3,10 +3,7 @@ import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } fro
 import { WalletListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import {
-    Check as VerifyIcon,
-    Delete as DeleteIcon,
-} from '@mui/icons-material';
+import { CompleteIcon, DeleteIcon } from '@shared/icons';
 
 const Status = {
     NotVerified: '#a71c2d', // Red
@@ -85,14 +82,14 @@ export function WalletListItem({
                     <IconButton
                         onClick={onVerify}
                     >
-                        <VerifyIcon sx={{ fill: Status.NotVerified }} />
+                        <CompleteIcon fill={Status.NotVerified} />
                     </IconButton>
                 </Tooltip>}
                 <Tooltip title="Delete Wallet">
                     <IconButton
                         onClick={onDelete}
                     >
-                        <DeleteIcon sx={{ fill: palette.secondary.main }} />
+                        <DeleteIcon fill={palette.secondary.main} />
                     </IconButton>
                 </Tooltip>
             </Stack>

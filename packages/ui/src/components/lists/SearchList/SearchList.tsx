@@ -7,10 +7,9 @@ import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clickSize, containerShadow } from "styles";
 import {
-    Build as AdvancedIcon,
     Sort as SortListIcon,
 } from '@mui/icons-material';
-import { HistoryIcon as TimeIcon, PlusIcon } from '@shared/icons';
+import { BuildIcon, HistoryIcon as TimeIcon, PlusIcon } from '@shared/icons';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
 import { addSearchParams, getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, parseSearchParams, removeSearchParams, SearchParams, searchTypeToParams, SortValueToLabelMap } from "utils";
 import { useLocation } from '@shared/route';
@@ -366,7 +365,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         onClick={handleAdvancedSearchDialogOpen}
                         sx={{ ...searchButtonStyle }}
                     >
-                        <AdvancedIcon sx={{ fill: palette.secondary.main }} />
+                        <BuildIcon fill={palette.secondary.main} />
                         Advanced
                     </Box>
                 </Tooltip>}

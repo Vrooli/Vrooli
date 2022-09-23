@@ -38,7 +38,12 @@ export const WelcomePage = () => {
     }, []);
 
     return (
-        <PageContainer>
+        <PageContainer sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            textAlign: 'center',
+        }}>
             <Box sx={{
                 boxShadow: `rgb(0 0 0 / 50%) 0px 0px 35px 0px`,
                 padding: 2,

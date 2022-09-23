@@ -17,7 +17,7 @@ import { APP_LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { PubSub } from 'utils';
 import { DialogTitle } from 'components';
-import { Delete as DeleteIcon } from '@mui/icons-material';
+import { DeleteIcon } from '@shared/icons';
 
 const titleAria = 'delete-object-dialog-title';
 

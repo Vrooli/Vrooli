@@ -2,9 +2,6 @@
  * Displays nodes associated with a routine, but that are not linked to any other nodes.
  */
 import {
-    Delete as DeleteIcon,
-} from '@mui/icons-material';
-import {
     Box,
     IconButton,
     Stack,
@@ -19,7 +16,7 @@ import { NodeType } from 'graphql/generated/globalTypes';
 import { Node, NodeEnd, NodeRoutineList } from 'types';
 import { EndNode, RedirectNode, RoutineListNode } from 'components';
 import { getTranslation } from 'utils';
-import { ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from '@shared/icons';
+import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from '@shared/icons';
 
 export const UnlinkedNodesDialog = ({
     handleNodeDelete,
@@ -141,13 +138,7 @@ export const UnlinkedNodesDialog = ({
                                             onClick={() => handleNodeDelete(node.id)}
                                             aria-label={'Delete unlinked node'}
                                         >
-                                            <DeleteIcon sx={{
-                                                fill: palette.background.textPrimary,
-                                                '&:hover': {
-                                                    fill: '#ff6a6a'
-                                                },
-                                                transition: 'fill 0.5s ease-in-out',
-                                            }} />
+                                            <DeleteIcon fill={palette.background.textPrimary} />
                                         </IconButton>
                                     </Box>
                                 </Tooltip>

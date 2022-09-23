@@ -7,9 +7,6 @@ import { mutationWrapper } from "graphql/utils";
 import { useCallback, useEffect, useMemo } from "react";
 import { displayDate, getTranslation, getUserLanguages } from "utils/display";
 import { ListMenuItemData, RunPickerMenuProps } from "../types";
-import {
-    Delete as DeleteIcon,
-} from "@mui/icons-material";
 import { getRunPercentComplete, parseSearchParams, PubSub } from "utils";
 import { useMutation } from "@apollo/client";
 import { runCreate, runCreateVariables } from "graphql/generated/runCreate";
@@ -20,6 +17,7 @@ import { DeleteOneType } from "@shared/consts";
 import { v4 as uuid } from 'uuid';
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { RunStatus } from "graphql/generated/globalTypes";
+import { DeleteIcon } from "@shared/icons";
 
 const titleAria = 'run-picker-dialog-title';
 

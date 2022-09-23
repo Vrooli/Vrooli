@@ -1,7 +1,6 @@
 import { NodeContextMenuProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import {
-    Delete as DeleteIcon,
     Fullscreen as OpenSubroutineIcon,
 } from '@mui/icons-material';
 import { ListMenu } from 'components';
@@ -13,6 +12,7 @@ import {
     AddOutgoingLinkIcon, 
     AddRoutineListAfterIcon, 
     AddRoutineListBeforeIcon, 
+    DeleteIcon, 
     DeleteNodeIcon, 
     EditIcon, 
     MoveNodeIcon, 

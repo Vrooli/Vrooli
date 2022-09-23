@@ -10,15 +10,13 @@ import { DeleteDialog, ListMenu, ReportDialog } from "..";
 import { ObjectActionMenuProps, ListMenuItemData, ObjectActionComplete, ObjectAction } from "../types";
 import {
     FileCopy as CopyIcon,
-    DeleteForever as DeleteIcon,
     ForkRight as ForkIcon,
-    Flag as ReportIcon,
     QueryStats as StatsIcon,
 } from "@mui/icons-material";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
 import { PubSub } from "utils";
 import { CopyType, ForkType } from "graphql/generated/globalTypes";
-import { DonateIcon, DownvoteWideIcon, EditIcon, SearchIcon, ShareIcon, StarFilledIcon, StarOutlineIcon, UpvoteWideIcon } from "@shared/icons";
+import { DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReportIcon, SearchIcon, ShareIcon, StarFilledIcon, StarOutlineIcon, UpvoteWideIcon } from "@shared/icons";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
 
 /**

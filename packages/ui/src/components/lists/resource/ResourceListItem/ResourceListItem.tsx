@@ -10,11 +10,10 @@ import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor,
 import { Resource } from 'types';
 import { getResourceIcon } from '..';
 import {
-    Delete as DeleteIcon,
     OpenInNew as OpenLinkIcon
 } from '@mui/icons-material';
 import { TextLoading } from 'components';
-import { EditIcon } from '@shared/icons';
+import { DeleteIcon, EditIcon } from '@shared/icons';
 
 /**
  * Determines if a resource is a URL, wallet payment address, or an ADA handle
@@ -121,7 +120,7 @@ export function ResourceListItem({
                     </Stack>
                     {
                         canEdit && <IconButton onClick={onDelete}>
-                            <DeleteIcon sx={{ fill: palette.background.textPrimary }} />
+                            <DeleteIcon fill={palette.background.textPrimary} />
                         </IconButton>
                     }
                     {

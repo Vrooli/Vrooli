@@ -22,6 +22,7 @@ export * from './CompleteIcon';
 export * from './CompressIcon';
 export * from './CreateIcon';
 export * from './DarkModeIcon';
+export * from './DeleteIcon';
 export * from './DeleteNodeIcon';
 export * from './DevelopIcon';
 export * from './DiscordIcon';

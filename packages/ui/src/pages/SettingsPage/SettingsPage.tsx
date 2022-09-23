@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SettingsPageProps } from '../types';
 import {
     Lock as AuthenticationIcon,
-    LightMode as DisplayIcon,
     Notifications as NotificationsIcon,
     SvgIconComponent
 } from '@mui/icons-material';
@@ -17,7 +16,7 @@ import { SettingsAuthentication } from 'components/views/SettingsAuthentication/
 import { SettingsDisplay } from 'components/views/SettingsDisplay/SettingsDisplay';
 import { SettingsNotifications } from 'components/views/SettingsNotifications/SettingsNotifications';
 import { useReactSearch } from 'utils';
-import { ProfileIcon } from '@shared/icons';
+import { LightModeIcon, ProfileIcon } from '@shared/icons';
 import { PageContainer } from 'components';
 
 /**
@@ -32,7 +31,7 @@ enum SettingsForm {
 
 const settingPages: { [x: string]: [SettingsForm, string, any] } = {
     [SettingsForm.Profile]: [SettingsForm.Profile, 'Profile', ProfileIcon],
-    [SettingsForm.Display]: [SettingsForm.Display, 'Display', DisplayIcon],
+    [SettingsForm.Display]: [SettingsForm.Display, 'Display', LightModeIcon],
     [SettingsForm.Notifications]: [SettingsForm.Notifications, 'Notifications', NotificationsIcon],
     [SettingsForm.Authentication]: [SettingsForm.Authentication, 'Authentication', AuthenticationIcon],
 }
@@ -96,7 +95,11 @@ export function SettingsPage({
     }, [selectedPage, session, profile, onUpdated]);
 
     return (
-        <PageContainer>
+        <PageContainer sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+        }}>
             <Box sx={{
                 boxShadow: { xs: 'none', sm: '0px 0px 12px gray' },
                 borderRadius: { xs: 0, sm: 2 },

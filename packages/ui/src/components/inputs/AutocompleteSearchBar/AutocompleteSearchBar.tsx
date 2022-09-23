@@ -3,8 +3,7 @@ import { AutocompleteSearchBarProps } from '../types';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
 import { AutocompleteOption } from 'types';
-import { ActionIcon, HistoryIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, StandardIcon, StarFilledIcon, SvgComponent, UserIcon, VisibleIcon } from '@shared/icons';
-import { Delete as DeleteIcon } from '@mui/icons-material';
+import { ActionIcon, DeleteIcon, HistoryIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, StandardIcon, StarFilledIcon, SvgComponent, UserIcon, VisibleIcon } from '@shared/icons';
 import { getLocalStorageKeys, ObjectType, performAction } from 'utils';
 import { StarFor } from '@shared/consts';
 import { StarButton } from 'components/buttons';
@@ -362,7 +361,7 @@ export function AutocompleteSearchBar({
                                 event.stopPropagation();
                                 removeFromHistory(option);
                             }}>
-                                <DeleteIcon sx={{ fill: optionColor(true, true) }} />
+                                <DeleteIcon fill={optionColor(true, true)} />
                             </IconButton>
                         </Tooltip>}
                     </MenuItem>
