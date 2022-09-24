@@ -3,6 +3,7 @@ FROM node:16-alpine as stage0
 
 # Set working directory
 ARG PROJECT_DIR
+ARG VIRTUAL_PORT
 WORKDIR ${PROJECT_DIR}
 
 # Copy required files
@@ -41,4 +42,4 @@ COPY --from=stage1 ${PROJECT_DIR} ./
 COPY --from=stage1 /usr/local/share/.config/yarn/global /usr/local/share/.config/yarn/global
 
 # Set port
-EXPOSE 3000
+EXPOSE ${VIRTUAL_PORT}

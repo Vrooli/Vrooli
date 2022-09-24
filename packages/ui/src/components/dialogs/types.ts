@@ -8,6 +8,10 @@ import { ObjectType, RoutineTranslationShape, SearchType, TagShape } from 'utils
 import { SvgProps } from '@shared/icons';
 import { RelationshipsObject } from 'components/inputs/types';
 
+export interface AccountMenuProps {
+
+}
+
 export interface BaseObjectDialogProps extends DialogProps {
     children: JSX.Element | JSX.Element[];
     /**
