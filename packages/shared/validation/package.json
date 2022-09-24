@@ -4,7 +4,7 @@
     "license": "GPL-3.0",
     "version": "1.2.0",
     "private": true,
-    "description": "Common code shared between local packages",
+    "description": "Validation schemas",
     "main": "dist/index.js",
     "typings": "src/types.d.ts",
     "type": "module",

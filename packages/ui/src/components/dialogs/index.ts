@@ -1,4 +1,5 @@
 export * from './transitions';
+export * from './AccountMenu/AccountMenu';
 export * from './AdvancedSearchDialog/AdvancedSearchDialog';
 export * from './AlertDialog/AlertDialog';
 export * from './BaseObjectDialog/BaseObjectDialog';
