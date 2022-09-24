@@ -1,4 +1,4 @@
-# Run this file by typing: docker-compose up -f docker-compose-dev.yml -d
+# Run this file by typing: docker-compose up -d
 version: "3.9"
 services:
     ui:
@@ -18,11 +18,11 @@ services:
             PROJECT_DIR: "${PROJECT_DIR}"
             VIRTUAL_HOST: "${VIRTUAL_HOST}"
             VIRTUAL_PATH: "/"
-            VIRTUAL_PORT: "3000"
+            VIRTUAL_PORT: "${PORT_UI}"
             LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
             LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
         ports:
-            - ${PORT_UI}:3000
+            - ${PORT_UI}:${PORT_UI}
         networks:
             - proxy
             - app
@@ -31,8 +31,7 @@ services:
             - ./packages/ui:${PROJECT_DIR}/packages/ui:z
             - ./packages/shared:${PROJECT_DIR}/packages/shared:z
         depends_on: 
-                - redis
-                - db
+            - server
         command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/ui.sh"
     server:
         build:
@@ -48,7 +47,7 @@ services:
             PROJECT_DIR: "${PROJECT_DIR}"
             REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
             REACT_APP_PORT_SERVER: "${PORT_SERVER}"
-            REDIS_CONN: "redis:6379"
+            REDIS_CONN: "redis:${PORT_REDIS}"
             DB_CONN: "db:5432"
             DB_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}"
             CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
@@ -64,12 +63,12 @@ services:
             SITE_IP: "${SITE_IP}"
             SERVER_URL: "${SERVER_URL}"
             VIRTUAL_HOST: "${VIRTUAL_HOST}"
-            VIRTUAL_PORT: "5329"
+            VIRTUAL_PORT: "${PORT_SERVER}"
             VIRTUAL_PATH: "/api"
             LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
             LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
         ports:
-            - ${PORT_SERVER}:5329
+            - ${PORT_SERVER}:${PORT_SERVER}
         networks:
             - proxy
             - app
@@ -94,13 +93,18 @@ services:
             POSTGRES_USER: "${DB_USER}"
             POSTGRES_PASSWORD: "${DB_PASSWORD}"
             PROJECT_DIR: "${PROJECT_DIR}"
-        ports:
-            - ${PORT_DB}:5432
+        expose:
+            - ${PORT_DB}
         networks:
            - app       
         volumes:
             - ./data/postgres:/var/lib/postgresql/data
             - ./packages/db/entrypoint:/docker-entrypoint-initdb.d
+        healthcheck:
+            test: ["CMD", "pg_isready", "-U", "${DB_USER}"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
     redis:
         image: redis:7-alpine
         container_name: redis
@@ -108,10 +112,15 @@ services:
         networks:
           - app   
         volumes:
-          - ./data/redis:/srv/app/data/redis:z    
-        ports:
-          - ${PORT_REDIS}:6379
-        command: /bin/sh -c "mkdir -p /srv/app/data/redis/appendonlydir && rm -f /srv/app/data/redis/dump.rdb && redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes --dbfilename dump.rdb --dir /srv/app/data/redis/"
+          - ./data/redis:${PROJECT_DIR}/data/redis:z    
+        expose:
+            - ${PORT_REDIS}
+        command: /bin/sh -c "mkdir -p ${PROJECT_DIR}/data/redis/appendonlydir && rm -f ${PROJECT_DIR}/data/redis/dump.rdb && redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes --dbfilename dump.rdb --dir ${PROJECT_DIR}/data/redis/"
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
     # docs:
     #     build:
     #         context: .

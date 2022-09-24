@@ -2,6 +2,7 @@ FROM node:16-alpine
 
 # Set working directory
 ARG PROJECT_DIR
+ARG VIRTUAL_PORT
 WORKDIR ${PROJECT_DIR}
 
 # Install global packages
@@ -13,4 +14,4 @@ COPY --chown=node:node packages/ui/package.json packages/ui/build packages/ui/
 COPY --chown=node:node scripts/* scripts/
 
 # Set port
-EXPOSE 3000
+EXPOSE ${VIRTUAL_PORT}
