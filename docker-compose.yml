@@ -1,167 +1,166 @@
 # Run this file by typing: docker-compose up -d
 version: "3.9"
 services:
-    ui:
-        build:
-            context: .
-            dockerfile: ./packages/ui/Dockerfile
-            args:
-                PROJECT_DIR: "${PROJECT_DIR}"
-        container_name: ui
-        restart: always
-        environment: 
-            NODE_ENV: "development"
-            REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
-            REACT_APP_PORT_SERVER: "${PORT_SERVER}"
-            REACT_APP_SERVER_URL: "${SERVER_URL}"
-            REACT_APP_SITE_IP: "${SITE_IP}"
-            PROJECT_DIR: "${PROJECT_DIR}"
-            VIRTUAL_HOST: "${VIRTUAL_HOST}"
-            VIRTUAL_PATH: "/"
-            VIRTUAL_PORT: "${PORT_UI}"
-            LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
-            LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
-        ports:
-            - ${PORT_UI}:${PORT_UI}
-        networks:
-            - proxy
-            - app
-        volumes:
-            - ./node_modules:${PROJECT_DIR}/node_modules
-            - ./packages/ui:${PROJECT_DIR}/packages/ui:z
-            - ./packages/shared:${PROJECT_DIR}/packages/shared:z
-        depends_on: 
-            - server
-        command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/ui.sh"
-    server:
-        build:
-            context: .
-            dockerfile: ./packages/server/Dockerfile
-            args:
-                PROJECT_DIR: "${PROJECT_DIR}"
-        container_name: server
-        restart: always
-        environment: 
-            NODE_ENV: "development"
-            JWT_SECRET: "${JWT_SECRET}"
-            PROJECT_DIR: "${PROJECT_DIR}"
-            REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
-            REACT_APP_PORT_SERVER: "${PORT_SERVER}"
-            REDIS_CONN: "redis:${PORT_REDIS}"
-            DB_CONN: "db:5432"
-            DB_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}"
-            CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
-            DB_PULL: "${DB_PULL}"
-            MONGO_CONN: "${MONGO_CONN}"
-            SITE_EMAIL_FROM: "${SITE_EMAIL_FROM}"
-            ADMIN_WALLET: "${ADMIN_WALLET}"
-            ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
-            BLOCKFROST_API_KEY: "${BLOCKFROST_API_KEY}"
-            SITE_EMAIL_USERNAME: "${SITE_EMAIL_USERNAME}"
-            SITE_EMAIL_PASSWORD: "${SITE_EMAIL_PASSWORD}"
-            SITE_EMAIL_ALIAS: "${SITE_EMAIL_ALIAS}"
-            SITE_IP: "${SITE_IP}"
-            SERVER_URL: "${SERVER_URL}"
-            VIRTUAL_HOST: "${VIRTUAL_HOST}"
-            VIRTUAL_PORT: "${PORT_SERVER}"
-            VIRTUAL_PATH: "/api"
-            LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
-            LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
-        ports:
-            - ${PORT_SERVER}:${PORT_SERVER}
-        networks:
-            - proxy
-            - app
-        volumes:
-            # - ./node_modules:${PROJECT_DIR}/node_modules
-            - ./packages/server:${PROJECT_DIR}/packages/server:z
-            - ./packages/shared:${PROJECT_DIR}/packages/shared:z
-            - ./data/logs:${PROJECT_DIR}/data/logs:z
-            - ./data/uploads:${PROJECT_DIR}/data/uploads:z
-            - ./data/stats:${PROJECT_DIR}/data/stats:z
-            - ./packages/server/src/db/migrations:${PROJECT_DIR}/packages/server/src/db/migrations
-        depends_on: 
-            - redis
-            - db
-        command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/server.sh"
-    db:
-        image: postgres:13-alpine
-        restart: always
-        container_name: db
-        environment: 
-            POSTGRES_DB: "${DB_NAME}"
-            POSTGRES_USER: "${DB_USER}"
-            POSTGRES_PASSWORD: "${DB_PASSWORD}"
-            PROJECT_DIR: "${PROJECT_DIR}"
-        expose:
-            - ${PORT_DB}
-        networks:
-           - app       
-        volumes:
-            - ./data/postgres:/var/lib/postgresql/data
-            - ./packages/db/entrypoint:/docker-entrypoint-initdb.d
-        healthcheck:
-            test: ["CMD", "pg_isready", "-U", "${DB_USER}"]
-            interval: 10s
-            timeout: 5s
-            retries: 5
-    redis:
-        image: redis:7-alpine
-        container_name: redis
-        restart: always
-        networks:
-          - app   
-        volumes:
-          - ./data/redis:${PROJECT_DIR}/data/redis:z    
-        expose:
-            - ${PORT_REDIS}
-        command: /bin/sh -c "mkdir -p ${PROJECT_DIR}/data/redis/appendonlydir && rm -f ${PROJECT_DIR}/data/redis/dump.rdb && redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes --dbfilename dump.rdb --dir ${PROJECT_DIR}/data/redis/"
-        healthcheck:
-            test: ["CMD", "redis-cli", "ping"]
-            interval: 10s
-            timeout: 5s
-            retries: 5
-    # docs:
-    #     build:
-    #         context: .
-    #         dockerfile: ./packages/docs/Dockerfile
-    #         args:
-    #             PROJECT_DIR: "${PROJECT_DIR}"
-    #     container_name: docs
-    #     restart: always
-    #     environment: 
-    #         NODE_ENV: "development"
-    #         REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
-    #         REACT_APP_PORT_SERVER: "${PORT_SERVER}"
-    #         REACT_APP_SERVER_URL: "${SERVER_URL}"
-    #         REACT_APP_SITE_IP: "${SITE_IP}"
-    #         PROJECT_DIR: "${PROJECT_DIR}"
-    #         VIRTUAL_HOST: "${VIRTUAL_HOST_DOCS}"
-    #         VIRTUAL_PATH: "/"
-    #         VIRTUAL_PORT: "3456"
-    #         LETSENCRYPT_HOST: "${VIRTUAL_HOST_DOCS}"
-    #         LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
-    #     ports:
-    #         - ${PORT_DOCS}:3456
-    #     networks:
-    #         - proxy
-    #         - app
-    #     volumes:
-    #         - ./node_modules:${PROJECT_DIR}/node_modules
-    #         - ./packages/docs:${PROJECT_DIR}/packages/docs:z
-    #         - ./packages/shared:${PROJECT_DIR}/packages/shared:z
-    #     command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/docs.sh"
-    # adminer:
-    #     image: adminer
-    #     restart: always
-    #     depends_on: 
-    #         - db
-    #     ports: 
-    #         - 8080:8080
+  ui:
+    build:
+      context: .
+      dockerfile: ./packages/ui/Dockerfile
+      args:
+        PROJECT_DIR: "${PROJECT_DIR}"
+    container_name: ui
+    restart: always
+    environment:
+      NODE_ENV: "development"
+      REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
+      REACT_APP_PORT_SERVER: "${PORT_SERVER}"
+      REACT_APP_SERVER_URL: "${SERVER_URL}"
+      REACT_APP_SITE_IP: "${SITE_IP}"
+      PROJECT_DIR: "${PROJECT_DIR}"
+      VIRTUAL_HOST: "${VIRTUAL_HOST}"
+      VIRTUAL_PATH: "/"
+      VIRTUAL_PORT: "${PORT_UI}"
+      LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
+      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
+    ports:
+      - ${PORT_UI}:${PORT_UI}
+    networks:
+      - proxy
+      - app
+    volumes:
+      - ./node_modules:${PROJECT_DIR}/node_modules
+      - ./packages/ui:${PROJECT_DIR}/packages/ui:z
+      - ./packages/shared:${PROJECT_DIR}/packages/shared:z
+    depends_on:
+      - server
+    command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/ui.sh"
+  server:
+    build:
+      context: .
+      dockerfile: ./packages/server/Dockerfile
+      args:
+        PROJECT_DIR: "${PROJECT_DIR}"
+    container_name: server
+    restart: always
+    environment:
+      NODE_ENV: "development"
+      JWT_SECRET: "${JWT_SECRET}"
+      PROJECT_DIR: "${PROJECT_DIR}"
+      REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
+      REACT_APP_PORT_SERVER: "${PORT_SERVER}"
+      REDIS_CONN: "redis:${PORT_REDIS}"
+      DB_CONN: "db:${PORT_DB}"
+      DB_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}"
+      CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
+      DB_PULL: "${DB_PULL}"
+      MONGO_CONN: "${MONGO_CONN}"
+      SITE_EMAIL_FROM: "${SITE_EMAIL_FROM}"
+      ADMIN_WALLET: "${ADMIN_WALLET}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
+      BLOCKFROST_API_KEY: "${BLOCKFROST_API_KEY}"
+      SITE_EMAIL_USERNAME: "${SITE_EMAIL_USERNAME}"
+      SITE_EMAIL_PASSWORD: "${SITE_EMAIL_PASSWORD}"
+      SITE_EMAIL_ALIAS: "${SITE_EMAIL_ALIAS}"
+      SITE_IP: "${SITE_IP}"
+      SERVER_URL: "${SERVER_URL}"
+      VIRTUAL_HOST: "${VIRTUAL_HOST}"
+      VIRTUAL_PORT: "${PORT_SERVER}"
+      VIRTUAL_PATH: "/api"
+      LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
+      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
+    ports:
+      - ${PORT_SERVER}:${PORT_SERVER}
+    networks:
+      - proxy
+      - app
+    volumes:
+      # - ./node_modules:${PROJECT_DIR}/node_modules
+      - ./packages/server:${PROJECT_DIR}/packages/server:z
+      - ./packages/shared:${PROJECT_DIR}/packages/shared:z
+      - ./data/logs:${PROJECT_DIR}/data/logs:z
+      - ./data/uploads:${PROJECT_DIR}/data/uploads:z
+      - ./data/stats:${PROJECT_DIR}/data/stats:z
+      - ./packages/server/src/db/migrations:${PROJECT_DIR}/packages/server/src/db/migrations
+    depends_on:
+      - redis
+      - db
+    command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/server.sh"
+  db:
+    image: postgres:13-alpine
+    restart: always
+    container_name: db
+    environment:
+      POSTGRES_DB: "${DB_NAME}"
+      POSTGRES_USER: "${DB_USER}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+      PROJECT_DIR: "${PROJECT_DIR}"
+    expose:
+      - ${PORT_DB}
+    networks:
+      - app
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./packages/db/entrypoint:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: always
+    networks:
+      - app
+    volumes:
+      - ./data/redis:${PROJECT_DIR}/data/redis:z
+    expose:
+      - ${PORT_REDIS}
+    command: /bin/sh -c "mkdir -p ${PROJECT_DIR}/data/redis/appendonlydir && rm -f ${PROJECT_DIR}/data/redis/dump.rdb && redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes --dbfilename dump.rdb --dir ${PROJECT_DIR}/data/redis/"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  # docs:
+  #     build:
+  #         context: .
+  #         dockerfile: ./packages/docs/Dockerfile
+  #         args:
+  #             PROJECT_DIR: "${PROJECT_DIR}"
+  #     container_name: docs
+  #     restart: always
+  #     environment:
+  #         NODE_ENV: "development"
+  #         REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
+  #         REACT_APP_PORT_SERVER: "${PORT_SERVER}"
+  #         REACT_APP_SERVER_URL: "${SERVER_URL}"
+  #         REACT_APP_SITE_IP: "${SITE_IP}"
+  #         PROJECT_DIR: "${PROJECT_DIR}"
+  #         VIRTUAL_HOST: "${VIRTUAL_HOST_DOCS}"
+  #         VIRTUAL_PATH: "/"
+  #         VIRTUAL_PORT: "3456"
+  #         LETSENCRYPT_HOST: "${VIRTUAL_HOST_DOCS}"
+  #         LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
+  #     ports:
+  #         - ${PORT_DOCS}:3456
+  #     networks:
+  #         - proxy
+  #         - app
+  #     volumes:
+  #         - ./node_modules:${PROJECT_DIR}/node_modules
+  #         - ./packages/docs:${PROJECT_DIR}/packages/docs:z
+  #         - ./packages/shared:${PROJECT_DIR}/packages/shared:z
+  #     command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/docs.sh"
+  # adminer:
+  #     image: adminer
+  #     restart: always
+  #     depends_on:
+  #         - db
+  #     ports:
+  #         - 8080:8080
 
 networks:
   proxy:
     name: nginx-proxy
     external: true
   app:
-
