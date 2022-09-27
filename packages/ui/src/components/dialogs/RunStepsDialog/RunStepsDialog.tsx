@@ -3,7 +3,6 @@
  */
 import { useCallback, useState } from 'react';
 import {
-    FormatListNumbered as StepsIcon,
     Launch as OpenStepIcon,
 } from '@mui/icons-material';
 import {
@@ -23,6 +22,7 @@ import { RoutineStep } from 'types';
 import { addSearchParams, locationArraysMatch, routineHasSubroutines, RoutineStepType } from 'utils';
 import { useLocation } from '@shared/route';
 import { MenuTitle } from '../MenuTitle/MenuTitle';
+import { ListNumberIcon } from '@shared/icons';
 
 function MinusSquare(props) {
     return (
@@ -113,7 +113,6 @@ export const RunStepsDialog = ({
     history,
     percentComplete,
     stepList,
-    sxs,
     zIndex,
 }: RunStepsDialogProps) => {
     const { palette } = useTheme();
@@ -203,7 +202,7 @@ export const RunStepsDialog = ({
         <>
             {/* Icon for opening/closing dialog */}
             <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
-                <StepsIcon sx={sxs?.icon} />
+                <ListNumberIcon width='32px' height='32px' />
             </IconButton>
             {/* The dialog */}
             <SwipeableDrawer

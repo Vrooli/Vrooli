@@ -17,7 +17,7 @@ const contactInfo: [string, string, string, SvgComponent][] = [
 ]
 
 export const ContactInfo = ({
-    className,
+    sx,
     ...props
 }: ContactInfoProps) => {
     const { palette } = useTheme();
@@ -28,7 +28,7 @@ export const ContactInfo = ({
     }
 
     return (
-        <Box sx={{ minWidth: 'fit-content', height: 'fit-content' }} {...props}>
+        <Box sx={{ minWidth: 'fit-content', height: 'fit-content', ...(sx ?? {}) }} {...props}>
             <BottomNavigation
                 showLabels
                 sx={{

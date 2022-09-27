@@ -3,15 +3,11 @@
  */
 import { Box, Button, Dialog, Stack, Typography, useTheme } from '@mui/material';
 import { ShareObjectDialogProps } from '../types';
-import {
-    ContentCopy as CopyIcon,
-    Email as EmailIcon,
-} from '@mui/icons-material';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { useState } from 'react';
 import { ObjectType } from 'utils';
 import QRCode from "react-qr-code";
-import { LinkedInIcon, TwitterIcon } from '@shared/icons';
+import { CopyIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
 
 // Title for social media posts
 const postTitle: { [key in ObjectType]?: string } = {
@@ -93,12 +89,12 @@ export const ShareObjectDialog = ({
                 <Stack direction="column" spacing={1} mb={2} sx={{ alignItems: 'center' }}>
                     <Button
                         onClick={copyInviteLink}
-                        startIcon={<CopyIcon />}
+                        startIcon={<CopyIcon fill='black' />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
                     >Copy link</Button>
                     <Button
                         onClick={() => openLink(`mailto:?subject=${encodeURIComponent(postTitle[objectType] ?? '')}&body=${encodeURIComponent(getLink())}`)}
-                        startIcon={<EmailIcon />}
+                        startIcon={<EmailIcon fill='black' />}
                         sx={{ ...buttonProps }}
                     >Share by email</Button>
                     <Button

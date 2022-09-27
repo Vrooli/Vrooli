@@ -4,8 +4,6 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    FileCopy as CopyIcon,
-    Delete as DeleteIcon,
     ForkRight as ForkIcon,
     QueryStats as StatsIcon,
 } from '@mui/icons-material';
@@ -38,7 +36,7 @@ import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
 import { copyMutation, forkMutation, starMutation, voteMutation } from 'graphql/mutation';
 import { v4 as uuid } from 'uuid';
-import { CloseIcon, DownvoteWideIcon, InfoIcon, StarFilledIcon, StarOutlineIcon, UpvoteWideIcon } from '@shared/icons';
+import { CloseIcon, CopyIcon, DeleteIcon, DownvoteWideIcon, InfoIcon, StarFilledIcon, StarOutlineIcon, SvgComponent, UpvoteWideIcon } from '@shared/icons';
 import { requiredErrorMessage, title as titleValidation } from '@shared/validation';
 
 export const BuildInfoDialog = ({
@@ -165,7 +163,7 @@ export const BuildInfoDialog = ({
      */
     const actions = useMemo(() => {
         // [value, label, icon, secondaryLabel]
-        const results: [ObjectAction, string, any, string | null][] = [];
+        const results: [ObjectAction, string, SvgComponent, string | null][] = [];
         // If signed in and not editing, show vote/star options
         if (session?.isLoggedIn === true && !isEditing) {
             results.push(routine?.isUpvoted ?
@@ -180,9 +178,9 @@ export const BuildInfoDialog = ({
         // If not editing, show "Stats" and "Fork" buttons
         if (!isEditing) {
             results.push(
-                [ObjectAction.Stats, 'Stats', StatsIcon, 'Coming Soon'],
+                [ObjectAction.Stats, 'Stats', StatsIcon as any, 'Coming Soon'],
                 [ObjectAction.Copy, 'Copy', CopyIcon, null],
-                [ObjectAction.Fork, 'Fork', ForkIcon, null],
+                [ObjectAction.Fork, 'Fork', ForkIcon as any, null],
             )
         }
         // Only show "Delete" when editing an existing routine

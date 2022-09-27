@@ -849,7 +849,6 @@ export const RunView = ({
                             history={progress}
                             percentComplete={progressPercentage}
                             stepList={steps}
-                            sxs={{ icon: { width: '32px', height: '32px' } }}
                             zIndex={zIndex + 3}
                         />
                     </Box>

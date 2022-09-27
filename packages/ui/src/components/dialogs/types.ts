@@ -1,11 +1,10 @@
 import { DialogProps, PopoverProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
-import { SvgIconComponent } from '@mui/icons-material';
 import { DeleteOneType } from '@shared/consts';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, ResourceList, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 import { ReportFor } from 'graphql/generated/globalTypes';
 import { ObjectType, RoutineTranslationShape, SearchType, TagShape } from 'utils';
-import { SvgProps } from '@shared/icons';
+import { SvgComponent, SvgProps } from '@shared/icons';
 import { RelationshipsObject } from 'components/inputs/types';
 
 export interface AccountMenuProps {
@@ -47,7 +46,7 @@ export interface ListMenuItemData<T> {
     /**
      * Icon to display
      */
-    Icon?: SvgIconComponent;
+    Icon?: SvgComponent;
     /**
      * Color of Icon, if different than text
      */
@@ -307,7 +306,6 @@ export interface RunStepsDialogProps {
      */
     percentComplete: number;
     stepList: RoutineStep | null;
-    sxs?: { icon: any };
     zIndex: number;
 }
 

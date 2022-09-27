@@ -1,20 +1,14 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import {
-    PersonAdd as RegisterIcon,
-} from '@mui/icons-material';
 import { APP_LINKS as LINKS } from '@shared/consts';
 import {
     Badge,
     BottomNavigationAction,
     Button,
     IconButton,
-    ListItem,
-    ListItemIcon,
-    ListItemText,
 } from '@mui/material';
 import { openLink } from 'utils';
 import { Session, SetLocation } from 'types';
-import { DevelopIcon, HomeIcon, LearnIcon, ProfileIcon, ResearchIcon, SearchIcon } from '@shared/icons';
+import { CreateAccountIcon, DevelopIcon, HomeIcon, LearnIcon, ProfileIcon, ResearchIcon, SearchIcon, SvgComponent } from '@shared/icons';
 
 export enum ACTION_TAGS {
     Home = 'Home',
@@ -32,7 +26,7 @@ export interface Action {
     value: ACTION_TAGS;
     link: string;
     onClick: (() => any) | null;
-    Icon: any;
+    Icon: SvgComponent;
     numNotifications: number;
 }
 
@@ -57,7 +51,7 @@ export function getUserActions({ session = {}, exclude = [] }: GetUserActionsPro
     if (session?.isLoggedIn === true) {
         actions.push(['Profile', ACTION_TAGS.Profile, LINKS.Profile, null, ProfileIcon, 0])
     } else {
-        actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, null, RegisterIcon, 0]);
+        actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, null, CreateAccountIcon, 0]);
     }
 
     return actions.map(a => createAction(a)).filter(a => !(exclude ?? []).includes(a.value));
@@ -72,49 +66,20 @@ const createAction = (action: ActionArray): Action => {
 // Factory for creating a list of action objects
 export const createActions = (actions: ActionArray[]): Action[] => actions.map(a => createAction(a));
 
-// Display actions as a list
-interface ActionsToListProps {
-    actions: Action[];
-    setLocation: SetLocation;
-    sxs?: { listItem: { [x: string]: any }, listItemIcon: { [x: string]: any } };
-    showIcon?: boolean;
-    onAnyClick?: () => any;
-}
-export const actionsToList = ({ actions, setLocation, sxs = { listItem: {}, listItemIcon: {} }, showIcon = true, onAnyClick = () => { } }: ActionsToListProps) => {
-    return actions.map(({ label, value, link, onClick, Icon, numNotifications }) => (
-        <ListItem
-            key={value}
-            sx={{ ...sxs.listItem }}
-            onClick={() => {
-                openLink(setLocation, link);
-                if (onClick) onClick();
-                if (onAnyClick) onAnyClick();
-            }}>
-            {showIcon && Icon ?
-                (<ListItemIcon>
-                    <Badge badgeContent={numNotifications} color="error">
-                        <Icon sx={{ ...sxs.listItemIcon }} />
-                    </Badge>
-                </ListItemIcon>) : ''}
-            <ListItemText primary={label} />
-        </ListItem>
-    ))
-}
-
 // Display actions in a horizontal menu
 interface ActionsToMenuProps {
     actions: Action[];
     setLocation: SetLocation;
-    classes?: { [key: string]: string };
+    sx?: { [key: string]: any };
 }
-export const actionsToMenu = ({ actions, setLocation, classes = { root: '' } }: ActionsToMenuProps) => {
+export const actionsToMenu = ({ actions, setLocation, sx = {} }: ActionsToMenuProps) => {
     return actions.map(({ label, value, link, onClick }) => (
         <Button
             key={value}
             variant="text"
             size="large"
-            classes={classes}
             onClick={() => { openLink(setLocation, link); if (onClick) onClick() }}
+            sx={sx}
         >
             {label}
         </Button>

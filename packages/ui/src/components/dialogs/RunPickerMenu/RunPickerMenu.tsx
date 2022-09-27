@@ -141,12 +141,12 @@ export const RunPickerMenu = ({
                 {itemText}
                 <Tooltip title="Delete" placement="right">
                     <IconButton edge="end" onClick={(event: any) => handleDelete(event, data.value)}>
-                        <DeleteIcon />
+                        <DeleteIcon fill={palette.background.textPrimary} />
                     </IconButton>
                 </Tooltip>
             </ListItem>
         )
-    }), [runOptions, onSelect, handleClose, handleDelete]);
+    }), [runOptions, palette.background.textPrimary, onSelect, handleClose, handleDelete]);
 
     return (
         <Menu

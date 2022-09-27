@@ -3,53 +3,28 @@ import {
     PopupMenu
 } from 'components';
 import { Action, actionsToMenu, ACTION_TAGS, getUserActions, openLink } from 'utils';
-import { Button, Container, IconButton, Theme, useTheme } from '@mui/material';
-import { makeStyles } from '@mui/styles';
+import { Button, Container, IconButton, Palette, useTheme } from '@mui/material';
 import { useLocation } from '@shared/route';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NavListProps } from '../types';
 import { APP_LINKS } from '@shared/consts';
-import { ProfileIcon } from '@shared/icons';
+import { LogInIcon, ProfileIcon } from '@shared/icons';
 
-const useStyles = makeStyles((theme: Theme) => ({
-    root: {
-        display: 'flex',
-        marginTop: '0px',
-        marginBottom: '0px',
-        right: '0px',
-        padding: '0px',
+const navItemStyle = (palette: Palette) => ({
+    background: 'transparent',
+    color: palette.primary.contrastText,
+    textTransform: 'none',
+    fontSize: '1.4em',
+    '&:hover': {
+        color: palette.secondary.light,
     },
-    navItem: {
-        background: 'transparent',
-        color: theme.palette.primary.contrastText,
-        textTransform: 'none',
-        fontSize: '1.4em',
-        '&:hover': {
-            color: theme.palette.secondary.light,
-        },
-    },
-    button: {
-        fontSize: '1.4em',
-        borderRadius: '10px',
-    },
-    menuItem: {
-        color: theme.palette.primary.contrastText,
-    },
-    menuIcon: {
-        fill: theme.palette.primary.contrastText,
-    },
-    contact: {
-        width: 'calc(min(100vw, 400px))',
-        height: '300px',
-    },
-}));
+})
 
 export const NavList = ({
     session,
     sessionChecked,
 }: NavListProps) => {
-    const classes = useStyles();
-    const { breakpoints } = useTheme();
+    const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const [isMobile, setIsMobile] = useState(false); // Not shown on mobile
@@ -63,27 +38,43 @@ export const NavList = ({
     const nav_actions = useMemo<Action[]>(() => getUserActions({ session, exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn] }), [session]);
 
     return (
-        <Container className={classes.root}>
+        <Container sx={{
+            display: 'flex',
+            height: '100%',
+            paddingBottom: '0',
+            paddingRight: '0 !important',
+            right: '0',
+        }}>
             {!isMobile && <PopupMenu
                 text="Contact"
                 variant="text"
                 size="large"
-                className={classes.navItem}
+                sx={navItemStyle(palette)}
             >
-                <ContactInfo className={classes.contact} />
+                <ContactInfo />
             </PopupMenu>}
             {/* List items displayed when on wide screen */}
             {!isMobile && actionsToMenu({
                 actions: nav_actions,
                 setLocation,
-                classes: { root: classes.navItem },
+                sx: navItemStyle(palette),
             })}
             {/* Enter button displayed when not logged in */}
             {sessionChecked && session?.isLoggedIn !== true && (
                 <Button
-                    className={classes.button}
                     onClick={() => openLink(setLocation, APP_LINKS.Start)}
-                    sx={{ background: '#387e30' }}
+                    startIcon={<LogInIcon />}
+                    sx={{
+                        background: '#387e30',
+                        borderRadius: '10px',
+                        whiteSpace: 'nowrap',
+                        // Hide text on small screens, and remove start icon's padding
+                        fontSize: { xs: '0px', sm: '1em', md: '1.4em' },
+                        '& .MuiButton-startIcon': {
+                            marginLeft: { xs: '0px', sm: '-4px' },
+                            marginRight: { xs: '0px', sm: '8px' },
+                        },
+                    }}
                 >
                     Log In
                 </Button>

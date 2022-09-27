@@ -4,13 +4,9 @@
 import { APP_LINKS } from '@shared/consts';
 import { Box, Button, Dialog, Stack, Typography } from '@mui/material';
 import { ShareSiteDialogProps } from '../types';
-import {
-    ContentCopy as CopyIcon,
-    Email as EmailIcon,
-} from '@mui/icons-material';
 import { useState } from 'react';
 import QRCode from "react-qr-code";
-import { LinkedInIcon, TwitterIcon } from '@shared/icons';
+import { CopyIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
 
 // Invite link
 const inviteLink = `https://vrooli.com${APP_LINKS.Start}`;
