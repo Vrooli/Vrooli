@@ -12,7 +12,7 @@ import Markdown from 'markdown-to-jsx';
 import { actionsItems, listToAutocomplete, listToListItems, openObject, OpenObjectProps, SearchPageTabOption, shortcutsItems, useReactSearch } from 'utils';
 import { AutocompleteOption } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
-import { CreateIcon, SearchIcon } from '@shared/icons';
+import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
 
 const faqText =
     `## What is This?
@@ -61,19 +61,19 @@ If you would like to contribute to the development of Vrooli, please contact us!
 `
 
 const advancedSearchPopupOptions: ListMenuItemData<string>[] = [
-    { label: 'Organization', value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Organizations}&advanced=true` },
-    { label: 'Project', value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Projects}&advanced=true` },
-    { label: 'Routine', value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Routines}&advanced=true` },
-    { label: 'Standard', value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Standards}&advanced=true` },
-    { label: 'User', value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Users}&advanced=true` },
+    { label: 'Organization', Icon: OrganizationIcon, value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Organizations}&advanced=true` },
+    { label: 'Project', Icon: ProjectIcon, value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Projects}&advanced=true` },
+    { label: 'Routine', Icon: RoutineIcon, value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Routines}&advanced=true` },
+    { label: 'Standard', Icon: StandardIcon, value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Standards}&advanced=true` },
+    { label: 'User', Icon: UserIcon, value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Users}&advanced=true` },
 ]
 
 const createNewPopupOptions: ListMenuItemData<string>[] = [
-    { label: 'Organization', value: `${APP_LINKS.Organization}/add` },
-    { label: 'Project', value: `${APP_LINKS.Project}/add` },
-    { label: 'Routine (Single Step)', value: `${APP_LINKS.Routine}/add` },
-    { label: 'Routine (Multi Step)', value: `${APP_LINKS.Routine}/add?build=true` },
-    { label: 'Standard', value: `${APP_LINKS.Standard}/add` },
+    { label: 'Organization', Icon: OrganizationIcon, value: `${APP_LINKS.Organization}/add` },
+    { label: 'Project', Icon: ProjectIcon, value: `${APP_LINKS.Project}/add` },
+    { label: 'Routine (Single Step)', Icon: RoutineIcon, value: `${APP_LINKS.Routine}/add` },
+    { label: 'Routine (Multi Step)', Icon: RoutineIcon, value: `${APP_LINKS.Routine}/add?build=true` },
+    { label: 'Standard', Icon: StandardIcon, value: `${APP_LINKS.Standard}/add` },
 ]
 
 const tabOptions = [
