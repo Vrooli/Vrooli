@@ -39,7 +39,7 @@ export const ResourceListVertical = ({
         if (handleUpdate) {
             handleUpdate({
                 ...list,
-                resources: updateArray(list.resources, index, updatedResource),
+                resources: updateArray(list.resources, index, updatedResource) as any[],
             });
         }
     }, [handleUpdate, list]);
@@ -70,7 +70,7 @@ export const ResourceListVertical = ({
         }
     }, [deleteMutation, handleUpdate, list, mutate]);
 
-    // Right click context menu
+    // Right click context menu TODO
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const [selected, setSelected] = useState<any | null>(null);
     const contextId = useMemo(() => `resource-context-menu-${selected?.link}`, [selected]);

@@ -2,18 +2,18 @@
 
 import { valueFromDot } from "./objectTools";
 
-export const addToArray = (array, value) => {
+export const addToArray = <T>(array: T[], value: T) => {
     return [...array, value];
 }
 
-export const updateArray = (array, index, value) => {
-    if (JSON.stringify(array[index]) === JSON.stringify(value)) return array;
+export const updateArray = <T>(array: T[], index: number, value: T) => {
+    if (JSON.stringify(array[index]) === JSON.stringify(value) || index < 0 || index >= array.length) return array;
     let copy = [...array];
     copy[index] = value;
     return copy;
 }
 
-export const deleteArrayIndex = (array, index) => {
+export const deleteArrayIndex = <T>(array: T[], index: number) => {
     return array.filter((_, i) => i !== index);
 }
 

@@ -151,7 +151,7 @@ export const RoutineUpdate = ({
                     outputs: outputsList,
                     resourceLists: [resourceList],
                     tags: tags,
-                    translations: allTranslations,
+                    translations: allTranslations as any[],
                 }),
                 onSuccess: (response) => { onUpdated(response.data.routineUpdate) },
                 onError: () => { formik.setSubmitting(false) },

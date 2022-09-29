@@ -276,7 +276,7 @@ export const BuildView = ({
                         version: values.version,
                         resourceLists: [resourceList],
                         tags: tags,
-                        translations: allTranslations,
+                        translations: allTranslations as any[],
                     }),
                     successMessage: () => 'Routine created.',
                     onSuccess: ({ data }) => {
@@ -308,7 +308,7 @@ export const BuildView = ({
                         version: values.version,
                         resourceLists: [resourceList],
                         tags: tags,
-                        translations: allTranslations,
+                        translations: allTranslations as any[],
                     }),
                     successMessage: () => 'Routine updated.',
                     onSuccess: ({ data }) => {
@@ -713,7 +713,7 @@ export const BuildView = ({
                 data: {
                     ...node.data,
                     routines: newRoutineList,
-                }
+                } as any,
             }),
         });
     }, [addToChangeStack, changedRoutine]);

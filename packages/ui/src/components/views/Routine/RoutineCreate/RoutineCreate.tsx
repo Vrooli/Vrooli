@@ -124,7 +124,7 @@ export const RoutineCreate = ({
                     outputs: outputsList,
                     resourceLists: [resourceList],
                     tags: tags,
-                    translations: allTranslations,
+                    translations: allTranslations as any[],
                 }),
                 onSuccess: (response) => { onCreated(response.data.routineCreate) },
                 onError: () => { formik.setSubmitting(false) }

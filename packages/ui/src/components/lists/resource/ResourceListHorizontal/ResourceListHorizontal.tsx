@@ -42,7 +42,7 @@ export const ResourceListHorizontal = ({
         if (handleUpdate) {
             handleUpdate({
                 ...list,
-                resources: updateArray(list.resources, index, updatedResource),
+                resources: updateArray(list.resources, index, updatedResource) as any[],
             });
         }
     }, [handleUpdate, list]);
