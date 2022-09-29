@@ -1,8 +1,5 @@
 import { NodeContextMenuProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
-import {
-    Fullscreen as OpenSubroutineIcon,
-} from '@mui/icons-material';
 import { ListMenu } from 'components';
 import { BuildAction } from 'utils';
 import { useMemo } from 'react';
@@ -19,7 +16,7 @@ import {
     UnlinkNodeIcon 
 } from '@shared/icons';
 
-const allOptionsMap: { [index in Exclude<BuildAction, BuildAction.AddSubroutine>]: [string, any] } = {
+const allOptionsMap: { [index in Exclude<BuildAction, BuildAction.AddSubroutine>]?: [string, any] } = {
     [BuildAction.AddIncomingLink]: ['Add incoming link', AddIncomingLinkIcon],
     [BuildAction.AddOutgoingLink]: ['Add outgoing link', AddOutgoingLinkIcon],
     [BuildAction.AddListBeforeNode]: ['Add routine list before', AddRoutineListBeforeIcon],
@@ -28,7 +25,6 @@ const allOptionsMap: { [index in Exclude<BuildAction, BuildAction.AddSubroutine>
     [BuildAction.DeleteNode]: ['Delete node', DeleteNodeIcon],
     [BuildAction.MoveNode]: ['Move node', MoveNodeIcon],
     [BuildAction.UnlinkNode]: ['Unlink node', UnlinkNodeIcon],
-    [BuildAction.OpenSubroutine]: ['Open subroutine', OpenSubroutineIcon],
     [BuildAction.EditSubroutine]: ['Edit subroutine', EditIcon],
     [BuildAction.DeleteSubroutine]: ['Delete subroutine', DeleteIcon],
 }

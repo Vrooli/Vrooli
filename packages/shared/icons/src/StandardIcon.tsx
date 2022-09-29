@@ -1,18 +1,9 @@
-import { SvgBase } from './base';
+import { SvgPath } from './base';
 import { SvgProps } from './types';
 
 export const StandardIcon = (props: SvgProps) => (
-    <SvgBase props={props}>
-        <path
-            style={{
-                stroke: props.fill ?? 'white',
-                strokeOpacity: 1,
-                strokeWidth: 1.5,
-                strokeLinecap: 'round',
-                strokeLinejoin: 'round',
-                fill: 'none',
-            }}
-            d="m7.71189 13.9845 2.68121 2.65934 5.89501-5.8469M4.92784 9.38307h5.96114l.04462-6.07057m-.24671 0h8.38527v17.375H4.93676V9.31767c1.9467-1.97271 3.8031-4.03277 5.75013-6.00517Z"
-        />
-    </SvgBase>
+    <SvgPath
+        props={props}
+        d="M10.4 2.6 4.2 9v12.4h15.6V2.6h-9.4zM11.7 4h6.6v15.8H5.7V10h6V4zm-1.5.8v3.7H6.5L10.2 5Zm5.6 5.4-5.4 5.3-2.2-2.2c-.7-.7-1.7.4-1 1.1l3.2 3.2 6.4-6.4c.7-.7-.4-1.6-1-1z"
+    />
 )

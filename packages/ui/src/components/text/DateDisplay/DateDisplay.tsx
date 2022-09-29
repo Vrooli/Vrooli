@@ -1,9 +1,9 @@
-import { Box, LinearProgress, Typography } from "@mui/material";
+import { Box, LinearProgress, Typography, useTheme } from "@mui/material";
 import { DateDisplayProps } from "../types";
-import { Today as CalendarIcon } from "@mui/icons-material";
 import { displayDate, usePress } from "utils";
 import { useCallback, useState } from "react";
 import { PopoverWithArrow } from "components/dialogs";
+import { ScheduleIcon } from "@shared/icons";
 
 /**
  * Displays a date in short format (e.g. "1 hour ago", "yesterday", "June 16", "Jan 1, 2020"). 
@@ -16,6 +16,7 @@ export const DateDisplay = ({
     timestamp,
     ...props
 }: DateDisplayProps) => {
+    const { palette } = useTheme();
 
     // Full date popup
     const [anchorEl, setAnchorEl] = useState<any | null>(null);
@@ -43,7 +44,7 @@ export const DateDisplay = ({
                 anchorEl={anchorEl}
                 handleClose={close}
             >
-                <Typography variant="body2" color="textSecondary">
+                <Typography variant="body2" color={palette.background.textPrimary}>
                     {displayDate(timestamp, true)}
                 </Typography>
             </PopoverWithArrow>
@@ -58,7 +59,7 @@ export const DateDisplay = ({
                     cursor: 'pointer',
                 }}
             >
-                {showIcon && <CalendarIcon />}
+                {showIcon && <ScheduleIcon fill={palette.background.textPrimary}/>}
                 {`${textBeforeDate} ${displayDate(timestamp, false)}`}
             </Box>
         </>

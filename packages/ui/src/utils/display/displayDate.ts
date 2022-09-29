@@ -9,9 +9,9 @@ export const displayDate = (timestamp: number, showDateAndTime: boolean = true):
     // Only display year if it's not the current year
     const year = (date.getFullYear() !== new Date().getFullYear()) ? 'numeric' : undefined;
     // Only display month if it's not the current day or year
-    const month = (date.getDate() !== new Date().getDate() || year) ? 'short' : undefined;
+    const month = (date.getMonth() !== new Date().getMonth() || year) ? 'short' : undefined;
     // Only display day if it's not the current day or year
-    const day = (date.getDate() !== new Date().getDate() || year) ? 'numeric' : undefined;
+    const day = (date.getDate() !== new Date().getDate() || month) ? 'numeric' : undefined;
     // Get date string
     const dateString = (year || month || day) ? date.toLocaleDateString(navigator.language, { year, month, day }) : 'Today at';
     // Get time string

@@ -1,15 +1,10 @@
 import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { SelectLanguageMenuProps } from '../types';
-import {
-    ArrowDropDown as ArrowDropDownIcon,
-    ArrowDropUp as ArrowDropUpIcon,
-    Language as LanguageIcon,
-} from '@mui/icons-material';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { AllLanguages, getUserLanguages } from 'utils';
 import { FixedSizeList } from 'react-window';
 import { MenuTitle } from 'components';
-import { CompleteIcon, DeleteIcon } from '@shared/icons';
+import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon } from '@shared/icons';
 
 const titleAria = 'select-language-dialog-title';
 
@@ -222,14 +217,14 @@ export const SelectLanguageMenu = ({
                     width: 'fit-content',
                 }}>
                     <IconButton disabled={!canDropdownOpen} size="large" sx={{ padding: '4px' }}>
-                        <LanguageIcon sx={{ fill: 'white' }} />
+                        <LanguageIcon fill={'white'} />
                     </IconButton>
                     <Typography variant="body2" sx={{ color: 'white', marginRight: '8px' }}>
                         {currentLanguage?.toLocaleUpperCase()}
                     </Typography>
                     {/* Drop down or drop up icon */}
                     {canDropdownOpen && <IconButton size="large" aria-label="language-select" sx={{ padding: '4px', marginLeft: '-8px' }}>
-                        {open ? <ArrowDropUpIcon sx={{ fill: 'white' }} /> : <ArrowDropDownIcon sx={{ fill: 'white' }} />}
+                        {open ? <ArrowDropUpIcon fill={'white'} /> : <ArrowDropDownIcon fill={'white'} />}
                     </IconButton>}
                 </Stack>
             </Tooltip>

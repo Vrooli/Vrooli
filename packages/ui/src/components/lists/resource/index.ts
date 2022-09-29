@@ -1,29 +1,21 @@
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
-import {
-    Download as InstallIcon,
-    EventNote as SchedulingIcon,
-    Feed as FeedIcon,
-    HowToVote as ProposalIcon,
-    Public as CommunityIcon,
-    Web as OfficialWebsiteIcon,
-} from '@mui/icons-material';
-import { DefaultSocialIcon, DonateIcon, FacebookIcon, HelpIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, RedditIcon, ResearchIcon, SocialVideoIcon, SvgComponent, TerminalIcon, TwitterIcon, YouTubeIcon } from '@shared/icons';
+import { ArticleIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, HelpIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, OrganizationIcon, ProposalIcon, RedditIcon, ResearchIcon, ScheduleIcon, SocialVideoIcon, SvgComponent, TerminalIcon, TwitterIcon, WebsiteIcon, YouTubeIcon } from '@shared/icons';
 
 export const ResourceIconMap: { [key in ResourceUsedFor]?: SvgComponent } = {
-    [ResourceUsedFor.Community]: CommunityIcon as any,
+    [ResourceUsedFor.Community]: OrganizationIcon,
     [ResourceUsedFor.Context]: InfoIcon,
     [ResourceUsedFor.Developer]: TerminalIcon,
     [ResourceUsedFor.Donation]: DonateIcon,
-    [ResourceUsedFor.ExternalService]: OfficialWebsiteIcon as any,
-    [ResourceUsedFor.Feed]: FeedIcon as any,
-    [ResourceUsedFor.Install]: InstallIcon as any,
+    [ResourceUsedFor.ExternalService]: WebsiteIcon,
+    [ResourceUsedFor.Feed]: ArticleIcon,
+    [ResourceUsedFor.Install]: DownloadIcon,
     [ResourceUsedFor.Learning]: LearnIcon,
     [ResourceUsedFor.Notes]: ListNumberIcon,
-    [ResourceUsedFor.OfficialWebsite]: OfficialWebsiteIcon as any,
-    [ResourceUsedFor.Proposal]: ProposalIcon as any,
+    [ResourceUsedFor.OfficialWebsite]: WebsiteIcon,
+    [ResourceUsedFor.Proposal]: ProposalIcon,
     [ResourceUsedFor.Related]: LinkIcon,
     [ResourceUsedFor.Researching]: ResearchIcon,
-    [ResourceUsedFor.Scheduling]: SchedulingIcon as any,
+    [ResourceUsedFor.Scheduling]: ScheduleIcon,
     [ResourceUsedFor.Tutorial]: HelpIcon,
 }
 

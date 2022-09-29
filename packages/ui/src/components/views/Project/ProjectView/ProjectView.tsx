@@ -16,6 +16,7 @@ import { validate as uuidValidate } from 'uuid';
 import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { VisibilityType } from "graphql/generated/globalTypes";
 
 enum TabOptions {
     Resources = "Resources",
@@ -176,7 +177,7 @@ export const ProjectView = ({
                     itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search project's routines...",
                     noResultsText: "No routines found",
-                    where: { projectId: id, isComplete: !canEdit ? true : undefined, isInternal: false, includePrivate: true },
+                    where: { projectId: id, isComplete: !canEdit ? true : undefined, isInternal: false, visibility: VisibilityType.All },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 };
             case TabOptions.Standards:
@@ -185,7 +186,7 @@ export const ProjectView = ({
                     itemKeyPrefix: 'standard-list-item',
                     placeholder: "Search project's standards...",
                     noResultsText: "No standards found",
-                    where: { projectId: id, includePrivate: true },
+                    where: { projectId: id, visibility: VisibilityType.All },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
                 }
             default:

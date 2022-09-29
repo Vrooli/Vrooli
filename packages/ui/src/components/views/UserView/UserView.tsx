@@ -13,7 +13,7 @@ import { getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation
 import { ResourceList, User } from "types";
 import { SearchListGenerator } from "components/lists/types";
 import { validate as uuidValidate } from 'uuid';
-import { ResourceListUsedFor } from "graphql/generated/globalTypes";
+import { ResourceListUsedFor, VisibilityType } from "graphql/generated/globalTypes";
 import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
@@ -131,7 +131,7 @@ export const UserView = ({
                     itemKeyPrefix: 'organization-list-item',
                     placeholder: "Search user's organizations...",
                     noResultsText: "No organizations found",
-                    where: { userId: id, includePrivate: true },
+                    where: { userId: id, visibilityType: VisibilityType.All },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Organization, newValue.id),
                 }
             case TabOptions.Projects:
@@ -140,7 +140,7 @@ export const UserView = ({
                     itemKeyPrefix: 'project-list-item',
                     placeholder: "Search user's projects...",
                     noResultsText: "No projects found",
-                    where: { userId: id, isComplete: !isOwn ? true : undefined, includePrivate: true },
+                    where: { userId: id, isComplete: !isOwn ? true : undefined, visibility: VisibilityType.All },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Project, newValue.id),
                 }
             case TabOptions.Routines:
@@ -149,7 +149,7 @@ export const UserView = ({
                     itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search user's routines...",
                     noResultsText: "No routines found",
-                    where: { userId: id, isComplete: !isOwn ? true : undefined, isInternal: false, includePrivate: true },
+                    where: { userId: id, isComplete: !isOwn ? true : undefined, isInternal: false, visibility: VisibilityType.All },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 }
             case TabOptions.Standards:
@@ -158,7 +158,7 @@ export const UserView = ({
                     itemKeyPrefix: 'standard-list-item',
                     placeholder: "Search user's standards...",
                     noResultsText: "No standards found",
-                    where: { userId: id, includePrivate: true },
+                    where: { userId: id, visibilityType: VisibilityType.All },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
                 }
             default:

@@ -2247,13 +2247,6 @@
     prop-types "^15.8.1"
     react-is "^17.0.2"
 
-"@mui/icons-material@5.8.2":
-  version "5.8.2"
-  resolved "https://registry.yarnpkg.com/@mui/icons-material/-/icons-material-5.8.2.tgz#211ac2a041ece952749d39c3c26071226993be14"
-  integrity sha512-fP6KUCCZZjc2rdbMSmkNmBHDskLkmP0uCox57cbVXvomU6BOPrCxnr5YXsSsQrZB8fchx7hfH0bkAgvMZ5KM0Q==
-  dependencies:
-    "@babel/runtime" "^7.17.2"
-
 "@mui/lab@5.0.0-alpha.84":
   version "5.0.0-alpha.84"
   resolved "https://registry.yarnpkg.com/@mui/lab/-/lab-5.0.0-alpha.84.tgz#e96644fefc0745b9a50cba6c18ca53d581a863b8"

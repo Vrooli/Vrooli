@@ -14,7 +14,7 @@ import { SearchListGenerator } from "components/lists/types";
 import { getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, SearchType } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { validate as uuidValidate } from 'uuid';
-import { ResourceListUsedFor } from "graphql/generated/globalTypes";
+import { ResourceListUsedFor, VisibilityType } from "graphql/generated/globalTypes";
 import { DonateIcon, EditIcon, EllipsisIcon, OrganizationIcon } from "@shared/icons";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
@@ -135,7 +135,7 @@ export const OrganizationView = ({
                     itemKeyPrefix: 'project-list-item',
                     placeholder: "Search organization's projects...",
                     noResultsText: "No projects found",
-                    where: { organizationId: id, isComplete: !canEdit ? true : undefined, includePrivate: true },
+                    where: { organizationId: id, isComplete: !canEdit ? true : undefined, visibility: VisibilityType.All },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Project, newValue.id),
                 };
             case TabOptions.Routines:
@@ -144,7 +144,7 @@ export const OrganizationView = ({
                     itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search organization's routines...",
                     noResultsText: "No routines found",
-                    where: { organizationId: id, isComplete: !canEdit ? true : undefined, isInternal: false, includePrivate: true },
+                    where: { organizationId: id, isComplete: !canEdit ? true : undefined, isInternal: false, visibility: VisibilityType.All },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 };
             case TabOptions.Standards:
@@ -153,7 +153,7 @@ export const OrganizationView = ({
                     itemKeyPrefix: 'standard-list-item',
                     placeholder: "Search organization's standards...",
                     noResultsText: "No standards found",
-                    where: { organizationId: id, includePrivate: true },
+                    where: { organizationId: id, visibility: VisibilityType.All },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
                 }
             default:

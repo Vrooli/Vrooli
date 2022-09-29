@@ -1,17 +1,9 @@
-import { SvgBase } from './base';
+import { SvgPath } from './base';
 import { SvgProps } from './types';
 
 export const SearchIcon = (props: SvgProps) => (
-    <SvgBase props={props}>
-        <path
-            style={{
-                stroke: props.fill ?? 'white',
-                strokeWidth: "1.37952",
-                strokeLinecap: "round",
-                strokeDasharray: "none",
-            }}
-            d="m19.685 19.685-6.622-6.622m-.22-7.288a4.999 4.999 0 0 1 0 7.069 4.999 4.999 0 0 1-7.068 0 4.999 4.999 0 0 1 0-7.07 4.999 4.999 0 0 1 7.069 0z"
-            fill="none"
-        />
-    </SvgBase>
+    <SvgPath
+        props={props}
+        d="M9.3 3.63a5.67 5.67 0 0 0-4.01 9.7 5.64 5.64 0 0 0 7.46.4l6.45 6.44a.69.69 0 0 0 .97 0 .69.69 0 0 0 0-.97l-6.45-6.45a5.64 5.64 0 0 0-.39-7.46 5.67 5.67 0 0 0-4.02-1.67ZM9.3 5a4.3 4.3 0 1 1-3.05 7.36A4.3 4.3 0 0 1 9.32 5z"
+    />
 )

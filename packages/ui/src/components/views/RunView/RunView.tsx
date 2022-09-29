@@ -4,11 +4,6 @@ import { DecisionView, HelpButton, RunStepsDialog } from "components";
 import { SubroutineView } from "components/views/SubroutineView/SubroutineView";
 import { useLocation } from '@shared/route';
 import { RunViewProps } from "../types";
-import {
-    ArrowBack as PreviousIcon,
-    ArrowForward as NextIcon,
-    DoneAll as CompleteIcon,
-} from '@mui/icons-material';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getRunPercentComplete, getTranslation, getUserLanguages, locationArraysMatch, PubSub, routineHasSubroutines, RoutineStepType, runInputsUpdate, useReactSearch } from "utils";
 import { useLazyQuery, useMutation } from "@apollo/client";
@@ -23,7 +18,7 @@ import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils";
 import { runUpdate, runUpdateVariables } from "graphql/generated/runUpdate";
 import { v4 as uuid } from 'uuid';
-import { CloseIcon } from "@shared/icons";
+import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, CompleteAllIcon } from "@shared/icons";
 
 /**
  * Maximum routine nesting supported
@@ -895,7 +890,7 @@ export const RunView = ({
                         }}>
                             {previousStep && <Button
                                 fullWidth
-                                startIcon={<PreviousIcon />}
+                                startIcon={<ArrowLeftIcon />}
                                 onClick={toPrevious}
                                 disabled={unsavedChanges}
                                 sx={{
@@ -914,7 +909,7 @@ export const RunView = ({
                         }}>
                             {nextStep && (<Button
                                 fullWidth
-                                startIcon={<NextIcon />}
+                                startIcon={<ArrowRightIcon />}
                                 onClick={toNext} // NOTE: changes are saved on next click
                                 disabled={!subroutineComplete}
                                 sx={{ width: 'min(48vw, 250px)' }}
@@ -925,7 +920,7 @@ export const RunView = ({
                             </Button>)}
                             {!nextStep && currentStep?.type !== RoutineStepType.Decision && (<Button
                                 fullWidth
-                                startIcon={<CompleteIcon />}
+                                startIcon={<CompleteAllIcon />}
                                 onClick={toNext}
                                 sx={{ width: 'min(48vw, 250px)' }}
                             >
