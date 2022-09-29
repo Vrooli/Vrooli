@@ -510,6 +510,8 @@ export const getTranslationData = <
 } => {
     if (!formik.values[field] || !Array.isArray(formik.values[field])) return { error: undefined, index: -1, touched: undefined, value: undefined };
     const index = formik.values[field].findIndex(t => t.language === language);
+    console.log('translations', formik.values[field]);
+    console.log('errors', formik.errors[field]);
     const value = formik.values[field][index];
     const touched = formik.touched[field]?.[index];
     const error = typeof formik.errors[field]?.[index] === 'object' ? formik.errors[field]?.[index] as any : undefined;
@@ -526,7 +528,9 @@ export const getTranslationData = <
 export const handleTranslationBlur = <
     KeyField extends string,
     Values extends { [key in KeyField]: TranslationObject[] },
->(formik: FormikProps<Values>, translationField: KeyField, blurredField: keyof Values[KeyField][0], language: string) => {
+>(formik: FormikProps<Values>, translationField: KeyField, event: React.FocusEvent<HTMLInputElement>, language: string) => {
+    // Get field name from event
+    const { name: blurredField } = event.target;
     // Check if field has already been touched
     const { index, touched } = getTranslationData(formik, translationField, language);
     // If not, set touched to true using dot notation
@@ -546,7 +550,9 @@ export const handleTranslationBlur = <
 export const handleTranslationChange = <
     KeyField extends string,
     Values extends { [key in KeyField]: TranslationObject[] },
->(formik: FormikProps<Values>, translationField: KeyField, changedField: keyof Values[KeyField][0], value: string, language: string) => {
+>(formik: FormikProps<Values>, translationField: KeyField, event: React.ChangeEvent<HTMLInputElement>, language: string) => {
+    // Get field name and value from event
+    const { name: changedField, value } = event.target;
     // Get index of translation object
     const { index } = getTranslationData(formik, translationField, language);
     // Set the value using dot notation
@@ -595,4 +601,56 @@ export const getFormikErrorsWithTranslations = <
     }
     // Return errors object
     return errors;
+}
+
+/**
+ * Adds a new, empty translation object (all fields '') to a formik translation field
+ * @param formik Formik object
+ * @param translationField The field that contains the translation object array
+ * @param language The language to add
+ */
+export const addEmptyTranslation = <
+    KeyField extends string,
+    Values extends { [key in KeyField]: TranslationObject[] },
+>(formik: FormikProps<Values>, translationField: KeyField, language: string) => {
+    // Get copy of current translations
+    const translations = [...formik.values[translationField]];
+    // Determine fields in translation object (even if no translations exist yet). 
+    // We can accomplish this through the initial values
+    const initialTranslations = Array.isArray(formik.initialValues[translationField]) ? formik.initialValues[translationField] : [];
+    if (initialTranslations.length === 0) {
+        console.error('Could not determine fields in translation object');
+        return;
+    }
+    // Create new translation object with all fields empty
+    const newTranslation: TranslationObject = { id: uuid(), language };
+    for (const field of Object.keys(initialTranslations[0])) {
+        if (!['id', 'language'].includes(field)) newTranslation[field] = '';
+    }
+    newTranslation.id = uuid();
+    newTranslation.language = language;
+    // Add new translation object to translations
+    translations.push(newTranslation);
+    // Set new translations
+    formik.setFieldValue(translationField, translations);
+}
+
+/**
+ * Removes a translation object from a formik translation field
+ * @param formik Formik object
+ * @param translationField The field that contains the translation object array
+ * @param language The language to remove
+ */
+export const removeTranslation = <
+    KeyField extends string,
+    Values extends { [key in KeyField]: TranslationObject[] },
+>(formik: FormikProps<Values>, translationField: KeyField, language: string) => {
+    // Get copy of current translations
+    const translations = [...formik.values[translationField]];
+    // Get index of translation object
+    const { index } = getTranslationData(formik, translationField, language);
+    // Remove translation object from translations
+    translations.splice(index, 1);
+    // Set new translations
+    formik.setFieldValue(translationField, translations);
 }

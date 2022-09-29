@@ -48,7 +48,6 @@ export const GridSubmitButtons = ({
                 return toListItem(capitalizeFirstLetter(key + ': ' + value), 0);
             }
         }).join('\n');
-        console.log('error list', errorList)
         return errorList;
     }, [errors]);
 

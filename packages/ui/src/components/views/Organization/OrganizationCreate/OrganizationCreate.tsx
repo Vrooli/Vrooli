@@ -4,7 +4,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { organizationCreate as validationSchema, organizationTranslationCreate } from '@shared/validation';
 import { useFormik } from 'formik';
 import { organizationCreateMutation } from "graphql/mutation";
-import { getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, parseSearchParams, shapeOrganizationCreate, TagShape } from "utils";
+import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, parseSearchParams, removeTranslation, shapeOrganizationCreate, TagShape } from "utils";
 import { OrganizationCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
@@ -100,13 +100,11 @@ export const OrganizationCreate = ({
     }, [formik, language]);
     // Handles blur on translation fields
     const onTranslationBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
-        const { name } = e.target;
-        handleTranslationBlur(formik, 'translationsCreate', name as 'bio' | 'name', language)
+        handleTranslationBlur(formik, 'translationsCreate', e, language)
     }, [formik, language]);
     // Handles change on translation fields
     const onTranslationChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        handleTranslationChange(formik, 'translationsCreate', name as 'bio' | 'name', value, language)
+        handleTranslationChange(formik, 'translationsCreate', e, language)
     }, [formik, language]);
 
     useEffect(() => {
@@ -120,22 +118,14 @@ export const OrganizationCreate = ({
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguages([...languages, newLanguage]);
         handleLanguageSelect(newLanguage);
-        // Add new translation to formik
-        formik.setFieldValue('translationsCreate', [...formik.values.translationsCreate, {
-            id: uuid(),
-            language: newLanguage,
-            name: '',
-            bio: '',
-        }]);
+        addEmptyTranslation(formik, 'translationsCreate', newLanguage);
     }, [formik, handleLanguageSelect, languages]);
     const handleLanguageDelete = useCallback((language: string) => {
         const newLanguages = [...languages.filter(l => l !== language)]
         if (newLanguages.length === 0) return;
         setLanguage(newLanguages[0]);
         setLanguages(newLanguages);
-        // Remove translation from formik
-        const newTranslations = formik.values.translationsCreate.filter(t => t.language !== language);
-        formik.setFieldValue('translationsCreate', newTranslations);
+        removeTranslation(formik, 'translationsCreate', language);
     }, [formik, languages]);
 
     /**
