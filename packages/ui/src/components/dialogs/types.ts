@@ -298,9 +298,10 @@ export interface UnlinkedNodesDialogProps {
 }
 
 export interface RunStepsDialogProps {
+    currStep: number[] | null;
     handleLoadSubroutine: (id: string) => any;
     handleCurrStepLocationUpdate: (step: number[]) => any;
-    history: Array<number>[];
+    history: number[][];
     /**
      * Out of 100
      */

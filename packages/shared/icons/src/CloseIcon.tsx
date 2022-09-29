@@ -1,16 +1,9 @@
-import { SvgBase } from './base';
+import { SvgPath } from './base';
 import { SvgProps } from './types';
 
 export const CloseIcon = (props: SvgProps) => (
-    <SvgBase props={props}>
-        <path
-            style={{
-                fill: props.fill ?? 'white',
-                stroke: props.fill ?? 'white',
-                strokeWidth: "2",
-                strokeLinecap: "round",
-            }}
-            d="m4.24 4.24 15.52 15.52m0-15.52L4.24 19.76"
-        />
-    </SvgBase>
+    <SvgPath
+        props={props}
+        d="M4.24 3.17a1.07 1.07 0 0 0-.76.31 1.07 1.07 0 0 0 0 1.51l7 7.01-7 7a1.07 1.07 0 0 0 0 1.52 1.07 1.07 0 0 0 1.51 0l7.01-7 7 7a1.07 1.07 0 0 0 1.52 0 1.07 1.07 0 0 0 0-1.51l-7-7.01 7-7a1.07 1.07 0 0 0 0-1.52 1.07 1.07 0 0 0-.76-.31 1.07 1.07 0 0 0-.75.31l-7.01 7-7-7a1.07 1.07 0 0 0-.76-.31z"
+    />
 )

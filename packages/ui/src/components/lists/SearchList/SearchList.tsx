@@ -6,10 +6,7 @@ import { Box, Button, List, Tooltip, Typography, useTheme } from "@mui/material"
 import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clickSize, containerShadow } from "styles";
-import {
-    Sort as SortListIcon,
-} from '@mui/icons-material';
-import { BuildIcon, HistoryIcon as TimeIcon, PlusIcon } from '@shared/icons';
+import { BuildIcon, HistoryIcon as TimeIcon, PlusIcon, SortIcon } from '@shared/icons';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
 import { addSearchParams, getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, parseSearchParams, removeSearchParams, SearchParams, searchTypeToParams, SortValueToLabelMap } from "utils";
 import { useLocation } from '@shared/route';
@@ -347,7 +344,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         onClick={handleSortOpen}
                         sx={{ ...searchButtonStyle }}
                     >
-                        <SortListIcon sx={{ fill: palette.secondary.main }} />
+                        <SortIcon fill={palette.secondary.main} />
                         {sortByLabel}
                     </Box>
                 </Tooltip>

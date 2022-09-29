@@ -219,7 +219,7 @@ export const BuildView = ({
     const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     useEffect(() => {
-        setRelationships({ 
+        setRelationships({
             isComplete: routine?.isComplete ?? false,
             isPrivate: routine?.isPrivate ?? false,
             owner: routine?.owner ?? null,
@@ -1174,20 +1174,12 @@ export const BuildView = ({
 
     const handleRoutineAction = useCallback((action: ObjectAction, data: any) => {
         switch (action) {
-            case ObjectAction.Copy:
-                setLocation(`${APP_LINKS.Routine}/${data.copy.routine.id}`);
-                break;
             case ObjectAction.Delete:
                 setLocation(APP_LINKS.Home);
                 break;
             case ObjectAction.Fork:
                 setLocation(`${APP_LINKS.Routine}/${data.fork.routine.id}`);
-                break;
-            case ObjectAction.Report:
-                //TODO
-                break;
-            case ObjectAction.Share:
-                //TODO
+                window.location.reload();
                 break;
             case ObjectAction.Star:
             case ObjectAction.StarUndo:

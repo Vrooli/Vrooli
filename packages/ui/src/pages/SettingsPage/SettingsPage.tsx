@@ -3,8 +3,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SettingsPageProps } from '../types';
 import {
     Lock as AuthenticationIcon,
-    Notifications as NotificationsIcon,
-    SvgIconComponent
 } from '@mui/icons-material';
 import { useLazyQuery } from '@apollo/client';
 import { APP_LINKS } from '@shared/consts';
@@ -16,7 +14,7 @@ import { SettingsAuthentication } from 'components/views/SettingsAuthentication/
 import { SettingsDisplay } from 'components/views/SettingsDisplay/SettingsDisplay';
 import { SettingsNotifications } from 'components/views/SettingsNotifications/SettingsNotifications';
 import { useReactSearch } from 'utils';
-import { LightModeIcon, ProfileIcon } from '@shared/icons';
+import { LightModeIcon, NotificationsCustomizedIcon, ProfileIcon, SvgComponent } from '@shared/icons';
 import { PageContainer } from 'components';
 
 /**
@@ -29,11 +27,11 @@ enum SettingsForm {
     Authentication = 'authentication',
 }
 
-const settingPages: { [x: string]: [SettingsForm, string, any] } = {
+const settingPages: { [x: string]: [SettingsForm, string, SvgComponent] } = {
     [SettingsForm.Profile]: [SettingsForm.Profile, 'Profile', ProfileIcon],
     [SettingsForm.Display]: [SettingsForm.Display, 'Display', LightModeIcon],
-    [SettingsForm.Notifications]: [SettingsForm.Notifications, 'Notifications', NotificationsIcon],
-    [SettingsForm.Authentication]: [SettingsForm.Authentication, 'Authentication', AuthenticationIcon],
+    [SettingsForm.Notifications]: [SettingsForm.Notifications, 'Notifications', NotificationsCustomizedIcon],
+    [SettingsForm.Authentication]: [SettingsForm.Authentication, 'Authentication', AuthenticationIcon as any],
 }
 
 export function SettingsPage({
@@ -60,7 +58,7 @@ export function SettingsPage({
     }, []);
 
     const listItems = useMemo(() => {
-        return Object.values(settingPages).map(([link, label, Icon]: [SettingsForm, string, SvgIconComponent], index) => {
+        return Object.values(settingPages).map(([link, label, Icon]: [SettingsForm, string, SvgComponent], index) => {
             const selected = link === selectedPage;
             return (
                 <ListItem

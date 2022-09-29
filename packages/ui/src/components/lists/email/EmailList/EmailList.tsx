@@ -153,6 +153,9 @@ export const EmailList = ({
                     sx={{
                         height: '56px',
                         maxWidth: '400px',
+                        '& .MuiInputBase-root': {
+                            borderRadius: '5px 0 0 5px',
+                        }
                     }}
                 />
                 <IconButton
@@ -161,6 +164,7 @@ export const EmailList = ({
                     sx={{
                         background: palette.secondary.main,
                         borderRadius: '0 5px 5px 0',
+                        height: '56px',
                     }}>
                     <AddIcon />
                 </IconButton>

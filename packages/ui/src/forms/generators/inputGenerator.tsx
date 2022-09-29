@@ -24,9 +24,7 @@ import { TagShape, updateArray } from 'utils'
 import { InputType } from '@shared/consts';
 import { isObject } from '@shared/utils';
 import { Session } from 'types'
-import {
-    ContentCopy as CopyIcon,
-} from "@mui/icons-material";
+import { CopyIcon } from '@shared/icons'
 
 /**
  * Function signature shared between all input components
@@ -494,7 +492,7 @@ export const generateInputWithLabel = ({
         <Stack direction="row" spacing={0} sx={{ alignItems: 'center' }}>
             <Tooltip title="Copy to clipboard">
                 <IconButton onClick={() => copyInput && copyInput(fieldData.fieldName)}>
-                    <CopyIcon />
+                    <CopyIcon fill={textPrimary} />
                 </IconButton>
             </Tooltip>
             <Typography variant="h6" sx={{ color: textPrimary }}>{fieldData.label ?? (index && `Input ${index + 1}`) ?? 'Input'}</Typography>

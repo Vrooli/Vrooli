@@ -1,7 +1,4 @@
 import { ListItem, ListItemButton, ListItemText, Stack, Typography, useTheme } from "@mui/material";
-import {
-    OpenInNew as OpenLinkIcon,
-} from "@mui/icons-material";
 import { useCallback, useMemo } from "react";
 import { containerShadow, multiLineEllipsis } from "styles";
 import { Node, NodeDataEnd, NodeLink } from "types";
@@ -9,6 +6,7 @@ import { getTranslation, getUserLanguages } from "utils";
 import { DecisionViewProps } from "../types";
 import { HelpButton } from "components/buttons";
 import { NodeType } from "graphql/generated/globalTypes";
+import { OpenInNewIcon } from "@shared/icons";
 
 const helpText = 
 `The routine has encountered multiple possible paths to take, with no way to decide automatically which one to take. 
@@ -101,7 +99,7 @@ export const DecisionView = ({
                                 }}
                             />}
                         </Stack>
-                        <OpenLinkIcon />
+                        <OpenInNewIcon fill="white" />
                     </ListItemButton>
                 </ListItem>)
             })}

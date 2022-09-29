@@ -1,10 +1,10 @@
-import { ListItemText, Stack, Tooltip } from '@mui/material';
+import { Box, ListItemText, Stack, Tooltip } from '@mui/material';
 import { useCallback } from 'react';
 import { CommentsButtonProps } from '../types';
-import { Forum as CommentsIcon } from '@mui/icons-material';
 import { multiLineEllipsis } from 'styles';
 import { useLocation } from '@shared/route';
 import { getObjectSlug, getObjectUrlBase } from 'utils';
+import { CommentIcon } from '@shared/icons';
 
 export const CommentsButton = ({
     commentsCount = 0,
@@ -30,13 +30,9 @@ export const CommentsButton = ({
             }}
         >
             <Tooltip placement={tooltipPlacement} title={'View comments'}>
-                <CommentsIcon
-                    onClick={handleClick}
-                    sx={{
-                        fill: '#76a7c3',
-                        cursor: 'pointer'
-                    }}
-                />
+                <Box onClick={handleClick} sx={{ display: 'contents', cursor: 'pointer' }}>
+                    <CommentIcon fill='#76a7c3' />
+                </Box>
             </Tooltip>
             <ListItemText
                 primary={commentsCount}

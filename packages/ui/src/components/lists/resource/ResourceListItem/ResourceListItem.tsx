@@ -9,11 +9,8 @@ import { useLocation } from '@shared/route';
 import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, openLink, PubSub, ResourceType } from 'utils';
 import { Resource } from 'types';
 import { getResourceIcon } from '..';
-import {
-    OpenInNew as OpenLinkIcon
-} from '@mui/icons-material';
 import { TextLoading } from 'components';
-import { DeleteIcon, EditIcon } from '@shared/icons';
+import { DeleteIcon, EditIcon, OpenInNewIcon } from '@shared/icons';
 
 /**
  * Determines if a resource is a URL, wallet payment address, or an ADA handle
@@ -129,7 +126,7 @@ export function ResourceListItem({
                         </IconButton>
                     }
                     <IconButton>
-                        <OpenLinkIcon sx={{ fill: palette.background.textPrimary }} />
+                        <OpenInNewIcon fill={palette.background.textPrimary} />
                     </IconButton>
                 </ListItemButton>
             </ListItem>

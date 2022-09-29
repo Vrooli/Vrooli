@@ -36,7 +36,7 @@ const MAX_NESTING = 20;
  * @param steps RoutineListStep to check in
  * @returns RoutineStep for the updated step, or the original step if the step was not found
  */
- const insertStep = (stepData: RoutineListStep, steps: RoutineListStep): RoutineListStep => {
+const insertStep = (stepData: RoutineListStep, steps: RoutineListStep): RoutineListStep => {
     // Initialize step to be returned
     let step: RoutineListStep = steps;
     // Loop through steps
@@ -138,7 +138,7 @@ const stepFromLocation = (locationArray: number[], steps: RoutineStep | null): R
  * @param step The subroutine step to check
  * @returns True if the subroutine step needs additional queries, false otherwise
  */
- const subroutineNeedsQuerying = (step: RoutineStep | null | undefined): boolean => {
+const subroutineNeedsQuerying = (step: RoutineStep | null | undefined): boolean => {
     // Check for valid parameters
     if (!step || step.type !== RoutineStepType.Subroutine) return false;
     const currSubroutine: Partial<Routine> = (step as SubroutineStep).routine;
@@ -173,9 +173,9 @@ const getStepComplexity = (step: RoutineStep): number => {
  * @returns RoutineStep for the given routine, or null if invalid
  */
 const convertRoutineToStep = (
-    routine: Routine | null | undefined, 
+    routine: Routine | null | undefined,
     languages: string[]
-    ): RoutineListStep | null => {
+): RoutineListStep | null => {
     // Check for required data to calculate steps
     if (!routine || !routine.nodes || !routine.nodeLinks) {
         console.log('routine does not have enough data to calculate steps');
@@ -603,7 +603,6 @@ export const RunView = ({
         let newProgress = Array.isArray(progress) ? [...progress] : [];
         let newlyCompletedComplexity: number = (currStep ? getStepComplexity(currStep) : 0);
         const alreadyComplete: boolean = Boolean(newProgress.find(p => locationArraysMatch(p, currStepLocation)));
-        console.log('newprogress', newProgress, currStepLocation, alreadyComplete, newlyCompletedComplexity)
         // If step was not already completed, update progress
         if (!alreadyComplete) {
             newProgress.push(currStepLocation);
@@ -844,6 +843,7 @@ export const RunView = ({
                         </Stack>
                         {/* Steps explorer drawer */}
                         <RunStepsDialog
+                            currStep={currStepLocation}
                             handleLoadSubroutine={(id: string) => { getSubroutine({ variables: { input: { id } } }); }}
                             handleCurrStepLocationUpdate={setCurrStepLocation}
                             history={progress}

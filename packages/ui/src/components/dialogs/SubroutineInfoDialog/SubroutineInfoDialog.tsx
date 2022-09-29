@@ -22,9 +22,8 @@ import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, Language
 import { useFormik } from 'formik';
 import { NodeDataRoutineListItem, ResourceList } from 'types';
 import { v4 as uuid } from 'uuid';
-import { CloseIcon } from '@shared/icons';
+import { CloseIcon, OpenInNewIcon } from '@shared/icons';
 import { RelationshipItemRoutine, RelationshipsObject } from 'components/inputs/types';
-import { OpenInNew as OpenInNewIcon } from '@mui/icons-material';
 
 export const SubroutineInfoDialog = ({
     data,
@@ -295,7 +294,7 @@ export const SubroutineInfoDialog = ({
                 {!subroutine?.routine?.isInternal && (
                     <Tooltip title="Open in full page">
                         <IconButton onClick={toGraph}>
-                            <OpenInNewIcon sx={{ fill: palette.primary.contrastText }} />
+                            <OpenInNewIcon fill={palette.primary.contrastText} />
                         </IconButton>
                     </Tooltip>
                 )}{/* Owned by and version */}

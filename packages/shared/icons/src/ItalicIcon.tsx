@@ -1,16 +1,9 @@
-import { SvgBase } from './base';
+import { SvgPath } from './base';
 import { SvgProps } from './types';
 
 export const ItalicIcon = (props: SvgProps) => (
-    <SvgBase props={props}>
-        <path
-            style={{
-                fillOpacity: 1,
-                fill: props.fill ?? 'white',
-                stroke: 'none',
-            }}
-            d="M8.29063 17.45031H2.37734l.47656-2.0625h1.89844L6.48672 7.88H4.58828l.47656-2.0625h5.91329L10.50156 7.88H8.60313l-1.73438 7.50781H8.7672z"
-            transform="translate(2.68957 -4.22058) scale(1.39425)"
-        />
-    </SvgBase>
+    <SvgPath
+        props={props}
+        d="M14.25 20.11H6l.67-2.88h2.65l2.41-10.46H9.1l.66-2.88H18l-.67 2.88h-2.65l-2.41 10.46h2.64z"
+    />
 )

@@ -1,8 +1,5 @@
-import {
-    UnfoldMore as OpenIcon,
-} from '@mui/icons-material';
 import { Box, IconButton, Stack, useTheme } from '@mui/material';
-import { OrganizationIcon, UserIcon } from '@shared/icons';
+import { OpenThreadIcon, OrganizationIcon, UserIcon } from '@shared/icons';
 import { useMemo } from 'react';
 import { ObjectType, placeholderColor } from 'utils';
 import { CommentConnectorProps } from '../types';
@@ -88,7 +85,7 @@ export const CommentConnector = ({
                     height: '48px',
                 }}
             >
-                <OpenIcon />
+                <OpenThreadIcon fill={profileColors[0]}/>
             </IconButton>
             {profileImage}
         </Stack>

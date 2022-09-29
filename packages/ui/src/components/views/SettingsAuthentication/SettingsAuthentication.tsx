@@ -7,10 +7,6 @@ import { APP_LINKS } from '@shared/consts';
 import { useFormik } from 'formik';
 import { profileEmailUpdateMutation } from "graphql/mutation";
 import { PubSub } from "utils";
-import {
-    AccountBalanceWallet as WalletIcon,
-    Email as EmailIcon,
-} from '@mui/icons-material';
 import { SettingsAuthenticationProps } from "../types";
 import { useLocation } from '@shared/route';
 import { logOutMutation } from 'graphql/mutation';
@@ -20,6 +16,7 @@ import { Email, Wallet } from "types";
 import { PasswordTextField } from "components";
 import { logOut } from "graphql/generated/logOut";
 import { profileEmailUpdate, profileEmailUpdateVariables } from "graphql/generated/profileEmailUpdate";
+import { EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
 
 const helpText =
     `This page allows you to manage your wallets, emails, and other authentication settings.`;
@@ -135,8 +132,8 @@ export const SettingsAuthentication = ({
                 <HelpButton markdown={helpText} />
             </Box>
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                <WalletIcon sx={{ marginRight: 1 }} />
-                <Typography component="h2" variant="h5" textAlign="center">Connected Wallets</Typography>
+                <WalletIcon fill={palette.background.textPrimary} />
+                <Typography component="h2" variant="h5" textAlign="center" ml={1}>Connected Wallets</Typography>
                 <HelpButton markdown={walletHelpText} />
             </Stack>
             <WalletList
@@ -145,8 +142,8 @@ export const SettingsAuthentication = ({
                 numVerifiedEmails={numVerifiedEmails}
             />
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                <EmailIcon sx={{ marginRight: 1 }} />
-                <Typography component="h2" variant="h5" textAlign="center">Connected Emails</Typography>
+                <EmailIcon fill={palette.background.textPrimary} />
+                <Typography component="h2" variant="h5" textAlign="center" ml={1}>Connected Emails</Typography>
                 <HelpButton markdown={emailHelpText} />
             </Stack>
             <EmailList
@@ -219,14 +216,20 @@ export const SettingsAuthentication = ({
                     />
                 </Grid>
             </form>
-            <Button color="secondary" onClick={onLogOut} sx={{
-                display: 'block',
-                width: 'min(100%, 400px)',
-                marginLeft: 'auto',
-                marginRight: 'auto',
-                marginTop: 5,
-                marginBottom: 2,
-            }}>Log Out</Button>
+            <Button
+                color="secondary"
+                onClick={onLogOut}
+                startIcon={<LogOutIcon />}
+                sx={{
+                    display: 'flex',
+                    width: 'min(100%, 400px)',
+                    marginLeft: 'auto',
+                    marginRight: 'auto',
+                    marginTop: 5,
+                    marginBottom: 2,
+                    whiteSpace: 'nowrap',
+                }}
+            >Log Out</Button>
         </Box>
     )
 }

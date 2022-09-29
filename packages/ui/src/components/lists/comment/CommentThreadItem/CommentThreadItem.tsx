@@ -4,9 +4,6 @@ import { useCallback, useMemo, useState } from 'react';
 import { TextLoading, UpvoteDownvote } from '../..';
 import { displayDate, getTranslation, PubSub } from 'utils';
 import { MarkdownInput } from 'components/inputs';
-import {
-    Reply as ReplyIcon,
-} from '@mui/icons-material';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
 import { DeleteOneType, ReportFor, StarFor, VoteFor } from '@shared/consts';
@@ -19,7 +16,7 @@ import { v4 as uuid } from 'uuid';
 import { OwnerLabel } from 'components/text';
 import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
 import { ReportButton, StarButton } from 'components/buttons';
-import { DeleteIcon } from '@shared/icons';
+import { DeleteIcon, ReplyIcon } from '@shared/icons';
 
 export function CommentThreadItem({
     data,
@@ -220,11 +217,8 @@ export function CommentThreadItem({
                         {canReply && <Tooltip title="Reply" placement='top'>
                             <IconButton
                                 onClick={openReplyInput}
-                                sx={{
-                                    color: palette.background.textSecondary,
-                                }}
                             >
-                                <ReplyIcon />
+                                <ReplyIcon fill={palette.background.textSecondary} />
                             </IconButton>
                         </Tooltip>}
                         <ShareButton objectType={objectType} zIndex={zIndex} />

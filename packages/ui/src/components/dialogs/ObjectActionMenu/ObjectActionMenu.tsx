@@ -8,14 +8,10 @@ import { useCallback, useMemo, useState } from "react";
 import { ReportFor, StarFor, VoteFor } from "@shared/consts";
 import { DeleteDialog, ListMenu, ReportDialog } from "..";
 import { ObjectActionMenuProps, ListMenuItemData, ObjectActionComplete, ObjectAction } from "../types";
-import {
-    ForkRight as ForkIcon,
-    QueryStats as StatsIcon,
-} from "@mui/icons-material";
 import { mutationWrapper } from "graphql/utils/mutationWrapper";
 import { PubSub } from "utils";
 import { CopyType, ForkType } from "graphql/generated/globalTypes";
-import { CopyIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReportIcon, SearchIcon, ShareIcon, StarFilledIcon, StarOutlineIcon, SvgComponent, UpvoteWideIcon } from "@shared/icons";
+import { BranchIcon, CopyIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReportIcon, SearchIcon, ShareIcon, StarFilledIcon, StarOutlineIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@shared/icons";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
 
 /**
@@ -27,12 +23,12 @@ const allOptionsMap: { [key in ObjectAction]: [string, SvgComponent, string, boo
     [ObjectAction.Donate]: ['Donate', DonateIcon, "default", true],
     [ObjectAction.Edit]: ['Edit', EditIcon, "default", false],
     [ObjectAction.FindInPage]: ['Find...', SearchIcon, "default", false],
-    [ObjectAction.Fork]: ['Fork', ForkIcon as any, "default", false],
+    [ObjectAction.Fork]: ['Fork', BranchIcon, "default", false],
     [ObjectAction.Report]: ['Report', ReportIcon, "default", false],
     [ObjectAction.Share]: ['Share', ShareIcon, "default", false],
     [ObjectAction.Star]: ['Star', StarFilledIcon, "#cbae30", false],
     [ObjectAction.StarUndo]: ['Unstar', StarOutlineIcon, "#cbae30", false],
-    [ObjectAction.Stats]: ['Stats', StatsIcon as any, "default", true],
+    [ObjectAction.Stats]: ['Stats', StatsIcon, "default", true],
     [ObjectAction.VoteDown]: ['Downvote', DownvoteWideIcon, "default", false],
     [ObjectAction.VoteUp]: ['Upvote', UpvoteWideIcon, "default", false],
 })

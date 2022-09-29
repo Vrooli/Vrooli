@@ -5,10 +5,6 @@ import { useMutation, useLazyQuery } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import {
-    AccountTree as GraphIcon,
-    DoneAll as MarkAsCompleteIcon,
-} from "@mui/icons-material";
 import { ObjectActionMenu, BuildView, ReportsLink, ResourceListHorizontal, RunPickerMenu, RunView, SelectLanguageMenu, StarButton, StatusButton, UpTransition, UpvoteDownvote, OwnerLabel, VersionDisplay } from "components";
 import { RoutineViewProps } from "../types";
 import { formikToRunInputs, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, useReactSearch } from "utils";
@@ -24,7 +20,7 @@ import { useFormik } from "formik";
 import { FieldData } from "forms/types";
 import { generateInputWithLabel } from "forms/generators";
 import { CommentContainer, ContentCollapse, TextCollapse } from "components/containers";
-import { EditIcon, EllipsisIcon, PlayIcon } from "@shared/icons";
+import { CompleteAllIcon, EditIcon, EllipsisIcon, PlayIcon, RoutineIcon } from "@shared/icons";
 
 const statsHelpText =
     `Statistics are calculated to measure various aspects of a routine. 
@@ -295,7 +291,7 @@ export const RoutineView = ({
             return (
                 <Grid container spacing={1}>
                     <Grid item xs={12}>
-                        <Button startIcon={<MarkAsCompleteIcon />} fullWidth onClick={markAsComplete} color="secondary">Mark as Complete</Button>
+                        <Button startIcon={<CompleteAllIcon />} fullWidth onClick={markAsComplete} color="secondary">Mark as Complete</Button>
                     </Grid>
                 </Grid>
             )
@@ -304,7 +300,7 @@ export const RoutineView = ({
         return (
             <Grid container spacing={1}>
                 <Grid item xs={12} sm={6}>
-                    <Button startIcon={<GraphIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button>
+                    <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button>
                 </Grid>
                 {/* Show continue if routine already has progress TODO */}
                 {status === Status.Valid && <Grid item xs={12} sm={6}>

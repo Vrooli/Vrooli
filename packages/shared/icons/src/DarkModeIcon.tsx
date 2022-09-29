@@ -1,18 +1,9 @@
-import { SvgBase } from './base';
+import { SvgPath } from './base';
 import { SvgProps } from './types';
 
 export const DarkModeIcon = (props: SvgProps) => (
-    <SvgBase props={props}>
-        <path
-            style={{
-                fill: props.fill ?? 'white',
-                fillOpacity: 1,
-                stroke: props.fill ?? 'white',
-                strokeWidth: "1",
-                strokeLinecap: "round",
-                strokeDasharray: "none",
-            }}
-            d="M6.542 2.37a9.772 9.782 0 0 0-3.11 4.898 9.772 9.782 0 0 0 6.91 11.979 9.772 9.782 0 0 0 11.213-5.015 10.648 10.657 0 0 1-7.39.7A10.648 10.657 0 0 1 6.542 2.37Z"
-        />
-    </SvgBase>
+    <SvgPath
+        props={props}
+        d="m7.348 1.03-1.13.958A10.284 10.284 0 0 0 2.95 7.137v.002c-1.466 5.478 1.79 11.123 7.264 12.591a10.275 10.275 0 0 0 11.789-5.271l.674-1.326-1.338.648a10.137 10.137 0 0 1-7.043.666v.002A10.152 10.152 0 0 1 7.03 2.477Z"
+    />
 )

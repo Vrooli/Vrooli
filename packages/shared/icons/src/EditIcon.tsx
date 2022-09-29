@@ -1,15 +1,9 @@
-import { SvgBase } from './base';
+import { SvgPath } from './base';
 import { SvgProps } from './types';
 
 export const EditIcon = (props: SvgProps) => (
-    <SvgBase props={props}>
-        <path
-            style={{
-                fill: props.fill ?? 'white',
-                strokeWidth: 0,
-            }}
-            d="M10.18 5.92v13.4L12 22.48l1.82-3.15V5.93Zm.77-4.26a.8.8 0 0 0-.8.8v2.3h3.7v-2.3a.8.8 0 0 0-.8-.8Z"
-            transform="rotate(45 13.38 10.74) scale(1.10751)"
-        />
-    </SvgBase>
+    <SvgPath
+        props={props}
+        d="M18.266 3.313a.88.88 0 0 0-.721.253l-1.807 1.809 2.887 2.885 1.807-1.807a.88.88 0 0 0 .002-1.244l-1.645-1.645a.88.88 0 0 0-.523-.252Zm-3.418 2.982L4.355 16.785 3.31 20.691h.003l3.893-1.04 10.5-10.499Z"
+    />
 )

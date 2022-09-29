@@ -1,12 +1,8 @@
 import { useCallback, useMemo } from 'react';
 import { NodeEdgeProps } from '../types';
-import {
-    AltRoute as BranchIcon,
-    Delete as DeleteIcon,
-} from '@mui/icons-material';
 import { IconButton, Stack, Tooltip, useTheme } from '@mui/material';
 import { BaseEdge } from '../BaseEdge/BaseEdge';
-import { AddIcon, EditIcon } from '@shared/icons';
+import { AddIcon, BranchIcon, DeleteIcon, EditIcon } from '@shared/icons';
 
 /**
  * Displays a line between two nodes of a routine graph
@@ -89,8 +85,7 @@ export const NodeEdge = ({
                             },
                         }}
                     >
-                        {/* Branch icon should be rotated 90 degrees */}
-                        <BranchIcon id="insert-branch-on-edge-button-icon" sx={{ fill: 'white', transform: 'rotate(90deg)' }} />
+                        <BranchIcon id="insert-branch-on-edge-button-icon" fill='white' />
                     </IconButton>
                 </Tooltip>
                 {/* Edit Link */}
@@ -128,7 +123,7 @@ export const NodeEdge = ({
                             },
                         }}
                     >
-                        <DeleteIcon id="delete-link-on-edge-button-icon" sx={{ fill: 'white' }} />
+                        <DeleteIcon id="delete-link-on-edge-button-icon" fill='white' />
                     </IconButton>
                 </Tooltip>
             </Stack>

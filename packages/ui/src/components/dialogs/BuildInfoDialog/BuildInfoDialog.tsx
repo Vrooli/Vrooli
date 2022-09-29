@@ -4,10 +4,6 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    ForkRight as ForkIcon,
-    QueryStats as StatsIcon,
-} from '@mui/icons-material';
-import {
     Box,
     Checkbox,
     FormControlLabel,
@@ -27,16 +23,16 @@ import { fork, forkVariables } from 'graphql/generated/fork';
 import { star, starVariables } from 'graphql/generated/star';
 import { vote, voteVariables } from 'graphql/generated/vote';
 import { ObjectAction, BuildInfoDialogProps } from '../types';
-import { DeleteDialog, EditableLabel, EditableTextCollapse, LanguageInput, OwnerLabel, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession, VersionDisplay, VersionInput } from 'components';
+import { DeleteDialog, EditableLabel, EditableTextCollapse, LanguageInput, OwnerLabel, RelationshipButtons, ReportDialog, ResourceListHorizontal, ShareObjectDialog, TagList, TagSelector, userFromSession, VersionDisplay, VersionInput } from 'components';
 import { AllLanguages, getLanguageSubtag, getTranslation, ObjectType, PubSub } from 'utils';
 import { useLocation } from '@shared/route';
-import { APP_LINKS, CopyType, DeleteOneType, ForkType, StarFor, VoteFor } from '@shared/consts';
+import { APP_LINKS, CopyType, DeleteOneType, ForkType, ReportFor, StarFor, VoteFor } from '@shared/consts';
 import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
 import { copyMutation, forkMutation, starMutation, voteMutation } from 'graphql/mutation';
 import { v4 as uuid } from 'uuid';
-import { CloseIcon, CopyIcon, DeleteIcon, DownvoteWideIcon, InfoIcon, StarFilledIcon, StarOutlineIcon, SvgComponent, UpvoteWideIcon } from '@shared/icons';
+import { BranchIcon, CloseIcon, DeleteIcon, DownvoteWideIcon, InfoIcon, ReportIcon, ShareIcon, StarFilledIcon, StarOutlineIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from '@shared/icons';
 import { requiredErrorMessage, title as titleValidation } from '@shared/validation';
 
 export const BuildInfoDialog = ({
@@ -171,17 +167,22 @@ export const BuildInfoDialog = ({
                 [ObjectAction.VoteUp, 'Upvote', UpvoteWideIcon, null]
             );
             results.push(routine?.isStarred ?
-                [ObjectAction.StarUndo, 'Unstar', StarOutlineIcon, null] :
-                [ObjectAction.Star, 'Star', StarFilledIcon, null]
+                [ObjectAction.StarUndo, 'Unstar', StarFilledIcon, null] :
+                [ObjectAction.Star, 'Star', StarOutlineIcon, null]
             );
         }
         // If not editing, show "Stats" and "Fork" buttons
         if (!isEditing) {
             results.push(
-                [ObjectAction.Stats, 'Stats', StatsIcon as any, 'Coming Soon'],
-                [ObjectAction.Copy, 'Copy', CopyIcon, null],
-                [ObjectAction.Fork, 'Fork', ForkIcon as any, null],
+                [ObjectAction.Stats, 'Stats', StatsIcon, 'Coming Soon'],
+                [ObjectAction.Share, 'Share', ShareIcon, null],
             )
+            if (routine?.permissionsRoutine?.canFork) {
+                results.push([ObjectAction.Fork, 'Fork', BranchIcon, null]);
+            }
+            if (routine?.permissionsRoutine?.canReport) {
+                results.push([ObjectAction.Report, 'Report', ReportIcon, null]);
+            }
         }
         // Only show "Delete" when editing an existing routine
         if (isEditing && Boolean(routine?.id)) {
@@ -190,7 +191,7 @@ export const BuildInfoDialog = ({
             )
         }
         return results;
-    }, [isEditing, routine?.id, routine?.isStarred, routine?.isUpvoted, session]);
+    }, [isEditing, routine?.id, routine?.isStarred, routine?.isUpvoted, routine?.permissionsRoutine?.canFork, routine?.permissionsRoutine?.canReport, session?.isLoggedIn]);
 
     // Handle delete
     const [deleteOpen, setDeleteOpen] = useState(false);
@@ -200,23 +201,19 @@ export const BuildInfoDialog = ({
         else setDeleteOpen(false);
     }, [setLocation])
 
+    const [shareOpen, setShareOpen] = useState<boolean>(false);
+    const [reportOpen, setReportOpen] = useState<boolean>(false);
+
+    const openShare = useCallback(() => setShareOpen(true), [setShareOpen]);
+    const closeShare = useCallback(() => setShareOpen(false), [setShareOpen]);
+
+    const openReport = useCallback(() => setReportOpen(true), [setReportOpen]);
+    const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
+
     // Mutations
-    const [copy] = useMutation<copy, copyVariables>(copyMutation);
     const [fork] = useMutation<fork, forkVariables>(forkMutation);
     const [star] = useMutation<star, starVariables>(starMutation);
     const [vote] = useMutation<vote, voteVariables>(voteMutation);
-
-    const handleCopy = useCallback(() => {
-        if (!routine?.id) return;
-        mutationWrapper({
-            mutation: copy,
-            input: { id: routine.id, objectType: CopyType.Routine },
-            onSuccess: ({ data }) => {
-                PubSub.get().publishSnack({ message: `${getTranslation(routine, 'title', [language], true)} copied.`, severity: 'success' });
-                handleAction(ObjectAction.Copy, data);
-            },
-        })
-    }, [copy, handleAction, language, routine]);
 
     const handleFork = useCallback(() => {
         if (!routine?.id) return;
@@ -254,14 +251,17 @@ export const BuildInfoDialog = ({
 
     const onSelect = useCallback((action: ObjectAction) => {
         switch (action) {
-            case ObjectAction.Copy:
-                handleCopy();
-                break;
             case ObjectAction.Delete:
                 openDelete();
                 break;
             case ObjectAction.Fork:
                 handleFork();
+                break;
+            case ObjectAction.Report:
+                openReport();
+                break;
+            case ObjectAction.Share:
+                openShare();
                 break;
             case ObjectAction.Star:
             case ObjectAction.StarUndo:
@@ -272,7 +272,7 @@ export const BuildInfoDialog = ({
                 handleVote(action === ObjectAction.VoteUp);
                 break;
         }
-    }, [handleCopy, handleFork, handleStar, handleVote, openDelete]);
+    }, [handleFork, handleStar, handleVote, openDelete, openReport, openShare]);
 
     // const languageComponent = useMemo(() => {
     //     if (isEditing) return (
@@ -300,6 +300,22 @@ export const BuildInfoDialog = ({
 
     return (
         <>
+            {/* Report dialog */}
+            {routine?.id && <ReportDialog
+                forId={routine.id}
+                onClose={closeReport}
+                open={reportOpen}
+                reportFor={ReportFor.Routine}
+                session={session}
+                zIndex={zIndex + 1}
+            />}
+            {/* Share dialog */}
+            <ShareObjectDialog
+                objectType={ObjectType.Routine}
+                open={shareOpen}
+                onClose={closeShare}
+                zIndex={zIndex + 1}
+            />
             {/* Delete routine confirmation dialog */}
             <DeleteDialog
                 isOpen={deleteOpen}
@@ -432,7 +448,7 @@ export const BuildInfoDialog = ({
                         name="version"
                         value={formik.values.version}
                         onBlur={formik.handleBlur}
-                        onChange={(newVersion: string) => { 
+                        onChange={(newVersion: string) => {
                             formik.setFieldValue('version', newVersion);
                             handleRelationshipsChange({
                                 ...relationships,
