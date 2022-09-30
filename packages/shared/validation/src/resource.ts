@@ -36,19 +36,6 @@ export const resourceTranslationUpdate = yup.object().shape({
 export const resourceTranslationsCreate = yup.array().of(resourceTranslationCreate.required(requiredErrorMessage))
 export const resourceTranslationsUpdate = yup.array().of(resourceTranslationUpdate.required(requiredErrorMessage))
 
-export const resourceCreateForm = yup.object().shape({
-    link: link.required(requiredErrorMessage),
-    description: description.notRequired().default(undefined),
-    title: title.notRequired().default(undefined),
-    usedFor: usedFor.notRequired().default(undefined),
-})
-export const resourceUpdateForm = yup.object().shape({
-    link: link.notRequired().default(undefined),
-    description: description.notRequired().default(undefined),
-    title: title.notRequired().default(undefined),
-    usedFor: usedFor.notRequired().default(undefined),
-})
-
 export const resourceCreate = yup.object().shape({
     id: id.required(requiredErrorMessage),
     listId: id.required(requiredErrorMessage),

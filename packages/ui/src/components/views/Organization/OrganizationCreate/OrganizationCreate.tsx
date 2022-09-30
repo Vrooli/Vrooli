@@ -75,6 +75,7 @@ export const OrganizationCreate = ({
                 input: shapeOrganizationCreate({
                     id: values.id,
                     isOpenToNewMembers: values.isOpenToNewMembers,
+                    isPrivate: relationships.isPrivate,
                     resourceLists: [resourceList],
                     tags,
                     translations: values.translationsCreate,
@@ -85,9 +86,6 @@ export const OrganizationCreate = ({
         },
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
-    useEffect(() => {
-        console.log('isdirty', formik.dirty);
-    }, [formik.dirty]);
 
     // Current name and bio info, as well as errors
     const { bio, name, errorBio, errorName, touchedBio, touchedName, errors } = useMemo(() => {
@@ -111,13 +109,7 @@ export const OrganizationCreate = ({
         handleTranslationChange(formik, 'translationsCreate', e, language)
     }, [formik, language]);
 
-    useEffect(() => {
-        if (languages.length === 0) {
-            const userLanguage = getUserLanguages(session)[0]
-            setLanguage(userLanguage)
-            setLanguages([userLanguage])
-        }
-    }, [languages, session, setLanguage, setLanguages])
+    // Handle languages
     const handleLanguageSelect = useCallback((newLanguage: string) => { setLanguage(newLanguage) }, []);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguages([...languages, newLanguage]);
@@ -131,7 +123,6 @@ export const OrganizationCreate = ({
         setLanguages(newLanguages);
         removeTranslation(formik, 'translationsCreate', language);
     }, [formik, languages]);
-
 
     const isLoggedIn = useMemo(() => session?.isLoggedIn === true && uuidValidate(session?.id ?? ''), [session]);
 

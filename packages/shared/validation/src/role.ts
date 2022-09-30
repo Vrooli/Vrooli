@@ -14,13 +14,6 @@ export const roleTranslationUpdate = yup.object().shape({
 export const roleTranslationsCreate = yup.array().of(roleTranslationCreate.required(requiredErrorMessage))
 export const roleTranslationsUpdate = yup.array().of(roleTranslationUpdate.required(requiredErrorMessage))
 
-export const roleCreateForm = yup.object().shape({
-    title: title.required(requiredErrorMessage),
-})
-export const roleUpdateForm = yup.object().shape({
-    title: title.notRequired().default(undefined),
-})
-
 export const roleCreate = yup.object().shape({
     id: id.required(requiredErrorMessage),
     title: title.required(requiredErrorMessage),

@@ -24,18 +24,6 @@ export const standardTranslationUpdate = yup.object().shape({
 export const standardTranslationsCreate = yup.array().of(standardTranslationCreate.required(requiredErrorMessage))
 export const standardTranslationsUpdate = yup.array().of(standardTranslationUpdate.required(requiredErrorMessage))
 
-export const standardCreateForm = yup.object().shape({
-    default: standardDefault.notRequired().default(undefined),
-    description: description.notRequired().default(undefined),
-    name: name.notRequired().default(undefined),
-    version: version().notRequired().default(undefined),
-    isPrivate: isPrivate.notRequired().default(undefined),
-})
-export const standardUpdateForm = yup.object().shape({
-    description: description.notRequired().default(undefined),
-    isPrivate: isPrivate.notRequired().default(undefined),
-})
-
 /**
  * Information required when creating a standard. 
  */

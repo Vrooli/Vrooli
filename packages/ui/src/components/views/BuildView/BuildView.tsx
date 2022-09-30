@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getTranslation, getUserLanguages, parseSearchParams, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine, addSearchParams, keepSearchParams, TagShape, RoutineTranslationShape } from 'utils';
+import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getTranslation, getUserLanguages, parseSearchParams, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine, addSearchParams, keepSearchParams, TagShape, RoutineTranslationShape, usePromptBeforeUnload } from 'utils';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, ResourceList, Routine, Run } from 'types';
 import { useLocation } from '@shared/route';
 import { APP_LINKS, ResourceListUsedFor } from '@shared/consts';
@@ -19,7 +19,7 @@ import { routineUpdate, routineUpdateVariables } from 'graphql/generated/routine
 import { routineCreate, routineCreateVariables } from 'graphql/generated/routineCreate';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
 import { AddLinkIcon, CloseIcon, CompressIcon, EditIcon, RedoIcon, UndoIcon } from '@shared/icons';
-import { requiredErrorMessage, routineUpdateForm as validationSchema, title as titleValidation } from '@shared/validation';
+import { requiredErrorMessage, routineUpdate as validationSchema, title as titleValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { RelationshipsObject } from 'components/inputs/types';
 
@@ -478,20 +478,7 @@ export const BuildView = ({
         setIsEditing(true);
     }, [setLocation]);
 
-    /**
-     * On page leave, check if routine has changed. 
-     * If so, prompt user to save changes
-     */
-    useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (isEditing && changeStack.length > 1) {
-                e.preventDefault()
-                e.returnValue = ''
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [changeStack.length, isEditing, routine]);
+    usePromptBeforeUnload({ shouldPrompt: isEditing && changeStack.length > 1 });
 
     const updateRoutineTitle = useCallback((title: string) => {
         if (!changedRoutine) return;

@@ -3,6 +3,12 @@ import { ObjectSchema, ValidationError } from 'yup';
 import { Session } from "types";
 import { v4 as uuid } from 'uuid';
 
+export type TranslationObject = {
+    id: string,
+    language: string,
+    [key: string]: any,
+}
+
 //TODO find and remove deprecated
 
 /**
@@ -484,12 +490,6 @@ export const getPreferredLanguage = (availableLanguages: string[], userLanguages
     }
     // If we didn't find a language, return the first available language
     return availableLanguages[0];
-}
-
-type TranslationObject = {
-    id: string,
-    language: string,
-    [key: string]: string | null | undefined
 }
 
 /**

@@ -18,15 +18,6 @@ export const reportCreate = yup.object().shape({
     reason: reason.required(requiredErrorMessage),
 })
 
-export const reportCreateForm = yup.object().shape({
-    createdFor: createdFor.required(requiredErrorMessage),
-    createdForId: id.required(requiredErrorMessage),
-    details: details.notRequired().default(undefined),
-    language: language.required(requiredErrorMessage),
-    reason: reason.required(requiredErrorMessage),
-    otherReason: reason.notRequired().default(undefined),
-})
-
 /**
  * Information required when updating an organization
  */

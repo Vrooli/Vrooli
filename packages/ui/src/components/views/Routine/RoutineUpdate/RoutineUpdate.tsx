@@ -5,13 +5,13 @@ import { routineQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RoutineUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { routineUpdateForm as validationSchema } from '@shared/validation';
+import { routineTranslationUpdate, routineUpdate as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
-import { getLastUrlPart, InputShape, ObjectType, OutputShape, PubSub, RoutineTranslationShape, shapeRoutineUpdate, TagShape, updateArray } from "utils";
+import { addEmptyTranslation, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, handleTranslationBlur, handleTranslationChange, InputShape, ObjectType, OutputShape, PubSub, removeTranslation, shapeRoutineUpdate, TagShape, usePromptBeforeUnload } from "utils";
 import { GridSubmitButtons, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession, VersionInput } from "components";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
-import { ResourceList } from "types";
+import { ResourceList, RoutineTranslation } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { routineUpdate, routineUpdateVariables } from "graphql/generated/routineUpdate";
@@ -67,31 +67,6 @@ export const RoutineUpdate = ({
     const [tags, setTags] = useState<TagShape[]>([]);
     const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
-    // Handle translations
-    type Translation = RoutineTranslationShape;
-    const [translations, setTranslations] = useState<Translation[]>([]);
-    const deleteTranslation = useCallback((language: string) => {
-        setTranslations([...translations.filter(t => t.language !== language)]);
-        // Also delete translations from inputs and outputs
-        setInputsList(inputsList.map(i => {
-            const updatedTranslationsList = i.translations.filter(t => t.language !== language);
-            return { ...i, translations: updatedTranslationsList };
-        }));
-        setOutputsList(outputsList.map(o => {
-            const updatedTranslationsList = o.translations.filter(t => t.language !== language);
-            return { ...o, translations: updatedTranslationsList };
-        }));
-    }, [translations, inputsList, outputsList]);
-    const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
-        // Find translation
-        const index = translations.findIndex(t => language === t.language);
-        // Add to array, or update if found
-        return index >= 0 ? updateArray(translations, index, translation) : [...translations, translation];
-    }, [translations]);
-    const updateTranslation = useCallback((language: string, translation: Translation) => {
-        setTranslations(getTranslationsUpdate(language, translation));
-    }, [getTranslationsUpdate]);
-
     useEffect(() => {
         setRelationships({
             isComplete: routine?.isComplete ?? false,
@@ -105,22 +80,17 @@ export const RoutineUpdate = ({
         setOutputsList(routine?.outputs ?? []);
         setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(routine?.tags ?? []);
-        setTranslations(routine?.translations?.map(t => ({
-            id: t.id,
-            language: t.language,
-            description: t.description ?? '',
-            instructions: t.instructions ?? '',
-            title: t.title ?? '',
-        })) ?? []);
     }, [routine]);
+
+    // Handle languages
+    const [language, setLanguage] = useState<string>('');
+    const [languages, setLanguages] = useState<string[]>([]);
 
     // Handle update
     const [mutation] = useMutation<routineUpdate, routineUpdateVariables>(routineUpdateMutation);
     const formik = useFormik({
         initialValues: {
-            description: '',
-            instructions: '',
-            title: '',
+            translationsUpdate: (routine?.translations ?? []) as RoutineTranslation[],
             version: routine?.version ?? '1.0.0',
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
@@ -130,13 +100,6 @@ export const RoutineUpdate = ({
                 PubSub.get().publishSnack({ message: 'Could not find existing routine data.', severity: 'error' });
                 return;
             }
-            const allTranslations = getTranslationsUpdate(language, {
-                id: uuid(),
-                language,
-                description: values.description,
-                instructions: values.instructions,
-                title: values.title,
-            })
             mutationWrapper({
                 mutation,
                 input: shapeRoutineUpdate(routine, {
@@ -151,64 +114,60 @@ export const RoutineUpdate = ({
                     outputs: outputsList,
                     resourceLists: [resourceList],
                     tags: tags,
-                    translations: allTranslations as any[],
+                    translations: values.translationsUpdate,
                 }),
                 onSuccess: (response) => { onUpdated(response.data.routineUpdate) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },
     });
+    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
+
+    // Current description, instructions, and title info, as well as errors
+    const { description, instructions, title, errorDescription, errorInstructions, errorTitle, touchedDescription, touchedInstructions, touchedTitle, errors } = useMemo(() => {
+        const { error, touched, value } = getTranslationData(formik, 'translationsUpdate', language);
+        return {
+            description: value?.description ?? '',
+            instructions: value?.instructions ?? '',
+            title: value?.title ?? '',
+            errorDescription: error?.description ?? '',
+            errorInstructions: error?.instructions ?? '',
+            errorTitle: error?.title ?? '',
+            touchedDescription: touched?.description ?? false,
+            touchedInstructions: touched?.instructions ?? false,
+            touchedTitle: touched?.title ?? false,
+            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', routineTranslationUpdate),
+        }
+    }, [formik, language]);
+    // Handles blur on translation fields
+    const onTranslationBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+        handleTranslationBlur(formik, 'translationsUpdate', e, language)
+    }, [formik, language]);
+    // Handles change on translation fields
+    const onTranslationChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        handleTranslationChange(formik, 'translationsUpdate', e, language)
+    }, [formik, language]);
 
     // Handle languages
-    const [language, setLanguage] = useState<string>('');
-    const [languages, setLanguages] = useState<string[]>([]);
     useEffect(() => {
-        if (languages.length === 0 && translations.length > 0) {
-            setLanguage(translations[0].language);
-            setLanguages(translations.map(t => t.language));
-            formik.setValues({
-                ...formik.values,
-                description: translations[0].description ?? '',
-                instructions: translations[0].instructions,
-                title: translations[0].title,
-            })
+        if (languages.length === 0 && formik.values.translationsUpdate.length > 0) {
+            setLanguage(formik.values.translationsUpdate[0].language);
+            setLanguages(formik.values.translationsUpdate.map(t => t.language));
         }
-    }, [formik, languages, setLanguage, setLanguages, translations])
-    const updateFormikTranslation = useCallback((language: string) => {
-        const existingTranslation = translations.find(t => t.language === language);
-        formik.setValues({
-            ...formik.values,
-            description: existingTranslation?.description ?? '',
-            instructions: existingTranslation?.instructions ?? '',
-            title: existingTranslation?.title ?? '',
-        });
-    }, [formik, translations]);
-    const handleLanguageSelect = useCallback((newLanguage: string) => {
-        // Update old select
-        updateTranslation(language, {
-            id: uuid(),
-            language,
-            description: formik.values.description,
-            instructions: formik.values.instructions,
-            title: formik.values.title,
-        })
-        // Update formik
-        if (language !== newLanguage) updateFormikTranslation(newLanguage);
-        // Change language
-        setLanguage(newLanguage);
-    }, [updateTranslation, language, formik.values.description, formik.values.instructions, formik.values.title, updateFormikTranslation]);
+    }, [formik, languages, setLanguage, setLanguages])
+    const handleLanguageSelect = useCallback((newLanguage: string) => { setLanguage(newLanguage) }, []);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguages([...languages, newLanguage]);
         handleLanguageSelect(newLanguage);
-    }, [handleLanguageSelect, languages, setLanguages]);
+        addEmptyTranslation(formik, 'translationsUpdate', newLanguage);
+    }, [formik, handleLanguageSelect, languages]);
     const handleLanguageDelete = useCallback((language: string) => {
         const newLanguages = [...languages.filter(l => l !== language)]
         if (newLanguages.length === 0) return;
-        deleteTranslation(language);
-        updateFormikTranslation(newLanguages[0]);
         setLanguage(newLanguages[0]);
         setLanguages(newLanguages);
-    }, [deleteTranslation, languages, updateFormikTranslation]);
+        removeTranslation(formik, 'translationsUpdate', language);
+    }, [formik, languages]);
 
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
@@ -242,11 +201,11 @@ export const RoutineUpdate = ({
                     id="title"
                     name="title"
                     label="title"
-                    value={formik.values.title}
-                    onBlur={formik.handleBlur}
-                    onChange={formik.handleChange}
-                    error={formik.touched.title && Boolean(formik.errors.title)}
-                    helperText={formik.touched.title && formik.errors.title}
+                    value={title}
+                    onBlur={onTranslationBlur}
+                    onChange={onTranslationChange}
+                    error={touchedTitle && Boolean(errorTitle)}
+                    helperText={touchedTitle && errorTitle}
                 />
             </Grid>
             <Grid item xs={12}>
@@ -255,24 +214,24 @@ export const RoutineUpdate = ({
                     id="description"
                     name="description"
                     label="description"
-                    value={formik.values.description}
+                    value={description}
                     multiline
                     maxRows={3}
                     onBlur={formik.handleBlur}
                     onChange={formik.handleChange}
-                    error={formik.touched.description && Boolean(formik.errors.description)}
-                    helperText={formik.touched.description && formik.errors.description}
+                    error={touchedDescription && Boolean(errorDescription)}
+                    helperText={touchedDescription && errorDescription}
                 />
             </Grid>
             <Grid item xs={12}>
                 <MarkdownInput
                     id="instructions"
                     placeholder="Instructions"
-                    value={formik.values.instructions}
+                    value={instructions}
                     minRows={4}
                     onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
-                    error={formik.touched.instructions && Boolean(formik.errors.instructions)}
-                    helperText={formik.touched.instructions ? formik.errors.instructions as string : null}
+                    error={touchedInstructions && Boolean(errorInstructions)}
+                    helperText={touchedInstructions ? errorInstructions : null}
                 />
             </Grid>
             <Grid item xs={12}>
@@ -282,7 +241,7 @@ export const RoutineUpdate = ({
                     name="version"
                     value={formik.values.version}
                     onBlur={formik.handleBlur}
-                    onChange={(newVersion: string) => { 
+                    onChange={(newVersion: string) => {
                         formik.setFieldValue('version', newVersion);
                         setRelationships({
                             ...relationships,
@@ -337,14 +296,14 @@ export const RoutineUpdate = ({
             <GridSubmitButtons
                 disabledCancel={formik.isSubmitting}
                 disabledSubmit={formik.isSubmitting || !formik.isValid}
-                errors={formik.errors}
+                errors={errors}
                 isCreate={false}
                 onCancel={onCancel}
                 onSetSubmitting={formik.setSubmitting}
                 onSubmit={formik.handleSubmit}
             />
         </Grid>
-    ), [formik, onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, onCancel]);
+    ), [formik, onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, title, onTranslationBlur, onTranslationChange, touchedTitle, errorTitle, description, touchedDescription, errorDescription, instructions, touchedInstructions, errorInstructions, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, errors, onCancel]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{
