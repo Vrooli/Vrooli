@@ -104,6 +104,7 @@ export const OrganizationUpdate = ({
 
     // Current name and bio info, as well as errors
     const { bio, name, errorBio, errorName, touchedBio, touchedName, errors } = useMemo(() => {
+        console.log('org update gettransdata')
         const { error, touched, value } = getTranslationData(formik, 'translationsUpdate', language);
         return {
             bio: value?.bio ?? '',
@@ -116,11 +117,11 @@ export const OrganizationUpdate = ({
         }
     }, [formik, language]);
     // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
         handleTranslationBlur(formik, 'translationsUpdate', e, language)
     }, [formik, language]);
     // Handles change on translation fields
-    const onTranslationChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
         handleTranslationChange(formik, 'translationsUpdate', e, language)
     }, [formik, language]);
 

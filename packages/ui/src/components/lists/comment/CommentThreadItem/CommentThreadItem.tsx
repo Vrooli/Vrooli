@@ -2,12 +2,12 @@ import { Box, Button, CircularProgress, IconButton, ListItem, ListItemText, Stac
 import { CommentThreadItemProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
 import { TextLoading, UpvoteDownvote } from '../..';
-import { displayDate, getTranslation, PubSub } from 'utils';
+import { displayDate, getFormikErrorsWithTranslations, getTranslation, getTranslationData, handleTranslationBlur, handleTranslationChange, PubSub, usePromptBeforeUnload } from 'utils';
 import { MarkdownInput } from 'components/inputs';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
 import { DeleteOneType, ReportFor, StarFor, VoteFor } from '@shared/consts';
-import { commentCreateForm as validationSchema } from '@shared/validation';
+import { commentCreate as validationSchema, commentTranslationCreate } from '@shared/validation';
 import { commentCreate, commentCreateVariables } from 'graphql/generated/commentCreate';
 import { commentCreateMutation, deleteOneMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';
@@ -32,7 +32,7 @@ export function CommentThreadItem({
 }: CommentThreadItemProps) {
     const { palette } = useTheme();
 
-    const { canDelete, canEdit, canReply, canReport, canStar, canVote, text } = useMemo(() => {
+    const { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText } = useMemo(() => {
         const permissions = data?.permissionsComment;
         const languages = session?.languages ?? navigator.languages;
         return {
@@ -42,7 +42,7 @@ export function CommentThreadItem({
             canReport: permissions?.canReport === true,
             canStar: permissions?.canStar === true,
             canVote: permissions?.canVote === true,
-            text: getTranslation(data, 'text', languages, true),
+            displayText: getTranslation(data, 'text', languages, true),
         };
     }, [data, session]);
 
@@ -50,23 +50,28 @@ export function CommentThreadItem({
     const [addMutation, { loading: loadingAdd }] = useMutation<commentCreate, commentCreateVariables>(commentCreateMutation);
     const formik = useFormik({
         initialValues: {
-            comment: '',
+            id: uuid(),
+            createdFor: objectType,
+            forId: objectId,
+            parentId: data?.id,
+            translationsCreate: [{
+                id: uuid(),
+                language,
+                text: '',
+            }],
         },
         validationSchema,
+        enableReinitialize: true,
         onSubmit: (values) => {
             if (!data) return;
             mutationWrapper({
                 mutation: addMutation,
                 input: {
-                    id: uuid(),
-                    createdFor: objectType,
-                    forId: objectId,
-                    parentId: data.id,
-                    translationsCreate: [{
-                        id: uuid(),
-                        language,
-                        text: values.comment,
-                    }]
+                    id: values.id,
+                    createdFor: values.createdFor,
+                    forId: values.forId,
+                    parentId: values.parentId,
+                    translationsCreate: values.translationsCreate,
                 },
                 successCondition: (response) => response.data.commentCreate !== null,
                 onSuccess: (response) => {
@@ -79,6 +84,28 @@ export function CommentThreadItem({
             })
         },
     });
+    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
+
+    // Current text, as well as errors
+    const { text, errorText, touchedText, errors } = useMemo(() => {
+        console.log('comment threaditem gettransdata')
+        const { error, touched, value } = getTranslationData(formik, 'translationsCreate', language);
+        return {
+            text: value?.text ?? '',
+            errorText: error?.text ?? '',
+            touchedText: touched?.text ?? false,
+            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', commentTranslationCreate),
+        }
+    }, [formik, language]);
+    // Handles blur on translation fields
+    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
+        handleTranslationBlur(formik, 'translationsCreate', e, language)
+    }, [formik, language]);
+    // Handles change on translation fields
+    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
+        handleTranslationChange(formik, 'translationsCreate', e, language)
+    }, [formik, language]);
+
     const openReplyInput = useCallback(() => { setReplyOpen(true) }, []);
     const closeReplyInput = useCallback(() => {
         formik.resetForm();
@@ -193,7 +220,7 @@ export function CommentThreadItem({
                     </Stack>
                     {/* Text */}
                     {isOpen && (loading ? <TextLoading /> : <ListItemText
-                        primary={text}
+                        primary={displayText}
                     />)}
                     {/* Text buttons for reply, share, report, star, delete. */}
                     {isOpen && <Stack direction="row" spacing={1}>
@@ -244,18 +271,19 @@ export function CommentThreadItem({
                                 <MarkdownInput
                                     id={`add-reply-${data?.id}`}
                                     placeholder="Please be nice to each other."
-                                    value={formik.values.comment}
+                                    value={text}
                                     minRows={3}
-                                    onChange={(newText: string) => formik.setFieldValue('comment', newText)}
-                                    error={formik.touched.comment && Boolean(formik.errors.comment)}
-                                    helperText={formik.touched.comment ? formik.errors.comment as string : null}
+                                    onChange={(newText: string) => onTranslationChange({ target: { name: 'text', value: newText } })}
+                                    error={touchedText && Boolean(errorText)}
+                                    helperText={touchedText ? errorText : null}
                                 />
                                 <Stack direction="row" sx={{
                                     paddingTop: 1,
                                     display: 'flex',
                                     flexDirection: 'row-reverse',
                                 }}>
-                                    <Tooltip title={formik.errors.comment ? formik.errors.comment as string : ''}>
+                                    {/* TODO */}
+                                    {/* <Tooltip title={formik.errors.comment ? formik.errors.comment as string : ''}>
                                         <Button
                                             color="secondary"
                                             disabled={loadingAdd || formik.isSubmitting || !formik.isValid}
@@ -264,7 +292,7 @@ export function CommentThreadItem({
                                         >
                                             {loadingAdd ? <CircularProgress size={24} /> : 'Add'}
                                         </Button>
-                                    </Tooltip>
+                                    </Tooltip> */}
                                     <Button
                                         color="secondary"
                                         disabled={loadingAdd || formik.isSubmitting}

@@ -89,7 +89,7 @@ export const RoutineCreate = ({
             mutationWrapper({
                 mutation,
                 input: shapeRoutineCreate({
-                    id: uuid(),
+                    id: values.id,
                     version: values.version,
                     isInternal: values.isInternal,
                     isComplete: relationships.isComplete,
@@ -127,11 +127,11 @@ export const RoutineCreate = ({
         }
     }, [formik, language]);
     // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
         handleTranslationBlur(formik, 'translationsCreate', e, language)
     }, [formik, language]);
     // Handles change on translation fields
-    const onTranslationChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
         handleTranslationChange(formik, 'translationsCreate', e, language)
     }, [formik, language]);
 
@@ -207,8 +207,8 @@ export const RoutineCreate = ({
                         value={description}
                         multiline
                         maxRows={3}
-                        onBlur={formik.handleBlur}
-                        onChange={formik.handleChange}
+                        onBlur={onTranslationBlur}
+                        onChange={onTranslationChange}
                         error={touchedDescription && Boolean(errorDescription)}
                         helperText={touchedDescription && errorDescription}
                     />
@@ -219,7 +219,7 @@ export const RoutineCreate = ({
                         placeholder="Instructions"
                         value={instructions}
                         minRows={4}
-                        onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
+                        onChange={(newText: string) => onTranslationChange({ target: { name: 'instructions', value: newText }})}
                         error={touchedInstructions && Boolean(errorInstructions)}
                         helperText={touchedInstructions ? errorInstructions : null}
                     />

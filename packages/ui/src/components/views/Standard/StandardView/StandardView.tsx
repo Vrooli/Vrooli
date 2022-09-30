@@ -17,7 +17,6 @@ import { useFormik } from "formik";
 import { generateInputComponent } from "forms/generators";
 import { PreviewSwitch } from "components/inputs";
 import { EditIcon, EllipsisIcon } from "@shared/icons";
-import { standardCreateForm } from "@shared/validation";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 
 export const StandardView = ({
@@ -116,7 +115,7 @@ export const StandardView = ({
             case ObjectActionComplete.StarUndo:
                 if (data.star.success) {
                     setStandard({
-                        ...standardCreateForm,
+                        ...standard,
                         isStarred: action === ObjectActionComplete.Star,
                     } as any)
                 }

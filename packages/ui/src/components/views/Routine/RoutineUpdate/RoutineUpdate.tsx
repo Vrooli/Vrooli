@@ -140,11 +140,11 @@ export const RoutineUpdate = ({
         }
     }, [formik, language]);
     // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
         handleTranslationBlur(formik, 'translationsUpdate', e, language)
     }, [formik, language]);
     // Handles change on translation fields
-    const onTranslationChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
         handleTranslationChange(formik, 'translationsUpdate', e, language)
     }, [formik, language]);
 
@@ -229,7 +229,7 @@ export const RoutineUpdate = ({
                     placeholder="Instructions"
                     value={instructions}
                     minRows={4}
-                    onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
+                    onChange={(newText: string) => onTranslationChange({ target: { name: 'instructions', value: newText }})}
                     error={touchedInstructions && Boolean(errorInstructions)}
                     helperText={touchedInstructions ? errorInstructions : null}
                 />

@@ -74,7 +74,7 @@ export const ProjectCreate = ({
             mutationWrapper({
                 mutation,
                 input: shapeProjectCreate({
-                    id: uuid(),
+                    id: values.id,
                     isComplete: relationships.isComplete,
                     isPrivate: relationships.isPrivate,
                     owner: relationships.owner,
@@ -104,11 +104,11 @@ export const ProjectCreate = ({
         }
     }, [formik, language]);
     // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
         handleTranslationBlur(formik, 'translationsCreate', e, language)
     }, [formik, language]);
     // Handles change on translation fields
-    const onTranslationChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
         handleTranslationChange(formik, 'translationsCreate', e, language)
     }, [formik, language]);
 

@@ -1,12 +1,12 @@
 import { Box, Button, Grid, Stack, TextField, Typography, useTheme } from "@mui/material"
 import { useMutation } from "@apollo/client";
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { APP_LINKS } from '@shared/consts';
 import { useFormik } from 'formik';
 import { profileEmailUpdateMutation } from "graphql/mutation";
-import { PubSub } from "utils";
+import { PubSub, usePromptBeforeUnload } from "utils";
 import { SettingsAuthenticationProps } from "../types";
 import { useLocation } from '@shared/route';
 import { logOutMutation } from 'graphql/mutation';
@@ -100,21 +100,7 @@ export const SettingsAuthentication = ({
             })
         },
     });
-
-    /**
-     * On page leave, check if unsaved work. 
-     * If so, prompt for confirmation.
-     */
-    useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (formik.dirty) {
-                e.preventDefault()
-                e.returnValue = ''
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [formik.dirty]);
+    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
     return (
         <Box style={{ overflow: 'hidden' }}>

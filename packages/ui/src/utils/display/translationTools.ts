@@ -9,8 +9,6 @@ export type TranslationObject = {
     [key: string]: any,
 }
 
-//TODO find and remove deprecated
-
 /**
  * Array of all IANA language subtags, with their native names. 
  * Taken from https://en.wikipedia.org/wiki/List_of_ISO_639-2_codes and https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry
@@ -528,7 +526,7 @@ export const getTranslationData = <
 export const handleTranslationBlur = <
     KeyField extends string,
     Values extends { [key in KeyField]: TranslationObject[] },
->(formik: FormikProps<Values>, translationField: KeyField, event: React.FocusEvent<HTMLInputElement>, language: string) => {
+>(formik: FormikProps<Values>, translationField: KeyField, event: { target: { name: string } }, language: string) => {
     // Get field name from event
     const { name: blurredField } = event.target;
     // Check if field has already been touched
@@ -550,10 +548,11 @@ export const handleTranslationBlur = <
 export const handleTranslationChange = <
     KeyField extends string,
     Values extends { [key in KeyField]: TranslationObject[] },
->(formik: FormikProps<Values>, translationField: KeyField, event: React.ChangeEvent<HTMLInputElement>, language: string) => {
+>(formik: FormikProps<Values>, translationField: KeyField, event: { target: { name: string, value: string } }, language: string) => {
     // Get field name and value from event
     const { name: changedField, value } = event.target;
     // Get index of translation object
+    console.log('handletranschange')
     const { index } = getTranslationData(formik, translationField, language);
     // Set the value using dot notation
     formik.setFieldValue(`${translationField}.${index}.${String(changedField)}`, value);
@@ -648,6 +647,7 @@ export const removeTranslation = <
     // Get copy of current translations
     const translations = [...formik.values[translationField]];
     // Get index of translation object
+    console.log('remove translation')
     const { index } = getTranslationData(formik, translationField, language);
     // Remove translation object from translations
     translations.splice(index, 1);

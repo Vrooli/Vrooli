@@ -1,12 +1,12 @@
 import { Autocomplete, Box, Container, Grid, IconButton, Stack, TextField, Typography, useTheme } from "@mui/material"
 import { useLazyQuery, useMutation } from "@apollo/client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { profileUpdateSchema as validationSchema } from '@shared/validation';
+import { profileUpdateSchema as validationSchema, userTranslationUpdate } from '@shared/validation';
 import { APP_LINKS } from '@shared/consts';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { getUserLanguages, ProfileTranslationShape, shapeProfileUpdate, updateArray } from "utils";
+import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeProfileUpdate, usePromptBeforeUnload } from "utils";
 import { SettingsProfileProps } from "../types";
 import { useLocation } from '@shared/route';
 import { LanguageInput } from "components/inputs";
@@ -14,9 +14,9 @@ import { GridSubmitButtons, HelpButton } from "components/buttons";
 import { findHandles, findHandlesVariables } from "graphql/generated/findHandles";
 import { findHandlesQuery } from "graphql/query";
 import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
-import { v4 as uuid } from 'uuid';
 import { PubSub } from 'utils'
 import { RefreshIcon } from "@shared/icons";
+import { ProfileTranslation } from "types";
 
 const helpText =
     `This page allows you to update your profile, including your name, handle, and bio.
@@ -58,41 +58,14 @@ export const SettingsProfile = ({
 
     const [selectedHandle, setSelectedHandle] = useState<string | null>(null);
 
-    // Handle translations
-    type Translation = ProfileTranslationShape;
-    const [translations, setTranslations] = useState<Translation[]>([]);
-    const deleteTranslation = useCallback((language: string) => {
-        setTranslations([...translations.filter(t => t.language !== language)]);
-    }, [translations, setTranslations]);
-    const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
-        // Find translation
-        const index = translations.findIndex(t => language === t.language);
-        // Add to array, or update if found
-        return index >= 0 ? updateArray(translations, index, translation) : [...translations, translation];
-    }, [translations]);
-    const updateTranslation = useCallback((language: string, translation: Translation) => {
-        setTranslations(getTranslationsUpdate(language, translation));
-    }, [getTranslationsUpdate]);
+    // Handle languages
+    const [language, setLanguage] = useState<string>('');
+    const [languages, setLanguages] = useState<string[]>([]);
 
     useEffect(() => {
         if (!profile) return;
         if (profile.handle) {
             setSelectedHandle(profile.handle);
-        }
-        const foundTranslations = profile.translations?.map(t => ({
-            id: t.id,
-            language: t.language,
-            bio: t.bio ?? '',
-        })) ?? []
-        // If no translations found, add default
-        if (foundTranslations.length === 0) {
-            setTranslations([{
-                id: uuid(),
-                language: getUserLanguages(session)[0],
-                bio: '',
-            }]);
-        } else {
-            setTranslations(foundTranslations);
         }
     }, [profile, session]);
 
@@ -100,8 +73,8 @@ export const SettingsProfile = ({
     const [mutation] = useMutation<profileUpdate, profileUpdateVariables>(profileUpdateMutation);
     const formik = useFormik({
         initialValues: {
-            bio: '',
             name: profile?.name ?? '',
+            translationsUpdate: (profile?.translations ?? []) as ProfileTranslation[],
         },
         enableReinitialize: true,
         validationSchema,
@@ -114,16 +87,11 @@ export const SettingsProfile = ({
                 PubSub.get().publishSnack({ message: 'Please fix errors before submitting.', severity: 'error' });
                 return;
             }
-            const allTranslations = getTranslationsUpdate(language, {
-                id: uuid(),
-                language,
-                bio: values.bio,
-            })
             const input = shapeProfileUpdate(profile, {
                 id: profile.id,
                 name: values.name,
                 handle: selectedHandle,
-                translations: allTranslations,
+                translations: values.translationsUpdate,
             })
             if (!input || Object.keys(input).length === 0) {
                 PubSub.get().publishSnack({ message: 'No changes made.' });
@@ -137,45 +105,47 @@ export const SettingsProfile = ({
             })
         },
     });
+    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
+
+    // Current bio info, as well as errors
+    const { bio, errorBio, touchedBio, errors } = useMemo(() => {
+        const { error, touched, value } = getTranslationData(formik, 'translationsUpdate', language);
+        return {
+            bio: value?.bio ?? '',
+            errorBio: error?.bio ?? '',
+            touchedBio: touched?.bio ?? false,
+            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', userTranslationUpdate),
+        }
+    }, [formik, language]);
+    // Handles blur on translation fields
+    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
+        handleTranslationBlur(formik, 'translationsUpdate', e, language)
+    }, [formik, language]);
+    // Handles change on translation fields
+    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
+        handleTranslationChange(formik, 'translationsUpdate', e, language)
+    }, [formik, language]);
 
     // Handle languages
-    const [language, setLanguage] = useState<string>('');
-    const [languages, setLanguages] = useState<string[]>([]);
     useEffect(() => {
-        if (languages.length === 0 && translations.length > 0) {
-            setLanguage(translations[0].language);
-            setLanguages(translations.map(t => t.language));
-            formik.setFieldValue('bio', translations[0].bio ?? '');
+        if (languages.length === 0 && formik.values.translationsUpdate.length > 0) {
+            setLanguage(formik.values.translationsUpdate[0].language);
+            setLanguages(formik.values.translationsUpdate.map(t => t.language));
         }
-    }, [formik, languages, setLanguage, setLanguages, translations])
-    const updateFormikTranslation = useCallback((language: string) => {
-        const existingTranslation = translations.find(t => t.language === language);
-        formik.setFieldValue('bio', existingTranslation?.bio ?? '');
-    }, [formik, translations]);
-    const handleLanguageSelect = useCallback((newLanguage: string) => {
-        // Update old select
-        updateTranslation(language, {
-            id: uuid(),
-            language,
-            bio: formik.values.bio,
-        })
-        // Update formik
-        if (language !== newLanguage) updateFormikTranslation(newLanguage);
-        // Change language
-        setLanguage(newLanguage);
-    }, [updateTranslation, language, formik.values.bio, updateFormikTranslation]);
+    }, [formik, languages, setLanguage, setLanguages])
+    const handleLanguageSelect = useCallback((newLanguage: string) => { setLanguage(newLanguage) }, []);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguages([...languages, newLanguage]);
         handleLanguageSelect(newLanguage);
-    }, [handleLanguageSelect, languages, setLanguages]);
+        addEmptyTranslation(formik, 'translationsUpdate', newLanguage);
+    }, [formik, handleLanguageSelect, languages]);
     const handleLanguageDelete = useCallback((language: string) => {
         const newLanguages = [...languages.filter(l => l !== language)]
         if (newLanguages.length === 0) return;
-        deleteTranslation(language);
-        updateFormikTranslation(newLanguages[0]);
         setLanguage(newLanguages[0]);
         setLanguages(newLanguages);
-    }, [deleteTranslation, languages, updateFormikTranslation]);
+        removeTranslation(formik, 'translationsUpdate', language);
+    }, [formik, languages]);
 
     const handleCancel = useCallback(() => {
         setLocation(APP_LINKS.Profile, { replace: true })
@@ -264,11 +234,11 @@ export const SettingsProfile = ({
                             label="Bio"
                             multiline
                             minRows={4}
-                            value={formik.values.bio}
-                            onBlur={formik.handleBlur}
-                            onChange={formik.handleChange}
-                            error={formik.touched.bio && Boolean(formik.errors.bio)}
-                            helperText={formik.touched.bio && formik.errors.bio}
+                            value={bio}
+                            onBlur={onTranslationBlur}
+                            onChange={onTranslationChange}
+                            error={touchedBio && Boolean(errorBio)}
+                            helperText={touchedBio && errorBio}
                         />
                     </Grid>
                 </Grid>
@@ -277,7 +247,7 @@ export const SettingsProfile = ({
                 <GridSubmitButtons
                     disabledCancel={formik.isSubmitting}
                     disabledSubmit={formik.isSubmitting || !formik.isValid}
-                    errors={formik.errors}
+                    errors={errors}
                     isCreate={false}
                     onCancel={handleCancel}
                     onSetSubmitting={formik.setSubmitting}

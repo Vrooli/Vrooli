@@ -6,7 +6,7 @@ import { reportCreate, reportCreateVariables } from 'graphql/generated/reportCre
 import { reportCreateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { ReportDialogProps } from '../types';
-import { getUserLanguages, PubSub } from 'utils';
+import { getUserLanguages, PubSub, usePromptBeforeUnload } from 'utils';
 import { useEffect, useState } from 'react';
 import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
 import { DialogTitle, GridSubmitButtons, Selector } from 'components';
@@ -81,21 +81,7 @@ export const ReportDialog = ({
             })
         },
     });
-
-    /**
-     * On page leave, check if unsaved work. 
-     * If so, prompt for confirmation.
-     */
-    useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (formik.dirty) {
-                e.preventDefault()
-                e.returnValue = ''
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [formik.dirty]);
+    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
     const handleClose = () => {
         formik.resetForm();

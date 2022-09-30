@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { clearSearchHistory, PubSub, shapeProfileUpdate, TagHiddenShape, TagShape } from "utils";
+import { clearSearchHistory, PubSub, shapeProfileUpdate, TagHiddenShape, TagShape, usePromptBeforeUnload } from "utils";
 import { SettingsDisplayProps } from "../types";
 import { GridSubmitButtons, HelpButton, TagSelector } from "components";
 import { ThemeSwitch } from "components/inputs";
@@ -114,21 +114,7 @@ export const SettingsDisplay = ({
             })
         },
     });
-
-    /**
-     * On page leave, check if unsaved work. 
-     * If so, prompt for confirmation.
-     */
-    useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (formik.dirty) {
-                e.preventDefault()
-                e.returnValue = ''
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [formik.dirty]);
+    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
     const handleSave = useCallback(() => {
         formik.submitForm();
