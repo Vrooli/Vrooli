@@ -8,7 +8,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { organizationUpdateForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { organizationUpdateMutation } from "graphql/mutation";
-import { getLastUrlPart, ObjectType, OrganizationTranslationShape, PubSub, shapeOrganizationUpdate, TagShape, updateArray } from "utils";
+import { getLastUrlPart, ObjectType, OrganizationTranslationShape, PubSub, shapeOrganizationUpdate, TagShape, updateArray, usePromptBeforeUnload } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
@@ -122,6 +122,7 @@ export const OrganizationUpdate = ({
             })
         },
     });
+    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
     // Handle languages
     const [language, setLanguage] = useState<string>('');

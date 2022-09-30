@@ -4,7 +4,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { organizationCreate as validationSchema, organizationTranslationCreate } from '@shared/validation';
 import { useFormik } from 'formik';
 import { organizationCreateMutation } from "graphql/mutation";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, parseSearchParams, removeTranslation, shapeOrganizationCreate, TagShape } from "utils";
+import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, parseSearchParams, removeTranslation, shapeOrganizationCreate, TagShape, usePromptBeforeUnload } from "utils";
 import { OrganizationCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
@@ -84,6 +84,10 @@ export const OrganizationCreate = ({
             })
         },
     });
+    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
+    useEffect(() => {
+        console.log('isdirty', formik.dirty);
+    }, [formik.dirty]);
 
     // Current name and bio info, as well as errors
     const { bio, name, errorBio, errorName, touchedBio, touchedName, errors } = useMemo(() => {
@@ -128,21 +132,6 @@ export const OrganizationCreate = ({
         removeTranslation(formik, 'translationsCreate', language);
     }, [formik, languages]);
 
-    /**
-     * On page leave, check if unsaved work. 
-     * If so, prompt for confirmation.
-     * TODO make hook
-     */
-    useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (formik.dirty) {
-                e.preventDefault()
-                e.returnValue = ''
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [formik.dirty]);
 
     const isLoggedIn = useMemo(() => session?.isLoggedIn === true && uuidValidate(session?.id ?? ''), [session]);
 
