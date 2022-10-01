@@ -192,10 +192,11 @@ export const SettingsAuthentication = ({
                         />
                     </Grid>
                     <GridSubmitButtons
-                        disabledCancel={!Object.values(formik.values).some(v => v.length > 0) || formik.isSubmitting}
-                        disabledSubmit={!Object.values(formik.values).some(v => v.length > 0) || !formik.isValid || formik.isSubmitting}
+                        disabledCancel={!formik.dirty}
+                        disabledSubmit={!formik.dirty}
                         errors={formik.errors}
                         isCreate={false}
+                        loading={formik.isSubmitting}
                         onCancel={formik.resetForm}
                         onSetSubmitting={formik.setSubmitting}
                         onSubmit={formik.handleSubmit}

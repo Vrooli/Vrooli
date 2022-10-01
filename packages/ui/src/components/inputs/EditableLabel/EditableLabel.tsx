@@ -100,10 +100,9 @@ export const EditableLabel = ({
                 {/* Save and cancel buttons */}
                 <Grid container spacing={1} padding={1}>
                     <GridSubmitButtons
-                        disabledCancel={formik.isSubmitting}
-                        disabledSubmit={formik.isSubmitting || !formik.isValid}
                         errors={formik.errors}
                         isCreate={false}
+                        loading={formik.isSubmitting}
                         onCancel={cancel}
                         onSetSubmitting={formik.setSubmitting}
                         onSubmit={formik.handleSubmit}

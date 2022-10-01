@@ -1,8 +1,8 @@
-import { Box, Button, CircularProgress, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
+import { Box, Grid, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { CommentThreadItemProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
 import { TextLoading, UpvoteDownvote } from '../..';
-import { displayDate, getFormikErrorsWithTranslations, getTranslation, getTranslationData, handleTranslationBlur, handleTranslationChange, PubSub, usePromptBeforeUnload } from 'utils';
+import { displayDate, DUMMY_ID, getFormikErrorsWithTranslations, getTranslation, getTranslationData, handleTranslationBlur, handleTranslationChange, PubSub, usePromptBeforeUnload } from 'utils';
 import { MarkdownInput } from 'components/inputs';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
@@ -15,8 +15,9 @@ import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
 import { v4 as uuid } from 'uuid';
 import { OwnerLabel } from 'components/text';
 import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
-import { ReportButton, StarButton } from 'components/buttons';
+import { GridSubmitButtons, ReportButton, StarButton } from 'components/buttons';
 import { DeleteIcon, ReplyIcon } from '@shared/icons';
+import { validate as uuidValidate } from 'uuid';
 
 export function CommentThreadItem({
     data,
@@ -50,12 +51,12 @@ export function CommentThreadItem({
     const [addMutation, { loading: loadingAdd }] = useMutation<commentCreate, commentCreateVariables>(commentCreateMutation);
     const formik = useFormik({
         initialValues: {
-            id: uuid(),
+            id: DUMMY_ID,
             createdFor: objectType,
             forId: objectId,
             parentId: data?.id,
             translationsCreate: [{
-                id: uuid(),
+                id: DUMMY_ID,
                 language,
                 text: '',
             }],
@@ -67,11 +68,14 @@ export function CommentThreadItem({
             mutationWrapper({
                 mutation: addMutation,
                 input: {
-                    id: values.id,
+                    id: uuid(),
                     createdFor: values.createdFor,
                     forId: values.forId,
                     parentId: values.parentId,
-                    translationsCreate: values.translationsCreate,
+                    translationsCreate: values.translationsCreate.map(t => ({
+                        ...t,
+                        id: t.id === DUMMY_ID ? uuid() : t.id,
+                    })),
                 },
                 successCondition: (response) => response.data.commentCreate !== null,
                 onSuccess: (response) => {
@@ -112,18 +116,6 @@ export function CommentThreadItem({
         setReplyOpen(false)
     }, [formik]);
 
-    /**
-     * Handle add comment click
-     */
-    const handleReplySubmit = useCallback((event: any) => {
-        // Make sure submit does not propagate past the form
-        event.preventDefault();
-        // Make sure form is valid
-        if (!formik.isValid) return;
-        // Submit form
-        formik.submitForm();
-    }, [formik]);
-
     const [deleteMutation, { loading: loadingDelete }] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation);
     const handleDelete = useCallback(() => {
         if (!data) return;
@@ -154,6 +146,8 @@ export function CommentThreadItem({
             ]
         });
     }, [data, deleteMutation, handleCommentRemove]);
+
+    const isLoggedIn = useMemo(() => session?.isLoggedIn === true && uuidValidate(session?.id ?? ''), [session]);
 
     return (
         <>
@@ -277,30 +271,22 @@ export function CommentThreadItem({
                                     error={touchedText && Boolean(errorText)}
                                     helperText={touchedText ? errorText : null}
                                 />
-                                <Stack direction="row" sx={{
-                                    paddingTop: 1,
-                                    display: 'flex',
-                                    flexDirection: 'row-reverse',
+                                <Grid container spacing={1} sx={{
+                                    width: 'min(100%, 400px)',
+                                    marginLeft: 'auto',
+                                    marginTop: 1,
                                 }}>
-                                    {/* TODO */}
-                                    {/* <Tooltip title={formik.errors.comment ? formik.errors.comment as string : ''}>
-                                        <Button
-                                            color="secondary"
-                                            disabled={loadingAdd || formik.isSubmitting || !formik.isValid}
-                                            onClick={handleReplySubmit}
-                                            sx={{ marginLeft: 1 }}
-                                        >
-                                            {loadingAdd ? <CircularProgress size={24} /> : 'Add'}
-                                        </Button>
-                                    </Tooltip> */}
-                                    <Button
-                                        color="secondary"
-                                        disabled={loadingAdd || formik.isSubmitting}
-                                        onClick={closeReplyInput}
-                                    >
-                                        Cancel
-                                    </Button>
-                                </Stack>
+                                    <GridSubmitButtons
+                                        disabledCancel={formik.isSubmitting}
+                                        disabledSubmit={!isLoggedIn}
+                                        errors={errors}
+                                        isCreate={true}
+                                        loading={formik.isSubmitting || loadingAdd}
+                                        onCancel={closeReplyInput}
+                                        onSetSubmitting={formik.setSubmitting}
+                                        onSubmit={formik.submitForm}
+                                    />
+                                </Grid>
                             </Box>
                         </form>
                     )}

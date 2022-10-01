@@ -6,7 +6,7 @@ import { profileUpdateSchema as validationSchema, userTranslationUpdate } from '
 import { APP_LINKS } from '@shared/consts';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeProfileUpdate, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, DUMMY_ID, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeProfileUpdate, usePromptBeforeUnload } from "utils";
 import { SettingsProfileProps } from "../types";
 import { useLocation } from '@shared/route';
 import { LanguageInput } from "components/inputs";
@@ -16,7 +16,7 @@ import { findHandlesQuery } from "graphql/query";
 import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
 import { PubSub } from 'utils'
 import { RefreshIcon } from "@shared/icons";
-import { ProfileTranslation } from "types";
+import { v4 as uuid } from 'uuid';
 
 const helpText =
     `This page allows you to update your profile, including your name, handle, and bio.
@@ -74,7 +74,11 @@ export const SettingsProfile = ({
     const formik = useFormik({
         initialValues: {
             name: profile?.name ?? '',
-            translationsUpdate: (profile?.translations ?? []) as ProfileTranslation[],
+            translationsUpdate: profile?.translations ?? [{
+                id: DUMMY_ID,
+                language: getUserLanguages(session)[0],
+                bio: '',
+            }],
         },
         enableReinitialize: true,
         validationSchema,
@@ -91,7 +95,10 @@ export const SettingsProfile = ({
                 id: profile.id,
                 name: values.name,
                 handle: selectedHandle,
-                translations: values.translationsUpdate,
+                translations: values.translationsUpdate.map(t => ({
+                    ...t,
+                    id: t.id === DUMMY_ID ? uuid() : t.id,
+                })),
             })
             if (!input || Object.keys(input).length === 0) {
                 PubSub.get().publishSnack({ message: 'No changes made.' });
@@ -245,10 +252,9 @@ export const SettingsProfile = ({
             </Container>
             <Grid container spacing={2} p={3}>
                 <GridSubmitButtons
-                    disabledCancel={formik.isSubmitting}
-                    disabledSubmit={formik.isSubmitting || !formik.isValid}
                     errors={errors}
                     isCreate={false}
+                    loading={formik.isSubmitting}
                     onCancel={handleCancel}
                     onSetSubmitting={formik.setSubmitting}
                     onSubmit={formik.handleSubmit}

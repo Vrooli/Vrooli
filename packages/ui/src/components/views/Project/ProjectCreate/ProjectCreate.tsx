@@ -53,10 +53,6 @@ export const ProjectCreate = ({
         else if (Array.isArray(params.tags)) setTags(params.tags.map((t: any) => ({ tag: t })));
     }, []);
 
-    // Handle languages
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const [languages, setLanguages] = useState<string[]>([getUserLanguages(session)[0]]);
-
     // Handle create
     const [mutation] = useMutation<projectCreate, projectCreateVariables>(projectCreateMutation);
     const formik = useFormik({
@@ -64,7 +60,7 @@ export const ProjectCreate = ({
             id: uuid(),
             translationsCreate: [{
                 id: uuid(),
-                language,
+                language: getUserLanguages(session)[0],
                 name: '',
                 description: '',
             }],
@@ -90,7 +86,8 @@ export const ProjectCreate = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-    // Current name and description info, as well as errors
+    // Handle translations
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     const { description, name, errorDescription, errorName, touchedDescription, touchedName, errors } = useMemo(() => {
         const { error, touched, value } = getTranslationData(formik, 'translationsCreate', language);
         return {
@@ -103,6 +100,17 @@ export const ProjectCreate = ({
             errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', projectTranslationCreate),
         }
     }, [formik, language]);
+    const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);
+    const handleAddLanguage = useCallback((newLanguage: string) => {
+        setLanguage(newLanguage);
+        addEmptyTranslation(formik, 'translationsCreate', newLanguage);
+    }, [formik]);
+    const handleLanguageDelete = useCallback((language: string) => {
+        const newLanguages = [...languages.filter(l => l !== language)]
+        if (newLanguages.length === 0) return;
+        setLanguage(newLanguages[0]);
+        removeTranslation(formik, 'translationsCreate', language);
+    }, [formik, languages]);
     // Handles blur on translation fields
     const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
         handleTranslationBlur(formik, 'translationsCreate', e, language)
@@ -111,21 +119,6 @@ export const ProjectCreate = ({
     const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
         handleTranslationChange(formik, 'translationsCreate', e, language)
     }, [formik, language]);
-
-    // Handle languages
-    const handleLanguageSelect = useCallback((newLanguage: string) => { setLanguage(newLanguage) }, []);
-    const handleAddLanguage = useCallback((newLanguage: string) => {
-        setLanguages([...languages, newLanguage]);
-        handleLanguageSelect(newLanguage);
-        addEmptyTranslation(formik, 'translationsCreate', newLanguage);
-    }, [formik, handleLanguageSelect, languages]);
-    const handleLanguageDelete = useCallback((language: string) => {
-        const newLanguages = [...languages.filter(l => l !== language)]
-        if (newLanguages.length === 0) return;
-        setLanguage(newLanguages[0]);
-        setLanguages(newLanguages);
-        removeTranslation(formik, 'translationsCreate', language);
-    }, [formik, languages]);
 
     const isLoggedIn = useMemo(() => session?.isLoggedIn === true && uuidValidate(session?.id ?? ''), [session]);
 
@@ -155,7 +148,7 @@ export const ProjectCreate = ({
                         currentLanguage={language}
                         handleAdd={handleAddLanguage}
                         handleDelete={handleLanguageDelete}
-                        handleCurrent={handleLanguageSelect}
+                        handleCurrent={setLanguage}
                         selectedLanguages={languages}
                         session={session}
                         zIndex={zIndex}
@@ -209,10 +202,10 @@ export const ProjectCreate = ({
                     />
                 </Grid>
                 <GridSubmitButtons
-                    disabledCancel={formik.isSubmitting}
-                    disabledSubmit={Boolean(!isLoggedIn || formik.isSubmitting)}
+                    disabledSubmit={!isLoggedIn}
                     errors={errors}
                     isCreate={true}
+                    loading={formik.isSubmitting}
                     onCancel={onCancel}
                     onSetSubmitting={formik.setSubmitting}
                     onSubmit={formik.handleSubmit}

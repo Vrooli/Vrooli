@@ -166,10 +166,9 @@ export const ReportDialog = ({
                         {/* Action buttons */}
                         <Grid container spacing={1}>
                             <GridSubmitButtons
-                                disabledCancel={formik.isSubmitting}
-                                disabledSubmit={formik.isSubmitting || !formik.isValid}
                                 errors={formik.errors}
                                 isCreate={true}
+                                loading={formik.isSubmitting}
                                 onCancel={onClose}
                                 onSetSubmitting={formik.setSubmitting}
                                 onSubmit={formik.handleSubmit}

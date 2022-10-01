@@ -1,7 +1,7 @@
 /**
  * Contains new comment input, and list of Reddit-style comments.
  */
-import { Box, Button, CircularProgress, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, Grid, Stack, Typography, useTheme } from '@mui/material';
 import { CommentContainerProps } from '../types';
 import { commentCreate as validationSchema, commentTranslationCreate } from '@shared/validation';
 import { useLazyQuery, useMutation } from '@apollo/client';
@@ -10,8 +10,8 @@ import { MarkdownInput } from 'components/inputs';
 import { useFormik } from 'formik';
 import { commentCreateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils';
-import { addSearchParams, getFormikErrorsWithTranslations, getTranslationData, handleTranslationBlur, handleTranslationChange, PubSub, removeSearchParams, searchTypeToParams, usePromptBeforeUnload, useReactSearch } from 'utils';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { addSearchParams, DUMMY_ID, getFormikErrorsWithTranslations, getTranslationData, handleTranslationBlur, handleTranslationChange, PubSub, removeSearchParams, searchTypeToParams, usePromptBeforeUnload, useReactSearch } from 'utils';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TimeFrame } from 'graphql/generated/globalTypes';
 import { comments, commentsVariables } from 'graphql/generated/comments';
 import { useLocation } from '@shared/route';
@@ -20,6 +20,7 @@ import { Comment, CommentThread as ThreadType } from 'types';
 import { CommentThread } from 'components/lists/comment';
 import { validate as uuidValidate } from 'uuid';
 import { v4 as uuid } from 'uuid';
+import { GridSubmitButtons } from 'components/buttons';
 
 const { advancedSearchSchema, defaultSortBy } = searchTypeToParams.Comment;
 
@@ -182,11 +183,11 @@ export function CommentContainer({
     const [addMutation, { loading: loadingAdd }] = useMutation<commentCreate, commentCreateVariables>(commentCreateMutation);
     const formik = useFormik({
         initialValues: {
-            id: uuid(),
+            id: DUMMY_ID,
             createdFor: objectType,
             forId: objectId,
             translationsCreate: [{
-                id: uuid(),
+                id: DUMMY_ID,
                 language,
                 text: '',
             }],
@@ -196,10 +197,13 @@ export function CommentContainer({
             mutationWrapper({
                 mutation: addMutation,
                 input: {
-                    id: values.id,
+                    id: uuid(),
                     createdFor: values.createdFor,
                     forId: values.forId,
-                    translationsCreate: values.translationsCreate,
+                    translationsCreate: values.translationsCreate.map(t => ({
+                        ...t,
+                        id: t.id === DUMMY_ID ? uuid() : t.id,
+                    })),
                 },
                 successCondition: (response) => response.data.commentCreate !== null,
                 onSuccess: (response) => {
@@ -233,17 +237,7 @@ export function CommentContainer({
         handleTranslationChange(formik, 'translationsCreate', e, language)
     }, [formik, language]);
 
-    /**
-     * Handle add comment click
-     */
-    const handleAddComment = useCallback((event: any) => {
-        // Make sure submit does not propagate past the form
-        event.preventDefault();
-        // Make sure form is valid
-        if (!formik.isValid) return;
-        // Submit form
-        formik.submitForm();
-    }, [formik]);
+    const isLoggedIn = useMemo(() => session?.isLoggedIn === true && uuidValidate(session?.id ?? ''), [session]);
 
     return (
         <Box
@@ -264,26 +258,25 @@ export function CommentContainer({
                         placeholder="Please be nice to each other."
                         value={text}
                         minRows={3}
-                        onChange={(newText: string) => onTranslationChange({ target: { name: 'text', value: newText }})}
+                        onChange={(newText: string) => onTranslationChange({ target: { name: 'text', value: newText } })}
                         error={touchedText && Boolean(errorText)}
                         helperText={touchedText ? errorText : null}
                     />
-                    <Box sx={{
+                    <Grid container spacing={1} sx={{
+                        width: 'min(100%, 400px)',
+                        marginLeft: 'auto',
                         marginTop: 1,
-                        display: 'flex',
-                        flexDirection: 'row-reverse',
                     }}>
-                        {/* TODO */}
-                        {/* <Tooltip title={formik.errors.comment ? formik.errors.comment as string : ''}>
-                            <Button
-                                color="secondary"
-                                disabled={loadingAdd || formik.isSubmitting || !formik.isValid}
-                                onClick={handleAddComment}
-                            >
-                                {loadingAdd ? <CircularProgress size={24} /> : 'Add'}
-                            </Button>
-                        </Tooltip> */}
-                    </Box>
+                        <GridSubmitButtons
+                            disabledSubmit={!isLoggedIn}
+                            errors={errors}
+                            isCreate={true}
+                            loading={formik.isSubmitting || loadingAdd}
+                            onCancel={formik.resetForm}
+                            onSetSubmitting={formik.setSubmitting}
+                            onSubmit={formik.submitForm}
+                        />
+                    </Grid>
                 </Box>
             </form>
             {/* Comments list */}

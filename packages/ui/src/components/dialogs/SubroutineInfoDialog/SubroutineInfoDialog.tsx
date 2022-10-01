@@ -15,12 +15,12 @@ import {
     useTheme,
 } from '@mui/material';
 import { SubroutineInfoDialogProps } from '../types';
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, handleTranslationBlur, handleTranslationChange, InputShape, ObjectType, OutputShape, removeTranslation, TagShape, updateArray, usePromptBeforeUnload } from 'utils';
+import { addEmptyTranslation, DUMMY_ID, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputShape, ObjectType, OutputShape, removeTranslation, TagShape, updateArray, usePromptBeforeUnload } from 'utils';
 import { routineTranslationUpdate, routineUpdate as validationSchema } from '@shared/validation';
 import { ResourceListUsedFor } from '@shared/consts';
 import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, OwnerLabel, QuantityBox, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession, VersionInput } from 'components';
 import { useFormik } from 'formik';
-import { NodeDataRoutineListItem, ResourceList, RoutineTranslation } from 'types';
+import { NodeDataRoutineListItem, ResourceList } from 'types';
 import { v4 as uuid } from 'uuid';
 import { CloseIcon, OpenInNewIcon } from '@shared/icons';
 import { RelationshipItemRoutine, RelationshipsObject } from 'components/inputs/types';
@@ -110,7 +110,13 @@ export const SubroutineInfoDialog = ({
             index: (subroutine?.index ?? 0) + 1,
             isComplete: subroutine?.routine?.isComplete ?? true,
             isInternal: subroutine?.routine?.isInternal ?? false,
-            translationsUpdate: (subroutine?.routine?.translations ?? []) as RoutineTranslation[],
+            translationsUpdate: subroutine?.routine?.translations ?? [{
+                id: DUMMY_ID,
+                language: getUserLanguages(session)[0],
+                description: '',
+                instructions: '',
+                title: '',
+            }],
             version: subroutine?.routine?.version ?? '',
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
@@ -141,7 +147,10 @@ export const SubroutineInfoDialog = ({
                     outputs: outputsList,
                     ...resourceListUpdate,
                     tags,
-                    translations: values.translationsUpdate,
+                    translations: values.translationsUpdate.map(t => ({
+                        ...t,
+                        id: t.id === DUMMY_ID ? uuid() : t.id,
+                    })),
                 }
             } as any);
         },
@@ -451,10 +460,9 @@ export const SubroutineInfoDialog = ({
                     {
                         canEdit && <Grid container spacing={1}>
                             <GridSubmitButtons
-                                disabledCancel={formik.isSubmitting}
-                                disabledSubmit={formik.isSubmitting || !formik.isValid}
                                 errors={errors}
                                 isCreate={false}
+                                loading={formik.isSubmitting}
                                 onCancel={handleCancel}
                                 onSetSubmitting={formik.setSubmitting}
                                 onSubmit={formik.handleSubmit}

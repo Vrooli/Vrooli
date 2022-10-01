@@ -129,10 +129,9 @@ export const EndNodeDialog = ({
                         </Tooltip>
                     </Grid>
                     {isEditing && <GridSubmitButtons
-                        disabledCancel={formik.isSubmitting}
-                        disabledSubmit={formik.isSubmitting || !formik.isValid}
                         errors={formik.errors}
                         isCreate={false}
+                        loading={formik.isSubmitting}
                         onCancel={onClose}
                         onSetSubmitting={formik.setSubmitting}
                         onSubmit={formik.handleSubmit}

@@ -9,9 +9,9 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { standardTranslationUpdate, standardUpdate as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, removeTranslation, shapeStandardUpdate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, DUMMY_ID, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, removeTranslation, shapeStandardUpdate, TagShape, usePromptBeforeUnload } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
-import { ResourceList, StandardTranslation } from "types";
+import { ResourceList } from "types";
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 import { standardUpdate, standardUpdateVariables } from "graphql/generated/standardUpdate";
 import { RelationshipsObject } from "components/inputs/types";
@@ -25,9 +25,7 @@ export const StandardUpdate = ({
     // Fetch existing data
     const id = useMemo(() => getLastUrlPart(), []);
     const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery);
-    useEffect(() => {
-        if (uuidValidate(id)) getData({ variables: { input: { id } } });
-    }, [getData, id])
+    useEffect(() => { uuidValidate(id) && getData({ variables: { input: { id } } }) }, [getData, id])
     const standard = useMemo(() => data?.standard, [data]);
 
     const [relationships, setRelationships] = useState<RelationshipsObject>({
@@ -67,15 +65,16 @@ export const StandardUpdate = ({
         setTags(standard?.tags ?? []);
     }, [standard]);
 
-    // Handle languages
-    const [language, setLanguage] = useState<string>('');
-    const [languages, setLanguages] = useState<string[]>([]);
-
     // Handle update
     const [mutation] = useMutation<standardUpdate, standardUpdateVariables>(standardUpdateMutation);
     const formik = useFormik({
         initialValues: {
-            translationsUpdate: (standard?.translations ?? []) as StandardTranslation[],
+            translationsUpdate: standard?.translations ?? [{
+                id: DUMMY_ID,
+                language: getUserLanguages(session)[0],
+                description: '',
+                jsonVariable: null, //TODO
+            }],
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
@@ -91,7 +90,10 @@ export const StandardUpdate = ({
                     id: standard.id,
                     resourceLists: [resourceList],
                     tags: tags,
-                    translations: values.translationsUpdate,
+                    translations: values.translationsUpdate.map(t => ({
+                        ...t,
+                        id: t.id === DUMMY_ID ? uuid() : t.id,
+                    })),
                 }),
                 onSuccess: (response) => { onUpdated(response.data.standardUpdate) },
                 onError: () => { formik.setSubmitting(false) },
@@ -100,7 +102,8 @@ export const StandardUpdate = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-    // Current description info, as well as errors
+    // Handle translations
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     const { description, errorDescription, touchedDescription, errors } = useMemo(() => {
         const { error, touched, value } = getTranslationData(formik, 'translationsUpdate', language);
         return {
@@ -110,6 +113,17 @@ export const StandardUpdate = ({
             errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', standardTranslationUpdate),
         }
     }, [formik, language]);
+    const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
+    const handleAddLanguage = useCallback((newLanguage: string) => {
+        setLanguage(newLanguage);
+        addEmptyTranslation(formik, 'translationsUpdate', newLanguage);
+    }, [formik]);
+    const handleLanguageDelete = useCallback((language: string) => {
+        const newLanguages = [...languages.filter(l => l !== language)]
+        if (newLanguages.length === 0) return;
+        setLanguage(newLanguages[0]);
+        removeTranslation(formik, 'translationsUpdate', language);
+    }, [formik, languages]);
     // Handles blur on translation fields
     const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
         handleTranslationBlur(formik, 'translationsUpdate', e, language)
@@ -118,27 +132,6 @@ export const StandardUpdate = ({
     const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
         handleTranslationChange(formik, 'translationsUpdate', e, language)
     }, [formik, language]);
-
-    // Handle languages
-    useEffect(() => {
-        if (languages.length === 0 && formik.values.translationsUpdate.length > 0) {
-            setLanguage(formik.values.translationsUpdate[0].language);
-            setLanguages(formik.values.translationsUpdate.map(t => t.language));
-        }
-    }, [formik, languages, setLanguage, setLanguages])
-    const handleLanguageSelect = useCallback((newLanguage: string) => { setLanguage(newLanguage) }, []);
-    const handleAddLanguage = useCallback((newLanguage: string) => {
-        setLanguages([...languages, newLanguage]);
-        handleLanguageSelect(newLanguage);
-        addEmptyTranslation(formik, 'translationsUpdate', newLanguage);
-    }, [formik, handleLanguageSelect, languages]);
-    const handleLanguageDelete = useCallback((language: string) => {
-        const newLanguages = [...languages.filter(l => l !== language)]
-        if (newLanguages.length === 0) return;
-        setLanguage(newLanguages[0]);
-        setLanguages(newLanguages);
-        removeTranslation(formik, 'translationsUpdate', language);
-    }, [formik, languages]);
 
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
@@ -159,7 +152,7 @@ export const StandardUpdate = ({
                     currentLanguage={language}
                     handleAdd={handleAddLanguage}
                     handleDelete={handleLanguageDelete}
-                    handleCurrent={handleLanguageSelect}
+                    handleCurrent={setLanguage}
                     selectedLanguages={languages}
                     session={session}
                     zIndex={zIndex}
@@ -201,16 +194,15 @@ export const StandardUpdate = ({
                 />
             </Grid>
             <GridSubmitButtons
-                disabledCancel={formik.isSubmitting}
-                disabledSubmit={formik.isSubmitting || !formik.isValid}
                 errors={errors}
                 isCreate={false}
+                loading={formik.isSubmitting}
                 onCancel={onCancel}
                 onSetSubmitting={formik.setSubmitting}
                 onSubmit={formik.handleSubmit}
             />
         </Grid>
-    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, languages, description, onTranslationBlur, onTranslationChange, touchedDescription, errorDescription, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, formik.isSubmitting, formik.isValid, formik.setSubmitting, formik.handleSubmit, errors, onCancel]);
+    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, languages, description, onTranslationBlur, onTranslationChange, touchedDescription, errorDescription, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, formik.isSubmitting, formik.setSubmitting, formik.handleSubmit, errors, onCancel]);
 
 
     return (

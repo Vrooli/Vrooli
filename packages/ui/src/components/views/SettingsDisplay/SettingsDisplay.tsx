@@ -178,10 +178,9 @@ export const SettingsDisplay = ({
             </Box>
             <Grid container spacing={2} p={2}>
                 <GridSubmitButtons
-                    disabledCancel={formik.isSubmitting}
-                    disabledSubmit={formik.isSubmitting || !formik.isValid}
                     errors={formik.errors}
                     isCreate={false}
+                    loading={formik.isSubmitting}
                     onCancel={handleCancel}
                     onSetSubmitting={formik.setSubmitting}
                     onSubmit={handleSave}

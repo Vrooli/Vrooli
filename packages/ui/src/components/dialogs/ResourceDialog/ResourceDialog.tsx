@@ -5,13 +5,13 @@ import { useFormik } from 'formik';
 import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { ResourceDialogProps } from '../types';
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getObjectSlug, getObjectUrlBase, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResourceCreate, shapeResourceUpdate, usePromptBeforeUnload } from 'utils';
+import { addEmptyTranslation, DUMMY_ID, getFormikErrorsWithTranslations, getObjectSlug, getObjectUrlBase, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResourceCreate, shapeResourceUpdate, usePromptBeforeUnload } from 'utils';
 import { resourceCreate, resourceCreateVariables } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { resourceUpdate, resourceUpdateVariables } from 'graphql/generated/resourceUpdate';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AutocompleteSearchBar, LanguageInput } from 'components/inputs';
-import { AutocompleteOption, Resource, ResourceTranslation } from 'types';
+import { AutocompleteOption, Resource } from 'types';
 import { v4 as uuid } from 'uuid';
 import { DialogTitle, getResourceIcon, GridSubmitButtons } from 'components';
 import { SearchIcon } from '@shared/icons';
@@ -67,25 +67,24 @@ export const ResourceDialog = ({
     listId,
     zIndex,
 }: ResourceDialogProps) => {
+    console.log('rendering resource dialog')
     const { palette } = useTheme();
 
     const [addMutation, { loading: addLoading }] = useMutation<resourceCreate, resourceCreateVariables>(resourceCreateMutation);
     const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate, resourceUpdateVariables>(resourceUpdateMutation);
 
-    // Handle languages
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const [languages, setLanguages] = useState<string[]>([getUserLanguages(session)[0]]);
-
     const formik = useFormik({
         initialValues: {
+            id: DUMMY_ID,
             link: partialData?.link ?? '',
+            listId,
             usedFor: partialData?.usedFor ?? ResourceUsedFor.Context,
-            translationsUpdate: (partialData?.translations ?? [{
-                id: uuid(),
-                language,
+            translationsUpdate: partialData?.translations ?? [{
+                id: DUMMY_ID,
+                language: getUserLanguages(session)[0],
                 description: '',
                 title: '',
-            }]) as ResourceTranslation[],
+            }],
         },
         enableReinitialize: true,
         validationSchema,
@@ -97,7 +96,10 @@ export const ResourceDialog = ({
                 listId,
                 link: values.link,
                 usedFor: values.usedFor,
-                translations: values.translationsUpdate,
+                translations: values.translationsUpdate.map(t => ({
+                    ...t,
+                    id: t.id === DUMMY_ID ? uuid() : t.id,
+                })),
             };
             if (mutate) {
                 const onSuccess = (response) => {
@@ -139,29 +141,31 @@ export const ResourceDialog = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-    // Current description and title info, as well as errors
+    // Handle translations
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     const { description, title, errorDescription, errorTitle, touchedDescription, touchedTitle, errors } = useMemo(() => {
-        console.log('resourcedialog gettransdata', language)
-        // const { error, touched, value } = getTranslationData(formik, 'translationsUpdate', language);
-        // return {
-        //     description: value?.description ?? '',
-        //     title: value?.title ?? '',
-        //     errorDescription: error?.description ?? '',
-        //     errorTitle: error?.title ?? '',
-        //     touchedDescription: touched?.description ?? false,
-        //     touchedTitle: touched?.title ?? false,
-        //     errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', resourceTranslationUpdate),
-        // }
+        const { error, touched, value } = getTranslationData(formik, 'translationsUpdate', language);
         return {
-            description: '',
-            title: '',
-            errorDescription: '',
-            errorTitle: '',
-            touchedDescription: false,
-            touchedTitle: false,
+            description: value?.description ?? '',
+            title: value?.title ?? '',
+            errorDescription: error?.description ?? '',
+            errorTitle: error?.title ?? '',
+            touchedDescription: touched?.description ?? false,
+            touchedTitle: touched?.title ?? false,
             errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', resourceTranslationUpdate),
         }
-    }, [language]);
+    }, [formik, language]);
+    const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
+    const handleAddLanguage = useCallback((newLanguage: string) => {
+        setLanguage(newLanguage);
+        addEmptyTranslation(formik, 'translationsUpdate', newLanguage);
+    }, [formik]);
+    const handleLanguageDelete = useCallback((language: string) => {
+        const newLanguages = [...languages.filter(l => l !== language)]
+        if (newLanguages.length === 0) return;
+        setLanguage(newLanguages[0]);
+        removeTranslation(formik, 'translationsUpdate', language);
+    }, [formik, languages]);
     // Handles blur on translation fields
     const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
         console.log('resource dialog trans blur', e.target)
@@ -172,27 +176,6 @@ export const ResourceDialog = ({
         console.log('resource dialog trans change', e.target)
         handleTranslationChange(formik, 'translationsUpdate', e, language)
     }, [formik, language]);
-
-    // Handle languages
-    useEffect(() => {
-        if (languages.length === 0 && formik.values.translationsUpdate.length > 0) {
-            setLanguage(formik.values.translationsUpdate[0].language);
-            setLanguages(formik.values.translationsUpdate.map(t => t.language));
-        }
-    }, [formik, languages, setLanguage, setLanguages])
-    const handleLanguageSelect = useCallback((newLanguage: string) => { setLanguage(newLanguage) }, []);
-    const handleAddLanguage = useCallback((newLanguage: string) => {
-        setLanguages([...languages, newLanguage]);
-        handleLanguageSelect(newLanguage);
-        addEmptyTranslation(formik, 'translationsUpdate', newLanguage);
-    }, [formik, handleLanguageSelect, languages]);
-    const handleLanguageDelete = useCallback((language: string) => {
-        const newLanguages = [...languages.filter(l => l !== language)]
-        if (newLanguages.length === 0) return;
-        setLanguage(newLanguages[0]);
-        setLanguages(newLanguages);
-        removeTranslation(formik, 'translationsUpdate', language);
-    }, [formik, languages]);
 
     const handleClose = () => {
         console.log('resourcedialog resetting form')
@@ -318,7 +301,7 @@ export const ResourceDialog = ({
                                 currentLanguage={language}
                                 handleAdd={handleAddLanguage}
                                 handleDelete={handleLanguageDelete}
-                                handleCurrent={handleLanguageSelect}
+                                handleCurrent={setLanguage}
                                 selectedLanguages={languages}
                                 session={session}
                                 zIndex={zIndex + 1}
@@ -412,10 +395,9 @@ export const ResourceDialog = ({
                             {/* Action buttons */}
                             <Grid container spacing={1}>
                                 <GridSubmitButtons
-                                    disabledCancel={formik.isSubmitting || addLoading || updateLoading}
-                                    disabledSubmit={formik.isSubmitting || !formik.isValid || addLoading || updateLoading}
                                     errors={errors}
                                     isCreate={index < 0}
+                                    loading={formik.isSubmitting || addLoading || updateLoading}
                                     onCancel={handleClose}
                                     onSetSubmitting={formik.setSubmitting}
                                     onSubmit={formik.handleSubmit}
