@@ -1,9 +1,9 @@
-import { idArray, id, language, bio, name, handle, maxStringErrorMessage, requiredErrorMessage } from './base';
+import { idArray, id, language, bio, name, handle, maxStringErrorMessage, requiredErrorMessage, blankToUndefined, email } from './base';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
 import { tagHiddensCreate, tagHiddensUpdate } from './tagHidden';
 
-export const theme = yup.string().max(128, maxStringErrorMessage);
+export const theme = yup.string().transform(blankToUndefined).max(128, maxStringErrorMessage);
 
 export const MIN_PASSWORD_LENGTH = 8;
 export const MAX_PASSWORD_LENGTH = 50;
@@ -14,7 +14,7 @@ export const PASSWORD_REGEX_ERROR = "Must be at least 8 characters, with at leas
 export const passwordSchema = yup.string().min(MIN_PASSWORD_LENGTH).max(MAX_PASSWORD_LENGTH).matches(PASSWORD_REGEX, PASSWORD_REGEX_ERROR);
 
 export const emailSchema = yup.object().shape({
-    emailAddress: yup.string().max(128, maxStringErrorMessage).required(requiredErrorMessage),
+    emailAddress: email.required(requiredErrorMessage),
     receivesAccountUpdates: yup.bool().default(true).notRequired().default(undefined),
     receivesBusinessUpdates: yup.bool().default(true).notRequired().default(undefined),
     userId: id.required(requiredErrorMessage),
@@ -24,10 +24,10 @@ export const emailSchema = yup.object().shape({
 // Schema for creating a new account
 export const emailSignUpSchema = yup.object().shape({
     name: name.required(requiredErrorMessage),
-    email: yup.string().email().required(requiredErrorMessage),
+    email: email.required(requiredErrorMessage),
     marketingEmails: yup.boolean().required(requiredErrorMessage),
     password: passwordSchema.required(requiredErrorMessage),
-    passwordConfirmation: yup.string().oneOf([yup.ref('password'), null], 'Passwords must match')
+    passwordConfirmation: yup.string().transform(blankToUndefined).oneOf([yup.ref('password'), null], 'Passwords must match')
 });
 
 export const userTranslationCreate = yup.object().shape({
@@ -55,13 +55,13 @@ export const profileUpdateSchema = yup.object().shape({
     hiddenTagsUpdate: tagHiddensUpdate.notRequired().default(undefined),
     // Don't apply validation to current password. If you change password requirements, users would be unable to change their password. 
     // Also only require current password when changing new password
-    currentPassword: yup.string().max(128, maxStringErrorMessage).when('newPassword', {
+    currentPassword: yup.string().transform(blankToUndefined).max(128, maxStringErrorMessage).when('newPassword', {
         is: (newPassword: string | undefined) => !!newPassword,
-        then: yup.string().required(requiredErrorMessage),
-        otherwise: yup.string().notRequired(),
+        then: yup.string().transform(blankToUndefined).required(requiredErrorMessage),
+        otherwise: yup.string().transform(blankToUndefined).notRequired(),
     }),
     newPassword: passwordSchema.notRequired().default(undefined),
-    newPasswordConfirmation: yup.string().oneOf([yup.ref('newPassword'), null], 'Passwords must match'),
+    newPasswordConfirmation: yup.string().transform(blankToUndefined).oneOf([yup.ref('newPassword'), null], 'Passwords must match'),
     translationsDelete: idArray.notRequired().default(undefined),
     translationsCreate: userTranslationsCreate.notRequired().default(undefined),
     translationsUpdate: userTranslationsUpdate.notRequired().default(undefined),
@@ -71,24 +71,24 @@ export const profileUpdateSchema = yup.object().shape({
  * Schema for traditional email/password log in FORM.
  */
 export const emailLogInForm = yup.object().shape({
-    email: yup.string().email().required(requiredErrorMessage),
-    password: yup.string().max(128, maxStringErrorMessage).required(requiredErrorMessage),
+    email: email.required(requiredErrorMessage),
+    password: yup.string().transform(blankToUndefined).max(128, maxStringErrorMessage).required(requiredErrorMessage),
 })
 
 /**
  * Schema for traditional email/password log in.
  */
 export const emailLogInSchema = yup.object().shape({
-    email: yup.string().email().notRequired().default(undefined),
-    password: yup.string().max(128, maxStringErrorMessage).notRequired().default(undefined),
-    verificationCode: yup.string().max(128, maxStringErrorMessage).notRequired().default(undefined),
+    email: email.notRequired().default(undefined),
+    password: yup.string().transform(blankToUndefined).max(128, maxStringErrorMessage).notRequired().default(undefined),
+    verificationCode: yup.string().transform(blankToUndefined).max(128, maxStringErrorMessage).notRequired().default(undefined),
 })
 
 /**
  * Schema for sending a password reset request
  */
 export const emailRequestPasswordChangeSchema = yup.object().shape({
-    email: yup.string().email().required(requiredErrorMessage)
+    email: email.required(requiredErrorMessage)
 })
 
 /**

@@ -1,4 +1,4 @@
-import { description, idArray, id, name, title, language, tagArray, helpText, maxStringErrorMessage, requiredErrorMessage, version } from './base';
+import { description, idArray, id, name, title, language, tagArray, helpText, maxStringErrorMessage, requiredErrorMessage, version, blankToUndefined } from './base';
 import { nodeLinksCreate, nodeLinksUpdate, nodesCreate, nodesUpdate } from './node';
 import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 import { standardCreate } from './standard';
@@ -10,7 +10,7 @@ const isComplete = yup.boolean()
 const isInternal = yup.boolean()
 const isPrivate = yup.boolean()
 const isRequired = yup.boolean()
-const instructions = yup.string().max(8192, maxStringErrorMessage)
+const instructions = yup.string().transform(blankToUndefined).max(8192, maxStringErrorMessage)
 
 export const inputTranslationCreate = yup.object().shape({
     id: id.required(requiredErrorMessage),

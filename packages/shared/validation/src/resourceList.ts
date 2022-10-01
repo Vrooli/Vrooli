@@ -1,10 +1,10 @@
-import { bio, description, id, idArray, language, minNumberErrorMessage, requiredErrorMessage, title } from './base';
+import { bio, blankToUndefined, description, id, idArray, language, minNumberErrorMessage, requiredErrorMessage, title } from './base';
 import { resourcesCreate, resourcesUpdate } from './resource';
 import * as yup from 'yup';
 import { ResourceListUsedFor } from '@shared/consts';
 
 const index = yup.number().integer().min(0, minNumberErrorMessage)
-const usedFor = yup.string().oneOf(Object.values(ResourceListUsedFor))
+const usedFor = yup.string().transform(blankToUndefined).oneOf(Object.values(ResourceListUsedFor))
 
 export const resourceListTranslationCreate = yup.object().shape({
     id: id.required(requiredErrorMessage),

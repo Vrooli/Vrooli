@@ -1,12 +1,12 @@
-import { description, idArray, id, name, version, language, tagArray, maxStringErrorMessage, requiredErrorMessage } from './base';
+import { description, idArray, id, name, version, language, tagArray, maxStringErrorMessage, requiredErrorMessage, blankToUndefined } from './base';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
 import { InputType } from '@shared/consts';
 import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 
-const standardDefault = yup.string().max(8192, maxStringErrorMessage);
-const stringifiedJson = yup.string().max(8192, maxStringErrorMessage);
-const type = yup.string().oneOf(Object.values(InputType))
+const standardDefault = yup.string().transform(blankToUndefined).max(8192, maxStringErrorMessage);
+const stringifiedJson = yup.string().transform(blankToUndefined).max(8192, maxStringErrorMessage);
+const type = yup.string().transform(blankToUndefined).oneOf(Object.values(InputType))
 const isPrivate = yup.boolean();
 
 export const standardTranslationCreate = yup.object().shape({

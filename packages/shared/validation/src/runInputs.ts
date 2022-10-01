@@ -1,7 +1,7 @@
-import { id, maxStringErrorMessage, requiredErrorMessage } from './base';
+import { blankToUndefined, id, maxStringErrorMessage, requiredErrorMessage } from './base';
 import * as yup from 'yup';
 
-const data = yup.string().max(8192, maxStringErrorMessage);
+const data = yup.string().transform(blankToUndefined).max(8192, maxStringErrorMessage);
 
 export const runInputCreate = yup.object().shape({
     id: id.required(requiredErrorMessage),

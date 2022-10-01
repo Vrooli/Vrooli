@@ -1,27 +1,27 @@
 /**
  * Validation schemas for all standards/inputs/outputs
  */
-import { requiredErrorMessage } from './base';
+import { blankToUndefined, requiredErrorMessage } from './base';
 import * as yup from 'yup';
 
 const required = yup.boolean();
 
 export const inputYup = yup.object().shape({
     required: required.notRequired().default(undefined),
-    type: yup.string().oneOf(['string']).default('string'),
+    type: yup.string().transform(blankToUndefined).oneOf(['string']).default('string'),
     // checks: 
 })
 
 export const textFieldStandardInputForm = yup.object().shape({
-    defaultValue: yup.string().notRequired().default(undefined),
-    autoComplete: yup.string().notRequired().default(undefined),
+    defaultValue: yup.string().transform(blankToUndefined).notRequired().default(undefined),
+    autoComplete: yup.string().transform(blankToUndefined).notRequired().default(undefined),
     maxRows: yup.number().notRequired().default(undefined),
     yup: inputYup.notRequired().default(undefined),
 })
 
 export const jsonStandardInputForm = yup.object().shape({
-    format: yup.string().required(requiredErrorMessage),
-    defaultValue: yup.string().notRequired().default(undefined),
+    format: yup.string().transform(blankToUndefined).required(requiredErrorMessage),
+    defaultValue: yup.string().transform(blankToUndefined).notRequired().default(undefined),
     // Object with keys of the format: { label?: string, helperText?: string, yup?: inputYup, defaultValue?: string | object }
     variables: yup.object().test(
         'variables',
@@ -66,7 +66,7 @@ export const radioStandardInputForm = yup.object().shape({
     // Array of objects with keys of the format: { label: string, value: any }
     options: yup.array().of(
         yup.object().shape({
-            label: yup.string().required(requiredErrorMessage),
+            label: yup.string().transform(blankToUndefined).required(requiredErrorMessage),
             value: yup.mixed().required(requiredErrorMessage),
         })
     ).notRequired().default(undefined),
@@ -81,7 +81,7 @@ export const checkboxStandardInputForm = yup.object().shape({
     // Array of { label: string }
     options: yup.array().of(
         yup.object().shape({
-            label: yup.string().required(requiredErrorMessage),
+            label: yup.string().transform(blankToUndefined).required(requiredErrorMessage),
         })
     ).notRequired().default(undefined),
     // Display as row or column
@@ -94,6 +94,6 @@ export const switchStandardInputForm = yup.object().shape({
 })
 
 export const markdownStandardInputForm = yup.object().shape({
-    defaultValue: yup.string().notRequired().default(undefined),
+    defaultValue: yup.string().transform(blankToUndefined).notRequired().default(undefined),
     minRows: yup.number().notRequired().default(undefined),
 })

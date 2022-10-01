@@ -104,15 +104,26 @@ export const minVersionTest = (minVersion: string): [string, string, (value: str
     ]
 }
 
-export const id = yup.string().max(256, maxStringErrorMessage)
-export const bio = yup.string().max(2048, maxStringErrorMessage)
-export const description = yup.string().max(2048, maxStringErrorMessage)
-export const helpText = yup.string().max(2048, maxStringErrorMessage)
-export const language = yup.string().min(2, minStringErrorMessage).max(3, maxStringErrorMessage) // Language code
-export const name = yup.string().min(3, minStringErrorMessage).max(128, maxStringErrorMessage)
-export const handle = yup.string().min(3, minStringErrorMessage).max(16, maxStringErrorMessage).nullable() // ADA Handle
-export const tag = yup.string().min(2, minStringErrorMessage).max(64, maxStringErrorMessage)
-export const title = yup.string().min(2, minStringErrorMessage).max(128, maxStringErrorMessage)
-export const version = (minVersion: string = '0.0.1') => yup.string().max(16, maxStringErrorMessage).test(...minVersionTest(minVersion))
+/**
+ * Transform for converting empty/whitespace strings to undefined
+ */
+export const blankToUndefined = (value: string | undefined) => {
+    if (!value) return undefined;
+    const trimmed = value.trim();
+    if (trimmed === '') return undefined;
+    return trimmed;
+}
+
+export const id = yup.string().transform(blankToUndefined).max(256, maxStringErrorMessage)
+export const bio = yup.string().transform(blankToUndefined).max(2048, maxStringErrorMessage);
+export const email = yup.string().transform(blankToUndefined).email().max(256, maxStringErrorMessage);
+export const description = yup.string().transform(blankToUndefined).max(2048, maxStringErrorMessage)
+export const helpText = yup.string().transform(blankToUndefined).max(2048, maxStringErrorMessage)
+export const language = yup.string().transform(blankToUndefined).min(2, minStringErrorMessage).max(3, maxStringErrorMessage) // Language code
+export const name = yup.string().transform(blankToUndefined).min(3, minStringErrorMessage).max(128, maxStringErrorMessage)
+export const handle = yup.string().transform(blankToUndefined).min(3, minStringErrorMessage).max(16, maxStringErrorMessage).nullable() // ADA Handle
+export const tag = yup.string().transform(blankToUndefined).min(2, minStringErrorMessage).max(64, maxStringErrorMessage)
+export const title = yup.string().transform(blankToUndefined).min(2, minStringErrorMessage).max(128, maxStringErrorMessage)
+export const version = (minVersion: string = '0.0.1') => yup.string().transform(blankToUndefined).max(16, maxStringErrorMessage).test(...minVersionTest(minVersion))
 export const idArray = yup.array().of(id.required(requiredErrorMessage))
 export const tagArray = yup.array().of(tag.required(requiredErrorMessage))
