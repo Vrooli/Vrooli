@@ -59,6 +59,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 }: SearchListProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    console.log('searchlist render', where)
 
     const { advancedSearchSchema, defaultSortBy, sortByOptions, query } = useMemo<SearchParams>(() => searchTypeToParams[searchType], [searchType]);
 
@@ -129,6 +130,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     // On search filters/sort change, reset the page
     useEffect(() => {
         after.current = undefined;
+        console.log('getpagedata? 1', canSearch)
         if (canSearch) getPageData();
     }, [advancedSearchParams, canSearch, searchString, searchType, sortBy, timeFrame, where, getPageData]);
 

@@ -3,7 +3,7 @@ import { HelpButtonProps } from "components/buttons/types";
 import { DeleteOneType } from '@shared/consts';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, ResourceList, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 import { ReportFor } from 'graphql/generated/globalTypes';
-import { ObjectType, RoutineTranslationShape, SearchType, TagShape } from 'utils';
+import { ObjectType, SearchType, TagShape } from 'utils';
 import { SvgComponent, SvgProps } from '@shared/icons';
 import { RelationshipsObject } from 'components/inputs/types';
 
@@ -257,8 +257,6 @@ export interface BuildInfoDialogProps {
     handleRelationshipsChange: (newRelationshipsObject: Partial<RelationshipsObject>) => void;
     handleResourcesUpdate: (updatedList: ResourceList) => void;
     handleTagsUpdate: (tags: TagShape[]) => any;
-    handleTranslationDelete: (language: string) => void;
-    handleTranslationUpdate: (language: string, translation: RoutineTranslationShape) => void;
     handleUpdate: (routine: Routine) => any;
     isEditing: boolean;
     language: string;
@@ -268,7 +266,6 @@ export interface BuildInfoDialogProps {
     session: Session;
     sxs?: { icon: SvgProps, iconButton: any };
     tags: TagShape[];
-    translations: RoutineTranslationShape[];
     zIndex: number;
 }
 

@@ -37,6 +37,7 @@ export const SubroutineSelectOrCreateDialog = ({
     session,
     zIndex,
 }: SubroutineSelectOrCreateDialogProps) => {
+    console.log('subroutineselectorcreatedialog', routineId)
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -86,7 +87,8 @@ export const SubroutineSelectOrCreateDialog = ({
      */
     const where = useMemo(() => {
         console.log('where start', routineId)
-        if (!routineId || !uuidValidate(routineId)) return {};
+        // If no routineId, then we are creating a new routine
+        if (!routineId || !uuidValidate(routineId)) return { visibility: VisibilityType.All };
         // Ignore current routine
         const excludeIds = { excludeIds: [routineId] };
         console.log('where excludeIds', excludeIds)
@@ -158,7 +160,7 @@ export const SubroutineSelectOrCreateDialog = ({
                         </Tooltip>
                     </Stack>
                     <SearchList
-                        canSearch={Boolean(routineId)}
+                        canSearch={Boolean(nodeId)} // Can only query when a node is selected
                         id="subroutine-select-or-create-list"
                         itemKeyPrefix='routine-list-item'
                         noResultsText={"None found. Maybe you should create one?"}

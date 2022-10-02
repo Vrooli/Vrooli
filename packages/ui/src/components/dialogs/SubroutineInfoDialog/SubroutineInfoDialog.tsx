@@ -15,13 +15,13 @@ import {
     useTheme,
 } from '@mui/material';
 import { SubroutineInfoDialogProps } from '../types';
-import { addEmptyTranslation, DUMMY_ID, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputShape, ObjectType, OutputShape, removeTranslation, TagShape, updateArray, usePromptBeforeUnload } from 'utils';
+import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputShape, ObjectType, OutputShape, removeTranslation, TagShape, updateArray, usePromptBeforeUnload } from 'utils';
 import { routineTranslationUpdate, routineUpdate as validationSchema } from '@shared/validation';
 import { ResourceListUsedFor } from '@shared/consts';
 import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, OwnerLabel, QuantityBox, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession, VersionInput } from 'components';
 import { useFormik } from 'formik';
 import { NodeDataRoutineListItem, ResourceList } from 'types';
-import { uuid } from '@shared/uuid';
+import { DUMMY_ID, uuid } from '@shared/uuid';
 import { CloseIcon, OpenInNewIcon } from '@shared/icons';
 import { RelationshipItemRoutine, RelationshipsObject } from 'components/inputs/types';
 
@@ -362,8 +362,8 @@ export const SubroutineInfoDialog = ({
                                     value: description,
                                     multiline: true,
                                     maxRows: 3,
-                                    onBlur: formik.handleBlur,
-                                    onChange: formik.handleChange,
+                                    onBlur: onTranslationBlur,
+                                    onChange: onTranslationChange,
                                     error: touchedDescription && Boolean(errorDescription),
                                     helperText: touchedDescription && errorDescription,
                                 }}
@@ -382,7 +382,7 @@ export const SubroutineInfoDialog = ({
                                     minRows: 3,
                                     onChange: (newText: string) => onTranslationChange({ target: { name: 'instructions', value: newText }}),
                                     error: touchedInstructions && Boolean(errorInstructions),
-                                    helperText: instructions ? instructions as string : null,
+                                    helperText: touchedInstructions ? errorInstructions as string : null,
                                 }}
                                 text={instructions}
                                 title="Instructions"

@@ -2,7 +2,7 @@
  * Drawer to display overall routine info on the build page. 
  * Swipes left from right of screen
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
     Box,
     Checkbox,
@@ -18,20 +18,18 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { copy, copyVariables } from 'graphql/generated/copy';
 import { fork, forkVariables } from 'graphql/generated/fork';
 import { star, starVariables } from 'graphql/generated/star';
 import { vote, voteVariables } from 'graphql/generated/vote';
 import { ObjectAction, BuildInfoDialogProps } from '../types';
-import { DeleteDialog, EditableLabel, EditableTextCollapse, LanguageInput, OwnerLabel, RelationshipButtons, ReportDialog, ResourceListHorizontal, ShareObjectDialog, TagList, TagSelector, userFromSession, VersionDisplay, VersionInput } from 'components';
-import { AllLanguages, getLanguageSubtag, getTranslation, ObjectType, PubSub } from 'utils';
+import { DeleteDialog, EditableLabel, EditableTextCollapse, LanguageInput, OwnerLabel, RelationshipButtons, ReportDialog, ResourceListHorizontal, ShareObjectDialog, TagList, TagSelector, VersionDisplay, VersionInput } from 'components';
+import { addEmptyTranslation, getTranslation, getTranslationData, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, removeTranslation } from 'utils';
 import { useLocation } from '@shared/route';
-import { APP_LINKS, CopyType, DeleteOneType, ForkType, ReportFor, StarFor, VoteFor } from '@shared/consts';
+import { APP_LINKS, DeleteOneType, ForkType, ReportFor, StarFor, VoteFor } from '@shared/consts';
 import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
-import { copyMutation, forkMutation, starMutation, voteMutation } from 'graphql/mutation';
-import { uuid } from '@shared/uuid';
+import { forkMutation, starMutation, voteMutation } from 'graphql/mutation';
 import { BranchIcon, CloseIcon, DeleteIcon, DownvoteWideIcon, InfoIcon, ReportIcon, ShareIcon, StarFilledIcon, StarOutlineIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from '@shared/icons';
 import { requiredErrorMessage, title as titleValidation } from '@shared/validation';
 
@@ -42,9 +40,6 @@ export const BuildInfoDialog = ({
     handleRelationshipsChange,
     handleResourcesUpdate,
     handleTagsUpdate,
-    handleTranslationDelete,
-    handleTranslationUpdate,
-    handleUpdate,
     isEditing,
     language,
     loading,
@@ -53,81 +48,44 @@ export const BuildInfoDialog = ({
     session,
     sxs,
     tags,
-    translations,
     zIndex,
 }: BuildInfoDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     console.log('buildinfodialog renderrr')
 
-    // Handle languages
-    const availableLanguages = useMemo<string[]>(() => {
-        if (isEditing) return Object.keys(AllLanguages);
-        return routine?.translations?.map(t => getLanguageSubtag(t.language)) ?? [];
-    }, [isEditing, routine?.translations]);
-    const [languages, setLanguages] = useState<string[]>([]);
-
-    // useEffect(() => {
-    //     if (languages.length === 0 && translations.length > 0) {
-    //         // setLanguage(translations[0].language);
-    //         setLanguages(translations.map(t => t.language));
-    //         console.log('buildinfodialog updating formik translation 1')
-    //         formik.setValues({
-    //             ...formik.values,
-    //             description: translations[0].description ?? '',
-    //             instructions: translations[0].instructions ?? '',
-    //             title: translations[0].title ?? '',
-    //         })
-    //     }
-    // }, [formik, languages, setLanguages, translations])
-
-    const updateFormikTranslation = useCallback((language: string) => {
-        const existingTranslation = translations.find(t => t.language === language);
-        formik.setValues({
-            ...formik.values,
-            description: existingTranslation?.description ?? '',
-            instructions: existingTranslation?.instructions ?? '',
-            title: existingTranslation?.title ?? '',
-        });
-    }, [formik, translations]);
-    const handleLanguageSelect = useCallback((newLanguage: string) => {
-        // Update old select
-        handleTranslationUpdate(language, {
-            id: uuid(),
-            language,
-            description: formik.values.description,
-            instructions: formik.values.instructions,
-            title: formik.values.title,
-        })
-        // Update formik
-        if (language !== newLanguage) updateFormikTranslation(newLanguage);
-        // Change language
-        handleLanguageChange(newLanguage);
-    }, [formik.values.description, formik.values.instructions, formik.values.title, handleLanguageChange, handleTranslationUpdate, language, updateFormikTranslation]);
+    // Handle translations
+    const { description, instructions, title, errorDescription, errorInstructions, touchedDescription, touchedInstructions } = useMemo(() => {
+        const { error, touched, value } = getTranslationData(formik, 'translationsUpdate', language);
+        return {
+            description: value?.description ?? '',
+            instructions: value?.instructions ?? '',
+            title: value?.title ?? '',
+            errorDescription: error?.description ?? '',
+            errorInstructions: error?.instructions ?? '',
+            touchedDescription: touched?.description ?? false,
+            touchedInstructions: touched?.instructions ?? false,
+        }
+    }, [formik, language]);
+    const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
-        setLanguages([...languages, newLanguage]);
-        handleLanguageSelect(newLanguage);
-    }, [handleLanguageSelect, languages, setLanguages]);
+        handleLanguageChange(newLanguage);
+        addEmptyTranslation(formik, 'translationsUpdate', newLanguage);
+    }, [formik, handleLanguageChange]);
     const handleLanguageDelete = useCallback((language: string) => {
         const newLanguages = [...languages.filter(l => l !== language)]
         if (newLanguages.length === 0) return;
-        handleTranslationDelete(language);
-        updateFormikTranslation(newLanguages[0]);
         handleLanguageChange(newLanguages[0]);
-        setLanguages(newLanguages);
-    }, [handleTranslationDelete, handleLanguageChange, languages, updateFormikTranslation]);
-
-    const updateRoutineTitle = useCallback((title: string) => {
-        if (!routine) return;
-        handleTranslationUpdate(language, {
-            id: uuid(),
-            language,
-            description: formik.values.description,
-            instructions: formik.values.instructions,
-            title: title,
-        })
-        formik.setFieldValue('title', title);
-    }, [formik, language, routine, handleTranslationUpdate]);
+        removeTranslation(formik, 'translationsUpdate', language);
+    }, [formik, handleLanguageChange, languages]);
+    // Handles blur on translation fields
+    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
+        handleTranslationBlur(formik, 'translationsUpdate', e, language)
+    }, [formik, language]);
+    // Handles change on translation fields
+    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
+        handleTranslationChange(formik, 'translationsUpdate', e, language)
+    }, [formik, language]);
 
     // Open boolean for drawer
     const [open, setOpen] = useState(false);
@@ -274,29 +232,29 @@ export const BuildInfoDialog = ({
         }
     }, [handleFork, handleStar, handleVote, openDelete, openReport, openShare]);
 
-    // const languageComponent = useMemo(() => {
-    //     if (isEditing) return (
-    //         <LanguageInput
-    //             currentLanguage={language}
-    //             handleAdd={handleAddLanguage}
-    //             handleDelete={handleLanguageDelete}
-    //             handleCurrent={handleLanguageSelect}
-    //             selectedLanguages={languages}
-    //             session={session}
-    //             zIndex={zIndex}
-    //         />
-    //     )
-    //     return (
-    //         <SelectLanguageMenu
-    //             availableLanguages={availableLanguages}
-    //             canDropdownOpen={availableLanguages.length > 1}
-    //             currentLanguage={language}
-    //             handleCurrent={handleLanguageSelect}
-    //             session={session}
-    //             zIndex={zIndex}
-    //         />
-    //     )
-    // }, [availableLanguages, handleAddLanguage, handleLanguageDelete, handleLanguageSelect, isEditing, language, languages, session, zIndex]);
+    const languageComponent = useMemo(() => {
+        if (isEditing) return (
+            <LanguageInput
+                currentLanguage={language}
+                handleAdd={handleAddLanguage}
+                handleDelete={handleLanguageDelete}
+                handleCurrent={handleLanguageChange}
+                selectedLanguages={languages}
+                session={session}
+                zIndex={zIndex}
+            />
+        )
+        return (
+            <SelectLanguageMenu
+                availableLanguages={languages}
+                canDropdownOpen={languages.length > 1}
+                currentLanguage={language}
+                handleCurrent={handleLanguageChange}
+                session={session}
+                zIndex={zIndex}
+            />
+        )
+    }, [handleAddLanguage, handleLanguageChange, handleLanguageDelete, isEditing, language, languages, session, zIndex]);
 
     return (
         <>
@@ -354,7 +312,7 @@ export const BuildInfoDialog = ({
                     <Stack direction="column" spacing={1} alignItems="center" sx={{ marginLeft: 'auto' }}>
                         <EditableLabel
                             canEdit={isEditing}
-                            handleUpdate={updateRoutineTitle}
+                            handleUpdate={(newText: string) => onTranslationChange({ target: { name: 'title', value: newText }})}
                             placeholder={loading ? 'Loading...' : 'Enter title...'}
                             renderLabel={(t) => (
                                 <Typography
@@ -366,7 +324,7 @@ export const BuildInfoDialog = ({
                                     }}
                                 >{t ?? (loading ? 'Loading...' : 'Enter title')}</Typography>
                             )}
-                            text={getTranslation(routine, 'title', [language], false) ?? ''}
+                            text={title}
                             validationSchema={titleValidation.required(requiredErrorMessage)}
                         />
                         {!isEditing && <Stack direction="row" spacing={1}>
@@ -401,7 +359,7 @@ export const BuildInfoDialog = ({
                         zIndex={zIndex}
                     />
                     {/* Language */}
-                    {/* {languageComponent} */}
+                    {languageComponent}
                     {/* Resources */}
                     {resourceListObject}
                     {/* Description */}
@@ -413,15 +371,15 @@ export const BuildInfoDialog = ({
                                 id: "description",
                                 name: "description",
                                 InputLabelProps: { shrink: true },
-                                value: formik.values.description,
+                                value: description,
                                 multiline: true,
                                 maxRows: 3,
-                                onBlur: formik.handleBlur,
-                                onChange: formik.handleChange,
-                                error: formik.touched.description && Boolean(formik.errors.description),
-                                helperText: formik.touched.description ? formik.errors.description : null,
+                                onBlur: onTranslationBlur,
+                                onChange: onTranslationChange,
+                                error: touchedDescription && Boolean(errorDescription),
+                                helperText: touchedDescription ? errorDescription as string : null,
                             }}
-                            text={getTranslation(routine, 'description', [language]) ?? ''}
+                            text={description}
                             title="Description"
                         />
                     </Box>
@@ -432,13 +390,13 @@ export const BuildInfoDialog = ({
                             propsMarkdownInput={{
                                 id: "instructions",
                                 placeholder: "Instructions",
-                                value: formik.values.instructions,
+                                value: instructions,
                                 minRows: 3,
-                                onChange: (newText: string) => formik.setFieldValue('instructions', newText),
-                                error: formik.touched.instructions && Boolean(formik.errors.instructions),
-                                helperText: formik.touched.instructions ? formik.errors.instructions as string : null,
+                                onChange: (newText: string) => onTranslationChange({ target: { name: 'instructions', value: newText }}),
+                                error: touchedInstructions && Boolean(errorInstructions),
+                                helperText: touchedInstructions ? errorInstructions as string : null,
                             }}
-                            text={getTranslation(routine, 'instructions', [language]) ?? ''}
+                            text={instructions}
                             title="Instructions"
                         />
                     </Box>

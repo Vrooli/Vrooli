@@ -288,6 +288,7 @@ export const initializeRoutine = (language: string): Routine => {
         nodes: [startNode, routineListNode, endNode],
         nodeLinks: [link1, link2],
         translations: [{
+            __typename: 'RoutineTranslation',
             id: uuid(),
             language,
             title: 'New Routine',

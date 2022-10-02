@@ -8,9 +8,9 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { routineTranslationUpdate, routineUpdate as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
-import { addEmptyTranslation, DUMMY_ID, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputShape, ObjectType, OutputShape, PubSub, removeTranslation, shapeRoutineUpdate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputShape, ObjectType, OutputShape, PubSub, removeTranslation, shapeRoutineUpdate, TagShape, usePromptBeforeUnload } from "utils";
 import { GridSubmitButtons, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession, VersionInput } from "components";
-import { uuid, uuidValidate } from '@shared/uuid';
+import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { InputOutputContainer } from "components/lists/inputOutput";
@@ -211,8 +211,8 @@ export const RoutineUpdate = ({
                     value={description}
                     multiline
                     maxRows={3}
-                    onBlur={formik.handleBlur}
-                    onChange={formik.handleChange}
+                    onBlur={onTranslationBlur}
+                    onChange={onTranslationChange}
                     error={touchedDescription && Boolean(errorDescription)}
                     helperText={touchedDescription && errorDescription}
                 />

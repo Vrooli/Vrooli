@@ -12,3 +12,10 @@ export const uuidValidate = (uuid) => {
     if (!uuid || typeof uuid !== 'string') return false;
     return validateRegex.test(uuid);
 }
+
+/**
+ * Temporary ID to avoid infinite loops. Useful 
+ * when ID must be specified for a schema, but formik is 
+ * set to enableReinitialize
+ */
+ export const DUMMY_ID = '11111111-1111-1111-1111-111111111111';

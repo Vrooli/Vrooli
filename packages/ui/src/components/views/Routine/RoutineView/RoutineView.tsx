@@ -38,15 +38,17 @@ export const RoutineView = ({
 }: RoutineViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+
     // Fetch data
     const id = useMemo(() => getLastUrlPart(), []);
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
-    const [routine, setRoutine] = useState<Routine | null>(null);
+    const [routine, setRoutine] = useState<Routine>(initializeRoutine(language));
     useEffect(() => {
         if (uuidValidate(id)) { getData({ variables: { input: { id } } }); }
     }, [getData, id])
     useEffect(() => {
-        if (!data) return;
+        if (!data?.routine) return;
         setRoutine(data.routine);
     }, [data]);
     const updateRoutine = useCallback((newRoutine: Routine) => { setRoutine(newRoutine); }, [setRoutine]);
@@ -57,7 +59,6 @@ export const RoutineView = ({
     }), [search]);
 
     const availableLanguages = useMemo<string[]>(() => (routine?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [routine?.translations]);
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
         if (availableLanguages.length === 0) return;
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));

@@ -38,8 +38,10 @@ export const EditableLabel = ({
             text: validationSchema,
         }) : undefined,
         onSubmit: (values) => {
+            console.log('submitting title update', values.text)
             handleUpdate(values.text);
             setActive(false);
+            formik.setSubmitting(false);
         },
     });
 

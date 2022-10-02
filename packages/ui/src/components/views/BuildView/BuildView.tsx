@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getTranslation, getUserLanguages, parseSearchParams, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine, addSearchParams, keepSearchParams, TagShape, RoutineTranslationShape, usePromptBeforeUnload } from 'utils';
+import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getUserLanguages, parseSearchParams, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine, addSearchParams, keepSearchParams, TagShape, usePromptBeforeUnload, getFormikErrorsWithTranslations, handleTranslationChange, getTranslationData } from 'utils';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, ResourceList, Routine, Run } from 'types';
 import { useLocation } from '@shared/route';
 import { APP_LINKS, ResourceListUsedFor } from '@shared/consts';
@@ -12,14 +12,14 @@ import { isEqual } from '@shared/utils';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { ObjectAction } from 'components/dialogs/types';
 import { BuildViewProps } from '../types';
-import { uuid, uuidValidate } from '@shared/uuid';
+import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { StatusMessageArray } from 'components/buttons/types';
 import { StatusButton } from 'components/buttons';
 import { routineUpdate, routineUpdateVariables } from 'graphql/generated/routineUpdate';
 import { routineCreate, routineCreateVariables } from 'graphql/generated/routineCreate';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
 import { AddLinkIcon, CloseIcon, CompressIcon, EditIcon, RedoIcon, UndoIcon } from '@shared/icons';
-import { requiredErrorMessage, routineUpdate as validationSchema, title as titleValidation } from '@shared/validation';
+import { requiredErrorMessage, routineTranslationUpdate, routineUpdate as validationSchema, title as titleValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { RelationshipsObject } from 'components/inputs/types';
 
@@ -84,7 +84,7 @@ export const BuildView = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     /**
-     * On page load, check if editingd
+     * On page load, check if editing
      */
     useEffect(() => {
         const searchParams = parseSearchParams(window.location.search);
@@ -177,22 +177,6 @@ export const BuildView = ({
         }
     }, [clearChangeStack, routine, session]);
 
-    // Handle translations
-    type Translation = RoutineTranslationShape;
-    const [translations, setTranslations] = useState<Translation[]>([]);
-    const deleteTranslation = useCallback((language: string) => {
-        setTranslations([...translations.filter(t => t.language !== language)]);
-    }, [translations]);
-    const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
-        // Find translation
-        const index = translations.findIndex(t => language === t.language);
-        // Add to array, or update if found
-        return index >= 0 ? updateArray(translations, index, translation) : [...translations, translation];
-    }, [translations]);
-    const updateTranslation = useCallback((language: string, translation: Translation) => {
-        setTranslations(getTranslationsUpdate(language, translation));
-    }, [getTranslationsUpdate]);
-
     // Handle relationships
     const [relationships, setRelationships] = useState<RelationshipsObject>({
         isComplete: false,
@@ -229,34 +213,25 @@ export const BuildView = ({
         });
         setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(routine?.tags ?? []);
-        setTranslations(routine?.translations?.map(t => ({
-            id: t.id,
-            language: t.language,
-            description: t.description ?? '',
-            instructions: t.instructions ?? '',
-            title: t.title ?? '',
-        })) ?? []);
     }, [routine]);
 
     // Formik validation
     const formik = useFormik({
         initialValues: {
-            description: getTranslation(routine, 'description', [language]) ?? '',
-            instructions: getTranslation(routine, 'instructions', [language]) ?? '',
+            id: routine?.id ?? DUMMY_ID,
+            translationsUpdate: routine?.translations ?? [{
+                id: DUMMY_ID,
+                language: language,
+                description: '',
+                instructions: '',
+                title: '',
+            }],
             isInternal: routine?.isInternal ?? false,
-            title: getTranslation(routine, 'title', [language]) ?? '',
             version: routine?.version ?? '1.0.0',
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema: validationSchema({ minVersion: routine?.version ?? '0.0.1' }),
         onSubmit: (values) => {
-            const allTranslations = getTranslationsUpdate(language, {
-                id: uuid(),
-                language,
-                description: values.description,
-                instructions: values.instructions,
-                title: values.title,
-            })
             // If routine is new, create it
             if (!uuidValidate(id)) {
                 if (!changedRoutine) {
@@ -276,7 +251,7 @@ export const BuildView = ({
                         version: values.version,
                         resourceLists: [resourceList],
                         tags: tags,
-                        translations: allTranslations as any[],
+                        translations: values.translationsUpdate,
                     }),
                     successMessage: () => 'Routine created.',
                     onSuccess: ({ data }) => {
@@ -308,7 +283,7 @@ export const BuildView = ({
                         version: values.version,
                         resourceLists: [resourceList],
                         tags: tags,
-                        translations: allTranslations as any[],
+                        translations: values.translationsUpdate,
                     }),
                     successMessage: () => 'Routine updated.',
                     onSuccess: ({ data }) => {
@@ -320,6 +295,15 @@ export const BuildView = ({
             }
         },
     });
+    usePromptBeforeUnload({ shouldPrompt: isEditing && changeStack.length > 1 });
+
+    const { title, errors } = useMemo(() => {
+        const { value } = getTranslationData(formik, 'translationsUpdate', language);
+        return {
+            title: value?.title ?? '',
+            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', routineTranslationUpdate),
+        }
+    }, [formik, language]);
 
     /**
      * Calculates:
@@ -477,22 +461,6 @@ export const BuildView = ({
         addSearchParams(setLocation, { edit: true });
         setIsEditing(true);
     }, [setLocation]);
-
-    usePromptBeforeUnload({ shouldPrompt: isEditing && changeStack.length > 1 });
-
-    const updateRoutineTitle = useCallback((title: string) => {
-        if (!changedRoutine) return;
-        const newTranslations = [...changedRoutine.translations.map(t => {
-            if (t.language === language) {
-                return { ...t, title }
-            }
-            return { ...t }
-        })];
-        addToChangeStack({
-            ...changedRoutine,
-            translations: newTranslations
-        });
-    }, [addToChangeStack, changedRoutine, language]);
 
     const revertChanges = useCallback(() => {
         // Helper function to revert changes
@@ -1416,7 +1384,7 @@ export const BuildView = ({
                 {/* Title */}
                 <EditableLabel
                     canEdit={isEditing}
-                    handleUpdate={updateRoutineTitle}
+                    handleUpdate={(newText: string) => handleTranslationChange(formik, 'translationsUpdate', { target: { name: 'title', value: newText }}, language)}
                     placeholder={loading ? 'Loading...' : 'Enter title...'}
                     renderLabel={(t) => (
                         <Typography
@@ -1428,7 +1396,7 @@ export const BuildView = ({
                             }}
                         >{t ?? (loading ? 'Loading...' : 'Enter title')}</Typography>
                     )}
-                    text={getTranslation(changedRoutine, 'title', [language], false) ?? ''}
+                    text={title}
                     sxs={{
                         stack: { marginLeft: 'auto' }
                     }}
@@ -1496,8 +1464,6 @@ export const BuildView = ({
                         handleRelationshipsChange={onRelationshipsChange}
                         handleResourcesUpdate={handleResourcesUpdate}
                         handleTagsUpdate={handleTagsUpdate}
-                        handleTranslationDelete={deleteTranslation}
-                        handleTranslationUpdate={updateTranslation}
                         handleUpdate={(updated: Routine) => { addToChangeStack(updated); }}
                         isEditing={isEditing}
                         language={language}
@@ -1507,7 +1473,6 @@ export const BuildView = ({
                         session={session}
                         sxs={{ icon: { fill: palette.secondary.light }, iconButton: { marginRight: 1 } }}
                         tags={tags}
-                        translations={translations}
                         zIndex={zIndex + 1}
                     />
                 </Box>
@@ -1546,7 +1511,7 @@ export const BuildView = ({
                     canCancelMutate={!loading}
                     canSubmitMutate={!loading && !isEqual(routine, changedRoutine)}
                     errors={{
-                        ...(formik.errors ?? {}),
+                        ...(errors ?? {}),
                         'graph': status.status !== Status.Valid ? status.messages : null,
                         'unchanged': isEqual(routine, changedRoutine) ? 'No changes made' : null,
                     }}

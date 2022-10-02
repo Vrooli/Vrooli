@@ -10,7 +10,7 @@ import { MarkdownInput } from 'components/inputs';
 import { useFormik } from 'formik';
 import { commentCreateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils';
-import { addSearchParams, DUMMY_ID, getFormikErrorsWithTranslations, getTranslationData, handleTranslationBlur, handleTranslationChange, PubSub, removeSearchParams, searchTypeToParams, usePromptBeforeUnload, useReactSearch } from 'utils';
+import { addSearchParams, getFormikErrorsWithTranslations, getTranslationData, handleTranslationBlur, handleTranslationChange, PubSub, removeSearchParams, searchTypeToParams, usePromptBeforeUnload, useReactSearch } from 'utils';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TimeFrame } from 'graphql/generated/globalTypes';
 import { comments, commentsVariables } from 'graphql/generated/comments';
@@ -18,7 +18,7 @@ import { useLocation } from '@shared/route';
 import { commentsQuery } from 'graphql/query';
 import { Comment, CommentThread as ThreadType } from 'types';
 import { CommentThread } from 'components/lists/comment';
-import { uuidValidate } from '@shared/uuid';
+import { DUMMY_ID, uuidValidate } from '@shared/uuid';
 import { uuid } from '@shared/uuid';
 import { GridSubmitButtons } from 'components/buttons';
 

@@ -2,7 +2,7 @@ import { Box, Grid, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme
 import { CommentThreadItemProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
 import { TextLoading, UpvoteDownvote } from '../..';
-import { displayDate, DUMMY_ID, getFormikErrorsWithTranslations, getTranslation, getTranslationData, handleTranslationBlur, handleTranslationChange, PubSub, usePromptBeforeUnload } from 'utils';
+import { displayDate, getFormikErrorsWithTranslations, getTranslation, getTranslationData, handleTranslationBlur, handleTranslationChange, PubSub, usePromptBeforeUnload } from 'utils';
 import { MarkdownInput } from 'components/inputs';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
@@ -12,7 +12,7 @@ import { commentCreate, commentCreateVariables } from 'graphql/generated/comment
 import { commentCreateMutation, deleteOneMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';
 import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
-import { uuid } from '@shared/uuid';
+import { DUMMY_ID, uuid } from '@shared/uuid';
 import { OwnerLabel } from 'components/text';
 import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
 import { GridSubmitButtons, ReportButton, StarButton } from 'components/buttons';
