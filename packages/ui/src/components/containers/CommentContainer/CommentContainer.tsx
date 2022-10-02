@@ -18,8 +18,8 @@ import { useLocation } from '@shared/route';
 import { commentsQuery } from 'graphql/query';
 import { Comment, CommentThread as ThreadType } from 'types';
 import { CommentThread } from 'components/lists/comment';
-import { validate as uuidValidate } from 'uuid';
-import { v4 as uuid } from 'uuid';
+import { uuidValidate } from '@shared/uuid';
+import { uuid } from '@shared/uuid';
 import { GridSubmitButtons } from 'components/buttons';
 
 const { advancedSearchSchema, defaultSortBy } = searchTypeToParams.Comment;

@@ -4,7 +4,7 @@ import {
     Tooltip,
     Typography,
 } from '@mui/material';
-import { getTranslation, openLink, PubSub, ResourceType, usePress } from 'utils';
+import { firstString, getTranslation, openLink, PubSub, ResourceType, usePress } from 'utils';
 import { useCallback, useMemo } from 'react';
 import { useLocation } from '@shared/route';
 import { ResourceCardProps } from '../../../cards/types';
@@ -135,7 +135,7 @@ export const ResourceCard = ({
                             lineBreak: Boolean(title) ? 'auto' : 'anywhere', // Line break anywhere only if showing link
                         }}
                     >
-                        {title ?? data.link}
+                        {firstString(title, data.link)}
                     </Typography>
                 </Stack>
             </Box>

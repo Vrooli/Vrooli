@@ -10,7 +10,7 @@ import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'r
 import { NodeGraphProps } from '../types';
 import { Node } from 'types';
 import { NodeType } from 'graphql/generated/globalTypes';
-import { PubSub, usePinchZoom } from 'utils';
+import { firstString, PubSub, usePinchZoom } from 'utils';
 
 type DragRefs = {
     currPosition: { x: number, y: number } | null; // Current position of the cursor
@@ -327,7 +327,7 @@ export const NodeGraph = ({
             const toNode = nodesById[link.toId];
             if (!fromNode || !toNode) return null;
             return <NodeEdge
-                key={`edge-${link.id ?? 'new-' + fromNode.id + '-to-' + toNode.id}`}
+                key={`edge-${firstString(link.id, 'new-') + fromNode.id + '-to-' + toNode.id}`}
                 fastUpdate={fastUpdate}
                 link={link}
                 isEditing={isEditing}

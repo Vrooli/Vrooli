@@ -36,7 +36,7 @@ import { RunStepModel } from './runStep';
 import { NodeRoutineListModel } from './nodeRoutineList';
 import { RunInputModel } from './runInput';
 import { ValueOf } from '@shared/consts';
-import { validate as uuidValidate } from 'uuid';
+import { uuidValidate } from '@shared/uuid';
 const { difference, flatten, merge } = pkg;
 
 

@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, ResourceListHorizontal, Selector, TagSelector } from "components";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { v4 as uuid, validate as uuidValidate } from 'uuid';
+import { uuid, uuidValidate } from '@shared/uuid';
 import { FieldData } from "forms/types";
 import { BaseStandardInput, PreviewSwitch, RelationshipButtons, userFromSession } from "components/inputs";
 import { generateInputComponent, generateYupSchema } from "forms/generators";

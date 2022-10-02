@@ -10,7 +10,7 @@ import { SettingsDisplayProps } from "../types";
 import { GridSubmitButtons, HelpButton, TagSelector } from "components";
 import { ThemeSwitch } from "components/inputs";
 import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
 import { HeartFilledIcon, InvisibleIcon, SearchIcon } from "@shared/icons";
 
 const helpText =

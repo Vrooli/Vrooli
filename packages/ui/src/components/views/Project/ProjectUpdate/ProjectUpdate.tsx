@@ -10,7 +10,7 @@ import { projectUpdateMutation } from "graphql/mutation";
 import { addEmptyTranslation, DUMMY_ID, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, removeTranslation, shapeProjectUpdate, TagShape, usePromptBeforeUnload } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
-import { v4 as uuid, validate as uuidValidate } from 'uuid';
+import { uuid, uuidValidate } from '@shared/uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { projectUpdate, projectUpdateVariables } from "graphql/generated/projectUpdate";
 import { ProjectUpdateProps } from "../types";

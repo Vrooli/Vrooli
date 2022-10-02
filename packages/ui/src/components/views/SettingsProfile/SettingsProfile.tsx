@@ -16,7 +16,7 @@ import { findHandlesQuery } from "graphql/query";
 import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
 import { PubSub } from 'utils'
 import { RefreshIcon } from "@shared/icons";
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
 
 const helpText =
     `This page allows you to update your profile, including your name, handle, and bio.

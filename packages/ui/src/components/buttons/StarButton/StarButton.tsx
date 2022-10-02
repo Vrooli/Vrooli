@@ -6,7 +6,7 @@ import { mutationWrapper } from 'graphql/utils/mutationWrapper';
 import { useMutation } from '@apollo/client';
 import { star, starVariables } from 'graphql/generated/star';
 import { starMutation } from 'graphql/mutation';
-import { validate as uuidValidate } from 'uuid';
+import { uuidValidate } from '@shared/uuid';
 import { StarFilledIcon, StarOutlineIcon } from '@shared/icons';
 
 export const StarButton = ({

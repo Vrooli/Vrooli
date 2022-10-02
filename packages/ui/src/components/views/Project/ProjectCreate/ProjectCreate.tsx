@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { v4 as uuid, validate as uuidValidate } from 'uuid';
+import { uuid, uuidValidate } from '@shared/uuid';
 import { projectCreate, projectCreateVariables } from "graphql/generated/projectCreate";
 import { RelationshipsObject } from "components/inputs/types";
 

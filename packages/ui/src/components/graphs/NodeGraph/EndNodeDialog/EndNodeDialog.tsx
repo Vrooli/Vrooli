@@ -7,7 +7,7 @@ import { DialogTitle } from 'components/dialogs';
 import Markdown from 'markdown-to-jsx';
 import { useCallback } from 'react';
 import { Node } from 'types';
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
 import { GridSubmitButtons } from 'components/buttons';
 
 const titleAria = 'end-node-dialog-title';

@@ -1,7 +1,7 @@
 import { FormikErrors, FormikProps } from "formik";
 import { ObjectSchema, ValidationError } from 'yup';
 import { Session } from "types";
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
 
 export type TranslationObject = {
     id: string,

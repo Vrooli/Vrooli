@@ -14,7 +14,7 @@ import { deleteOneMutation, runCreateMutation } from "graphql/mutation";
 import { Run } from "types";
 import { deleteOne, deleteOneVariables } from "graphql/generated/deleteOne";
 import { DeleteOneType } from "@shared/consts";
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { RunStatus } from "graphql/generated/globalTypes";
 import { DeleteIcon } from "@shared/icons";

@@ -6,7 +6,7 @@ import { useCallback, useMemo } from 'react';
 import { ResourceSortBy, ResourceUsedFor } from '@shared/consts';
 import { adaHandleRegex, urlRegex, walletAddressRegex } from '@shared/validation';
 import { useLocation } from '@shared/route';
-import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, openLink, PubSub, ResourceType } from 'utils';
+import { firstString, getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, openLink, PubSub, ResourceType } from 'utils';
 import { Resource } from 'types';
 import { getResourceIcon } from '..';
 import { TextLoading } from 'components';
@@ -106,7 +106,7 @@ export function ResourceListItem({
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
                         {/* Name/Title */}
                         {loading ? <TextLoading /> : <ListItemText
-                            primary={title ?? data.link}
+                            primary={firstString(title, data.link)}
                             sx={{ ...multiLineEllipsis(1) }}
                         />}
                         {/* Bio/Description */}

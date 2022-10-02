@@ -7,7 +7,7 @@ import { ListMenuItemData, SelectRoutineTypeMenuProps } from "../types";
 import { APP_LINKS } from "@shared/consts";
 import { useLocation } from "@shared/route";
 import { ListMenu } from "../ListMenu/ListMenu";
-import { validate as uuidValidate } from 'uuid';
+import { uuidValidate } from '@shared/uuid';
 import { PubSub, stringifySearchParams } from "utils";
 
 const options: ListMenuItemData<string>[] = [

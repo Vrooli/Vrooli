@@ -12,12 +12,12 @@ import { commentCreate, commentCreateVariables } from 'graphql/generated/comment
 import { commentCreateMutation, deleteOneMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';
 import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
 import { OwnerLabel } from 'components/text';
 import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
 import { GridSubmitButtons, ReportButton, StarButton } from 'components/buttons';
 import { DeleteIcon, ReplyIcon } from '@shared/icons';
-import { validate as uuidValidate } from 'uuid';
+import { uuidValidate } from '@shared/uuid';
 
 export function CommentThreadItem({
     data,

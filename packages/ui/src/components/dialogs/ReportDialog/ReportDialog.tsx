@@ -10,7 +10,7 @@ import { getUserLanguages, PubSub, usePromptBeforeUnload } from 'utils';
 import { useEffect, useState } from 'react';
 import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
 import { DialogTitle, GridSubmitButtons, Selector } from 'components';
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
 
 const helpText =
     `Reports help us moderate content. For now, reports will be handled by moderators. 

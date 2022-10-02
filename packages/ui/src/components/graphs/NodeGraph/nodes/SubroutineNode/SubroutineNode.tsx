@@ -16,7 +16,7 @@ import {
     routineNodeCheckboxLabel,
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
-import { BuildAction, getTranslation, updateTranslationFields, usePress } from 'utils';
+import { BuildAction, firstString, getTranslation, updateTranslationFields, usePress } from 'utils';
 import { EditableLabel, NodeContextMenu } from 'components';
 import { CloseIcon } from '@shared/icons';
 import { requiredErrorMessage, title as titleValidation } from '@shared/validation';
@@ -51,7 +51,7 @@ export const SubroutineNode = ({
     const { title } = useMemo(() => {
         const languages = navigator.languages;
         return {
-            title: getTranslation(data, 'title', languages, true) ?? getTranslation(data.routine, 'title', languages, true) ?? ''
+            title: firstString(getTranslation(data, 'title', languages, true), getTranslation(data.routine, 'title', languages, true)),
         }
     }, [data]);
 
@@ -100,7 +100,7 @@ export const SubroutineNode = ({
                             lineBreak: 'anywhere' as any,
                             whiteSpace: 'pre' as any,
                         } as CSSProperties}
-                    >{t ?? 'Untitled'}</Typography>
+                    >{firstString(t, 'Untitled')}</Typography>
                 )}
                 sxs={{
                     stack: {

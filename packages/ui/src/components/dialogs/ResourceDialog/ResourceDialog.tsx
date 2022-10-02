@@ -12,7 +12,7 @@ import { resourceUpdate, resourceUpdateVariables } from 'graphql/generated/resou
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AutocompleteSearchBar, LanguageInput } from 'components/inputs';
 import { AutocompleteOption, Resource } from 'types';
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
 import { DialogTitle, getResourceIcon, GridSubmitButtons } from 'components';
 import { SearchIcon } from '@shared/icons';
 import { homePage, homePageVariables } from 'graphql/generated/homePage';

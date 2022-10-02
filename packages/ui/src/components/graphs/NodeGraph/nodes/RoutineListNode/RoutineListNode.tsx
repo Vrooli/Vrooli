@@ -18,7 +18,7 @@ import {
 } from '../styles';
 import { multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { NodeDataRoutineList, NodeDataRoutineListItem } from 'types';
-import { getTranslation, BuildAction, updateTranslationFields, PubSub, usePress } from 'utils';
+import { getTranslation, BuildAction, updateTranslationFields, PubSub, usePress, firstString } from 'utils';
 import { EditableLabel } from 'components/inputs';
 import { AddIcon, CloseIcon, ExpandLessIcon, ExpandMoreIcon } from '@shared/icons';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
@@ -183,7 +183,7 @@ export const RoutineListNode = ({
                             lineBreak: 'anywhere' as any,
                             whiteSpace: 'pre' as any,
                         } as CSSProperties}
-                    >{t ?? 'Untitled'}</Typography>
+                    >{firstString(t, 'Untitled')}</Typography>
                 )}
                 sxs={{
                     stack: {
@@ -346,7 +346,7 @@ export const RoutineListNode = ({
                 handleSelect={(option) => { handleAction(option, node.id) }}
                 zIndex={zIndex + 1}
             />
-            <Tooltip placement={'top'} title={label ?? 'Routine List'}>
+            <Tooltip placement={'top'} title={firstString(label, 'Routine List')}>
                 <Container
                     id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
                     aria-owns={contextOpen ? contextId : undefined}

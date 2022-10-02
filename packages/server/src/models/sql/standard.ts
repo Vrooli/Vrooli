@@ -16,7 +16,7 @@ import { ViewModel } from "./view";
 import { randomString } from "../../auth/walletAuth";
 import { sortify } from "../../utils/objectTools";
 import { ResourceListModel } from "./resourceList";
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
 
 //==============================================================
 /* #region Custom Components */
