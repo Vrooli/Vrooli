@@ -3,7 +3,6 @@ import {
     AlertDialog,
     Footer,
     Navbar,
-    Snack
 } from 'components';
 import { PubSub, themes, useReactHash } from 'utils';
 import { AllRoutes } from 'Routes';
@@ -189,7 +188,6 @@ export function App() {
                                 </Box>
                             }
                             <AlertDialog />
-                            <Snack />
                             <AllRoutes />
                         </Box>
                         <Footer />

@@ -6,9 +6,12 @@ import { ReportFor } from 'graphql/generated/globalTypes';
 import { ObjectType, SearchType, TagShape } from 'utils';
 import { SvgComponent, SvgProps } from '@shared/icons';
 import { RelationshipsObject } from 'components/inputs/types';
+import { SnackSeverity } from './Snack/Snack';
 
 export interface AccountMenuProps {
-
+    anchorEl: HTMLElement | null;
+    onClose: () => void;
+    session: Session;
 }
 
 export interface BaseObjectDialogProps extends DialogProps {
@@ -309,15 +312,10 @@ export interface RunStepsDialogProps {
 
 export interface SelectLanguageMenuProps {
     /**
-     * Languages to restrict selection to
-     */
-    availableLanguages?: string[];
-    /**
      * While there may be multiple selected languages, 
      * there is only ever one current language
      */
     currentLanguage: string;
-    canDropdownOpen?: boolean;
     handleDelete?: (language: string) => any;
     /**
      * Callback when new current language is selected
@@ -329,10 +327,9 @@ export interface SelectLanguageMenuProps {
      */
     session: Session;
     /**
-     * Currently selected languages. Display with check marks. 
-     * If not provided, defaults to curentLanguage
+     * Available translations
      */
-    selectedLanguages?: string[];
+    translations: { language: string }[];
     sxs?: { root: any };
     zIndex: number;
 }
@@ -384,4 +381,17 @@ export interface PopoverWithArrowProps extends Omit<PopoverProps, 'open' | 'sx'>
         root?: { [x: string]: any };
         content?: { [x: string]: any };
     }
+}
+
+export interface SnackProps {
+    buttonClicked?: (event?: any) => any;
+    buttonText?: string;
+    /**
+     * Anything you'd like to log in development mode
+     */
+    data?: any;
+    handleClose: () => any;
+    id: string;
+    message?: string;
+    severity?: SnackSeverity;
 }
