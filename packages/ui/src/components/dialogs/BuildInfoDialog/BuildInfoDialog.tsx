@@ -239,22 +239,21 @@ export const BuildInfoDialog = ({
                 handleAdd={handleAddLanguage}
                 handleDelete={handleLanguageDelete}
                 handleCurrent={handleLanguageChange}
-                selectedLanguages={languages}
                 session={session}
+                translations={formik.values.translationsUpdate}
                 zIndex={zIndex}
             />
         )
         return (
             <SelectLanguageMenu
-                availableLanguages={languages}
-                canDropdownOpen={languages.length > 1}
                 currentLanguage={language}
                 handleCurrent={handleLanguageChange}
                 session={session}
+                translations={formik.values.translationsUpdate}
                 zIndex={zIndex}
             />
         )
-    }, [handleAddLanguage, handleLanguageChange, handleLanguageDelete, isEditing, language, languages, session, zIndex]);
+    }, [formik.values.translationsUpdate, handleAddLanguage, handleLanguageChange, handleLanguageDelete, isEditing, language, session, zIndex]);
 
     return (
         <>

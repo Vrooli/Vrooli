@@ -18,7 +18,7 @@ import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils";
 import { runUpdate, runUpdateVariables } from "graphql/generated/runUpdate";
 import { uuid } from '@shared/uuid';
-import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, CompleteAllIcon } from "@shared/icons";
+import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, SuccessIcon } from "@shared/icons";
 
 /**
  * Maximum routine nesting supported
@@ -920,7 +920,7 @@ export const RunView = ({
                             </Button>)}
                             {!nextStep && currentStep?.type !== RoutineStepType.Decision && (<Button
                                 fullWidth
-                                startIcon={<CompleteAllIcon />}
+                                startIcon={<SuccessIcon />}
                                 onClick={toNext}
                                 sx={{ width: 'min(48vw, 250px)' }}
                             >

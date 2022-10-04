@@ -1,4 +1,5 @@
 import {
+    AccountMenu,
     ContactInfo,
     PopupMenu
 } from 'components';
@@ -37,6 +38,13 @@ export const NavList = ({
 
     const nav_actions = useMemo<Action[]>(() => getUserActions({ session, exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn] }), [session]);
 
+    // Handle account menu
+    const [accountMenuAnchor, setAccountMenuAnchor] = useState<any>(null);
+    const openAccountMenu = useCallback((ev: React.MouseEvent<any>) => {
+        setAccountMenuAnchor(ev.currentTarget)
+    }, [setAccountMenuAnchor]);
+    const closeAccountMenu = useCallback(() => setAccountMenuAnchor(null), []);
+
     return (
         <Container sx={{
             display: 'flex',
@@ -45,6 +53,7 @@ export const NavList = ({
             paddingRight: '0 !important',
             right: '0',
         }}>
+            {/* Contact menu */}
             {!isMobile && <PopupMenu
                 text="Contact"
                 variant="text"
@@ -53,6 +62,12 @@ export const NavList = ({
             >
                 <ContactInfo />
             </PopupMenu>}
+            {/* Account menu */}
+            <AccountMenu
+                anchorEl={accountMenuAnchor}
+                onClose={closeAccountMenu}
+                session={session}
+            />
             {/* List items displayed when on wide screen */}
             {!isMobile && actionsToMenu({
                 actions: nav_actions,
@@ -83,7 +98,7 @@ export const NavList = ({
             {isMobile && session?.isLoggedIn === true && (
                 <IconButton
                     color="inherit"
-                    onClick={() => { setLocation(APP_LINKS.Profile) }}
+                    onClick={openAccountMenu}
                     aria-label="profile"
                 >
                     <ProfileIcon fill='white' width='40px' height='40px' />

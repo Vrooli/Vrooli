@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import { Forms, PubSub } from 'utils';
 import { emailSignUpSchema } from '@shared/validation';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { useLocation } from '@shared/route';
 import { emailSignUp, emailSignUpVariables } from 'graphql/generated/emailSignUp';
 import { FormProps } from './types';

@@ -1,7 +1,7 @@
 import { Autocomplete, Box, Container, Grid, IconButton, Stack, TextField, Typography, useTheme } from "@mui/material"
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { profileUpdateSchema as validationSchema, userTranslationUpdate } from '@shared/validation';
 import { APP_LINKS } from '@shared/consts';
 import { useFormik } from 'formik';
@@ -181,8 +181,8 @@ export const SettingsProfile = ({
                             handleAdd={handleAddLanguage}
                             handleDelete={handleLanguageDelete}
                             handleCurrent={handleLanguageSelect}
-                            selectedLanguages={languages}
                             session={session}
+                            translations={formik.values.translationsUpdate}
                             zIndex={zIndex}
                         />
                     </Grid>

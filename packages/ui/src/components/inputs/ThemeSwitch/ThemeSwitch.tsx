@@ -6,6 +6,7 @@ import { PubSub } from 'utils';
 import { DarkModeIcon, LightModeIcon } from '@shared/icons';
 
 export function ThemeSwitch({
+    showText = true,
     theme,
     onChange,
 }: ThemeSwitchProps) {
@@ -21,23 +22,22 @@ export function ThemeSwitch({
     const trackColor = useMemo(() => isDark ? '#2F3A45' : '#BFC7CF', [isDark]);
 
     return (
-        <Stack direction="row" spacing={1} justifyContent="center">
-            <Typography variant="h6" sx={{ ...noSelect }}>Theme:</Typography>
+        <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
+            {showText && <Typography variant="h6" sx={{ ...noSelect }}>Theme:</Typography>}
             <Box component="span" sx={{
                 display: 'inline-block',
                 position: 'relative',
                 width: '80px',
-                height: '36px',
+                height: '40px',
                 padding: '8px',
             }}>
                 {/* Track */}
                 <Box component="span" sx={{
                     display: 'inline-block',
-                    margin: 'auto',
                     backgroundColor: trackColor,
                     borderRadius: '16px',
                     width: '100%',
-                    height: '65%',
+                    height: '100%',
                 }}>
                     {/* Thumb */}
                     <IconButton sx={{
@@ -74,7 +74,7 @@ export function ThemeSwitch({
                         cursor: 'pointer',
                     }} />
             </Box >
-            <Typography variant="h6" sx={{ ...noSelect }}>{isDark ? 'Dark' : 'Light'}</Typography>
+            {showText && <Typography variant="h6" sx={{ ...noSelect }}>{isDark ? 'Dark' : 'Light'}</Typography>}
         </Stack>
     )
 }

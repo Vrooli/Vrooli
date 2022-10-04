@@ -10,7 +10,7 @@ import { RoutineViewProps } from "../types";
 import { formikToRunInputs, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, useReactSearch } from "utils";
 import { Routine, Run } from "types";
 import { runCompleteMutation } from "graphql/mutation";
-import { mutationWrapper } from "graphql/utils/mutationWrapper";
+import { mutationWrapper } from "graphql/utils/graphqlWrapper";
 import { CommentFor, NodeType, StarFor } from "graphql/generated/globalTypes";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 import { containerShadow } from "styles";
@@ -20,7 +20,7 @@ import { useFormik } from "formik";
 import { FieldData } from "forms/types";
 import { generateInputWithLabel } from "forms/generators";
 import { CommentContainer, ContentCollapse, TextCollapse } from "components/containers";
-import { CompleteAllIcon, EditIcon, EllipsisIcon, PlayIcon, RoutineIcon } from "@shared/icons";
+import { EditIcon, EllipsisIcon, PlayIcon, RoutineIcon, SuccessIcon } from "@shared/icons";
 
 const statsHelpText =
     `Statistics are calculated to measure various aspects of a routine. 
@@ -292,7 +292,7 @@ export const RoutineView = ({
             return (
                 <Grid container spacing={1}>
                     <Grid item xs={12}>
-                        <Button startIcon={<CompleteAllIcon />} fullWidth onClick={markAsComplete} color="secondary">Mark as Complete</Button>
+                        <Button startIcon={<SuccessIcon />} fullWidth onClick={markAsComplete} color="secondary">Mark as Complete</Button>
                     </Grid>
                 </Grid>
             )
@@ -537,11 +537,10 @@ export const RoutineView = ({
                                     prefix={" - "}
                                 />
                                 <SelectLanguageMenu
-                                    availableLanguages={availableLanguages}
-                                    canDropdownOpen={availableLanguages.length > 1}
                                     currentLanguage={language}
                                     handleCurrent={setLanguage}
                                     session={session}
+                                    translations={routine?.translations ?? partialData?.translations ?? []}
                                     zIndex={zIndex}
                                 />
                                 {routine?.permissionsRoutine?.canEdit && <Tooltip title="Edit routine">

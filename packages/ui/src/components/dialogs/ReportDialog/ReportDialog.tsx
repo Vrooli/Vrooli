@@ -4,7 +4,7 @@ import { Dialog, DialogContent, Grid, Stack, TextField } from '@mui/material';
 import { useFormik } from 'formik';
 import { reportCreate, reportCreateVariables } from 'graphql/generated/reportCreate';
 import { reportCreateMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { ReportDialogProps } from '../types';
 import { getUserLanguages, PubSub, usePromptBeforeUnload } from 'utils';
 import { useEffect, useState } from 'react';
@@ -119,6 +119,7 @@ export const ReportDialog = ({
                             currentLanguage={language}
                             handleCurrent={setLanguage}
                             session={session}
+                            translations={[{ language }]}
                             zIndex={zIndex}
                         />
                         {/* Text displaying what you are reporting */}

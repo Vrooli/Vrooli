@@ -18,7 +18,7 @@ import { SubroutineInfoDialogProps } from '../types';
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputShape, ObjectType, OutputShape, removeTranslation, TagShape, updateArray, usePromptBeforeUnload } from 'utils';
 import { routineTranslationUpdate, routineUpdate as validationSchema } from '@shared/validation';
 import { ResourceListUsedFor } from '@shared/consts';
-import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, OwnerLabel, QuantityBox, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession, VersionInput } from 'components';
+import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, OwnerLabel, QuantityBox, RelationshipButtons, ResourceListHorizontal, SelectLanguageMenu, TagList, TagSelector, userFromSession, VersionInput } from 'components';
 import { useFormik } from 'formik';
 import { NodeDataRoutineListItem, ResourceList } from 'types';
 import { DUMMY_ID, uuid } from '@shared/uuid';
@@ -301,15 +301,21 @@ export const SubroutineInfoDialog = ({
                             />
                         </Grid>
                         <Grid item xs={12}>
-                            <LanguageInput
+                            {canEdit ? <LanguageInput
                                 currentLanguage={language}
                                 handleAdd={handleAddLanguage}
                                 handleDelete={handleLanguageDelete}
-                                handleCurrent={handleLanguageSelect}
-                                selectedLanguages={languages}
+                                handleCurrent={setLanguage}
                                 session={session}
+                                translations={formik.values.translationsUpdate}
                                 zIndex={zIndex}
-                            />
+                            /> : <SelectLanguageMenu
+                                currentLanguage={language}
+                                handleCurrent={setLanguage}
+                                session={session}
+                                translations={formik.values.translationsUpdate}
+                                zIndex={zIndex}
+                            />}
                         </Grid>
                         {/* Position */}
                         <Grid item xs={12}>
@@ -380,7 +386,7 @@ export const SubroutineInfoDialog = ({
                                     placeholder: "Instructions",
                                     value: instructions,
                                     minRows: 3,
-                                    onChange: (newText: string) => onTranslationChange({ target: { name: 'instructions', value: newText }}),
+                                    onChange: (newText: string) => onTranslationChange({ target: { name: 'instructions', value: newText } }),
                                     error: touchedInstructions && Boolean(errorInstructions),
                                     helperText: touchedInstructions ? errorInstructions as string : null,
                                 }}

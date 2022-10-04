@@ -8,7 +8,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ReportFor, StarFor, VoteFor } from "@shared/consts";
 import { DeleteDialog, ListMenu, ReportDialog } from "..";
 import { ObjectActionMenuProps, ListMenuItemData, ObjectActionComplete, ObjectAction } from "../types";
-import { mutationWrapper } from "graphql/utils/mutationWrapper";
+import { mutationWrapper } from "graphql/utils/graphqlWrapper";
 import { PubSub } from "utils";
 import { CopyType, ForkType } from "graphql/generated/globalTypes";
 import { BranchIcon, CopyIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReportIcon, SearchIcon, ShareIcon, StarFilledIcon, StarOutlineIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@shared/icons";

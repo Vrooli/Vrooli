@@ -26,7 +26,7 @@ import {
 } from 'forms';
 import { emailLogInMutation, guestLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { emailLogIn, emailLogInVariables } from 'graphql/generated/emailLogIn';
 import { StartPageProps } from 'pages/types';
 import { hasErrorCode } from 'graphql/utils';

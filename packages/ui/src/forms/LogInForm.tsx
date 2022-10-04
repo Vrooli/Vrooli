@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import { Forms, PubSub, useReactSearch } from 'utils';
 import { emailLogInForm } from '@shared/validation';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { emailLogIn, emailLogInVariables } from 'graphql/generated/emailLogIn';
 import { LogInFormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';

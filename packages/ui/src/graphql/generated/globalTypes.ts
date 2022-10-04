@@ -1486,6 +1486,12 @@ export interface TimeFrame {
   before?: any | null;
 }
 
+export interface TranslateInput {
+  fields: string;
+  languageSource: string;
+  languageTarget: string;
+}
+
 export interface UserCountInput {
   createdTimeFrame?: TimeFrame | null;
   updatedTimeFrame?: TimeFrame | null;

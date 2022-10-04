@@ -186,8 +186,8 @@ export interface LanguageInputProps {
     handleAdd: (language: string) => any;
     handleDelete: (language: string) => void;
     handleCurrent: (language: string) => void;
-    selectedLanguages: string[];
     session: Session;
+    translations: { language: string }[];
     zIndex: number;
 }
 
@@ -313,6 +313,7 @@ export interface TagSelectorProps {
 }
 
 export interface ThemeSwitchProps {
+    showText?: boolean;
     theme: 'light' | 'dark';
     onChange: (theme: 'light' | 'dark') => any;
 }

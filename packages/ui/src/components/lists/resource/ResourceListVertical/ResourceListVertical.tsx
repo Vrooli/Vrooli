@@ -8,7 +8,7 @@ import { containerShadow } from 'styles';
 import { Box, Button } from '@mui/material';
 import { useMutation } from '@apollo/client';
 import { resourceDeleteManyMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { updateArray } from 'utils';
 import { resourceDeleteMany, resourceDeleteManyVariables } from 'graphql/generated/resourceDeleteMany';
 import { AddIcon } from '@shared/icons';

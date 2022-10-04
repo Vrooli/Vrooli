@@ -53,6 +53,7 @@ services:
       CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
       DB_PULL: "${DB_PULL}"
       MONGO_CONN: "${MONGO_CONN}"
+      PORT_TRANSLATE: "${PORT_TRANSLATE}"
       SITE_EMAIL_FROM: "${SITE_EMAIL_FROM}"
       ADMIN_WALLET: "${ADMIN_WALLET}"
       ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
@@ -121,6 +122,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  # LibreTranslate
+  translate:
+    image: libretranslate/libretranslate:v1.2.9
+    container_name: translate
+    restart: always
+    networks:
+      - app
+    expose:
+      - ${PORT_TRANSLATE}
   # docs:
   #     build:
   #         context: .

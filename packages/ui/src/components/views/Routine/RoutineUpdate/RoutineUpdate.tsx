@@ -4,7 +4,7 @@ import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RoutineUpdateProps } from "../types";
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { routineTranslationUpdate, routineUpdate as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
@@ -184,8 +184,8 @@ export const RoutineUpdate = ({
                     handleAdd={handleAddLanguage}
                     handleDelete={handleLanguageDelete}
                     handleCurrent={setLanguage}
-                    selectedLanguages={languages}
                     session={session}
+                    translations={formik.values.translationsUpdate}
                     zIndex={zIndex}
                 />
             </Grid>
@@ -296,7 +296,7 @@ export const RoutineUpdate = ({
                 onSubmit={formik.handleSubmit}
             />
         </Grid>
-    ), [formik, onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, languages, title, onTranslationBlur, onTranslationChange, touchedTitle, errorTitle, description, touchedDescription, errorDescription, instructions, touchedInstructions, errorInstructions, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, errors, onCancel]);
+    ), [formik, onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, title, onTranslationBlur, onTranslationChange, touchedTitle, errorTitle, description, touchedDescription, errorDescription, instructions, touchedInstructions, errorInstructions, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, errors, onCancel]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{

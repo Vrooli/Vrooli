@@ -11,7 +11,7 @@ import { ResourceDialog } from 'components/dialogs';
 import { updateArray } from 'utils';
 import { resourceDeleteManyMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { resourceDeleteMany, resourceDeleteManyVariables } from 'graphql/generated/resourceDeleteMany';
 import { AddIcon } from '@shared/icons';
 

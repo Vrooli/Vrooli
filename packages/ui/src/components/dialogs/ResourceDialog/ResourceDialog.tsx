@@ -3,7 +3,7 @@ import { resourceCreate as validationSchema, resourceTranslationUpdate } from '@
 import { Dialog, DialogContent, FormControl, Grid, IconButton, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
 import { useFormik } from 'formik';
 import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { ResourceDialogProps } from '../types';
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getObjectSlug, getObjectUrlBase, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResourceCreate, shapeResourceUpdate, usePromptBeforeUnload } from 'utils';
 import { resourceCreate, resourceCreateVariables } from 'graphql/generated/resourceCreate';
@@ -302,8 +302,8 @@ export const ResourceDialog = ({
                                 handleAdd={handleAddLanguage}
                                 handleDelete={handleLanguageDelete}
                                 handleCurrent={setLanguage}
-                                selectedLanguages={languages}
                                 session={session}
+                                translations={formik.values.translationsUpdate}
                                 zIndex={zIndex + 1}
                             />
                             {/* Enter link or search for object */}

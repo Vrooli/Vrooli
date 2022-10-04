@@ -1,138 +1,172 @@
-import { useCallback, useEffect, useState } from 'react';
 import {
-    Box,
-    Dialog,
-    DialogContent,
     IconButton,
-    Palette,
-    TextField,
-    Tooltip,
-    Typography,
+    List,
+    ListItem,
+    ListItemIcon,
+    ListItemText,
+    Menu,
     useTheme,
 } from '@mui/material';
 import { Stack } from '@mui/system';
-import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from '@shared/icons';
+import { CloseIcon, UserIcon } from '@shared/icons';
 import { AccountMenuProps } from '../types';
+import { noSelect } from 'styles';
+import { ThemeSwitch } from 'components/inputs';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { profileUpdateSchema as validationSchema } from '@shared/validation';
+import { profileUpdate, profileUpdateVariables } from 'graphql/generated/profileUpdate';
+import { useMutation } from '@apollo/client';
+import { shapeProfileUpdate } from 'utils';
+import { mutationWrapper } from 'graphql/utils';
+import { useFormik } from 'formik';
+import { profileUpdateMutation } from 'graphql/mutation';
+import { APP_LINKS } from '@shared/consts';
+import { useLocation } from '@shared/route';
 
 export const AccountMenu = ({
-    // handleClose,
-    // isOpen,
+    anchorEl,
+    onClose,
+    session,
 }: AccountMenuProps) => {
     const { palette } = useTheme();
+    const [, setLocation] = useLocation();
+    const open = Boolean(anchorEl);
 
-    return null;
+    // Handle theme
+    const [theme, setTheme] = useState<string>('light');
+    useEffect(() => {
+        setTheme(palette.mode);
+    }, [palette.mode]);
 
-    // return (
-    //     <Dialog
-    //         open={isOpen}
-    //         onClose={handleClose}
-    //         disableScrollLock={true}
-    //         BackdropProps={{ invisible: true }}
-    //         sx={{
-    //             '& .MuiDialog-paper': {
-    //                 background: palette.background.paper,
-    //                 border: palette.mode === 'dark' ? `1px solid white` : 'unset',
-    //                 minWidth: 'min(100%, 350px)',
-    //                 position: 'absolute',
-    //                 top: '0%',
-    //                 right: '0%',
-    //                 overflowY: 'visible',
-    //                 margin: { xs: '8px', sm: '16px' },
-    //             },
-    //             '& .MuiDialogContent-root': {
-    //                 padding: '12px 8px',
-    //                 borderRadius: '4px',
-    //             },
-    //         }}
-    //     >
-    //         <DialogContent sx={{
-    //             background: palette.background.default,
-    //             position: 'relative',
-    //             overflowY: 'visible',
-    //         }}>
-    //             <Stack direction="row">
-    //                 <Stack direction="row" sx={{
-    //                     background: palette.background.paper,
-    //                     borderRadius: '4px',
-    //                     border: `1px solid ${searchString.length > 0 && results.length === 0 ? 'red' : palette.background.textPrimary}`,
-    //                 }}>
-    //                     {/* Search bar */}
-    //                     <TextField
-    //                         id="command-palette-search"
-    //                         autoComplete='off'
-    //                         autoFocus={true}
-    //                         placeholder='Find in page...'
-    //                         value={searchString}
-    //                         onChange={onSearchChange}
-    //                         size="small"
-    //                         sx={{
-    //                             paddingLeft: '4px',
-    //                             paddingTop: '4px',
-    //                             paddingBottom: '4px',
-    //                             width: '100%',
-    //                             border: 'none',
-    //                             borderRight: `1px solid ${palette.background.textPrimary}`,
-    //                             '& .MuiInputBase-root': {
-    //                                 height: '100%',
-    //                             },
-    //                         }}
-    //                         variant="standard"
-    //                         InputProps={{
-    //                             disableUnderline: true,
-    //                         }}
-    //                     />
-    //                     {/* Display resultIndex and total results */}
-    //                     {results.length > 0 &&
-    //                         <Typography variant="body2" sx={{
-    //                             padding: '4px',
-    //                             borderRight: `1px solid ${palette.background.textPrimary}`,
-    //                             width: 100,
-    //                             display: 'flex',
-    //                             justifyContent: 'center',
-    //                             alignItems: 'center',
-    //                         }}>
-    //                             {results.length > 0 ? `${resultIndex + 1}/${results.length}` : ''}
-    //                         </Typography>
-    //                     }
-    //                     {/* Buttons for case-sensitive, match whole word, and regex */}
-    //                     <Box display="flex" alignItems="center">
-    //                         <Tooltip title="Match case (Alt+C)">
-    //                             <IconButton aria-label="case-sensitive" sx={commonButtonSx(palette, isCaseSensitive)} onClick={onCaseSensitiveChange}>
-    //                                 <CaseSensitiveIcon {...commonIconProps(palette)} />
-    //                             </IconButton>
-    //                         </Tooltip>
-    //                         <Tooltip title="Match whole word (Alt+W)">
-    //                             <IconButton aria-label="match whole word" sx={commonButtonSx(palette, isWholeWord)} onClick={onWholeWordChange}>
-    //                                 <WholeWordIcon {...commonIconProps(palette)} />
-    //                             </IconButton>
-    //                         </Tooltip>
-    //                         <Tooltip title="Use regular expression (Alt+R)">
-    //                             <IconButton aria-label="match regex" sx={commonButtonSx(palette, isRegex)} onClick={onRegexChange}>
-    //                                 <RegexIcon {...commonIconProps(palette)} />
-    //                             </IconButton>
-    //                         </Tooltip>
-    //                     </Box>
-    //                 </Stack>
-    //                 {/* Up and down arrows, and close icon */}
-    //                 <Box display="flex" alignItems="center" justifyContent="flex-end">
-    //                     <Tooltip title="Previous result (Shift+Enter)">
-    //                         <IconButton aria-label="previous result" sx={commonButtonSx(palette)} onClick={onPrevious}>
-    //                             <ArrowUpIcon {...commonIconProps(palette)} />
-    //                         </IconButton>
-    //                     </Tooltip>
-    //                     <Tooltip title="Next result (Enter)">
-    //                         <IconButton aria-label="next result" sx={commonButtonSx(palette)} onClick={onNext}>
-    //                             <ArrowDownIcon {...commonIconProps(palette)} />
-    //                         </IconButton>
-    //                     </Tooltip>
-    //                     <Tooltip title="Close">
-    //                         <IconButton aria-label="close" sx={commonButtonSx(palette)} onClick={close}>
-    //                             <CloseIcon {...commonIconProps(palette)} />
-    //                         </IconButton>
-    //                     </Tooltip>
-    //                 </Box>
-    //             </Stack>
-    //         </DialogContent>
-    //     </Dialog >
-    // );
+    // Handle update. Only updates when menu closes, and account settings have changed.
+    const [mutation] = useMutation<profileUpdate, profileUpdateVariables>(profileUpdateMutation);
+    const formik = useFormik({
+        initialValues: {
+            theme,
+        },
+        enableReinitialize: true, // Needed because existing data is obtained from async fetch
+        validationSchema,
+        onSubmit: (values) => {
+            // If not logged in, do nothing
+            if (!session?.id) {
+                return;
+            }
+            if (!formik.isValid) return;
+            const input = shapeProfileUpdate({
+                id: session.id,
+                theme: palette.mode,
+            }, {
+                id: session.id,
+                theme: values.theme,
+            })
+            // If no changes, don't update
+            if (!input || Object.keys(input).length === 0) {
+                return;
+            }
+            mutationWrapper({
+                mutation,
+                input,
+                onSuccess: () => { formik.setSubmitting(false) },
+                onError: () => { formik.setSubmitting(false) },
+            })
+        },
+    });
+
+    /**
+     * Handle account click.
+     */
+    const handleUserClick = useCallback((id: string) => {
+        // If already selected, go to profile page
+        if (session?.id === id) {
+            setLocation(`${APP_LINKS.Profile}/${id}`);
+        }
+        // Otherwise, switch to selected account
+        else {
+            console.log('TODO')
+        }
+        // Close menu
+        onClose();
+    }, [onClose, session?.id, setLocation]);
+
+    // TODO temporarily one profile, since we don't support multiple sessions yet
+    const profileListItems = useMemo(() => (<ListItem
+        button
+        key={session?.id ?? ''}
+        onClick={() => handleUserClick(session.id ?? '')}
+    >
+        <ListItemIcon>
+            <UserIcon />
+        </ListItemIcon>
+        <ListItemText primary={'me'} />
+    </ListItem>), [handleUserClick, session.id])
+
+    return (
+        <Menu
+            id='account-menu-id'
+            disableScrollLock={true}
+            autoFocus={true}
+            open={open}
+            anchorEl={anchorEl}
+            anchorOrigin={{
+                vertical: 'bottom',
+                horizontal: 'right',
+            }}
+            transformOrigin={{
+                vertical: 'bottom',
+                horizontal: 'right',
+            }}
+            onClose={(e) => { onClose() }}
+            sx={{
+                zIndex: 20000,
+                '& .MuiMenu-paper': {
+                    background: palette.background.default
+                },
+                '& .MuiMenu-list': {
+                    paddingTop: '0',
+                }
+            }}
+        >
+            {/* Custom menu title with theme switch, preferred language selector, text size quantity box, and close icon */}
+            <Stack
+                direction='row'
+                spacing={1}
+                sx={{
+                    ...noSelect,
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: 2,
+                    background: palette.primary.dark,
+                    color: palette.primary.contrastText,
+                    textAlign: 'center',
+                    fontSize: { xs: '1.5rem', sm: '2rem' },
+                }}
+            >
+                {/* Theme switch */}
+                <ThemeSwitch
+                    showText={false}
+                    theme={formik.values.theme as 'light' | 'dark'}
+                    onChange={(t) => formik.setFieldValue('theme', t)}
+                />
+                {/* Preferred language selector */}
+                {/* TODO */}
+                {/* Text size quantity box */}
+                {/* TODO */}
+                {/* Close icon */}
+                <IconButton
+                    aria-label="close"
+                    edge="end"
+                    onClick={onClose}
+                    sx={{ marginLeft: 'auto' }}
+                >
+                    <CloseIcon fill={palette.primary.contrastText} />
+                </IconButton>
+            </Stack>
+            {/* List of logged/in accounts */}
+            <List>
+                {profileListItems}
+            </List>
+            {/* Buttons to add account and log out */}
+            {/* TODO */}
+        </Menu>
+    )
 }

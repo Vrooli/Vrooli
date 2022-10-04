@@ -6,7 +6,7 @@ import {
     FindInPage,
     Footer,
     Navbar,
-    Snack
+    SnackStack,
 } from 'components';
 import { PubSub, themes, useReactHash } from 'utils';
 import { Routes } from 'Routes';
@@ -298,7 +298,7 @@ export function App() {
                                 />
                             }
                             <AlertDialog />
-                            <Snack />
+                            <SnackStack />
                             <Routes
                                 session={session ?? {}}
                                 sessionChecked={session !== undefined}

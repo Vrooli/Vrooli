@@ -1,6 +1,6 @@
 import { Box, Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { standardCreate as validationSchema, standardTranslationCreate } from '@shared/validation';
 import { useFormik } from 'formik';
 import { standardCreateMutation } from "graphql/mutation";
@@ -181,8 +181,8 @@ export const StandardCreate = ({
                         handleAdd={handleAddLanguage}
                         handleDelete={handleLanguageDelete}
                         handleCurrent={setLanguage}
-                        selectedLanguages={languages}
                         session={session}
+                        translations={formik.values.translationsCreate}
                         zIndex={zIndex}
                     />
                 </Grid>

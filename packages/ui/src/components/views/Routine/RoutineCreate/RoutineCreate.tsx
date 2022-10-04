@@ -1,6 +1,6 @@
 import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
 import { useMutation } from "@apollo/client";
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { routineCreate as validationSchema, routineTranslationCreate } from '@shared/validation';
 import { useFormik } from 'formik';
 import { routineCreateMutation } from "graphql/mutation";
@@ -173,8 +173,8 @@ export const RoutineCreate = ({
                         handleAdd={handleAddLanguage}
                         handleDelete={handleLanguageDelete}
                         handleCurrent={setLanguage}
-                        selectedLanguages={languages}
                         session={session}
+                        translations={formik.values.translationsCreate}
                         zIndex={zIndex}
                     />
                 </Grid>

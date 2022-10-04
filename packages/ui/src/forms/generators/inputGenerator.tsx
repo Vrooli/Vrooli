@@ -177,8 +177,8 @@ export const toLanguageInput = ({
             handleAdd={addLanguage}
             handleDelete={deleteLanguage}
             handleCurrent={() => { }} //TODO
-            selectedLanguages={languages}
             session={session}
+            translations={languages.map(language => ({ language }))}
             zIndex={zIndex}
         />
     )

@@ -364,11 +364,10 @@ export const ProjectView = ({
                     right: 8,
                 }}>
                     <SelectLanguageMenu
-                        availableLanguages={availableLanguages}
-                        canDropdownOpen={availableLanguages.length > 1}
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         session={session}
+                        translations={project?.translations ?? partialData?.translations ?? []}
                         zIndex={zIndex}
                     />
                 </Box>

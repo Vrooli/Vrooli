@@ -3,7 +3,7 @@ import { Box, Stack, Tooltip, Typography } from '@mui/material';
 import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from '@shared/icons';
 import { vote, voteVariables } from 'graphql/generated/vote';
 import { voteMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { UpvoteDownvoteProps } from '../types';
 

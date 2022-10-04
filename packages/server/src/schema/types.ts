@@ -1682,6 +1682,7 @@ export type Query = {
   tag?: Maybe<Tag>;
   tags: TagSearchResult;
   tagsCount: Scalars['Int'];
+  translate: Translate;
   user?: Maybe<User>;
   users: UserSearchResult;
   usersCount: Scalars['Int'];
@@ -1886,6 +1887,11 @@ export type QueryTagsArgs = {
 
 export type QueryTagsCountArgs = {
   input: TagCountInput;
+};
+
+
+export type QueryTranslateArgs = {
+  input: TranslateInput;
 };
 
 
@@ -3048,6 +3054,18 @@ export type TagUpdateInput = {
 export type TimeFrame = {
   after?: InputMaybe<Scalars['Date']>;
   before?: InputMaybe<Scalars['Date']>;
+};
+
+export type Translate = {
+  __typename?: 'Translate';
+  fields: Scalars['String'];
+  language: Scalars['String'];
+};
+
+export type TranslateInput = {
+  fields: Scalars['String'];
+  languageSource: Scalars['String'];
+  languageTarget: Scalars['String'];
 };
 
 export type User = {

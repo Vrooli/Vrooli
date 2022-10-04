@@ -4,7 +4,7 @@ import { organization, organizationVariables } from "graphql/generated/organizat
 import { organizationQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { OrganizationUpdateProps } from "../types";
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { organizationTranslationUpdate, organizationUpdate as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { organizationUpdateMutation } from "graphql/mutation";
@@ -158,8 +158,8 @@ export const OrganizationUpdate = ({
                     handleAdd={handleAddLanguage}
                     handleDelete={handleLanguageDelete}
                     handleCurrent={setLanguage}
-                    selectedLanguages={languages}
                     session={session}
+                    translations={formik.values.translationsUpdate}
                     zIndex={zIndex}
                 />
             </Grid>
@@ -236,7 +236,7 @@ export const OrganizationUpdate = ({
                 onSubmit={formik.handleSubmit}
             />
         </Grid>
-    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, languages, name, onTranslationBlur, onTranslationChange, touchedName, errorName, bio, touchedBio, errorBio, formik.values.isOpenToNewMembers, formik.handleChange, formik.isSubmitting, formik.setSubmitting, formik.handleSubmit, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, errors, onCancel]);
+    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, formik.values.translationsUpdate, formik.values.isOpenToNewMembers, formik.handleChange, formik.isSubmitting, formik.setSubmitting, formik.handleSubmit, name, onTranslationBlur, onTranslationChange, touchedName, errorName, bio, touchedBio, errorBio, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, errors, onCancel]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{

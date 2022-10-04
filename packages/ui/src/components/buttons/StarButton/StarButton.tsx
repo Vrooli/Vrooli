@@ -2,7 +2,7 @@ import { Box, ListItemText, Stack, Tooltip } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StarButtonProps } from '../types';
 import { multiLineEllipsis } from 'styles';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { useMutation } from '@apollo/client';
 import { star, starVariables } from 'graphql/generated/star';
 import { starMutation } from 'graphql/mutation';

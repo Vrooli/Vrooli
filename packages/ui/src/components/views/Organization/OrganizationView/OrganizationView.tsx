@@ -405,11 +405,10 @@ export const OrganizationView = ({
                     right: 8,
                 }}>
                     <SelectLanguageMenu
-                        availableLanguages={availableLanguages}
-                        canDropdownOpen={availableLanguages.length > 1}
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         session={session}
+                        translations={organization?.translations ?? partialData?.translations ?? []}
                         zIndex={zIndex}
                     />
                 </Box>

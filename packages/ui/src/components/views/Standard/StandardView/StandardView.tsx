@@ -314,11 +314,10 @@ export const StandardView = ({
                                 prefix={" - "}
                             />
                             <SelectLanguageMenu
-                                availableLanguages={availableLanguages}
-                                canDropdownOpen={availableLanguages.length > 1}
                                 currentLanguage={language}
                                 handleCurrent={setLanguage}
                                 session={session}
+                                translations={standard?.translations ?? partialData?.translations ?? []}
                                 zIndex={zIndex}
                             />
                             {canEdit && <Tooltip title="Edit standard">

@@ -3,7 +3,7 @@ import { useMutation, useLazyQuery } from "@apollo/client";
 import { project, projectVariables } from "graphql/generated/project";
 import { projectQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { projectTranslationUpdate, projectUpdate as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { projectUpdateMutation } from "graphql/mutation";
@@ -157,8 +157,8 @@ export const ProjectUpdate = ({
                     handleAdd={handleAddLanguage}
                     handleDelete={handleLanguageDelete}
                     handleCurrent={setLanguage}
-                    selectedLanguages={languages}
                     session={session}
+                    translations={formik.values.translationsUpdate}
                     zIndex={zIndex}
                 />
             </Grid>
@@ -218,7 +218,7 @@ export const ProjectUpdate = ({
                 onSubmit={formik.handleSubmit}
             />
         </Grid>
-    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, languages, name, onTranslationBlur, onTranslationChange, touchedName, errorName, description, touchedDescription, errorDescription, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, formik.isSubmitting, formik.setSubmitting, formik.handleSubmit, errors, onCancel]);
+    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, formik.values.translationsUpdate, formik.isSubmitting, formik.setSubmitting, formik.handleSubmit, name, onTranslationBlur, onTranslationChange, touchedName, errorName, description, touchedDescription, errorDescription, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, errors, onCancel]);
 
 
     return (

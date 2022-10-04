@@ -1,23 +1,61 @@
 import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material';
-import { SelectLanguageMenuProps } from '../types';
+import { ListMenuItemData, SelectLanguageMenuProps } from '../types';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
-import { AllLanguages, getUserLanguages } from 'utils';
+import { AllLanguages, getLanguageSubtag, getUserLanguages, PubSub } from 'utils';
 import { FixedSizeList } from 'react-window';
-import { MenuTitle } from 'components';
-import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon } from '@shared/icons';
+import { ListMenu, MenuTitle } from 'components';
+import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon, TranslateIcon } from '@shared/icons';
+import { translate, translateVariables } from 'graphql/generated/translate';
+import { translateQuery } from 'graphql/query';
+import { useLazyQuery } from '@apollo/client';
+import { queryWrapper } from 'graphql/utils';
+
+/**
+ * Languages which support auto-translations through LibreTranslate. 
+ * These are sorted by popularity (as best as I could).
+ */
+const autoTranslateLanguages = [
+    'zh', // Chinese
+    'es', // Spanish
+    'en', // English
+    'hi', // Hindi
+    'pt', // Portuguese
+    'ru', // Russian
+    'ja', // Japanese
+    'ko', // Korean
+    'tr', // Turkish
+    'fr', // French
+    'de', // German
+    'it', // Italian
+    'ar', // Arabic
+    'id', // Indonesian
+    'fa', // Persian
+    'pl', // Polish
+    'uk', // Ukrainian
+    'nl', // Dutch
+    'da', // Danish
+    'fi', // Finnish
+    'az', // Azerbaijani
+    'el', // Greek
+    'hu', // Hungarian
+    'cs', // Czech
+    'sk', // Slovak
+    'ga', // Irish
+    'sv', // Swedish
+    'he', // Hebrew
+    'eo', // Esperanto
+];
 
 const titleAria = 'select-language-dialog-title';
 
 export const SelectLanguageMenu = ({
-    availableLanguages,
-    canDropdownOpen = true,
     currentLanguage,
     handleDelete,
     handleCurrent,
     isEditing = false,
-    selectedLanguages,
     session,
     sxs,
+    translations,
     zIndex,
 }: SelectLanguageMenuProps) => {
     const { palette } = useTheme();
@@ -26,10 +64,67 @@ export const SelectLanguageMenu = ({
         setSearchString(event.target.value);
     }, []);
 
+    // Auto-translates from source to target language
+    const [getAutoTranslation] = useLazyQuery<translate, translateVariables>(translateQuery);
+    const autoTranslate = useCallback((source: string, target: string) => {
+        console.log("TODO autotranslate");
+        // Get source translation
+        const sourceTranslation = translations.find(t => t.language === source);
+        if (!sourceTranslation) {
+            PubSub.get().publishSnack({ message: 'Could not find translation.', severity: 'error' })
+            return;
+        }
+        queryWrapper({
+            query: getAutoTranslation,
+            input: { fields: JSON.stringify(sourceTranslation), languageSource: source, languageTarget: target },
+            onSuccess: (response) => {
+                console.log('got translation', response)
+                if (response?.data?.translate) {
+                    console.log('TODO')
+                } else {
+                    PubSub.get().publishSnack({ message: 'Could not translate.', severity: 'error' });
+                }
+            },
+            onError: () => {
+                PubSub.get().publishSnack({ message: 'Could not translate.', severity: 'error' });
+            }
+        })
+    }, [getAutoTranslation, translations]);
+
+    // Menu for selecting language to auto-translate from
+    const translateSourceOptions = useMemo<ListMenuItemData<string>[]>(() => {
+        // Filter translations to those which have at least one non-empty translation string
+        const enteredLanguages: string[] = translations
+            .filter((translation) => Object.entries(translation).some(([key, value]) => !['__typename', 'id', 'language'].includes(key) && typeof value === 'string' && value.trim().length > 0))
+            .map((translation) => translation.language);
+        // Find all languages which support auto-translations in selected languages
+        const autoTranslateLanguagesFiltered = autoTranslateLanguages.filter(l => enteredLanguages?.indexOf(l) !== -1);
+        // Convert to list menu item data
+        return autoTranslateLanguagesFiltered.map(l => ({ label: AllLanguages[l], value: l }));
+    }, [translations]);
+    const [translateSourceAnchor, setTranslateSourceAnchor] = useState<any>(null);
+    const openTranslateSource = useCallback((ev: React.MouseEvent<any>, targetLanguage: string) => {
+        // Stop propagation so that the list item is not selected
+        ev.stopPropagation();
+        // If there's only one source language, auto-translate
+        if (translateSourceOptions.length === 1) {
+            autoTranslate(translateSourceOptions[0].value, targetLanguage);
+        }
+        // Otherwise, open menu to select source language
+        else {
+            console.log('openTranslateSource', targetLanguage);
+            setTranslateSourceAnchor(ev.currentTarget)
+        }
+    }, [autoTranslate, translateSourceOptions]);
+    const closeTranslateSource = useCallback(() => setTranslateSourceAnchor(null), []);
+    const handleTranslateSourceSelect = useCallback((path: string) => {
+        console.log('TODO')
+    }, []);
+
     const languageOptions = useMemo<Array<[string, string]>>(() => {
         // Find user languages
         const userLanguages = getUserLanguages(session);
-        const selected = selectedLanguages ?? [];
+        const selected = translations.map((translation) => getLanguageSubtag(translation.language));
         // Sort selected languages. Selected languages which are also user languages are first.
         const sortedSelectedLanguages = selected.sort((a, b) => {
             const aIndex = userLanguages.indexOf(a);
@@ -46,11 +141,12 @@ export const SelectLanguageMenu = ({
         }) ?? [];
         // Filter selected languages from user languages
         const userLanguagesFiltered = userLanguages.filter(l => selected.indexOf(l) === -1);
-        // Select selected and user languages from all languages
-        const allLanguagesFiltered = (availableLanguages ?? Object.keys(AllLanguages)).filter(l => selected.indexOf(l) === -1).filter(l => userLanguagesFiltered.indexOf(l) === -1);
+        // Filter selected and user languages from auto-translateLanguages
+        const autoTranslateLanguagesFiltered = autoTranslateLanguages.filter(l => selected.indexOf(l) === -1 && userLanguages.indexOf(l) === -1);
+        // Filter selected and user and auto-translate languages from all languages (only when editing)
+        const allLanguagesFiltered = isEditing ? (Object.keys(AllLanguages)).filter(l => selected.indexOf(l) === -1 && userLanguages.indexOf(l) === -1 && autoTranslateLanguages.indexOf(l) === -1) : [];
         // Create array with all available languages.
-        // Selected and user languages first, then selected, then user languages which haven't been seleccted, then other available languages.
-        const displayed = [...sortedSelectedLanguages, ...userLanguagesFiltered, ...allLanguagesFiltered];
+        const displayed = [...sortedSelectedLanguages, ...userLanguagesFiltered, ...autoTranslateLanguagesFiltered, ...allLanguagesFiltered];
         // Convert to array of [languageCode, languageDisplayName]
         let options: Array<[string, string]> = displayed.map(l => [l, AllLanguages[l]]);
         // Filter options with search string
@@ -58,16 +154,16 @@ export const SelectLanguageMenu = ({
             options = options.filter((o: [string, string]) => o[1].toLowerCase().includes(searchString.toLowerCase()));
         }
         return options;
-    }, [availableLanguages, searchString, selectedLanguages, session]);
+    }, [isEditing, searchString, session, translations]);
 
     // Popup for selecting language
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const open = Boolean(anchorEl);
     const onOpen = useCallback((event: MouseEvent<HTMLElement>) => {
-        if (canDropdownOpen) setAnchorEl(event.currentTarget);
+        setAnchorEl(event.currentTarget);
         // Force parent to save current translation TODO this causes infinite render in multi-step routine. not sure why
         if (currentLanguage) handleCurrent(currentLanguage);
-    }, [canDropdownOpen, currentLanguage, handleCurrent]);
+    }, [currentLanguage, handleCurrent]);
     const onClose = useCallback(() => {
         // Chear text field
         setSearchString('');
@@ -82,6 +178,16 @@ export const SelectLanguageMenu = ({
 
     return (
         <>
+            {/* Select auto-translate source popover */}
+            <ListMenu
+                id={`auto-translate-from-menu`}
+                anchorEl={translateSourceAnchor}
+                title='Translate from...'
+                data={translateSourceOptions}
+                onSelect={handleTranslateSourceSelect}
+                onClose={closeTranslateSource}
+                zIndex={zIndex + 2}
+            />
             {/* Language select popover */}
             <Popover
                 open={open}
@@ -157,8 +263,13 @@ export const SelectLanguageMenu = ({
                         {(props) => {
                             const { index, style } = props;
                             const option: [string, string] = languageOptions[index];
-                            const isSelected = selectedLanguages?.includes(option[0]) || option[0] === currentLanguage;
+                            const isSelected = option[0] === currentLanguage || translations.some((translation) => getLanguageSubtag(translation.language) === getLanguageSubtag(option[0]));
                             const isCurrent = option[0] === currentLanguage;
+                            // Can delete if selected, editing, and there are more than 1 selected languages
+                            const canDelete = isSelected && isEditing && translations.length > 1;
+                            // Can auto-translate if the language is not selected, is in auto-translate languages, and one of 
+                            // the existing translations is in the auto-translate languages.
+                            const canAutoTranslate = !isSelected && translateSourceOptions.length > 0 &&  autoTranslateLanguages.includes(option[0]);
                             return (
                                 <ListItem
                                     key={index}
@@ -185,14 +296,27 @@ export const SelectLanguageMenu = ({
                                         marginRight: 'auto',
                                         marginLeft: isSelected ? '8px' : '0',
                                     }}>{option[1]}</Typography>
-                                    {/* Display delete icon if selected and editing */}
-                                    {isSelected && (selectedLanguages?.length ?? 0) > 1 && isEditing && (
-                                        <IconButton
-                                            size="small"
-                                            onClick={(e) => onDelete(e, option[0])}
-                                        >
-                                            <DeleteIcon fill={isCurrent ? palette.secondary.contrastText : palette.background.textPrimary} />
-                                        </IconButton>
+                                    {/* Delete icon */}
+                                    {canDelete && (
+                                        <Tooltip title="Delete translation for this language">
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => onDelete(e, option[0])}
+                                            >
+                                                <DeleteIcon fill={isCurrent ? palette.secondary.contrastText : palette.background.textPrimary} />
+                                            </IconButton>
+                                        </Tooltip>
+                                    )}
+                                    {/* Auto-translate icon */}
+                                    {canAutoTranslate && (
+                                        <Tooltip title="Auto-translate from an existing translation">
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => { openTranslateSource(e, option[0]) }}
+                                            >
+                                                <TranslateIcon fill={isCurrent ? palette.secondary.contrastText : palette.background.textPrimary} />
+                                            </IconButton>
+                                        </Tooltip>
                                     )}
                                 </ListItem>
                             );
@@ -204,28 +328,28 @@ export const SelectLanguageMenu = ({
             <Tooltip title={AllLanguages[currentLanguage] ?? ''} placement="top">
                 <Stack direction="row" spacing={0} onClick={onOpen} sx={{
                     ...(sxs?.root ?? {}),
-                    display: availableLanguages === undefined || availableLanguages.length > 0 ? 'flex' : 'none',
+                    display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',
                     borderRadius: '50px',
-                    cursor: canDropdownOpen ? 'pointer' : 'default',
+                    cursor: 'pointer',
                     background: '#4e7d31',
                     '&:hover': {
-                        filter: canDropdownOpen ? 'brightness(120%)' : 'brightness(100%)',
+                        filter: 'brightness(120%)',
                     },
                     transition: 'all 0.2s ease-in-out',
                     width: 'fit-content',
                 }}>
-                    <IconButton disabled={!canDropdownOpen} size="large" sx={{ padding: '4px' }}>
+                    <IconButton size="large" sx={{ padding: '4px' }}>
                         <LanguageIcon fill={'white'} />
                     </IconButton>
                     <Typography variant="body2" sx={{ color: 'white', marginRight: '8px' }}>
                         {currentLanguage?.toLocaleUpperCase()}
                     </Typography>
                     {/* Drop down or drop up icon */}
-                    {canDropdownOpen && <IconButton size="large" aria-label="language-select" sx={{ padding: '4px', marginLeft: '-8px' }}>
+                    <IconButton size="large" aria-label="language-select" sx={{ padding: '4px', marginLeft: '-8px' }}>
                         {open ? <ArrowDropUpIcon fill={'white'} /> : <ArrowDropDownIcon fill={'white'} />}
-                    </IconButton>}
+                    </IconButton>
                 </Stack>
             </Tooltip>
         </>

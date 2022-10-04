@@ -6,7 +6,7 @@ import { useCallback } from 'react';
 import { Email } from 'types';
 import { Box, IconButton, Stack, TextField, useTheme } from '@mui/material';
 import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { PubSub, updateArray } from 'utils';
 import { emailCreateMutation, deleteOneMutation, emailUpdateMutation, sendVerificationEmailMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';

@@ -6,7 +6,7 @@ import { useCallback, useState } from 'react';
 import { Wallet } from 'types';
 import { Box, Button } from '@mui/material';
 import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { PubSub, updateArray } from 'utils';
 import { deleteOneMutation, walletUpdateMutation } from 'graphql/mutation';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
