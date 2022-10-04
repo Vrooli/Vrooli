@@ -29,7 +29,7 @@ export type Pubs = ValueOf<typeof Pubs>;
 
 export type SnackPub = {
     message?: string;
-    severity?: SnackSeverity;
+    severity: SnackSeverity;
     data?: any;
     buttonText?: string;
     buttonClicked?: (event?: any) => any;

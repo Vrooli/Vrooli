@@ -9,7 +9,7 @@ import { useLocation } from '@shared/route';
 import { firstString, getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, openLink, PubSub, ResourceType } from 'utils';
 import { Resource } from 'types';
 import { getResourceIcon } from '..';
-import { TextLoading } from 'components';
+import { SnackSeverity, TextLoading } from 'components';
 import { DeleteIcon, EditIcon, OpenInNewIcon } from '@shared/icons';
 
 /**
@@ -51,7 +51,7 @@ export function ResourceListItem({
         const resourceType = getResourceType(data.link);
         // If null, show error
         if (!resourceType) {
-            PubSub.get().publishSnack({ message: 'Unable to open link', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Unable to open link', severity: SnackSeverity.Error });
             return;
         }
         // If URL, open in new tab
@@ -64,7 +64,7 @@ export function ResourceListItem({
                     {
                         text: 'Copy', onClick: () => {
                             navigator.clipboard.writeText(data.link);
-                            PubSub.get().publishSnack({ message: 'Copied.', severity: 'success' });
+                            PubSub.get().publishSnack({ message: 'Copied.', severity: SnackSeverity.Success });
                         }
                     },
                     { text: 'Close' }

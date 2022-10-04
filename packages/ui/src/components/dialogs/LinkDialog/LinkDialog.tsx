@@ -13,7 +13,7 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { DialogTitle } from 'components';
+import { DialogTitle, SnackSeverity } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LinkDialogProps } from '../types';
 import { Node, NodeLink } from 'types';
@@ -65,7 +65,7 @@ export const LinkDialog = ({
 
     const addLink = useCallback(() => {
         if (!fromNode || !toNode) {
-            PubSub.get().publishSnack({ message: 'Please select both from and to nodes', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Please select both from and to nodes', severity: SnackSeverity.Error });
             return;
         }
         onClose({

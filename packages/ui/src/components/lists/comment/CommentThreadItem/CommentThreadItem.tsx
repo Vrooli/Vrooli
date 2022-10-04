@@ -18,6 +18,7 @@ import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
 import { GridSubmitButtons, ReportButton, StarButton } from 'components/buttons';
 import { DeleteIcon, ReplyIcon } from '@shared/icons';
 import { uuidValidate } from '@shared/uuid';
+import { SnackSeverity } from 'components/dialogs';
 
 export function CommentThreadItem({
     data,
@@ -79,7 +80,7 @@ export function CommentThreadItem({
                 },
                 successCondition: (response) => response.data.commentCreate !== null,
                 onSuccess: (response) => {
-                    PubSub.get().publishSnack({ message: 'Comment created.', severity: 'success' });
+                    PubSub.get().publishSnack({ message: 'Comment created.', severity: SnackSeverity.Success });
                     formik.resetForm();
                     setReplyOpen(false);
                     handleCommentAdd(response.data.commentCreate);
@@ -130,14 +131,14 @@ export function CommentThreadItem({
                             input: { id: data.id, objectType: DeleteOneType.Comment },
                             onSuccess: (response) => {
                                 if (response?.data?.deleteOne?.success) {
-                                    PubSub.get().publishSnack({ message: `Comment deleted.` });
+                                    PubSub.get().publishSnack({ message: `Comment deleted.`, severity: SnackSeverity.Success });
                                     handleCommentRemove(data);
                                 } else {
-                                    PubSub.get().publishSnack({ message: `Error deleting comment.`, severity: 'error' });
+                                    PubSub.get().publishSnack({ message: `Error deleting comment.`, severity: SnackSeverity.Error });
                                 }
                             },
                             onError: () => {
-                                PubSub.get().publishSnack({ message: `Failed to delete comment.` });
+                                PubSub.get().publishSnack({ message: `Failed to delete comment.`, severity: SnackSeverity.Error });
                             }
                         })
                     }

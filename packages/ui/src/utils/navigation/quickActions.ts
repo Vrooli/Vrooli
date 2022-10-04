@@ -1,4 +1,5 @@
 import { APP_LINKS } from "@shared/consts";
+import { SnackSeverity } from "components";
 import { profileUpdateMutation } from "graphql/mutation";
 import { errorToMessage, initializeApollo } from "graphql/utils";
 import { ActionOption, ApolloError, Session, ShortcutOption } from "types";
@@ -204,7 +205,7 @@ export const performAction = async (option: ActionOption, session: Session): Pro
             }).then(() => {
                 PubSub.get().publishTheme('dark');
             }).catch((error: ApolloError) => {
-                PubSub.get().publishSnack({ message: errorToMessage(error), severity: 'error', data: error });
+                PubSub.get().publishSnack({ message: errorToMessage(error), severity: SnackSeverity.Error, data: error });
             })
             break;
         case 'activate-light-mode':
@@ -215,7 +216,7 @@ export const performAction = async (option: ActionOption, session: Session): Pro
             }).then(() => {
                 PubSub.get().publishTheme('light');
             }).catch((error: ApolloError) => {
-                PubSub.get().publishSnack({ message: errorToMessage(error), severity: 'error', data: error });
+                PubSub.get().publishSnack({ message: errorToMessage(error), severity: SnackSeverity.Error, data: error });
             })
             break;
     }

@@ -18,7 +18,7 @@ import { emailLogIn, emailLogInVariables } from 'graphql/generated/emailLogIn';
 import { LogInFormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
-import { PasswordTextField } from 'components';
+import { PasswordTextField, SnackSeverity } from 'components';
 import { useMemo } from 'react';
 import { CSSProperties } from '@mui/styles';
 import { errorToMessage, hasErrorCode } from 'graphql/utils';
@@ -50,7 +50,7 @@ export const LogInForm = ({
                 input: { ...values, verificationCode },
                 successCondition: (response) => response.data.emailLogIn !== null,
                 onSuccess: (response) => { 
-                    if (verificationCode) PubSub.get().publishSnack({ message: 'Email verified!' });
+                    if (verificationCode) PubSub.get().publishSnack({ message: 'Email verified!', severity: SnackSeverity.Success });
                     PubSub.get().publishSession(response.data.emailLogIn); setLocation(redirect ?? APP_LINKS.Home) 
                 },
                 showDefaultErrorSnack: false,
@@ -68,12 +68,12 @@ export const LogInForm = ({
                     else if (hasErrorCode(response, CODE.EmailNotFound)) {
                         PubSub.get().publishSnack({ 
                             message: CODE.EmailNotFound.message, 
-                            severity: 'error', 
+                            severity: SnackSeverity.Error, 
                             buttonText: 'Sign Up',
                             buttonClicked: () => { toSignUp() }
                         });
                     } else {
-                        PubSub.get().publishSnack({ message: errorToMessage(response), severity: 'error', data: response });
+                        PubSub.get().publishSnack({ message: errorToMessage(response), severity: SnackSeverity.Error, data: response });
                     }
                     formik.setSubmitting(false);
                 }

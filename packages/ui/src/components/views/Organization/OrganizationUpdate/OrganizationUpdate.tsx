@@ -9,7 +9,7 @@ import { organizationTranslationUpdate, organizationUpdate as validationSchema }
 import { useFormik } from 'formik';
 import { organizationUpdateMutation } from "graphql/mutation";
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getLastUrlPart, getPreferredLanguage, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, removeTranslation, shapeOrganizationUpdate, TagShape, usePromptBeforeUnload } from "utils";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
@@ -69,7 +69,7 @@ export const OrganizationUpdate = ({
         validationSchema,
         onSubmit: (values) => {
             if (!organization) {
-                PubSub.get().publishSnack({ message: 'Could not find existing organization data.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Could not find existing organization data.', severity: SnackSeverity.Error });
                 return;
             }
             mutationWrapper({

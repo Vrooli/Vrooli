@@ -13,7 +13,7 @@ import { useLocation } from '@shared/route';
 import { emailResetPassword, emailResetPasswordVariables } from 'graphql/generated/emailResetPassword';
 import { ResetPasswordFormProps } from './types';
 import { formPaper, formSubmit } from './styles';
-import { PasswordTextField } from 'components';
+import { PasswordTextField, SnackSeverity } from 'components';
 import { PubSub } from 'utils';
 
 export const ResetPasswordForm = ({
@@ -32,7 +32,7 @@ export const ResetPasswordForm = ({
         onSubmit: (values) => {
             // Check for valid userId and code
             if (!userId || !code) {
-                PubSub.get().publishSnack({ message: 'Invalid reset password URL.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Invalid reset password URL.', severity: SnackSeverity.Error });
                 return;
             }
             mutationWrapper({

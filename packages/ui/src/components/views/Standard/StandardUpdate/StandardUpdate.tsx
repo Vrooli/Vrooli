@@ -10,7 +10,7 @@ import { standardTranslationUpdate, standardUpdate as validationSchema } from '@
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, removeTranslation, shapeStandardUpdate, TagShape, usePromptBeforeUnload } from "utils";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { standardUpdate, standardUpdateVariables } from "graphql/generated/standardUpdate";
@@ -80,7 +80,7 @@ export const StandardUpdate = ({
         validationSchema,
         onSubmit: (values) => {
             if (!standard) {
-                PubSub.get().publishSnack({ message: 'Could not find existing standard data.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Could not find existing standard data.', severity: SnackSeverity.Error });
                 return;
             }
             // Update

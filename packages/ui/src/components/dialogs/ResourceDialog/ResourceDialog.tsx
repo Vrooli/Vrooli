@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AutocompleteSearchBar, LanguageInput } from 'components/inputs';
 import { AutocompleteOption, Resource } from 'types';
 import { DUMMY_ID, uuid } from '@shared/uuid';
-import { DialogTitle, getResourceIcon, GridSubmitButtons } from 'components';
+import { DialogTitle, getResourceIcon, GridSubmitButtons, SnackSeverity } from 'components';
 import { SearchIcon } from '@shared/icons';
 import { homePage, homePageVariables } from 'graphql/generated/homePage';
 import { homePageQuery } from 'graphql/query';
@@ -103,7 +103,7 @@ export const ResourceDialog = ({
             };
             if (mutate) {
                 const onSuccess = (response) => {
-                    PubSub.get().publishSnack({ message: (index < 0) ? 'Resource created.' : 'Resource updated.' });
+                    PubSub.get().publishSnack({ message: (index < 0) ? 'Resource created.' : 'Resource updated.', severity: SnackSeverity.Success });
                     (index < 0) ? onCreated(response.data.resourceCreate) : onUpdated(index ?? 0, response.data.resourceUpdate);
                     formik.resetForm();
                     onClose();
@@ -121,7 +121,7 @@ export const ResourceDialog = ({
                 // Otherwise, update
                 else {
                     if (!partialData || !partialData.id || !listId) {
-                        PubSub.get().publishSnack({ message: 'Could not find resource to update.', severity: 'error' });
+                        PubSub.get().publishSnack({ message: 'Could not find resource to update.', severity: SnackSeverity.Error });
                         return;
                     }
                     mutationWrapper({

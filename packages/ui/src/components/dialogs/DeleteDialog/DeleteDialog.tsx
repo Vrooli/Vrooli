@@ -16,7 +16,7 @@ import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
 import { APP_LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { PubSub } from 'utils';
-import { DialogTitle } from 'components';
+import { DialogTitle, SnackSeverity } from 'components';
 import { DeleteIcon } from '@shared/icons';
 
 const titleAria = 'delete-object-dialog-title';
@@ -47,15 +47,15 @@ export const DeleteDialog = ({
             input: { id: objectId, objectType },
             onSuccess: (response) => {
                 if (response?.data?.deleteOne?.success) {
-                    PubSub.get().publishSnack({ message: `${objectName} deleted.` });
+                    PubSub.get().publishSnack({ message: `${objectName} deleted.`, severity: SnackSeverity.Info });
                     setLocation(APP_LINKS.Home);
                 } else {
-                    PubSub.get().publishSnack({ message: `Error deleting ${objectName}.`, severity: 'error' });
+                    PubSub.get().publishSnack({ message: `Error deleting ${objectName}.`, severity: SnackSeverity.Error });
                 }
                 close(true);
             },
             onError: () => {
-                PubSub.get().publishSnack({ message: `Failed to delete ${objectName}.` });
+                PubSub.get().publishSnack({ message: `Failed to delete ${objectName}.`, severity: SnackSeverity.Error });
                 close(false);
             }
         })

@@ -18,6 +18,7 @@ import { emailUpdate, emailUpdateVariables } from 'graphql/generated/emailUpdate
 import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
 import { sendVerificationEmail, sendVerificationEmailVariables } from 'graphql/generated/sendVerificationEmail';
 import { AddIcon } from '@shared/icons';
+import { SnackSeverity } from 'components/dialogs';
 
 export const EmailList = ({
     handleUpdate,
@@ -44,7 +45,7 @@ export const EmailList = ({
                     receivesBusinessUpdates: true,
                 },
                 onSuccess: (response) => {
-                    PubSub.get().publishSnack({ message: 'Please check your email to complete verification.' });
+                    PubSub.get().publishSnack({ message: 'Please check your email to complete verification.', severity: SnackSeverity.Info });
                     handleUpdate([...list, response.data.emailCreate]);
                     formik.resetForm();
                 },
@@ -75,7 +76,7 @@ export const EmailList = ({
         // Make sure that the user has at least one other authentication method 
         // (i.e. one other email or one other wallet)
         if (list.length <= 1 && numVerifiedWallets === 0) {
-            PubSub.get().publishSnack({ message: 'Cannot delete your only authentication method!', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Cannot delete your only authentication method!', severity: SnackSeverity.Error });
             return;
         }
         // Confirmation dialog
@@ -105,7 +106,7 @@ export const EmailList = ({
             mutation: verifyMutation,
             input: { emailAddress: email.emailAddress },
             onSuccess: (response) => {
-                PubSub.get().publishSnack({ message: 'Please check your email to complete verification.' });
+                PubSub.get().publishSnack({ message: 'Please check your email to complete verification.', severity: SnackSeverity.Info });
             },
         })
     }, [loadingVerifyEmail, verifyMutation]);

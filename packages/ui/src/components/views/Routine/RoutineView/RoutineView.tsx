@@ -5,7 +5,7 @@ import { useMutation, useLazyQuery } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, BuildView, ReportsLink, ResourceListHorizontal, RunPickerMenu, RunView, SelectLanguageMenu, StarButton, StatusButton, UpTransition, UpvoteDownvote, OwnerLabel, VersionDisplay } from "components";
+import { ObjectActionMenu, BuildView, ReportsLink, ResourceListHorizontal, RunPickerMenu, RunView, SelectLanguageMenu, StarButton, StatusButton, UpTransition, UpvoteDownvote, OwnerLabel, VersionDisplay, SnackSeverity } from "components";
 import { RoutineViewProps } from "../types";
 import { formikToRunInputs, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, useReactSearch } from "utils";
 import { Routine, Run } from "types";
@@ -141,13 +141,13 @@ export const RoutineView = ({
     const runRoutine = useCallback((e: any) => {
         // Validate routine before trying to run
         if (!routine || !uuidValidate(routine.id)) {
-            PubSub.get().publishSnack({ message: 'Error loading routine.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Error loading routine.', severity: SnackSeverity.Error });
             return;
         }
         // Find first node
         const firstNode = routine?.nodes?.find(node => node.type === NodeType.Start);
         if (!firstNode) {
-            PubSub.get().publishSnack({ message: 'Routine invalid - cannot run.', severity: 'Error' });
+            PubSub.get().publishSnack({ message: 'Routine invalid - cannot run.', severity: SnackSeverity.Error });
             return;
         }
         // If run specified use that
@@ -322,9 +322,9 @@ export const RoutineView = ({
         const input = formik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
-            PubSub.get().publishSnack({ message: 'Copied to clipboard.', severity: 'success' });
+            PubSub.get().publishSnack({ message: 'Copied to clipboard.', severity: SnackSeverity.Success });
         } else {
-            PubSub.get().publishSnack({ message: 'Input is empty.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Input is empty.', severity: SnackSeverity.Error });
         }
     }, [formik]);
 

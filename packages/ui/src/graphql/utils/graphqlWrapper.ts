@@ -2,6 +2,7 @@ import { Pubs, PubSub } from "utils";
 import { ApolloCache, DefaultContext, MutationFunctionOptions, QueryFunctionOptions } from '@apollo/client';
 import { errorToMessage } from './errorParser';
 import { ApolloError } from 'types';
+import { SnackSeverity } from "components";
 
 interface MutationWrapperProps<Output, Input extends { input: { [x: string]: any } }> {
     // useMutation function
@@ -57,7 +58,7 @@ export const mutationWrapper = <Output, Input extends { input: any }>({
                 PubSub.get().publishSnack({ message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
             }
             else if (showDefaultErrorSnack) {
-                PubSub.get().publishSnack({ message: 'Unknown error occurred.', severity: 'error', data: response });
+                PubSub.get().publishSnack({ message: 'Unknown error occurred.', severity: SnackSeverity.Error, data: response });
             }
             if (spinnerDelay) PubSub.get().publish(Pubs.Loading, false);
             if (onError && typeof onError === 'function') onError({ message: 'Unknown error occurred.' });
@@ -68,7 +69,7 @@ export const mutationWrapper = <Output, Input extends { input: any }>({
             PubSub.get().publishSnack({ message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
         }
         else if (showDefaultErrorSnack) {
-            PubSub.get().publishSnack({ message: errorToMessage(response), severity: 'error', data: response });
+            PubSub.get().publishSnack({ message: errorToMessage(response), severity: SnackSeverity.Error, data: response });
         }
         if (onError && typeof onError === 'function') onError(response);
     })
@@ -128,7 +129,7 @@ export const queryWrapper = <Output, Input extends { input: any }>({
                 PubSub.get().publishSnack({ message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
             }
             else if (showDefaultErrorSnack) {
-                PubSub.get().publishSnack({ message: 'Unknown error occurred.', severity: 'error', data: response });
+                PubSub.get().publishSnack({ message: 'Unknown error occurred.', severity: SnackSeverity.Error, data: response });
             }
             if (spinnerDelay) PubSub.get().publish(Pubs.Loading, false);
             if (onError && typeof onError === 'function') onError({ message: 'Unknown error occurred.' });
@@ -139,7 +140,7 @@ export const queryWrapper = <Output, Input extends { input: any }>({
             PubSub.get().publishSnack({ message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
         }
         else if (showDefaultErrorSnack) {
-            PubSub.get().publishSnack({ message: errorToMessage(response), severity: 'error', data: response });
+            PubSub.get().publishSnack({ message: errorToMessage(response), severity: SnackSeverity.Error, data: response });
         }
         if (onError && typeof onError === 'function') onError(response);
     })

@@ -1,3 +1,4 @@
+import { SnackSeverity } from "components";
 import { useEffect, useRef, useState } from "react";
 import { PubSub } from "utils/pubsub";
 
@@ -37,7 +38,7 @@ export const usePinchZoom = ({
             if (!validTargetIds.some(id => targetId.startsWith(id))) return;
             // Pinch requires two touches
             if (e.touches.length !== 2) return;
-            PubSub.get().publishSnack({ message: `Is pinching` })
+            PubSub.get().publishSnack({ message: `Is pinching`, severity: SnackSeverity.Info })
             setIsPinching(true);
             refs.current.currPosition = {
                 x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
@@ -54,7 +55,7 @@ export const usePinchZoom = ({
                 };
                 const deltaX = currPosition.x - (refs.current.currPosition?.x ?? 0);
                 const deltaY = currPosition.y - (refs.current.currPosition?.y ?? 0);
-                PubSub.get().publishSnack({ message: `touchmove deltaX: ${deltaX} deltaY: ${deltaY}` })
+                PubSub.get().publishSnack({ message: `touchmove deltaX: ${deltaX} deltaY: ${deltaY}`, severity: SnackSeverity.Info })
                 // If deltas have same sign, we're pinching
                 if (deltaX * deltaY > 0) {
                     onScaleChange(deltaX);

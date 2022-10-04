@@ -9,7 +9,7 @@ import { routineTranslationUpdate, routineUpdate as validationSchema } from '@sh
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputShape, ObjectType, OutputShape, PubSub, removeTranslation, shapeRoutineUpdate, TagShape, usePromptBeforeUnload } from "utils";
-import { GridSubmitButtons, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession, VersionInput } from "components";
+import { GridSubmitButtons, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession, VersionInput } from "components";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
@@ -97,7 +97,7 @@ export const RoutineUpdate = ({
         validationSchema: validationSchema({ minVersion: routine?.version ?? '0.0.1' }),
         onSubmit: (values) => {
             if (!routine) {
-                PubSub.get().publishSnack({ message: 'Could not find existing routine data.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Could not find existing routine data.', severity: SnackSeverity.Error });
                 return;
             }
             mutationWrapper({

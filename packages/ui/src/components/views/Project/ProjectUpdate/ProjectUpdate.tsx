@@ -8,7 +8,7 @@ import { projectTranslationUpdate, projectUpdate as validationSchema } from '@sh
 import { useFormik } from 'formik';
 import { projectUpdateMutation } from "graphql/mutation";
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, removeTranslation, shapeProjectUpdate, TagShape, usePromptBeforeUnload } from "utils";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
@@ -82,7 +82,7 @@ export const ProjectUpdate = ({
         validationSchema,
         onSubmit: (values) => {
             if (!project) {
-                PubSub.get().publishSnack({ message: 'Could not find existing project data.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Could not find existing project data.', severity: SnackSeverity.Error });
                 return;
             }
             mutationWrapper({

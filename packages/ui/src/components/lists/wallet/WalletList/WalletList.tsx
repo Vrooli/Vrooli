@@ -14,7 +14,7 @@ import { WalletListItem } from '../WalletListItem/WalletListItem';
 import { DeleteOneType } from '@shared/consts';
 import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
 import { walletUpdate, walletUpdateVariables } from 'graphql/generated/walletUpdate';
-import { WalletInstallDialog, WalletSelectDialog } from 'components';
+import { SnackSeverity, WalletInstallDialog, WalletSelectDialog } from 'components';
 import { AddIcon } from '@shared/icons';
 
 export const WalletList = ({
@@ -44,7 +44,7 @@ export const WalletList = ({
         // Make sure that the user has at least one other authentication method 
         // (i.e. one other wallet or one other email)
         if (list.length <= 1 && numVerifiedEmails === 0) {
-            PubSub.get().publishSnack({ message: 'Cannot delete your only authentication method!', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Cannot delete your only authentication method!', severity: SnackSeverity.Error });
             return;
         }
         // Confirmation dialog
@@ -103,10 +103,10 @@ export const WalletList = ({
             // Check if wallet is already in list (i.e. user has already added this wallet)
             const existingWallet = list.find(w => w.stakingAddress === walletCompleteResult.wallet?.stakingAddress);
             if (existingWallet) {
-                PubSub.get().publishSnack({ message: 'Wallet already connected.', severity: 'warning' })
+                PubSub.get().publishSnack({ message: 'Wallet already connected.', severity: SnackSeverity.Warning })
             }
             else {
-                PubSub.get().publishSnack({ message: 'Wallet verified.', severity: 'success' });
+                PubSub.get().publishSnack({ message: 'Wallet verified.', severity: SnackSeverity.Success });
                 // Update list
                 handleUpdate([...list, walletCompleteResult.wallet]);
             }
@@ -132,7 +132,7 @@ export const WalletList = ({
         // Validate wallet
         const walletCompleteResult = await validateWallet(providerKey);
         if (walletCompleteResult) {
-            PubSub.get().publishSnack({ message: 'Wallet verified.', severity: 'success' })
+            PubSub.get().publishSnack({ message: 'Wallet verified.', severity: SnackSeverity.Success })
             // Update list
             handleUpdate(updateArray(list, selectedIndex, {
                 ...list[selectedIndex],

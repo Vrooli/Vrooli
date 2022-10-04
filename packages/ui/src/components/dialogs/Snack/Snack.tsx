@@ -1,17 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconButton, Button, useTheme, Palette, Box, Typography } from '@mui/material';
-import { ValueOf } from '@shared/consts';
 import { CloseIcon, ErrorIcon, InfoIcon, SuccessIcon, SvgComponent, WarningIcon } from '@shared/icons';
 import { SnackProps } from '../types';
 
-export const SnackSeverity = {
-    Error: "error",
-    Info: "info",
-    Success: "success",
-    Warning: "warning",
+export enum SnackSeverity {
+    Error = 'error',
+    Info = 'info',
+    Success = 'success',
+    Warning = 'warning',
 }
-// eslint-disable-next-line @typescript-eslint/no-redeclare
-export type SnackSeverity = ValueOf<typeof SnackSeverity>;
 
 const severityStyle = (severity: SnackSeverity | undefined, palette: Palette) => {
     let backgroundColor: string = palette.primary.light;

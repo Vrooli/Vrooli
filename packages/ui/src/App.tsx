@@ -6,6 +6,7 @@ import {
     FindInPage,
     Footer,
     Navbar,
+    SnackSeverity,
     SnackStack,
 } from 'components';
 import { PubSub, themes, useReactHash } from 'utils';
@@ -185,7 +186,7 @@ export function App() {
             }
             // If error is something else, notify user
             if (!isInvalidSession) {
-                PubSub.get().publishSnack({ message: 'Failed to connect to server.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Failed to connect to server.', severity: SnackSeverity.Error });
             }
             // If not logged in as guest and failed to log in as user, set empty object
             if (!session) setSession({})

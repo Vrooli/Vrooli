@@ -9,6 +9,7 @@ import { useLocation } from "@shared/route";
 import { ListMenu } from "../ListMenu/ListMenu";
 import { uuidValidate } from '@shared/uuid';
 import { PubSub, stringifySearchParams } from "utils";
+import { SnackSeverity } from "components";
 
 const options: ListMenuItemData<string>[] = [
     { label: 'Routine (Single Step)', value: `${APP_LINKS.Routine}/add` },
@@ -29,7 +30,7 @@ export const SelectRoutineTypeMenu = ({
 
     const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
     if (!loggedIn) {
-        PubSub.get().publishSnack({ message: 'Must be logged in.', severity: 'error' });
+        PubSub.get().publishSnack({ message: 'Must be logged in.', severity: SnackSeverity.Error });
         setLocation(`${APP_LINKS.Start}${stringifySearchParams({
             redirect: window.location.pathname
         })}`);

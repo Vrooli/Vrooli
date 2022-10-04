@@ -6,7 +6,7 @@ import { vote, voteVariables } from 'graphql/generated/vote';
 import { copyMutation, forkMutation, starMutation, voteMutation } from "graphql/mutation";
 import { useCallback, useMemo, useState } from "react";
 import { ReportFor, StarFor, VoteFor } from "@shared/consts";
-import { DeleteDialog, ListMenu, ReportDialog } from "..";
+import { DeleteDialog, ListMenu, ReportDialog, SnackSeverity } from "..";
 import { ObjectActionMenuProps, ListMenuItemData, ObjectActionComplete, ObjectAction } from "../types";
 import { mutationWrapper } from "graphql/utils/graphqlWrapper";
 import { PubSub } from "utils";
@@ -76,14 +76,14 @@ export const ObjectActionMenu = ({
         // Check if objectType can be converted to CopyType
         const copyType = CopyType[objectType];
         if (!copyType) {
-            PubSub.get().publishSnack({ message: 'Copy not supported on this object type.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Copy not supported on this object type.', severity: SnackSeverity.Error });
             return;
         }
         mutationWrapper({
             mutation: copy,
             input: { id: objectId, objectType: copyType },
             onSuccess: ({ data }) => {
-                PubSub.get().publishSnack({ message: `${objectName} copied.`, severity: 'success' });
+                PubSub.get().publishSnack({ message: `${objectName} copied.`, severity: SnackSeverity.Success });
                 onActionComplete(ObjectActionComplete.Copy, data);
             },
         })
@@ -93,14 +93,14 @@ export const ObjectActionMenu = ({
         // Check if objectType can be converted to ForkType
         const forkType = ForkType[objectType];
         if (!forkType) {
-            PubSub.get().publishSnack({ message: 'Fork not supported on this object type.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Fork not supported on this object type.', severity: SnackSeverity.Error });
             return;
         }
         mutationWrapper({
             mutation: fork,
             input: { id: objectId, objectType: forkType },
             onSuccess: ({ data }) => {
-                PubSub.get().publishSnack({ message: `${objectName} forked.`, severity: 'success' });
+                PubSub.get().publishSnack({ message: `${objectName} forked.`, severity: SnackSeverity.Success });
                 onActionComplete(ObjectActionComplete.Fork, data);
             }
         })

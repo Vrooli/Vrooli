@@ -9,7 +9,7 @@ import { ReportDialogProps } from '../types';
 import { getUserLanguages, PubSub, usePromptBeforeUnload } from 'utils';
 import { useEffect, useState } from 'react';
 import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
-import { DialogTitle, GridSubmitButtons, Selector } from 'components';
+import { DialogTitle, GridSubmitButtons, Selector, SnackSeverity } from 'components';
 import { uuid } from '@shared/uuid';
 
 const helpText =
@@ -73,7 +73,7 @@ export const ReportDialog = ({
                 },
                 successCondition: (response) => response.data.reportCreate !== null,
                 onSuccess: () => {
-                    PubSub.get().publishSnack({ message: 'Report submitted.' });
+                    PubSub.get().publishSnack({ message: 'Report submitted.', severity: SnackSeverity.Success });
                     formik.resetForm();
                     onClose()
                 },

@@ -13,7 +13,7 @@ import { logOutMutation } from 'graphql/mutation';
 import { GridSubmitButtons, HelpButton } from "components/buttons";
 import { EmailList, WalletList } from "components/lists";
 import { Email, Wallet } from "types";
-import { PasswordTextField } from "components";
+import { PasswordTextField, SnackSeverity } from "components";
 import { logOut } from "graphql/generated/logOut";
 import { profileEmailUpdate, profileEmailUpdateVariables } from "graphql/generated/profileEmailUpdate";
 import { EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
@@ -51,7 +51,7 @@ export const SettingsAuthentication = ({
 
     const updateWallets = useCallback((updatedList: Wallet[]) => {
         if (!profile) {
-            PubSub.get().publishSnack({ message: 'Profile not loaded.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Profile not loaded.', severity: SnackSeverity.Error });
             return;
         }
         onUpdated({
@@ -63,7 +63,7 @@ export const SettingsAuthentication = ({
 
     const updateEmails = useCallback((updatedList: Email[]) => {
         if (!profile) {
-            PubSub.get().publishSnack({ message: 'Profile not loaded.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Profile not loaded.', severity: SnackSeverity.Error });
             return;
         }
         onUpdated({
@@ -85,7 +85,7 @@ export const SettingsAuthentication = ({
         validationSchema,
         onSubmit: (values) => {
             if (!profile) {
-                PubSub.get().publishSnack({ message: 'Could not find existing data.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Could not find existing data.', severity: SnackSeverity.Error });
                 return;
             }
             if (!formik.isValid) return;

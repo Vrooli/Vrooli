@@ -18,6 +18,7 @@ import { uuid } from '@shared/uuid';
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { RunStatus } from "graphql/generated/globalTypes";
 import { DeleteIcon } from "@shared/icons";
+import { SnackSeverity } from "../Snack/Snack";
 
 const titleAria = 'run-picker-dialog-title';
 
@@ -48,7 +49,7 @@ export const RunPickerMenu = ({
     const [runCreate] = useMutation<runCreate, runCreateVariables>(runCreateMutation);
     const createNewRun = useCallback(() => {
         if (!routine) {
-            PubSub.get().publishSnack({ message: 'Could not read routine data.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Could not read routine data.', severity: SnackSeverity.Error });
             return;
         }
         mutationWrapper({
@@ -66,7 +67,7 @@ export const RunPickerMenu = ({
                 onSelect(newRun);
                 handleClose();
             },
-            onError: () => { PubSub.get().publishSnack({ message: 'Failed to create run.', severity: 'error' }) },
+            onError: () => { PubSub.get().publishSnack({ message: 'Failed to create run.', severity: SnackSeverity.Error }) },
         })
     }, [handleClose, onAdd, onSelect, routine, runCreate, session]);
 
@@ -77,14 +78,14 @@ export const RunPickerMenu = ({
             input: { id: run.id, objectType: DeleteOneType.Run },
             onSuccess: (response) => {
                 if (response?.data?.deleteOne?.success) {
-                    PubSub.get().publishSnack({ message: `${displayDate(run.timeStarted)} deleted.` });
+                    PubSub.get().publishSnack({ message: `${displayDate(run.timeStarted)} deleted.`, severity: SnackSeverity.Success });
                     onDelete(run);
                 } else {
-                    PubSub.get().publishSnack({ message: `Error deleting ${displayDate(run.timeStarted)}.`, severity: 'error' });
+                    PubSub.get().publishSnack({ message: `Error deleting ${displayDate(run.timeStarted)}.`, severity: SnackSeverity.Error });
                 }
             },
             onError: () => {
-                PubSub.get().publishSnack({ message: `Failed to delete ${displayDate(run.timeStarted)}.` });
+                PubSub.get().publishSnack({ message: `Failed to delete ${displayDate(run.timeStarted)}.`, severity: SnackSeverity.Error });
             }
         })
     }, [deleteOne, onDelete])

@@ -1,5 +1,5 @@
 import { Box, IconButton, Palette, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, EditableLabel, UnlinkedNodesDialog, BuildInfoDialog, HelpButton, userFromSession } from 'components';
+import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, EditableLabel, UnlinkedNodesDialog, BuildInfoDialog, HelpButton, userFromSession, SnackSeverity } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
@@ -235,7 +235,7 @@ export const BuildView = ({
             // If routine is new, create it
             if (!uuidValidate(id)) {
                 if (!changedRoutine) {
-                    PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: 'error' });
+                    PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: SnackSeverity.Error });
                     return;
                 }
                 mutationWrapper({
@@ -264,11 +264,11 @@ export const BuildView = ({
             else {
                 // Don't update if no changes
                 if (!changedRoutine || isEqual(routine, changedRoutine)) {
-                    PubSub.get().publishSnack({ message: 'No changes detected', severity: 'error' });
+                    PubSub.get().publishSnack({ message: 'No changes detected', severity: SnackSeverity.Error });
                     return;
                 }
                 if (!routine || !changedRoutine.id) {
-                    PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: 'error' });
+                    PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: SnackSeverity.Error });
                     return;
                 }
                 mutationWrapper({
@@ -696,7 +696,7 @@ export const BuildView = ({
         }
         // If one or the other is null, then there must be an error
         if (columnIndex === null || rowIndex === null) {
-            PubSub.get().publishSnack({ message: 'Error: Invalid drop location.', severity: 'errror' });
+            PubSub.get().publishSnack({ message: 'Error: Invalid drop location.', severity: SnackSeverity.Error });
             return;
         }
         // Otherwise, is a drop
@@ -823,7 +823,7 @@ export const BuildView = ({
         // Find "to" node. New node will be placed in its row and column
         const toNode = changedRoutine.nodes.find(n => n.id === link.toId);
         if (!toNode) {
-            PubSub.get().publishSnack({ message: 'Error occurred.', severity: 'Error' });
+            PubSub.get().publishSnack({ message: 'Error occurred.', severity: SnackSeverity.Error });
             return;
         }
         const { columnIndex, rowIndex } = toNode;
@@ -859,7 +859,7 @@ export const BuildView = ({
         // Find "to" node. New node will be placed in its column
         const toNode = changedRoutine.nodes.find(n => n.id === link.toId);
         if (!toNode) {
-            PubSub.get().publishSnack({ message: 'Error occurred.', severity: 'Error' });
+            PubSub.get().publishSnack({ message: 'Error occurred.', severity: SnackSeverity.Error });
             return;
         }
         // Find the largest row index in the column. New node will be placed in the next row
@@ -1076,7 +1076,7 @@ export const BuildView = ({
     const handleSubroutineViewFull = useCallback(() => {
         if (!openedSubroutine) return;
         if (!isEqual(routine, changedRoutine)) {
-            PubSub.get().publishSnack({ message: 'You have unsaved changes. Please save or discard them before navigating to another routine.' });
+            PubSub.get().publishSnack({ message: 'You have unsaved changes. Please save or discard them before navigating to another routine.', severity: SnackSeverity.Error });
             return;
         }
         // TODO - buildview should have its own buildview, to recursively open subroutines

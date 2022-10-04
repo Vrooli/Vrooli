@@ -21,6 +21,7 @@ import { CommentThread } from 'components/lists/comment';
 import { DUMMY_ID, uuidValidate } from '@shared/uuid';
 import { uuid } from '@shared/uuid';
 import { GridSubmitButtons } from 'components/buttons';
+import { SnackSeverity } from 'components';
 
 const { advancedSearchSchema, defaultSortBy } = searchTypeToParams.Comment;
 
@@ -207,7 +208,7 @@ export function CommentContainer({
                 },
                 successCondition: (response) => response.data.commentCreate !== null,
                 onSuccess: (response) => {
-                    PubSub.get().publishSnack({ message: 'Comment created.', severity: 'success' });
+                    PubSub.get().publishSnack({ message: 'Comment created.', severity: SnackSeverity.Success });
                     formik.resetForm();
                     onCommentAdd(response.data.commentCreate);
                 },

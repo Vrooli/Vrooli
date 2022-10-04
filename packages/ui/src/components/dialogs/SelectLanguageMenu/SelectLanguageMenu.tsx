@@ -3,7 +3,7 @@ import { ListMenuItemData, SelectLanguageMenuProps } from '../types';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { AllLanguages, getLanguageSubtag, getUserLanguages, PubSub } from 'utils';
 import { FixedSizeList } from 'react-window';
-import { ListMenu, MenuTitle } from 'components';
+import { ListMenu, MenuTitle, SnackSeverity } from 'components';
 import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon, TranslateIcon } from '@shared/icons';
 import { translate, translateVariables } from 'graphql/generated/translate';
 import { translateQuery } from 'graphql/query';
@@ -71,7 +71,7 @@ export const SelectLanguageMenu = ({
         // Get source translation
         const sourceTranslation = translations.find(t => t.language === source);
         if (!sourceTranslation) {
-            PubSub.get().publishSnack({ message: 'Could not find translation.', severity: 'error' })
+            PubSub.get().publishSnack({ message: 'Could not find translation.', severity: SnackSeverity.Error })
             return;
         }
         queryWrapper({
@@ -82,11 +82,11 @@ export const SelectLanguageMenu = ({
                 if (response?.data?.translate) {
                     console.log('TODO')
                 } else {
-                    PubSub.get().publishSnack({ message: 'Could not translate.', severity: 'error' });
+                    PubSub.get().publishSnack({ message: 'Could not translate.', severity: SnackSeverity.Error });
                 }
             },
             onError: () => {
-                PubSub.get().publishSnack({ message: 'Could not translate.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Could not translate.', severity: SnackSeverity.Error });
             }
         })
     }, [getAutoTranslation, translations]);
