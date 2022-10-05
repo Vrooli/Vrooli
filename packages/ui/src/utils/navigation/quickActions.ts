@@ -1,8 +1,8 @@
 import { APP_LINKS } from "@shared/consts";
 import { SnackSeverity } from "components";
 import { profileUpdateMutation } from "graphql/mutation";
-import { documentNodeWrapper, errorToMessage, initializeApollo } from "graphql/utils";
-import { ActionOption, ApolloError, Session, ShortcutOption } from "types";
+import { documentNodeWrapper, errorToMessage } from "graphql/utils";
+import { ActionOption, Session, ShortcutOption } from "types";
 import { clearSearchHistory, DevelopSearchPageTabOption, HistorySearchPageTabOption, SearchPageTabOption } from "utils/display";
 import { PubSub } from "utils/pubsub";
 

@@ -18,7 +18,6 @@ import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
 import { GridSubmitButtons, ReportButton, StarButton } from 'components/buttons';
 import { DeleteIcon, ReplyIcon } from '@shared/icons';
 import { uuidValidate } from '@shared/uuid';
-import { SnackSeverity } from 'components/dialogs';
 
 export function CommentThreadItem({
     data,
@@ -79,8 +78,8 @@ export function CommentThreadItem({
                     })),
                 },
                 successCondition: (data) => data.commentCreate !== null,
+                successMessage: () => 'Comment created.',
                 onSuccess: (data) => {
-                    PubSub.get().publishSnack({ message: 'Comment created.', severity: SnackSeverity.Success });
                     formik.resetForm();
                     setReplyOpen(false);
                     handleCommentAdd(data.commentCreate);
@@ -129,17 +128,12 @@ export function CommentThreadItem({
                         mutationWrapper({
                             mutation: deleteMutation,
                             input: { id: data.id, objectType: DeleteOneType.Comment },
+                            successCondition: (data) => data.deleteOne.success,
+                            successMessage: () => 'Comment deleted.',
                             onSuccess: (response) => {
-                                if (response.deleteOne.success) {
-                                    PubSub.get().publishSnack({ message: `Comment deleted.`, severity: SnackSeverity.Success });
-                                    handleCommentRemove(data);
-                                } else {
-                                    PubSub.get().publishSnack({ message: `Error deleting comment.`, severity: SnackSeverity.Error });
-                                }
+                                handleCommentRemove(data);
                             },
-                            onError: () => {
-                                PubSub.get().publishSnack({ message: `Failed to delete comment.`, severity: SnackSeverity.Error });
-                            }
+                            errorMessage: () => 'Failed to delete comment.',
                         })
                     }
                 },

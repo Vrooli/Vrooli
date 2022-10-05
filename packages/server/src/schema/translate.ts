@@ -31,6 +31,7 @@ export const typeDef = gql`
 export const resolvers = {
     Query: {
         translate: async (_parent: undefined, { input }: IWrap<TranslateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Translate> => {
+            throw new CustomError(CODE.NotImplemented, 'Translations are disabled for now');
             // Get IETF subtags for source and target languages
             const sourceTag = input.languageSource.split('-')[0];
             const targetTag = input.languageTarget.split('-')[0];
@@ -41,8 +42,10 @@ export const resolvers = {
             } catch (e) {
                 throw new CustomError(CODE.InvalidArgs, 'Translation fields must be a stringified object', { code: genErrorCode('0264') });
             }
+            // Grab translatable values from input
+            const filteredFields = Object.entries(fields).filter(([key, value]) => !['__typename', 'id', 'language'].includes(key) && typeof value === 'string' && value.trim().length > 0);
             // If there are no fields, return empty object
-            if (Object.keys(fields).length === 0) {
+            if (Object.keys(filteredFields).length === 0) {
                 return {
                     fields: JSON.stringify({}),
                     language: targetTag,
@@ -50,9 +53,9 @@ export const resolvers = {
             }
             // Use LibreTranslate API to translate fields. 
             // Must make a call for each field, using promise all
-            const promises = Object.keys(fields).map(async (key) => {
-                const value = fields[key];
-                const url = `localhost:${process.env.PORT_TRANSLATE}/translate?source=${sourceTag}&target=${targetTag}&q=${encodeURIComponent(value)}`;
+            const promises = filteredFields.map(async ([key, value]) => {
+                console.log('in promise', value.trim(), encodeURI(value.trim()));
+                const url = `http://localhost:${process.env.PORT_TRANSLATE}/translate?source=${sourceTag}&target=${targetTag}&q=${encodeURI(value.trim())}`;
                 console.log('translate url', url);
                 const response = await fetch(url);
                 const json = await response.json() as any;

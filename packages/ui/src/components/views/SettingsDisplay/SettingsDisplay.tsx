@@ -105,8 +105,8 @@ export const SettingsDisplay = ({
             mutationWrapper({
                 mutation,
                 input,
+                successMessage: () => 'Display preferences updated.',
                 onSuccess: (data) => {
-                    PubSub.get().publishSnack({ message: 'Display preferences updated.', severity: SnackSeverity.Success });
                     onUpdated(data.profileUpdate);
                     formik.setSubmitting(false);
                 },

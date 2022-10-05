@@ -79,15 +79,14 @@ export const SelectLanguageMenu = ({
             input: { fields: JSON.stringify(sourceTranslation), languageSource: source, languageTarget: target },
             onSuccess: (data) => {
                 console.log('got translation', data)
+                // Try parse
                 if (data.translate) {
                     console.log('TODO')
                 } else {
                     PubSub.get().publishSnack({ message: 'Could not translate.', severity: SnackSeverity.Error });
                 }
             },
-            onError: () => {
-                PubSub.get().publishSnack({ message: 'Could not translate.', severity: SnackSeverity.Error });
-            }
+            errorMessage: () => 'Could not translate.',
         })
     }, [getAutoTranslation, translations]);
 
@@ -307,8 +306,8 @@ export const SelectLanguageMenu = ({
                                             </IconButton>
                                         </Tooltip>
                                     )}
-                                    {/* Auto-translate icon */}
-                                    {canAutoTranslate && (
+                                    {/* Auto-translate icon TODO add back later*/}
+                                    {/* {canAutoTranslate && (
                                         <Tooltip title="Auto-translate from an existing translation">
                                             <IconButton
                                                 size="small"
@@ -317,7 +316,7 @@ export const SelectLanguageMenu = ({
                                                 <TranslateIcon fill={isCurrent ? palette.secondary.contrastText : palette.background.textPrimary} />
                                             </IconButton>
                                         </Tooltip>
-                                    )}
+                                    )} */}
                                 </ListItem>
                             );
                         }}

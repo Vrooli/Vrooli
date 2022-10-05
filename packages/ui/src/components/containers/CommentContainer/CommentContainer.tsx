@@ -10,7 +10,7 @@ import { MarkdownInput } from 'components/inputs';
 import { useFormik } from 'formik';
 import { commentCreateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils';
-import { addSearchParams, getFormikErrorsWithTranslations, getTranslationData, handleTranslationBlur, handleTranslationChange, PubSub, removeSearchParams, searchTypeToParams, usePromptBeforeUnload, useReactSearch } from 'utils';
+import { addSearchParams, getFormikErrorsWithTranslations, getTranslationData, handleTranslationBlur, handleTranslationChange, removeSearchParams, searchTypeToParams, usePromptBeforeUnload, useReactSearch } from 'utils';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TimeFrame } from 'graphql/generated/globalTypes';
 import { comments, commentsVariables } from 'graphql/generated/comments';
@@ -21,7 +21,6 @@ import { CommentThread } from 'components/lists/comment';
 import { DUMMY_ID, uuidValidate } from '@shared/uuid';
 import { uuid } from '@shared/uuid';
 import { GridSubmitButtons } from 'components/buttons';
-import { SnackSeverity } from 'components';
 
 const { advancedSearchSchema, defaultSortBy } = searchTypeToParams.Comment;
 
@@ -207,8 +206,8 @@ export function CommentContainer({
                     })),
                 },
                 successCondition: (data) => data.commentCreate !== null,
+                successMessage: () => 'Comment created',
                 onSuccess: (data) => {
-                    PubSub.get().publishSnack({ message: 'Comment created.', severity: SnackSeverity.Success });
                     formik.resetForm();
                     onCommentAdd(data.commentCreate);
                 },

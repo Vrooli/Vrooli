@@ -22,8 +22,8 @@ import { fork, forkVariables } from 'graphql/generated/fork';
 import { star, starVariables } from 'graphql/generated/star';
 import { vote, voteVariables } from 'graphql/generated/vote';
 import { ObjectAction, BuildInfoDialogProps } from '../types';
-import { DeleteDialog, EditableLabel, EditableTextCollapse, LanguageInput, OwnerLabel, RelationshipButtons, ReportDialog, ResourceListHorizontal, ShareObjectDialog, SnackSeverity, TagList, TagSelector, VersionDisplay, VersionInput } from 'components';
-import { addEmptyTranslation, getTranslation, getTranslationData, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, removeTranslation } from 'utils';
+import { DeleteDialog, EditableLabel, EditableTextCollapse, LanguageInput, OwnerLabel, RelationshipButtons, ReportDialog, ResourceListHorizontal, ShareObjectDialog, TagList, TagSelector, VersionDisplay, VersionInput } from 'components';
+import { addEmptyTranslation, getTranslation, getTranslationData, handleTranslationBlur, handleTranslationChange, ObjectType, removeTranslation } from 'utils';
 import { useLocation } from '@shared/route';
 import { APP_LINKS, DeleteOneType, ForkType, ReportFor, StarFor, VoteFor } from '@shared/consts';
 import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
@@ -178,10 +178,8 @@ export const BuildInfoDialog = ({
         mutationWrapper({
             mutation: fork,
             input: { id: routine.id, objectType: ForkType.Routine },
-            onSuccess: (data) => {
-                PubSub.get().publishSnack({ message: `${getTranslation(routine, 'title', [language], true)} forked.`, severity: SnackSeverity.Success });
-                handleAction(ObjectAction.Fork, data);
-            }
+            successMessage: () => `${getTranslation(routine, 'title', [language], true)} forked.`,
+            onSuccess: (data) => { handleAction(ObjectAction.Fork, data) },
         })
     }, [fork, handleAction, language, routine]);
 

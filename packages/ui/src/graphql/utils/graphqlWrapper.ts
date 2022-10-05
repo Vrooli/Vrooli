@@ -7,7 +7,7 @@ import { initializeApollo } from "./initialize";
 
 // Input type wrapped with 'input' key, as all GraphQL inputs follow this pattern. 
 // If you're wondering why, it prevents us from having to define the input fields in 
-// DocumentNodes
+// DocumentNode definitions
 type InputType = { input: { [x: string]: any } }
 
 interface BaseWrapperProps<Output> {
@@ -15,14 +15,10 @@ interface BaseWrapperProps<Output> {
     successCondition?: (data: Output) => boolean;
     // Message displayed on success
     successMessage?: (data: Output) => string;
-    // Debug data to print on success
-    successData?: any;
     // Callback triggered on success
     onSuccess?: (data: Output) => any;
     // Message displayed on error
     errorMessage?: (response?: ApolloError | Output) => string;
-    // Debug data to print on error
-    errorData?: any;
     // If true, display default error snack. Will not display if error message or data is set
     showDefaultErrorSnack?: boolean;
     // Callback triggered on error
@@ -65,10 +61,8 @@ export const graphqlWrapperHelper = <Output>({
     call,
     successCondition = () => true,
     successMessage,
-    successData,
     onSuccess,
     errorMessage,
-    errorData,
     showDefaultErrorSnack = true,
     onError,
     spinnerDelay = 1000
@@ -76,12 +70,12 @@ export const graphqlWrapperHelper = <Output>({
     if (spinnerDelay) PubSub.get().publishLoading(spinnerDelay);
     call().then((response: { data?: Output | null | undefined }) => {
         if (successCondition(response.data as Output)) {
-            if (successMessage || successData) PubSub.get().publishSnack({ message: successMessage && successMessage(response.data as Output), ...successData });
+            if (successMessage) PubSub.get().publishSnack({ message: successMessage && successMessage(response.data as Output), severity: SnackSeverity.Success });
             if (spinnerDelay) PubSub.get().publishLoading(false);
             if (onSuccess && typeof onSuccess === 'function') onSuccess(response.data as Output);
         } else {
-            if (errorMessage || errorData) {
-                PubSub.get().publishSnack({ message: errorMessage && errorMessage(response.data as Output), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
+            if (errorMessage) {
+                PubSub.get().publishSnack({ message: errorMessage && errorMessage(response.data as Output), severity: SnackSeverity.Error, data: response });
             }
             else if (showDefaultErrorSnack) {
                 PubSub.get().publishSnack({ message: 'Unknown error occurred.', severity: SnackSeverity.Error, data: response });
@@ -91,8 +85,8 @@ export const graphqlWrapperHelper = <Output>({
         }
     }).catch((response: ApolloError) => {
         if (spinnerDelay) PubSub.get().publishLoading(false);
-        if (errorMessage || errorData) {
-            PubSub.get().publishSnack({ message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
+        if (errorMessage) {
+            PubSub.get().publishSnack({ message: errorMessage && errorMessage(response), severity: SnackSeverity.Error, data: response });
         }
         else if (showDefaultErrorSnack) {
             PubSub.get().publishSnack({ message: errorToMessage(response), severity: SnackSeverity.Error, data: response });

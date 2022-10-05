@@ -6,10 +6,10 @@ import { reportCreate, reportCreateVariables } from 'graphql/generated/reportCre
 import { reportCreateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { ReportDialogProps } from '../types';
-import { getUserLanguages, PubSub, usePromptBeforeUnload } from 'utils';
+import { getUserLanguages, usePromptBeforeUnload } from 'utils';
 import { useEffect, useState } from 'react';
 import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
-import { DialogTitle, GridSubmitButtons, Selector, SnackSeverity } from 'components';
+import { DialogTitle, GridSubmitButtons, Selector } from 'components';
 import { uuid } from '@shared/uuid';
 
 const helpText =
@@ -72,8 +72,8 @@ export const ReportDialog = ({
                     reason: Boolean(values.otherReason) ? values.otherReason : values.reason,
                 },
                 successCondition: (data) => data.reportCreate !== null,
+                successMessage: () => 'Report submitted.',
                 onSuccess: () => {
-                    PubSub.get().publishSnack({ message: 'Report submitted.', severity: SnackSeverity.Success });
                     formik.resetForm();
                     onClose()
                 },

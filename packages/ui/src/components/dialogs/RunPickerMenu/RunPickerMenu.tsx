@@ -67,7 +67,7 @@ export const RunPickerMenu = ({
                 onSelect(newRun);
                 handleClose();
             },
-            onError: () => { PubSub.get().publishSnack({ message: 'Failed to create run.', severity: SnackSeverity.Error }) },
+            errorMessage: () => 'Failed to create run.',
         })
     }, [handleClose, onAdd, onSelect, routine, runCreate, session]);
 
@@ -76,17 +76,12 @@ export const RunPickerMenu = ({
         mutationWrapper({
             mutation: deleteOne,
             input: { id: run.id, objectType: DeleteOneType.Run },
+            successCondition: (data) => data.deleteOne.success,
+            successMessage: () => `Run ${displayDate(run.timeStarted)} deleted.`,
             onSuccess: (data) => {
-                if (data.deleteOne.success) {
-                    PubSub.get().publishSnack({ message: `${displayDate(run.timeStarted)} deleted.`, severity: SnackSeverity.Success });
-                    onDelete(run);
-                } else {
-                    PubSub.get().publishSnack({ message: `Error deleting ${displayDate(run.timeStarted)}.`, severity: SnackSeverity.Error });
-                }
+                onDelete(run);
             },
-            onError: () => {
-                PubSub.get().publishSnack({ message: `Failed to delete ${displayDate(run.timeStarted)}.`, severity: SnackSeverity.Error });
-            }
+            errorMessage: () => `Failed to delete run ${displayDate(run.timeStarted)}.`,
         })
     }, [deleteOne, onDelete])
 

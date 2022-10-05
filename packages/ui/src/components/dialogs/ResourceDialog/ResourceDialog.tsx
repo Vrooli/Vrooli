@@ -103,7 +103,6 @@ export const ResourceDialog = ({
             };
             if (mutate) {
                 const onSuccess = (response) => {
-                    PubSub.get().publishSnack({ message: (index < 0) ? 'Resource created.' : 'Resource updated.', severity: SnackSeverity.Success });
                     (index < 0) ? onCreated(response.data.resourceCreate) : onUpdated(index ?? 0, response.data.resourceUpdate);
                     formik.resetForm();
                     onClose();
@@ -113,6 +112,7 @@ export const ResourceDialog = ({
                     mutationWrapper({
                         mutation: addMutation,
                         input: shapeResourceCreate(input),
+                        successMessage: () => 'Resource created.',
                         successCondition: (data) => data.resourceCreate !== null,
                         onSuccess,
                         onError: () => { formik.setSubmitting(false) },
@@ -127,6 +127,7 @@ export const ResourceDialog = ({
                     mutationWrapper({
                         mutation: updateMutation,
                         input: shapeResourceUpdate({ ...partialData, listId } as ResourceShape, input),
+                        successMessage: () => 'Resource updated.',
                         successCondition: (data) => data.resourceUpdate !== null,
                         onSuccess,
                         onError: () => { formik.setSubmitting(false) },

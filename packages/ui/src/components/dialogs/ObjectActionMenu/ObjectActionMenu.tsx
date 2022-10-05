@@ -82,10 +82,8 @@ export const ObjectActionMenu = ({
         mutationWrapper({
             mutation: copy,
             input: { id: objectId, objectType: copyType },
-            onSuccess: (data) => {
-                PubSub.get().publishSnack({ message: `${objectName} copied.`, severity: SnackSeverity.Success });
-                onActionComplete(ObjectActionComplete.Copy, data);
-            },
+            successMessage: () => `${objectName} copied.`,
+            onSuccess: (data) => { onActionComplete(ObjectActionComplete.Copy, data) },
         })
     }, [copy, objectId, objectName, objectType, onActionComplete]);
 
@@ -99,10 +97,8 @@ export const ObjectActionMenu = ({
         mutationWrapper({
             mutation: fork,
             input: { id: objectId, objectType: forkType },
-            onSuccess: (data) => {
-                PubSub.get().publishSnack({ message: `${objectName} forked.`, severity: SnackSeverity.Success });
-                onActionComplete(ObjectActionComplete.Fork, data);
-            }
+            successMessage: () => `${objectName} forked.`,
+            onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data) },
         })
     }, [fork, objectId, objectName, objectType, onActionComplete]);
 
@@ -110,9 +106,7 @@ export const ObjectActionMenu = ({
         mutationWrapper({
             mutation: star,
             input: { isStar, starFor, forId: objectId },
-            onSuccess: (data) => {
-                onActionComplete(isStar ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data);
-            }
+            onSuccess: (data) => { onActionComplete(isStar ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data) },
         })
     }, [objectId, onActionComplete, star]);
 
@@ -120,9 +114,7 @@ export const ObjectActionMenu = ({
         mutationWrapper({
             mutation: vote,
             input: { isUpvote, voteFor, forId: objectId },
-            onSuccess: (data) => {
-                onActionComplete(isUpvote ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data);
-            }
+            onSuccess: (data) => { onActionComplete(isUpvote ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data) },
         })
     }, [objectId, onActionComplete, vote]);
 

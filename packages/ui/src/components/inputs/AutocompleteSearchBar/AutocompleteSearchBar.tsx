@@ -169,7 +169,7 @@ export function AutocompleteSearchBar({
         // Grab history from local storage
         const searchHistory = getSearchHistory(id, session.id ?? '');
         // Filter out history keys that don't contain internal value
-        let filteredHistory = Object.entries(searchHistory).filter(([key]) => key.includes(internalValue));
+        let filteredHistory = Object.entries(searchHistory).filter(([key]) => key.toLowerCase().includes(internalValue.toLowerCase()));
         // Order remaining history keys by most recent. Value is stored as { timestamp: string, value: AutocompleteOption }
         filteredHistory = filteredHistory.sort((a, b) => { return b[1].timestamp - a[1].timestamp });
         // Convert history keys to options
