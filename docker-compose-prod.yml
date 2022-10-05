@@ -119,6 +119,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  # LibreTranslate TODO add back when Kubernetes (or alternative) is setup. This is because it takes a lot of resources to start up and run.
+  # translate:
+  #   image: libretranslate/libretranslate:v1.2.9
+  #   container_name: translate
+  #   restart: always
+  #   networks:
+  #     - app
+  #   expose:
+  #     - ${PORT_TRANSLATE}
   # docs:
   #     build:
   #         context: .
