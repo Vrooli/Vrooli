@@ -79,7 +79,7 @@ export const ProjectCreate = ({
                     tags: tags,
                     translations: values.translationsCreate,
                 }),
-                onSuccess: (response) => { onCreated(response.data.projectCreate) },
+                onSuccess: (data) => { onCreated(data.projectCreate) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },

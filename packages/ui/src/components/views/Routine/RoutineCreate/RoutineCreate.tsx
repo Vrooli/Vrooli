@@ -99,7 +99,7 @@ export const RoutineCreate = ({
                     tags: tags,
                     translations: values.translationsCreate,
                 }),
-                onSuccess: (response) => { onCreated(response.data.routineCreate) },
+                onSuccess: (data) => { onCreated(data.routineCreate) },
                 onError: () => { formik.setSubmitting(false) }
             })
         },

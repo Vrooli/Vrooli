@@ -113,7 +113,7 @@ export const ResourceDialog = ({
                     mutationWrapper({
                         mutation: addMutation,
                         input: shapeResourceCreate(input),
-                        successCondition: (response) => response.data.resourceCreate !== null,
+                        successCondition: (data) => data.resourceCreate !== null,
                         onSuccess,
                         onError: () => { formik.setSubmitting(false) },
                     })
@@ -127,7 +127,7 @@ export const ResourceDialog = ({
                     mutationWrapper({
                         mutation: updateMutation,
                         input: shapeResourceUpdate({ ...partialData, listId } as ResourceShape, input),
-                        successCondition: (response) => response.data.resourceUpdate !== null,
+                        successCondition: (data) => data.resourceUpdate !== null,
                         onSuccess,
                         onError: () => { formik.setSubmitting(false) },
                     })

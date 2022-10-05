@@ -119,7 +119,7 @@ export const RoutineUpdate = ({
                         id: t.id === DUMMY_ID ? uuid() : t.id,
                     })),
                 }),
-                onSuccess: (response) => { onUpdated(response.data.routineUpdate) },
+                onSuccess: (data) => { onUpdated(data.routineUpdate) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },

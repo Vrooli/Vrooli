@@ -2,8 +2,7 @@ import { Box, ListItemText, Stack, Tooltip } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StarButtonProps } from '../types';
 import { multiLineEllipsis } from 'styles';
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
-import { useMutation } from '@apollo/client';
+import { documentNodeWrapper } from 'graphql/utils/graphqlWrapper';
 import { star, starVariables } from 'graphql/generated/star';
 import { starMutation } from 'graphql/mutation';
 import { uuidValidate } from '@shared/uuid';
@@ -33,7 +32,6 @@ export const StarButton = ({
         return starNum;
     }, [internalIsStar, isStar, stars]);
 
-    const [mutation] = useMutation<star, starVariables>(starMutation);
     const handleClick = useCallback((event: any) => {
         if (!session.id) return;
         const isStar = !internalIsStar;
@@ -43,12 +41,12 @@ export const StarButton = ({
         // If objectId is not valid, return
         if (!uuidValidate(objectId)) return;
         // Send star mutation
-        mutationWrapper({
-            mutation,
+        documentNodeWrapper<star, starVariables>({
+            node: starMutation,
             input: { isStar, starFor, forId: objectId },
             onSuccess: () => { if (onChange) onChange(isStar, event) },
         })
-    }, [session.id, internalIsStar, mutation, starFor, objectId, onChange]);
+    }, [session.id, internalIsStar, starFor, objectId, onChange]);
 
     const Icon = internalIsStar ? StarFilledIcon : StarOutlineIcon;
     const tooltip = internalIsStar ? 'Remove from favorites' : 'Add to favorites';

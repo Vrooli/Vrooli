@@ -100,7 +100,7 @@ export const ProjectUpdate = ({
                         id: t.id === DUMMY_ID ? uuid() : t.id,
                     })),
                 }),
-                onSuccess: (response) => { onUpdated(response.data.projectUpdate) },
+                onSuccess: (data) => { onUpdated(data.projectUpdate) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },

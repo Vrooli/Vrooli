@@ -60,9 +60,9 @@ export const RunPickerMenu = ({
                 version: routine.version ?? '',
                 title: getTranslation(routine, 'title', getUserLanguages(session)) ?? 'Unnamed Routine',
             },
-            successCondition: (response) => response.data.runCreate !== null,
-            onSuccess: (response) => {
-                const newRun = response.data.runCreate;
+            successCondition: (data) => data.runCreate !== null,
+            onSuccess: (data) => {
+                const newRun = data.runCreate;
                 onAdd(newRun);
                 onSelect(newRun);
                 handleClose();
@@ -76,8 +76,8 @@ export const RunPickerMenu = ({
         mutationWrapper({
             mutation: deleteOne,
             input: { id: run.id, objectType: DeleteOneType.Run },
-            onSuccess: (response) => {
-                if (response?.data?.deleteOne?.success) {
+            onSuccess: (data) => {
+                if (data.deleteOne.success) {
                     PubSub.get().publishSnack({ message: `${displayDate(run.timeStarted)} deleted.`, severity: SnackSeverity.Success });
                     onDelete(run);
                 } else {

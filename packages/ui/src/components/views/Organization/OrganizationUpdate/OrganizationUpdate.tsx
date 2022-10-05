@@ -85,7 +85,7 @@ export const OrganizationUpdate = ({
                         id: t.id === DUMMY_ID ? uuid() : t.id,
                     })),
                 }),
-                onSuccess: (response) => { onUpdated(response.data.organizationUpdate) },
+                onSuccess: (data) => { onUpdated(data.organizationUpdate) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },

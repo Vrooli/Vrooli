@@ -108,7 +108,7 @@ export const SettingsProfile = ({
             mutationWrapper({
                 mutation,
                 input,
-                onSuccess: (response) => { onUpdated(response.data.profileUpdate); setLocation(APP_LINKS.Profile, { replace: true }) },
+                onSuccess: (data) => { onUpdated(data.profileUpdate); setLocation(APP_LINKS.Profile, { replace: true }) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },

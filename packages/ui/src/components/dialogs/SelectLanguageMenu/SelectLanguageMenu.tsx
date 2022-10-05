@@ -77,9 +77,9 @@ export const SelectLanguageMenu = ({
         queryWrapper({
             query: getAutoTranslation,
             input: { fields: JSON.stringify(sourceTranslation), languageSource: source, languageTarget: target },
-            onSuccess: (response) => {
-                console.log('got translation', response)
-                if (response?.data?.translate) {
+            onSuccess: (data) => {
+                console.log('got translation', data)
+                if (data.translate) {
                     console.log('TODO')
                 } else {
                     PubSub.get().publishSnack({ message: 'Could not translate.', severity: SnackSeverity.Error });

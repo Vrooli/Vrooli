@@ -35,7 +35,7 @@ export const ForgotPasswordForm = ({
             mutationWrapper({
                 mutation: emailRequestPasswordChange,
                 input: { ...values },
-                successCondition: (response) => response.data.emailRequestPasswordChange.success === true,
+                successCondition: (data) => data.emailRequestPasswordChange.success === true,
                 onSuccess: () => setLocation(APP_LINKS.Home),
                 onError: () => { formik.setSubmitting(false) },
                 successMessage: () => 'Request sent. Please check email.',

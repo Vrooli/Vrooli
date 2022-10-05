@@ -76,7 +76,7 @@ export const OrganizationCreate = ({
                     tags,
                     translations: values.translationsCreate,
                 }),
-                onSuccess: (response) => { onCreated(response.data.organizationCreate) },
+                onSuccess: (data) => { onCreated(data.organizationCreate) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },

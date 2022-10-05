@@ -88,9 +88,9 @@ export const StartPage = ({
                 mutationWrapper({
                     mutation: emailLogIn,
                     input: { verificationCode },
-                    onSuccess: (response) => {
+                    onSuccess: (data) => {
                         PubSub.get().publishSnack({ message: 'Email verified!', severity: SnackSeverity.Success });
-                        PubSub.get().publishSession(response.data.emailLogIn);
+                        PubSub.get().publishSession(data.emailLogIn);
                         setLocation(redirect ?? APP_LINKS.Home)
                     },
                     onError: (response) => {

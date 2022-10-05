@@ -44,9 +44,9 @@ export const EmailList = ({
                     receivesAccountUpdates: true,
                     receivesBusinessUpdates: true,
                 },
-                onSuccess: (response) => {
+                onSuccess: (data) => {
                     PubSub.get().publishSnack({ message: 'Please check your email to complete verification.', severity: SnackSeverity.Info });
-                    handleUpdate([...list, response.data.emailCreate]);
+                    handleUpdate([...list, data.emailCreate]);
                     formik.resetForm();
                 },
                 onError: () => { formik.setSubmitting(false); },
@@ -64,7 +64,7 @@ export const EmailList = ({
                 receivesAccountUpdates: updatedEmail.receivesAccountUpdates,
                 receivesBusinessUpdates: updatedEmail.receivesBusinessUpdates,
             },
-            onSuccess: (response) => {
+            onSuccess: () => {
                 handleUpdate(updateArray(list, index, updatedEmail));
             },
         })
@@ -88,7 +88,7 @@ export const EmailList = ({
                         mutationWrapper({
                             mutation: deleteMutation,
                             input: { id: email.id, objectType: DeleteOneType.Email },
-                            onSuccess: (response) => {
+                            onSuccess: () => {
                                 handleUpdate([...list.filter(w => w.id !== email.id)])
                             },
                         })
@@ -105,7 +105,7 @@ export const EmailList = ({
         mutationWrapper({
             mutation: verifyMutation,
             input: { emailAddress: email.emailAddress },
-            onSuccess: (response) => {
+            onSuccess: () => {
                 PubSub.get().publishSnack({ message: 'Please check your email to complete verification.', severity: SnackSeverity.Info });
             },
         })

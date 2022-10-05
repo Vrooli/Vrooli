@@ -82,7 +82,7 @@ export const ObjectActionMenu = ({
         mutationWrapper({
             mutation: copy,
             input: { id: objectId, objectType: copyType },
-            onSuccess: ({ data }) => {
+            onSuccess: (data) => {
                 PubSub.get().publishSnack({ message: `${objectName} copied.`, severity: SnackSeverity.Success });
                 onActionComplete(ObjectActionComplete.Copy, data);
             },
@@ -99,7 +99,7 @@ export const ObjectActionMenu = ({
         mutationWrapper({
             mutation: fork,
             input: { id: objectId, objectType: forkType },
-            onSuccess: ({ data }) => {
+            onSuccess: (data) => {
                 PubSub.get().publishSnack({ message: `${objectName} forked.`, severity: SnackSeverity.Success });
                 onActionComplete(ObjectActionComplete.Fork, data);
             }
@@ -110,7 +110,7 @@ export const ObjectActionMenu = ({
         mutationWrapper({
             mutation: star,
             input: { isStar, starFor, forId: objectId },
-            onSuccess: ({ data }) => {
+            onSuccess: (data) => {
                 onActionComplete(isStar ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data);
             }
         })
@@ -120,7 +120,7 @@ export const ObjectActionMenu = ({
         mutationWrapper({
             mutation: vote,
             input: { isUpvote, voteFor, forId: objectId },
-            onSuccess: ({ data }) => {
+            onSuccess: (data) => {
                 onActionComplete(isUpvote ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data);
             }
         })

@@ -78,12 +78,12 @@ export function CommentThreadItem({
                         id: t.id === DUMMY_ID ? uuid() : t.id,
                     })),
                 },
-                successCondition: (response) => response.data.commentCreate !== null,
-                onSuccess: (response) => {
+                successCondition: (data) => data.commentCreate !== null,
+                onSuccess: (data) => {
                     PubSub.get().publishSnack({ message: 'Comment created.', severity: SnackSeverity.Success });
                     formik.resetForm();
                     setReplyOpen(false);
-                    handleCommentAdd(response.data.commentCreate);
+                    handleCommentAdd(data.commentCreate);
                 },
                 onError: () => { formik.setSubmitting(false) },
             })
@@ -130,7 +130,7 @@ export function CommentThreadItem({
                             mutation: deleteMutation,
                             input: { id: data.id, objectType: DeleteOneType.Comment },
                             onSuccess: (response) => {
-                                if (response?.data?.deleteOne?.success) {
+                                if (response.deleteOne.success) {
                                     PubSub.get().publishSnack({ message: `Comment deleted.`, severity: SnackSeverity.Success });
                                     handleCommentRemove(data);
                                 } else {

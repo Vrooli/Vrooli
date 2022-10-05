@@ -1,113 +1,68 @@
 import { Pubs, PubSub } from "utils";
-import { ApolloCache, DefaultContext, MutationFunctionOptions, QueryFunctionOptions } from '@apollo/client';
+import { ApolloCache, DefaultContext, DocumentNode, MutationFunctionOptions, QueryFunctionOptions } from '@apollo/client';
 import { errorToMessage } from './errorParser';
 import { ApolloError } from 'types';
 import { SnackSeverity } from "components";
+import { initializeApollo } from "./initialize";
 
-interface MutationWrapperProps<Output, Input extends { input: { [x: string]: any } }> {
+// Input type wrapped with 'input' key, as all GraphQL inputs follow this pattern. 
+// If you're wondering why, it prevents us from having to define the input fields in 
+// DocumentNodes
+type InputType = { input: { [x: string]: any } }
+
+interface BaseWrapperProps<Output> {
+    // Callback to determine if mutation was a success, using mutation's return data
+    successCondition?: (data: Output) => boolean;
+    // Message displayed on success
+    successMessage?: (data: Output) => string;
+    // Debug data to print on success
+    successData?: any;
+    // Callback triggered on success
+    onSuccess?: (data: Output) => any;
+    // Message displayed on error
+    errorMessage?: (response?: ApolloError | Output) => string;
+    // Debug data to print on error
+    errorData?: any;
+    // If true, display default error snack. Will not display if error message or data is set
+    showDefaultErrorSnack?: boolean;
+    // Callback triggered on error
+    onError?: (response: ApolloError) => any;
+    // Milliseconds before showing a spinner. If undefined or null, spinner disabled
+    spinnerDelay?: number | null;
+}
+
+interface DocumentNodeWrapperProps<Output, Input extends InputType> extends BaseWrapperProps<Output> {
+    // DocumentNode used to create useMutation or useLazyQuery function
+    node: DocumentNode;
+    // data to pass into useMutation or useLazyQuery function
+    input?: Input['input'];
+}
+
+interface MutationWrapperProps<Output, Input extends InputType> extends BaseWrapperProps<Output> {
     // useMutation function
     mutation: (options?: MutationFunctionOptions<Output, Input, DefaultContext, ApolloCache<any>> | undefined) => Promise<any>;
     // data to pass into useMutation function
     input?: Input['input'];
-    // Callback to determine if mutation was a success, using mutation's return data
-    successCondition?: (response: { data: Output }) => boolean;
-    // Message displayed on success
-    successMessage?: (respone: { data: Output }) => string;
-    // Debug data to print on success
-    successData?: any;
-    // Callback triggered on success
-    onSuccess?: (response: { data: Output }) => any;
-    // Message displayed on error
-    errorMessage?: (response?: ApolloError | { data: Output }) => string;
-    // Debug data to print on error
-    errorData?: any;
-    // If true, display default error snack. Will not display if error message or data is set
-    showDefaultErrorSnack?: boolean;
-    // Callback triggered on error
-    onError?: (response: ApolloError) => any;
-    // Milliseconds before showing a spinner. If undefined or null, spinner disabled
-    spinnerDelay?: number | null;
 }
 
-/**
- * Wraps GraphQL mutations, to provide each mutation with the following functionality:
- * - Success and error messages
- * - Loading spinner
- */
-export const mutationWrapper = <Output, Input extends { input: any }>({ 
-    mutation,
-    input,
-    successCondition = () => true,
-    successMessage,
-    successData,
-    onSuccess,
-    errorMessage,
-    errorData,
-    showDefaultErrorSnack = true,
-    onError,
-    spinnerDelay = 1000,
-}: MutationWrapperProps<Output, Input>) => {
-    if (spinnerDelay) PubSub.get().publishLoading(spinnerDelay);
-    mutation(input ? { variables: { input } } as Input['input'] : undefined).then((response: { data: Output }) => {
-        if (successCondition(response)) {
-            if (successMessage || successData) PubSub.get().publishSnack({ message: successMessage && successMessage(response), ...successData });
-            if (spinnerDelay) PubSub.get().publishLoading(false);
-            if (onSuccess && typeof onSuccess === 'function') onSuccess(response);
-        } else {
-            if (errorMessage || errorData) {
-                PubSub.get().publishSnack({ message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
-            }
-            else if (showDefaultErrorSnack) {
-                PubSub.get().publishSnack({ message: 'Unknown error occurred.', severity: SnackSeverity.Error, data: response });
-            }
-            if (spinnerDelay) PubSub.get().publish(Pubs.Loading, false);
-            if (onError && typeof onError === 'function') onError({ message: 'Unknown error occurred.' });
-        }
-    }).catch((response: ApolloError) => {
-        if (spinnerDelay) PubSub.get().publishLoading(false);
-        if (errorMessage || errorData) {
-            PubSub.get().publishSnack({ message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
-        }
-        else if (showDefaultErrorSnack) {
-            PubSub.get().publishSnack({ message: errorToMessage(response), severity: SnackSeverity.Error, data: response });
-        }
-        if (onError && typeof onError === 'function') onError(response);
-    })
-}
-
-interface QueryWrapperProps<Output, Input extends { input: { [x: string]: any } }> {
-    // useQuery function
+interface QueryWrapperProps<Output, Input extends InputType> extends BaseWrapperProps<Output> {
+    // useLazyQuery function
     query: (options?: QueryFunctionOptions<Output, Input> | undefined) => Promise<any>;
-    // data to pass into useQuery function
+    // data to pass into useLazyQuery function
     input?: Input['input'];
-    // Callback to determine if mutation was a success, using mutation's return data
-    successCondition?: (response: { data: Output }) => boolean;
-    // Message displayed on success
-    successMessage?: (respone: { data: Output }) => string;
-    // Debug data to print on success
-    successData?: any;
-    // Callback triggered on success
-    onSuccess?: (response: { data: Output }) => any;
-    // Message displayed on error
-    errorMessage?: (response?: ApolloError | { data: Output }) => string;
-    // Debug data to print on error
-    errorData?: any;
-    // If true, display default error snack. Will not display if error message or data is set
-    showDefaultErrorSnack?: boolean;
-    // Callback triggered on error
-    onError?: (response: ApolloError) => any;
-    // Milliseconds before showing a spinner. If undefined or null, spinner disabled
-    spinnerDelay?: number | null;
 }
 
+interface GraphqlWrapperHelperProps<Output> extends BaseWrapperProps<Output> {
+    // useMutation or useLazyQuery function
+    call: () => Promise<any>;
+};
+
 /**
- * Wraps GraphQL queries, to provide each mutation with the following functionality:
- * - Success and error messages
- * - Loading spinner
+ * Helper function to handle response and catch of useMutation and useLazyQuery functions.
+ * @param 
  */
-export const queryWrapper = <Output, Input extends { input: any }>({ 
-    query,
-    input,
+export const graphqlWrapperHelper = <Output>({
+    call,
     successCondition = () => true,
     successMessage,
     successData,
@@ -116,17 +71,17 @@ export const queryWrapper = <Output, Input extends { input: any }>({
     errorData,
     showDefaultErrorSnack = true,
     onError,
-    spinnerDelay = 1000,
-}: QueryWrapperProps<Output, Input>) => {
+    spinnerDelay = 1000
+}: GraphqlWrapperHelperProps<Output>) => {
     if (spinnerDelay) PubSub.get().publishLoading(spinnerDelay);
-    query(input ? { variables: { input } } as Input['input'] : undefined).then((response: { data: Output }) => {
-        if (successCondition(response)) {
-            if (successMessage || successData) PubSub.get().publishSnack({ message: successMessage && successMessage(response), ...successData });
+    call().then((response: { data?: Output | null | undefined }) => {
+        if (successCondition(response.data as Output)) {
+            if (successMessage || successData) PubSub.get().publishSnack({ message: successMessage && successMessage(response.data as Output), ...successData });
             if (spinnerDelay) PubSub.get().publishLoading(false);
-            if (onSuccess && typeof onSuccess === 'function') onSuccess(response);
+            if (onSuccess && typeof onSuccess === 'function') onSuccess(response.data as Output);
         } else {
             if (errorMessage || errorData) {
-                PubSub.get().publishSnack({ message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
+                PubSub.get().publishSnack({ message: errorMessage && errorMessage(response.data as Output), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
             }
             else if (showDefaultErrorSnack) {
                 PubSub.get().publishSnack({ message: 'Unknown error occurred.', severity: SnackSeverity.Error, data: response });
@@ -144,4 +99,45 @@ export const queryWrapper = <Output, Input extends { input: any }>({
         }
         if (onError && typeof onError === 'function') onError(response);
     })
+}
+
+/**
+ * Calls a useMutation or useLazyQuery function and handles response and catch, using the DocumentNode. 
+ * This is useful when you want to query or mutate outside of a component (i.e. you can't create a hook)
+ */
+export const documentNodeWrapper = <Output, Input extends InputType>(props: DocumentNodeWrapperProps<Output, Input>) => {
+    const { node, ...rest } = props;
+    // Initialize apollo client
+    const client = initializeApollo();
+    // Determine if DocumentNode is a mutation or query, by checking the operation of the first 
+    // OperationDefinition in the definitions array
+    const isMutation = node.definitions.some((def) => def.kind === 'OperationDefinition' && def.operation === 'mutation');
+    return graphqlWrapperHelper({
+        call: () => isMutation ?
+            client.mutate({ mutation: node, variables: rest.input ? { input: rest.input } as Input : undefined }) :
+            client.query({ query: node, variables: rest.input ? { input: rest.input } as Input : undefined }),
+        ...rest
+    });
+}
+
+/**
+ * Wraps a useMutation function and handles response and catch
+ */
+export const mutationWrapper = <Output, Input extends InputType>(props: MutationWrapperProps<Output, Input>) => {
+    const { mutation, ...rest } = props;
+    return graphqlWrapperHelper({
+        call: () => mutation({ variables: rest.input ? { input: rest.input } as Input : undefined }),
+        ...rest
+    });
+}
+
+/**
+ * Wraps a useLazyQuery function and handles response and catch
+ */
+export const queryWrapper = <Output, Input extends InputType>(props: QueryWrapperProps<Output, Input>) => {
+    const { query, ...rest } = props;
+    return graphqlWrapperHelper({
+        call: () => query({ variables: rest.input ? { input: rest.input } as Input : undefined }),
+        ...rest
+    });
 }

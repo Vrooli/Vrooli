@@ -38,8 +38,8 @@ export const ResetPasswordForm = ({
             mutationWrapper({
                 mutation: emailResetPassword,
                 input: { id: userId, code, newPassword: values.newPassword },
-                onSuccess: (response) => { 
-                    PubSub.get().publishSession(response.data.emailResetPassword); 
+                onSuccess: (data) => { 
+                    PubSub.get().publishSession(data.emailResetPassword); 
                     setLocation(APP_LINKS.Home) 
                 },
                 successMessage: () => 'Password reset.',

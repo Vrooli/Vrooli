@@ -254,7 +254,7 @@ export const BuildView = ({
                         translations: values.translationsUpdate,
                     }),
                     successMessage: () => 'Routine created.',
-                    onSuccess: ({ data }) => {
+                    onSuccess: (data) => {
                         onChange(data.routineCreate);
                         setLocation(`${APP_LINKS.Routine}/${data.routineCreate.id}?build=true`)
                     },
@@ -286,7 +286,7 @@ export const BuildView = ({
                         translations: values.translationsUpdate,
                     }),
                     successMessage: () => 'Routine updated.',
-                    onSuccess: ({ data }) => {
+                    onSuccess: (data) => {
                         onChange(data.routineUpdate);
                         keepSearchParams(setLocation, ['build']);
                         setIsEditing(false);

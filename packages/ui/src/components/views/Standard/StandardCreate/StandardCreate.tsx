@@ -110,8 +110,8 @@ export const StandardCreate = ({
                     type: inputType.value,
                     version: values.version,
                 }),
-                onSuccess: (response) => {
-                    onCreated(response.data.standardCreate)
+                onSuccess: (data) => {
+                    onCreated(data.standardCreate)
                 },
                 onError: () => { formik.setSubmitting(false) },
             })

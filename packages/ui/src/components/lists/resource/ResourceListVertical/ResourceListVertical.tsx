@@ -52,7 +52,7 @@ export const ResourceListVertical = ({
             mutationWrapper({
                 mutation: deleteMutation,
                 input: { ids: [resource.id] },
-                onSuccess: (response) => {
+                onSuccess: () => {
                     if (handleUpdate) {
                         handleUpdate({
                             ...list,

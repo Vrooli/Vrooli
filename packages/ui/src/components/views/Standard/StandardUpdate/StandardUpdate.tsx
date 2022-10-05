@@ -95,7 +95,7 @@ export const StandardUpdate = ({
                         id: t.id === DUMMY_ID ? uuid() : t.id,
                     })),
                 }),
-                onSuccess: (response) => { onUpdated(response.data.standardUpdate) },
+                onSuccess: (data) => { onUpdated(data.standardUpdate) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },

@@ -45,8 +45,8 @@ export const DeleteDialog = ({
         mutationWrapper({
             mutation: deleteOne,
             input: { id: objectId, objectType },
-            onSuccess: (response) => {
-                if (response?.data?.deleteOne?.success) {
+            onSuccess: (data) => {
+                if (data.deleteOne.success) {
                     PubSub.get().publishSnack({ message: `${objectName} deleted.`, severity: SnackSeverity.Info });
                     setLocation(APP_LINKS.Home);
                 } else {

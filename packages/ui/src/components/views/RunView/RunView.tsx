@@ -640,7 +640,7 @@ export const RunView = ({
                     stepsUpdate,
                     ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),
                 },
-                onSuccess: ({ data }) => {
+                onSuccess: (data) => {
                     setRun(data.runUpdate);
                 }
             })
@@ -737,7 +737,7 @@ export const RunView = ({
                 stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
                 ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),
             },
-            onSuccess: ({ data }) => {
+            onSuccess: (data) => {
                 setRun(data.runUpdate);
             }
         })

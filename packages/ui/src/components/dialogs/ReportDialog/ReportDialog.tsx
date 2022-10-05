@@ -71,7 +71,7 @@ export const ReportDialog = ({
                     language,
                     reason: Boolean(values.otherReason) ? values.otherReason : values.reason,
                 },
-                successCondition: (response) => response.data.reportCreate !== null,
+                successCondition: (data) => data.reportCreate !== null,
                 onSuccess: () => {
                     PubSub.get().publishSnack({ message: 'Report submitted.', severity: SnackSeverity.Success });
                     formik.resetForm();

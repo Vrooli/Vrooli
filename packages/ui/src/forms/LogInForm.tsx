@@ -48,10 +48,10 @@ export const LogInForm = ({
             mutationWrapper({
                 mutation: emailLogIn,
                 input: { ...values, verificationCode },
-                successCondition: (response) => response.data.emailLogIn !== null,
-                onSuccess: (response) => { 
+                successCondition: (data) => data.emailLogIn !== null,
+                onSuccess: (data) => { 
                     if (verificationCode) PubSub.get().publishSnack({ message: 'Email verified!', severity: SnackSeverity.Success });
-                    PubSub.get().publishSession(response.data.emailLogIn); setLocation(redirect ?? APP_LINKS.Home) 
+                    PubSub.get().publishSession(data.emailLogIn); setLocation(redirect ?? APP_LINKS.Home) 
                 },
                 showDefaultErrorSnack: false,
                 onError: (response) => {

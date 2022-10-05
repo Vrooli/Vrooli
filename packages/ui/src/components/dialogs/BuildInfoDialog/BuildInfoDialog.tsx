@@ -178,7 +178,7 @@ export const BuildInfoDialog = ({
         mutationWrapper({
             mutation: fork,
             input: { id: routine.id, objectType: ForkType.Routine },
-            onSuccess: ({ data }) => {
+            onSuccess: (data) => {
                 PubSub.get().publishSnack({ message: `${getTranslation(routine, 'title', [language], true)} forked.`, severity: SnackSeverity.Success });
                 handleAction(ObjectAction.Fork, data);
             }
@@ -190,7 +190,7 @@ export const BuildInfoDialog = ({
         mutationWrapper({
             mutation: star,
             input: { isStar, forId: routine.id, starFor: StarFor.Routine },
-            onSuccess: ({ data }) => {
+            onSuccess: (data) => {
                 handleAction(isStar ? ObjectAction.Star : ObjectAction.StarUndo, data);
             }
         })
@@ -201,7 +201,7 @@ export const BuildInfoDialog = ({
         mutationWrapper({
             mutation: vote,
             input: { isUpvote, forId: routine.id, voteFor: VoteFor.Routine },
-            onSuccess: ({ data }) => {
+            onSuccess: (data) => {
                 handleAction(isUpvote ? ObjectAction.VoteUp : ObjectAction.VoteDown, data);
             }
         })

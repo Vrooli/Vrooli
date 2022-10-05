@@ -195,7 +195,7 @@ export function CommentContainer({
         },
         validationSchema,
         onSubmit: (values) => {
-            mutationWrapper({
+            mutationWrapper<commentCreate, commentCreateVariables>({
                 mutation: addMutation,
                 input: {
                     id: uuid(),
@@ -206,11 +206,11 @@ export function CommentContainer({
                         id: t.id === DUMMY_ID ? uuid() : t.id,
                     })),
                 },
-                successCondition: (response) => response.data.commentCreate !== null,
-                onSuccess: (response) => {
+                successCondition: (data) => data.commentCreate !== null,
+                onSuccess: (data) => {
                     PubSub.get().publishSnack({ message: 'Comment created.', severity: SnackSeverity.Success });
                     formik.resetForm();
-                    onCommentAdd(response.data.commentCreate);
+                    onCommentAdd(data.commentCreate);
                 },
                 onError: () => { formik.setSubmitting(false) },
             })

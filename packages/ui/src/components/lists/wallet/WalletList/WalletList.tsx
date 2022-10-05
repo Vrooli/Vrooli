@@ -32,7 +32,7 @@ export const WalletList = ({
                 id: updatedWallet.id,
                 name: updatedWallet.name,
             },
-            onSuccess: (response) => {
+            onSuccess: () => {
                 handleUpdate(updateArray(list, index, updatedWallet));
             },
         })
@@ -56,7 +56,7 @@ export const WalletList = ({
                         mutationWrapper({
                             mutation: deleteMutation,
                             input: { id: wallet.id, objectType: DeleteOneType.Wallet },
-                            onSuccess: (response) => {
+                            onSuccess: () => {
                                 handleUpdate([...list.filter(w => w.id !== wallet.id)])
                             },
                         })
