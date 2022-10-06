@@ -109,7 +109,7 @@ export const Snack = ({
             {/* Icon */}
             <Icon fill="white" />
             {/* Message */}
-            <Typography variant="body1" sx={{ color: 'inherit', marginLeft: '8px' }}>
+            <Typography variant="body1" sx={{ color: 'white', marginLeft: '8px' }}>
                 {message}
             </Typography>
             {/* Button */}
