@@ -1,3 +1,4 @@
+export * from './useDebounce';
 export * from './useHistoryState';
 export * from './usePinchZoom';
 export * from './usePress';

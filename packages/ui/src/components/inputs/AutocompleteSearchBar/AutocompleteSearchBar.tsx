@@ -1,10 +1,9 @@
 import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, CircularProgress, IconButton, Input, ListItemIcon, ListItemText, MenuItem, Paper, Tooltip, useTheme } from '@mui/material';
 import { AutocompleteSearchBarProps } from '../types';
-import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
 import { AutocompleteOption } from 'types';
 import { ActionIcon, DeleteIcon, HistoryIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, StandardIcon, StarFilledIcon, SvgComponent, UserIcon, VisibleIcon } from '@shared/icons';
-import { getLocalStorageKeys, ObjectType, performAction } from 'utils';
+import { getLocalStorageKeys, ObjectType, performAction, useDebounce } from 'utils';
 import { StarFor } from '@shared/consts';
 import { StarButton } from 'components/buttons';
 
@@ -147,10 +146,7 @@ export function AutocompleteSearchBar({
     // Highlighted option (if navigated with keyboard)
     const [highlightedOption, setHighlightedOption] = useState<AutocompleteOption | null>(null);
 
-    const onChangeDebounced = useMemo(() => AwesomeDebouncePromise(
-        onChange,
-        debounce,
-    ), [onChange, debounce]);
+    const onChangeDebounced = useDebounce(onChange, debounce);
     useEffect(() => setInternalValue(value), [value]);
     const handleChange = useCallback((event: ChangeEvent<any>) => {
         console.log('handle text change', event.target.value)

@@ -18,10 +18,9 @@ import {
 } from '../styles';
 import { multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { NodeDataRoutineList, NodeDataRoutineListItem } from 'types';
-import { getTranslation, BuildAction, updateTranslationFields, PubSub, usePress, firstString } from 'utils';
+import { getTranslation, BuildAction, updateTranslationFields, PubSub, usePress, firstString, useDebounce } from 'utils';
 import { EditableLabel } from 'components/inputs';
 import { AddIcon, CloseIcon, ExpandLessIcon, ExpandMoreIcon } from '@shared/icons';
-import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { requiredErrorMessage, title as titleValidation } from '@shared/validation';
 
 /**
@@ -60,7 +59,7 @@ export const RoutineListNode = ({
 
     // Default to open if editing and empty
     const [collapseOpen, setCollapseOpen] = useState<boolean>(isEditing && (node?.data as NodeDataRoutineList)?.routines?.length === 0);
-    const collapseDebounce = useMemo(() => AwesomeDebouncePromise(setCollapseOpen, 20), []);
+    const collapseDebounce = useDebounce(setCollapseOpen, 20);
     const toggleCollapse = useCallback((target: React.MouseEvent['target']) => {
         if (isLinked && shouldCollapse((target as any).id)) {
             PubSub.get().publishFastUpdate({ duration: 1000 });

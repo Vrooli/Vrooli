@@ -6,9 +6,8 @@ import { Box, IconButton, Popover, Stack, Tooltip, Typography, useTheme } from '
 import { MarkdownInputProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { noSelect } from 'styles';
-import { PubSub } from 'utils';
+import { PubSub, useDebounce } from 'utils';
 import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListIcon, ListNumberIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from '@shared/icons';
-import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { SnackSeverity } from 'components';
 
 enum Headers {
@@ -136,10 +135,7 @@ export const MarkdownInput = ({
         }
     }, [value]);
     // Debounce text change
-    const onChangeDebounced = useMemo(() => AwesomeDebouncePromise(
-        onChange,
-        200,
-    ), [onChange]);
+    const onChangeDebounced = useDebounce(onChange, 200);
 
     /**
      * Moves back one in the change stack
