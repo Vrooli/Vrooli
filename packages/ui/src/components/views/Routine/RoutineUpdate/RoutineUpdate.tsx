@@ -8,7 +8,7 @@ import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { routineTranslationUpdate, routineUpdate as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputShape, ObjectType, OutputShape, PubSub, removeTranslation, shapeRoutineUpdate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputShape, ObjectType, OutputShape, PubSub, removeTranslation, shapeRoutineUpdate, TagShape, usePromptBeforeUnload } from "utils";
 import { GridSubmitButtons, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession, VersionInput } from "components";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { ResourceList } from "types";
@@ -24,7 +24,7 @@ export const RoutineUpdate = ({
     zIndex,
 }: RoutineUpdateProps) => {
     // Fetch existing data
-    const id = useMemo(() => getLastUrlPart(), []);
+    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
     useEffect(() => { uuidValidate(id) && getData({ variables: { input: { id } } }) }, [getData, id])
     const routine = useMemo(() => data?.routine, [data]);

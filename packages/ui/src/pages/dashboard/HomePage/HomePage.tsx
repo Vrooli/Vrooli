@@ -9,7 +9,7 @@ import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { HomePageProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import { actionsItems, listToAutocomplete, listToListItems, openObject, OpenObjectProps, SearchPageTabOption, shortcutsItems, useReactSearch } from 'utils';
+import { actionsItems, listToAutocomplete, listToListItems, openObject, OpenObjectProps, SearchPageTabOption, shortcutsItems, useReactSearch, uuidToBase36 } from 'utils';
 import { AutocompleteOption } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
@@ -82,10 +82,10 @@ const tabOptions = [
 ];
 
 const examplesData: [string, string][] = [
-    ['Start a new business', '5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
+    ['Start a new business', uuidToBase36('5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9')],
     // ['Learn about Project Catalyst', ''], //TODO
     // ['Fund your project', ''], //TODO
-    ['Create a Cardano native asset token', '3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
+    ['Create a Cardano native asset token', uuidToBase36('3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9')],
 ]
 
 /**

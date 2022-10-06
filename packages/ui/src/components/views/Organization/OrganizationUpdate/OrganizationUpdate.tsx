@@ -8,7 +8,7 @@ import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { organizationTranslationUpdate, organizationUpdate as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { organizationUpdateMutation } from "graphql/mutation";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getLastUrlPart, getPreferredLanguage, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, removeTranslation, shapeOrganizationUpdate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getPreferredLanguage, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, removeTranslation, shapeOrganizationUpdate, TagShape, usePromptBeforeUnload } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
@@ -23,7 +23,7 @@ export const OrganizationUpdate = ({
     zIndex,
 }: OrganizationUpdateProps) => {
     // Fetch existing data
-    const id = useMemo(() => getLastUrlPart(), []);
+    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
     const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery);
     useEffect(() => { uuidValidate(id) && getData({ variables: { input: { id } } }) }, [getData, id])
     const organization = useMemo(() => data?.organization, [data]);

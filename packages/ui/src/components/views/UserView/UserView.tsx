@@ -9,7 +9,7 @@ import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton, SelectRoutineTypeMenu } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
-import { getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, SearchType } from "utils";
+import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, SearchType } from "utils";
 import { ResourceList, User } from "types";
 import { SearchListGenerator } from "components/lists/types";
 import { uuidValidate } from '@shared/uuid';
@@ -36,9 +36,9 @@ export const UserView = ({
     const profileColors = useMemo(() => placeholderColor(), []);
     // Get URL params
     const id: string = useMemo(() => {
-        const pathnameEnd = getLastUrlPart();
+        const pathnameEnd = base36ToUuid(getLastUrlPart());
         // If no id is provided, use the current user's id
-        if (APP_LINKS.Profile.endsWith(pathnameEnd)) return session.id ?? '';
+        if (!uuidValidate(pathnameEnd)) return session.id ?? '';
         // Otherwise, use the id provided in the URL
         return pathnameEnd;
     }, [session]);

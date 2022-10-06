@@ -7,7 +7,7 @@ import { routineQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, BuildView, ReportsLink, ResourceListHorizontal, RunPickerMenu, RunView, SelectLanguageMenu, StarButton, StatusButton, UpTransition, UpvoteDownvote, OwnerLabel, VersionDisplay, SnackSeverity } from "components";
 import { RoutineViewProps } from "../types";
-import { formikToRunInputs, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, useReactSearch } from "utils";
+import { base36ToUuid, formikToRunInputs, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, useReactSearch } from "utils";
 import { Routine, Run } from "types";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/graphqlWrapper";
@@ -41,7 +41,7 @@ export const RoutineView = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     // Fetch data
-    const id = useMemo(() => getLastUrlPart(), []);
+    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
     const [routine, setRoutine] = useState<Routine>(initializeRoutine(language));
     useEffect(() => {

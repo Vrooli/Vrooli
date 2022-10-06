@@ -7,7 +7,7 @@ import { standardQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, BaseStandardInput, CommentContainer, ResourceListHorizontal, SelectLanguageMenu, StarButton, TextCollapse, OwnerLabel, VersionDisplay } from "components";
 import { StandardViewProps } from "../types";
-import { getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData } from "utils";
+import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData } from "utils";
 import { Standard } from "types";
 import { CommentFor, StarFor } from "graphql/generated/globalTypes";
 import { containerShadow } from "styles";
@@ -27,7 +27,7 @@ export const StandardView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     // Fetch data
-    const id = useMemo(() => getLastUrlPart(), []);
+    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
     const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery, { errorPolicy: 'all' });
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { input: { id } } });

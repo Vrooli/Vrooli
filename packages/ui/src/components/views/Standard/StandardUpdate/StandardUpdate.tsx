@@ -9,7 +9,7 @@ import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { standardTranslationUpdate, standardUpdate as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, removeTranslation, shapeStandardUpdate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, removeTranslation, shapeStandardUpdate, TagShape, usePromptBeforeUnload } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
@@ -23,7 +23,7 @@ export const StandardUpdate = ({
     zIndex,
 }: StandardUpdateProps) => {
     // Fetch existing data
-    const id = useMemo(() => getLastUrlPart(), []);
+    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
     const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery);
     useEffect(() => { uuidValidate(id) && getData({ variables: { input: { id } } }) }, [getData, id])
     const standard = useMemo(() => data?.standard, [data]);

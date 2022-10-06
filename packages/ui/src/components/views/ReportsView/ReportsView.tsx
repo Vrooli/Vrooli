@@ -4,7 +4,7 @@ import { reportsQuery } from "graphql/query";
 import { APP_LINKS } from "@shared/consts";
 import { useMemo } from "react";
 import { useTheme } from "@mui/material";
-import { getLastUrlPart } from "utils";
+import { base36ToUuid, getLastUrlPart } from "utils";
 import { PageTitle } from "components/text";
 
 const helpText =
@@ -148,7 +148,7 @@ export const UserReportsView = (): JSX.Element => {
 }
 
 function useReportsQuery(appLink: string, queryField: string) {
-    const id = useMemo(() => getLastUrlPart(), []);
+    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
 
     return useQuery<reports, reportsVariables>(
         reportsQuery,

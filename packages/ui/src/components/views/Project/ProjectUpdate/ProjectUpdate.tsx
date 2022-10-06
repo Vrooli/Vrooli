@@ -7,7 +7,7 @@ import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { projectTranslationUpdate, projectUpdate as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { projectUpdateMutation } from "graphql/mutation";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, removeTranslation, shapeProjectUpdate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, removeTranslation, shapeProjectUpdate, TagShape, usePromptBeforeUnload } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
@@ -23,7 +23,7 @@ export const ProjectUpdate = ({
     zIndex,
 }: ProjectUpdateProps) => {
     // Fetch existing data
-    const id = useMemo(() => getLastUrlPart(), []);
+    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
     const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery);
     useEffect(() => { uuidValidate(id) && getData({ variables: { input: { id } } }) }, [getData, id])
     const project = useMemo(() => data?.project, [data]);
