@@ -5,7 +5,16 @@ export const runInputsQuery = gql`
     ${runInputFields}
     query runInputs($input: RunInputSearchInput!) {
         runInputs(input: $input) {
-            ...runInputFields
+            pageInfo {
+                endCursor
+                hasNextPage
+            }
+            edges {
+                cursor
+                node {
+                    ...runInputFields
+                }
+            }
         }
     }
 `

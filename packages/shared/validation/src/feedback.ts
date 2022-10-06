@@ -1,7 +1,7 @@
-import { id, maxStringErrorMessage, minStringErrorMessage, requiredErrorMessage } from './base';
+import { blankToUndefined, id, maxStringErrorMessage, minStringErrorMessage, requiredErrorMessage } from './base';
 import * as yup from 'yup';
 
-const text = yup.string().min(1, minStringErrorMessage).max(8192, maxStringErrorMessage)
+const text = yup.string().transform(blankToUndefined).min(1, minStringErrorMessage).max(8192, maxStringErrorMessage)
 
 /**
  * Information required when submitting feedback

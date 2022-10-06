@@ -3,18 +3,18 @@
  * several variations. Nonetheless, they are handled in the same way - connect, 
  * disconnect, delete, create, and update
  */
-import { description, idArray, id, title, language, maxStringErrorMessage, minStringErrorMessage, minNumberErrorMessage, requiredErrorMessage } from './base';
+import { description, idArray, id, title, language, maxStringErrorMessage, minStringErrorMessage, minNumberErrorMessage, requiredErrorMessage, blankToUndefined } from './base';
 import * as yup from 'yup';
 
 const index = yup.number().integer().min(0, minNumberErrorMessage).nullable();
 const columnIndex = yup.number().integer().min(0, minNumberErrorMessage).nullable()
 const rowIndex = yup.number().integer().min(0, minNumberErrorMessage).nullable()
-export const condition = yup.string().max(8192, maxStringErrorMessage)
+export const condition = yup.string().transform(blankToUndefined).max(8192, maxStringErrorMessage)
 const isOptional = yup.boolean()
 const loops = yup.number().integer().min(0, minStringErrorMessage).max(100, maxStringErrorMessage)
 const maxLoops = yup.number().integer().min(1, minStringErrorMessage).max(100, maxStringErrorMessage)
-const operation = yup.string().max(512, maxStringErrorMessage)
-const type = yup.string().oneOf(["End", "Loop", "RoutineList", "Redirect", "Start"])
+const operation = yup.string().transform(blankToUndefined).max(512, maxStringErrorMessage)
+const type = yup.string().transform(blankToUndefined).oneOf(["End", "Loop", "RoutineList", "Redirect", "Start"])
 const wasSuccessful = yup.boolean()
 
 export const nodeEndCreate = yup.object().shape({

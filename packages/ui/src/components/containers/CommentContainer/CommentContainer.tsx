@@ -1,25 +1,26 @@
 /**
  * Contains new comment input, and list of Reddit-style comments.
  */
-import { Box, Button, CircularProgress, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, Grid, Stack, Typography, useTheme } from '@mui/material';
 import { CommentContainerProps } from '../types';
-import { commentCreateForm as validationSchema } from '@shared/validation';
+import { commentCreate as validationSchema, commentTranslationCreate } from '@shared/validation';
 import { useLazyQuery, useMutation } from '@apollo/client';
 import { commentCreate, commentCreateVariables } from 'graphql/generated/commentCreate';
 import { MarkdownInput } from 'components/inputs';
 import { useFormik } from 'formik';
 import { commentCreateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils';
-import { addSearchParams, PubSub, removeSearchParams, searchTypeToParams, useReactSearch } from 'utils';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { addSearchParams, getFormikErrorsWithTranslations, getTranslationData, handleTranslationBlur, handleTranslationChange, removeSearchParams, searchTypeToParams, usePromptBeforeUnload, useReactSearch } from 'utils';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TimeFrame } from 'graphql/generated/globalTypes';
 import { comments, commentsVariables } from 'graphql/generated/comments';
 import { useLocation } from '@shared/route';
 import { commentsQuery } from 'graphql/query';
 import { Comment, CommentThread as ThreadType } from 'types';
 import { CommentThread } from 'components/lists/comment';
-import { validate as uuidValidate } from 'uuid';
-import { v4 as uuid } from 'uuid';
+import { DUMMY_ID, uuidValidate } from '@shared/uuid';
+import { uuid } from '@shared/uuid';
+import { GridSubmitButtons } from 'components/buttons';
 
 const { advancedSearchSchema, defaultSortBy } = searchTypeToParams.Comment;
 
@@ -182,44 +183,61 @@ export function CommentContainer({
     const [addMutation, { loading: loadingAdd }] = useMutation<commentCreate, commentCreateVariables>(commentCreateMutation);
     const formik = useFormik({
         initialValues: {
-            comment: '',
+            id: DUMMY_ID,
+            createdFor: objectType,
+            forId: objectId,
+            translationsCreate: [{
+                id: DUMMY_ID,
+                language,
+                text: '',
+            }],
         },
         validationSchema,
         onSubmit: (values) => {
-            mutationWrapper({
+            mutationWrapper<commentCreate, commentCreateVariables>({
                 mutation: addMutation,
                 input: {
                     id: uuid(),
-                    createdFor: objectType,
-                    forId: objectId,
-                    translationsCreate: [{
-                        id: uuid(),
-                        language,
-                        text: values.comment,
-                    }]
+                    createdFor: values.createdFor,
+                    forId: values.forId,
+                    translationsCreate: values.translationsCreate.map(t => ({
+                        ...t,
+                        id: t.id === DUMMY_ID ? uuid() : t.id,
+                    })),
                 },
-                successCondition: (response) => response.data.commentCreate !== null,
-                onSuccess: (response) => {
-                    PubSub.get().publishSnack({ message: 'Comment created.', severity: 'success' });
+                successCondition: (data) => data.commentCreate !== null,
+                successMessage: () => 'Comment created',
+                onSuccess: (data) => {
                     formik.resetForm();
-                    onCommentAdd(response.data.commentCreate);
+                    onCommentAdd(data.commentCreate);
                 },
                 onError: () => { formik.setSubmitting(false) },
             })
         },
     });
+    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-    /**
-     * Handle add comment click
-     */
-    const handleAddComment = useCallback((event: any) => {
-        // Make sure submit does not propagate past the form
-        event.preventDefault();
-        // Make sure form is valid
-        if (!formik.isValid) return;
-        // Submit form
-        formik.submitForm();
-    }, [formik]);
+    // Current text, as well as errors
+    const { text, errorText, touchedText, errors } = useMemo(() => {
+        console.log('comment container gettransdata')
+        const { error, touched, value } = getTranslationData(formik, 'translationsCreate', language);
+        return {
+            text: value?.text ?? '',
+            errorText: error?.text ?? '',
+            touchedText: touched?.text ?? false,
+            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', commentTranslationCreate),
+        }
+    }, [formik, language]);
+    // Handles blur on translation fields
+    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
+        handleTranslationBlur(formik, 'translationsCreate', e, language)
+    }, [formik, language]);
+    // Handles change on translation fields
+    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
+        handleTranslationChange(formik, 'translationsCreate', e, language)
+    }, [formik, language]);
+
+    const isLoggedIn = useMemo(() => session?.isLoggedIn === true && uuidValidate(session?.id ?? ''), [session]);
 
     return (
         <Box
@@ -238,27 +256,27 @@ export function CommentContainer({
                     <MarkdownInput
                         id="add-comment"
                         placeholder="Please be nice to each other."
-                        value={formik.values.comment}
+                        value={text}
                         minRows={3}
-                        onChange={(newText: string) => formik.setFieldValue('comment', newText)}
-                        error={formik.touched.comment && Boolean(formik.errors.comment)}
-                        helperText={formik.touched.comment ? formik.errors.comment as string : null}
+                        onChange={(newText: string) => onTranslationChange({ target: { name: 'text', value: newText } })}
+                        error={touchedText && Boolean(errorText)}
+                        helperText={touchedText ? errorText : null}
                     />
-                    <Box sx={{
+                    <Grid container spacing={1} sx={{
+                        width: 'min(100%, 400px)',
+                        marginLeft: 'auto',
                         marginTop: 1,
-                        display: 'flex',
-                        flexDirection: 'row-reverse',
                     }}>
-                        <Tooltip title={formik.errors.comment ? formik.errors.comment as string : ''}>
-                            <Button
-                                color="secondary"
-                                disabled={loadingAdd || formik.isSubmitting || !formik.isValid}
-                                onClick={handleAddComment}
-                            >
-                                {loadingAdd ? <CircularProgress size={24} /> : 'Add'}
-                            </Button>
-                        </Tooltip>
-                    </Box>
+                        <GridSubmitButtons
+                            disabledSubmit={!isLoggedIn}
+                            errors={errors}
+                            isCreate={true}
+                            loading={formik.isSubmitting || loadingAdd}
+                            onCancel={formik.resetForm}
+                            onSetSubmitting={formik.setSubmitting}
+                            onSubmit={formik.submitForm}
+                        />
+                    </Grid>
                 </Box>
             </form>
             {/* Comments list */}

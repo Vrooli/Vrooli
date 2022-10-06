@@ -5,22 +5,22 @@ import { useMutation, useLazyQuery } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, BuildView, ReportsLink, ResourceListHorizontal, RunPickerMenu, RunView, SelectLanguageMenu, StarButton, StatusButton, UpTransition, UpvoteDownvote, OwnerLabel, VersionDisplay } from "components";
+import { ObjectActionMenu, BuildView, ReportsLink, ResourceListHorizontal, RunPickerMenu, RunView, SelectLanguageMenu, StarButton, StatusButton, UpTransition, UpvoteDownvote, OwnerLabel, VersionDisplay, SnackSeverity } from "components";
 import { RoutineViewProps } from "../types";
 import { formikToRunInputs, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, useReactSearch } from "utils";
 import { Routine, Run } from "types";
 import { runCompleteMutation } from "graphql/mutation";
-import { mutationWrapper } from "graphql/utils/mutationWrapper";
+import { mutationWrapper } from "graphql/utils/graphqlWrapper";
 import { CommentFor, NodeType, StarFor } from "graphql/generated/globalTypes";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 import { containerShadow } from "styles";
-import { validate as uuidValidate } from 'uuid';
+import { uuidValidate } from '@shared/uuid';
 import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
 import { useFormik } from "formik";
 import { FieldData } from "forms/types";
 import { generateInputWithLabel } from "forms/generators";
 import { CommentContainer, ContentCollapse, TextCollapse } from "components/containers";
-import { CompleteAllIcon, EditIcon, EllipsisIcon, PlayIcon, RoutineIcon } from "@shared/icons";
+import { EditIcon, EllipsisIcon, PlayIcon, RoutineIcon, SuccessIcon } from "@shared/icons";
 
 const statsHelpText =
     `Statistics are calculated to measure various aspects of a routine. 
@@ -38,15 +38,17 @@ export const RoutineView = ({
 }: RoutineViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+
     // Fetch data
     const id = useMemo(() => getLastUrlPart(), []);
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
-    const [routine, setRoutine] = useState<Routine | null>(null);
+    const [routine, setRoutine] = useState<Routine>(initializeRoutine(language));
     useEffect(() => {
         if (uuidValidate(id)) { getData({ variables: { input: { id } } }); }
     }, [getData, id])
     useEffect(() => {
-        if (!data) return;
+        if (!data?.routine) return;
         setRoutine(data.routine);
     }, [data]);
     const updateRoutine = useCallback((newRoutine: Routine) => { setRoutine(newRoutine); }, [setRoutine]);
@@ -57,7 +59,6 @@ export const RoutineView = ({
     }), [search]);
 
     const availableLanguages = useMemo<string[]>(() => (routine?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [routine?.translations]);
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
         if (availableLanguages.length === 0) return;
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
@@ -140,13 +141,13 @@ export const RoutineView = ({
     const runRoutine = useCallback((e: any) => {
         // Validate routine before trying to run
         if (!routine || !uuidValidate(routine.id)) {
-            PubSub.get().publishSnack({ message: 'Error loading routine.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Error loading routine.', severity: SnackSeverity.Error });
             return;
         }
         // Find first node
         const firstNode = routine?.nodes?.find(node => node.type === NodeType.Start);
         if (!firstNode) {
-            PubSub.get().publishSnack({ message: 'Routine invalid - cannot run.', severity: 'Error' });
+            PubSub.get().publishSnack({ message: 'Routine invalid - cannot run.', severity: SnackSeverity.Error });
             return;
         }
         // If run specified use that
@@ -291,7 +292,7 @@ export const RoutineView = ({
             return (
                 <Grid container spacing={1}>
                     <Grid item xs={12}>
-                        <Button startIcon={<CompleteAllIcon />} fullWidth onClick={markAsComplete} color="secondary">Mark as Complete</Button>
+                        <Button startIcon={<SuccessIcon />} fullWidth onClick={markAsComplete} color="secondary">Mark as Complete</Button>
                     </Grid>
                 </Grid>
             )
@@ -321,9 +322,9 @@ export const RoutineView = ({
         const input = formik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
-            PubSub.get().publishSnack({ message: 'Copied to clipboard.', severity: 'success' });
+            PubSub.get().publishSnack({ message: 'Copied to clipboard.', severity: SnackSeverity.Success });
         } else {
-            PubSub.get().publishSnack({ message: 'Input is empty.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Input is empty.', severity: SnackSeverity.Error });
         }
     }, [formik]);
 
@@ -536,11 +537,10 @@ export const RoutineView = ({
                                     prefix={" - "}
                                 />
                                 <SelectLanguageMenu
-                                    availableLanguages={availableLanguages}
-                                    canDropdownOpen={availableLanguages.length > 1}
                                     currentLanguage={language}
                                     handleCurrent={setLanguage}
                                     session={session}
+                                    translations={routine?.translations ?? partialData?.translations ?? []}
                                     zIndex={zIndex}
                                 />
                                 {routine?.permissionsRoutine?.canEdit && <Tooltip title="Edit routine">

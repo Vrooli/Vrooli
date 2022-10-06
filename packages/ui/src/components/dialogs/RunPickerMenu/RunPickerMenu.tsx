@@ -14,10 +14,11 @@ import { deleteOneMutation, runCreateMutation } from "graphql/mutation";
 import { Run } from "types";
 import { deleteOne, deleteOneVariables } from "graphql/generated/deleteOne";
 import { DeleteOneType } from "@shared/consts";
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { RunStatus } from "graphql/generated/globalTypes";
 import { DeleteIcon } from "@shared/icons";
+import { SnackSeverity } from "../Snack/Snack";
 
 const titleAria = 'run-picker-dialog-title';
 
@@ -48,7 +49,7 @@ export const RunPickerMenu = ({
     const [runCreate] = useMutation<runCreate, runCreateVariables>(runCreateMutation);
     const createNewRun = useCallback(() => {
         if (!routine) {
-            PubSub.get().publishSnack({ message: 'Could not read routine data.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Could not read routine data.', severity: SnackSeverity.Error });
             return;
         }
         mutationWrapper({
@@ -59,14 +60,14 @@ export const RunPickerMenu = ({
                 version: routine.version ?? '',
                 title: getTranslation(routine, 'title', getUserLanguages(session)) ?? 'Unnamed Routine',
             },
-            successCondition: (response) => response.data.runCreate !== null,
-            onSuccess: (response) => {
-                const newRun = response.data.runCreate;
+            successCondition: (data) => data.runCreate !== null,
+            onSuccess: (data) => {
+                const newRun = data.runCreate;
                 onAdd(newRun);
                 onSelect(newRun);
                 handleClose();
             },
-            onError: () => { PubSub.get().publishSnack({ message: 'Failed to create run.', severity: 'error' }) },
+            errorMessage: () => 'Failed to create run.',
         })
     }, [handleClose, onAdd, onSelect, routine, runCreate, session]);
 
@@ -75,17 +76,12 @@ export const RunPickerMenu = ({
         mutationWrapper({
             mutation: deleteOne,
             input: { id: run.id, objectType: DeleteOneType.Run },
-            onSuccess: (response) => {
-                if (response?.data?.deleteOne?.success) {
-                    PubSub.get().publishSnack({ message: `${displayDate(run.timeStarted)} deleted.` });
-                    onDelete(run);
-                } else {
-                    PubSub.get().publishSnack({ message: `Error deleting ${displayDate(run.timeStarted)}.`, severity: 'error' });
-                }
+            successCondition: (data) => data.deleteOne.success,
+            successMessage: () => `Run ${displayDate(run.timeStarted)} deleted.`,
+            onSuccess: (data) => {
+                onDelete(run);
             },
-            onError: () => {
-                PubSub.get().publishSnack({ message: `Failed to delete ${displayDate(run.timeStarted)}.` });
-            }
+            errorMessage: () => `Failed to delete run ${displayDate(run.timeStarted)}.`,
         })
     }, [deleteOne, onDelete])
 

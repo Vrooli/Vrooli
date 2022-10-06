@@ -6,7 +6,7 @@ import {
     DialogContent,
     DialogContentText,
 } from '@mui/material';
-import { PubSub } from 'utils';
+import { firstString, PubSub } from 'utils';
 import { DialogTitle } from 'components';
 
 interface StateButton {
@@ -53,7 +53,7 @@ const AlertDialog = () => {
         >
             <DialogTitle
                 ariaLabel={titleAria}
-                title={state.title ?? ''}
+                title={firstString(state.title)}
                 onClose={resetState}
             />
             <DialogContent>

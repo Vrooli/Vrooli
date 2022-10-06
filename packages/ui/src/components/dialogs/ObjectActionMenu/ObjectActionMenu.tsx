@@ -6,9 +6,9 @@ import { vote, voteVariables } from 'graphql/generated/vote';
 import { copyMutation, forkMutation, starMutation, voteMutation } from "graphql/mutation";
 import { useCallback, useMemo, useState } from "react";
 import { ReportFor, StarFor, VoteFor } from "@shared/consts";
-import { DeleteDialog, ListMenu, ReportDialog } from "..";
+import { DeleteDialog, ListMenu, ReportDialog, SnackSeverity } from "..";
 import { ObjectActionMenuProps, ListMenuItemData, ObjectActionComplete, ObjectAction } from "../types";
-import { mutationWrapper } from "graphql/utils/mutationWrapper";
+import { mutationWrapper } from "graphql/utils/graphqlWrapper";
 import { PubSub } from "utils";
 import { CopyType, ForkType } from "graphql/generated/globalTypes";
 import { BranchIcon, CopyIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReportIcon, SearchIcon, ShareIcon, StarFilledIcon, StarOutlineIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@shared/icons";
@@ -76,16 +76,14 @@ export const ObjectActionMenu = ({
         // Check if objectType can be converted to CopyType
         const copyType = CopyType[objectType];
         if (!copyType) {
-            PubSub.get().publishSnack({ message: 'Copy not supported on this object type.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Copy not supported on this object type.', severity: SnackSeverity.Error });
             return;
         }
         mutationWrapper({
             mutation: copy,
             input: { id: objectId, objectType: copyType },
-            onSuccess: ({ data }) => {
-                PubSub.get().publishSnack({ message: `${objectName} copied.`, severity: 'success' });
-                onActionComplete(ObjectActionComplete.Copy, data);
-            },
+            successMessage: () => `${objectName} copied.`,
+            onSuccess: (data) => { onActionComplete(ObjectActionComplete.Copy, data) },
         })
     }, [copy, objectId, objectName, objectType, onActionComplete]);
 
@@ -93,16 +91,14 @@ export const ObjectActionMenu = ({
         // Check if objectType can be converted to ForkType
         const forkType = ForkType[objectType];
         if (!forkType) {
-            PubSub.get().publishSnack({ message: 'Fork not supported on this object type.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Fork not supported on this object type.', severity: SnackSeverity.Error });
             return;
         }
         mutationWrapper({
             mutation: fork,
             input: { id: objectId, objectType: forkType },
-            onSuccess: ({ data }) => {
-                PubSub.get().publishSnack({ message: `${objectName} forked.`, severity: 'success' });
-                onActionComplete(ObjectActionComplete.Fork, data);
-            }
+            successMessage: () => `${objectName} forked.`,
+            onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data) },
         })
     }, [fork, objectId, objectName, objectType, onActionComplete]);
 
@@ -110,9 +106,7 @@ export const ObjectActionMenu = ({
         mutationWrapper({
             mutation: star,
             input: { isStar, starFor, forId: objectId },
-            onSuccess: ({ data }) => {
-                onActionComplete(isStar ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data);
-            }
+            onSuccess: (data) => { onActionComplete(isStar ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data) },
         })
     }, [objectId, onActionComplete, star]);
 
@@ -120,9 +114,7 @@ export const ObjectActionMenu = ({
         mutationWrapper({
             mutation: vote,
             input: { isUpvote, voteFor, forId: objectId },
-            onSuccess: ({ data }) => {
-                onActionComplete(isUpvote ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data);
-            }
+            onSuccess: (data) => { onActionComplete(isUpvote ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data) },
         })
     }, [objectId, onActionComplete, vote]);
 

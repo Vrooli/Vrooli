@@ -6,7 +6,7 @@
  *      PubSub.get().publishSnack({ message: 'Hello World' });
  */
 import { COOKIE, ValueOf } from '@shared/consts';
-import { AlertDialogState, SnackPub } from 'components';
+import { AlertDialogState, SnackSeverity } from 'components';
 import { Session } from 'types';
 
 export const Pubs = {
@@ -26,6 +26,15 @@ export const Pubs = {
     NodeDrop: "NodeDrop",
 }
 export type Pubs = ValueOf<typeof Pubs>;
+
+export type SnackPub = {
+    message?: string;
+    severity: SnackSeverity;
+    data?: any;
+    buttonText?: string;
+    buttonClicked?: (event?: any) => any;
+    autoHideDuration?: number;
+}
 
 export class PubSub {
     private static instance: PubSub;

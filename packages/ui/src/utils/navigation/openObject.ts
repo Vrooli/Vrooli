@@ -3,6 +3,7 @@
  */
 
 import { APP_LINKS } from "@shared/consts";
+import { SnackSeverity } from "components";
 import { SetLocation } from "types";
 import { PubSub } from "utils/pubsub";
 import { stringifySearchParams } from "./urlTools";
@@ -99,7 +100,7 @@ export type OpenObjectProps = {
 export const openObject = (object: OpenObjectProps['object'], setLocation: OpenObjectProps['setLocation']) => {
     // Check if __typename is in objectLinkMap
     if (!ObjectType.hasOwnProperty(object.__typename)) {
-        PubSub.get().publishSnack({ message: 'Could not parse object type.', severity: 'error' });
+        PubSub.get().publishSnack({ message: 'Could not parse object type.', severity: SnackSeverity.Error });
         return;
     }
     // Navigate to object page

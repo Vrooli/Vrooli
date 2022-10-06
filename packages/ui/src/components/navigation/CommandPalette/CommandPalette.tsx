@@ -14,7 +14,7 @@ import { homePage, homePageVariables } from 'graphql/generated/homePage';
 import { homePageQuery } from 'graphql/query';
 import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
-import { validate as uuidValidate } from 'uuid';
+import { uuidValidate } from '@shared/uuid';
 
 const helpText =
     `Use this dialog to quickly navigate to other pages.

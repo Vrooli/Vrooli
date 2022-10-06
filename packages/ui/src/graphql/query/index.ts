@@ -35,6 +35,7 @@ export * from './stars';
 export * from './tag';
 export * from './tags';
 export * from './tagsCount';
+export * from './translate';
 export * from './user';
 export * from './users';
 export * from './usersCount';

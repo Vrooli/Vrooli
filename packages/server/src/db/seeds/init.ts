@@ -7,7 +7,7 @@ import { ProfileModel } from '../../models';
 import { PrismaType } from '../../types';
 import pkg from '@prisma/client';
 import { genErrorCode, logger, LogLevel } from '../../logger';
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
 const { AccountStatus, NodeType, ResourceUsedFor, ResourceListUsedFor } = pkg;
 
 export async function init(prisma: PrismaType) {

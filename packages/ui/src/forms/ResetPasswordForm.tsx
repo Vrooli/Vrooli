@@ -8,12 +8,12 @@ import {
     Paper,
 } from '@mui/material';
 import { APP_LINKS } from '@shared/consts';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { useLocation } from '@shared/route';
 import { emailResetPassword, emailResetPasswordVariables } from 'graphql/generated/emailResetPassword';
 import { ResetPasswordFormProps } from './types';
 import { formPaper, formSubmit } from './styles';
-import { PasswordTextField } from 'components';
+import { PasswordTextField, SnackSeverity } from 'components';
 import { PubSub } from 'utils';
 
 export const ResetPasswordForm = ({
@@ -32,14 +32,14 @@ export const ResetPasswordForm = ({
         onSubmit: (values) => {
             // Check for valid userId and code
             if (!userId || !code) {
-                PubSub.get().publishSnack({ message: 'Invalid reset password URL.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Invalid reset password URL.', severity: SnackSeverity.Error });
                 return;
             }
             mutationWrapper({
                 mutation: emailResetPassword,
                 input: { id: userId, code, newPassword: values.newPassword },
-                onSuccess: (response) => { 
-                    PubSub.get().publishSession(response.data.emailResetPassword); 
+                onSuccess: (data) => { 
+                    PubSub.get().publishSession(data.emailResetPassword); 
                     setLocation(APP_LINKS.Home) 
                 },
                 successMessage: () => 'Password reset.',

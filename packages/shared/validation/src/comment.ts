@@ -1,8 +1,8 @@
-import { id, idArray, language, maxStringErrorMessage, minStringErrorMessage, requiredErrorMessage } from './base';
+import { blankToUndefined, id, idArray, language, maxStringErrorMessage, minStringErrorMessage, requiredErrorMessage } from './base';
 import * as yup from 'yup';
 
-const createdFor = yup.string().oneOf(['Project', 'Routine', 'Standard'])
-const text = yup.string().min(1, minStringErrorMessage).max(8192, maxStringErrorMessage)
+const createdFor = yup.string().transform(blankToUndefined).oneOf(['Project', 'Routine', 'Standard'])
+const text = yup.string().transform(blankToUndefined).min(1, minStringErrorMessage).max(8192, maxStringErrorMessage)
 
 export const commentTranslationCreate = yup.object().shape({
     id: id.required(requiredErrorMessage),
@@ -25,10 +25,6 @@ export const commentCreate = yup.object().shape({
     createdFor: createdFor.required(requiredErrorMessage),
     forId: id.required(requiredErrorMessage),
     translationsCreate: commentTranslationsCreate.required(requiredErrorMessage),
-})
-
-export const commentCreateForm = yup.object().shape({
-    comment: text.required(requiredErrorMessage),
 })
 
 /**

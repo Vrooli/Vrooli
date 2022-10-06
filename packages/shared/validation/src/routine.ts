@@ -1,4 +1,4 @@
-import { description, idArray, id, name, title, language, tagArray, helpText, maxStringErrorMessage, requiredErrorMessage, version } from './base';
+import { description, idArray, id, name, title, language, tagArray, helpText, maxStringErrorMessage, requiredErrorMessage, version, blankToUndefined } from './base';
 import { nodeLinksCreate, nodeLinksUpdate, nodesCreate, nodesUpdate } from './node';
 import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 import { standardCreate } from './standard';
@@ -10,7 +10,7 @@ const isComplete = yup.boolean()
 const isInternal = yup.boolean()
 const isPrivate = yup.boolean()
 const isRequired = yup.boolean()
-const instructions = yup.string().max(8192, maxStringErrorMessage)
+const instructions = yup.string().transform(blankToUndefined).max(8192, maxStringErrorMessage)
 
 export const inputTranslationCreate = yup.object().shape({
     id: id.required(requiredErrorMessage),
@@ -97,30 +97,6 @@ export const routineTranslationUpdate = yup.object().shape({
 export const routineTranslationsCreate = yup.array().of(routineTranslationCreate.required(requiredErrorMessage))
 export const routineTranslationsUpdate = yup.array().of(routineTranslationUpdate.required(requiredErrorMessage))
 
-export const routineCreateForm = yup.object().shape({
-    description: description.notRequired().default(undefined),
-    inputs: inputsCreate.notRequired().default([]),
-    instructions: instructions.required(requiredErrorMessage),
-    isPrivate: isPrivate.notRequired().default(false),
-    outputs: outputsCreate.notRequired().default([]),
-    title: title.required(requiredErrorMessage),
-    version: version().notRequired().default(undefined),
-})
-
-type RoutineUpdateValidationProps = {
-    minVersion?: string,
-}
-
-export const routineUpdateForm = ({ minVersion }: RoutineUpdateValidationProps) => yup.object().shape({
-    description: description.notRequired().default(undefined),
-    inputs: inputsCreate.notRequired().default([]),
-    instructions: instructions.required(requiredErrorMessage),
-    isPrivate: isPrivate.notRequired().default(false),
-    outputs: outputsCreate.notRequired().default([]),
-    title: title.required(requiredErrorMessage),
-    version: version(minVersion).notRequired().default(undefined),
-})
-
 /**
  * Information required when creating a routine. 
  */
@@ -143,6 +119,11 @@ export const routineCreate = yup.object().shape({
     tagsCreate: tagsCreate.notRequired().default(undefined),
     translationsCreate: routineTranslationsCreate.notRequired().default(undefined),
 }, [['createdByUserId', 'createdByOrganizationId']]) // Makes sure you can't associate with both a user and an organization
+
+
+type RoutineUpdateValidationProps = {
+    minVersion?: string,
+}
 
 /**
  * Information required when updating a routine

@@ -1,7 +1,7 @@
-import { id, requiredErrorMessage } from './base';
+import { blankToUndefined, id, requiredErrorMessage } from './base';
 import * as yup from 'yup';
 
-const emailAddress = yup.string().email()
+const emailAddress = yup.string().transform(blankToUndefined).email()
 const receivesAccountUpdates = yup.boolean()
 const receivesBusinessUpdates = yup.boolean()
 

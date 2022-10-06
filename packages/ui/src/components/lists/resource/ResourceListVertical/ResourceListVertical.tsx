@@ -8,7 +8,7 @@ import { containerShadow } from 'styles';
 import { Box, Button } from '@mui/material';
 import { useMutation } from '@apollo/client';
 import { resourceDeleteManyMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { updateArray } from 'utils';
 import { resourceDeleteMany, resourceDeleteManyVariables } from 'graphql/generated/resourceDeleteMany';
 import { AddIcon } from '@shared/icons';
@@ -39,7 +39,7 @@ export const ResourceListVertical = ({
         if (handleUpdate) {
             handleUpdate({
                 ...list,
-                resources: updateArray(list.resources, index, updatedResource),
+                resources: updateArray(list.resources, index, updatedResource) as any[],
             });
         }
     }, [handleUpdate, list]);
@@ -52,7 +52,7 @@ export const ResourceListVertical = ({
             mutationWrapper({
                 mutation: deleteMutation,
                 input: { ids: [resource.id] },
-                onSuccess: (response) => {
+                onSuccess: () => {
                     if (handleUpdate) {
                         handleUpdate({
                             ...list,
@@ -70,7 +70,7 @@ export const ResourceListVertical = ({
         }
     }, [deleteMutation, handleUpdate, list, mutate]);
 
-    // Right click context menu
+    // Right click context menu TODO
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const [selected, setSelected] = useState<any | null>(null);
     const contextId = useMemo(() => `resource-context-menu-${selected?.link}`, [selected]);

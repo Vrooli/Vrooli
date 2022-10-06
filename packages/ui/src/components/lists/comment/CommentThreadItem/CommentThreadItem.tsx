@@ -1,22 +1,23 @@
-import { Box, Button, CircularProgress, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
+import { Box, Grid, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { CommentThreadItemProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
 import { TextLoading, UpvoteDownvote } from '../..';
-import { displayDate, getTranslation, PubSub } from 'utils';
+import { displayDate, getFormikErrorsWithTranslations, getTranslation, getTranslationData, handleTranslationBlur, handleTranslationChange, PubSub, usePromptBeforeUnload } from 'utils';
 import { MarkdownInput } from 'components/inputs';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
 import { DeleteOneType, ReportFor, StarFor, VoteFor } from '@shared/consts';
-import { commentCreateForm as validationSchema } from '@shared/validation';
+import { commentCreate as validationSchema, commentTranslationCreate } from '@shared/validation';
 import { commentCreate, commentCreateVariables } from 'graphql/generated/commentCreate';
 import { commentCreateMutation, deleteOneMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';
 import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
-import { v4 as uuid } from 'uuid';
+import { DUMMY_ID, uuid } from '@shared/uuid';
 import { OwnerLabel } from 'components/text';
 import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
-import { ReportButton, StarButton } from 'components/buttons';
+import { GridSubmitButtons, ReportButton, StarButton } from 'components/buttons';
 import { DeleteIcon, ReplyIcon } from '@shared/icons';
+import { uuidValidate } from '@shared/uuid';
 
 export function CommentThreadItem({
     data,
@@ -32,7 +33,7 @@ export function CommentThreadItem({
 }: CommentThreadItemProps) {
     const { palette } = useTheme();
 
-    const { canDelete, canEdit, canReply, canReport, canStar, canVote, text } = useMemo(() => {
+    const { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText } = useMemo(() => {
         const permissions = data?.permissionsComment;
         const languages = session?.languages ?? navigator.languages;
         return {
@@ -42,7 +43,7 @@ export function CommentThreadItem({
             canReport: permissions?.canReport === true,
             canStar: permissions?.canStar === true,
             canVote: permissions?.canVote === true,
-            text: getTranslation(data, 'text', languages, true),
+            displayText: getTranslation(data, 'text', languages, true),
         };
     }, [data, session]);
 
@@ -50,51 +51,69 @@ export function CommentThreadItem({
     const [addMutation, { loading: loadingAdd }] = useMutation<commentCreate, commentCreateVariables>(commentCreateMutation);
     const formik = useFormik({
         initialValues: {
-            comment: '',
+            id: DUMMY_ID,
+            createdFor: objectType,
+            forId: objectId,
+            parentId: data?.id,
+            translationsCreate: [{
+                id: DUMMY_ID,
+                language,
+                text: '',
+            }],
         },
         validationSchema,
+        enableReinitialize: true,
         onSubmit: (values) => {
             if (!data) return;
             mutationWrapper({
                 mutation: addMutation,
                 input: {
                     id: uuid(),
-                    createdFor: objectType,
-                    forId: objectId,
-                    parentId: data.id,
-                    translationsCreate: [{
-                        id: uuid(),
-                        language,
-                        text: values.comment,
-                    }]
+                    createdFor: values.createdFor,
+                    forId: values.forId,
+                    parentId: values.parentId,
+                    translationsCreate: values.translationsCreate.map(t => ({
+                        ...t,
+                        id: t.id === DUMMY_ID ? uuid() : t.id,
+                    })),
                 },
-                successCondition: (response) => response.data.commentCreate !== null,
-                onSuccess: (response) => {
-                    PubSub.get().publishSnack({ message: 'Comment created.', severity: 'success' });
+                successCondition: (data) => data.commentCreate !== null,
+                successMessage: () => 'Comment created.',
+                onSuccess: (data) => {
                     formik.resetForm();
                     setReplyOpen(false);
-                    handleCommentAdd(response.data.commentCreate);
+                    handleCommentAdd(data.commentCreate);
                 },
                 onError: () => { formik.setSubmitting(false) },
             })
         },
     });
+    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
+
+    // Current text, as well as errors
+    const { text, errorText, touchedText, errors } = useMemo(() => {
+        console.log('comment threaditem gettransdata')
+        const { error, touched, value } = getTranslationData(formik, 'translationsCreate', language);
+        return {
+            text: value?.text ?? '',
+            errorText: error?.text ?? '',
+            touchedText: touched?.text ?? false,
+            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', commentTranslationCreate),
+        }
+    }, [formik, language]);
+    // Handles blur on translation fields
+    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
+        handleTranslationBlur(formik, 'translationsCreate', e, language)
+    }, [formik, language]);
+    // Handles change on translation fields
+    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
+        handleTranslationChange(formik, 'translationsCreate', e, language)
+    }, [formik, language]);
+
     const openReplyInput = useCallback(() => { setReplyOpen(true) }, []);
     const closeReplyInput = useCallback(() => {
         formik.resetForm();
         setReplyOpen(false)
-    }, [formik]);
-
-    /**
-     * Handle add comment click
-     */
-    const handleReplySubmit = useCallback((event: any) => {
-        // Make sure submit does not propagate past the form
-        event.preventDefault();
-        // Make sure form is valid
-        if (!formik.isValid) return;
-        // Submit form
-        formik.submitForm();
     }, [formik]);
 
     const [deleteMutation, { loading: loadingDelete }] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation);
@@ -109,17 +128,12 @@ export function CommentThreadItem({
                         mutationWrapper({
                             mutation: deleteMutation,
                             input: { id: data.id, objectType: DeleteOneType.Comment },
+                            successCondition: (data) => data.deleteOne.success,
+                            successMessage: () => 'Comment deleted.',
                             onSuccess: (response) => {
-                                if (response?.data?.deleteOne?.success) {
-                                    PubSub.get().publishSnack({ message: `Comment deleted.` });
-                                    handleCommentRemove(data);
-                                } else {
-                                    PubSub.get().publishSnack({ message: `Error deleting comment.`, severity: 'error' });
-                                }
+                                handleCommentRemove(data);
                             },
-                            onError: () => {
-                                PubSub.get().publishSnack({ message: `Failed to delete comment.` });
-                            }
+                            errorMessage: () => 'Failed to delete comment.',
                         })
                     }
                 },
@@ -127,6 +141,8 @@ export function CommentThreadItem({
             ]
         });
     }, [data, deleteMutation, handleCommentRemove]);
+
+    const isLoggedIn = useMemo(() => session?.isLoggedIn === true && uuidValidate(session?.id ?? ''), [session]);
 
     return (
         <>
@@ -193,7 +209,7 @@ export function CommentThreadItem({
                     </Stack>
                     {/* Text */}
                     {isOpen && (loading ? <TextLoading /> : <ListItemText
-                        primary={text}
+                        primary={displayText}
                     />)}
                     {/* Text buttons for reply, share, report, star, delete. */}
                     {isOpen && <Stack direction="row" spacing={1}>
@@ -244,35 +260,28 @@ export function CommentThreadItem({
                                 <MarkdownInput
                                     id={`add-reply-${data?.id}`}
                                     placeholder="Please be nice to each other."
-                                    value={formik.values.comment}
+                                    value={text}
                                     minRows={3}
-                                    onChange={(newText: string) => formik.setFieldValue('comment', newText)}
-                                    error={formik.touched.comment && Boolean(formik.errors.comment)}
-                                    helperText={formik.touched.comment ? formik.errors.comment as string : null}
+                                    onChange={(newText: string) => onTranslationChange({ target: { name: 'text', value: newText } })}
+                                    error={touchedText && Boolean(errorText)}
+                                    helperText={touchedText ? errorText : null}
                                 />
-                                <Stack direction="row" sx={{
-                                    paddingTop: 1,
-                                    display: 'flex',
-                                    flexDirection: 'row-reverse',
+                                <Grid container spacing={1} sx={{
+                                    width: 'min(100%, 400px)',
+                                    marginLeft: 'auto',
+                                    marginTop: 1,
                                 }}>
-                                    <Tooltip title={formik.errors.comment ? formik.errors.comment as string : ''}>
-                                        <Button
-                                            color="secondary"
-                                            disabled={loadingAdd || formik.isSubmitting || !formik.isValid}
-                                            onClick={handleReplySubmit}
-                                            sx={{ marginLeft: 1 }}
-                                        >
-                                            {loadingAdd ? <CircularProgress size={24} /> : 'Add'}
-                                        </Button>
-                                    </Tooltip>
-                                    <Button
-                                        color="secondary"
-                                        disabled={loadingAdd || formik.isSubmitting}
-                                        onClick={closeReplyInput}
-                                    >
-                                        Cancel
-                                    </Button>
-                                </Stack>
+                                    <GridSubmitButtons
+                                        disabledCancel={formik.isSubmitting}
+                                        disabledSubmit={!isLoggedIn}
+                                        errors={errors}
+                                        isCreate={true}
+                                        loading={formik.isSubmitting || loadingAdd}
+                                        onCancel={closeReplyInput}
+                                        onSetSubmitting={formik.setSubmitting}
+                                        onSubmit={formik.submitForm}
+                                    />
+                                </Grid>
                             </Box>
                         </form>
                     )}

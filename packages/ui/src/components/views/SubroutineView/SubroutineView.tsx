@@ -1,5 +1,5 @@
 import { Box, CircularProgress, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { ObjectActionMenu, OwnerLabel, ResourceListHorizontal, TextCollapse, VersionDisplay } from "components";
+import { ObjectActionMenu, OwnerLabel, ResourceListHorizontal, SnackSeverity, TextCollapse, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { containerShadow } from "styles";
 import { formikToRunInputs, getTranslation, getUserLanguages, ObjectType, PubSub, runInputsToFormik, standardToFieldData } from "utils";
@@ -120,9 +120,9 @@ export const SubroutineView = ({
         const input = formik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
-            PubSub.get().publishSnack({ message: 'Copied to clipboard.', severity: 'success' });
+            PubSub.get().publishSnack({ message: 'Copied to clipboard.', severity: SnackSeverity.Success });
         } else {
-            PubSub.get().publishSnack({ message: 'Input is empty.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Input is empty.', severity: SnackSeverity.Error });
         }
     }, [formik.values]);
 

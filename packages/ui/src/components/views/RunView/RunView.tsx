@@ -9,7 +9,7 @@ import { getRunPercentComplete, getTranslation, getUserLanguages, locationArrays
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
-import { validate as uuidValidate } from 'uuid';
+import { uuidValidate } from '@shared/uuid';
 import { DecisionStep, Node, NodeDataEnd, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, Run, RunInput, RunStep, SubroutineStep } from "types";
 import { addSearchParams, removeSearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
@@ -17,8 +17,8 @@ import { runComplete, runCompleteVariables } from "graphql/generated/runComplete
 import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils";
 import { runUpdate, runUpdateVariables } from "graphql/generated/runUpdate";
-import { v4 as uuid } from 'uuid';
-import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, CompleteAllIcon } from "@shared/icons";
+import { uuid } from '@shared/uuid';
+import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, SuccessIcon } from "@shared/icons";
 
 /**
  * Maximum routine nesting supported
@@ -430,7 +430,7 @@ export const RunView = ({
             // Check if this is because the subroutine data hasn't been fetched yet
             //TODO
             // Otherwise, this is an error
-            // PubSub.get().publishSnack({ message: 'Error: Step not found', severity: 'error' });
+            // PubSub.get().publishSnack({ message: 'Error: Step not found', severity: SnackSeverity.Error });
             return;
         }
         // If current step is a list, then redirect to first step in list
@@ -640,7 +640,7 @@ export const RunView = ({
                     stepsUpdate,
                     ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),
                 },
-                onSuccess: ({ data }) => {
+                onSuccess: (data) => {
                     setRun(data.runUpdate);
                 }
             })
@@ -737,7 +737,7 @@ export const RunView = ({
                 stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
                 ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),
             },
-            onSuccess: ({ data }) => {
+            onSuccess: (data) => {
                 setRun(data.runUpdate);
             }
         })
@@ -920,7 +920,7 @@ export const RunView = ({
                             </Button>)}
                             {!nextStep && currentStep?.type !== RoutineStepType.Decision && (<Button
                                 fullWidth
-                                startIcon={<CompleteAllIcon />}
+                                startIcon={<SuccessIcon />}
                                 onClick={toNext}
                                 sx={{ width: 'min(48vw, 250px)' }}
                             >

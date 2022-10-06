@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import { Forms, PubSub } from 'utils';
 import { emailSignUpSchema } from '@shared/validation';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { useLocation } from '@shared/route';
 import { emailSignUp, emailSignUpVariables } from 'graphql/generated/emailSignUp';
 import { FormProps } from './types';
@@ -49,8 +49,8 @@ export const SignUpForm = ({
                     marketingEmails: Boolean(values.marketingEmails),
                     theme: theme.palette.mode ?? 'light',
                 },
-                onSuccess: (response) => {
-                    PubSub.get().publishSession(response.data.emailSignUp)
+                onSuccess: (data) => {
+                    PubSub.get().publishSession(data.emailSignUp)
                     PubSub.get().publishAlertDialog({
                         message: `Welcome to ${BUSINESS_NAME}. Please verify your email within 48 hours.`,
                         buttons: [{ text: 'OK', onClick: () => setLocation(APP_LINKS.Welcome) }]

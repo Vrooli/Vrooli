@@ -6,7 +6,7 @@ import { useCallback } from 'react';
 import { Email } from 'types';
 import { Box, IconButton, Stack, TextField, useTheme } from '@mui/material';
 import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { PubSub, updateArray } from 'utils';
 import { emailCreateMutation, deleteOneMutation, emailUpdateMutation, sendVerificationEmailMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';
@@ -18,6 +18,7 @@ import { emailUpdate, emailUpdateVariables } from 'graphql/generated/emailUpdate
 import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
 import { sendVerificationEmail, sendVerificationEmailVariables } from 'graphql/generated/sendVerificationEmail';
 import { AddIcon } from '@shared/icons';
+import { SnackSeverity } from 'components/dialogs';
 
 export const EmailList = ({
     handleUpdate,
@@ -43,9 +44,9 @@ export const EmailList = ({
                     receivesAccountUpdates: true,
                     receivesBusinessUpdates: true,
                 },
-                onSuccess: (response) => {
-                    PubSub.get().publishSnack({ message: 'Please check your email to complete verification.' });
-                    handleUpdate([...list, response.data.emailCreate]);
+                onSuccess: (data) => {
+                    PubSub.get().publishSnack({ message: 'Please check your email to complete verification.', severity: SnackSeverity.Info });
+                    handleUpdate([...list, data.emailCreate]);
                     formik.resetForm();
                 },
                 onError: () => { formik.setSubmitting(false); },
@@ -63,7 +64,7 @@ export const EmailList = ({
                 receivesAccountUpdates: updatedEmail.receivesAccountUpdates,
                 receivesBusinessUpdates: updatedEmail.receivesBusinessUpdates,
             },
-            onSuccess: (response) => {
+            onSuccess: () => {
                 handleUpdate(updateArray(list, index, updatedEmail));
             },
         })
@@ -75,7 +76,7 @@ export const EmailList = ({
         // Make sure that the user has at least one other authentication method 
         // (i.e. one other email or one other wallet)
         if (list.length <= 1 && numVerifiedWallets === 0) {
-            PubSub.get().publishSnack({ message: 'Cannot delete your only authentication method!', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Cannot delete your only authentication method!', severity: SnackSeverity.Error });
             return;
         }
         // Confirmation dialog
@@ -87,7 +88,7 @@ export const EmailList = ({
                         mutationWrapper({
                             mutation: deleteMutation,
                             input: { id: email.id, objectType: DeleteOneType.Email },
-                            onSuccess: (response) => {
+                            onSuccess: () => {
                                 handleUpdate([...list.filter(w => w.id !== email.id)])
                             },
                         })
@@ -104,8 +105,8 @@ export const EmailList = ({
         mutationWrapper({
             mutation: verifyMutation,
             input: { emailAddress: email.emailAddress },
-            onSuccess: (response) => {
-                PubSub.get().publishSnack({ message: 'Please check your email to complete verification.' });
+            onSuccess: () => {
+                PubSub.get().publishSnack({ message: 'Please check your email to complete verification.', severity: SnackSeverity.Info });
             },
         })
     }, [loadingVerifyEmail, verifyMutation]);

@@ -2,14 +2,14 @@
  * Search page for organizations, projects, routines, standards, and users
  */
 import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material";
-import { PageContainer, SearchList, SelectRoutineTypeMenu, ShareSiteDialog } from "components";
+import { PageContainer, SearchList, SelectRoutineTypeMenu, ShareSiteDialog, SnackSeverity } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
 import { useLocation } from '@shared/route';
 import { SearchPageProps } from "../types";
 import { getObjectUrlBase, PubSub, parseSearchParams, stringifySearchParams, openObject, SearchType, SearchPageTabOption as TabOption, addSearchParams } from "utils";
 import { ListOrganization, ListProject, ListRoutine, ListStandard, ListUser } from "types";
-import { validate as uuidValidate } from 'uuid';
+import { uuidValidate } from '@shared/uuid';
 import { APP_LINKS } from "@shared/consts";
 import { AddIcon } from "@shared/icons";
 
@@ -125,7 +125,7 @@ export function SearchPage({
         // If not logged in, redirect to login page
         const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
         if (!loggedIn) {
-            PubSub.get().publishSnack({ message: 'Must be logged in.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Must be logged in.', severity: SnackSeverity.Error });
             setLocation(`${APP_LINKS.Start}${stringifySearchParams({
                 redirect: addUrl
             })}`);

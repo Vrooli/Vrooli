@@ -4,13 +4,13 @@ import { Dialog, DialogContent, Grid, Stack, TextField } from '@mui/material';
 import { useFormik } from 'formik';
 import { reportCreate, reportCreateVariables } from 'graphql/generated/reportCreate';
 import { reportCreateMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { ReportDialogProps } from '../types';
-import { getUserLanguages, PubSub } from 'utils';
+import { getUserLanguages, usePromptBeforeUnload } from 'utils';
 import { useEffect, useState } from 'react';
 import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
 import { DialogTitle, GridSubmitButtons, Selector } from 'components';
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
 
 const helpText =
     `Reports help us moderate content. For now, reports will be handled by moderators. 
@@ -71,9 +71,9 @@ export const ReportDialog = ({
                     language,
                     reason: Boolean(values.otherReason) ? values.otherReason : values.reason,
                 },
-                successCondition: (response) => response.data.reportCreate !== null,
+                successCondition: (data) => data.reportCreate !== null,
+                successMessage: () => 'Report submitted.',
                 onSuccess: () => {
-                    PubSub.get().publishSnack({ message: 'Report submitted.' });
                     formik.resetForm();
                     onClose()
                 },
@@ -81,21 +81,7 @@ export const ReportDialog = ({
             })
         },
     });
-
-    /**
-     * On page leave, check if unsaved work. 
-     * If so, prompt for confirmation.
-     */
-    useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (formik.dirty) {
-                e.preventDefault()
-                e.returnValue = ''
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [formik.dirty]);
+    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
     const handleClose = () => {
         formik.resetForm();
@@ -133,6 +119,7 @@ export const ReportDialog = ({
                             currentLanguage={language}
                             handleCurrent={setLanguage}
                             session={session}
+                            translations={[{ language }]}
                             zIndex={zIndex}
                         />
                         {/* Text displaying what you are reporting */}
@@ -180,10 +167,9 @@ export const ReportDialog = ({
                         {/* Action buttons */}
                         <Grid container spacing={1}>
                             <GridSubmitButtons
-                                disabledCancel={formik.isSubmitting}
-                                disabledSubmit={formik.isSubmitting || !formik.isValid}
                                 errors={formik.errors}
                                 isCreate={true}
+                                loading={formik.isSubmitting}
                                 onCancel={onClose}
                                 onSetSubmitting={formik.setSubmitting}
                                 onSubmit={formik.handleSubmit}

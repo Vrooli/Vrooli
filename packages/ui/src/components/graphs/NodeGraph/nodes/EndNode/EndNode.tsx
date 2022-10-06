@@ -5,7 +5,7 @@ import { DraggableNode, EndNodeDialog, NodeContextMenu, NodeWidth } from '../..'
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 import { CSSProperties } from '@mui/styles';
-import { BuildAction, usePress } from 'utils';
+import { BuildAction, firstString, usePress } from 'utils';
 import { NodeEnd } from 'types';
 
 /**
@@ -109,7 +109,7 @@ export const EndNode = ({
                 node={node}
                 zIndex={zIndex + 1}
             />
-            <Tooltip placement={'top'} title={isEditing ? `Edit "${label ?? 'End'}"` : (label ?? 'End')}>
+            <Tooltip placement={'top'} title={isEditing ? `Edit "${firstString(label, 'End')}"` : firstString(label, 'End')}>
                 <Box
                     id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
                     aria-owns={contextOpen ? contextId : undefined}

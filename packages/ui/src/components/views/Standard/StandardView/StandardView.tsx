@@ -11,13 +11,12 @@ import { getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation
 import { Standard } from "types";
 import { CommentFor, StarFor } from "graphql/generated/globalTypes";
 import { containerShadow } from "styles";
-import { validate as uuidValidate } from 'uuid';
+import { uuidValidate } from '@shared/uuid';
 import { FieldData, FieldDataJSON } from "forms/types";
 import { useFormik } from "formik";
 import { generateInputComponent } from "forms/generators";
 import { PreviewSwitch } from "components/inputs";
 import { EditIcon, EllipsisIcon } from "@shared/icons";
-import { standardCreateForm } from "@shared/validation";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 
 export const StandardView = ({
@@ -116,7 +115,7 @@ export const StandardView = ({
             case ObjectActionComplete.StarUndo:
                 if (data.star.success) {
                     setStandard({
-                        ...standardCreateForm,
+                        ...standard,
                         isStarred: action === ObjectActionComplete.Star,
                     } as any)
                 }
@@ -315,11 +314,10 @@ export const StandardView = ({
                                 prefix={" - "}
                             />
                             <SelectLanguageMenu
-                                availableLanguages={availableLanguages}
-                                canDropdownOpen={availableLanguages.length > 1}
                                 currentLanguage={language}
                                 handleCurrent={setLanguage}
                                 session={session}
+                                translations={standard?.translations ?? partialData?.translations ?? []}
                                 zIndex={zIndex}
                             />
                             {canEdit && <Tooltip title="Edit standard">

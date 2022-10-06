@@ -1,7 +1,7 @@
 /**
  * Prompts user to select which link the new node should be added on
  */
-import { Box, Button, Grid } from '@mui/material';
+import { Box, Button, CircularProgress, Grid } from '@mui/material';
 import { CancelIcon, CreateIcon, SaveIcon } from '@shared/icons';
 import { PopoverWithArrow } from 'components/dialogs';
 import Markdown from 'markdown-to-jsx';
@@ -15,6 +15,7 @@ export const GridSubmitButtons = ({
     disabledSubmit,
     errors,
     isCreate,
+    loading = false,
     onCancel,
     onSetSubmitting,
     onSubmit,
@@ -48,12 +49,11 @@ export const GridSubmitButtons = ({
                 return toListItem(capitalizeFirstLetter(key + ': ' + value), 0);
             }
         }).join('\n');
-        console.log('error list', errorList)
         return errorList;
     }, [errors]);
 
     const hasErrors = useMemo(() => Object.values(errors ?? {}).some((value) => value !== null && value !== undefined), [errors]);
-    const isSubmitDisabled = useMemo(() => hasErrors || (disabledSubmit === true), [hasErrors, disabledSubmit]);
+    const isSubmitDisabled = useMemo(() => loading || hasErrors || (disabledSubmit === true), [disabledSubmit, hasErrors, loading]);
 
 
     const handleSubmit = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
@@ -87,14 +87,14 @@ export const GridSubmitButtons = ({
                     <Button
                         disabled={isSubmitDisabled}
                         fullWidth
-                        startIcon={isCreate ? <CreateIcon /> : <SaveIcon />}
+                        startIcon={loading ? <CircularProgress size={24} sx={{ color: 'white' }} /> : (isCreate ? <CreateIcon /> : <SaveIcon />)}
                     >{isCreate ? "Create" : "Save"}</Button>
                 </Box>
             </Grid>
             {/* Cancel button */}
             <Grid item xs={6}>
                 <Button
-                    disabled={disabledCancel !== undefined ? disabledCancel : false}
+                    disabled={loading || (disabledCancel !== undefined ? disabledCancel : false)}
                     fullWidth
                     onClick={onCancel}
                     startIcon={<CancelIcon />}

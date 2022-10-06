@@ -21,12 +21,6 @@ export const projectTranslationUpdate = yup.object().shape({
 export const projectTranslationsCreate = yup.array().of(projectTranslationCreate.required(requiredErrorMessage))
 export const projectTranslationsUpdate = yup.array().of(projectTranslationUpdate.required(requiredErrorMessage))
 
-export const projectCreateForm = yup.object().shape({
-    description: description.notRequired().default(undefined),
-    name: name.required(requiredErrorMessage),
-    isPrivate: isPrivate.notRequired().default(undefined),
-})
-export const projectUpdateForm = projectCreateForm;
 /**
  * Information required when creating a project. 
  */

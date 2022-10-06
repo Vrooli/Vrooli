@@ -6,10 +6,10 @@ import { useCallback, useMemo } from 'react';
 import { ResourceSortBy, ResourceUsedFor } from '@shared/consts';
 import { adaHandleRegex, urlRegex, walletAddressRegex } from '@shared/validation';
 import { useLocation } from '@shared/route';
-import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, openLink, PubSub, ResourceType } from 'utils';
+import { firstString, getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, openLink, PubSub, ResourceType } from 'utils';
 import { Resource } from 'types';
 import { getResourceIcon } from '..';
-import { TextLoading } from 'components';
+import { SnackSeverity, TextLoading } from 'components';
 import { DeleteIcon, EditIcon, OpenInNewIcon } from '@shared/icons';
 
 /**
@@ -51,7 +51,7 @@ export function ResourceListItem({
         const resourceType = getResourceType(data.link);
         // If null, show error
         if (!resourceType) {
-            PubSub.get().publishSnack({ message: 'Unable to open link', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Unable to open link', severity: SnackSeverity.Error });
             return;
         }
         // If URL, open in new tab
@@ -64,7 +64,7 @@ export function ResourceListItem({
                     {
                         text: 'Copy', onClick: () => {
                             navigator.clipboard.writeText(data.link);
-                            PubSub.get().publishSnack({ message: 'Copied.', severity: 'success' });
+                            PubSub.get().publishSnack({ message: 'Copied.', severity: SnackSeverity.Success });
                         }
                     },
                     { text: 'Close' }
@@ -106,7 +106,7 @@ export function ResourceListItem({
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
                         {/* Name/Title */}
                         {loading ? <TextLoading /> : <ListItemText
-                            primary={title ?? data.link}
+                            primary={firstString(title, data.link)}
                             sx={{ ...multiLineEllipsis(1) }}
                         />}
                         {/* Bio/Description */}

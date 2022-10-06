@@ -1,19 +1,19 @@
 import { Box, Button, Grid, Stack, TextField, Typography, useTheme } from "@mui/material"
 import { useMutation } from "@apollo/client";
-import { useCallback, useEffect } from "react";
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { useCallback } from "react";
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { APP_LINKS } from '@shared/consts';
 import { useFormik } from 'formik';
 import { profileEmailUpdateMutation } from "graphql/mutation";
-import { PubSub } from "utils";
+import { PubSub, usePromptBeforeUnload } from "utils";
 import { SettingsAuthenticationProps } from "../types";
 import { useLocation } from '@shared/route';
 import { logOutMutation } from 'graphql/mutation';
 import { GridSubmitButtons, HelpButton } from "components/buttons";
 import { EmailList, WalletList } from "components/lists";
 import { Email, Wallet } from "types";
-import { PasswordTextField } from "components";
+import { PasswordTextField, SnackSeverity } from "components";
 import { logOut } from "graphql/generated/logOut";
 import { profileEmailUpdate, profileEmailUpdateVariables } from "graphql/generated/profileEmailUpdate";
 import { EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
@@ -51,7 +51,7 @@ export const SettingsAuthentication = ({
 
     const updateWallets = useCallback((updatedList: Wallet[]) => {
         if (!profile) {
-            PubSub.get().publishSnack({ message: 'Profile not loaded.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Profile not loaded.', severity: SnackSeverity.Error });
             return;
         }
         onUpdated({
@@ -63,7 +63,7 @@ export const SettingsAuthentication = ({
 
     const updateEmails = useCallback((updatedList: Email[]) => {
         if (!profile) {
-            PubSub.get().publishSnack({ message: 'Profile not loaded.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Profile not loaded.', severity: SnackSeverity.Error });
             return;
         }
         onUpdated({
@@ -85,7 +85,7 @@ export const SettingsAuthentication = ({
         validationSchema,
         onSubmit: (values) => {
             if (!profile) {
-                PubSub.get().publishSnack({ message: 'Could not find existing data.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Could not find existing data.', severity: SnackSeverity.Error });
                 return;
             }
             if (!formik.isValid) return;
@@ -95,26 +95,12 @@ export const SettingsAuthentication = ({
                     currentPassword: values.currentPassword,
                     newPassword: values.newPassword,
                 },
-                onSuccess: (response) => { onUpdated(response.data.profileEmailUpdate) },
+                onSuccess: (data) => { onUpdated(data.profileEmailUpdate) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },
     });
-
-    /**
-     * On page leave, check if unsaved work. 
-     * If so, prompt for confirmation.
-     */
-    useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (formik.dirty) {
-                e.preventDefault()
-                e.returnValue = ''
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [formik.dirty]);
+    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
     return (
         <Box style={{ overflow: 'hidden' }}>
@@ -206,10 +192,11 @@ export const SettingsAuthentication = ({
                         />
                     </Grid>
                     <GridSubmitButtons
-                        disabledCancel={!Object.values(formik.values).some(v => v.length > 0) || formik.isSubmitting}
-                        disabledSubmit={!Object.values(formik.values).some(v => v.length > 0) || !formik.isValid || formik.isSubmitting}
+                        disabledCancel={!formik.dirty}
+                        disabledSubmit={!formik.dirty}
                         errors={formik.errors}
                         isCreate={false}
+                        loading={formik.isSubmitting}
                         onCancel={formik.resetForm}
                         onSetSubmitting={formik.setSubmitting}
                         onSubmit={formik.handleSubmit}

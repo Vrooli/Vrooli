@@ -17,7 +17,7 @@ import { Forms, PubSub, useReactSearch } from 'utils';
 import { APP_LINKS, CODE } from '@shared/consts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
-import { DialogTitle, HelpButton, WalletInstallDialog, WalletSelectDialog } from 'components';
+import { DialogTitle, HelpButton, SnackSeverity, WalletInstallDialog, WalletSelectDialog } from 'components';
 import {
     LogInForm,
     ForgotPasswordForm,
@@ -26,7 +26,7 @@ import {
 } from 'forms';
 import { emailLogInMutation, guestLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { emailLogIn, emailLogInVariables } from 'graphql/generated/emailLogIn';
 import { StartPageProps } from 'pages/types';
 import { hasErrorCode } from 'graphql/utils';
@@ -88,9 +88,9 @@ export const StartPage = ({
                 mutationWrapper({
                     mutation: emailLogIn,
                     input: { verificationCode },
-                    onSuccess: (response) => {
-                        PubSub.get().publishSnack({ message: 'Email verified!' });
-                        PubSub.get().publishSession(response.data.emailLogIn);
+                    onSuccess: (data) => {
+                        PubSub.get().publishSnack({ message: 'Email verified!', severity: SnackSeverity.Success });
+                        PubSub.get().publishSession(data.emailLogIn);
                         setLocation(redirect ?? APP_LINKS.Home)
                     },
                     onError: (response) => {
@@ -149,7 +149,7 @@ export const StartPage = ({
         // Validate wallet
         const walletCompleteResult = await validateWallet(providerKey);
         if (walletCompleteResult?.session) {
-            PubSub.get().publishSnack({ message: 'Wallet verified.', severity: 'success' })
+            PubSub.get().publishSnack({ message: 'Wallet verified.', severity: SnackSeverity.Success })
             // Set actor role
             PubSub.get().publishSession(walletCompleteResult.session)
             // Redirect to main dashboard

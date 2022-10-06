@@ -9,6 +9,7 @@ import { noSelect } from 'styles';
 import { PubSub } from 'utils';
 import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListIcon, ListNumberIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from '@shared/icons';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
+import { SnackSeverity } from 'components';
 
 enum Headers {
     H1 = 'h1',
@@ -216,7 +217,7 @@ export const MarkdownInput = ({
         const { selectionStart, selectionEnd, textArea } = getSelection(`markdown-input-${id}`);
         // If no selection, return
         if (selectionStart === selectionEnd) {
-            PubSub.get().publishSnack({ message: 'No text selected', severity: 'Error' });
+            PubSub.get().publishSnack({ message: 'No text selected', severity: SnackSeverity.Error });
             return;
         }
         // Insert ~~ before the selection, and ~~ after the selection

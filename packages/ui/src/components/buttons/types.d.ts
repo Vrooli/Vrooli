@@ -1,6 +1,7 @@
 import { ButtonProps } from '@mui/material';
 import { ReportFor, StarFor } from '@shared/consts';
 import { SvgProps } from 'assets/img/types';
+import React from 'react';
 import { Session } from 'types';
 import { ObjectType, Status } from 'utils';
 
@@ -15,6 +16,7 @@ export interface GridSubmitButtonsProps {
     disabledSubmit?: boolean;
     errors?: { [key: string]: string | string[] | null | undefined };
     isCreate: boolean;
+    loading?: boolean;
     onCancel: () => void;
     onSetSubmitting?: (isSubmitting: boolean) => void;
     onSubmit?: () => void;

@@ -3,12 +3,15 @@ import { HelpButtonProps } from "components/buttons/types";
 import { DeleteOneType } from '@shared/consts';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, ResourceList, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 import { ReportFor } from 'graphql/generated/globalTypes';
-import { ObjectType, RoutineTranslationShape, SearchType, TagShape } from 'utils';
+import { ObjectType, SearchType, TagShape } from 'utils';
 import { SvgComponent, SvgProps } from '@shared/icons';
 import { RelationshipsObject } from 'components/inputs/types';
+import { SnackSeverity } from './Snack/Snack';
 
 export interface AccountMenuProps {
-
+    anchorEl: HTMLElement | null;
+    onClose: () => void;
+    session: Session;
 }
 
 export interface BaseObjectDialogProps extends DialogProps {
@@ -257,8 +260,6 @@ export interface BuildInfoDialogProps {
     handleRelationshipsChange: (newRelationshipsObject: Partial<RelationshipsObject>) => void;
     handleResourcesUpdate: (updatedList: ResourceList) => void;
     handleTagsUpdate: (tags: TagShape[]) => any;
-    handleTranslationDelete: (language: string) => void;
-    handleTranslationUpdate: (language: string, translation: RoutineTranslationShape) => void;
     handleUpdate: (routine: Routine) => any;
     isEditing: boolean;
     language: string;
@@ -268,7 +269,6 @@ export interface BuildInfoDialogProps {
     session: Session;
     sxs?: { icon: SvgProps, iconButton: any };
     tags: TagShape[];
-    translations: RoutineTranslationShape[];
     zIndex: number;
 }
 
@@ -312,15 +312,10 @@ export interface RunStepsDialogProps {
 
 export interface SelectLanguageMenuProps {
     /**
-     * Languages to restrict selection to
-     */
-    availableLanguages?: string[];
-    /**
      * While there may be multiple selected languages, 
      * there is only ever one current language
      */
     currentLanguage: string;
-    canDropdownOpen?: boolean;
     handleDelete?: (language: string) => any;
     /**
      * Callback when new current language is selected
@@ -332,10 +327,9 @@ export interface SelectLanguageMenuProps {
      */
     session: Session;
     /**
-     * Currently selected languages. Display with check marks. 
-     * If not provided, defaults to curentLanguage
+     * Available translations
      */
-    selectedLanguages?: string[];
+    translations: { language: string }[];
     sxs?: { root: any };
     zIndex: number;
 }
@@ -387,4 +381,17 @@ export interface PopoverWithArrowProps extends Omit<PopoverProps, 'open' | 'sx'>
         root?: { [x: string]: any };
         content?: { [x: string]: any };
     }
+}
+
+export interface SnackProps {
+    buttonClicked?: (event?: any) => any;
+    buttonText?: string;
+    /**
+     * Anything you'd like to log in development mode
+     */
+    data?: any;
+    handleClose: () => any;
+    id: string;
+    message?: string;
+    severity?: SnackSeverity;
 }

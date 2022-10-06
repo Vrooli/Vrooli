@@ -17,7 +17,7 @@ import { ResourceListModel } from "./resourceList";
 import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
 import { runFormatter } from "./run";
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
 
 type NodeWeightData = {
     simplicity: number,
