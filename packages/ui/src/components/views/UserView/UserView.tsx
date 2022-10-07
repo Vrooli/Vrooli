@@ -9,7 +9,7 @@ import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton, SelectRoutineTypeMenu } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
-import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, SearchType } from "utils";
+import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, openObject, placeholderColor, SearchType } from "utils";
 import { ResourceList, User } from "types";
 import { SearchListGenerator } from "components/lists/types";
 import { uuidValidate } from '@shared/uuid';
@@ -122,7 +122,6 @@ export const UserView = ({
 
     // Create search data
     const { searchType, itemKeyPrefix, placeholder, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
-        const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         // The first tab doesn't have search results, as it is the user's set resources
         switch (currTabType) {
             case TabOptions.Organizations:
@@ -131,8 +130,8 @@ export const UserView = ({
                     itemKeyPrefix: 'organization-list-item',
                     placeholder: "Search user's organizations...",
                     noResultsText: "No organizations found",
-                    where: { userId: id, visibilityType: VisibilityType.All },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Organization, newValue.id),
+                    where: { userId: id, visibility: VisibilityType.All },
+                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 }
             case TabOptions.Projects:
                 return {
@@ -141,7 +140,7 @@ export const UserView = ({
                     placeholder: "Search user's projects...",
                     noResultsText: "No projects found",
                     where: { userId: id, isComplete: !isOwn ? true : undefined, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Project, newValue.id),
+                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 }
             case TabOptions.Routines:
                 return {
@@ -150,7 +149,7 @@ export const UserView = ({
                     placeholder: "Search user's routines...",
                     noResultsText: "No routines found",
                     where: { userId: id, isComplete: !isOwn ? true : undefined, isInternal: false, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
+                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 }
             case TabOptions.Standards:
                 return {
@@ -159,7 +158,10 @@ export const UserView = ({
                     placeholder: "Search user's standards...",
                     noResultsText: "No standards found",
                     where: { userId: id, visibilityType: VisibilityType.All },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
+                    onSearchSelect: (newValue) => openObject({
+                        __typename: ObjectType.Standard,
+                        id: newValue.id,
+                    }, setLocation),
                 }
             default:
                 return {
@@ -204,11 +206,11 @@ export const UserView = ({
                 }
                 break;
             case ObjectActionComplete.Fork:
-                setLocation(`${APP_LINKS.User}/${data.fork.user.id}`);
+                openObject(data.fork.user, setLocation);
                 window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
-                setLocation(`${APP_LINKS.User}/${data.copy.user.id}`);
+                openObject(data.copy.user, setLocation);
                 window.location.reload();
                 break;
         }

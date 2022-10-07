@@ -6,7 +6,7 @@ import { APP_LINKS } from "@shared/consts";
 import { SnackSeverity } from "components";
 import { SetLocation } from "types";
 import { PubSub } from "utils/pubsub";
-import { stringifySearchParams } from "./urlTools";
+import { stringifySearchParams, uuidToBase36 } from "./urlTools";
 
 export enum ObjectType {
     Comment = 'Comment',
@@ -60,9 +60,9 @@ export const getObjectSlug = (object: any) => {
     // If object is a star/vote/some other type that links to a main object, use that object's slug
     if (object.to) return getObjectSlug(object.to);
     // If object is a run, navigate to the routine
-    if (object.routine) return object.routine.id;
+    if (object.routine) return uuidToBase36(object.routine.id);
     // Otherwise, use either the object's (ADA) handle or its ID
-    return object.handle ? object.handle : object.id;
+    return object.handle ? object.handle : uuidToBase36(object.id);
 }
 
 /**
@@ -72,7 +72,7 @@ export const getObjectSlug = (object: any) => {
  */
 export const getObjectSearchParams = (object: any) => {
     // If object is a run
-    if (object.__typename === ObjectType.Run) return stringifySearchParams({ run: object.id });
+    if (object.__typename === ObjectType.Run) return stringifySearchParams({ run: uuidToBase36(object.id) });
     return '';
 }
 

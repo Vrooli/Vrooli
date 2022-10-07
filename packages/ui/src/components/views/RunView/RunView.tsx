@@ -11,7 +11,7 @@ import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { uuidValidate } from '@shared/uuid';
 import { DecisionStep, Node, NodeDataEnd, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, Run, RunInput, RunStep, SubroutineStep } from "types";
-import { addSearchParams, removeSearchParams } from "utils/navigation/urlTools";
+import { addSearchParams, base36ToUuid, removeSearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
 import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
 import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
@@ -255,7 +255,7 @@ export const RunView = ({
     const params = useReactSearch(null);
     const { runId, testMode } = useMemo(() => {
         return {
-            runId: typeof params.run === 'string' && uuidValidate(params.run) ? params.run : undefined,
+            runId: (typeof params.run === 'string' && uuidValidate(base36ToUuid(params.run))) ? base36ToUuid(params.run) : undefined,
             testMode: params.run === 'test',
         }
     }, [params])

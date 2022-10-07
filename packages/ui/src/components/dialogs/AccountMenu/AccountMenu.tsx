@@ -78,7 +78,7 @@ export const AccountMenu = ({
     const handleUserClick = useCallback((id: string) => {
         // If already selected, go to profile page
         if (session?.id === id) {
-            setLocation(`${APP_LINKS.Profile}/${id}`);
+            setLocation(APP_LINKS.Profile);
         }
         // Otherwise, switch to selected account
         else {

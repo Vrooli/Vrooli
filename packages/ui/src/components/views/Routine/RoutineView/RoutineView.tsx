@@ -7,7 +7,7 @@ import { routineQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, BuildView, ReportsLink, ResourceListHorizontal, RunPickerMenu, RunView, SelectLanguageMenu, StarButton, StatusButton, UpTransition, UpvoteDownvote, OwnerLabel, VersionDisplay, SnackSeverity } from "components";
 import { RoutineViewProps } from "../types";
-import { base36ToUuid, formikToRunInputs, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, useReactSearch } from "utils";
+import { base36ToUuid, formikToRunInputs, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, useReactSearch, uuidToBase36 } from "utils";
 import { Routine, Run } from "types";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/graphqlWrapper";
@@ -175,7 +175,7 @@ export const RoutineView = ({
         }
         // Otherwise, edit as single step
         else {
-            setLocation(`${APP_LINKS.Routine}/edit/${id}`);
+            setLocation(`${APP_LINKS.Routine}/edit/${uuidToBase36(id)}`);
         }
     }, [routine?.nodes, routine?.nodeLinks, setLocation, id]);
 
@@ -219,11 +219,11 @@ export const RoutineView = ({
                 }
                 break;
             case ObjectActionComplete.Fork:
-                setLocation(`${APP_LINKS.Routine}/${data.fork.routine.id}`);
+                openObject(data.fork.routine, setLocation);
                 window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
-                setLocation(`${APP_LINKS.Routine}/${data.copy.routine.id}`);
+                openObject(data.copy.routine, setLocation);
                 window.location.reload();
                 break;
         }

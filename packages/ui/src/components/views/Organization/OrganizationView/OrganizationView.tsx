@@ -11,7 +11,7 @@ import { containerShadow } from "styles";
 import { OrganizationViewProps } from "../types";
 import { Organization, ResourceList } from "types";
 import { SearchListGenerator } from "components/lists/types";
-import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, SearchType } from "utils";
+import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, openObject, placeholderColor, SearchType, uuidToBase36 } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { uuidValidate } from '@shared/uuid';
 import { ResourceListUsedFor, VisibilityType } from "graphql/generated/globalTypes";
@@ -114,12 +114,11 @@ export const OrganizationView = ({
     const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
     const onEdit = useCallback(() => {
-        setLocation(`${APP_LINKS.Organization}/edit/${id}`);
+        setLocation(`${APP_LINKS.Organization}/edit/${uuidToBase36(id)}`);
     }, [setLocation, id]);
 
     // Create search data
     const { searchType, itemKeyPrefix, placeholder, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
-        const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         switch (currTabType) {
             case TabOptions.Members:
                 return {
@@ -128,7 +127,7 @@ export const OrganizationView = ({
                     placeholder: "Search orgnization's members...",
                     noResultsText: "No members found",
                     where: { organizationId: id },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Profile, newValue.id),
+                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 };
             case TabOptions.Projects:
                 return {
@@ -137,7 +136,7 @@ export const OrganizationView = ({
                     placeholder: "Search organization's projects...",
                     noResultsText: "No projects found",
                     where: { organizationId: id, isComplete: !canEdit ? true : undefined, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Project, newValue.id),
+                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 };
             case TabOptions.Routines:
                 return {
@@ -146,7 +145,7 @@ export const OrganizationView = ({
                     placeholder: "Search organization's routines...",
                     noResultsText: "No routines found",
                     where: { organizationId: id, isComplete: !canEdit ? true : undefined, isInternal: false, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
+                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 };
             case TabOptions.Standards:
                 return {
@@ -155,7 +154,7 @@ export const OrganizationView = ({
                     placeholder: "Search organization's standards...",
                     noResultsText: "No standards found",
                     where: { organizationId: id, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
+                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 }
             default:
                 return {
@@ -200,11 +199,11 @@ export const OrganizationView = ({
                 }
                 break;
             case ObjectActionComplete.Fork:
-                setLocation(`${APP_LINKS.Organization}/${data.fork.organization.id}`);
+                openObject(data.fork.organization, setLocation);
                 window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
-                setLocation(`${APP_LINKS.Organization}/${data.copy.organization.id}`);
+                openObject(data.copy.organization, setLocation);
                 window.location.reload();
                 break;
         }

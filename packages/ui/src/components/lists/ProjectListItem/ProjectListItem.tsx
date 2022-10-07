@@ -2,10 +2,10 @@ import { Chip, ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme 
 import { ProjectListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, StarFor, VoteFor } from '@shared/consts';
+import { StarFor, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { CommentsButton, ReportsButton, StarButton, TagList, TextLoading, UpvoteDownvote } from 'components';
-import { getTranslation, listItemColor } from 'utils';
+import { getTranslation, listItemColor, openObject } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 
 export function ProjectListItem({
@@ -43,11 +43,7 @@ export function ProjectListItem({
         // If onClick provided, call it
         if (onClick) onClick(e, data);
         // Otherwise, navigate to the object's page
-        else {
-            // Prefer using handle if available
-            const link = data.handle ?? data.id;
-            setLocation(`${APP_LINKS.Project}/${link}`);
-        }
+        else openObject(data, setLocation);
     }, [onClick, setLocation, data]);
 
     return (

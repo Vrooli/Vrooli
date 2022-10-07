@@ -7,7 +7,7 @@ import { standardQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, BaseStandardInput, CommentContainer, ResourceListHorizontal, SelectLanguageMenu, StarButton, TextCollapse, OwnerLabel, VersionDisplay } from "components";
 import { StandardViewProps } from "../types";
-import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData } from "utils";
+import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, openObject, standardToFieldData, uuidToBase36 } from "utils";
 import { Standard } from "types";
 import { CommentFor, StarFor } from "graphql/generated/globalTypes";
 import { containerShadow } from "styles";
@@ -78,7 +78,7 @@ export const StandardView = ({
     }, [name]);
 
     const onEdit = useCallback(() => {
-        setLocation(`${APP_LINKS.Standard}/edit/${id}`);
+        setLocation(`${APP_LINKS.Standard}/edit/${uuidToBase36(id)}`);
     }, [setLocation, id]);
 
     // More menu
@@ -121,11 +121,11 @@ export const StandardView = ({
                 }
                 break;
             case ObjectActionComplete.Fork:
-                setLocation(`${APP_LINKS.Standard}/${data.fork.standard.id}`);
+                openObject(data.fork.standard, setLocation);
                 window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
-                setLocation(`${APP_LINKS.Standard}/${data.copy.standard.id}`);
+                openObject(data.copy.standard, setLocation);
                 window.location.reload();
                 break;
         }

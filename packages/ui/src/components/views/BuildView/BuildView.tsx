@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
-import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getUserLanguages, parseSearchParams, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine, addSearchParams, keepSearchParams, TagShape, usePromptBeforeUnload, getFormikErrorsWithTranslations, handleTranslationChange, getTranslationData } from 'utils';
+import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getUserLanguages, parseSearchParams, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine, addSearchParams, keepSearchParams, TagShape, usePromptBeforeUnload, getFormikErrorsWithTranslations, handleTranslationChange, getTranslationData, getObjectUrlBase, getObjectSlug, openObject } from 'utils';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, ResourceList, Routine, Run } from 'types';
 import { useLocation } from '@shared/route';
 import { APP_LINKS, ResourceListUsedFor } from '@shared/consts';
@@ -253,10 +253,18 @@ export const BuildView = ({
                         tags: tags,
                         translations: values.translationsUpdate,
                     }),
-                    successMessage: () => 'Routine created.',
                     onSuccess: (data) => {
                         onChange(data.routineCreate);
-                        setLocation(`${APP_LINKS.Routine}/${data.routineCreate.id}?build=true`)
+                        setLocation(`${getObjectUrlBase(data.routineCreate)}/${getObjectSlug(data.routineCreate)}?build=true`)
+                        PubSub.get().publishSnack({
+                            message: `Routine created!`,
+                            severity: SnackSeverity.Success,
+                            buttonText: 'Create another',
+                            buttonClicked: () => { 
+                                setLocation(`add?build=true`); 
+                                window.location.reload();
+                            },
+                        })
                     },
                 })
             }
@@ -1133,7 +1141,7 @@ export const BuildView = ({
                 setLocation(APP_LINKS.Home);
                 break;
             case ObjectAction.Fork:
-                setLocation(`${APP_LINKS.Routine}/${data.fork.routine.id}`);
+                openObject(data.fork.routine, setLocation);
                 window.location.reload();
                 break;
             case ObjectAction.Star:

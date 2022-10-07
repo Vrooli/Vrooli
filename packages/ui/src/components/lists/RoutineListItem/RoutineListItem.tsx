@@ -2,10 +2,10 @@ import { Chip, ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme 
 import { RoutineListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, StarFor, VoteFor } from '@shared/consts';
+import { StarFor, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading, UpvoteDownvote } from '..';
-import { getTranslation, listItemColor } from 'utils';
+import { getTranslation, listItemColor, openObject } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { CommentsButton, ReportsButton, StarButton } from 'components/buttons';
 
@@ -44,7 +44,7 @@ export function RoutineListItem({
         // If onClick provided, call it
         if (onClick) onClick(e, data);
         // Otherwise, navigate to the object's page
-        else setLocation(`${APP_LINKS.Routine}/${data.id}`)
+        else openObject(data, setLocation);
     }, [onClick, data, setLocation]);
 
     return (

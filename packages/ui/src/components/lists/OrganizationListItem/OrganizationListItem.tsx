@@ -2,10 +2,10 @@ import { Box, ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme }
 import { OrganizationListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, StarFor } from '@shared/consts';
+import { StarFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading } from '..';
-import { getTranslation, listItemColor, placeholderColor } from 'utils';
+import { getTranslation, listItemColor, openObject, placeholderColor } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { OrganizationIcon } from '@shared/icons';
 import { ReportsButton, StarButton } from 'components/buttons';
@@ -44,11 +44,7 @@ export function OrganizationListItem({
         // If onClick provided, call it
         if (onClick) onClick(e, data);
         // Otherwise, navigate to the object's page
-        else {
-            // Prefer using handle if available
-            const link = data.handle ?? data.id;
-            setLocation(`${APP_LINKS.Organization}/${link}`);
-        }
+        else openObject(data, setLocation);
     }, [onClick, data, setLocation]);
 
     return (
