@@ -5,7 +5,7 @@ import { Box, Grid, Stack, Typography, useTheme } from '@mui/material';
 import { CommentContainerProps } from '../types';
 import { commentCreate as validationSchema, commentTranslationCreate } from '@shared/validation';
 import { useLazyQuery, useMutation } from '@apollo/client';
-import { commentCreate, commentCreateVariables } from 'graphql/generated/commentCreate';
+import { commentCreateVariables, commentCreate_commentCreate } from 'graphql/generated/commentCreate';
 import { MarkdownInput } from 'components/inputs';
 import { useFormik } from 'formik';
 import { commentCreateMutation } from 'graphql/mutation';
@@ -180,7 +180,7 @@ export function CommentContainer({
         }, ...curr]);
     }, []);
 
-    const [addMutation, { loading: loadingAdd }] = useMutation<commentCreate, commentCreateVariables>(commentCreateMutation);
+    const [addMutation, { loading: loadingAdd }] = useMutation(commentCreateMutation);
     const formik = useFormik({
         initialValues: {
             id: DUMMY_ID,
@@ -194,7 +194,7 @@ export function CommentContainer({
         },
         validationSchema,
         onSubmit: (values) => {
-            mutationWrapper<commentCreate, commentCreateVariables>({
+            mutationWrapper<commentCreate_commentCreate, commentCreateVariables>({
                 mutation: addMutation,
                 input: {
                     id: uuid(),
@@ -205,11 +205,11 @@ export function CommentContainer({
                         id: t.id === DUMMY_ID ? uuid() : t.id,
                     })),
                 },
-                successCondition: (data) => data.commentCreate !== null,
+                successCondition: (data) => data !== null,
                 successMessage: () => 'Comment created',
                 onSuccess: (data) => {
                     formik.resetForm();
-                    onCommentAdd(data.commentCreate);
+                    onCommentAdd(data);
                 },
                 onError: () => { formik.setSubmitting(false) },
             })

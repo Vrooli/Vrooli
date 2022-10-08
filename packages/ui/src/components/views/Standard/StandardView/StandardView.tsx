@@ -115,7 +115,7 @@ export const StandardView = ({
         switch (action) {
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp:
-                if (data.vote.success) {
+                if (data.success) {
                     setStandard({
                         ...standard,
                         isUpvoted: action === ObjectActionComplete.VoteUp,
@@ -124,7 +124,7 @@ export const StandardView = ({
                 break;
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.star.success) {
+                if (data.success) {
                     setStandard({
                         ...standard,
                         isStarred: action === ObjectActionComplete.Star,
@@ -132,11 +132,11 @@ export const StandardView = ({
                 }
                 break;
             case ObjectActionComplete.Fork:
-                openObject(data.fork.standard, setLocation);
+                openObject(data.standard, setLocation);
                 window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
-                openObject(data.copy.standard, setLocation);
+                openObject(data.standard, setLocation);
                 window.location.reload();
                 break;
         }

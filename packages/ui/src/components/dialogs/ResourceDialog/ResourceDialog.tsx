@@ -6,9 +6,9 @@ import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { ResourceDialogProps } from '../types';
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getObjectSlug, getObjectUrlBase, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResourceCreate, shapeResourceUpdate, usePromptBeforeUnload } from 'utils';
-import { resourceCreate, resourceCreateVariables } from 'graphql/generated/resourceCreate';
+import { resourceCreate, resourceCreateVariables, resourceCreate_resourceCreate } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
-import { resourceUpdate, resourceUpdateVariables } from 'graphql/generated/resourceUpdate';
+import { resourceUpdate, resourceUpdateVariables, resourceUpdate_resourceUpdate } from 'graphql/generated/resourceUpdate';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AutocompleteSearchBar, LanguageInput } from 'components/inputs';
 import { AutocompleteOption, Resource } from 'types';
@@ -70,8 +70,8 @@ export const ResourceDialog = ({
     console.log('rendering resource dialog')
     const { palette } = useTheme();
 
-    const [addMutation, { loading: addLoading }] = useMutation<resourceCreate, resourceCreateVariables>(resourceCreateMutation);
-    const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate, resourceUpdateVariables>(resourceUpdateMutation);
+    const [addMutation, { loading: addLoading }] = useMutation(resourceCreateMutation);
+    const [updateMutation, { loading: updateLoading }] = useMutation(resourceUpdateMutation);
 
     const formik = useFormik({
         initialValues: {
@@ -109,11 +109,11 @@ export const ResourceDialog = ({
                 }
                 // If index is negative, create
                 if (index < 0) {
-                    mutationWrapper({
+                    mutationWrapper<resourceCreate_resourceCreate, resourceCreateVariables>({
                         mutation: addMutation,
                         input: shapeResourceCreate(input),
                         successMessage: () => 'Resource created.',
-                        successCondition: (data) => data.resourceCreate !== null,
+                        successCondition: (data) => data !== null,
                         onSuccess,
                         onError: () => { formik.setSubmitting(false) },
                     })
@@ -124,11 +124,11 @@ export const ResourceDialog = ({
                         PubSub.get().publishSnack({ message: 'Could not find resource to update.', severity: SnackSeverity.Error });
                         return;
                     }
-                    mutationWrapper({
+                    mutationWrapper<resourceUpdate_resourceUpdate, resourceUpdateVariables>({
                         mutation: updateMutation,
                         input: shapeResourceUpdate({ ...partialData, listId } as ResourceShape, input),
                         successMessage: () => 'Resource updated.',
-                        successCondition: (data) => data.resourceUpdate !== null,
+                        successCondition: (data) => data !== null,
                         onSuccess,
                         onError: () => { formik.setSubmitting(false) },
                     })

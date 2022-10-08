@@ -18,9 +18,9 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { fork, forkVariables } from 'graphql/generated/fork';
-import { star, starVariables } from 'graphql/generated/star';
-import { vote, voteVariables } from 'graphql/generated/vote';
+import { forkVariables, fork_fork } from 'graphql/generated/fork';
+import { starVariables, star_star } from 'graphql/generated/star';
+import { voteVariables, vote_vote } from 'graphql/generated/vote';
 import { ObjectAction, BuildInfoDialogProps } from '../types';
 import { DeleteDialog, EditableLabel, EditableTextCollapse, LanguageInput, OwnerLabel, RelationshipButtons, ReportDialog, ResourceListHorizontal, ShareObjectDialog, TagList, TagSelector, VersionDisplay, VersionInput } from 'components';
 import { addEmptyTranslation, getTranslation, getTranslationData, handleTranslationBlur, handleTranslationChange, ObjectType, removeTranslation } from 'utils';
@@ -169,13 +169,13 @@ export const BuildInfoDialog = ({
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
     // Mutations
-    const [fork] = useMutation<fork, forkVariables>(forkMutation);
-    const [star] = useMutation<star, starVariables>(starMutation);
-    const [vote] = useMutation<vote, voteVariables>(voteMutation);
+    const [fork] = useMutation(forkMutation);
+    const [star] = useMutation(starMutation);
+    const [vote] = useMutation(voteMutation);
 
     const handleFork = useCallback(() => {
         if (!routine?.id) return;
-        mutationWrapper({
+        mutationWrapper<fork_fork, forkVariables>({
             mutation: fork,
             input: { id: routine.id, objectType: ForkType.Routine },
             successMessage: () => `${getTranslation(routine, 'title', [language], true)} forked.`,
@@ -185,7 +185,7 @@ export const BuildInfoDialog = ({
 
     const handleStar = useCallback((isStar: boolean) => {
         if (!routine?.id) return;
-        mutationWrapper({
+        mutationWrapper<star_star, starVariables>({
             mutation: star,
             input: { isStar, forId: routine.id, starFor: StarFor.Routine },
             onSuccess: (data) => {
@@ -196,7 +196,7 @@ export const BuildInfoDialog = ({
 
     const handleVote = useCallback((isUpvote: boolean | null) => {
         if (!routine?.id) return;
-        mutationWrapper({
+        mutationWrapper<vote_vote, voteVariables>({
             mutation: vote,
             input: { isUpvote, forId: routine.id, voteFor: VoteFor.Routine },
             onSuccess: (data) => {

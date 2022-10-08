@@ -12,7 +12,7 @@ import { useCallback, useState } from 'react';
 import { mutationWrapper } from 'graphql/utils';
 import { useMutation } from '@apollo/client';
 import { deleteOneMutation } from 'graphql/mutation';
-import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
+import { deleteOneVariables, deleteOne_deleteOne } from 'graphql/generated/deleteOne';
 import { APP_LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
@@ -39,12 +39,12 @@ export const DeleteDialog = ({
         handleClose(wasDeleted ?? false);
     }, [handleClose]);
 
-    const [deleteOne] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation);
+    const [deleteOne] = useMutation(deleteOneMutation);
     const handleDelete = useCallback(() => {
-        mutationWrapper({
+        mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
             mutation: deleteOne,
             input: { id: objectId, objectType },
-            successCondition: (data) => data.deleteOne.success,
+            successCondition: (data) => data.success,
             successMessage: () => `${objectName} deleted.`,
             onSuccess: () => {
                 setLocation(APP_LINKS.Home);

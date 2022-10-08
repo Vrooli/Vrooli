@@ -1,5 +1,6 @@
 import { APP_LINKS } from "@shared/consts";
 import { SnackSeverity } from "components";
+import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/generated/profileUpdate";
 import { profileUpdateMutation } from "graphql/mutation";
 import { documentNodeWrapper, errorToMessage } from "graphql/utils";
 import { ActionOption, Session, ShortcutOption } from "types";
@@ -198,7 +199,7 @@ export const performAction = async (option: ActionOption, session: Session): Pro
             clearSearchHistory(session);
             break;
         case 'activate-dark-mode':
-            documentNodeWrapper({
+            documentNodeWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
                 node: profileUpdateMutation,
                 input: { theme: 'dark' },
                 onSuccess: () => { PubSub.get().publishTheme('dark'); },
@@ -206,7 +207,7 @@ export const performAction = async (option: ActionOption, session: Session): Pro
             })
             break;
         case 'activate-light-mode':
-            documentNodeWrapper({
+            documentNodeWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
                 node: profileUpdateMutation,
                 input: { theme: 'light' },
                 onSuccess: () => { PubSub.get().publishTheme('light'); },

@@ -9,10 +9,10 @@ import { displayDate, getTranslation, getUserLanguages } from "utils/display";
 import { ListMenuItemData, RunPickerMenuProps } from "../types";
 import { getRunPercentComplete, parseSearchParams, PubSub } from "utils";
 import { useMutation } from "@apollo/client";
-import { runCreate, runCreateVariables } from "graphql/generated/runCreate";
+import { runCreateVariables, runCreate_runCreate } from "graphql/generated/runCreate";
 import { deleteOneMutation, runCreateMutation } from "graphql/mutation";
 import { Run } from "types";
-import { deleteOne, deleteOneVariables } from "graphql/generated/deleteOne";
+import { deleteOneVariables, deleteOne_deleteOne } from "graphql/generated/deleteOne";
 import { DeleteOneType } from "@shared/consts";
 import { uuid } from '@shared/uuid';
 import { MenuTitle } from "../MenuTitle/MenuTitle";
@@ -46,13 +46,13 @@ export const RunPickerMenu = ({
         }
     }, [routine, onSelect, handleClose]);
 
-    const [runCreate] = useMutation<runCreate, runCreateVariables>(runCreateMutation);
+    const [runCreate] = useMutation(runCreateMutation);
     const createNewRun = useCallback(() => {
         if (!routine) {
             PubSub.get().publishSnack({ message: 'Could not read routine data.', severity: SnackSeverity.Error });
             return;
         }
-        mutationWrapper({
+        mutationWrapper<runCreate_runCreate, runCreateVariables>({
             mutation: runCreate,
             input: {
                 id: uuid(),
@@ -60,23 +60,22 @@ export const RunPickerMenu = ({
                 version: routine.version ?? '',
                 title: getTranslation(routine, 'title', getUserLanguages(session)) ?? 'Unnamed Routine',
             },
-            successCondition: (data) => data.runCreate !== null,
+            successCondition: (data) => data !== null,
             onSuccess: (data) => {
-                const newRun = data.runCreate;
-                onAdd(newRun);
-                onSelect(newRun);
+                onAdd(data);
+                onSelect(data);
                 handleClose();
             },
             errorMessage: () => 'Failed to create run.',
         })
     }, [handleClose, onAdd, onSelect, routine, runCreate, session]);
 
-    const [deleteOne] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation)
+    const [deleteOne] = useMutation(deleteOneMutation)
     const deleteRun = useCallback((run: Run) => {
-        mutationWrapper({
+        mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
             mutation: deleteOne,
             input: { id: run.id, objectType: DeleteOneType.Run },
-            successCondition: (data) => data.deleteOne.success,
+            successCondition: (data) => data.success,
             successMessage: () => `Run ${displayDate(run.timeStarted)} deleted.`,
             onSuccess: (data) => {
                 onDelete(run);

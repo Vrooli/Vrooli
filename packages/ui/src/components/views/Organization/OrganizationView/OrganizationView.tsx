@@ -191,7 +191,7 @@ export const OrganizationView = ({
         switch (action) {
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.star.success) {
+                if (data.success) {
                     setOrganization({
                         ...organization,
                         isStarred: action === ObjectActionComplete.Star,
@@ -199,11 +199,11 @@ export const OrganizationView = ({
                 }
                 break;
             case ObjectActionComplete.Fork:
-                openObject(data.fork.organization, setLocation);
+                openObject(data.organization, setLocation);
                 window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
-                openObject(data.copy.organization, setLocation);
+                openObject(data.organization, setLocation);
                 window.location.reload();
                 break;
         }

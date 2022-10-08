@@ -14,7 +14,7 @@ import { uuid, uuidValidate } from '@shared/uuid';
 import { FieldData } from "forms/types";
 import { BaseStandardInput, PreviewSwitch, RelationshipButtons, userFromSession } from "components/inputs";
 import { generateInputComponent, generateYupSchema } from "forms/generators";
-import { standardCreate, standardCreateVariables } from "graphql/generated/standardCreate";
+import { standardCreateVariables, standardCreate_standardCreate } from "graphql/generated/standardCreate";
 import { RelationshipsObject } from "components/inputs/types";
 
 export const StandardCreate = ({
@@ -79,7 +79,7 @@ export const StandardCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation<standardCreate, standardCreateVariables>(standardCreateMutation);
+    const [mutation] = useMutation(standardCreateMutation);
     const formik = useFormik({
         initialValues: {
             id: uuid(),
@@ -95,7 +95,7 @@ export const StandardCreate = ({
         },
         validationSchema,
         onSubmit: (values) => {
-            mutationWrapper({
+            mutationWrapper<standardCreate_standardCreate, standardCreateVariables>({
                 mutation,
                 input: shapeStandardCreate({
                     id: values.id,
@@ -111,7 +111,7 @@ export const StandardCreate = ({
                     version: values.version,
                 }),
                 onSuccess: (data) => {
-                    onCreated(data.standardCreate)
+                    onCreated(data)
                 },
                 onError: () => { formik.setSubmitting(false) },
             })

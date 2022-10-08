@@ -8,10 +8,10 @@ import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
 import { DeleteOneType, ReportFor, StarFor, VoteFor } from '@shared/consts';
 import { commentCreate as validationSchema, commentTranslationCreate } from '@shared/validation';
-import { commentCreate, commentCreateVariables } from 'graphql/generated/commentCreate';
+import { commentCreate, commentCreateVariables, commentCreate_commentCreate } from 'graphql/generated/commentCreate';
 import { commentCreateMutation, deleteOneMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';
-import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
+import { deleteOneVariables, deleteOne_deleteOne } from 'graphql/generated/deleteOne';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { OwnerLabel } from 'components/text';
 import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
@@ -65,7 +65,7 @@ export function CommentThreadItem({
         enableReinitialize: true,
         onSubmit: (values) => {
             if (!data) return;
-            mutationWrapper({
+            mutationWrapper<commentCreate_commentCreate, commentCreateVariables>({
                 mutation: addMutation,
                 input: {
                     id: uuid(),
@@ -77,12 +77,12 @@ export function CommentThreadItem({
                         id: t.id === DUMMY_ID ? uuid() : t.id,
                     })),
                 },
-                successCondition: (data) => data.commentCreate !== null,
+                successCondition: (data) => data !== null,
                 successMessage: () => 'Comment created.',
                 onSuccess: (data) => {
                     formik.resetForm();
                     setReplyOpen(false);
-                    handleCommentAdd(data.commentCreate);
+                    handleCommentAdd(data);
                 },
                 onError: () => { formik.setSubmitting(false) },
             })
@@ -116,7 +116,7 @@ export function CommentThreadItem({
         setReplyOpen(false)
     }, [formik]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation);
+    const [deleteMutation, { loading: loadingDelete }] = useMutation(deleteOneMutation);
     const handleDelete = useCallback(() => {
         if (!data) return;
         // Confirmation dialog
@@ -125,12 +125,12 @@ export function CommentThreadItem({
             buttons: [
                 {
                     text: 'Yes', onClick: () => {
-                        mutationWrapper({
+                        mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
                             mutation: deleteMutation,
                             input: { id: data.id, objectType: DeleteOneType.Comment },
-                            successCondition: (data) => data.deleteOne.success,
+                            successCondition: (data) => data.success,
                             successMessage: () => 'Comment deleted.',
-                            onSuccess: (response) => {
+                            onSuccess: () => {
                                 handleCommentRemove(data);
                             },
                             errorMessage: () => 'Failed to delete comment.',

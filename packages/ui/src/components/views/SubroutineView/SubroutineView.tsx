@@ -190,7 +190,7 @@ export const SubroutineView = ({
         switch (action) {
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp:
-                if (data.vote.success) {
+                if (data.success) {
                     setInternalRoutine({
                         ...internalRoutine,
                         isUpvoted: action === ObjectActionComplete.VoteUp,
@@ -199,7 +199,7 @@ export const SubroutineView = ({
                 break;
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.star.success) {
+                if (data.success) {
                     setInternalRoutine({
                         ...internalRoutine,
                         isStarred: action === ObjectActionComplete.Star,
@@ -207,11 +207,11 @@ export const SubroutineView = ({
                 }
                 break;
             case ObjectActionComplete.Fork:
-                openObject(data.fork.routine, setLocation);
+                openObject(data.routine, setLocation);
                 window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
-                openObject(data.copy.routine, setLocation);
+                openObject(data.routine, setLocation);
                 window.location.reload();
                 break;
         }

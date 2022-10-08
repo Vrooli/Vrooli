@@ -11,7 +11,7 @@ import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, Resou
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { uuid, uuidValidate } from '@shared/uuid';
-import { organizationCreate, organizationCreateVariables } from "graphql/generated/organizationCreate";
+import { organizationCreateVariables, organizationCreate_organizationCreate } from "graphql/generated/organizationCreate";
 import { RelationshipsObject } from "components/inputs/types";
 
 export const OrganizationCreate = ({
@@ -52,7 +52,7 @@ export const OrganizationCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation<organizationCreate, organizationCreateVariables>(organizationCreateMutation);
+    const [mutation] = useMutation(organizationCreateMutation);
     const formik = useFormik({
         initialValues: {
             id: uuid(),
@@ -66,7 +66,7 @@ export const OrganizationCreate = ({
         },
         validationSchema,
         onSubmit: (values) => {
-            mutationWrapper({
+            mutationWrapper<organizationCreate_organizationCreate, organizationCreateVariables>({
                 mutation,
                 input: shapeOrganizationCreate({
                     id: values.id,
@@ -76,7 +76,7 @@ export const OrganizationCreate = ({
                     tags,
                     translations: values.translationsCreate,
                 }),
-                onSuccess: (data) => { onCreated(data.organizationCreate) },
+                onSuccess: (data) => { onCreated(data) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },

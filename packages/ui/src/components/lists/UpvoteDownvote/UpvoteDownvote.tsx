@@ -1,7 +1,7 @@
 import { useMutation } from '@apollo/client';
 import { Box, Stack, Tooltip, Typography } from '@mui/material';
 import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from '@shared/icons';
-import { vote, voteVariables } from 'graphql/generated/vote';
+import { voteVariables, vote_vote } from 'graphql/generated/vote';
 import { voteMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -33,12 +33,12 @@ export const UpvoteDownvote = ({
         return scoreNum;
     }, [internalIsUpvoted, isUpvoted, score]);
 
-    const [mutation] = useMutation<vote, voteVariables>(voteMutation);
+    const [mutation] = useMutation(voteMutation);
     const handleVote = useCallback((e: any, isUpvote: boolean | null) => {
         // Prevent propagation of normal click event
         e.stopPropagation();
         // Send vote mutation
-        mutationWrapper({
+        mutationWrapper<vote_vote, voteVariables>({
             mutation,
             input: { isUpvote, voteFor, forId: objectId },
             onSuccess: () => { onChange(isUpvote) },

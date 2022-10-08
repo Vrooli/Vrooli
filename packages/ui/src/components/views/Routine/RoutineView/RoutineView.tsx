@@ -15,7 +15,7 @@ import { CommentFor, NodeType, StarFor } from "graphql/generated/globalTypes";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 import { containerShadow } from "styles";
 import { uuidValidate } from '@shared/uuid';
-import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
+import { runCompleteVariables, runComplete_runComplete } from "graphql/generated/runComplete";
 import { useFormik } from "formik";
 import { FieldData } from "forms/types";
 import { generateInputWithLabel } from "forms/generators";
@@ -213,7 +213,7 @@ export const RoutineView = ({
         switch (action) {
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp:
-                if (data.vote.success) {
+                if (data.success) {
                     setRoutine({
                         ...routine,
                         isUpvoted: action === ObjectActionComplete.VoteUp,
@@ -222,7 +222,7 @@ export const RoutineView = ({
                 break;
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.star.success) {
+                if (data.success) {
                     setRoutine({
                         ...routine,
                         isStarred: action === ObjectActionComplete.Star,
@@ -230,11 +230,11 @@ export const RoutineView = ({
                 }
                 break;
             case ObjectActionComplete.Fork:
-                openObject(data.fork.routine, setLocation);
+                openObject(data.routine, setLocation);
                 window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
-                openObject(data.copy.routine, setLocation);
+                openObject(data.routine, setLocation);
                 window.location.reload();
                 break;
         }
@@ -271,10 +271,10 @@ export const RoutineView = ({
         onSubmit: () => { },
     });
 
-    const [runComplete] = useMutation<runComplete, runCompleteVariables>(runCompleteMutation);
+    const [runComplete] = useMutation(runCompleteMutation);
     const markAsComplete = useCallback(() => {
         if (!routine) return;
-        mutationWrapper({
+        mutationWrapper<runComplete_runComplete, runCompleteVariables>({
             mutation: runComplete,
             input: {
                 id: routine.id,

@@ -14,7 +14,7 @@ import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { InputOutputContainer } from "components/lists/inputOutput";
-import { routineUpdate, routineUpdateVariables } from "graphql/generated/routineUpdate";
+import { routineUpdateVariables, routineUpdate_routineUpdate } from "graphql/generated/routineUpdate";
 import { RelationshipItemRoutine, RelationshipsObject } from "components/inputs/types";
 
 export const RoutineUpdate = ({
@@ -93,7 +93,7 @@ export const RoutineUpdate = ({
     }, [routine]);
 
     // Handle update
-    const [mutation] = useMutation<routineUpdate, routineUpdateVariables>(routineUpdateMutation);
+    const [mutation] = useMutation(routineUpdateMutation);
     const formik = useFormik({
         initialValues: {
             translationsUpdate: routine?.translations ?? [{
@@ -112,7 +112,7 @@ export const RoutineUpdate = ({
                 PubSub.get().publishSnack({ message: 'Could not find existing routine data.', severity: SnackSeverity.Error });
                 return;
             }
-            mutationWrapper({
+            mutationWrapper<routineUpdate_routineUpdate, routineUpdateVariables>({
                 mutation,
                 input: shapeRoutineUpdate(routine, {
                     id: routine.id,
@@ -131,7 +131,7 @@ export const RoutineUpdate = ({
                         id: t.id === DUMMY_ID ? uuid() : t.id,
                     })),
                 }),
-                onSuccess: (data) => { onUpdated(data.routineUpdate) },
+                onSuccess: (data) => { onUpdated(data) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },

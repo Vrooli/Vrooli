@@ -12,7 +12,7 @@ import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, Resou
 import { ResourceList } from "types";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { projectUpdate, projectUpdateVariables } from "graphql/generated/projectUpdate";
+import { projectUpdateVariables, projectUpdate_projectUpdate } from "graphql/generated/projectUpdate";
 import { ProjectUpdateProps } from "../types";
 import { RelationshipsObject } from "components/inputs/types";
 
@@ -67,7 +67,7 @@ export const ProjectUpdate = ({
     }, [project]);
 
     // Handle update
-    const [mutation] = useMutation<projectUpdate, projectUpdateVariables>(projectUpdateMutation);
+    const [mutation] = useMutation(projectUpdateMutation);
     const formik = useFormik({
         initialValues: {
             id: project?.id ?? uuid(),
@@ -85,7 +85,7 @@ export const ProjectUpdate = ({
                 PubSub.get().publishSnack({ message: 'Could not find existing project data.', severity: SnackSeverity.Error });
                 return;
             }
-            mutationWrapper({
+            mutationWrapper<projectUpdate_projectUpdate, projectUpdateVariables>({
                 mutation,
                 input: shapeProjectUpdate(project, {
                     id: project.id,
@@ -100,7 +100,7 @@ export const ProjectUpdate = ({
                         id: t.id === DUMMY_ID ? uuid() : t.id,
                     })),
                 }),
-                onSuccess: (data) => { onUpdated(data.projectUpdate) },
+                onSuccess: (data) => { onUpdated(data) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },

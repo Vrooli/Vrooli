@@ -14,7 +14,7 @@ import { noSelect } from 'styles';
 import { ThemeSwitch } from 'components/inputs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { profileUpdateSchema as validationSchema } from '@shared/validation';
-import { profileUpdate, profileUpdateVariables } from 'graphql/generated/profileUpdate';
+import { profileUpdateVariables, profileUpdate_profileUpdate } from 'graphql/generated/profileUpdate';
 import { useMutation } from '@apollo/client';
 import { shapeProfileUpdate } from 'utils';
 import { mutationWrapper } from 'graphql/utils';
@@ -39,7 +39,7 @@ export const AccountMenu = ({
     }, [palette.mode]);
 
     // Handle update. Only updates when menu closes, and account settings have changed.
-    const [mutation] = useMutation<profileUpdate, profileUpdateVariables>(profileUpdateMutation);
+    const [mutation] = useMutation(profileUpdateMutation);
     const formik = useFormik({
         initialValues: {
             theme,
@@ -63,7 +63,7 @@ export const AccountMenu = ({
             if (!input || Object.keys(input).length === 0) {
                 return;
             }
-            mutationWrapper({
+            mutationWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
                 mutation,
                 input,
                 onSuccess: () => { formik.setSubmitting(false) },

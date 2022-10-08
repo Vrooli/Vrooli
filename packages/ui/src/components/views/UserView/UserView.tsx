@@ -198,7 +198,7 @@ export const UserView = ({
         switch (action) {
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.star.success) {
+                if (data.success) {
                     setUser({
                         ...user,
                         isStarred: action === ObjectActionComplete.Star,
@@ -206,11 +206,11 @@ export const UserView = ({
                 }
                 break;
             case ObjectActionComplete.Fork:
-                openObject(data.fork.user, setLocation);
+                openObject(data.user, setLocation);
                 window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
-                openObject(data.copy.user, setLocation);
+                openObject(data.user, setLocation);
                 window.location.reload();
                 break;
         }

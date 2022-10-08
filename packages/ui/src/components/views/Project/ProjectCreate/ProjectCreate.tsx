@@ -11,7 +11,7 @@ import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, Resou
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { uuid, uuidValidate } from '@shared/uuid';
-import { projectCreate, projectCreateVariables } from "graphql/generated/projectCreate";
+import { projectCreateVariables, projectCreate_projectCreate } from "graphql/generated/projectCreate";
 import { RelationshipsObject } from "components/inputs/types";
 
 export const ProjectCreate = ({
@@ -54,7 +54,7 @@ export const ProjectCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation<projectCreate, projectCreateVariables>(projectCreateMutation);
+    const [mutation] = useMutation(projectCreateMutation);
     const formik = useFormik({
         initialValues: {
             id: uuid(),
@@ -67,7 +67,7 @@ export const ProjectCreate = ({
         },
         validationSchema,
         onSubmit: (values) => {
-            mutationWrapper({
+            mutationWrapper<projectCreate_projectCreate, projectCreateVariables>({
                 mutation,
                 input: shapeProjectCreate({
                     id: values.id,
@@ -79,7 +79,7 @@ export const ProjectCreate = ({
                     tags: tags,
                     translations: values.translationsCreate,
                 }),
-                onSuccess: (data) => { onCreated(data.projectCreate) },
+                onSuccess: (data) => { onCreated(data) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },

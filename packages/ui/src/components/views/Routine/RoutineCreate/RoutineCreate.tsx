@@ -12,7 +12,7 @@ import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { uuid, uuidValidate } from '@shared/uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
-import { routineCreate, routineCreateVariables } from "graphql/generated/routineCreate";
+import { routineCreateVariables, routineCreate_routineCreate } from "graphql/generated/routineCreate";
 import { RelationshipItemRoutine, RelationshipsObject } from "components/inputs/types";
 
 export const RoutineCreate = ({
@@ -66,7 +66,7 @@ export const RoutineCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation<routineCreate, routineCreateVariables>(routineCreateMutation);
+    const [mutation] = useMutation(routineCreateMutation);
     const formik = useFormik({
         initialValues: {
             id: uuid(),
@@ -82,7 +82,7 @@ export const RoutineCreate = ({
         },
         validationSchema,
         onSubmit: (values) => {
-            mutationWrapper({
+            mutationWrapper<routineCreate_routineCreate, routineCreateVariables>({
                 mutation,
                 input: shapeRoutineCreate({
                     id: values.id,
@@ -99,7 +99,7 @@ export const RoutineCreate = ({
                     tags: tags,
                     translations: values.translationsCreate,
                 }),
-                onSuccess: (data) => { onCreated(data.routineCreate) },
+                onSuccess: (data) => { onCreated(data) },
                 onError: () => { formik.setSubmitting(false) }
             })
         },

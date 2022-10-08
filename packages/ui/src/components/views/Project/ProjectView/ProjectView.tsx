@@ -132,7 +132,7 @@ export const ProjectView = ({
         switch (action) {
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp:
-                if (data.vote.success) {
+                if (data.success) {
                     setProject({
                         ...project,
                         isUpvoted: action === ObjectActionComplete.VoteUp,
@@ -141,7 +141,7 @@ export const ProjectView = ({
                 break;
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.star.success) {
+                if (data.success) {
                     setProject({
                         ...project,
                         isStarred: action === ObjectActionComplete.Star,
@@ -149,11 +149,11 @@ export const ProjectView = ({
                 }
                 break;
             case ObjectActionComplete.Fork:
-                openObject(data.fork.project, setLocation);
+                openObject(data.project, setLocation);
                 window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
-                openObject(data.copy.project, setLocation);
+                openObject(data.project, setLocation);
                 window.location.reload();
                 break;
         }

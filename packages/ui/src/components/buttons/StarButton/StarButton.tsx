@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StarButtonProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { documentNodeWrapper } from 'graphql/utils/graphqlWrapper';
-import { star, starVariables } from 'graphql/generated/star';
+import { starVariables, star_star } from 'graphql/generated/star';
 import { starMutation } from 'graphql/mutation';
 import { uuidValidate } from '@shared/uuid';
 import { StarFilledIcon, StarOutlineIcon } from '@shared/icons';
@@ -41,7 +41,7 @@ export const StarButton = ({
         // If objectId is not valid, return
         if (!uuidValidate(objectId)) return;
         // Send star mutation
-        documentNodeWrapper<star, starVariables>({
+        documentNodeWrapper<star_star, starVariables>({
             node: starMutation,
             input: { isStar, starFor, forId: objectId },
             onSuccess: () => { if (onChange) onChange(isStar, event) },

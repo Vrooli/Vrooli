@@ -13,7 +13,7 @@ import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, Resou
 import { ResourceList } from "types";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { organizationUpdate, organizationUpdateVariables } from "graphql/generated/organizationUpdate";
+import { organizationUpdateVariables, organizationUpdate_organizationUpdate } from "graphql/generated/organizationUpdate";
 import { RelationshipsObject } from "components/inputs/types";
 
 export const OrganizationUpdate = ({
@@ -53,7 +53,7 @@ export const OrganizationUpdate = ({
     const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     // Handle update
-    const [mutation] = useMutation<organizationUpdate, organizationUpdateVariables>(organizationUpdateMutation);
+    const [mutation] = useMutation(organizationUpdateMutation);
     const formik = useFormik({
         initialValues: {
             id: organization?.id ?? uuid(),
@@ -72,7 +72,7 @@ export const OrganizationUpdate = ({
                 PubSub.get().publishSnack({ message: 'Could not find existing organization data.', severity: SnackSeverity.Error });
                 return;
             }
-            mutationWrapper({
+            mutationWrapper<organizationUpdate_organizationUpdate, organizationUpdateVariables>({
                 mutation,
                 input: shapeOrganizationUpdate(organization, {
                     id: organization.id,
@@ -85,7 +85,7 @@ export const OrganizationUpdate = ({
                         id: t.id === DUMMY_ID ? uuid() : t.id,
                     })),
                 }),
-                onSuccess: (data) => { onUpdated(data.organizationUpdate) },
+                onSuccess: (data) => { onUpdated(data) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },
