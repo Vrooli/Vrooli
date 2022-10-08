@@ -23,10 +23,22 @@ export const RoutineUpdate = ({
     session,
     zIndex,
 }: RoutineUpdateProps) => {
+
     // Fetch existing data
-    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
-    const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
-    useEffect(() => { uuidValidate(id) && getData({ variables: { input: { id } } }) }, [getData, id])
+    const { id, versionGroupId } = useMemo(() => {
+        // URL is /object/:versionGroupId/?:id
+        const last = base36ToUuid(getLastUrlPart(0), false);
+        const secondLast = base36ToUuid(getLastUrlPart(1), false);
+        return {
+            id: uuidValidate(secondLast) ? last : undefined,
+            versionGroupId: uuidValidate(secondLast) ? secondLast : last,
+        }
+    }, []);
+    const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
+    useEffect(() => {
+        if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { input: { id, versionGroupId } } });
+        else PubSub.get().publishSnack({ message: 'Could not parse ID in URL', severity: SnackSeverity.Error });
+    }, [getData, id, versionGroupId])
     const routine = useMemo(() => data?.routine, [data]);
 
     const [relationships, setRelationships] = useState<RelationshipsObject>({
@@ -223,7 +235,7 @@ export const RoutineUpdate = ({
                     placeholder="Instructions"
                     value={instructions}
                     minRows={4}
-                    onChange={(newText: string) => onTranslationChange({ target: { name: 'instructions', value: newText }})}
+                    onChange={(newText: string) => onTranslationChange({ target: { name: 'instructions', value: newText } })}
                     error={touchedInstructions && Boolean(errorInstructions)}
                     helperText={touchedInstructions ? errorInstructions : null}
                 />

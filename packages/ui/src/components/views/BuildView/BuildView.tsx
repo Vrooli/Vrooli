@@ -261,7 +261,7 @@ export const BuildView = ({
                             severity: SnackSeverity.Success,
                             buttonText: 'Create another',
                             buttonClicked: () => { 
-                                setLocation(`add?build=true`); 
+                                setLocation(`add?build=true`, { replace: Boolean(sessionStorage.getItem('lastPath')) }); 
                                 window.location.reload();
                             },
                         })

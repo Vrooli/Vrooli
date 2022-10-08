@@ -16,7 +16,7 @@ export const VersionDisplay = ({
     currentVersion,
     loading = false,
     prefix = '',
-    versions = ['1.0.0', '1.1.1', '2.4.2', '5.1.2', '9.1.3', '9.1.4', '9.1.6'], //TODO temp
+    versions = [],
     ...props
 }: VersionDisplayProps) => {
     const [, setLocation] = useLocation();

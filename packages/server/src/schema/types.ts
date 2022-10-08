@@ -268,6 +268,11 @@ export type FindByIdOrHandleInput = {
   id?: InputMaybe<Scalars['ID']>;
 };
 
+export type FindByVersionInput = {
+  id?: InputMaybe<Scalars['ID']>;
+  versionGroupId?: InputMaybe<Scalars['ID']>;
+};
+
 export type FindHandlesInput = {
   organizationId?: InputMaybe<Scalars['ID']>;
 };
@@ -1816,7 +1821,7 @@ export type QueryResourcesCountArgs = {
 
 
 export type QueryRoutineArgs = {
-  input: FindByIdInput;
+  input: FindByVersionInput;
 };
 
 
@@ -1851,7 +1856,7 @@ export type QueryRunsCountArgs = {
 
 
 export type QueryStandardArgs = {
-  input: FindByIdInput;
+  input: FindByVersionInput;
 };
 
 
@@ -2326,6 +2331,7 @@ export type Routine = {
   updated_at: Scalars['Date'];
   version: Scalars['String'];
   versionGroupId: Scalars['ID'];
+  versions: Array<Scalars['String']>;
   views: Scalars['Int'];
 };
 
@@ -2744,6 +2750,7 @@ export type Standard = {
   updated_at: Scalars['Date'];
   version: Scalars['String'];
   versionGroupId: Scalars['ID'];
+  versions: Array<Scalars['String']>;
   views: Scalars['Int'];
   yup?: Maybe<Scalars['String']>;
 };

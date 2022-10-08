@@ -24,7 +24,7 @@ import { uuid } from '@shared/uuid';
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
-const supplementalFields = ['isUpvoted', 'isStarred', 'isViewed', 'permissionsStandard'];
+const supplementalFields = ['isUpvoted', 'isStarred', 'isViewed', 'permissionsStandard', 'versions'];
 export const standardFormatter = (): FormatConverter<Standard, StandardPermission> => ({
     relationshipMap: {
         '__typename': 'Standard',
@@ -62,6 +62,40 @@ export const standardFormatter = (): FormatConverter<Standard, StandardPermissio
                 ['isUpvoted', async (ids) => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Standard')],
                 ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Standard')],
                 ['permissionsStandard', async () => await StandardModel.permissions().get({ objects, permissions, prisma, userId })],
+                ['versions', async (ids) => {
+                    // Find versionGroupIds of routines
+                    const groupData = await prisma.standard.findMany({
+                        where: {
+                            id: { in: ids },
+                        },
+                        select: {
+                            version: true,
+                            versionGroupId: true,
+                        }
+                    });
+                    // Find unique versionGroupIds
+                    const versionGroupIds = new Set(groupData.map(r => r.versionGroupId).filter(Boolean) as string[]);
+                    // Find all versions of routines in versionGroupIds
+                    const versions = await prisma.standard.findMany({
+                        where: {
+                            versionGroupId: { in: [...versionGroupIds] },
+                        },
+                        select: {
+                            id: true,
+                            version: true,
+                            versionGroupId: true,
+                        }
+                    });
+                    // For every routine from ids, find all versions of that routine
+                    const result = groupData.map((r) => {
+                        if (r.versionGroupId) {
+                            return versions.filter(v => v.versionGroupId === r.versionGroupId).map(v => v.version);
+                        } else {
+                            return [r.version];
+                        }
+                    });
+                    return result;
+                }],
             ]
         });
     }
@@ -545,6 +579,7 @@ export const standardMutater = (prisma: PrismaType) => ({
                     data: await this.toDBShapeUpdate(userId, input.data),
                     ...select
                 });
+                // TODO handle version update
                 // Convert to GraphQL
                 const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array

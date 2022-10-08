@@ -60,9 +60,15 @@ export const getObjectSlug = (object: any) => {
     // If object is a star/vote/some other type that links to a main object, use that object's slug
     if (object.to) return getObjectSlug(object.to);
     // If object is a run, navigate to the routine
-    if (object.routine) return uuidToBase36(object.routine.id);
-    // Otherwise, use either the object's (ADA) handle or its ID
-    return object.handle ? object.handle : uuidToBase36(object.id);
+    if (object.routine) return getObjectSlug(object.routine);
+    // If object has a handle, use that (Note: objects with handles don't have versioning, so we don't need to worry about that)
+    if (object.handle) return object.handle;
+    // If object has a versionGroupId, and an id, use versionGroupId/id
+    if (object.versionGroupId && object.id) return `${uuidToBase36(object.versionGroupId)}/${uuidToBase36(object.id)}`;
+    // If object only has a versionGroupId, use that
+    if (object.versionGroupId) return uuidToBase36(object.versionGroupId);
+    // Otherwise, use the id
+    return uuidToBase36(object.id);
 }
 
 /**

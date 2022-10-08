@@ -571,6 +571,7 @@ export interface routineUpdate_routineUpdate {
   updated_at: any;
   version: string;
   versionGroupId: string;
+  versions: string[];
 }
 
 export interface routineUpdate {

@@ -4,7 +4,7 @@ import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerFie
 import { CustomError } from "../../error";
 import { inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routineTranslationCreate, routineTranslationUpdate, routineUpdate } from "@shared/validation";
 import { CODE, DeleteOneType } from "@shared/consts";
-import { omit } from '@shared/utils'; 
+import { omit } from '@shared/utils';
 import { hasProfanity } from "../../utils/censor";
 import { OrganizationModel, organizationQuerier } from "./organization";
 import { TagModel } from "./tag";
@@ -32,7 +32,7 @@ type NodeWeightData = {
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', nodesCount: 'nodes', reportsCount: 'reports' };
-const supplementalFields = ['isUpvoted', 'isStarred', 'isViewed', 'permissionsRoutine', 'runs'];
+const supplementalFields = ['isUpvoted', 'isStarred', 'isViewed', 'permissionsRoutine', 'runs', 'versions'];
 export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> => ({
     relationshipMap: {
         '__typename': 'Routine',
@@ -112,6 +112,40 @@ export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> 
                         // Set all runs to empty array
                         return new Array(objects.length).fill([]);
                     }
+                }],
+                ['versions', async (ids) => {
+                    // Find versionGroupIds of routines
+                    const groupData = await prisma.routine.findMany({
+                        where: {
+                            id: { in: ids },
+                        },
+                        select: {
+                            version: true,
+                            versionGroupId: true,
+                        }
+                    });
+                    // Find unique versionGroupIds
+                    const versionGroupIds = new Set(groupData.map(r => r.versionGroupId).filter(Boolean) as string[]);
+                    // Find all versions of routines in versionGroupIds
+                    const versions = await prisma.routine.findMany({
+                        where: {
+                            versionGroupId: { in: [...versionGroupIds] },
+                        },
+                        select: {
+                            id: true,
+                            version: true,
+                            versionGroupId: true,
+                        }
+                    });
+                    // For every routine from ids, find all versions of that routine
+                    const result = groupData.map((r) => {
+                        if (r.versionGroupId) {
+                            return versions.filter(v => v.versionGroupId === r.versionGroupId).map(v => v.version);
+                        } else {
+                            return [r.version];
+                        }
+                    });
+                    return result;
                 }],
             ]
         });
@@ -227,8 +261,9 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({ searchString,
-            resolver: ({ insensitive }) => ({ 
+        return getSearchStringQueryHelper({
+            searchString,
+            resolver: ({ insensitive }) => ({
                 OR: [
                     { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
                     { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
@@ -798,6 +833,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                     data,
                     ...selectHelper(partialInfo)
                 });
+                // TODO handle version update
                 // Convert to GraphQL
                 const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array

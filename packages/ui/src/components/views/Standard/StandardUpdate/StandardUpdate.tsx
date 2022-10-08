@@ -22,10 +22,22 @@ export const StandardUpdate = ({
     session,
     zIndex,
 }: StandardUpdateProps) => {
+
     // Fetch existing data
-    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
-    const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery);
-    useEffect(() => { uuidValidate(id) && getData({ variables: { input: { id } } }) }, [getData, id])
+    const { id, versionGroupId } = useMemo(() => {
+        // URL is /object/:versionGroupId/?:id
+        const last = base36ToUuid(getLastUrlPart(0), false);
+        const secondLast = base36ToUuid(getLastUrlPart(1), false);
+        return {
+            id: uuidValidate(secondLast) ? last : undefined,
+            versionGroupId: uuidValidate(secondLast) ? secondLast : last,
+        }
+    }, []);
+    const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery, { errorPolicy: 'all' });
+    useEffect(() => {
+        if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { input: { id, versionGroupId } } });
+        else PubSub.get().publishSnack({ message: 'Could not parse ID in URL', severity: SnackSeverity.Error });
+    }, [getData, id, versionGroupId])
     const standard = useMemo(() => data?.standard, [data]);
 
     const [relationships, setRelationships] = useState<RelationshipsObject>({

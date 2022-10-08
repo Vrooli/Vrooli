@@ -219,9 +219,8 @@ const viewMutater = (prisma: PrismaType) => ({
                 break;
             case ViewFor.Project:
             case ViewFor.Routine:
-            case ViewFor.Standard:
-                // Check if routine is owned by this user or by an organization they are a member of
-                const object = await (prisma[lowercaseFirstLetter(input.viewFor) as 'project' | 'routine' | 'standard'] as any).findFirst({
+                // Check if project/routine is owned by this user or by an organization they are a member of
+                const object = await (prisma[lowercaseFirstLetter(input.viewFor) as 'project' | 'routine'] as any).findFirst({
                     where: {
                         AND: [
                             { id: input.forId },
@@ -235,6 +234,23 @@ const viewMutater = (prisma: PrismaType) => ({
                     }
                 })
                 if (object) isOwn = true;
+                break;
+            case ViewFor.Standard:
+                // Check if standard is owned by this user or by an organization they are a member of
+                const object2 = await prisma.standard.findFirst({
+                    where: {
+                        AND: [
+                            { id: input.forId },
+                            {
+                                OR: [
+                                    { createdByOrganization: organizationQuerier().isMemberOfOrganizationQuery(userId).organization },
+                                    { createdByUser: { id: userId } },
+                                ]
+                            }
+                        ]
+                    }
+                })
+                if (object2) isOwn = true;
                 break;
             case ViewFor.User:
                 isOwn = userId === input.forId;

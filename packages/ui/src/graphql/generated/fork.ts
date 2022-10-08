@@ -793,6 +793,7 @@ export interface fork_fork_routine {
   updated_at: any;
   version: string;
   versionGroupId: string;
+  versions: string[];
 }
 
 export interface fork_fork_standard_permissionsStandard {
@@ -909,6 +910,7 @@ export interface fork_fork_standard {
   isUpvoted: boolean | null;
   version: string;
   versionGroupId: string;
+  versions: string[];
 }
 
 export interface fork_fork {

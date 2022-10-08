@@ -122,6 +122,7 @@ export * from './StepListOpen';
 export * from './StepListEnd';
 export * from './StrikethroughIcon';
 export * from './SuccessIcon';
+export * from './TagIcon';
 export * from './TerminalIcon';
 export * from './ThoughtIcon';
 export * from './TranslateIcon';

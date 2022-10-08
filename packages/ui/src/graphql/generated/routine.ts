@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, NodeType, ResourceListUsedFor, ResourceUsedFor, RunStatus, RunStepStatus } from "./globalTypes";
+import { FindByVersionInput, NodeType, ResourceListUsedFor, ResourceUsedFor, RunStatus, RunStepStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: routine
@@ -571,6 +571,7 @@ export interface routine_routine {
   updated_at: any;
   version: string;
   versionGroupId: string;
+  versions: string[];
 }
 
 export interface routine {
@@ -578,5 +579,5 @@ export interface routine {
 }
 
 export interface routineVariables {
-  input: FindByIdInput;
+  input: FindByVersionInput;
 }

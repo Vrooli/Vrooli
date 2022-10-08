@@ -296,6 +296,7 @@ export const SubroutineView = ({
                         confirmVersionChange={confirmLeave}
                         currentVersion={internalRoutine?.version}
                         prefix={" - "}
+                        versions={internalRoutine?.versions}
                     />
                 </Stack>
             </Stack>

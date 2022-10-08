@@ -334,5 +334,6 @@ export const routineFields = gql`
         updated_at
         version
         versionGroupId
+        versions
     }
 `

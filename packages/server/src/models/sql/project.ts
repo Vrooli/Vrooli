@@ -4,7 +4,7 @@ import { omit } from '@shared/utils';
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
 import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor, ProjectPermission, OrganizationPermission, VisibilityType } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, exceptionsBuilder, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, modelToGraphQL, onlyValidIds, Permissioner, permissionsCheck, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, validateMaxObjects, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, exceptionsBuilder, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, modelToGraphQL, onlyValidHandles, onlyValidIds, Permissioner, permissionsCheck, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, validateMaxObjects, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
 import { OrganizationModel, organizationQuerier } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -80,7 +80,8 @@ export const projectPermissioner = (): Permissioner<ProjectPermission, ProjectSe
         userId,
     }) {
         // Initialize result with default permissions
-        const result: (ProjectPermission & { id?: string })[] = objects.map((o) => ({
+        const result: (ProjectPermission & { id?: string, handle?: string })[] = objects.map((o) => ({
+            handle: o.handle,
             id: o.id,
             canComment: false, // own || !isPrivate
             canDelete: false, // own 
@@ -95,7 +96,10 @@ export const projectPermissioner = (): Permissioner<ProjectPermission, ProjectSe
             // Query for objects owned by user, or an organization they have an admin role in
             const owned = await prisma.project.findMany({
                 where: {
-                    id: { in: onlyValidIds(objects.map(o => o.id)) },
+                    OR: [
+                        { id: { in: onlyValidIds(objects.map((o) => o.id)) } },
+                        { handle: { in: onlyValidHandles(objects.map((o) => o.handle)) } },
+                    ],
                     ...this.ownershipQuery(userId),
                 },
                 select: { id: true },
@@ -118,7 +122,10 @@ export const projectPermissioner = (): Permissioner<ProjectPermission, ProjectSe
         // Query all objects
         const all = await prisma.project.findMany({
             where: {
-                id: { in: onlyValidIds(objects.map(o => o.id)) },
+                OR: [
+                    { id: { in: onlyValidIds(objects.map((o) => o.id)) } },
+                    { handle: { in: onlyValidHandles(objects.map((o) => o.handle)) } },
+                ]
             },
             select: { id: true, isPrivate: true },
         })
@@ -134,8 +141,8 @@ export const projectPermissioner = (): Permissioner<ProjectPermission, ProjectSe
                 canVote: result[index].canVote || !o.isPrivate,
             }
         });
-        // Return result with IDs removed
-        result.forEach((r) => delete r.id);
+        // Return result with IDs and handles removed
+        result.forEach((r) => delete r.id && delete r.handle);
         return result as ProjectPermission[];
     },
     async canSearch({

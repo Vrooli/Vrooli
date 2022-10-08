@@ -167,7 +167,6 @@ export const ObjectPage = ({
             document.title = `View ${titleMap[objectType]}`;
             return View && <View session={session} zIndex={200} />
         }
-        //
         if (pageType === PageType.Create) {
             const Create = createMap[objectType];
             document.title = `Create ${titleMap[objectType]}`;

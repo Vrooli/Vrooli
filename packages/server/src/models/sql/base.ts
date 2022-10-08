@@ -1,5 +1,5 @@
 // Components for providing basic functionality to model objects
-import { CopyInput, CopyType, Count, DeleteManyInput, DeleteOneInput, ForkInput, PageInfo, Success, TimeFrame, VisibilityType } from '../../schema/types';
+import { CopyInput, CopyType, Count, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, FindByVersionInput, ForkInput, PageInfo, Success, TimeFrame, VisibilityType } from '../../schema/types';
 import { PrismaType, RecursivePartial } from '../../types';
 import { GraphQLResolveInfo } from 'graphql';
 import { CommentModel } from './comment';
@@ -37,6 +37,7 @@ import { NodeRoutineListModel } from './nodeRoutineList';
 import { RunInputModel } from './runInput';
 import { ValueOf } from '@shared/consts';
 import { uuidValidate } from '@shared/uuid';
+import { calculateVersionsFromString } from '@shared/validation';
 const { difference, flatten, merge } = pkg;
 
 
@@ -381,6 +382,14 @@ const isRelationshipArray = (obj: any): boolean => Array.isArray(obj) && obj.eve
  * @returns Array of valid IDs
  */
 export const onlyValidIds = (ids: (string | null | undefined)[]): string[] => ids.filter(id => typeof id === 'string' && uuidValidate(id)) as string[];
+
+/**
+ * Filters out any invalid handles from an array of handles.
+ * Handles start with a $ and have 3 to 16 characters.
+ * @param handles - array of handles to filter
+ * @returns Array of valid handles
+ */
+export const onlyValidHandles = (handles: (string | null | undefined)[]): string[] => handles.filter(handle => typeof handle === 'string' && handle.match(/^\$[a-zA-Z0-9]{3,16}$/)) as string[];
 
 /**
  * Lowercases the first letter of a string
@@ -1370,7 +1379,7 @@ export async function permissionsCheck<PermissionObject>({
 
 type ReadOneHelperProps<GraphQLModel> = {
     info: GraphQLInfo | PartialGraphQLInfo;
-    input: any;
+    input: FindByIdInput | FindByIdOrHandleInput | FindByVersionInput;
     model: ModelLogic<GraphQLModel, any, any>;
     prisma: PrismaType;
     userId: string | null;
@@ -1388,26 +1397,34 @@ export async function readOneHelper<GraphQLModel>({
     userId,
 }: ReadOneHelperProps<GraphQLModel>): Promise<RecursivePartial<GraphQLModel>> {
     const objectType = model.format.relationshipMap.__typename;
-    // Validate input
-    if (!input.id && !input.handle)
-        throw new CustomError(CODE.InvalidArgs, 'id is required', { code: genErrorCode('0019') });
+    // Validate input. Can read by id, handle, or versionGroupId
+    if (!input.id && !(input as FindByIdOrHandleInput).handle && !(input as FindByVersionInput).versionGroupId)
+        throw new CustomError(CODE.InvalidArgs, 'id or handle is required', { code: genErrorCode('0019') });
     // Partially convert info
     let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0020') });
+    // If using versionGroupId, find the latest completed version in that group and use that id from now on
+    let id: string | null | undefined;
+    if ((input as FindByVersionInput).versionGroupId) {
+        const versionId = await getLatestVersion({ objectType: model.type as 'Routine' | 'Standard', prisma, versionGroupId: (input as FindByVersionInput).versionGroupId as string });
+        id = versionId;
+    } else {
+        id = input.id;
+    }
     // Check permissions
     const authorized = await permissionsCheck({
         model,
-        object: { id: input.id || input.handle },
+        object: { id: id || (input as FindByIdOrHandleInput).handle as string },
         actions: ['canView'],
         prisma,
         userId,
     });
     if (!authorized) throw new CustomError(CODE.Unauthorized, `Not allowed to read object`, { code: genErrorCode('0249') });
     // Get the Prisma object
-    let object = input.id ?
-        await (model.prismaObject(prisma) as any).findUnique({ where: { id: input.id }, ...selectHelper(partialInfo) }) :
-        await (model.prismaObject(prisma) as any).findFirst({ where: { handle: input.handle }, ...selectHelper(partialInfo) });
+    let object = id ?
+        await (model.prismaObject(prisma) as any).findUnique({ where: { id: id }, ...selectHelper(partialInfo) }) :
+        await (model.prismaObject(prisma) as any).findFirst({ where: { handle: (input as FindByIdOrHandleInput).handle as string }, ...selectHelper(partialInfo) });
     if (!object)
         throw new CustomError(CODE.NotFound, `${objectType} not found`, { code: genErrorCode('0022') });
     // Return formatted for GraphQL
@@ -1766,7 +1783,7 @@ export async function copyHelper({
     if (!model.mutate || !model.mutate(prisma).duplicate)
         throw new CustomError(CODE.InternalError, 'Model does not support copy', { code: genErrorCode('0230') });
     // Check permissions
-    const permissions: { [x: string]: any }[] = model.permissions ? await model.permissions().get({ objects: [{ id: input.id }], prisma, userId }): [{}];
+    const permissions: { [x: string]: any }[] = model.permissions ? await model.permissions().get({ objects: [{ id: input.id }], prisma, userId }) : [{}];
     if (!permissions[0].canFork && !permissions[0].canCopy) {
         throw new CustomError(CODE.Unauthorized, 'Not allowed to copy object', { code: genErrorCode('0263') });
     }
@@ -1827,7 +1844,7 @@ export async function forkHelper({
     if (!model.mutate || !model.mutate(prisma).duplicate)
         throw new CustomError(CODE.InternalError, 'Model does not support fork', { code: genErrorCode('0234') });
     // Check permissions
-    const permissions: { [x: string]: any }[] = model.permissions ? await model.permissions().get({ objects: [{ id: input.id }], prisma, userId }): [{}];
+    const permissions: { [x: string]: any }[] = model.permissions ? await model.permissions().get({ objects: [{ id: input.id }], prisma, userId }) : [{}];
     if (!permissions[0].canFork && !permissions[0].canCopy) {
         throw new CustomError(CODE.Unauthorized, 'Not allowed to fork object', { code: genErrorCode('0262') });
     }
@@ -1965,7 +1982,6 @@ export async function existsArray({ ids, prismaDelegate, where }: ExistsArray): 
  * @returns Combined query object, with all fields combined
  */
 export function combineQueries(queries: ({ [x: string]: any } | null | undefined)[]): { [x: string]: any } {
-    console.log('combineQueries start', JSON.stringify(queries), '\n\n');
     const combined: { [x: string]: any } = {};
     for (const query of queries) {
         if (!query) continue;
@@ -2003,7 +2019,6 @@ export function combineQueries(queries: ({ [x: string]: any } | null | undefined
             else combined[key] = value;
         }
     }
-    console.log('combineQueries end', JSON.stringify(combined), '\n\n');
     return combined;
 }
 
@@ -2042,17 +2057,15 @@ export function exceptionsBuilder({
     input,
     mainField,
 }: ExceptionsBuilderProps): { [x: string]: any } {
-    console.log('exceptions builder start', mainField, exceptionField, JSON.stringify(input), '\n\n');
     // Initialize result
     const result: { [x: string]: any } = { [mainField]: input[mainField] ?? defaultValue };
     // Helper function for checking if a stringified object is a primitive or an array of primitives.
     // Returns boolean indicating whether it is a primitive, and the parsed object
     const getPrimitive = (x: string): [boolean, any] => {
-        console.log('getprimitive start', x)
         const primitiveCheck = (y: any): boolean => { return y === null || typeof y === 'string' || typeof y === 'number' || typeof y === 'boolean' };
         let value: any;
         try { value = JSON.parse(x); }
-        catch (err) { console.log('caught error parsing', err); return [false, undefined]; }
+        catch (err) { return [false, undefined]; }
         if (Array.isArray(value)) {
             if (value.every(primitiveCheck)) return [true, value]
         }
@@ -2078,10 +2091,8 @@ export function exceptionsBuilder({
      */
     const addToOr = (allowed: string[], field: string, value: string, recursedFields: string[] = []): void => {
         const [isPrimitive, parsedValue] = getPrimitive(value);
-        console.log('addtoor start', field, allowed, isPrimitive, parsedValue, '\n\n');
         // Check if field is allowed
         if (isPrimitive && allowed.includes(field)) {
-            console.log('in addtoor 1')
             // If not array, add to result
             if (!Array.isArray(parsedValue)) result.OR.push(fieldsToObject([...recursedFields, field], parsedValue));
             // Otherwise, wrap in { in: } and add to result
@@ -2089,7 +2100,6 @@ export function exceptionsBuilder({
         }
         // Check if field is allowed with 'id' appended
         else if (allowed.includes(`${field}.id`)) {
-            console.log('in addtoor 2')
             // If not array, add to result
             if (!Array.isArray(parsedValue) && typeof parsedValue === 'string') result.OR.push(fieldsToObject([...recursedFields, field, 'id'], parsedValue));
             // Otherwise, wrap in { in: } and add to result
@@ -2098,7 +2108,6 @@ export function exceptionsBuilder({
         // Otherwise, check if we should recurse
         else if (typeof parsedValue === 'object' && field in parsedValue) {
             const matchingFields = allowed.filter(x => x.startsWith(`${field}.`));
-            console.log('in addtoor 3', matchingFields)
             if (matchingFields.length > 0) {
                 addToOr(
                     allowed.filter(x => x.startsWith(`${field}.`)),
@@ -2109,11 +2118,8 @@ export function exceptionsBuilder({
             }
         }
     }
-    console.log('exceptions builder a', JSON.stringify(result), '\n\n');
     if (!(typeof input === 'object' && mainField in input)) return result;
-    console.log('exceptions builder b');
     // Get mainField value
-    console.log('exceptions builder c', result[mainField]);
     // If exceptionField is present, wrap in OR
     if (exceptionField in input) {
         result.OR = [{ [mainField]: result[mainField] }];
@@ -2130,7 +2136,6 @@ export function exceptionsBuilder({
             addToOr(canQuery, lowercaseFirstLetter(input[exceptionField].field), input[exceptionField].value);
         }
     }
-    console.log('exceptions builder end', JSON.stringify(result), '\n\n');
     return result;
 }
 
@@ -2309,7 +2314,7 @@ type ValidateMaxObjectsData = {
 /**
  * Validates that creating a new project, routine, or standard will not exceed the user's limit
  */
- export async function validateMaxObjects({
+export async function validateMaxObjects({
     createMany,
     deleteMany,
     maxCount,
@@ -2418,4 +2423,48 @@ type ValidateMaxObjectsData = {
     if (Object.keys(totalOrganizationIds).some(id => totalOrganizationIds[id] > maxCount)) {
         throw new CustomError(CODE.Unauthorized, `You have reached the maximum number of ${objectType}s you can create on this organization.`, { code: genErrorCode('0261') });
     }
+}
+
+interface GetLatestVersionProps {
+    includeIncomplete?: boolean,
+    objectType: 'Routine' | 'Standard',
+    prisma: PrismaType,
+    versionGroupId: string,
+}
+
+/**
+ * Finds the latest version of a versioned object
+ * @returns The id of the latest version
+ */
+export async function getLatestVersion({
+    includeIncomplete,
+    objectType,
+    prisma,
+    versionGroupId,
+}: GetLatestVersionProps): Promise<string | undefined> {
+    // Helper function to compare version strings
+    const compareVersions = (a: string, b: string): number => {
+        // Parse versions
+        const { major: major1, moderate: moderate1, minor: minor1 } = calculateVersionsFromString(a);
+        const { major: major2, moderate: moderate2, minor: minor2 } = calculateVersionsFromString(b);
+        // If major version is less than minimum
+        if (major1 < major2) return -1;
+        // If major version is equal to minimum and moderate version is less than minimum
+        if (major1 === major2 && moderate1 < moderate2) return -1;
+        // If major and moderate versions are equal to minimum and minor version is less than minimum
+        if (major1 === major2 && moderate1 === moderate2 && minor1 < minor2) return -1;
+        // If all versions are equal
+        if (major1 === major2 && moderate1 === moderate2 && minor1 === minor2) return 0;
+        // Else
+        return 1;
+    }
+    // Query versions
+    const select = { id: true, version: true };
+    const versions = objectType === 'Routine' ? 
+        await prisma.routine.findMany({ where: { versionGroupId, isComplete: includeIncomplete ? undefined : true }, select }) :
+        await prisma.standard.findMany({ where: { versionGroupId }, select });
+    // Sort versions
+    versions.sort((a, b) => compareVersions(a.version, b.version));
+    // Return latest version, or undefined if no versions
+    return versions.length > 0 ? versions[versions.length - 1].id : undefined;
 }

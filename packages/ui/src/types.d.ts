@@ -144,6 +144,7 @@ export interface ObjectOption {
     __typename: ListObjectType['__typename'];
     handle?: string | null;
     id: string;
+    versionGroupId?: string | null;
     isFromHistory?: boolean;
     isStarred?: boolean;
     label: string;
