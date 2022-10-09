@@ -6,7 +6,7 @@ import { combineQueries, CUDInput, CUDResult, FormatConverter, getSearchStringQu
 import { CustomError } from "../../error";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
-import { OrganizationModel } from "./organization";
+import { OrganizationModel, organizationQuerier } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 
@@ -31,8 +31,9 @@ export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({ searchString,
-            resolver: ({ insensitive }) => ({ 
+        return getSearchStringQueryHelper({
+            searchString,
+            resolver: ({ insensitive }) => ({
                 OR: [
                     { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
                     { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
@@ -47,6 +48,16 @@ export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
             (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
         ])
     },
+})
+
+// TODO create proper permissioner
+export const resourcePermissioner = () => ({
+    ownershipQuery: (userId: string) => ({
+        OR: [
+            organizationQuerier().hasRoleInOrganizationQuery(userId),
+            { user: { id: userId } }
+        ]
+    })
 })
 
 export const resourceMutater = (prisma: PrismaType) => ({
@@ -154,7 +165,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
         if (!createMany && !updateMany && !deleteMany) return;
         if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0087') });
-        
+
         // Check for max resources on object TODO
         if (createMany) {
             resourcesCreate.validateSync(createMany, { abortEarly: false });
@@ -216,7 +227,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
                 where: {
                     AND: [
                         { id: { in: deleteMany } },
-                        { list: { userId } },
+                        { list: resourcePermissioner().ownershipQuery(userId as string) },
                     ]
                 }
             })

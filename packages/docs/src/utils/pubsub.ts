@@ -13,7 +13,6 @@ export const Pubs = {
     Celebration: "celebration",
     Loading: "loading",
     AlertDialog: "alertDialog",
-    ArrowMenuOpen: "arrowMenuOpen",
     Theme: "theme",
     NodeDrag: "NodeDrag",
     NodeDrop: "NodeDrop",
@@ -48,9 +47,6 @@ export class PubSub {
     publishAlertDialog(data: AlertDialogState) {
         this.publish(Pubs.AlertDialog, data);
     }
-    publishArrowMenuOpen(data: boolean) {
-        this.publish(Pubs.ArrowMenuOpen, data);
-    }
     publishTheme(theme: 'light' | 'dark') {
         this.publish(Pubs.Theme, theme);
     }
@@ -78,12 +74,6 @@ export class PubSub {
     }
     subscribeAlertDialog(subscriber: (data: AlertDialogState) => void) {
         return this.subscribe(Pubs.AlertDialog, subscriber);
-    }
-    subscribeArrowMenuOpen(subscriber: (data: boolean) => void) {
-        return this.subscribe(Pubs.ArrowMenuOpen, subscriber);
-    }
-    subscribeTheme(subscriber: (theme: 'light' | 'dark') => void) {
-        return this.subscribe(Pubs.Theme, subscriber);
     }
     subscribeNodeDrag(subscriber: (data: { nodeId: string }) => void) {
         return this.subscribe(Pubs.NodeDrag, subscriber);

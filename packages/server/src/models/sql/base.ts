@@ -1740,6 +1740,7 @@ export async function deleteManyHelper({
     if (!model.mutate || !model.mutate(prisma).cud)
         throw new CustomError(CODE.InternalError, 'Model does not support delete', { code: genErrorCode('0036') });
     // Delete objects. cud will check permissions
+    console.log('deletemanyhelper a', model.type);
     const { deleted } = await model.mutate!(prisma).cud!({ partialInfo: {}, userId, deleteMany: input.ids });
     if (!deleted)
         throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in deleteManyHelper', { code: genErrorCode('0037') });
