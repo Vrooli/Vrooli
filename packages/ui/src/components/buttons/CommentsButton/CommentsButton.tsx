@@ -8,6 +8,7 @@ import { CommentIcon } from '@shared/icons';
 
 export const CommentsButton = ({
     commentsCount = 0,
+    disabled = false,
     object,
     tooltipPlacement = "left",
 }: CommentsButtonProps) => {
@@ -30,8 +31,8 @@ export const CommentsButton = ({
             }}
         >
             <Tooltip placement={tooltipPlacement} title={'View comments'}>
-                <Box onClick={handleClick} sx={{ display: 'contents', cursor: 'pointer' }}>
-                    <CommentIcon fill='#76a7c3' />
+                <Box onClick={handleClick} sx={{ display: 'contents', cursor: disabled ? 'none' : 'pointer' }}>
+                    <CommentIcon fill={disabled ? 'rgb(189 189 189)' : '#76a7c3'} />
                 </Box>
             </Tooltip>
             <ListItemText

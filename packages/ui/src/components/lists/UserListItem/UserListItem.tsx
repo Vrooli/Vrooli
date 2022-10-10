@@ -103,14 +103,15 @@ export const UserListItem = ({
                     </Stack>
                     {/* Star/Comment/Report */}
                     <Stack direction="column" spacing={1}>
-                        {!isOwn && <StarButton
+                        <StarButton
+                            disabled={isOwn}
                             session={session}
                             objectId={data?.id ?? ''}
                             starFor={StarFor.User}
                             isStar={data?.isStarred}
                             stars={data?.stars}
-                        />}
-                        {!isOwn && reportsCount > 0 && <ReportsButton
+                        />
+                        {reportsCount > 0 && <ReportsButton
                             reportsCount={data?.reportsCount ?? 0}
                             object={data}
                         />}

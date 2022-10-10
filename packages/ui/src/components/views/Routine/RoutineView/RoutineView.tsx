@@ -585,16 +585,18 @@ export const RoutineView = ({
                         alignItems: 'center',
                         padding: 2,
                     }}>
-                        {canVote && <UpvoteDownvote
+                        <UpvoteDownvote
                             direction="row"
+                            disabled={!canVote}
                             session={session}
                             objectId={routine?.id ?? ''}
                             voteFor={VoteFor.Routine}
                             isUpvoted={routine?.isUpvoted}
                             score={routine?.score}
                             onChange={(isUpvote) => { routine && setRoutine({ ...routine, isUpvoted: isUpvote }); }}
-                        />}
-                        {canStar && <StarButton
+                        />
+                        <StarButton
+                            disabled={!canStar}
                             session={session}
                             objectId={routine?.id ?? ''}
                             showStars={false}
@@ -603,11 +605,8 @@ export const RoutineView = ({
                             stars={routine?.stars ?? 0}
                             onChange={(isStar: boolean) => { routine && setRoutine({ ...routine, isStarred: isStar }) }}
                             tooltipPlacement="bottom"
-                        />}
-                        <ReportsLink
-                            href={`${APP_LINKS.Routine}/reports/${routine?.id}`}
-                            reports={routine?.reportsCount}
                         />
+                        <ReportsLink object={routine} />
                         <Tooltip title="More options">
                             <IconButton
                                 aria-label="More"

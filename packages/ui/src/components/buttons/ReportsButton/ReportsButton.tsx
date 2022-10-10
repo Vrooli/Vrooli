@@ -31,7 +31,7 @@ export const ReportsButton = ({
         >
             <Tooltip placement={tooltipPlacement} title={'View reports'}>
                 <Box onClick={handleClick} sx={{ display: 'contents', cursor: 'pointer' }}>
-                    <ReportIcon fill='#a96666' />
+                    <ReportIcon fill={'#a96666'} />
                 </Box>
             </Tooltip>
             <ListItemText

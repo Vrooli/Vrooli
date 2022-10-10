@@ -57,9 +57,9 @@ export function RunListItem({
         const completedComplexity = data?.completedComplexity ?? null;
         const totalComplexity = data?.routine?.complexity ?? null;
         const percentComplete = data?.status === RunStatus.Completed ? 100 :
-            (completedComplexity && totalComplexity) ? 
-            Math.min(Math.round(completedComplexity / totalComplexity * 100), 100) : 
-            0
+            (completedComplexity && totalComplexity) ?
+                Math.min(Math.round(completedComplexity / totalComplexity * 100), 100) :
+                0
         return {
             canStar: routinePermissions?.canStar === true,
             bio: getTranslation(data?.routine, 'bio', languages, true),
@@ -137,14 +137,15 @@ export function RunListItem({
                         {/* Progress bar */}
                         <CompletionBar color="secondary" variant={loading ? 'indeterminate' : 'determinate'} value={percentComplete} sx={{ height: '15px' }} />
                     </Stack>
-                    {canStar && <StarButton
+                    <StarButton
+                        disabled={!canStar}
                         session={session}
                         objectId={data?.id ?? ''}
                         starFor={StarFor.Routine}
                         isStar={data?.routine?.isStarred ?? false}
                         stars={data?.routine?.stars ?? 0}
                         onChange={(isStar: boolean) => { }}
-                    />}
+                    />
                 </ListItemButton>
             </ListItem>
         </Tooltip>

@@ -9,8 +9,8 @@ import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { HomePageProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import { actionsItems, listToAutocomplete, listToListItems, ObjectType, openObject, OpenObjectProps, SearchPageTabOption, shortcutsItems, useReactSearch } from 'utils';
-import { AutocompleteOption } from 'types';
+import { actionsItems, listToAutocomplete, listToListItems, ObjectType, openObject, SearchPageTabOption, shortcutsItems, useReactSearch } from 'utils';
+import { AutocompleteOption, NavigableObject } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
 
@@ -187,7 +187,7 @@ export const HomePage = ({
     /**
      * Opens page for list item
      */
-    const toItemPage = useCallback((item: OpenObjectProps['object'], event: any) => {
+    const toItemPage = useCallback((item: NavigableObject, event: any) => {
         event?.stopPropagation();
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });

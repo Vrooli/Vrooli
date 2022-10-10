@@ -327,11 +327,9 @@ export const OrganizationView = ({
                         </IconButton>
                     </Tooltip>
                     <ShareButton objectType={ObjectType.Organization} zIndex={zIndex} />
-                    <ReportsLink 
-                        href={`${APP_LINKS.Organization}/reports/${organization?.id}`}
-                        reports={organization?.reportsCount}
-                    />
-                    {canStar && <StarButton
+                    <ReportsLink object={organization} />
+                    <StarButton
+                        disabled={!canStar}
                         session={session}
                         objectId={organization?.id ?? ''}
                         starFor={StarFor.Organization}
@@ -339,11 +337,11 @@ export const OrganizationView = ({
                         stars={organization?.stars ?? 0}
                         onChange={(isStar: boolean) => { }}
                         tooltipPlacement="bottom"
-                    />}
+                    />
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, profileColors, openMoreMenu, loading, canEdit, name, onEdit, handle, organization?.created_at, organization?.id, organization?.reportsCount, organization?.isStarred, organization?.stars, bio, zIndex, canStar, session]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, profileColors, openMoreMenu, loading, canEdit, name, onEdit, handle, organization, bio, zIndex, canStar, session]);
 
     /**
      * Opens add new page

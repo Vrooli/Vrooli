@@ -9,6 +9,7 @@ import { uuidValidate } from '@shared/uuid';
 import { StarFilledIcon, StarOutlineIcon } from '@shared/icons';
 
 export const StarButton = ({
+    disabled = false,
     isStar = false,
     objectId,
     onChange,
@@ -50,7 +51,7 @@ export const StarButton = ({
 
     const Icon = internalIsStar ? StarFilledIcon : StarOutlineIcon;
     const tooltip = internalIsStar ? 'Remove from favorites' : 'Add to favorites';
-    const color = session?.id ? '#cbae30' : 'rgb(189 189 189)';
+    const color = session?.id && !disabled ? '#cbae30' : 'rgb(189 189 189)';
     return (
         <Stack
             direction="row"
@@ -63,7 +64,7 @@ export const StarButton = ({
             }}
         >
             <Tooltip placement={tooltipPlacement} title={tooltip}>
-                <Box onClick={handleClick} sx={{ display: 'contents', cursor: session?.id ? 'pointer' : 'default' }}>
+                <Box disabled={disabled} onClick={handleClick} sx={{ display: 'contents', cursor: session?.id ? 'pointer' : 'default' }}>
                     <Icon fill={color} />
                 </Box>
             </Tooltip>

@@ -2,11 +2,12 @@ import { ButtonProps } from '@mui/material';
 import { ReportFor, StarFor } from '@shared/consts';
 import { SvgProps } from 'assets/img/types';
 import React from 'react';
-import { Session } from 'types';
+import { NavigableObject, Session } from 'types';
 import { ObjectType, Status } from 'utils';
 
 export interface CommentsButtonProps {
     commentsCount: number | null; // Defaults to 0
+    disabled?: boolean;
     object: { id: string, handle?: string | null, __typename: string } | null;
     tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 }
@@ -60,12 +61,17 @@ export interface ReportsButtonProps {
     tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 }
 
+export interface ReportsLinkProps {
+    object: (NavigableObject & { reportsCount: number }) | null | undefined;
+}
+
 export interface ShareButtonProps {
     objectType: ObjectType;
     zIndex: number;
 }
 
 export interface StarButtonProps {
+    disabled?: boolean;
     isStar?: boolean | null; // Defaults to false
     objectId: string;
     onChange?: (isStar: boolean, event?: any) => void;

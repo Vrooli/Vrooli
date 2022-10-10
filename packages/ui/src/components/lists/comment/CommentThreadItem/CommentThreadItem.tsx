@@ -213,15 +213,16 @@ export function CommentThreadItem({
                     />)}
                     {/* Text buttons for reply, share, report, star, delete. */}
                     {isOpen && <Stack direction="row" spacing={1}>
-                        {canVote && <UpvoteDownvote
+                        <UpvoteDownvote
                             direction="row"
+                            disabled={!canVote}
                             session={session}
                             objectId={data?.id ?? ''}
                             voteFor={VoteFor.Comment}
                             isUpvoted={data?.isUpvoted}
                             score={data?.score}
                             onChange={() => { }}
-                        />}
+                        />
                         {canStar && <StarButton
                             session={session}
                             objectId={data?.id ?? ''}

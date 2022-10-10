@@ -4,7 +4,7 @@
 
 import { APP_LINKS } from "@shared/consts";
 import { SnackSeverity } from "components";
-import { SetLocation } from "types";
+import { NavigableObject, SetLocation } from "types";
 import { PubSub } from "utils/pubsub";
 import { stringifySearchParams, uuidToBase36 } from "./urlTools";
 
@@ -26,7 +26,7 @@ export enum ObjectType {
  * @param object Object to get base for
  * @returns Search URL base for object type
  */
-export const getObjectUrlBase = (object: Omit<OpenObjectProps['object'], 'id'>): string => {
+export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string => {
     switch (object.__typename) {
         case ObjectType.Organization:
             return APP_LINKS.Organization;
@@ -82,28 +82,12 @@ export const getObjectSearchParams = (object: any) => {
     return '';
 }
 
-export type OpenObjectProps = {
-    object: {
-        __typename: string
-        handle?: string | null,
-        id: string,
-        routine?: {
-            id: string
-        } | null,
-        to?: {
-            __typename: string,
-            handle?: string | null,
-            id?: string,
-        }
-    };
-    setLocation: SetLocation;
-}
 /**
  * Opens any object with an id and __typename
  * @param object Object to open
  * @param setLocation Function to set location in history
  */
-export const openObject = (object: OpenObjectProps['object'], setLocation: OpenObjectProps['setLocation']) => {
+export const openObject = (object: NavigableObject, setLocation: SetLocation) => {
     // Check if __typename is in objectLinkMap
     if (!ObjectType.hasOwnProperty(object.__typename)) {
         PubSub.get().publishSnack({ message: 'Could not parse object type.', severity: SnackSeverity.Error });

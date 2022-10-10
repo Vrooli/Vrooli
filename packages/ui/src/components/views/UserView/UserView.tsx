@@ -335,25 +335,21 @@ export const UserView = ({
                         </IconButton>
                     </Tooltip>
                     <ShareButton objectType={ObjectType.User} zIndex={zIndex} />
-                    {
-                        !isOwn ? <StarButton
-                            session={session}
-                            objectId={user?.id ?? ''}
-                            starFor={StarFor.User}
-                            isStar={user?.isStarred ?? false}
-                            stars={user?.stars ?? 0}
-                            onChange={(isStar: boolean) => { }}
-                            tooltipPlacement="bottom"
-                        /> : null
-                    }
-                    <ReportsLink
-                        href={`${APP_LINKS.User}/reports/${user?.id}`}
-                        reports={user?.reportsCount}
+                    <StarButton
+                        disabled={isOwn}
+                        session={session}
+                        objectId={user?.id ?? ''}
+                        starFor={StarFor.User}
+                        isStar={user?.isStarred ?? false}
+                        stars={user?.stars ?? 0}
+                        onChange={(isStar: boolean) => { }}
+                        tooltipPlacement="bottom"
                     />
+                    <ReportsLink object={user} />
                 </Stack>
             </Stack>
         </Box>
-    ), [bio, handle, isOwn, loading, name, onEdit, openMoreMenu, palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.primary.dark, palette.secondary.dark, palette.secondary.main, profileColors, session, user?.created_at, user?.id, user?.isStarred, user?.reportsCount, user?.stars, zIndex]);
+    ), [bio, handle, isOwn, loading, name, onEdit, openMoreMenu, palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.primary.dark, palette.secondary.dark, palette.secondary.main, profileColors, session, user, zIndex]);
 
     /**
      * Opens add new page

@@ -21,13 +21,12 @@ export function RoutineListItem({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const { canComment, canEdit, canReport, canStar, canVote, description, reportsCount, title } = useMemo(() => {
+    const { canComment, canEdit, canStar, canVote, description, reportsCount, title } = useMemo(() => {
         const permissions = data?.permissionsRoutine;
         const languages = session?.languages ?? navigator.languages;
         return {
             canComment: permissions?.canComment === true,
             canEdit: permissions?.canEdit === true,
-            canReport: permissions?.canReport === true,
             canStar: permissions?.canStar === true,
             canVote: permissions?.canVote === true,
             description: getTranslation(data, 'description', languages, true),
@@ -58,14 +57,15 @@ export function RoutineListItem({
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>
-                    {canVote && <UpvoteDownvote
+                    <UpvoteDownvote
+                        disabled={!canVote}
                         session={session}
                         objectId={data?.id ?? ''}
                         voteFor={VoteFor.Routine}
                         isUpvoted={data?.isUpvoted}
                         score={data?.score}
                         onChange={(isUpvoted: boolean | null) => { }}
-                    />}
+                    />
                     <Stack
                         direction="column"
                         spacing={1}
@@ -140,18 +140,20 @@ export function RoutineListItem({
                     </Stack>
                     {/* Star/Comment/Report */}
                     <Stack direction="column" spacing={1}>
-                        {canStar && <StarButton
+                        <StarButton
+                            disabled={!canStar}
                             session={session}
                             objectId={data?.id ?? ''}
                             starFor={StarFor.Routine}
                             isStar={data?.isStarred}
                             stars={data?.stars}
-                        />}
-                        {canComment && <CommentsButton
+                        />
+                        <CommentsButton
                             commentsCount={data?.commentsCount ?? 0}
+                            disabled={!canComment}
                             object={data}
-                        />}
-                        {canReport && reportsCount > 0 && <ReportsButton
+                        />
+                        {reportsCount > 0 && <ReportsButton
                             reportsCount={data?.reportsCount ?? 0}
                             object={data}
                         />}

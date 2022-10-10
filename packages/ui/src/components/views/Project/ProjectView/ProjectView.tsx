@@ -33,7 +33,7 @@ export const ProjectView = ({
     const [, setLocation] = useLocation();
     // Fetch data
     const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
-    const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery, { errorPolicy: 'all'});
+    const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery, { errorPolicy: 'all' });
     const [project, setProject] = useState<Project | null | undefined>(null);
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { input: { id } } })
@@ -296,7 +296,8 @@ export const ProjectView = ({
                         </IconButton>
                     </Tooltip>
                     <ShareButton objectType={ObjectType.Project} zIndex={zIndex} />
-                    {canStar && <StarButton
+                    <StarButton
+                        disabled={!canStar}
                         session={session}
                         objectId={project?.id ?? ''}
                         starFor={StarFor.Project}
@@ -304,7 +305,7 @@ export const ProjectView = ({
                         stars={project?.stars ?? 0}
                         onChange={(isStar: boolean) => { }}
                         tooltipPlacement="bottom"
-                    />}
+                    />
                 </Stack>
             </Stack>
         </Box>

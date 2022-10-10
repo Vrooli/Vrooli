@@ -23,13 +23,12 @@ export function OrganizationListItem({
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
 
-    const { bio, canEdit, canReport, canStar, name, reportsCount } = useMemo(() => {
+    const { bio, canEdit, canStar, name, reportsCount } = useMemo(() => {
         const permissions = data?.permissionsOrganization;
         const languages = session?.languages ?? navigator.languages;
         return {
             bio: getTranslation(data, 'bio', languages, true),
             canEdit: permissions?.canEdit === true,
-            canReport: permissions?.canReport === true,
             canStar: permissions?.canStar === true,
             name: getTranslation(data, 'name', languages, true),
             reportsCount: data?.reportsCount ?? 0,
@@ -124,14 +123,15 @@ export function OrganizationListItem({
                     </Stack>
                     {/* Star/Comment/Report */}
                     <Stack direction="column" spacing={1}>
-                        {canStar && <StarButton
+                        <StarButton
+                            disabled={!canStar}
                             session={session}
                             objectId={data?.id ?? ''}
                             starFor={StarFor.Organization}
                             isStar={data?.isStarred}
                             stars={data?.stars}
-                        />}
-                        {canReport && reportsCount > 0 && <ReportsButton
+                        />
+                        {reportsCount > 0 && <ReportsButton
                             reportsCount={data?.reportsCount ?? 0}
                             object={data}
                         />}

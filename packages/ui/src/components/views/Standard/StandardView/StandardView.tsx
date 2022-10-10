@@ -309,7 +309,8 @@ export const StandardView = ({
                             alignItems: 'center',
                             justifyContent: 'center',
                         }}>
-                            {canStar && <StarButton
+                            <StarButton
+                                disabled={!canStar}
                                 session={session}
                                 objectId={standard?.id ?? ''}
                                 showStars={false}
@@ -318,7 +319,7 @@ export const StandardView = ({
                                 stars={standard?.stars ?? 0}
                                 onChange={(isStar: boolean) => { standard && setStandard({ ...standard, isStarred: isStar }) }}
                                 tooltipPlacement="bottom"
-                            />}
+                            />
                             <OwnerLabel objectType={ObjectType.Standard} owner={standard?.creator} session={session} />
                             <VersionDisplay
                                 currentVersion={standard?.version}

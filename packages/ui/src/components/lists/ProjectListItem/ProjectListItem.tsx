@@ -20,14 +20,13 @@ export function ProjectListItem({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const { canComment, canEdit, canStar, canReport, canVote, description, name, reportsCount } = useMemo(() => {
+    const { canComment, canEdit, canStar, canVote, description, name, reportsCount } = useMemo(() => {
         const permissions = data?.permissionsProject;
         const languages = session?.languages ?? navigator.languages;
         return {
             canComment: permissions?.canComment === true,
             canEdit: permissions?.canEdit === true,
             canStar: permissions?.canStar === true,
-            canReport: permissions?.canReport === true,
             canVote: permissions?.canVote === true,
             description: getTranslation(data, 'description', languages, true),
             name: getTranslation(data, 'name', languages, true),
@@ -57,14 +56,15 @@ export function ProjectListItem({
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>
-                    {canVote && <UpvoteDownvote
+                    <UpvoteDownvote
+                        disabled={!canVote}
                         session={session}
                         objectId={data?.id ?? ''}
                         voteFor={VoteFor.Project}
                         isUpvoted={data?.isUpvoted}
                         score={data?.score}
                         onChange={(isUpvoted: boolean | null) => { }}
-                    />}
+                    />
                     <Stack
                         direction="column"
                         spacing={1}
@@ -124,18 +124,20 @@ export function ProjectListItem({
                     </Stack>
                     {/* Star/Comment/Report */}
                     <Stack direction="column" spacing={1}>
-                        {canStar && <StarButton
+                        <StarButton
+                            disabled={!canStar}
                             session={session}
                             objectId={data?.id ?? ''}
                             starFor={StarFor.Project}
                             isStar={data?.isStarred}
                             stars={data?.stars}
-                        />}
-                        {canComment && <CommentsButton
+                        />
+                        <CommentsButton
                             commentsCount={data?.commentsCount ?? 0}
+                            disabled={!canComment}
                             object={data}
-                        />}
-                        {canReport && reportsCount > 0 && <ReportsButton
+                        />
+                        {reportsCount > 0 && <ReportsButton
                             reportsCount={data?.reportsCount ?? 0}
                             object={data}
                         />}
