@@ -3,11 +3,11 @@
  */
 import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from "graphql";
-import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, OrganizationSortBy, ProjectSortBy, ResearchPageResult, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, HistoryPageInput, HistoryPageResult, StatisticsPageInput, StatisticsPageResult, Project, Routine, RunStatus, RunSortBy, ViewSortBy, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult } from './types';
+import { OrganizationSortBy, ProjectSortBy, RoutineSortBy, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrRoutinePageInfo, ProjectOrRoutineEdge, ProjectOrOrganizationEdge, ProjectOrOrganizationPageInfo, ProjectOrRoutine, ProjectOrOrganization } from './types';
 import { CODE } from '@shared/consts';
 import { IWrap } from '../types';
 import { Context } from '../context';
-import { addSupplementalFieldsMultiTypes, modelToGraphQL, OrganizationModel, PartialGraphQLInfo, ProjectModel, readManyAsFeed, readManyHelper, RoutineModel, RunModel, StandardModel, StarModel, toPartialGraphQLInfo, UserModel, ViewModel } from '../models';
+import { addSupplementalFieldsMultiTypes, OrganizationModel, PartialGraphQLInfo, ProjectModel, readManyAsFeed, RoutineModel, toPartialGraphQLInfo } from '../models';
 import { CustomError } from '../error';
 import { rateLimit } from '../rateLimit';
 import { resolveProjectOrOrganization, resolveProjectOrOrganizationOrRoutineOrStandardOrUser, resolveProjectOrRoutine } from './resolvers';
@@ -254,7 +254,7 @@ export const resolvers = {
                 prisma,
             )
             // Combine nodes, alternating between projects and routines
-            const nodes = [];
+            const nodes: ProjectOrRoutine[] = [];
             for (let i = 0; i < Math.max(withSupplemental['p'].length, withSupplemental['r'].length); i++) {
                 if (i < withSupplemental['p'].length) {
                     nodes.push(withSupplemental['p'][i]);
@@ -264,7 +264,7 @@ export const resolvers = {
                 }
             }
             // Combine pageInfo
-            const combined = {
+            const combined: ProjectOrRoutineSearchResult = {
                 pageInfo: {
                     hasNextPage: projects?.pageInfo?.hasNextPage ?? routines?.pageInfo?.hasNextPage ?? false,
                     endCursorProject: projects?.pageInfo?.endCursor ?? '',
@@ -358,7 +358,7 @@ export const resolvers = {
                 prisma,
             )
             // Combine nodes, alternating between projects and organizations
-            const nodes = [];
+            const nodes: ProjectOrOrganization[] = [];
             for (let i = 0; i < Math.max(withSupplemental['p'].length, withSupplemental['o'].length); i++) {
                 if (i < withSupplemental['p'].length) {
                     nodes.push(withSupplemental['p'][i]);
@@ -368,7 +368,7 @@ export const resolvers = {
                 }
             }
             // Combine pageInfo
-            const combined = {
+            const combined: ProjectOrOrganizationSearchResult = {
                 pageInfo: {
                     hasNextPage: projects?.pageInfo?.hasNextPage ?? organizations?.pageInfo?.hasNextPage ?? false,
                     endCursorProject: projects?.pageInfo?.endCursor ?? '',

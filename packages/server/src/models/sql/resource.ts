@@ -2,13 +2,14 @@ import { resourceCreate, resourcesCreate, resourcesUpdate, resourceUpdate } from
 import { CODE } from "@shared/consts";
 import { Resource, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Count } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { combineQueries, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, ModelLogic, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { combineQueries, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
 import { OrganizationModel, organizationQuerier } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -141,14 +142,14 @@ export const resourceMutater = (prisma: PrismaType) => ({
         // Shape
         if (Array.isArray(formattedInput.create)) {
             // If title or description is not provided, try querying for the link's og tags TODO
-            const creates = [];
+            const creates: { [x: string]: any }[] = [];
             for (const create of formattedInput.create) {
                 creates.push(this.toDBShape(userId, create as any, true, true));
             }
             formattedInput.create = creates;
         }
         if (Array.isArray(formattedInput.update)) {
-            const updates = [];
+            const updates: { where: { [x: string]: any }, data: { [x: string]: any } }[] = [];
             for (const update of formattedInput.update) {
                 updates.push({
                     where: update.where,
@@ -253,7 +254,7 @@ export const ResourceModel = ({
     format: resourceFormatter(),
     mutate: resourceMutater,
     search: resourceSearcher(),
-    type: 'Resource',
+    type: 'Resource' as GraphQLModelType,
 })
 
 //==============================================================

@@ -3,7 +3,7 @@ import { isObject } from '@shared/utils'
 import { CustomError } from "../../error";
 import { Count, LogType, User, ViewSearchInput, ViewSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { combineQueries, deconstructUnion, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, lowercaseFirstLetter, ModelLogic, ObjectMap, onlyValidIds, PartialGraphQLInfo, readManyHelper, Searcher, timeFrameToPrisma } from "./base";
+import { combineQueries, FormatConverter, getSearchStringQueryHelper, lowercaseFirstLetter, ModelLogic, ObjectMap, onlyValidIds, readManyHelper, Searcher, timeFrameToPrisma } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { OrganizationModel, organizationQuerier } from "./organization";
@@ -13,6 +13,7 @@ import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { UserModel } from "./user";
 import { StandardModel } from "./standard";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -36,24 +37,14 @@ export const viewFormatter = (): FormatConverter<View, any> => ({
             'User': 'User',
         }
     },
-    constructUnions: (data) => {
-        let { organization, project, routine, standard, user, ...modified } = data;
-        if (organization) modified.to = organization;
-        else if (project) modified.to = project;
-        else if (routine) modified.to = routine;
-        else if (standard) modified.to = standard;
-        else if (user) modified.to = user;
-        return modified;
-    },
-    deconstructUnions: (partial) => {
-        let modified = deconstructUnion(partial, 'to', [
-            ['Organization', 'organization'],
-            ['Project', 'project'],
-            ['Routine', 'routine'],
-            ['Standard', 'standard'],
-            ['User', 'user'],
-        ]);
-        return modified;
+    unionMap: {
+        'to': {
+            'Organization': 'organization',
+            'Project': 'project',
+            'Routine': 'routine',
+            'Standard': 'standard',
+            'User': 'user',
+        },
     },
     async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<View>[]> {
         // Query for data that view is applied to
@@ -318,7 +309,7 @@ export const ViewModel = ({
     format: viewFormatter(),
     search: viewSearcher(),
     query: viewQuerier,
-    type: 'View',
+    type: 'View' as GraphQLModelType,
 })
 
 //==============================================================

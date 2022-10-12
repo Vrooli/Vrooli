@@ -3,9 +3,10 @@ import { CODE } from "@shared/consts";
 import { CustomError } from "../../error";
 import { Count, RunStep, RunStepCreateInput, RunStepStatus, RunStepUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
 import { validateProfanity } from "../../utils/censor";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -61,14 +62,14 @@ export const runStepMutater = (prisma: PrismaType) => ({
         let { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         // Further shape the input
         if (createMany) {
-            let result = [];
+            let result: { [x: string]: any }[] = [];
             for (const data of createMany) {
                 result.push(await this.toDBShapeAdd(userId, data as any));
             }
             createMany = result;
         }
         if (updateMany) {
-            let result = [];
+            let result: { where: { [x: string]: any }, data: { [x: string]: any } }[] = [];
             for (const data of updateMany) {
                 result.push({
                     where: data.where,
@@ -177,6 +178,6 @@ export const RunStepModel = ({
     prismaObject: (prisma: PrismaType) => prisma.run_step,
     format: runStepFormatter(),
     mutate: runStepMutater,
-    type: 'RunStep',
+    type: 'RunStep' as GraphQLModelType,
     verify: runStepVerifier(),
 })

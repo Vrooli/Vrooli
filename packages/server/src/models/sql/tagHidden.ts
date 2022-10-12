@@ -4,8 +4,9 @@ import { CustomError } from "../../error";
 import { genErrorCode } from "../../logger";
 import { PrismaType } from "../../types";
 import { Count, TagHidden, TagHiddenCreateInput, TagHiddenUpdateInput } from "../../schema/types";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { TagModel } from "./tag";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -14,7 +15,6 @@ import { TagModel } from "./tag";
 export const tagHiddenFormatter = (): FormatConverter<TagHidden, any> => ({
     relationshipMap: {
         '__typename': 'TagHidden',
-        'user': 'User',
     },
 })
 
@@ -156,7 +156,7 @@ export const TagHiddenModel = ({
     prismaObject: (prisma: PrismaType) => prisma.wallet,
     format: tagHiddenFormatter(),
     mutate: tagHiddenMutater,
-    type: 'TagHidden',
+    type: 'TagHidden' as GraphQLModelType,
 })
 
 //==============================================================

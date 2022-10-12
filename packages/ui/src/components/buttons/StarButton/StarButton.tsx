@@ -64,7 +64,7 @@ export const StarButton = ({
             }}
         >
             <Tooltip placement={tooltipPlacement} title={tooltip}>
-                <Box disabled={disabled} onClick={handleClick} sx={{ display: 'contents', cursor: session?.id ? 'pointer' : 'default' }}>
+                <Box onClick={handleClick} sx={{ display: 'contents', cursor: session?.id ? 'pointer' : 'default' }}>
                     <Icon fill={color} />
                 </Box>
             </Tooltip>

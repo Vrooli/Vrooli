@@ -1,11 +1,11 @@
 import { PrismaType, RecursivePartial } from "../../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor, OrganizationPermission } from "../../schema/types";
-import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, Permissioner, getSearchStringQueryHelper, onlyValidIds, visibilityBuilder, combineQueries, GraphQLModelType, onlyValidHandles } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, Permissioner, getSearchStringQueryHelper, onlyValidIds, visibilityBuilder, combineQueries, onlyValidHandles } from "./base";
 import { CustomError } from "../../error";
 import { organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@shared/validation";
 import { CODE } from '@shared/consts';
 import { omit } from '@shared/utils';
-import { organization_users, role } from "@prisma/client";
+import { role } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { TranslationModel } from "./translation";
@@ -13,6 +13,7 @@ import { ResourceListModel } from "./resourceList";
 import { WalletModel } from "./wallet";
 import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -27,12 +28,10 @@ export const organizationFormatter = (): FormatConverter<Organization, Organizat
         'comments': 'Comment',
         'members': 'Member',
         'projects': 'Project',
-        'projectsCreated': 'Project',
         'reports': 'Report',
         'resourceLists': 'ResourceList',
         'routines': 'Routine',
-        'routersCreated': 'Routine',
-        'standards': 'Standard',
+        'routinesCreated': 'Routine',
         'starredBy': 'User',
         'tags': 'Tag',
     },
@@ -368,7 +367,7 @@ export const OrganizationModel = ({
     permissions: organizationPermissioner,
     search: organizationSearcher(),
     query: organizationQuerier,
-    type: 'Organization',
+    type: 'Organization' as GraphQLModelType,
 })
 
 //==============================================================

@@ -1,6 +1,6 @@
 import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeRoutineListItem, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemCreateInput, RoutinePermission } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, exceptionsBuilder, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, validateMaxObjects, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, exceptionsBuilder, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeJoinTablesHelper, Searcher, selectHelper, toPartialGraphQLInfo, validateMaxObjects, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
 import { CustomError } from "../../error";
 import { inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routineTranslationCreate, routineTranslationUpdate, routineUpdate } from "@shared/validation";
 import { CODE, DeleteOneType } from "@shared/consts";
@@ -18,6 +18,7 @@ import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
 import { runFormatter } from "./run";
 import { uuid } from '@shared/uuid';
+import { GraphQLModelType } from ".";
 
 type NodeWeightData = {
     simplicity: number,
@@ -56,15 +57,15 @@ export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> 
         'starredBy': 'User',
         'tags': 'Tag',
     },
-    constructUnions: (data) => {
-        let modified = addCreatorField(data);
-        modified = addOwnerField(modified);
-        return modified;
-    },
-    deconstructUnions: (partial) => {
-        let modified = removeCreatorField(partial);
-        modified = removeOwnerField(modified);
-        return modified;
+    unionMap: {
+        'creator': {
+            'User': 'createdByUser',
+            'Organization': 'createdByOrganization',
+        },
+        'owner': {
+            'User': 'user',
+            'Organization': 'organization',
+        }
     },
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
@@ -572,7 +573,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         // Validate create
         if (Array.isArray(createMany)) {
             inputsCreate.validateSync(createMany, { abortEarly: false });
-            let result = [];
+            let result: { [x: string]: any }[] = [];
             for (let data of createMany) {
                 // Check for censored words
                 if (hasProfanity(data.name, data.description))
@@ -595,7 +596,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         // Validate update
         if (Array.isArray(updateMany)) {
             inputsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            let result = [];
+            let result: { where: { [x: string]: string }, data: { [x: string]: any } }[]  = [];
             for (let update of updateMany) {
                 // Check for censored words
                 if (hasProfanity(update.data.name, update.data.description))
@@ -640,7 +641,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         if (Array.isArray(createMany)) {
             outputsCreate.validateSync(createMany, { abortEarly: false });
             TranslationModel.profanityCheck(createMany);
-            let result = [];
+            let result: { [x: string]: any }[] = [];
             for (let data of createMany) {
                 // Convert nested relationships
                 result.push({
@@ -661,7 +662,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         if (Array.isArray(updateMany)) {
             outputsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
             TranslationModel.profanityCheck(updateMany.map(u => u.data));
-            let result = [];
+            let result: { where: { [x: string]: string }, data: { [x: string]: any } }[] = [];
             for (let update of updateMany) {
                 // Convert nested relationships
                 result.push({
@@ -1272,7 +1273,7 @@ export const RoutineModel = ({
     mutate: routineMutater,
     permissions: routinePermissioner,
     search: routineSearcher(),
-    type: 'Routine',
+    type: 'Routine' as GraphQLModelType,
 })
 
 //==============================================================

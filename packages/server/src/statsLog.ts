@@ -252,7 +252,7 @@ async function calculateStandards(timeInterval: StatTimeInterval, prisma: Prisma
 async function calculateStats(timeInterval: StatTimeInterval): Promise<{ [key in StatType]: number } & { timestamp: number } | undefined> {
     logger.log(LogLevel.info, 'Starting to calculate site statistics', { code: genErrorCode('0211') });
     const prisma = new PrismaClient();
-    let results = undefined;
+    let results: any = undefined;
     try {
         results = {
             timestamp: Date.now(),

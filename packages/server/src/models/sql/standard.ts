@@ -4,9 +4,9 @@ import { omit } from '@shared/utils';
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count, StandardPermission } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, validateMaxObjects, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, Permissioner, relationshipToPrisma, removeCountFieldsHelper, removeJoinTablesHelper, Searcher, selectHelper, validateMaxObjects, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
 import { validateProfanity } from "../../utils/censor";
-import { OrganizationModel, organizationQuerier } from "./organization";
+import { organizationQuerier } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -17,6 +17,7 @@ import { randomString } from "../../auth/walletAuth";
 import { sortify } from "../../utils/objectTools";
 import { ResourceListModel } from "./resourceList";
 import { uuid } from '@shared/uuid';
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -40,13 +41,11 @@ export const standardFormatter = (): FormatConverter<Standard, StandardPermissio
         'starredBy': 'User',
         'tags': 'Tag',
     },
-    constructUnions: (data) => {
-        let modified = addCreatorField(data);
-        return modified;
-    },
-    deconstructUnions: (partial) => {
-        let modified = removeCreatorField(partial);
-        return modified;
+    unionMap: {
+        'creator': {
+            'User': 'createdByUser',
+            'Organization': 'createdByOrganization',
+        },
     },
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
@@ -651,7 +650,7 @@ export const StandardModel = ({
     permissions: standardPermissioner,
     query: standardQuerier,
     search: standardSearcher(),
-    type: 'Standard',
+    type: 'Standard' as GraphQLModelType,
     verify: standardVerifier(),
 })
 
