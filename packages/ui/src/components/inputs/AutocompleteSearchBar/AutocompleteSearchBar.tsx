@@ -1,13 +1,11 @@
 import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, CircularProgress, IconButton, Input, ListItemIcon, ListItemText, MenuItem, Paper, Tooltip, useTheme } from '@mui/material';
 import { AutocompleteSearchBarProps } from '../types';
-import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
 import { AutocompleteOption } from 'types';
-import { ActionIcon, HistoryIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, StandardIcon, SvgProps, UserIcon } from '@shared/icons';
-import { Delete as DeleteIcon } from '@mui/icons-material';
-import { getLocalStorageKeys, ObjectType, performAction } from 'utils';
+import { ActionIcon, DeleteIcon, HistoryIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, StandardIcon, StarFilledIcon, SvgComponent, UserIcon, VisibleIcon } from '@shared/icons';
+import { getLocalStorageKeys, ObjectType, performAction, useDebounce } from 'utils';
 import { StarFor } from '@shared/consts';
-import { StarButton } from 'components/lists';
+import { StarButton } from 'components/buttons';
 
 type OptionHistory = { timestamp: number, option: AutocompleteOption };
 
@@ -90,7 +88,7 @@ const updateHistoryItems = (searchBarId: string, userId: string, options: Autoco
  * Maps object types to icons
  */
 const typeToIcon = (type: string, fill: string): JSX.Element | null => {
-    let Icon: null | ((props: SvgProps) => JSX.Element) = null;
+    let Icon: null | SvgComponent = null;
     switch (type) {
         case 'Action':
             Icon = ActionIcon;
@@ -104,14 +102,23 @@ const typeToIcon = (type: string, fill: string): JSX.Element | null => {
         case ObjectType.Routine:
             Icon = RoutineIcon;
             break;
+        case ObjectType.Run:
+            Icon = PlayIcon;
+            break;
         case 'Shortcut':
             Icon = ShortcutIcon;
             break;
         case ObjectType.Standard:
             Icon = StandardIcon;
             break;
+        case ObjectType.Star:
+            Icon = StarFilledIcon;
+            break;
         case ObjectType.User:
             Icon = UserIcon;
+            break;
+        case ObjectType.View:
+            Icon = VisibleIcon;
             break;
     }
     return Icon ? <Icon fill={fill} /> : null;
@@ -139,10 +146,7 @@ export function AutocompleteSearchBar({
     // Highlighted option (if navigated with keyboard)
     const [highlightedOption, setHighlightedOption] = useState<AutocompleteOption | null>(null);
 
-    const onChangeDebounced = useMemo(() => AwesomeDebouncePromise(
-        onChange,
-        debounce,
-    ), [onChange, debounce]);
+    const onChangeDebounced = useDebounce(onChange, debounce);
     useEffect(() => setInternalValue(value), [value]);
     const handleChange = useCallback((event: ChangeEvent<any>) => {
         console.log('handle text change', event.target.value)
@@ -161,7 +165,7 @@ export function AutocompleteSearchBar({
         // Grab history from local storage
         const searchHistory = getSearchHistory(id, session.id ?? '');
         // Filter out history keys that don't contain internal value
-        let filteredHistory = Object.entries(searchHistory).filter(([key]) => key.includes(internalValue));
+        let filteredHistory = Object.entries(searchHistory).filter(([key]) => key.toLowerCase().includes(internalValue.toLowerCase()));
         // Order remaining history keys by most recent. Value is stored as { timestamp: string, value: AutocompleteOption }
         filteredHistory = filteredHistory.sort((a, b) => { return b[1].timestamp - a[1].timestamp });
         // Convert history keys to options
@@ -353,7 +357,7 @@ export function AutocompleteSearchBar({
                                 event.stopPropagation();
                                 removeFromHistory(option);
                             }}>
-                                <DeleteIcon sx={{ fill: optionColor(true, true) }} />
+                                <DeleteIcon fill={optionColor(true, true)} />
                             </IconButton>
                         </Tooltip>}
                     </MenuItem>

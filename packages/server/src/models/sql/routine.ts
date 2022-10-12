@@ -1,12 +1,12 @@
 import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeRoutineListItem, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemCreateInput, RoutinePermission } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, addSupplementalFieldsHelper, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialGraphQLInfo, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, exceptionsBuilder, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeJoinTablesHelper, Searcher, selectHelper, toPartialGraphQLInfo, validateMaxObjects, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
 import { CustomError } from "../../error";
 import { inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routineTranslationCreate, routineTranslationUpdate, routineUpdate } from "@shared/validation";
 import { CODE, DeleteOneType } from "@shared/consts";
-import { omit } from '@shared/utils'; 
+import { omit } from '@shared/utils';
 import { hasProfanity } from "../../utils/censor";
-import { OrganizationModel } from "./organization";
+import { OrganizationModel, organizationQuerier } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -17,7 +17,8 @@ import { ResourceListModel } from "./resourceList";
 import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
 import { runFormatter } from "./run";
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
+import { GraphQLModelType } from ".";
 
 type NodeWeightData = {
     simplicity: number,
@@ -32,7 +33,7 @@ type NodeWeightData = {
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', nodesCount: 'nodes', reportsCount: 'reports' };
-const supplementalFields = ['isUpvoted', 'isStarred', 'isViewed', 'permissionsRoutine', 'runs'];
+const supplementalFields = ['isUpvoted', 'isStarred', 'isViewed', 'permissionsRoutine', 'runs', 'versions'];
 export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> => ({
     relationshipMap: {
         '__typename': 'Routine',
@@ -56,15 +57,15 @@ export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> 
         'starredBy': 'User',
         'tags': 'Tag',
     },
-    constructUnions: (data) => {
-        let modified = addCreatorField(data);
-        modified = addOwnerField(modified);
-        return modified;
-    },
-    deconstructUnions: (partial) => {
-        let modified = removeCreatorField(partial);
-        modified = removeOwnerField(modified);
-        return modified;
+    unionMap: {
+        'creator': {
+            'User': 'createdByUser',
+            'Organization': 'createdByOrganization',
+        },
+        'owner': {
+            'User': 'user',
+            'Organization': 'organization',
+        }
     },
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
@@ -79,7 +80,7 @@ export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> 
                 ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Routine')],
                 ['isUpvoted', async (ids) => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Routine')],
                 ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Routine')],
-                ['permissionsRoutine', async () => await RoutineModel.permissions(prisma).get({ objects, permissions, userId })],
+                ['permissionsRoutine', async () => await RoutineModel.permissions().get({ objects, permissions, prisma, userId })],
                 ['runs', async (ids) => {
                     if (userId) {
                         // Find requested fields of runs. Also add routineId, so we 
@@ -113,83 +114,120 @@ export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> 
                         return new Array(objects.length).fill([]);
                     }
                 }],
+                ['versions', async (ids) => {
+                    // Find versionGroupIds of routines
+                    const groupData = await prisma.routine.findMany({
+                        where: {
+                            id: { in: ids },
+                        },
+                        select: {
+                            version: true,
+                            versionGroupId: true,
+                        }
+                    });
+                    // Find unique versionGroupIds
+                    const versionGroupIds = new Set(groupData.map(r => r.versionGroupId).filter(Boolean) as string[]);
+                    // Find all versions of routines in versionGroupIds
+                    const versions = await prisma.routine.findMany({
+                        where: {
+                            versionGroupId: { in: [...versionGroupIds] },
+                        },
+                        select: {
+                            id: true,
+                            version: true,
+                            versionGroupId: true,
+                        }
+                    });
+                    // For every routine from ids, find all versions of that routine
+                    const result = groupData.map((r) => {
+                        if (r.versionGroupId) {
+                            return versions.filter(v => v.versionGroupId === r.versionGroupId).map(v => v.version);
+                        } else {
+                            return [r.version];
+                        }
+                    });
+                    return result;
+                }],
             ]
         });
     }
 })
 
-export const routinePermissioner = (prisma: PrismaType): Permissioner<RoutinePermission, RoutineSearchInput> => ({
+export const routinePermissioner = (): Permissioner<RoutinePermission, RoutineSearchInput> => ({
     async get({
         objects,
         permissions,
+        prisma,
         userId,
     }) {
-        // Initialize result with ID
-        const result = objects.map((o) => ({
-            canComment: true,
-            canDelete: false,
-            canEdit: false,
-            canFork: true,
-            canReport: true,
-            canRun: true,
-            canStar: true,
-            canView: true,
-            canVote: true,
+        // Initialize result with default permissions
+        const result: (RoutinePermission & { id?: string })[] = objects.map((o) => ({
+            id: o.id,
+            canComment: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
+            canDelete: false, // own && !isDeleted
+            canEdit: false, // own && !isDeleted
+            canFork: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
+            canReport: true, // !own && !isDeleted && !isInternal && !isPrivate
+            canRun: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
+            canStar: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
+            canView: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
+            canVote: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
         }));
-        if (!userId) return result;
-        const ids = objects.map(x => x.id);
-        let ownerData: { 
-            id: string, 
-            user?: { id: string } | null | undefined, 
-            organization?: { id: string } | null | undefined
-        }[] = [];
-        // If some owner data missing, query for owner data.
-        if (onlyValidIds(objects.map(x => x.owner)).length < objects.length) {
-            ownerData = await prisma.routine.findMany({
-                where: { id: { in: ids } },
-                select: {
-                    id: true,
-                    user: { select: { id: true } },
-                    organization: { select: { id: true } },
+        // Check ownership
+        if (userId) {
+            // Query for objects owned by user, or an organization they have an admin role in
+            const owned = await prisma.routine.findMany({
+                where: {
+                    id: { in: onlyValidIds(objects.map(o => o.id)) },
+                    ...this.ownershipQuery(userId),
                 },
-            });
-        } else {
-            ownerData = objects.map((x) => {
-                const isOrg = Boolean(Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name);
-                return ({
-                    id: x.id,
-                    user: isOrg ? null : x.owner,
-                    organization: isOrg ? x.owner : null,
-                });
+                select: { id: true, isDeleted: true },
+            })
+            // Set permissions for owned objects
+            owned.forEach((o) => {
+                const index = objects.findIndex((r) => r.id === o.id);
+                result[index] = {
+                    ...result[index],
+                    canComment: !o.isDeleted,
+                    canDelete: !o.isDeleted,
+                    canEdit: !o.isDeleted,
+                    canFork: !o.isDeleted,
+                    canReport: false,
+                    canRun: !o.isDeleted,
+                    canStar: !o.isDeleted,
+                    canView: !o.isDeleted,
+                    canVote: !o.isDeleted,
+                }
             });
         }
-        // Find permissions for every organization
-        const organizationIds: string[] = ownerData.map(x => x.organization?.id).filter(x => Boolean(x)) as string[];
-        const orgPermissions = await OrganizationModel.permissions(prisma).get({ 
-            objects: organizationIds.map(x => ({ id: x })),
-            userId 
-        });
-        // Find which objects have ownership permissions
-        for (let i = 0; i < objects.length; i++) {
-            const unformatted = ownerData.find(y => y.id === objects[i].id);
-            if (!unformatted) continue;
-            // Check if user owns object directly, or through organization
-            if (unformatted.user?.id !== userId) {
-                const orgIdIndex = organizationIds.findIndex(id => id === unformatted?.organization?.id);
-                if (orgIdIndex < 0) continue;
-                if (!orgPermissions[orgIdIndex].canEdit) continue;
+        // Query all objects
+        const all = await prisma.routine.findMany({
+            where: {
+                id: { in: onlyValidIds(objects.map(o => o.id)) },
+            },
+            select: { id: true, isDeleted: true, isInternal: true, isPrivate: true },
+        })
+        // Set permissions for all objects
+        all.forEach((o) => {
+            const index = objects.findIndex((r) => r.id === o.id);
+            result[index] = {
+                ...result[index],
+                canComment: result[index].canComment || (!o.isDeleted && !o.isInternal && !o.isPrivate),
+                canFork: result[index].canFork || (!o.isDeleted && !o.isInternal && !o.isPrivate),
+                canReport: result[index].canReport === false ? false : (!o.isDeleted && !o.isInternal && !o.isPrivate),
+                canRun: result[index].canRun || (!o.isDeleted && !o.isInternal && !o.isPrivate),
+                canStar: result[index].canStar || (!o.isDeleted && !o.isInternal && !o.isPrivate),
+                canView: result[index].canView || (!o.isDeleted && !o.isInternal && !o.isPrivate),
+                canVote: result[index].canVote || (!o.isDeleted && !o.isInternal && !o.isPrivate),
             }
-            // Set owner permissions
-            result[i].canDelete = true;
-            result[i].canEdit = true;
-            result[i].canView = true;
-        }
-        // TODO isPrivate view check
-        // TODO check relationships for permissions
-        return result;
+        });
+        // Return result with IDs removed
+        result.forEach((r) => delete r.id);
+        return result as RoutinePermission[];
     },
     async canSearch({
         input,
+        prisma,
         userId
     }) {
         //TODO
@@ -197,7 +235,7 @@ export const routinePermissioner = (prisma: PrismaType): Permissioner<RoutinePer
     },
     ownershipQuery: (userId) => ({
         OR: [
-            { organization: { roles: { some: { assignees: { some: { user: { id: userId } } } } } } },
+            organizationQuerier().hasRoleInOrganizationQuery(userId),
             { user: { id: userId } }
         ]
     })
@@ -224,8 +262,9 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({ searchString,
-            resolver: ({ insensitive }) => ({ 
+        return getSearchStringQueryHelper({
+            searchString,
+            resolver: ({ insensitive }) => ({
                 OR: [
                     { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
                     { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
@@ -234,56 +273,45 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
             })
         })
     },
-    customQueries(input: RoutineSearchInput): { [x: string]: any } {
-        // isComplete routines may be set to true or false generally, and also set exceptions
-        let isComplete: any;
-        if (Array.isArray(input.isCompleteExceptions) && input.isCompleteExceptions.length > 0) {
-            isComplete = { OR: [{ isComplete: input.isComplete }] };
-            for (const exception of input.isCompleteExceptions) {
-                if (['createdByOrganization', 'createdByUser', 'organization', 'parent', 'project', 'user'].includes(exception.relation)) {
-                    isComplete.OR.push({ [exception.relation]: { id: exception.id } });
-                }
-            }
-        } else {
-            isComplete = { isComplete: input.isComplete };
-        }
-        // isInternal routines may be set to true or false generally, and also set exceptions
-        let isInternal: any;
-        if (Array.isArray(input.isInternalExceptions) && input.isInternalExceptions.length > 0) {
-            console.log('internal is here', JSON.stringify(input.isInternalExceptions), input.isInternal);
-            isInternal = { OR: [{ isInternal: input.isInternal }] };
-            for (const exception of input.isInternalExceptions) {
-                if (['createdByOrganization', 'createdByUser', 'organization', 'parent', 'project', 'user'].includes(exception.relation)) {
-                    isInternal.OR.push({ [exception.relation]: { id: exception.id } });
-                }
-            }
-        } else {
-            isInternal = { isInternal: input.isInternal };
-        }
-        return {
-            ...(input.excludeIds !== undefined ? { NOT: { id: { in: input.excludeIds } } } : {}),
-            ...(input.excludeIds !== undefined ? { NOT: { id: { in: input.excludeIds } } } : {}),
-            ...isComplete,
-            ...isInternal,
-            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            ...(input.minComplexity !== undefined ? { complexity: { gte: input.minComplexity } } : {}),
-            ...(input.maxComplexity !== undefined ? { complexity: { lte: input.maxComplexity } } : {}),
-            ...(input.minSimplicity !== undefined ? { simplicity: { gte: input.minSimplicity } } : {}),
-            ...(input.maxSimplicity !== undefined ? { simplicity: { lte: input.maxSimplicity } } : {}),
-            ...(input.maxTimesCompleted !== undefined ? { timesCompleted: { lte: input.maxTimesCompleted } } : {}),
-            ...(input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
-            ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-            ...(input.minTimesCompleted !== undefined ? { timesCompleted: { gte: input.minTimesCompleted } } : {}),
-            ...(input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            ...(input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
-            ...(input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
-            ...(input.userId !== undefined ? { userId: input.userId } : {}),
-            ...(input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
-            ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
-            ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
-            ...(input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
-            ...(input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
-        }
+    customQueries(input: RoutineSearchInput, userId: string | null | undefined): { [x: string]: any } {
+        const isComplete = exceptionsBuilder({
+            canQuery: ['createdByOrganization', 'createdByUser', 'organization.id', 'project.id', 'user.id'],
+            exceptionField: 'isCompleteExceptions',
+            input,
+            mainField: 'isComplete',
+        })
+        const isInternal = exceptionsBuilder({
+            canQuery: ['createdByOrganization', 'createdByUser', 'organization.id', 'project.id', 'user.id'],
+            defaultValue: false,
+            exceptionField: 'isInternalExceptions',
+            input,
+            mainField: 'isInternal',
+        })
+        console.log('before routine customqueries combinequeries', JSON.stringify(isComplete), '\n', JSON.stringify(isInternal), '\n');
+        return combineQueries([
+            isComplete,
+            isInternal,
+            visibilityBuilder({ model: RoutineModel, userId, visibility: input.visibility }),
+            (input.excludeIds !== undefined ? { NOT: { id: { in: input.excludeIds } } } : {}),
+            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            (input.minComplexity !== undefined ? { complexity: { gte: input.minComplexity } } : {}),
+            (input.maxComplexity !== undefined ? { complexity: { lte: input.maxComplexity } } : {}),
+            (input.minSimplicity !== undefined ? { simplicity: { gte: input.minSimplicity } } : {}),
+            (input.maxSimplicity !== undefined ? { simplicity: { lte: input.maxSimplicity } } : {}),
+            (input.maxTimesCompleted !== undefined ? { timesCompleted: { lte: input.maxTimesCompleted } } : {}),
+            (input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
+            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
+            (input.minTimesCompleted !== undefined ? { timesCompleted: { gte: input.minTimesCompleted } } : {}),
+            (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
+            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            (input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
+            (input.userId !== undefined ? { userId: input.userId } : {}),
+            (input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
+            (input.projectId !== undefined ? { projectId: input.projectId } : {}),
+            (input.parentId !== undefined ? { parentId: input.parentId } : {}),
+            (input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
+            (input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
+        ])
     },
 })
 
@@ -512,6 +540,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             simplicity: simplicity,
             isInternal: data.isInternal ?? undefined,
             parentId: (data as RoutineCreateInput)?.parentId ?? undefined,
+            projectId: data.projectId ?? undefined,
             version: data.version ?? undefined,
             versionGroupId: isAdd ? uuid() : undefined,
             resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, isAdd),
@@ -544,7 +573,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         // Validate create
         if (Array.isArray(createMany)) {
             inputsCreate.validateSync(createMany, { abortEarly: false });
-            let result = [];
+            let result: { [x: string]: any }[] = [];
             for (let data of createMany) {
                 // Check for censored words
                 if (hasProfanity(data.name, data.description))
@@ -567,7 +596,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         // Validate update
         if (Array.isArray(updateMany)) {
             inputsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            let result = [];
+            let result: { where: { [x: string]: string }, data: { [x: string]: any } }[]  = [];
             for (let update of updateMany) {
                 // Check for censored words
                 if (hasProfanity(update.data.name, update.data.description))
@@ -612,7 +641,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         if (Array.isArray(createMany)) {
             outputsCreate.validateSync(createMany, { abortEarly: false });
             TranslationModel.profanityCheck(createMany);
-            let result = [];
+            let result: { [x: string]: any }[] = [];
             for (let data of createMany) {
                 // Convert nested relationships
                 result.push({
@@ -633,7 +662,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         if (Array.isArray(updateMany)) {
             outputsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
             TranslationModel.profanityCheck(updateMany.map(u => u.data));
-            let result = [];
+            let result: { where: { [x: string]: string }, data: { [x: string]: any } }[] = [];
             for (let update of updateMany) {
                 // Convert nested relationships
                 result.push({
@@ -721,21 +750,14 @@ export const routineMutater = (prisma: PrismaType) => ({
         if (!createMany && !updateMany && !deleteMany) return;
         if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0093') });
-        // Collect organizationIds from each object, and check if the user is an admin/owner of every organization
-        const organizationIds: (string | null | undefined)[] = [];
+        // Validate userIds, organizationIds, and projectIds
+        await validateObjectOwnership({ userId, createMany, updateMany, deleteMany, prisma, objectType: 'Routine' });
+        // Validate max objects
+        await validateMaxObjects({ userId, createMany, updateMany, deleteMany, prisma, objectType: 'Routine', maxCount: 2500 });
         if (createMany) {
             routinesCreate.validateSync(createMany, { abortEarly: false });
             TranslationModel.profanityCheck(createMany);
-            // Add createdByOrganizationIds to organizationIds array, if they are set
-            organizationIds.push(...onlyValidIds(createMany.map(input => input.createdByOrganizationId)));
             createMany.forEach(input => this.validateNodePositions(input));
-            // Check if user will pass max routines limit
-            const existingCount = await prisma.routine.count({
-                where: { ...routinePermissioner(prisma).ownershipQuery(userId) }
-            })
-            if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 2500) {
-                throw new CustomError(CODE.MaxRoutinesReached, 'Maximum routines reached on this account', { code: genErrorCode('0094') });
-            }
         }
         if (updateMany) {
             // Query version numbers and isCompletes of existing routines. 
@@ -746,33 +768,8 @@ export const routineMutater = (prisma: PrismaType) => ({
                 TranslationModel.profanityCheck([update.data]);
             }
             TranslationModel.profanityCheck(updateMany.map(u => u.data));
-            // Add new organizationIds to organizationIds array, if they are set
-            organizationIds.push(...updateMany.map(input => input.data.organizationId).filter(id => id))
-            // Add existing organizationIds to organizationIds array, if userId does not match the object's userId
-            const objects = await prisma.routine.findMany({
-                where: { id: { in: updateMany.map(input => input.where.id) } },
-                select: { id: true, userId: true, organizationId: true },
-            });
-            organizationIds.push(...objects.filter(object => object.userId !== userId).map(object => object.organizationId));
             updateMany.forEach(input => this.validateNodePositions(input.data));
         }
-        if (deleteMany) {
-            const objects = await prisma.routine.findMany({
-                where: { id: { in: deleteMany } },
-                select: { id: true, userId: true, organizationId: true },
-            });
-            // Split objects by userId and organizationId
-            const userIds = objects.filter(object => Boolean(object.userId)).map(object => object.userId);
-            if (userIds.some(id => id !== userId))
-                throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0242') })
-            // Add to organizationIds array, to check ownership status
-            organizationIds.push(...objects.filter(object => !userId.includes(object.organizationId ?? '')).map(object => object.organizationId));
-        }
-        // Find role for every organization
-        const roles = await OrganizationModel.query(prisma).hasRole(userId ?? '', organizationIds);
-        // If any role is undefined, the user is not authorized to delete one or more objects
-        if (roles.some(role => !role))
-            throw new CustomError(CODE.Unauthorized, 'Not authorized.', { code: genErrorCode('0095') })
     },
     /**
      * Performs adds, updates, and deletes of routines. First validates that every action is allowed.
@@ -837,6 +834,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                     data,
                     ...selectHelper(partialInfo)
                 });
+                // TODO handle version update
                 // Convert to GraphQL
                 const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array
@@ -1035,7 +1033,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         }
         // If routine is marked as internal and it doesn't belong to you
         else if (routine.isInternal && routine.userId !== userId) {
-            const roles = await OrganizationModel.query(prisma).hasRole(userId, [routine.organizationId]);
+            const roles = await OrganizationModel.query().hasRole(prisma, userId, [routine.organizationId]);
             if (roles.some(role => !role))
                 throw new CustomError(CODE.Unauthorized, 'Not authorized to copy', { code: genErrorCode('0226') })
         }
@@ -1275,6 +1273,7 @@ export const RoutineModel = ({
     mutate: routineMutater,
     permissions: routinePermissioner,
     search: routineSearcher(),
+    type: 'Routine' as GraphQLModelType,
 })
 
 //==============================================================

@@ -5,12 +5,12 @@
  * Otherwise, a popup is displayed to allow the user to manually specify which node the link should connect to.
  */
 import { Box, Stack, useTheme } from '@mui/material';
-import { NodeColumn, NodeEdge } from 'components';
+import { NodeColumn, NodeEdge, SnackSeverity } from 'components';
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NodeGraphProps } from '../types';
 import { Node } from 'types';
 import { NodeType } from 'graphql/generated/globalTypes';
-import { PubSub, usePinchZoom } from 'utils';
+import { firstString, PubSub, usePinchZoom } from 'utils';
 
 type DragRefs = {
     currPosition: { x: number, y: number } | null; // Current position of the cursor
@@ -166,7 +166,7 @@ export const NodeGraph = ({
         // First, find the node being dropped
         const node: Node = nodesById[nodeId];
         if (!node) {
-            PubSub.get().publishSnack({ message: `Dropped node ${nodeId} not found` });
+            PubSub.get().publishSnack({ message: `Dropped node ${nodeId} not found`, severity: SnackSeverity.Error });
             return;
         }
         // Next, check if the node was dropped into "Unlinked" container. 
@@ -188,7 +188,7 @@ export const NodeGraph = ({
         }
         // If columnIndex is start node or earlier, return
         if (columnIndex < 0 || columnIndex >= columns.length) {
-            PubSub.get().publishSnack({ message: 'Cannot drop node here', severity: 'error' })
+            PubSub.get().publishSnack({ message: 'Cannot drop node here', severity: SnackSeverity.Error })
             return;
         }
         // Get the drop row
@@ -327,7 +327,7 @@ export const NodeGraph = ({
             const toNode = nodesById[link.toId];
             if (!fromNode || !toNode) return null;
             return <NodeEdge
-                key={`edge-${link.id ?? 'new-' + fromNode.id + '-to-' + toNode.id}`}
+                key={`edge-${firstString(link.id, 'new-') + fromNode.id + '-to-' + toNode.id}`}
                 fastUpdate={fastUpdate}
                 link={link}
                 isEditing={isEditing}

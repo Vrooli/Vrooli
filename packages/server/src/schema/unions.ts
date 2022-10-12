@@ -3,11 +3,11 @@
  */
 import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from "graphql";
-import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, OrganizationSortBy, ProjectSortBy, ResearchPageResult, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, HistoryPageInput, HistoryPageResult, StatisticsPageInput, StatisticsPageResult, Project, Routine, RunStatus, RunSortBy, ViewSortBy, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult } from './types';
+import { OrganizationSortBy, ProjectSortBy, RoutineSortBy, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrRoutinePageInfo, ProjectOrRoutineEdge, ProjectOrOrganizationEdge, ProjectOrOrganizationPageInfo, ProjectOrRoutine, ProjectOrOrganization } from './types';
 import { CODE } from '@shared/consts';
 import { IWrap } from '../types';
 import { Context } from '../context';
-import { addSupplementalFieldsMultiTypes, modelToGraphQL, OrganizationModel, PartialGraphQLInfo, ProjectModel, readManyAsFeed, readManyHelper, RoutineModel, RunModel, StandardModel, StarModel, toPartialGraphQLInfo, UserModel, ViewModel } from '../models';
+import { addSupplementalFieldsMultiTypes, OrganizationModel, PartialGraphQLInfo, ProjectModel, readManyAsFeed, RoutineModel, toPartialGraphQLInfo } from '../models';
 import { CustomError } from '../error';
 import { rateLimit } from '../rateLimit';
 import { resolveProjectOrOrganization, resolveProjectOrOrganizationOrRoutineOrStandardOrUser, resolveProjectOrRoutine } from './resolvers';
@@ -48,9 +48,8 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
-        includePrivate: Boolean
         isComplete: Boolean
-        isCompleteExceptions: [BooleanSearchException!]
+        isCompleteExceptions: [SearchException!]
         languages: [String!]
         minScore: Int
         minStars: Int
@@ -77,6 +76,7 @@ export const typeDef = gql`
         take: Int
         updatedTimeFrame: TimeFrame
         userId: ID
+        visibility: VisibilityType
     }
 
     type ProjectOrRoutineSearchResult {
@@ -99,7 +99,6 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
-        includePrivate: Boolean
         languages: [String!]
         minStars: Int
         minViews: Int
@@ -110,7 +109,7 @@ export const typeDef = gql`
         organizationRoutineId: ID
         projectAfter: String
         projectIsComplete: Boolean
-        projectIsCompleteExceptions: [BooleanSearchException!]
+        projectIsCompleteExceptions: [SearchException!]
         projectMinScore: Int
         projectOrganizationId: ID
         projectParentId: ID
@@ -123,6 +122,7 @@ export const typeDef = gql`
         take: Int
         updatedTimeFrame: TimeFrame
         userId: ID
+        visibility: VisibilityType
     }
 
     type ProjectOrOrganizationSearchResult {
@@ -176,16 +176,12 @@ export const resolvers = {
             if (input.objectType === undefined || input.objectType === 'Project') {
                 projects = await readManyAsFeed({
                     ...commonReadParams,
-                    additionalQueries: input.includePrivate ?
-                        ProjectModel.permissions(prisma).ownershipQuery(userId) :
-                        { isPrivate: false },
                     info: (partial as any).Project,
                     input: {
                         after: input.projectAfter,
                         createdTimeFrame: input.createdTimeFrame,
                         excludeIds: input.excludeIds,
                         ids: input.ids,
-                        includePrivate: input.includePrivate,
                         isComplete: input.isComplete,
                         isCompleteExceptions: input.isCompleteExceptions,
                         languages: input.languages,
@@ -203,6 +199,7 @@ export const resolvers = {
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
                         userId,
+                        visibility: input.visibility,
                     },
                     model: ProjectModel,
                 });
@@ -212,16 +209,12 @@ export const resolvers = {
             if (input.objectType === undefined || input.objectType === 'Routine') {
                 routines = await readManyAsFeed({
                     ...commonReadParams,
-                    additionalQueries: input.includePrivate ?
-                        RoutineModel.permissions(prisma).ownershipQuery(userId) :
-                        { isPrivate: false },
                     info: (partial as any).Routine,
                     input: {
                         after: input.routineAfter,
                         createdTimeFrame: input.createdTimeFrame,
                         excludeIds: input.excludeIds,
                         ids: input.ids,
-                        includePrivate: input.includePrivate,
                         isInternal: false,
                         isComplete: input.isComplete,
                         isCompleteExceptions: input.isCompleteExceptions,
@@ -247,6 +240,7 @@ export const resolvers = {
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
                         userId,
+                        visibility: input.visibility,
                     },
                     model: RoutineModel,
                 });
@@ -260,7 +254,7 @@ export const resolvers = {
                 prisma,
             )
             // Combine nodes, alternating between projects and routines
-            const nodes = [];
+            const nodes: ProjectOrRoutine[] = [];
             for (let i = 0; i < Math.max(withSupplemental['p'].length, withSupplemental['r'].length); i++) {
                 if (i < withSupplemental['p'].length) {
                     nodes.push(withSupplemental['p'][i]);
@@ -270,7 +264,7 @@ export const resolvers = {
                 }
             }
             // Combine pageInfo
-            const combined = {
+            const combined: ProjectOrRoutineSearchResult = {
                 pageInfo: {
                     hasNextPage: projects?.pageInfo?.hasNextPage ?? routines?.pageInfo?.hasNextPage ?? false,
                     endCursorProject: projects?.pageInfo?.endCursor ?? '',
@@ -296,16 +290,12 @@ export const resolvers = {
             if (input.objectType === undefined || input.objectType === 'Project') {
                 projects = await readManyAsFeed({
                     ...commonReadParams,
-                    additionalQueries: input.includePrivate ?
-                        ProjectModel.permissions(prisma).ownershipQuery(userId) :
-                        { isPrivate: false },
                     info: (partial as any).Project,
                     input: {
                         after: input.projectAfter,
                         createdTimeFrame: input.createdTimeFrame,
                         excludeIds: input.excludeIds,
                         ids: input.ids,
-                        includePrivate: input.includePrivate,
                         isComplete: input.projectIsComplete,
                         isCompleteExceptions: input.projectIsCompleteExceptions,
                         languages: input.languages,
@@ -323,6 +313,7 @@ export const resolvers = {
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
                         userId,
+                        visibility: input.visibility,
                     },
                     model: ProjectModel,
                 });
@@ -332,16 +323,12 @@ export const resolvers = {
             if (input.objectType === undefined || input.objectType === 'Organization') {
                 organizations = await readManyAsFeed({
                     ...commonReadParams,
-                    additionalQueries: input.includePrivate ?
-                        OrganizationModel.permissions(prisma).ownershipQuery(userId) :
-                        { isPrivate: false },
                     info: (partial as any).Organization,
                     input: {
                         after: input.organizationAfter,
                         createdTimeFrame: input.createdTimeFrame,
                         excludeIds: input.excludeIds,
                         ids: input.ids,
-                        includePrivate: input.includePrivate,
                         languages: input.languages,
                         minStars: input.minStars,
                         minViews: input.minViews,
@@ -357,6 +344,7 @@ export const resolvers = {
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
                         userId,
+                        visibility: input.visibility,
                     },
                     model: OrganizationModel,
                 });
@@ -370,7 +358,7 @@ export const resolvers = {
                 prisma,
             )
             // Combine nodes, alternating between projects and organizations
-            const nodes = [];
+            const nodes: ProjectOrOrganization[] = [];
             for (let i = 0; i < Math.max(withSupplemental['p'].length, withSupplemental['o'].length); i++) {
                 if (i < withSupplemental['p'].length) {
                     nodes.push(withSupplemental['p'][i]);
@@ -380,7 +368,7 @@ export const resolvers = {
                 }
             }
             // Combine pageInfo
-            const combined = {
+            const combined: ProjectOrOrganizationSearchResult = {
                 pageInfo: {
                     hasNextPage: projects?.pageInfo?.hasNextPage ?? organizations?.pageInfo?.hasNextPage ?? false,
                     endCursorProject: projects?.pageInfo?.endCursor ?? '',

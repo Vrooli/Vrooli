@@ -6,15 +6,13 @@
  *      PubSub.get().publishSnack({ message: 'Hello World' });
  */
 import { COOKIE, ValueOf } from '@shared/consts';
-import { AlertDialogState, SnackPub } from 'components';
+import { AlertDialogState } from 'components';
 
 export const Pubs = {
     ...COOKIE,
     Celebration: "celebration",
     Loading: "loading",
     AlertDialog: "alertDialog",
-    Snack: "snack",
-    ArrowMenuOpen: "arrowMenuOpen",
     Theme: "theme",
     NodeDrag: "NodeDrag",
     NodeDrop: "NodeDrop",
@@ -49,12 +47,6 @@ export class PubSub {
     publishAlertDialog(data: AlertDialogState) {
         this.publish(Pubs.AlertDialog, data);
     }
-    publishSnack(data: SnackPub) {
-        this.publish(Pubs.Snack, data);
-    }
-    publishArrowMenuOpen(data: boolean) {
-        this.publish(Pubs.ArrowMenuOpen, data);
-    }
     publishTheme(theme: 'light' | 'dark') {
         this.publish(Pubs.Theme, theme);
     }
@@ -82,15 +74,6 @@ export class PubSub {
     }
     subscribeAlertDialog(subscriber: (data: AlertDialogState) => void) {
         return this.subscribe(Pubs.AlertDialog, subscriber);
-    }
-    subscribeSnack(subscriber: (data: SnackPub) => void) {
-        return this.subscribe(Pubs.Snack, subscriber);
-    }
-    subscribeArrowMenuOpen(subscriber: (data: boolean) => void) {
-        return this.subscribe(Pubs.ArrowMenuOpen, subscriber);
-    }
-    subscribeTheme(subscriber: (theme: 'light' | 'dark') => void) {
-        return this.subscribe(Pubs.Theme, subscriber);
     }
     subscribeNodeDrag(subscriber: (data: { nodeId: string }) => void) {
         return this.subscribe(Pubs.NodeDrag, subscriber);

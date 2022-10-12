@@ -18,10 +18,9 @@ import {
 } from '../styles';
 import { multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { NodeDataRoutineList, NodeDataRoutineListItem } from 'types';
-import { getTranslation, BuildAction, updateTranslationFields, PubSub, usePress } from 'utils';
+import { getTranslation, BuildAction, updateTranslationFields, PubSub, usePress, firstString, useDebounce } from 'utils';
 import { EditableLabel } from 'components/inputs';
 import { AddIcon, CloseIcon, ExpandLessIcon, ExpandMoreIcon } from '@shared/icons';
-import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { requiredErrorMessage, title as titleValidation } from '@shared/validation';
 
 /**
@@ -60,7 +59,7 @@ export const RoutineListNode = ({
 
     // Default to open if editing and empty
     const [collapseOpen, setCollapseOpen] = useState<boolean>(isEditing && (node?.data as NodeDataRoutineList)?.routines?.length === 0);
-    const collapseDebounce = useMemo(() => AwesomeDebouncePromise(setCollapseOpen, 20), []);
+    const collapseDebounce = useDebounce(setCollapseOpen, 20);
     const toggleCollapse = useCallback((target: React.MouseEvent['target']) => {
         if (isLinked && shouldCollapse((target as any).id)) {
             PubSub.get().publishFastUpdate({ duration: 1000 });
@@ -183,7 +182,7 @@ export const RoutineListNode = ({
                             lineBreak: 'anywhere' as any,
                             whiteSpace: 'pre' as any,
                         } as CSSProperties}
-                    >{t ?? 'Untitled'}</Typography>
+                    >{firstString(t, 'Untitled')}</Typography>
                 )}
                 sxs={{
                     stack: {
@@ -346,7 +345,7 @@ export const RoutineListNode = ({
                 handleSelect={(option) => { handleAction(option, node.id) }}
                 zIndex={zIndex + 1}
             />
-            <Tooltip placement={'top'} title={label ?? 'Routine List'}>
+            <Tooltip placement={'top'} title={firstString(label, 'Routine List')}>
                 <Container
                     id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
                     aria-owns={contextOpen ? contextId : undefined}

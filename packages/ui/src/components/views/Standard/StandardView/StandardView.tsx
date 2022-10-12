@@ -5,19 +5,18 @@ import { useLazyQuery } from "@apollo/client";
 import { standard, standardVariables } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, BaseStandardInput, CommentContainer, ResourceListHorizontal, SelectLanguageMenu, StarButton, TextCollapse, OwnerLabel } from "components";
+import { ObjectActionMenu, BaseStandardInput, CommentContainer, ResourceListHorizontal, SelectLanguageMenu, StarButton, TextCollapse, OwnerLabel, VersionDisplay, SnackSeverity } from "components";
 import { StandardViewProps } from "../types";
-import { getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, standardToFieldData } from "utils";
+import { base36ToUuid, firstString, getLanguageSubtag, getLastUrlPart, getObjectSlug, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, openObject, PubSub, standardToFieldData } from "utils";
 import { Standard } from "types";
 import { CommentFor, StarFor } from "graphql/generated/globalTypes";
 import { containerShadow } from "styles";
-import { validate as uuidValidate } from 'uuid';
+import { uuidValidate } from '@shared/uuid';
 import { FieldData, FieldDataJSON } from "forms/types";
 import { useFormik } from "formik";
 import { generateInputComponent } from "forms/generators";
 import { PreviewSwitch } from "components/inputs";
 import { EditIcon, EllipsisIcon } from "@shared/icons";
-import { standardCreateForm } from "@shared/validation";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 
 export const StandardView = ({
@@ -28,11 +27,21 @@ export const StandardView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     // Fetch data
-    const id = useMemo(() => getLastUrlPart(), []);
+    const { id, versionGroupId } = useMemo(() => {
+        // URL is /object/:versionGroupId/?:id
+        const last = base36ToUuid(getLastUrlPart(0), false);
+        const secondLast = base36ToUuid(getLastUrlPart(1), false);
+        return {
+            id: uuidValidate(secondLast) ? last : undefined,
+            versionGroupId: uuidValidate(secondLast) ? secondLast : last,
+        }
+    }, []);
     const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery, { errorPolicy: 'all' });
     useEffect(() => {
-        if (uuidValidate(id)) getData({ variables: { input: { id } } });
-    }, [getData, id])
+        console.log('valid id check', id, versionGroupId);
+        if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { input: { id, versionGroupId } } });
+        else PubSub.get().publishSnack({ message: 'Could not parse ID in URL', severity: SnackSeverity.Error });
+    }, [getData, id, versionGroupId])
 
     const [standard, setStandard] = useState<Standard | null>(null);
     useEffect(() => {
@@ -70,7 +79,7 @@ export const StandardView = ({
             canEdit: permissions?.canEdit === true,
             canStar: permissions?.canStar === true,
             description: getTranslation(standard, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
-            name: standard?.name ?? partialData?.name,
+            name: firstString(standard?.name, partialData?.name),
         };
     }, [standard, language, partialData]);
 
@@ -79,8 +88,9 @@ export const StandardView = ({
     }, [name]);
 
     const onEdit = useCallback(() => {
-        setLocation(`${APP_LINKS.Standard}/edit/${id}`);
-    }, [setLocation, id]);
+        if (!standard) return;
+        setLocation(`${APP_LINKS.Standard}/edit/${getObjectSlug(standard)}`);
+    }, [setLocation, standard]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -105,7 +115,7 @@ export const StandardView = ({
         switch (action) {
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp:
-                if (data.vote.success) {
+                if (data.success) {
                     setStandard({
                         ...standard,
                         isUpvoted: action === ObjectActionComplete.VoteUp,
@@ -114,18 +124,20 @@ export const StandardView = ({
                 break;
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.star.success) {
+                if (data.success) {
                     setStandard({
-                        ...standardCreateForm,
+                        ...standard,
                         isStarred: action === ObjectActionComplete.Star,
                     } as any)
                 }
                 break;
             case ObjectActionComplete.Fork:
-                setLocation(`${APP_LINKS.Standard}/${data.fork.standard.id}`);
+                openObject(data.standard, setLocation);
+                window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
-                setLocation(`${APP_LINKS.Standard}/${data.copy.standard.id}`);
+                openObject(data.standard, setLocation);
+                window.location.reload();
                 break;
         }
     }, [standard, setLocation]);
@@ -297,7 +309,8 @@ export const StandardView = ({
                             alignItems: 'center',
                             justifyContent: 'center',
                         }}>
-                            {canStar && <StarButton
+                            <StarButton
+                                disabled={!canStar}
                                 session={session}
                                 objectId={standard?.id ?? ''}
                                 showStars={false}
@@ -306,15 +319,18 @@ export const StandardView = ({
                                 stars={standard?.stars ?? 0}
                                 onChange={(isStar: boolean) => { standard && setStandard({ ...standard, isStarred: isStar }) }}
                                 tooltipPlacement="bottom"
-                            />}
+                            />
                             <OwnerLabel objectType={ObjectType.Standard} owner={standard?.creator} session={session} />
-                            <Typography variant="body1"> - {standard?.version}</Typography>
+                            <VersionDisplay
+                                currentVersion={standard?.version}
+                                prefix={" - "}
+                                versions={standard?.versions}
+                            />
                             <SelectLanguageMenu
-                                availableLanguages={availableLanguages}
-                                canDropdownOpen={availableLanguages.length > 1}
                                 currentLanguage={language}
                                 handleCurrent={setLanguage}
                                 session={session}
+                                translations={standard?.translations ?? partialData?.translations ?? []}
                                 zIndex={zIndex}
                             />
                             {canEdit && <Tooltip title="Edit standard">

@@ -1,17 +1,9 @@
-import { SvgBase } from './base';
+import { SvgPath } from './base';
 import { SvgProps } from './types';
 
 export const RefreshIcon = (props: SvgProps) => (
-    <SvgBase props={props}>
-        <path
-            style={{
-                fillOpacity: 0,
-                stroke: props.fill ?? 'white',
-                strokeWidth: "1.88976",
-                strokeLinecap: "round",
-            }}
-            d="m12.75 3.53-.41.37-.41.37V2.8l.41.36zm-1.81-.29A8.82 8.82 0 0 0 3.18 12a8.82 8.82 0 0 0 2.67 6.33m6.1 1.94.4.36.42.37v-1.47l-.41.37zm1.93.35A8.82 8.82 0 0 0 20.82 12a8.82 8.82 0 0 0-2.32-5.96"
-            fill="none"
-        />
-    </SvgBase>
+    <SvgPath
+        props={props}
+        d="M11 .7v1.6A10 10 0 0 0 2.2 12c0 2.6 1.1 5.2 3 7 1 1 2.3-.4 1.3-1.3A7.9 7.9 0 0 1 11 4.2v2.2l3.2-2.9L11 .7Zm6.8 6a7.9 7.9 0 0 1-4 13v-2.3l-3.3 2.9 3.2 2.8v-1.8c5.3-.5 8-5.6 8-9.3a10 10 0 0 0-2.5-6.6c-1-1-2.2 0-1.4 1.3Z"
+    />
 )

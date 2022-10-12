@@ -1,17 +1,9 @@
-import { SvgBase } from './base';
+import { SvgPath } from './base';
 import { SvgProps } from './types';
 
 export const ExpandLessIcon = (props: SvgProps) => (
-    <SvgBase props={props}>
-        <path
-            style={{
-                stroke: props.fill ?? 'white',
-                strokeWidth: 1.89,
-                strokeLinecap: 'round',
-                strokeOpacity: 1,
-                fill: 'none',
-            }}
-            d="m3.2 16 8.84-8 8.75 7.78"
-        />
-    </SvgBase>
+    <SvgPath
+        props={props}
+        d="M12.6719 7.295a.945.945 0 0 0-1.2617.0058l-8.838 7.998a.9449.9449 0 0 0-.0683 1.334.9449.9449 0 0 0 1.336.0664l8.2109-7.4297 8.1152 7.2149a.9449.9449 0 0 0 1.334-.0782.9449.9449 0 0 0-.0781-1.334Z"
+    />
 )

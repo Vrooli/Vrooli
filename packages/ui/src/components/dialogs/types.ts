@@ -1,12 +1,18 @@
-import { DialogProps } from '@mui/material';
+import { DialogProps, PopoverProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
-import { SvgIconComponent } from '@mui/icons-material';
 import { DeleteOneType } from '@shared/consts';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, ResourceList, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 import { ReportFor } from 'graphql/generated/globalTypes';
-import { ObjectType, RoutineTranslationShape, SearchType, TagShape } from 'utils';
-import { SvgProps } from '@shared/icons';
+import { ObjectType, SearchType, TagShape } from 'utils';
+import { SvgComponent, SvgProps } from '@shared/icons';
 import { RelationshipsObject } from 'components/inputs/types';
+import { SnackSeverity } from './Snack/Snack';
+
+export interface AccountMenuProps {
+    anchorEl: HTMLElement | null;
+    onClose: () => void;
+    session: Session;
+}
 
 export interface BaseObjectDialogProps extends DialogProps {
     children: JSX.Element | JSX.Element[];
@@ -43,7 +49,7 @@ export interface ListMenuItemData<T> {
     /**
      * Icon to display
      */
-    Icon?: SvgIconComponent;
+    Icon?: SvgComponent;
     /**
      * Color of Icon, if different than text
      */
@@ -254,8 +260,6 @@ export interface BuildInfoDialogProps {
     handleRelationshipsChange: (newRelationshipsObject: Partial<RelationshipsObject>) => void;
     handleResourcesUpdate: (updatedList: ResourceList) => void;
     handleTagsUpdate: (tags: TagShape[]) => any;
-    handleTranslationDelete: (language: string) => void;
-    handleTranslationUpdate: (language: string, translation: RoutineTranslationShape) => void;
     handleUpdate: (routine: Routine) => any;
     isEditing: boolean;
     language: string;
@@ -265,7 +269,6 @@ export interface BuildInfoDialogProps {
     session: Session;
     sxs?: { icon: SvgProps, iconButton: any };
     tags: TagShape[];
-    translations: RoutineTranslationShape[];
     zIndex: number;
 }
 
@@ -295,29 +298,24 @@ export interface UnlinkedNodesDialogProps {
 }
 
 export interface RunStepsDialogProps {
+    currStep: number[] | null;
     handleLoadSubroutine: (id: string) => any;
     handleCurrStepLocationUpdate: (step: number[]) => any;
-    history: Array<number>[];
+    history: number[][];
     /**
      * Out of 100
      */
     percentComplete: number;
     stepList: RoutineStep | null;
-    sxs?: { icon: any };
     zIndex: number;
 }
 
 export interface SelectLanguageMenuProps {
     /**
-     * Languages to restrict selection to
-     */
-    availableLanguages?: string[];
-    /**
      * While there may be multiple selected languages, 
      * there is only ever one current language
      */
     currentLanguage: string;
-    canDropdownOpen?: boolean;
     handleDelete?: (language: string) => any;
     /**
      * Callback when new current language is selected
@@ -329,10 +327,9 @@ export interface SelectLanguageMenuProps {
      */
     session: Session;
     /**
-     * Currently selected languages. Display with check marks. 
-     * If not provided, defaults to curentLanguage
+     * Available translations
      */
-    selectedLanguages?: string[];
+    translations: { language: string }[];
     sxs?: { root: any };
     zIndex: number;
 }
@@ -374,4 +371,27 @@ export interface WalletSelectDialogProps {
     onClose: (selectedKey: string | null) => any;
     open: boolean;
     zIndex: number;
+}
+
+export interface PopoverWithArrowProps extends Omit<PopoverProps, 'open' | 'sx'> {
+    anchorEl: HTMLElement | null;
+    children: React.ReactNode;
+    handleClose: () => any;
+    sxs?: {
+        root?: { [x: string]: any };
+        content?: { [x: string]: any };
+    }
+}
+
+export interface SnackProps {
+    buttonClicked?: (event?: any) => any;
+    buttonText?: string;
+    /**
+     * Anything you'd like to log in development mode
+     */
+    data?: any;
+    handleClose: () => any;
+    id: string;
+    message?: string;
+    severity?: SnackSeverity;
 }

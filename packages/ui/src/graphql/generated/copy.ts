@@ -918,6 +918,7 @@ export interface copy_copy_routine {
   updated_at: any;
   version: string;
   versionGroupId: string;
+  versions: string[];
 }
 
 export interface copy_copy_standard_permissionsStandard {
@@ -1034,6 +1035,7 @@ export interface copy_copy_standard {
   isUpvoted: boolean | null;
   version: string;
   versionGroupId: string;
+  versions: string[];
 }
 
 export interface copy_copy {

@@ -1,100 +1,115 @@
+import { Box, LinearProgress, List, ListItem, ListItemText, Tooltip, Typography } from "@mui/material";
+import { VersionDisplayProps } from "../types";
+import { useCallback, useMemo, useState } from "react";
+import { addSearchParams, usePress } from "utils";
+import { PopoverWithArrow } from "components/dialogs";
+import { useLocation } from "@shared/route";
+
+
 /**
  * Displays version of object.
  * On hover or press, a popup displays a list of all versions. 
  * On click, the version is loaded.
  */
- import { Box, LinearProgress, Popover, Typography, useTheme } from "@mui/material";
- import { VersionDisplayProps } from "../types";
- import { Today as CalendarIcon } from "@mui/icons-material";
- import { displayDate } from "utils";
- import { useCallback, useState } from "react";
- 
- export const VersionDisplay = ({
-    handleVersionChange,
-     loading = false,
-     showIcon = true,
-     versions = [],
-     ...props
- }: VersionDisplayProps) => {
-    return null;
-    //  const { palette } = useTheme();
-    //  const shadowColor = palette.mode === 'light' ? '0 0 0' : '255 255 255';
- 
-    //  // Full date popup
-    //  const [anchorEl, setAnchorEl] = useState<any | null>(null);
-    //  const isOpen = Boolean(anchorEl);
-    //  const open = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
-    //      ev.preventDefault();
-    //      setAnchorEl(ev.currentTarget ?? ev.target)
-    //  }, []);
-    //  const close = useCallback(() => setAnchorEl(null), []);
- 
-    //  if (loading) return (
-    //      <Box {...props}>
-    //          <LinearProgress color="inherit" sx={{ height: '6px', borderRadius: '12px' }} />
-    //      </Box>
-    //  );
-    //  if (!timestamp) return null;
-    //  return (
-    //      <>
-    //          {/* Full date popup */}
-    //          <Popover
-    //              open={isOpen}
-    //              anchorEl={anchorEl}
-    //              onClose={close}
-    //              anchorOrigin={{
-    //                  vertical: 'top',
-    //                  horizontal: 'center',
-    //              }}
-    //              transformOrigin={{
-    //                  vertical: 'bottom',
-    //                  horizontal: 'center',
-    //              }}
-    //              sx={{
-    //                  '& .MuiPopover-paper': {
-    //                      padding: 1,
-    //                      overflow: 'unset',
-    //                      background: palette.background.paper,
-    //                      color: palette.background.textPrimary,
-    //                      boxShadow: `0px 5px 5px -3px rgb(${shadowColor} / 20%), 
-    //                      0px 8px 10px 1px rgb(${shadowColor} / 14%), 
-    //                      0px 3px 14px 2px rgb(${shadowColor} / 12%)`
-    //                  }
-    //              }}
-    //          >
-    //              <Box>
-    //                  <Typography variant="body2" color="textSecondary">
-    //                      {displayDate(timestamp, true)}
-    //                  </Typography>
-    //                  {/* Triangle placed below popper */}
-    //                  <Box sx={{
-    //                      width: '0',
-    //                      height: '0',
-    //                      borderLeft: '10px solid transparent',
-    //                      borderRight: '10px solid transparent',
-    //                      borderTop: `10px solid ${palette.background.paper}`,
-    //                      position: 'absolute',
-    //                      bottom: '-10px',
-    //                      left: '50%',
-    //                      transform: 'translateX(-50%)',
-    //                  }} />
- 
-    //              </Box>
-    //          </Popover>
-    //          {/* Displayed date */}
-    //          <Box
-    //              {...props}
-    //              display="flex"
-    //              justifyContent="center"
-    //              onClick={open}
-    //              sx={{
-    //                  ...(props.sx ?? {}),
-    //                  cursor: 'pointer',
-    //              }}
-    //          >
-    //              {showIcon && <CalendarIcon />}
-    //              {`${textBeforeDate} ${displayDate(timestamp, false)}`}
-    //          </Box>
-    //      </>
-    //  )
- }
+export const VersionDisplay = ({
+    confirmVersionChange,
+    currentVersion,
+    loading = false,
+    prefix = '',
+    versions = [],
+    ...props
+}: VersionDisplayProps) => {
+    const [, setLocation] = useLocation();
+
+    const handleVersionChange = useCallback((version: string) => {
+        addSearchParams(setLocation, { version })
+        window.location.reload();
+    }, [setLocation]);
+
+    const openVersion = useCallback((version: string) => {
+        if (typeof confirmVersionChange === 'function') {
+            confirmVersionChange(() => { handleVersionChange(version) });
+        } else {
+            handleVersionChange(version);
+        }
+    }, [confirmVersionChange, handleVersionChange]);
+
+    const listItems = useMemo(() => versions?.map((version, index) => {
+        return (
+            <ListItem
+                button
+                disabled={version === currentVersion}
+                onClick={() => { openVersion(version) }}
+                key={index}
+                sx={{
+                    padding: '0px 8px',
+                }}
+            >
+                <ListItemText primary={version} />
+            </ListItem>
+        )
+    }), [currentVersion, openVersion, versions])
+
+    // Versions popup
+    const [anchorEl, setAnchorEl] = useState<any | null>(null);
+    const open = useCallback((target: React.MouseEvent['target']) => {
+        if (versions.length > 1) {
+            setAnchorEl(target)
+        }
+    }, [versions.length]);
+    const close = useCallback(() => setAnchorEl(null), []);
+
+    const pressEvents = usePress({
+        onLongPress: open,
+        onClick: open,
+    });
+
+    if (!currentVersion) return null;
+    if (loading) return (
+        <Box sx={{
+            ...(props.sx ?? {}),
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+        }}>
+            {prefix && <Typography variant="body1" sx={{ marginRight: '4px' }}>{prefix}</Typography>}
+            <LinearProgress
+                color="inherit"
+                sx={{
+                    width: '40px',
+                    height: '6px',
+                    borderRadius: '12px'
+                }}
+            />
+        </Box>
+    );
+    return (
+        <Box sx={{ ...(props.sx ?? {}) }}>
+            {/* Version select popup */}
+            <PopoverWithArrow
+                anchorEl={anchorEl}
+                handleClose={close}
+                sxs={{
+                    content: {
+                        maxHeight: '120px',
+                    }
+                }}
+            >
+                {/* Versions list */}
+                <List>
+                    {listItems}
+                </List>
+            </PopoverWithArrow>
+            {/* Label */}
+            <Tooltip title={versions.length > 1 ? "Press to change version" : ''}>
+                <Typography
+                    {...pressEvents}
+                    variant="body1"
+                    sx={{
+                        cursor: 'pointer',
+                    }}
+                >{`${prefix}${currentVersion}`}</Typography>
+            </Tooltip>
+        </Box>
+    )
+}

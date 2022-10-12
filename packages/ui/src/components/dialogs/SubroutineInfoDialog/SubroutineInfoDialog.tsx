@@ -4,29 +4,25 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    AccountTree as GraphIcon,
-} from '@mui/icons-material';
-import {
     Box,
-    Button,
     Grid,
     IconButton,
     Stack,
     SwipeableDrawer,
     TextField,
+    Tooltip,
     Typography,
     useTheme,
 } from '@mui/material';
 import { SubroutineInfoDialogProps } from '../types';
-import { getTranslation, InputShape, ObjectType, OutputShape, RoutineTranslationShape, TagShape, updateArray } from 'utils';
-import Markdown from 'markdown-to-jsx';
-import { routineUpdateForm as validationSchema } from '@shared/validation';
+import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputShape, ObjectType, OutputShape, removeTranslation, TagShape, updateArray, usePromptBeforeUnload } from 'utils';
+import { routineTranslationUpdate, routineUpdate as validationSchema } from '@shared/validation';
 import { ResourceListUsedFor } from '@shared/consts';
-import { GridSubmitButtons, InputOutputContainer, LanguageInput, MarkdownInput, OwnerLabel, QuantityBox, RelationshipButtons, ResourceListHorizontal, TagList, TagSelector, userFromSession } from 'components';
+import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, OwnerLabel, QuantityBox, RelationshipButtons, ResourceListHorizontal, SelectLanguageMenu, TagList, TagSelector, userFromSession, VersionInput } from 'components';
 import { useFormik } from 'formik';
 import { NodeDataRoutineListItem, ResourceList } from 'types';
-import { v4 as uuid } from 'uuid';
-import { CloseIcon } from '@shared/icons';
+import { DUMMY_ID, uuid } from '@shared/uuid';
+import { CloseIcon, OpenInNewIcon } from '@shared/icons';
 import { RelationshipItemRoutine, RelationshipsObject } from 'components/inputs/types';
 
 export const SubroutineInfoDialog = ({
@@ -89,31 +85,6 @@ export const SubroutineInfoDialog = ({
     const [tags, setTags] = useState<TagShape[]>([]);
     const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
-    // Handle translations
-    type Translation = RoutineTranslationShape;
-    const [translations, setTranslations] = useState<Translation[]>([]);
-    const deleteTranslation = useCallback((language: string) => {
-        setTranslations([...translations.filter(t => t.language !== language)]);
-        // Also delete translations from inputs and outputs
-        setInputsList(inputsList.map(i => {
-            const updatedTranslationsList = i.translations.filter(t => t.language !== language);
-            return { ...i, translations: updatedTranslationsList };
-        }));
-        setOutputsList(outputsList.map(o => {
-            const updatedTranslationsList = o.translations.filter(t => t.language !== language);
-            return { ...o, translations: updatedTranslationsList };
-        }));
-    }, [translations, inputsList, outputsList]);
-    const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
-        // Find translation
-        const index = translations.findIndex(t => language === t.language);
-        // Add to array, or update if found
-        return index >= 0 ? updateArray(translations, index, translation) : [...translations, translation];
-    }, [translations]);
-    const updateTranslation = useCallback((language: string, translation: Translation) => {
-        setTranslations(getTranslationsUpdate(language, translation));
-    }, [getTranslationsUpdate]);
-
     useEffect(() => {
         setRelationships({
             isComplete: subroutine?.routine?.isComplete ?? false,
@@ -127,28 +98,29 @@ export const SubroutineInfoDialog = ({
         setOutputsList(subroutine?.routine?.outputs ?? []);
         setResourceList(subroutine?.routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(subroutine?.routine?.tags ?? []);
-        setTranslations(subroutine?.routine?.translations?.map(t => ({
-            id: t.id,
-            language: t.language,
-            description: t.description ?? '',
-            instructions: t.instructions ?? '',
-            title: t.title ?? '',
-        })) ?? []);
     }, [subroutine?.routine]);
+
+    // Handle languages
+    const [language, setLanguage] = useState<string>('');
+    const [languages, setLanguages] = useState<string[]>([]);
 
     // Handle update
     const formik = useFormik({
         initialValues: {
             index: (subroutine?.index ?? 0) + 1,
-            description: getTranslation(subroutine?.routine, 'description', [defaultLanguage]) ?? '',
-            instructions: getTranslation(subroutine?.routine, 'instructions', [defaultLanguage]) ?? '',
             isComplete: subroutine?.routine?.isComplete ?? true,
             isInternal: subroutine?.routine?.isInternal ?? false,
-            title: getTranslation(subroutine?.routine, 'title', [defaultLanguage]) ?? '',
+            translationsUpdate: subroutine?.routine?.translations ?? [{
+                id: DUMMY_ID,
+                language: getUserLanguages(session)[0],
+                description: '',
+                instructions: '',
+                title: '',
+            }],
             version: subroutine?.routine?.version ?? '',
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema,
+        validationSchema: validationSchema({ minVersion: subroutine?.routine?.version ?? '0.0.1' }),
         onSubmit: (values) => {
             if (!subroutine) return;
             const resourceIndex = Array.isArray(subroutine?.routine?.resourceLists) ? (subroutine?.routine?.resourceLists?.findIndex(list => list.usedFor === ResourceListUsedFor.Display) ?? -1) : -1;
@@ -159,13 +131,6 @@ export const SubroutineInfoDialog = ({
                     resourceList,
                 )
             } : {};
-            const allTranslations = getTranslationsUpdate(language, {
-                id: uuid(),
-                language,
-                description: values.description,
-                instructions: values.instructions,
-                title: values.title,
-            })
             handleUpdate({
                 ...subroutine,
                 index: Math.max(values.index - 1, 0), // Formik index starts at 1, for user convenience
@@ -182,62 +147,61 @@ export const SubroutineInfoDialog = ({
                     outputs: outputsList,
                     ...resourceListUpdate,
                     tags,
-                    translations: allTranslations,
+                    translations: values.translationsUpdate.map(t => ({
+                        ...t,
+                        id: t.id === DUMMY_ID ? uuid() : t.id,
+                    })),
                 }
             } as any);
         },
     });
+    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
+
+    // Current description, instructions, and title info, as well as errors
+    const { description, instructions, title, errorDescription, errorInstructions, errorTitle, touchedDescription, touchedInstructions, touchedTitle, errors } = useMemo(() => {
+        const { error, touched, value } = getTranslationData(formik, 'translationsUpdate', language);
+        return {
+            description: value?.description ?? '',
+            instructions: value?.instructions ?? '',
+            title: value?.title ?? '',
+            errorDescription: error?.description ?? '',
+            errorInstructions: error?.instructions ?? '',
+            errorTitle: error?.title ?? '',
+            touchedDescription: touched?.description ?? false,
+            touchedInstructions: touched?.instructions ?? false,
+            touchedTitle: touched?.title ?? false,
+            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', routineTranslationUpdate),
+        }
+    }, [formik, language]);
+    // Handles blur on translation fields
+    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
+        handleTranslationBlur(formik, 'translationsUpdate', e, language)
+    }, [formik, language]);
+    // Handles change on translation fields
+    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
+        handleTranslationChange(formik, 'translationsUpdate', e, language)
+    }, [formik, language]);
 
     // Handle languages
-    const [language, setLanguage] = useState<string>(defaultLanguage);
-    const [languages, setLanguages] = useState<string[]>([]);
     useEffect(() => {
-        if (languages.length === 0 && translations.length > 0) {
-            setLanguage(translations[0].language);
-            setLanguages(translations.map(t => t.language));
-            formik.setValues({
-                ...formik.values,
-                description: translations[0].description ?? '',
-                instructions: translations[0].instructions,
-                title: translations[0].title,
-            })
+        if (languages.length === 0 && formik.values.translationsUpdate.length > 0) {
+            setLanguage(formik.values.translationsUpdate[0].language);
+            setLanguages(formik.values.translationsUpdate.map(t => t.language));
         }
-    }, [formik, languages, setLanguage, setLanguages, translations])
-    const updateFormikTranslation = useCallback((language: string) => {
-        const existingTranslation = translations.find(t => t.language === language);
-        formik.setValues({
-            ...formik.values,
-            description: existingTranslation?.description ?? '',
-            instructions: existingTranslation?.instructions ?? '',
-            title: existingTranslation?.title ?? '',
-        });
-    }, [formik, translations]);
-    const handleLanguageSelect = useCallback((newLanguage: string) => {
-        // Update old select
-        updateTranslation(language, {
-            id: uuid(),
-            language,
-            description: formik.values.description,
-            instructions: formik.values.instructions,
-            title: formik.values.title,
-        })
-        // Update formik
-        if (language !== newLanguage) updateFormikTranslation(newLanguage);
-        // Change language
-        setLanguage(newLanguage);
-    }, [updateTranslation, language, formik.values.description, formik.values.instructions, formik.values.title, updateFormikTranslation]);
+    }, [formik, languages, setLanguage, setLanguages])
+    const handleLanguageSelect = useCallback((newLanguage: string) => { setLanguage(newLanguage) }, []);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguages([...languages, newLanguage]);
         handleLanguageSelect(newLanguage);
-    }, [handleLanguageSelect, languages, setLanguages]);
+        addEmptyTranslation(formik, 'translationsUpdate', newLanguage);
+    }, [formik, handleLanguageSelect, languages]);
     const handleLanguageDelete = useCallback((language: string) => {
         const newLanguages = [...languages.filter(l => l !== language)]
         if (newLanguages.length === 0) return;
-        deleteTranslation(language);
-        updateFormikTranslation(newLanguages[0]);
         setLanguage(newLanguages[0]);
         setLanguages(newLanguages);
-    }, [deleteTranslation, languages, updateFormikTranslation]);
+        removeTranslation(formik, 'translationsUpdate', language);
+    }, [formik, languages]);
 
     const canEdit = useMemo<boolean>(() => isEditing && (subroutine?.routine?.isInternal || subroutine?.routine?.owner?.id === session.id || subroutine?.routine?.permissionsRoutine?.canEdit === true), [isEditing, session.id, subroutine?.routine?.isInternal, subroutine?.routine?.owner?.id, subroutine?.routine?.permissionsRoutine?.canEdit]);
 
@@ -292,9 +256,16 @@ export const SubroutineInfoDialog = ({
                 padding: 1,
             }}>
                 {/* Subroutine title and position */}
-                <Typography variant="h5">{formik.values.title}</Typography>
+                <Typography variant="h5">{title}</Typography>
                 <Typography variant="h6" ml={1}>{`(${(subroutine?.index ?? 0) + 1} of ${(data?.node?.routines?.length ?? 1)})`}</Typography>
-                {/* Owned by and version */}
+                {/* Button to open in full page */}
+                {!subroutine?.routine?.isInternal && (
+                    <Tooltip title="Open in full page">
+                        <IconButton onClick={toGraph}>
+                            <OpenInNewIcon fill={palette.primary.contrastText} />
+                        </IconButton>
+                    </Tooltip>
+                )}{/* Owned by and version */}
                 <Stack direction="row" sx={{ marginLeft: 'auto' }}>
                     <OwnerLabel objectType={ObjectType.Routine} owner={subroutine?.routine?.owner} session={session} />
                     <Typography variant="body1">{subroutine?.routine?.version}</Typography>
@@ -330,21 +301,26 @@ export const SubroutineInfoDialog = ({
                             />
                         </Grid>
                         <Grid item xs={12}>
-                            <LanguageInput
+                            {canEdit ? <LanguageInput
                                 currentLanguage={language}
                                 handleAdd={handleAddLanguage}
                                 handleDelete={handleLanguageDelete}
-                                handleCurrent={handleLanguageSelect}
-                                selectedLanguages={languages}
+                                handleCurrent={setLanguage}
                                 session={session}
+                                translations={formik.values.translationsUpdate}
                                 zIndex={zIndex}
-                            />
+                            /> : <SelectLanguageMenu
+                                currentLanguage={language}
+                                handleCurrent={setLanguage}
+                                session={session}
+                                translations={formik.values.translationsUpdate}
+                                zIndex={zIndex}
+                            />}
                         </Grid>
                         {/* Position */}
                         <Grid item xs={12}>
                             {
                                 canEdit && <Box sx={{
-                                    padding: 1,
                                     marginBottom: 2,
                                 }}>
                                     <Typography variant="h6">Order</Typography>
@@ -372,72 +348,69 @@ export const SubroutineInfoDialog = ({
                                     id="title"
                                     name="title"
                                     label="title"
-                                    value={formik.values.title}
-                                    onBlur={formik.handleBlur}
-                                    onChange={formik.handleChange}
-                                    error={formik.touched.title && Boolean(formik.errors.title)}
-                                    helperText={formik.touched.title && formik.errors.title}
+                                    value={title}
+                                    onBlur={onTranslationBlur}
+                                    onChange={onTranslationChange}
+                                    error={touchedTitle && Boolean(errorTitle)}
+                                    helperText={touchedTitle && errorTitle}
                                 />
                             </Grid>
                         }
                         {/* Description */}
                         <Grid item xs={12} sm={6}>
-                            <Box sx={{
-                                padding: 1,
-                            }}>
-                                <Typography variant="h6">Description</Typography>
-                                {
-                                    canEdit ? (
-                                        <MarkdownInput
-                                            id="description"
-                                            placeholder="Description"
-                                            value={formik.values.description}
-                                            minRows={2}
-                                            onChange={(newText: string) => formik.setFieldValue('description', newText)}
-                                            error={formik.touched.description && Boolean(formik.errors.description)}
-                                            helperText={formik.touched.description ? formik.errors.description : null}
-                                        />
-                                    ) : (
-                                        <Markdown>{formik.values.description}</Markdown>
-                                    )
-                                }
-                            </Box>
+                            <EditableTextCollapse
+                                isEditing={canEdit}
+                                propsTextField={{
+                                    fullWidth: true,
+                                    id: "description",
+                                    name: "description",
+                                    InputLabelProps: { shrink: true },
+                                    value: description,
+                                    multiline: true,
+                                    maxRows: 3,
+                                    onBlur: onTranslationBlur,
+                                    onChange: onTranslationChange,
+                                    error: touchedDescription && Boolean(errorDescription),
+                                    helperText: touchedDescription && errorDescription,
+                                }}
+                                text={description}
+                                title="Description"
+                            />
                         </Grid>
                         {/* Instructions */}
                         <Grid item xs={12} sm={6}>
-                            <Box sx={{
-                                padding: 1,
-                            }}>
-                                <Typography variant="h6">Instructions</Typography>
-                                {
-                                    canEdit ? (
-                                        <MarkdownInput
-                                            id="instructions"
-                                            placeholder="Instructions"
-                                            value={formik.values.instructions}
-                                            minRows={2}
-                                            onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
-                                            error={formik.touched.instructions && Boolean(formik.errors.instructions)}
-                                            helperText={formik.touched.instructions ? formik.errors.instructions : null}
-                                        />
-                                    ) : (
-                                        <Markdown>{formik.values.instructions}</Markdown>
-                                    )
-                                }
-                            </Box>
+                            <EditableTextCollapse
+                                isEditing={isEditing}
+                                propsMarkdownInput={{
+                                    id: "instructions",
+                                    placeholder: "Instructions",
+                                    value: instructions,
+                                    minRows: 3,
+                                    onChange: (newText: string) => onTranslationChange({ target: { name: 'instructions', value: newText } }),
+                                    error: touchedInstructions && Boolean(errorInstructions),
+                                    helperText: touchedInstructions ? errorInstructions as string : null,
+                                }}
+                                text={instructions}
+                                title="Instructions"
+                            />
                         </Grid>
                         {
                             canEdit && <Grid item xs={12}>
-                                <TextField
+                                <VersionInput
                                     fullWidth
                                     id="version"
                                     name="version"
-                                    label="version"
                                     value={formik.values.version}
                                     onBlur={formik.handleBlur}
-                                    onChange={formik.handleChange}
+                                    onChange={(newVersion: string) => {
+                                        formik.setFieldValue('version', newVersion);
+                                        setRelationships({
+                                            ...relationships,
+                                            isComplete: false,
+                                        })
+                                    }}
                                     error={formik.touched.version && Boolean(formik.errors.version)}
-                                    helperText={formik.touched.version && formik.errors.version}
+                                    helperText={formik.touched.version ? formik.errors.version : null}
                                 />
                             </Grid>
                         }
@@ -493,10 +466,9 @@ export const SubroutineInfoDialog = ({
                     {
                         canEdit && <Grid container spacing={1}>
                             <GridSubmitButtons
-                                disabledCancel={formik.isSubmitting}
-                                disabledSubmit={formik.isSubmitting || !formik.isValid}
-                                errors={formik.errors}
+                                errors={errors}
                                 isCreate={false}
+                                loading={formik.isSubmitting}
                                 onCancel={handleCancel}
                                 onSetSubmitting={formik.setSubmitting}
                                 onSubmit={formik.handleSubmit}
@@ -505,28 +477,6 @@ export const SubroutineInfoDialog = ({
                     }
                 </form>
             </Box>
-            {/* Bottom nav container */}
-
-            {/* If subroutine has its own subroutines, display button to switch to that graph */}
-            {(subroutine as any)?.nodesCount > 0 && (
-                <Box sx={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: 1,
-                    background: palette.primary.dark,
-                }}>
-                    <Button
-                        color="secondary"
-                        startIcon={<GraphIcon />}
-                        onClick={toGraph}
-                        sx={{
-                            marginLeft: 'auto'
-                        }}
-                    >View Graph</Button>
-                </Box>
-            )}
         </SwipeableDrawer>
     );
 }

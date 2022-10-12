@@ -6,7 +6,8 @@ import {
     FindInPage,
     Footer,
     Navbar,
-    Snack
+    SnackSeverity,
+    SnackStack,
 } from 'components';
 import { PubSub, themes, useReactHash } from 'utils';
 import { Routes } from 'Routes';
@@ -48,16 +49,6 @@ const useStyles = makeStyles(() => ({
         '.search-highlight-current': {
             backgroundColor: '#3f0',
             color: '#000',
-        },
-        '#page': {
-            minWidth: '100vw',
-            minHeight: '100vh',
-        },
-        '@media (min-width:500px)': {
-            '#page': {
-                paddingLeft: 'max(1em, calc(15% - 75px))',
-                paddingRight: 'max(1em, calc(15% - 75px))',
-            }
         },
         '@font-face': {
             fontFamily: 'Lato',
@@ -195,7 +186,7 @@ export function App() {
             }
             // If error is something else, notify user
             if (!isInvalidSession) {
-                PubSub.get().publishSnack({ message: 'Failed to connect to server.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Failed to connect to server.', severity: SnackSeverity.Error });
             }
             // If not logged in as guest and failed to log in as user, set empty object
             if (!session) setSession({})
@@ -308,7 +299,7 @@ export function App() {
                                 />
                             }
                             <AlertDialog />
-                            <Snack />
+                            <SnackStack />
                             <Routes
                                 session={session ?? {}}
                                 sessionChecked={session !== undefined}

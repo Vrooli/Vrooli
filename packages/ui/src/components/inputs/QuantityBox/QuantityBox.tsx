@@ -1,10 +1,7 @@
 import { useRef, useCallback, useEffect } from "react";
 import { Box, FormControl, IconButton, Input, InputLabel, SxProps, Theme, Tooltip, useTheme } from '@mui/material';
-import {
-    Add as AddIcon,
-    Remove as RemoveIcon
-} from '@mui/icons-material';
 import { QuantityBoxProps } from "../types";
+import { MinusIcon, PlusIcon } from "@shared/icons";
 
 const buttonProps: SxProps<Theme> = {
     minWidth: 30,
@@ -109,7 +106,7 @@ export const QuantityBox = ({
                         borderRadius: '5px 0 0 5px',
                         maxWidth: '48px',
                     }}>
-                    <RemoveIcon />
+                    <MinusIcon />
                 </IconButton>
                 <FormControl sx={{
                     background: palette.background.paper,
@@ -155,7 +152,7 @@ export const QuantityBox = ({
                         borderRadius: '0 5px 5px 0',
                         maxWidth: '48px',
                     }}>
-                    <AddIcon />
+                    <PlusIcon />
                 </IconButton>
             </Box>
         </Tooltip>

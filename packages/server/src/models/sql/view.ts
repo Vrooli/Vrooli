@@ -3,16 +3,17 @@ import { isObject } from '@shared/utils'
 import { CustomError } from "../../error";
 import { Count, LogType, User, ViewSearchInput, ViewSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { deconstructUnion, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, ModelLogic, ObjectMap, onlyValidIds, PartialGraphQLInfo, readManyHelper, Searcher, timeFrameToPrisma } from "./base";
+import { combineQueries, FormatConverter, getSearchStringQueryHelper, lowercaseFirstLetter, ModelLogic, ObjectMap, onlyValidIds, readManyHelper, Searcher, timeFrameToPrisma } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
-import { OrganizationModel } from "./organization";
+import { OrganizationModel, organizationQuerier } from "./organization";
 import { initializeRedis } from "../../redisConn";
 import { resolveProjectOrOrganizationOrRoutineOrStandardOrUser } from "../../schema/resolvers";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { UserModel } from "./user";
 import { StandardModel } from "./standard";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -36,24 +37,14 @@ export const viewFormatter = (): FormatConverter<View, any> => ({
             'User': 'User',
         }
     },
-    constructUnions: (data) => {
-        let { organization, project, routine, standard, user, ...modified } = data;
-        if (organization) modified.to = organization;
-        else if (project) modified.to = project;
-        else if (routine) modified.to = routine;
-        else if (standard) modified.to = standard;
-        else if (user) modified.to = user;
-        return modified;
-    },
-    deconstructUnions: (partial) => {
-        let modified = deconstructUnion(partial, 'to', [
-            ['Organization', 'organization'],
-            ['Project', 'project'],
-            ['Routine', 'routine'],
-            ['Standard', 'standard'],
-            ['User', 'user'],
-        ]);
-        return modified;
+    unionMap: {
+        'to': {
+            'Organization': 'organization',
+            'Project': 'project',
+            'Routine': 'routine',
+            'Standard': 'standard',
+            'User': 'user',
+        },
     },
     async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<View>[]> {
         // Query for data that view is applied to
@@ -123,8 +114,9 @@ export const viewSearcher = (): Searcher<ViewSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({ searchString,
-            resolver: ({ insensitive }) => ({ 
+        return getSearchStringQueryHelper({
+            searchString,
+            resolver: ({ insensitive }) => ({
                 OR: [
                     { title: { ...insensitive } },
                     { organization: OrganizationModel.search.getSearchStringQuery(searchString, languages) },
@@ -137,9 +129,9 @@ export const viewSearcher = (): Searcher<ViewSearchInput> => ({
         })
     },
     customQueries(input: ViewSearchInput): { [x: string]: any } {
-        return {
-            ...(input.lastViewedTimeFrame !== undefined ? timeFrameToPrisma('lastViewed', input.lastViewedTimeFrame) : {}),
-        }
+        return combineQueries([
+            (input.lastViewedTimeFrame !== undefined ? timeFrameToPrisma('lastViewed', input.lastViewedTimeFrame) : {}),
+        ])
     },
 })
 
@@ -213,89 +205,43 @@ const viewMutater = (prisma: PrismaType) => ({
         switch (input.viewFor) {
             case ViewFor.Organization:
                 // Check if user is an admin or owner of the organization
-                const roles = await OrganizationModel.query(prisma).hasRole(userId, [input.forId]);
+                const roles = await OrganizationModel.query().hasRole(prisma, userId, [input.forId]);
                 isOwn = Boolean(roles[0]);
                 break;
             case ViewFor.Project:
-                // Check if project is owned by this user or by an organization they are a member of
-                //TODO
-                // const project = await prisma.project.findFirst({
-                //     where: {
-                //         AND: [
-                //             { id: input.forId },
-                //             {
-                //                 OR: [
-                //                     { user: { id: userId } },
-                //                     {
-                //                         organization: {
-                //                             members: {
-                //                                 some: {
-                //                                     id: userId,
-                //                                     role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
-                //                                 }
-                //                             }
-                //                         }
-                //                     }
-                //                 ]
-                //             }
-                //         ]
-                //     }
-                // })
-                // if (project) isOwn = true;
-                break;
             case ViewFor.Routine:
-                // Check if routine is owned by this user or by an organization they are a member of
-                //TODO
-                // const routine = await prisma.routine.findFirst({
-                //     where: {
-                //         AND: [
-                //             { id: input.forId },
-                //             {
-                //                 OR: [
-                //                     { user: { id: userId } },
-                //                     {
-                //                         organization: {
-                //                             members: {
-                //                                 some: {
-                //                                     id: userId,
-                //                                     role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
-                //                                 }
-                //                             }
-                //                         }
-                //                     }
-                //                 ]
-                //             }
-                //         ]
-                //     }
-                // })
-                // if (routine) isOwn = true;
+                // Check if project/routine is owned by this user or by an organization they are a member of
+                const object = await (prisma[lowercaseFirstLetter(input.viewFor) as 'project' | 'routine'] as any).findFirst({
+                    where: {
+                        AND: [
+                            { id: input.forId },
+                            {
+                                OR: [
+                                    organizationQuerier().isMemberOfOrganizationQuery(userId),
+                                    { user: { id: userId } },
+                                ]
+                            }
+                        ]
+                    }
+                })
+                if (object) isOwn = true;
                 break;
             case ViewFor.Standard:
                 // Check if standard is owned by this user or by an organization they are a member of
-                //TODO
-                // const standard = await prisma.standard.findFirst({
-                //     where: {
-                //         AND: [
-                //             { id: input.forId },
-                //             {
-                //                 OR: [
-                //                     { createdByUser: { id: userId } },
-                //                     {
-                //                         createdByOrganization: {
-                //                             members: {
-                //                                 some: {
-                //                                     id: userId,
-                //                                     role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
-                //                                 }
-                //                             }
-                //                         }
-                //                     }
-                //                 ]
-                //             }
-                //         ]
-                //     }
-                // })
-                // if (standard) isOwn = true;
+                const object2 = await prisma.standard.findFirst({
+                    where: {
+                        AND: [
+                            { id: input.forId },
+                            {
+                                OR: [
+                                    { createdByOrganization: organizationQuerier().isMemberOfOrganizationQuery(userId).organization },
+                                    { createdByUser: { id: userId } },
+                                ]
+                            }
+                        ]
+                    }
+                })
+                if (object2) isOwn = true;
                 break;
             case ViewFor.User:
                 isOwn = userId === input.forId;
@@ -363,6 +309,7 @@ export const ViewModel = ({
     format: viewFormatter(),
     search: viewSearcher(),
     query: viewQuerier,
+    type: 'View' as GraphQLModelType,
 })
 
 //==============================================================

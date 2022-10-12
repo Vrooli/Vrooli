@@ -4,7 +4,7 @@ import {
     Tooltip,
     Typography,
 } from '@mui/material';
-import { getTranslation, openLink, PubSub, ResourceType, usePress } from 'utils';
+import { firstString, getTranslation, openLink, PubSub, ResourceType, usePress } from 'utils';
 import { useCallback, useMemo } from 'react';
 import { useLocation } from '@shared/route';
 import { ResourceCardProps } from '../../../cards/types';
@@ -12,7 +12,7 @@ import { containerShadow, multiLineEllipsis, noSelect } from 'styles';
 import { getResourceIcon } from '..';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { urlRegex, walletAddressRegex, adaHandleRegex } from '@shared/validation';
-import { UsedForDisplay } from 'components/dialogs';
+import { SnackSeverity, UsedForDisplay } from 'components/dialogs';
 
 /**
  * Determines if a resource is a URL, wallet payment address, or an ADA handle
@@ -55,7 +55,7 @@ export const ResourceCard = ({
         const resourceType = getResourceType(data.link);
         // If null, show error
         if (!resourceType) {
-            PubSub.get().publishSnack({ message: 'Unable to open link', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Unable to open link', severity: SnackSeverity.Error });
             return;
         }
         // If URL, open in new tab
@@ -68,7 +68,7 @@ export const ResourceCard = ({
                     {
                         text: 'Copy', onClick: () => {
                             navigator.clipboard.writeText(data.link);
-                            PubSub.get().publishSnack({ message: 'Copied.', severity: 'success' });
+                            PubSub.get().publishSnack({ message: 'Copied.', severity: SnackSeverity.Success });
                         }
                     },
                     { text: 'Close' }
@@ -135,7 +135,7 @@ export const ResourceCard = ({
                             lineBreak: Boolean(title) ? 'auto' : 'anywhere', // Line break anywhere only if showing link
                         }}
                     >
-                        {title ?? data.link}
+                        {firstString(title, data.link)}
                     </Typography>
                 </Stack>
             </Box>

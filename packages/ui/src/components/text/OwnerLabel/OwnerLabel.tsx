@@ -1,8 +1,7 @@
-import { getTranslation, ObjectType } from "utils";
+import { getObjectSlug, getObjectUrlBase, getTranslation, ObjectType, openObject } from "utils";
 import { Tooltip, Typography, useTheme } from "@mui/material"
 import { OwnerLabelProps } from "../types";
 import { Comment, Project, Routine, Standard, User } from "types";
-import { APP_LINKS } from "@shared/consts";
 import { Link, useLocation } from "@shared/route";
 import { useCallback, useMemo } from "react";
 
@@ -41,17 +40,13 @@ export const OwnerLabel = ({
 
     const ownerLink = useMemo<string>(() => {
         if (!owner) return '';
-        // If object has handle, use that instead of ID
-        const objLocation = owner.handle ?? owner.id;
-        // Check if user or organization
-        if (owner.__typename === ObjectType.User || owner.hasOwnProperty('name')) {
-            return `${APP_LINKS.Profile}/${objLocation}`;
-        } else {
-            return `${APP_LINKS.Organization}/${objLocation}`;
-        }
+        return `${getObjectUrlBase(owner)}/${getObjectSlug(owner)}`
     }, [owner]);
 
-    const toOwner = useCallback(() => { setLocation(ownerLink) }, [ownerLink, setLocation]);
+    const toOwner = useCallback(() => { 
+        if (!owner) return;
+        openObject(owner, setLocation); 
+    }, [owner, setLocation]);
 
     const handleClick = useCallback((event: any) => {
         if (typeof confirmOpen === 'function') {
@@ -61,15 +56,15 @@ export const OwnerLabel = ({
     }, [confirmOpen, toOwner]);
 
     return (
-        <Tooltip title={`Press to view ${objectType === ObjectType.Standard ? 'creator' : 'owner'}`}>
-            <Link
-                href={ownerLink}
-                onClick={handleClick}
-                style={{
-                    minWidth: 'auto',
-                    padding: 0,
-                }}
-            >
+        <Link
+            href={ownerLink}
+            onClick={handleClick}
+            style={{
+                minWidth: 'auto',
+                padding: 0,
+            }}
+        >
+            <Tooltip title={`Press to view ${objectType === ObjectType.Standard ? 'creator' : 'owner'}`}>
                 <Typography
                     variant="body1"
                     sx={{
@@ -85,7 +80,7 @@ export const OwnerLabel = ({
                 >
                     {ownerLabel}
                 </Typography>
-            </Link>
-        </Tooltip>
+            </Tooltip>
+        </Link>
     )
 }

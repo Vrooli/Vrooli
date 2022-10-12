@@ -1,7 +1,9 @@
 import { APP_LINKS } from "@shared/consts";
+import { SnackSeverity } from "components";
+import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/generated/profileUpdate";
 import { profileUpdateMutation } from "graphql/mutation";
-import { errorToMessage, initializeApollo } from "graphql/utils";
-import { ActionOption, ApolloError, Session, ShortcutOption } from "types";
+import { documentNodeWrapper, errorToMessage } from "graphql/utils";
+import { ActionOption, Session, ShortcutOption } from "types";
 import { clearSearchHistory, DevelopSearchPageTabOption, HistorySearchPageTabOption, SearchPageTabOption } from "utils/display";
 import { PubSub } from "utils/pubsub";
 
@@ -197,25 +199,19 @@ export const performAction = async (option: ActionOption, session: Session): Pro
             clearSearchHistory(session);
             break;
         case 'activate-dark-mode':
-            const client = initializeApollo();
-            await client.mutate({ 
-                mutation: profileUpdateMutation,
-                variables: { input: { theme: 'dark' } },
-            }).then(() => {
-                PubSub.get().publishTheme('dark');
-            }).catch((error: ApolloError) => {
-                PubSub.get().publishSnack({ message: errorToMessage(error), severity: 'error', data: error });
+            documentNodeWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
+                node: profileUpdateMutation,
+                input: { theme: 'dark' },
+                onSuccess: () => { PubSub.get().publishTheme('dark'); },
+                onError: (error) => { PubSub.get().publishSnack({ message: errorToMessage(error), severity: SnackSeverity.Error, data: error }); }
             })
             break;
         case 'activate-light-mode':
-            const client2 = initializeApollo();
-            await client2.mutate({
-                mutation: profileUpdateMutation,
-                variables: { input: { theme: 'light' } },
-            }).then(() => {
-                PubSub.get().publishTheme('light');
-            }).catch((error: ApolloError) => {
-                PubSub.get().publishSnack({ message: errorToMessage(error), severity: 'error', data: error });
+            documentNodeWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
+                node: profileUpdateMutation,
+                input: { theme: 'light' },
+                onSuccess: () => { PubSub.get().publishTheme('light'); },
+                onError: (error) => { PubSub.get().publishSnack({ message: errorToMessage(error), severity: SnackSeverity.Error, data: error }); }
             })
             break;
     }

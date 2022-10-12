@@ -4,15 +4,15 @@ import { centeredDiv } from 'styles';
 import { homePage, homePageVariables } from 'graphql/generated/homePage';
 import { useQuery } from '@apollo/client';
 import { homePageQuery } from 'graphql/query';
-import { AutocompleteSearchBar, ListTitleContainer, TitleContainer, ListMenu } from 'components';
+import { AutocompleteSearchBar, ListTitleContainer, TitleContainer, ListMenu, PageContainer } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { HomePageProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import { actionsItems, listToAutocomplete, listToListItems, openObject, OpenObjectProps, SearchPageTabOption, shortcutsItems, useReactSearch } from 'utils';
-import { AutocompleteOption } from 'types';
+import { actionsItems, listToAutocomplete, listToListItems, ObjectType, openObject, SearchPageTabOption, shortcutsItems, useReactSearch } from 'utils';
+import { AutocompleteOption, NavigableObject } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
-import { CreateIcon, SearchIcon } from '@shared/icons';
+import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
 
 const faqText =
     `## What is This?
@@ -61,19 +61,19 @@ If you would like to contribute to the development of Vrooli, please contact us!
 `
 
 const advancedSearchPopupOptions: ListMenuItemData<string>[] = [
-    { label: 'Organization', value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Organizations}&advanced=true` },
-    { label: 'Project', value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Projects}&advanced=true` },
-    { label: 'Routine', value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Routines}&advanced=true` },
-    { label: 'Standard', value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Standards}&advanced=true` },
-    { label: 'User', value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Users}&advanced=true` },
+    { label: 'Organization', Icon: OrganizationIcon, value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Organizations}&advanced=true` },
+    { label: 'Project', Icon: ProjectIcon, value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Projects}&advanced=true` },
+    { label: 'Routine', Icon: RoutineIcon, value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Routines}&advanced=true` },
+    { label: 'Standard', Icon: StandardIcon, value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Standards}&advanced=true` },
+    { label: 'User', Icon: UserIcon, value: `${APP_LINKS.Search}?type=${SearchPageTabOption.Users}&advanced=true` },
 ]
 
 const createNewPopupOptions: ListMenuItemData<string>[] = [
-    { label: 'Organization', value: `${APP_LINKS.Organization}/add` },
-    { label: 'Project', value: `${APP_LINKS.Project}/add` },
-    { label: 'Routine (Single Step)', value: `${APP_LINKS.Routine}/add` },
-    { label: 'Routine (Multi Step)', value: `${APP_LINKS.Routine}/add?build=true` },
-    { label: 'Standard', value: `${APP_LINKS.Standard}/add` },
+    { label: 'Organization', Icon: OrganizationIcon, value: `${APP_LINKS.Organization}/add` },
+    { label: 'Project', Icon: ProjectIcon, value: `${APP_LINKS.Project}/add` },
+    { label: 'Routine (Single Step)', Icon: RoutineIcon, value: `${APP_LINKS.Routine}/add` },
+    { label: 'Routine (Multi Step)', Icon: RoutineIcon, value: `${APP_LINKS.Routine}/add?build=true` },
+    { label: 'Standard', Icon: StandardIcon, value: `${APP_LINKS.Standard}/add` },
 ]
 
 const tabOptions = [
@@ -187,7 +187,7 @@ export const HomePage = ({
     /**
      * Opens page for list item
      */
-    const toItemPage = useCallback((item: OpenObjectProps['object'], event: any) => {
+    const toItemPage = useCallback((item: NavigableObject, event: any) => {
         event?.stopPropagation();
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
@@ -289,10 +289,7 @@ export const HomePage = ({
     }, [setLocation]);
 
     return (
-        <Box id='page' sx={{
-            padding: '0.5em',
-            paddingTop: { xs: '64px', md: '80px' },
-        }}>
+        <PageContainer>
             {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}
             {showHistoryTab && (
                 <Box display="flex" justifyContent="center" width="100%">
@@ -371,7 +368,12 @@ export const HomePage = ({
                             key={`example-${index}`}
                             component="p"
                             variant="h6"
-                            onClick={() => { setLocation(`${APP_LINKS.Routine}/${example[1]}`) }}
+                            onClick={() => {
+                                openObject({
+                                    __typename: ObjectType.Routine,
+                                    id: example[1],
+                                }, setLocation)
+                            }}
                             sx={{
                                 color: palette.text.secondary,
                                 fontStyle: 'italic',
@@ -414,6 +416,6 @@ export const HomePage = ({
                     <Box pl={2} pr={2}><Markdown>{faqText}</Markdown></Box>
                 </TitleContainer>
             </Stack>
-        </Box>
+        </PageContainer>
     )
 }

@@ -1,44 +1,33 @@
 import { useMutation } from "@apollo/client";
-import { copy, copyVariables } from 'graphql/generated/copy';
-import { fork, forkVariables } from 'graphql/generated/fork';
-import { star, starVariables } from 'graphql/generated/star';
-import { vote, voteVariables } from 'graphql/generated/vote';
+import { copyVariables, copy_copy } from 'graphql/generated/copy';
+import { forkVariables, fork_fork } from 'graphql/generated/fork';
+import { starVariables, star_star } from 'graphql/generated/star';
+import { voteVariables, vote_vote } from 'graphql/generated/vote';
 import { copyMutation, forkMutation, starMutation, voteMutation } from "graphql/mutation";
 import { useCallback, useMemo, useState } from "react";
 import { ReportFor, StarFor, VoteFor } from "@shared/consts";
-import { DeleteDialog, ListMenu, ReportDialog } from "..";
+import { DeleteDialog, ListMenu, ReportDialog, SnackSeverity } from "..";
 import { ObjectActionMenuProps, ListMenuItemData, ObjectActionComplete, ObjectAction } from "../types";
-import {
-    FileCopy as CopyIcon,
-    DeleteForever as DeleteIcon,
-    CardGiftcard as DonateIcon,
-    ForkRight as ForkIcon,
-    Flag as ReportIcon,
-    Share as ShareIcon,
-    StarOutline as StarIcon,
-    Star as UnstarIcon,
-    QueryStats as StatsIcon,
-} from "@mui/icons-material";
-import { mutationWrapper } from "graphql/utils/mutationWrapper";
+import { mutationWrapper } from "graphql/utils/graphqlWrapper";
 import { PubSub } from "utils";
 import { CopyType, ForkType } from "graphql/generated/globalTypes";
-import { DownvoteWideIcon, EditIcon, SearchIcon, UpvoteWideIcon } from "@shared/icons";
+import { BranchIcon, CopyIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReportIcon, SearchIcon, ShareIcon, StarFilledIcon, StarOutlineIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@shared/icons";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
 
 /**
  * [label, Icon, iconColor, preview]
  */
-const allOptionsMap: { [key in ObjectAction]: [string, any, string, boolean] } = ({
+const allOptionsMap: { [key in ObjectAction]: [string, SvgComponent, string, boolean] } = ({
     [ObjectAction.Copy]: ['Copy', CopyIcon, 'default', false],
     [ObjectAction.Delete]: ['Delete', DeleteIcon, "default", false],
     [ObjectAction.Donate]: ['Donate', DonateIcon, "default", true],
     [ObjectAction.Edit]: ['Edit', EditIcon, "default", false],
     [ObjectAction.FindInPage]: ['Find...', SearchIcon, "default", false],
-    [ObjectAction.Fork]: ['Fork', ForkIcon, "default", false],
+    [ObjectAction.Fork]: ['Fork', BranchIcon, "default", false],
     [ObjectAction.Report]: ['Report', ReportIcon, "default", false],
     [ObjectAction.Share]: ['Share', ShareIcon, "default", false],
-    [ObjectAction.Star]: ['Star', StarIcon, "#cbae30", false],
-    [ObjectAction.StarUndo]: ['Unstar', UnstarIcon, "#cbae30", false],
+    [ObjectAction.Star]: ['Star', StarFilledIcon, "#cbae30", false],
+    [ObjectAction.StarUndo]: ['Unstar', StarOutlineIcon, "#cbae30", false],
     [ObjectAction.Stats]: ['Stats', StatsIcon, "default", true],
     [ObjectAction.VoteDown]: ['Downvote', DownvoteWideIcon, "default", false],
     [ObjectAction.VoteUp]: ['Upvote', UpvoteWideIcon, "default", false],
@@ -78,25 +67,23 @@ export const ObjectActionMenu = ({
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
     // Mutations
-    const [copy] = useMutation<copy, copyVariables>(copyMutation);
-    const [fork] = useMutation<fork, forkVariables>(forkMutation);
-    const [star] = useMutation<star, starVariables>(starMutation);
-    const [vote] = useMutation<vote, voteVariables>(voteMutation);
+    const [copy] = useMutation(copyMutation);
+    const [fork] = useMutation(forkMutation);
+    const [star] = useMutation(starMutation);
+    const [vote] = useMutation(voteMutation);
 
     const handleCopy = useCallback(() => {
         // Check if objectType can be converted to CopyType
         const copyType = CopyType[objectType];
         if (!copyType) {
-            PubSub.get().publishSnack({ message: 'Copy not supported on this object type.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Copy not supported on this object type.', severity: SnackSeverity.Error });
             return;
         }
-        mutationWrapper({
+        mutationWrapper<copy_copy, copyVariables>({
             mutation: copy,
             input: { id: objectId, objectType: copyType },
-            onSuccess: ({ data }) => {
-                PubSub.get().publishSnack({ message: `${objectName} copied.`, severity: 'success' });
-                onActionComplete(ObjectActionComplete.Copy, data);
-            },
+            successMessage: () => `${objectName} copied.`,
+            onSuccess: (data) => { onActionComplete(ObjectActionComplete.Copy, data) },
         })
     }, [copy, objectId, objectName, objectType, onActionComplete]);
 
@@ -104,36 +91,30 @@ export const ObjectActionMenu = ({
         // Check if objectType can be converted to ForkType
         const forkType = ForkType[objectType];
         if (!forkType) {
-            PubSub.get().publishSnack({ message: 'Fork not supported on this object type.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Fork not supported on this object type.', severity: SnackSeverity.Error });
             return;
         }
-        mutationWrapper({
+        mutationWrapper<fork_fork, forkVariables>({
             mutation: fork,
             input: { id: objectId, objectType: forkType },
-            onSuccess: ({ data }) => {
-                PubSub.get().publishSnack({ message: `${objectName} forked.`, severity: 'success' });
-                onActionComplete(ObjectActionComplete.Fork, data);
-            }
+            successMessage: () => `${objectName} forked.`,
+            onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data) },
         })
     }, [fork, objectId, objectName, objectType, onActionComplete]);
 
     const handleStar = useCallback((isStar: boolean, starFor: StarFor) => {
-        mutationWrapper({
+        mutationWrapper<star_star, starVariables>({
             mutation: star,
             input: { isStar, starFor, forId: objectId },
-            onSuccess: ({ data }) => {
-                onActionComplete(isStar ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data);
-            }
+            onSuccess: (data) => { onActionComplete(isStar ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data) },
         })
     }, [objectId, onActionComplete, star]);
 
     const handleVote = useCallback((isUpvote: boolean | null, voteFor: VoteFor) => {
-        mutationWrapper({
+        mutationWrapper<vote_vote, voteVariables>({
             mutation: vote,
             input: { isUpvote, voteFor, forId: objectId },
-            onSuccess: ({ data }) => {
-                onActionComplete(isUpvote ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data);
-            }
+            onSuccess: (data) => { onActionComplete(isUpvote ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data) },
         })
     }, [objectId, onActionComplete, vote]);
 

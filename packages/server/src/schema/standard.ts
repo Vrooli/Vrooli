@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
-import { countHelper, createHelper, readManyHelper, readOneHelper, StandardModel, updateHelper } from '../models';
+import { countHelper, createHelper, readManyHelper, readOneHelper, StandardModel, updateHelper, visibilityBuilder } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSearchResult, StandardSortBy } from './types';
+import { FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSearchResult, StandardSortBy, FindByVersionInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
@@ -68,6 +68,7 @@ export const typeDef = gql`
         yup: String
         version: String!
         versionGroupId: ID!
+        versions: [String!]!
         score: Int!
         stars: Int!
         views: Int!
@@ -118,7 +119,6 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        includePrivate: Boolean  
         languages: [String!]
         minScore: Int
         minStars: Int
@@ -134,6 +134,7 @@ export const typeDef = gql`
         type: String
         updatedTimeFrame: TimeFrame
         userId: ID
+        visibility: VisibilityType
     }
 
     type StandardSearchResult {
@@ -153,7 +154,7 @@ export const typeDef = gql`
     }
 
     extend type Query {
-        standard(input: FindByIdInput!): Standard
+        standard(input: FindByVersionInput!): Standard
         standards(input: StandardSearchInput!): StandardSearchResult!
         standardsCount(input: StandardCountInput!): Int!
     }
@@ -167,21 +168,17 @@ export const typeDef = gql`
 export const resolvers = {
     StandardSortBy: StandardSortBy,
     Query: {
-        standard: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard> | null> => {
+        standard: async (_parent: undefined, { input }: IWrap<FindByVersionInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard> | null> => {
             await rateLimit({ info, max: 1000, req });
             return readOneHelper({ info, input, model: StandardModel, prisma, userId: req.userId });
         },
         standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<StandardSearchResult> => {
             await rateLimit({ info, max: 1000, req });
-            // Can only show private if querying your own
-            const privateQuery = input.includePrivate ?
-                StandardModel.permissions(prisma).ownershipQuery(req.userId ?? '') :
-                { isPrivate: false };
-            return readManyHelper({ info, input, model: StandardModel, prisma, userId: req.userId, additionalQueries: { ...privateQuery } });
+            return readManyHelper({ info, input, model: StandardModel, prisma, userId: req.userId });
         },
         standardsCount: async (_parent: undefined, { input }: IWrap<StandardCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, max: 1000, req });
-            return countHelper({ input, model: StandardModel, prisma });
+            return countHelper({ input, model: StandardModel, prisma, userId: req.userId });
         },
     },
     Mutation: {

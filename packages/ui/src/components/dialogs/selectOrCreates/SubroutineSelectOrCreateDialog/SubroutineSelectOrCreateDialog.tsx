@@ -16,10 +16,11 @@ import { routineQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { routine, routineVariables } from 'graphql/generated/routine';
 import { RoutineCreate } from 'components/views/Routine/RoutineCreate/RoutineCreate';
-import { validate as uuidValidate } from 'uuid';
+import { uuidValidate } from '@shared/uuid';
 import { SearchType, routineSearchSchema, removeSearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';
+import { SearchException, VisibilityType } from 'graphql/generated/globalTypes';
 
 const helpText =
     `This dialog allows you to connect a new or existing subroutine. Each subroutine becomes a page when executing the routine (or if it contains its own subroutines, then those subroutines become pages).`
@@ -30,11 +31,13 @@ export const SubroutineSelectOrCreateDialog = ({
     handleAdd,
     handleClose,
     isOpen,
+    owner,
     nodeId,
     routineId,
     session,
     zIndex,
 }: SubroutineSelectOrCreateDialogProps) => {
+    console.log('subroutineselectorcreatedialog', routineId)
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -83,30 +86,26 @@ export const SubroutineSelectOrCreateDialog = ({
      * Query conditions change depending on a few factors
      */
     const where = useMemo(() => {
-        const validId: boolean = uuidValidate(routineId);
+        console.log('where start', routineId)
+        // If no routineId, then we are creating a new routine
+        if (!routineId || !uuidValidate(routineId)) return { visibility: VisibilityType.All };
         // Ignore current routine
-        const excludeIds = validId ? { excludeIds: [routineId] } : {};
+        const excludeIds = { excludeIds: [routineId] };
+        console.log('where excludeIds', excludeIds)
         // Don't include incomplete/internal routines, unless they're your own
-        const incomplete: IsCompleteInput = { isComplete: true, isCompleteExceptions: [] };
-        const internal: IsInternalInput = { isInternal: false, isInternalExceptions: [] };
-        if (validId) {
-            const except = {
-                id: routineId,
-                relation: 'parent',
+        const incomplete: IsCompleteInput = { isComplete: true };
+        const internal: IsInternalInput = { isInternal: false };
+        if (owner) {
+            const exception: SearchException = {
+                field: owner.__typename,
+                // Since exceptions support multiple data types, we must stringify the value
+                value: JSON.stringify(owner.id),
             }
-            incomplete.isCompleteExceptions.push(except);
-            internal.isInternalExceptions.push(except);
+            incomplete.isCompleteExceptions = [exception];
+            internal.isInternalExceptions = [exception];
         }
-        if (session.userId) {
-            const except = {
-                id: session.userId,
-                relation: 'user',
-            }
-            incomplete.isCompleteExceptions.push(except);
-            internal.isInternalExceptions.push(except);
-        }
-        return { ...excludeIds, ...incomplete, ...internal };
-    }, [routineId, session.userId]);
+        return { ...excludeIds, ...incomplete, ...internal, visibility: VisibilityType.All };
+    }, [owner, routineId]);
 
     return (
         <Dialog
@@ -120,7 +119,7 @@ export const SubroutineSelectOrCreateDialog = ({
                     overflow: 'visible',
                     background: palette.background.default,
                 },
-                '& .MuiDialog-paper': { 
+                '& .MuiDialog-paper': {
                     overflow: 'visible',
                     width: 'min(100%, 600px)',
                 }
@@ -133,6 +132,7 @@ export const SubroutineSelectOrCreateDialog = ({
                 zIndex={zIndex + 1}
             >
                 <RoutineCreate
+                    isSubroutine={true}
                     onCancel={handleCreateClose}
                     onCreated={handleCreated}
                     session={session}
@@ -160,6 +160,7 @@ export const SubroutineSelectOrCreateDialog = ({
                         </Tooltip>
                     </Stack>
                     <SearchList
+                        canSearch={Boolean(nodeId)} // Can only query when a node is selected
                         id="subroutine-select-or-create-list"
                         itemKeyPrefix='routine-list-item'
                         noResultsText={"None found. Maybe you should create one?"}

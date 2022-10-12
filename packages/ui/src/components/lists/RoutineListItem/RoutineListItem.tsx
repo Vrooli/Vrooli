@@ -2,11 +2,12 @@ import { Chip, ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme 
 import { RoutineListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, StarFor, VoteFor } from '@shared/consts';
+import { StarFor, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { CommentButton, ReportButton, StarButton, TagList, TextLoading, UpvoteDownvote } from '..';
-import { getTranslation, listItemColor } from 'utils';
+import { TagList, TextLoading, UpvoteDownvote } from '..';
+import { getTranslation, listItemColor, openObject } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
+import { CommentsButton, ReportsButton, StarButton } from 'components/buttons';
 
 export function RoutineListItem({
     data,
@@ -20,13 +21,12 @@ export function RoutineListItem({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const { canComment, canEdit, canReport, canStar, canVote, description, reportsCount, title } = useMemo(() => {
+    const { canComment, canEdit, canStar, canVote, description, reportsCount, title } = useMemo(() => {
         const permissions = data?.permissionsRoutine;
         const languages = session?.languages ?? navigator.languages;
         return {
             canComment: permissions?.canComment === true,
             canEdit: permissions?.canEdit === true,
-            canReport: permissions?.canReport === true,
             canStar: permissions?.canStar === true,
             canVote: permissions?.canVote === true,
             description: getTranslation(data, 'description', languages, true),
@@ -43,7 +43,7 @@ export function RoutineListItem({
         // If onClick provided, call it
         if (onClick) onClick(e, data);
         // Otherwise, navigate to the object's page
-        else setLocation(`${APP_LINKS.Routine}/${data.id}`)
+        else openObject(data, setLocation);
     }, [onClick, data, setLocation]);
 
     return (
@@ -57,14 +57,15 @@ export function RoutineListItem({
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>
-                    {canVote && <UpvoteDownvote
+                    <UpvoteDownvote
+                        disabled={!canVote}
                         session={session}
                         objectId={data?.id ?? ''}
                         voteFor={VoteFor.Routine}
                         isUpvoted={data?.isUpvoted}
                         score={data?.score}
                         onChange={(isUpvoted: boolean | null) => { }}
-                    />}
+                    />
                     <Stack
                         direction="column"
                         spacing={1}
@@ -120,24 +121,39 @@ export function RoutineListItem({
                                         }} />
                                 </Tooltip>
                             }
+                            {/* Internal chip */}
+                            {
+                                data && data.isInternal && <Tooltip placement="top" title="Marked as internal. Only the owner can use this routine">
+                                    <Chip
+                                        label="Internal"
+                                        size="small"
+                                        sx={{
+                                            backgroundColor: palette.warning.main,
+                                            color: palette.error.contrastText,
+                                            width: 'fit-content',
+                                        }} />
+                                </Tooltip>
+                            }
                             {/* Tags */}
                             {Array.isArray(data?.tags) && (data?.tags as any).length > 0 ? <TagList session={session} parentId={data?.id ?? ''} tags={data?.tags ?? []} /> : null}
                         </Stack>
                     </Stack>
                     {/* Star/Comment/Report */}
                     <Stack direction="column" spacing={1}>
-                        {canStar && <StarButton
+                        <StarButton
+                            disabled={!canStar}
                             session={session}
                             objectId={data?.id ?? ''}
                             starFor={StarFor.Routine}
                             isStar={data?.isStarred}
                             stars={data?.stars}
-                        />}
-                        {canComment && <CommentButton
+                        />
+                        <CommentsButton
                             commentsCount={data?.commentsCount ?? 0}
+                            disabled={!canComment}
                             object={data}
-                        />}
-                        {canReport && reportsCount > 0 && <ReportButton
+                        />
+                        {reportsCount > 0 && <ReportsButton
                             reportsCount={data?.reportsCount ?? 0}
                             object={data}
                         />}

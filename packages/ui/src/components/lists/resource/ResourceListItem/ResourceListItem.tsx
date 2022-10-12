@@ -6,15 +6,11 @@ import { useCallback, useMemo } from 'react';
 import { ResourceSortBy, ResourceUsedFor } from '@shared/consts';
 import { adaHandleRegex, urlRegex, walletAddressRegex } from '@shared/validation';
 import { useLocation } from '@shared/route';
-import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, openLink, PubSub, ResourceType } from 'utils';
+import { firstString, getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, openLink, PubSub, ResourceType } from 'utils';
 import { Resource } from 'types';
 import { getResourceIcon } from '..';
-import {
-    Delete as DeleteIcon,
-    OpenInNew as OpenLinkIcon
-} from '@mui/icons-material';
-import { TextLoading } from 'components';
-import { EditIcon } from '@shared/icons';
+import { SnackSeverity, TextLoading } from 'components';
+import { DeleteIcon, EditIcon, OpenInNewIcon } from '@shared/icons';
 
 /**
  * Determines if a resource is a URL, wallet payment address, or an ADA handle
@@ -55,7 +51,7 @@ export function ResourceListItem({
         const resourceType = getResourceType(data.link);
         // If null, show error
         if (!resourceType) {
-            PubSub.get().publishSnack({ message: 'Unable to open link', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Unable to open link', severity: SnackSeverity.Error });
             return;
         }
         // If URL, open in new tab
@@ -68,7 +64,7 @@ export function ResourceListItem({
                     {
                         text: 'Copy', onClick: () => {
                             navigator.clipboard.writeText(data.link);
-                            PubSub.get().publishSnack({ message: 'Copied.', severity: 'success' });
+                            PubSub.get().publishSnack({ message: 'Copied.', severity: SnackSeverity.Success });
                         }
                     },
                     { text: 'Close' }
@@ -102,16 +98,15 @@ export function ResourceListItem({
             >
                 <ListItemButton component="div" onClick={handleClick}>
                     <IconButton sx={{
-                        width: "50px",
-                        minWidth: "50px",
-                        height: "50px",
+                        width: "48px",
+                        height: "48px",
                     }}>
-                        <Icon />
+                        <Icon fill={palette.background.textPrimary} width="80%" height="80%" />
                     </IconButton>
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
                         {/* Name/Title */}
                         {loading ? <TextLoading /> : <ListItemText
-                            primary={title ?? data.link}
+                            primary={firstString(title, data.link)}
                             sx={{ ...multiLineEllipsis(1) }}
                         />}
                         {/* Bio/Description */}
@@ -122,7 +117,7 @@ export function ResourceListItem({
                     </Stack>
                     {
                         canEdit && <IconButton onClick={onDelete}>
-                            <DeleteIcon sx={{ fill: palette.background.textPrimary }} />
+                            <DeleteIcon fill={palette.background.textPrimary} />
                         </IconButton>
                     }
                     {
@@ -131,7 +126,7 @@ export function ResourceListItem({
                         </IconButton>
                     }
                     <IconButton>
-                        <OpenLinkIcon sx={{ fill: palette.background.textPrimary }} />
+                        <OpenInNewIcon fill={palette.background.textPrimary} />
                     </IconButton>
                 </ListItemButton>
             </ListItem>

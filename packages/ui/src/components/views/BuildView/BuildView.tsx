@@ -1,10 +1,10 @@
 import { Box, IconButton, Palette, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, EditableLabel, UnlinkedNodesDialog, BuildInfoDialog, HelpButton, userFromSession } from 'components';
+import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, EditableLabel, UnlinkedNodesDialog, BuildInfoDialog, HelpButton, userFromSession, SnackSeverity } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getTranslation, getUserLanguages, parseSearchParams, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine, addSearchParams, keepSearchParams, TagShape, RoutineTranslationShape } from 'utils';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
+import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getUserLanguages, parseSearchParams, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine, addSearchParams, keepSearchParams, TagShape, usePromptBeforeUnload, getFormikErrorsWithTranslations, handleTranslationChange, getTranslationData, getObjectUrlBase, getObjectSlug, openObject } from 'utils';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, ResourceList, Routine, Run } from 'types';
 import { useLocation } from '@shared/route';
 import { APP_LINKS, ResourceListUsedFor } from '@shared/consts';
@@ -12,14 +12,14 @@ import { isEqual } from '@shared/utils';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { ObjectAction } from 'components/dialogs/types';
 import { BuildViewProps } from '../types';
-import { v4 as uuid, validate as uuidValidate } from 'uuid';
+import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { StatusMessageArray } from 'components/buttons/types';
 import { StatusButton } from 'components/buttons';
-import { routineUpdate, routineUpdateVariables } from 'graphql/generated/routineUpdate';
-import { routineCreate, routineCreateVariables } from 'graphql/generated/routineCreate';
+import { routineUpdateVariables, routineUpdate_routineUpdate } from 'graphql/generated/routineUpdate';
+import { routineCreateVariables, routineCreate_routineCreate } from 'graphql/generated/routineCreate';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
 import { AddLinkIcon, CloseIcon, CompressIcon, EditIcon, RedoIcon, UndoIcon } from '@shared/icons';
-import { requiredErrorMessage, routineUpdateForm as validationSchema, title as titleValidation } from '@shared/validation';
+import { requiredErrorMessage, routineTranslationUpdate, routineUpdate as validationSchema, title as titleValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { RelationshipsObject } from 'components/inputs/types';
 
@@ -84,7 +84,7 @@ export const BuildView = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     /**
-     * On page load, check if editingd
+     * On page load, check if editing
      */
     useEffect(() => {
         const searchParams = parseSearchParams(window.location.search);
@@ -97,8 +97,8 @@ export const BuildView = ({
 
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
     // Routine mutators
-    const [routineCreate] = useMutation<routineCreate, routineCreateVariables>(routineCreateMutation);
-    const [routineUpdate] = useMutation<routineUpdate, routineUpdateVariables>(routineUpdateMutation);
+    const [routineCreate] = useMutation(routineCreateMutation);
+    const [routineUpdate] = useMutation(routineUpdateMutation);
     // The routine's status (valid/invalid/incomplete)
     const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ['Calculating...'] });
     // Determines the size of the nodes and edges
@@ -177,22 +177,6 @@ export const BuildView = ({
         }
     }, [clearChangeStack, routine, session]);
 
-    // Handle translations
-    type Translation = RoutineTranslationShape;
-    const [translations, setTranslations] = useState<Translation[]>([]);
-    const deleteTranslation = useCallback((language: string) => {
-        setTranslations([...translations.filter(t => t.language !== language)]);
-    }, [translations]);
-    const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
-        // Find translation
-        const index = translations.findIndex(t => language === t.language);
-        // Add to array, or update if found
-        return index >= 0 ? updateArray(translations, index, translation) : [...translations, translation];
-    }, [translations]);
-    const updateTranslation = useCallback((language: string, translation: Translation) => {
-        setTranslations(getTranslationsUpdate(language, translation));
-    }, [getTranslationsUpdate]);
-
     // Handle relationships
     const [relationships, setRelationships] = useState<RelationshipsObject>({
         isComplete: false,
@@ -219,7 +203,7 @@ export const BuildView = ({
     const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     useEffect(() => {
-        setRelationships({ 
+        setRelationships({
             isComplete: routine?.isComplete ?? false,
             isPrivate: routine?.isPrivate ?? false,
             owner: routine?.owner ?? null,
@@ -229,41 +213,32 @@ export const BuildView = ({
         });
         setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(routine?.tags ?? []);
-        setTranslations(routine?.translations?.map(t => ({
-            id: t.id,
-            language: t.language,
-            description: t.description ?? '',
-            instructions: t.instructions ?? '',
-            title: t.title ?? '',
-        })) ?? []);
     }, [routine]);
 
     // Formik validation
     const formik = useFormik({
         initialValues: {
-            description: getTranslation(routine, 'description', [language]) ?? '',
-            instructions: getTranslation(routine, 'instructions', [language]) ?? '',
+            id: routine?.id ?? DUMMY_ID,
+            translationsUpdate: routine?.translations ?? [{
+                id: DUMMY_ID,
+                language: language,
+                description: '',
+                instructions: '',
+                title: '',
+            }],
             isInternal: routine?.isInternal ?? false,
-            title: getTranslation(routine, 'title', [language]) ?? '',
             version: routine?.version ?? '1.0.0',
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema: validationSchema({ minVersion: routine?.version ?? '0.0.1' }),
         onSubmit: (values) => {
-            const allTranslations = getTranslationsUpdate(language, {
-                id: uuid(),
-                language,
-                description: values.description,
-                instructions: values.instructions,
-                title: values.title,
-            })
             // If routine is new, create it
             if (!uuidValidate(id)) {
                 if (!changedRoutine) {
-                    PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: 'error' });
+                    PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: SnackSeverity.Error });
                     return;
                 }
-                mutationWrapper({
+                mutationWrapper<routineCreate_routineCreate, routineCreateVariables>({
                     mutation: routineCreate,
                     input: shapeRoutineCreate({
                         ...changedRoutine,
@@ -276,12 +251,20 @@ export const BuildView = ({
                         version: values.version,
                         resourceLists: [resourceList],
                         tags: tags,
-                        translations: allTranslations,
+                        translations: values.translationsUpdate,
                     }),
-                    successMessage: () => 'Routine created.',
-                    onSuccess: ({ data }) => {
-                        onChange(data.routineCreate);
-                        setLocation(`${APP_LINKS.Routine}/${data.routineCreate.id}?build=true`)
+                    onSuccess: (data) => {
+                        onChange(data);
+                        setLocation(`${getObjectUrlBase(data)}/${getObjectSlug(data)}?build=true`)
+                        PubSub.get().publishSnack({
+                            message: `Routine created!`,
+                            severity: SnackSeverity.Success,
+                            buttonText: 'Create another',
+                            buttonClicked: () => { 
+                                setLocation(`add?build=true`, { replace: Boolean(sessionStorage.getItem('lastPath')) }); 
+                                window.location.reload();
+                            },
+                        })
                     },
                 })
             }
@@ -289,14 +272,14 @@ export const BuildView = ({
             else {
                 // Don't update if no changes
                 if (!changedRoutine || isEqual(routine, changedRoutine)) {
-                    PubSub.get().publishSnack({ message: 'No changes detected', severity: 'error' });
+                    PubSub.get().publishSnack({ message: 'No changes detected', severity: SnackSeverity.Error });
                     return;
                 }
                 if (!routine || !changedRoutine.id) {
-                    PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: 'error' });
+                    PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: SnackSeverity.Error });
                     return;
                 }
-                mutationWrapper({
+                mutationWrapper<routineUpdate_routineUpdate, routineUpdateVariables>({
                     mutation: routineUpdate,
                     input: shapeRoutineUpdate(routine, {
                         ...changedRoutine,
@@ -308,11 +291,11 @@ export const BuildView = ({
                         version: values.version,
                         resourceLists: [resourceList],
                         tags: tags,
-                        translations: allTranslations,
+                        translations: values.translationsUpdate,
                     }),
                     successMessage: () => 'Routine updated.',
-                    onSuccess: ({ data }) => {
-                        onChange(data.routineUpdate);
+                    onSuccess: (data) => {
+                        onChange(data);
                         keepSearchParams(setLocation, ['build']);
                         setIsEditing(false);
                     },
@@ -320,6 +303,15 @@ export const BuildView = ({
             }
         },
     });
+    usePromptBeforeUnload({ shouldPrompt: isEditing && changeStack.length > 1 });
+
+    const { title, errors } = useMemo(() => {
+        const { value } = getTranslationData(formik, 'translationsUpdate', language);
+        return {
+            title: value?.title ?? '',
+            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', routineTranslationUpdate),
+        }
+    }, [formik, language]);
 
     /**
      * Calculates:
@@ -477,35 +469,6 @@ export const BuildView = ({
         addSearchParams(setLocation, { edit: true });
         setIsEditing(true);
     }, [setLocation]);
-
-    /**
-     * On page leave, check if routine has changed. 
-     * If so, prompt user to save changes
-     */
-    useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (isEditing && changeStack.length > 1) {
-                e.preventDefault()
-                e.returnValue = ''
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [changeStack.length, isEditing, routine]);
-
-    const updateRoutineTitle = useCallback((title: string) => {
-        if (!changedRoutine) return;
-        const newTranslations = [...changedRoutine.translations.map(t => {
-            if (t.language === language) {
-                return { ...t, title }
-            }
-            return { ...t }
-        })];
-        addToChangeStack({
-            ...changedRoutine,
-            translations: newTranslations
-        });
-    }, [addToChangeStack, changedRoutine, language]);
 
     const revertChanges = useCallback(() => {
         // Helper function to revert changes
@@ -713,7 +676,7 @@ export const BuildView = ({
                 data: {
                     ...node.data,
                     routines: newRoutineList,
-                }
+                } as any,
             }),
         });
     }, [addToChangeStack, changedRoutine]);
@@ -741,7 +704,7 @@ export const BuildView = ({
         }
         // If one or the other is null, then there must be an error
         if (columnIndex === null || rowIndex === null) {
-            PubSub.get().publishSnack({ message: 'Error: Invalid drop location.', severity: 'errror' });
+            PubSub.get().publishSnack({ message: 'Error: Invalid drop location.', severity: SnackSeverity.Error });
             return;
         }
         // Otherwise, is a drop
@@ -868,7 +831,7 @@ export const BuildView = ({
         // Find "to" node. New node will be placed in its row and column
         const toNode = changedRoutine.nodes.find(n => n.id === link.toId);
         if (!toNode) {
-            PubSub.get().publishSnack({ message: 'Error occurred.', severity: 'Error' });
+            PubSub.get().publishSnack({ message: 'Error occurred.', severity: SnackSeverity.Error });
             return;
         }
         const { columnIndex, rowIndex } = toNode;
@@ -904,7 +867,7 @@ export const BuildView = ({
         // Find "to" node. New node will be placed in its column
         const toNode = changedRoutine.nodes.find(n => n.id === link.toId);
         if (!toNode) {
-            PubSub.get().publishSnack({ message: 'Error occurred.', severity: 'Error' });
+            PubSub.get().publishSnack({ message: 'Error occurred.', severity: SnackSeverity.Error });
             return;
         }
         // Find the largest row index in the column. New node will be placed in the next row
@@ -1121,7 +1084,7 @@ export const BuildView = ({
     const handleSubroutineViewFull = useCallback(() => {
         if (!openedSubroutine) return;
         if (!isEqual(routine, changedRoutine)) {
-            PubSub.get().publishSnack({ message: 'You have unsaved changes. Please save or discard them before navigating to another routine.' });
+            PubSub.get().publishSnack({ message: 'You have unsaved changes. Please save or discard them before navigating to another routine.', severity: SnackSeverity.Error });
             return;
         }
         // TODO - buildview should have its own buildview, to recursively open subroutines
@@ -1174,24 +1137,16 @@ export const BuildView = ({
 
     const handleRoutineAction = useCallback((action: ObjectAction, data: any) => {
         switch (action) {
-            case ObjectAction.Copy:
-                setLocation(`${APP_LINKS.Routine}/${data.copy.routine.id}`);
-                break;
             case ObjectAction.Delete:
                 setLocation(APP_LINKS.Home);
                 break;
             case ObjectAction.Fork:
-                setLocation(`${APP_LINKS.Routine}/${data.fork.routine.id}`);
-                break;
-            case ObjectAction.Report:
-                //TODO
-                break;
-            case ObjectAction.Share:
-                //TODO
+                openObject(data.routine, setLocation);
+                window.location.reload();
                 break;
             case ObjectAction.Star:
             case ObjectAction.StarUndo:
-                if (data.star.success) {
+                if (data.success) {
                     onChange({
                         ...routine,
                         isStarred: action === ObjectAction.Star,
@@ -1203,7 +1158,7 @@ export const BuildView = ({
                 break;
             case ObjectAction.VoteDown:
             case ObjectAction.VoteUp:
-                if (data.vote.success) {
+                if (data.success) {
                     onChange({
                         ...routine,
                         isUpvoted: action === ObjectAction.VoteUp,
@@ -1360,12 +1315,11 @@ export const BuildView = ({
                 handleClose={closeAddSubroutineDialog}
                 isOpen={Boolean(addSubroutineNode)}
                 nodeId={addSubroutineNode}
-                routineId={routine?.id ?? ''}
+                owner={relationships.owner}
+                routineId={routine?.id}
                 session={session}
                 zIndex={zIndex + 3}
             />}
-            {/* Popup for editing existing multi-step subroutines */}
-            {/* TODO */}
             {/* Popup for "Add after" dialog */}
             {addAfterLinkNode && <AddAfterLinkDialog
                 handleSelect={handleNodeInsert}
@@ -1438,7 +1392,7 @@ export const BuildView = ({
                 {/* Title */}
                 <EditableLabel
                     canEdit={isEditing}
-                    handleUpdate={updateRoutineTitle}
+                    handleUpdate={(newText: string) => handleTranslationChange(formik, 'translationsUpdate', { target: { name: 'title', value: newText }}, language)}
                     placeholder={loading ? 'Loading...' : 'Enter title...'}
                     renderLabel={(t) => (
                         <Typography
@@ -1450,7 +1404,7 @@ export const BuildView = ({
                             }}
                         >{t ?? (loading ? 'Loading...' : 'Enter title')}</Typography>
                     )}
-                    text={getTranslation(changedRoutine, 'title', [language], false) ?? ''}
+                    text={title}
                     sxs={{
                         stack: { marginLeft: 'auto' }
                     }}
@@ -1518,8 +1472,6 @@ export const BuildView = ({
                         handleRelationshipsChange={onRelationshipsChange}
                         handleResourcesUpdate={handleResourcesUpdate}
                         handleTagsUpdate={handleTagsUpdate}
-                        handleTranslationDelete={deleteTranslation}
-                        handleTranslationUpdate={updateTranslation}
                         handleUpdate={(updated: Routine) => { addToChangeStack(updated); }}
                         isEditing={isEditing}
                         language={language}
@@ -1529,7 +1481,6 @@ export const BuildView = ({
                         session={session}
                         sxs={{ icon: { fill: palette.secondary.light }, iconButton: { marginRight: 1 } }}
                         tags={tags}
-                        translations={translations}
                         zIndex={zIndex + 1}
                     />
                 </Box>
@@ -1568,7 +1519,7 @@ export const BuildView = ({
                     canCancelMutate={!loading}
                     canSubmitMutate={!loading && !isEqual(routine, changedRoutine)}
                     errors={{
-                        ...(formik.errors ?? {}),
+                        ...(errors ?? {}),
                         'graph': status.status !== Status.Valid ? status.messages : null,
                         'unchanged': isEqual(routine, changedRoutine) ? 'No changes made' : null,
                     }}

@@ -1,41 +1,25 @@
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
-import {
-    ConnectWithoutContact as DefaultSocialIcon,
-    Download as InstallIcon,
-    EventNote as SchedulingIcon,
-    Feed as FeedIcon,
-    FormatListNumbered as NotesIcon,
-    Help as TutorialIcon,
-    HowToVote as ProposalIcon,
-    Info as ContextIcon,
-    Link as RelatedIcon,
-    Public as CommunityIcon,
-    Redeem as DonationIcon,
-    Terminal as DeveloperIcon,
-    VideoCameraFront as SocialVideoIcon,
-    Web as OfficialWebsiteIcon,
-} from '@mui/icons-material';
-import { FacebookIcon, InstagramIcon, LearnIcon, RedditIcon, ResearchIcon, TwitterIcon, YouTubeIcon } from '@shared/icons';
+import { ArticleIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, HelpIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, OrganizationIcon, ProposalIcon, RedditIcon, ResearchIcon, ScheduleIcon, SocialVideoIcon, SvgComponent, TerminalIcon, TwitterIcon, WebsiteIcon, YouTubeIcon } from '@shared/icons';
 
-export const ResourceIconMap = {
-    [ResourceUsedFor.Community]: CommunityIcon,
-    [ResourceUsedFor.Context]: ContextIcon,
-    [ResourceUsedFor.Developer]: DeveloperIcon,
-    [ResourceUsedFor.Donation]: DonationIcon,
-    [ResourceUsedFor.ExternalService]: OfficialWebsiteIcon,
-    [ResourceUsedFor.Feed]: FeedIcon,
-    [ResourceUsedFor.Install]: InstallIcon,
+export const ResourceIconMap: { [key in ResourceUsedFor]?: SvgComponent } = {
+    [ResourceUsedFor.Community]: OrganizationIcon,
+    [ResourceUsedFor.Context]: InfoIcon,
+    [ResourceUsedFor.Developer]: TerminalIcon,
+    [ResourceUsedFor.Donation]: DonateIcon,
+    [ResourceUsedFor.ExternalService]: WebsiteIcon,
+    [ResourceUsedFor.Feed]: ArticleIcon,
+    [ResourceUsedFor.Install]: DownloadIcon,
     [ResourceUsedFor.Learning]: LearnIcon,
-    [ResourceUsedFor.Notes]: NotesIcon,
-    [ResourceUsedFor.OfficialWebsite]: OfficialWebsiteIcon,
+    [ResourceUsedFor.Notes]: ListNumberIcon,
+    [ResourceUsedFor.OfficialWebsite]: WebsiteIcon,
     [ResourceUsedFor.Proposal]: ProposalIcon,
-    [ResourceUsedFor.Related]: RelatedIcon,
+    [ResourceUsedFor.Related]: LinkIcon,
     [ResourceUsedFor.Researching]: ResearchIcon,
-    [ResourceUsedFor.Scheduling]: SchedulingIcon,
-    [ResourceUsedFor.Tutorial]: TutorialIcon,
+    [ResourceUsedFor.Scheduling]: ScheduleIcon,
+    [ResourceUsedFor.Tutorial]: HelpIcon,
 }
 
-export const ResourceSocialIconMap = {
+export const ResourceSocialIconMap: { [key: string]: SvgComponent } = {
     "default": DefaultSocialIcon,
     "facebook": FacebookIcon,
     "instagram": InstagramIcon,
@@ -71,7 +55,7 @@ export const getResourceIcon = (usedFor: ResourceUsedFor, link?: string): any =>
         return ResourceSocialIconMap.default;
     }
     if (usedFor in ResourceIconMap) return ResourceIconMap[usedFor];
-    return RelatedIcon;
+    return LinkIcon;
 }
 
 export * from './ResourceCard/ResourceCard';

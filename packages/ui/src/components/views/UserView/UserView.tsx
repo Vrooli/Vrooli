@@ -6,21 +6,17 @@ import { useLazyQuery } from "@apollo/client";
 import { user, userVariables } from "graphql/generated/user";
 import { userQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import {
-    CardGiftcard as DonateIcon,
-    Person as ProfileIcon,
-    Share as ShareIcon,
-} from "@mui/icons-material";
 import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton, SelectRoutineTypeMenu } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
-import { getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, PubSub, SearchType } from "utils";
+import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, openObject, placeholderColor, SearchType } from "utils";
 import { ResourceList, User } from "types";
 import { SearchListGenerator } from "components/lists/types";
-import { validate as uuidValidate } from 'uuid';
-import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { EditIcon, EllipsisIcon } from "@shared/icons";
+import { uuidValidate } from '@shared/uuid';
+import { ResourceListUsedFor, VisibilityType } from "graphql/generated/globalTypes";
+import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
+import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 
 enum TabOptions {
     Resources = "Resources",
@@ -40,9 +36,9 @@ export const UserView = ({
     const profileColors = useMemo(() => placeholderColor(), []);
     // Get URL params
     const id: string = useMemo(() => {
-        const pathnameEnd = getLastUrlPart();
+        const pathnameEnd = base36ToUuid(getLastUrlPart());
         // If no id is provided, use the current user's id
-        if (APP_LINKS.Profile.endsWith(pathnameEnd)) return session.id ?? '';
+        if (!uuidValidate(pathnameEnd)) return session.id ?? '';
         // Otherwise, use the id provided in the URL
         return pathnameEnd;
     }, [session]);
@@ -120,18 +116,12 @@ export const UserView = ({
 
     const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
-    const shareLink = useCallback(() => {
-        navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.Profile}/${id}`);
-        PubSub.get().publishSnack({ message: 'Copied🎉' })
-    }, [id]);
-
     const onEdit = useCallback(() => {
         setLocation(`${APP_LINKS.Settings}?page="profile"`);
     }, [setLocation]);
 
     // Create search data
     const { searchType, itemKeyPrefix, placeholder, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
-        const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         // The first tab doesn't have search results, as it is the user's set resources
         switch (currTabType) {
             case TabOptions.Organizations:
@@ -140,8 +130,8 @@ export const UserView = ({
                     itemKeyPrefix: 'organization-list-item',
                     placeholder: "Search user's organizations...",
                     noResultsText: "No organizations found",
-                    where: { userId: id, includePrivate: true },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Organization, newValue.id),
+                    where: { userId: id, visibility: VisibilityType.All },
+                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 }
             case TabOptions.Projects:
                 return {
@@ -149,8 +139,8 @@ export const UserView = ({
                     itemKeyPrefix: 'project-list-item',
                     placeholder: "Search user's projects...",
                     noResultsText: "No projects found",
-                    where: { userId: id, isComplete: !isOwn ? true : undefined, includePrivate: true },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Project, newValue.id),
+                    where: { userId: id, isComplete: !isOwn ? true : undefined, visibility: VisibilityType.All },
+                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 }
             case TabOptions.Routines:
                 return {
@@ -158,8 +148,8 @@ export const UserView = ({
                     itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search user's routines...",
                     noResultsText: "No routines found",
-                    where: { userId: id, isComplete: !isOwn ? true : undefined, isInternal: false, includePrivate: true },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
+                    where: { userId: id, isComplete: !isOwn ? true : undefined, isInternal: false, visibility: VisibilityType.All },
+                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 }
             case TabOptions.Standards:
                 return {
@@ -167,8 +157,11 @@ export const UserView = ({
                     itemKeyPrefix: 'standard-list-item',
                     placeholder: "Search user's standards...",
                     noResultsText: "No standards found",
-                    where: { userId: id, includePrivate: true },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
+                    where: { userId: id, visibilityType: VisibilityType.All },
+                    onSearchSelect: (newValue) => openObject({
+                        __typename: ObjectType.Standard,
+                        id: newValue.id,
+                    }, setLocation),
                 }
             default:
                 return {
@@ -205,7 +198,7 @@ export const UserView = ({
         switch (action) {
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.star.success) {
+                if (data.success) {
                     setUser({
                         ...user,
                         isStarred: action === ObjectActionComplete.Star,
@@ -213,10 +206,12 @@ export const UserView = ({
                 }
                 break;
             case ObjectActionComplete.Fork:
-                setLocation(`${APP_LINKS.User}/${data.fork.user.id}`);
+                openObject(data.user, setLocation);
+                window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
-                setLocation(`${APP_LINKS.User}/${data.copy.user.id}`);
+                openObject(data.user, setLocation);
+                window.location.reload();
                 break;
         }
     }, [user, setLocation]);
@@ -261,11 +256,7 @@ export const UserView = ({
                     transform: 'translateX(-50%)',
                 }}
             >
-                <ProfileIcon sx={{
-                    fill: profileColors[1],
-                    width: '80%',
-                    height: '80%',
-                }} />
+                <UserIcon fill={profileColors[1]} width='80%' height='80%' />
             </Box>
             <Tooltip title="See all options">
                 <IconButton
@@ -340,33 +331,25 @@ export const UserView = ({
                 <Stack direction="row" spacing={2} alignItems="center">
                     <Tooltip title="Donate">
                         <IconButton aria-label="Donate" size="small" onClick={() => { }}>
-                            <DonateIcon />
+                            <DonateIcon fill={palette.background.textSecondary} />
                         </IconButton>
                     </Tooltip>
-                    <Tooltip title="Share">
-                        <IconButton aria-label="Share" size="small" onClick={shareLink}>
-                            <ShareIcon />
-                        </IconButton>
-                    </Tooltip>
-                    {
-                        !isOwn ? <StarButton
-                            session={session}
-                            objectId={user?.id ?? ''}
-                            starFor={StarFor.User}
-                            isStar={user?.isStarred ?? false}
-                            stars={user?.stars ?? 0}
-                            onChange={(isStar: boolean) => { }}
-                            tooltipPlacement="bottom"
-                        /> : null
-                    }
-                    <ReportsLink
-                        href={`${APP_LINKS.User}/reports/${user?.id}`}
-                        reports={user?.reportsCount}
+                    <ShareButton objectType={ObjectType.User} zIndex={zIndex} />
+                    <StarButton
+                        disabled={isOwn}
+                        session={session}
+                        objectId={user?.id ?? ''}
+                        starFor={StarFor.User}
+                        isStar={user?.isStarred ?? false}
+                        stars={user?.stars ?? 0}
+                        onChange={(isStar: boolean) => { }}
+                        tooltipPlacement="bottom"
                     />
+                    <ReportsLink object={user} />
                 </Stack>
             </Stack>
         </Box>
-    ), [bio, handle, isOwn, loading, name, onEdit, openMoreMenu, palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.primary.dark, palette.secondary.dark, palette.secondary.main, profileColors, session, shareLink, user?.created_at, user?.id, user?.isStarred, user?.reportsCount, user?.stars]);
+    ), [bio, handle, isOwn, loading, name, onEdit, openMoreMenu, palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.primary.dark, palette.secondary.dark, palette.secondary.main, profileColors, session, user, zIndex]);
 
     /**
      * Opens add new page
@@ -431,11 +414,10 @@ export const UserView = ({
                     right: 8,
                 }}>
                     <SelectLanguageMenu
-                        availableLanguages={availableLanguages}
-                        canDropdownOpen={availableLanguages.length > 1}
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         session={session}
+                        translations={user?.translations ?? partialData?.translations ?? []}
                         zIndex={zIndex}
                     />
                 </Box>

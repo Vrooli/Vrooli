@@ -1,13 +1,11 @@
 import { Link } from '@shared/route';
 import { Box, Button } from '@mui/material';
 import { APP_LINKS } from '@shared/consts';
+import { PageContainer } from 'components';
 
 export const NotFoundPage = () => {
     return (
-        <Box id='page' sx={{
-            padding: '0.5em',
-            paddingTop: { xs: '64px', md: '80px' },
-        }}>
+        <PageContainer>
             <Box
                 sx={{
                     position: 'absolute',
@@ -23,6 +21,6 @@ export const NotFoundPage = () => {
                     <Button>Go to Home</Button>
                 </Link>
             </Box>
-        </Box>
+        </PageContainer>
     );
 }

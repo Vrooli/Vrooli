@@ -5,7 +5,7 @@ import { Stack, Typography } from '@mui/material';
 import { LanguageInputProps } from '../types';
 import { useCallback } from 'react';
 import { SelectLanguageMenu } from 'components/dialogs';
-import { AllLanguages, getUserLanguages } from 'utils';
+import { getLanguageSubtag, getUserLanguages } from 'utils';
 
 export const LanguageInput = ({
     currentLanguage,
@@ -13,20 +13,19 @@ export const LanguageInput = ({
     handleAdd,
     handleDelete,
     handleCurrent,
-    selectedLanguages,
     session,
+    translations,
     zIndex,
 }: LanguageInputProps) => {
-    /**
-     * When a language is selected, call handleCurrent and add it to the list of selected languages.
-     * Do not delete if already selected, as that is done separately.
-     */
+    
     const selectLanguage = useCallback((language: string) => {
-        if (selectedLanguages.indexOf(language) === -1) {
+        // If language is not in translations, add it
+        if (!translations.some((translation) => getLanguageSubtag(translation.language) === getLanguageSubtag(language))) {
             handleAdd(language);
         }
+        // Select language
         handleCurrent(language);
-    }, [handleAdd, handleCurrent, selectedLanguages]);
+    }, [handleAdd, handleCurrent, translations]);
 
     /**
      * Remove a language from the list of selected languages.
@@ -34,7 +33,7 @@ export const LanguageInput = ({
      * one of the other selected languages, or the first user language if none are selected.
      */
     const deleteLanguage = useCallback((language: string) => {
-        const newList = selectedLanguages.filter(l => l !== language);
+        const newList = translations.filter((translation) => getLanguageSubtag(translation.language) !== getLanguageSubtag(language));
         // If deleting this language makes the list empty, add the first user language
         if (newList.length === 0) {
             const userLanguages = getUserLanguages(session);
@@ -48,35 +47,33 @@ export const LanguageInput = ({
         }
         // Otherwise, select the first language in the list
         else {
-            handleCurrent(newList[0]);
+            handleCurrent(newList[0].language);
         }
         handleDelete(language);
-    }, [handleAdd, handleCurrent, handleDelete, selectedLanguages, session]);
+    }, [handleAdd, handleCurrent, handleDelete, session, translations]);
 
     return (
         <Stack direction="row" spacing={1}>
             <SelectLanguageMenu
-                availableLanguages={Object.keys(AllLanguages)}
                 currentLanguage={currentLanguage}
-                canDropdownOpen={true}
                 handleDelete={deleteLanguage}
                 handleCurrent={selectLanguage}
                 isEditing={true}
-                selectedLanguages={selectedLanguages}
                 session={session}
                 sxs={{
                     root: { marginLeft: 0.5, marginRight: 0.5 },
                 }}
+                translations={translations}
                 zIndex={zIndex + 1}
             />
+            {/* Display how many translations there are, besides currently selected */}
             {
-                selectedLanguages.length > 1 && (
+                translations.length > 1 && (
                     <Typography variant="body1" sx={{
-                        marginTop: 'auto',
-                        marginBottom: 'auto',
-                        marginLeft: 0,
+                        display: 'flex',
+                        alignItems: 'center',
                     }}>
-                        +{selectedLanguages.length - 1}
+                        +{translations.length - 1}
                     </Typography>
                 )
             }

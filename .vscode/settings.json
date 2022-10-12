@@ -40,5 +40,8 @@
             "foldStartRegex": "^[\\s]*\\{/\\*[\\s]*\\=*[\\s]*#[\\s]*region[\\s]*(.*)[\\s]*$", ////Regex used to find fold start text.
             "disableFolding": false //Turn off #region folding for this language
         }
+    },
+    "yaml.schemas": {
+        "https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json": "file:///root/Programming/Vrooli/docker-compose-prod.yml"
     }
 }

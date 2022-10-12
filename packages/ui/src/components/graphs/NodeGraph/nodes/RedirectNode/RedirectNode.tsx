@@ -1,12 +1,12 @@
 import { IconButton, Tooltip, Typography } from '@mui/material';
 import { CSSProperties, useCallback, useMemo, useState } from 'react';
 import { RedirectNodeProps } from '../types';
-import { UTurnLeft as RedirectIcon } from '@mui/icons-material';
 import { NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 import { DraggableNode } from '../';
 import { usePress } from 'utils';
+import { RedirectIcon } from '@shared/icons';
 
 export const RedirectNode = ({
     canDrag,
@@ -73,15 +73,15 @@ export const RedirectNode = ({
                 >
                     <RedirectIcon
                         id={`${isLinked ? '' : 'unlinked-'}node-redirect-icon-${node.id}`}
-                        sx={{
-                            width: '100%',
-                            height: '100%',
-                            color: '#00000044',
-                            '&:hover': {
-                                transform: 'scale(1.2)',
-                                transition: 'scale .2s ease-in-out',
-                            }
-                        }}
+                        // sx={{
+                        //     width: '100%',
+                        //     height: '100%',
+                        //     color: '#00000044',
+                        //     '&:hover': {
+                        //         transform: 'scale(1.2)',
+                        //         transition: 'scale .2s ease-in-out',
+                        //     }
+                        // }}
                     />
                     {labelObject}
                 </IconButton>

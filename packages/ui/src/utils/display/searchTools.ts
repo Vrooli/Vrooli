@@ -7,6 +7,7 @@ import { projectOrRoutinesQuery } from 'graphql/query/projectOrRoutines';
 import { RunStatus } from 'graphql/generated/globalTypes';
 import { getLocalStorageKeys } from 'utils/localStorage';
 import { PubSub } from 'utils/pubsub';
+import { SnackSeverity } from 'components';
 
 export const commentSearchSchema: FormSchema = {
     formLayout: {
@@ -947,5 +948,5 @@ export const clearSearchHistory = ({ id }: Session) => {
     searchHistoryKeys.forEach(key => {
         localStorage.removeItem(key);
     });
-    PubSub.get().publishSnack({ message: 'Search history cleared.', severity: 'success' });
+    PubSub.get().publishSnack({ message: 'Search history cleared.', severity: SnackSeverity.Success });
 }

@@ -7,10 +7,7 @@ import { radioStandardInputForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { useCallback, useEffect } from 'react';
 import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
-import {
-    Delete as DeleteIcon,
-} from '@mui/icons-material';
-import { AddIcon } from '@shared/icons';
+import { AddIcon, DeleteIcon } from '@shared/icons';
 
 /**
  * Create new option

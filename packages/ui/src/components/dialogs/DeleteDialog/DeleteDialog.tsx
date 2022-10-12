@@ -12,12 +12,11 @@ import { useCallback, useState } from 'react';
 import { mutationWrapper } from 'graphql/utils';
 import { useMutation } from '@apollo/client';
 import { deleteOneMutation } from 'graphql/mutation';
-import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
+import { deleteOneVariables, deleteOne_deleteOne } from 'graphql/generated/deleteOne';
 import { APP_LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { PubSub } from 'utils';
 import { DialogTitle } from 'components';
-import { Delete as DeleteIcon } from '@mui/icons-material';
+import { DeleteIcon } from '@shared/icons';
 
 const titleAria = 'delete-object-dialog-title';
 
@@ -40,22 +39,19 @@ export const DeleteDialog = ({
         handleClose(wasDeleted ?? false);
     }, [handleClose]);
 
-    const [deleteOne] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation);
+    const [deleteOne] = useMutation(deleteOneMutation);
     const handleDelete = useCallback(() => {
-        mutationWrapper({
+        mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
             mutation: deleteOne,
             input: { id: objectId, objectType },
-            onSuccess: (response) => {
-                if (response?.data?.deleteOne?.success) {
-                    PubSub.get().publishSnack({ message: `${objectName} deleted.` });
-                    setLocation(APP_LINKS.Home);
-                } else {
-                    PubSub.get().publishSnack({ message: `Error deleting ${objectName}.`, severity: 'error' });
-                }
+            successCondition: (data) => data.success,
+            successMessage: () => `${objectName} deleted.`,
+            onSuccess: () => {
+                setLocation(APP_LINKS.Home);
                 close(true);
             },
+            errorMessage: () => `Failed to delete ${objectName}.`,
             onError: () => {
-                PubSub.get().publishSnack({ message: `Failed to delete ${objectName}.` });
                 close(false);
             }
         })

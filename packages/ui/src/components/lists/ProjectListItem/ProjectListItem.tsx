@@ -2,10 +2,10 @@ import { Chip, ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme 
 import { ProjectListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, StarFor, VoteFor } from '@shared/consts';
+import { StarFor, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { CommentButton, ReportButton, StarButton, TagList, TextLoading, UpvoteDownvote } from 'components';
-import { getTranslation, listItemColor } from 'utils';
+import { CommentsButton, ReportsButton, StarButton, TagList, TextLoading, UpvoteDownvote } from 'components';
+import { getTranslation, listItemColor, openObject } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 
 export function ProjectListItem({
@@ -20,14 +20,13 @@ export function ProjectListItem({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const { canComment, canEdit, canStar, canReport, canVote, description, name, reportsCount } = useMemo(() => {
+    const { canComment, canEdit, canStar, canVote, description, name, reportsCount } = useMemo(() => {
         const permissions = data?.permissionsProject;
         const languages = session?.languages ?? navigator.languages;
         return {
             canComment: permissions?.canComment === true,
             canEdit: permissions?.canEdit === true,
             canStar: permissions?.canStar === true,
-            canReport: permissions?.canReport === true,
             canVote: permissions?.canVote === true,
             description: getTranslation(data, 'description', languages, true),
             name: getTranslation(data, 'name', languages, true),
@@ -43,11 +42,7 @@ export function ProjectListItem({
         // If onClick provided, call it
         if (onClick) onClick(e, data);
         // Otherwise, navigate to the object's page
-        else {
-            // Prefer using handle if available
-            const link = data.handle ?? data.id;
-            setLocation(`${APP_LINKS.Project}/${link}`);
-        }
+        else openObject(data, setLocation);
     }, [onClick, setLocation, data]);
 
     return (
@@ -61,14 +56,15 @@ export function ProjectListItem({
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>
-                    {canVote && <UpvoteDownvote
+                    <UpvoteDownvote
+                        disabled={!canVote}
                         session={session}
                         objectId={data?.id ?? ''}
                         voteFor={VoteFor.Project}
                         isUpvoted={data?.isUpvoted}
                         score={data?.score}
                         onChange={(isUpvoted: boolean | null) => { }}
-                    />}
+                    />
                     <Stack
                         direction="column"
                         spacing={1}
@@ -128,18 +124,20 @@ export function ProjectListItem({
                     </Stack>
                     {/* Star/Comment/Report */}
                     <Stack direction="column" spacing={1}>
-                        {canStar && <StarButton
+                        <StarButton
+                            disabled={!canStar}
                             session={session}
                             objectId={data?.id ?? ''}
                             starFor={StarFor.Project}
                             isStar={data?.isStarred}
                             stars={data?.stars}
-                        />}
-                        {canComment && <CommentButton
+                        />
+                        <CommentsButton
                             commentsCount={data?.commentsCount ?? 0}
+                            disabled={!canComment}
                             object={data}
-                        />}
-                        {canReport && reportsCount > 0 && <ReportButton
+                        />
+                        {reportsCount > 0 && <ReportsButton
                             reportsCount={data?.reportsCount ?? 0}
                             object={data}
                         />}

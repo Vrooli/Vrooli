@@ -1,5 +1,5 @@
 import { Count, Node, NodeCreateInput, NodeUpdateInput } from "../../schema/types";
-import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, onlyValidIds } from "./base";
+import { CUDInput, CUDResult, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, onlyValidIds } from "./base";
 import { CustomError } from "../../error";
 import { CODE } from "@shared/consts";
 import { nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeTranslationCreate, nodeTranslationUpdate, whilesCreate, whilesUpdate, whensCreate, whensUpdate, loopsCreate, loopsUpdate, nodesCreate, nodesUpdate } from "@shared/validation";
@@ -8,6 +8,7 @@ import { validateProfanity } from "../../utils/censor";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
 import { NodeRoutineListModel } from "./nodeRoutineList";
+import { GraphQLModelType } from ".";
 
 const MAX_NODES_IN_ROUTINE = 100;
 
@@ -25,18 +26,11 @@ export const nodeFormatter = (): FormatConverter<Node, any> => ({
         'loop': 'NodeLoop',
         'routine': 'Routine',
     },
-    constructUnions: (data) => {
-        let { nodeEnd, nodeRoutineList, ...modified } = data;
-        modified.data = nodeEnd ?? nodeRoutineList;
-        return modified;
-    },
-    deconstructUnions: (partial) => {
-        let modified = deconstructUnion(partial, 'data',
-            [
-                ['NodeEnd', 'nodeEnd'],
-                ['NodeRoutineList', 'nodeRoutineList'],
-            ]);
-        return modified;
+    unionMap: {
+        'data': {
+            'NodeEnd': 'nodeEnd',
+            'NodeRoutineList': 'nodeRoutineList',
+        },
     },
 })
 
@@ -158,14 +152,14 @@ export const nodeMutater = (prisma: PrismaType) => ({
         let { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         // Further shape the input
         if (createMany) {
-            let result = [];
+            let result: { [x: string]: any }[] = [];
             for (const data of createMany) {
                 result.push(await this.toDBShape(userId, data as any));
             }
             createMany = result;
         }
         if (updateMany) {
-            let result = [];
+            let result: { where: { [x: string]: string }, data: { [x: string]: any } }[] = [];
             for (const data of updateMany) {
                 result.push({
                     where: data.where,
@@ -426,6 +420,7 @@ export const NodeModel = ({
     prismaObject: (prisma: PrismaType) => prisma.node,
     format: nodeFormatter(),
     mutate: nodeMutater,
+    type: 'Node' as GraphQLModelType,
     verify: nodeVerifier(),
 })
 

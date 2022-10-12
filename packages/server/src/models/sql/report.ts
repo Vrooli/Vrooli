@@ -1,13 +1,14 @@
 import { reportsCreate, reportsUpdate } from "@shared/validation";
 import { ReportFor } from '@shared/consts';
 import { CODE } from "@shared/consts";
-import { omit } from '@shared/utils'; 
+import { omit } from '@shared/utils';
 import { CustomError } from "../../error";
 import { Count, Report, ReportCreateInput, ReportSearchInput, ReportSortBy, ReportUpdateInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
 import { validateProfanity } from "../../utils/censor";
-import { addSupplementalFieldsHelper, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, PartialGraphQLInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -48,8 +49,9 @@ export const reportSearcher = (): Searcher<ReportSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string): any => {
-        return getSearchStringQueryHelper({ searchString,
-            resolver: ({ insensitive }) => ({ 
+        return getSearchStringQueryHelper({
+            searchString,
+            resolver: ({ insensitive }) => ({
                 OR: [
                     { reason: { ...insensitive } },
                     { details: { ...insensitive } },
@@ -58,15 +60,15 @@ export const reportSearcher = (): Searcher<ReportSearchInput> => ({
         })
     },
     customQueries(input: ReportSearchInput): { [x: string]: any } {
-        return {
-            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            ...(input.userId !== undefined ? { userId: input.userId } : {}),
-            ...(input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
-            ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
-            ...(input.routineId !== undefined ? { routineId: input.routineId } : {}),
-            ...(input.standardId !== undefined ? { standardId: input.standardId } : {}),
-            ...(input.tagId !== undefined ? { tagId: input.tagId } : {}),
-        }
+        return combineQueries([
+            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            (input.userId !== undefined ? { userId: input.userId } : {}),
+            (input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
+            (input.projectId !== undefined ? { projectId: input.projectId } : {}),
+            (input.routineId !== undefined ? { routineId: input.routineId } : {}),
+            (input.standardId !== undefined ? { standardId: input.standardId } : {}),
+            (input.tagId !== undefined ? { tagId: input.tagId } : {}),
+        ])
     },
 })
 
@@ -203,6 +205,7 @@ export const ReportModel = ({
     format: reportFormatter(),
     mutate: reportMutater,
     search: reportSearcher(),
+    type: 'Report' as GraphQLModelType,
     verify: reportVerifier(),
 })
 

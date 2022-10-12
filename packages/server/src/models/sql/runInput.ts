@@ -6,6 +6,7 @@ import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPri
 import { genErrorCode } from "../../logger";
 import { validateProfanity } from "../../utils/censor";
 import { PrismaType } from "../../types";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -51,12 +52,12 @@ export const runInputFormatter = (): FormatConverter<RunInput, any> => ({
 //         })
 //     },
 //     customQueries(input: RunSearchInput): { [x: string]: any } {
-//         return {
-//             ...(input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
-//             ...(input.completedTimeFrame !== undefined ? timeFrameToPrisma('timeCompleted', input.completedTimeFrame) : {}),
-//             ...(input.startedTimeFrame !== undefined ? timeFrameToPrisma('timeStarted', input.startedTimeFrame) : {}),
-//             ...(input.status !== undefined ? { status: input.status } : {}),
-//         }
+//         return combineQueries([
+//             (input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
+//             (input.completedTimeFrame !== undefined ? timeFrameToPrisma('timeCompleted', input.completedTimeFrame) : {}),
+//             (input.startedTimeFrame !== undefined ? timeFrameToPrisma('timeStarted', input.startedTimeFrame) : {}),
+//             (input.status !== undefined ? { status: input.status } : {}),
+//         ])
 //     },
 // })
 
@@ -93,14 +94,14 @@ export const runInputMutater = (prisma: PrismaType) => ({
         let { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         // Further shape the input
         if (createMany) {
-            let result = [];
+            let result: { [x: string]: any }[] = [];
             for (const data of createMany) {
                 result.push(await this.toDBShapeAdd(userId, data as any));
             }
             createMany = result;
         }
         if (updateMany) {
-            let result = [];
+            let result: { where: { [x: string]: string }, data: { [x: string]: any } }[] = [];
             for (const data of updateMany) {
                 result.push({
                     where: data.where,
@@ -210,5 +211,6 @@ export const RunInputModel = ({
     format: runInputFormatter(),
     mutate: runInputMutater,
     // search: runInputSearcher(),
+    type: 'RunInput' as GraphQLModelType,
     verify: runInputVerifier(),
 })

@@ -7,8 +7,9 @@ import { ListMenuItemData, SelectRoutineTypeMenuProps } from "../types";
 import { APP_LINKS } from "@shared/consts";
 import { useLocation } from "@shared/route";
 import { ListMenu } from "../ListMenu/ListMenu";
-import { validate as uuidValidate } from 'uuid';
+import { uuidValidate } from '@shared/uuid';
 import { PubSub, stringifySearchParams } from "utils";
+import { SnackSeverity } from "components";
 
 const options: ListMenuItemData<string>[] = [
     { label: 'Routine (Single Step)', value: `${APP_LINKS.Routine}/add` },
@@ -28,8 +29,8 @@ export const SelectRoutineTypeMenu = ({
     }, [setLocation]);
 
     const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
-    if (!loggedIn) {
-        PubSub.get().publishSnack({ message: 'Must be logged in.', severity: 'error' });
+    if (Boolean(anchorEl) && !loggedIn) {
+        PubSub.get().publishSnack({ message: 'Must be logged in.', severity: SnackSeverity.Error });
         setLocation(`${APP_LINKS.Start}${stringifySearchParams({
             redirect: window.location.pathname
         })}`);

@@ -1,13 +1,12 @@
 import { useCallback, useMemo } from "react";
-import { Box } from "@mui/material"
 import { ObjectPageProps } from "../types";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { useLocation } from '@shared/route';
 import { APP_LINKS } from "@shared/consts";
 import { lazily } from "react-lazily";
-import { ObjectType, parseSearchParams } from "utils";
+import { ObjectType, parseSearchParams, PubSub, uuidToBase36 } from "utils";
 import { Organization, Project, Routine, Session, Standard, User } from "types";
-import { CommentReportsView, OrganizationReportsView, ProjectReportsView, RoutineReportsView, StandardReportsView, TagReportsView, UserReportsView } from "components";
+import { CommentReportsView, OrganizationReportsView, PageContainer, ProjectReportsView, RoutineReportsView, SnackSeverity, StandardReportsView, TagReportsView, UserReportsView } from "components";
 
 const { OrganizationCreate, OrganizationUpdate, OrganizationView } = lazily(() => import('../../components/views/Organization'));
 const { ProjectCreate, ProjectUpdate, ProjectView } = lazily(() => import('../../components/views/Project'));
@@ -16,14 +15,14 @@ const { StandardCreate, StandardUpdate, StandardView } = lazily(() => import('..
 
 export interface CreatePageProps {
     onCancel: () => void;
-    onCreated: (item: { id: string }) => void;
+    onCreated: (item: { __typename: string, id: string }) => void;
     session: Session;
     zIndex: number;
 }
 
 export interface UpdatePageProps {
     onCancel: () => void;
-    onUpdated: (item: { id: string }) => void;
+    onUpdated: (item: { __typename: string, id: string }) => void;
     session: Session;
     zIndex: number;
 }
@@ -100,7 +99,7 @@ const viewMap: { [key in ObjectType]?: (props: ViewPageProps) => JSX.Element } =
 /**
  * Maps object types to reports view components
  */
- const reportsMap: { [key in ObjectType]?: (props: ReportsPageProps) => JSX.Element } = {
+const reportsMap: { [key in ObjectType]?: (props: ReportsPageProps) => JSX.Element } = {
     [ObjectType.Comment]: CommentReportsView,
     [ObjectType.Organization]: OrganizationReportsView,
     [ObjectType.Project]: ProjectReportsView,
@@ -129,12 +128,18 @@ export const ObjectPage = ({
         return { hasPreviousPage, objectType, pageType };
     }, [location]);
 
-    const onAction = useCallback((action: ObjectDialogAction, item?: { id: string }) => {
+    const onAction = useCallback((action: ObjectDialogAction, item?: { __typename: string, id: string }) => {
         // Only navigate back if there is a previous page
         const pageRoot = window.location.pathname.split('/')[1];
         switch (action) {
             case ObjectDialogAction.Add:
-                setLocation(`${item?.id}`, { replace: !hasPreviousPage });
+                setLocation(`${uuidToBase36(item?.id ?? '')}`, { replace: !hasPreviousPage });
+                PubSub.get().publishSnack({
+                    message: `${item?.__typename ?? ''} created!`,
+                    severity: SnackSeverity.Success,
+                    buttonText: 'Create another',
+                    buttonClicked: () => { setLocation(`add`); },
+                })
                 break;
             case ObjectDialogAction.Cancel:
             case ObjectDialogAction.Close:
@@ -142,7 +147,7 @@ export const ObjectPage = ({
                 else setLocation(APP_LINKS.Home);
                 break;
             case ObjectDialogAction.Edit:
-                setLocation(`${pageRoot}/edit/${item?.id}`);
+                setLocation(`${pageRoot}/edit/${uuidToBase36(item?.id ?? '')}`);
                 break;
             case ObjectDialogAction.Save:
                 if (hasPreviousPage) window.history.back();
@@ -162,13 +167,12 @@ export const ObjectPage = ({
             document.title = `View ${titleMap[objectType]}`;
             return View && <View session={session} zIndex={200} />
         }
-        //
         if (pageType === PageType.Create) {
             const Create = createMap[objectType];
             document.title = `Create ${titleMap[objectType]}`;
             return (Create && <Create
                 onCancel={() => onAction(ObjectDialogAction.Cancel)}
-                onCreated={(data: { id: string }) => onAction(ObjectDialogAction.Add, data)}
+                onCreated={(data) => onAction(ObjectDialogAction.Add, data)}
                 session={session}
                 zIndex={200}
             />)
@@ -178,7 +182,7 @@ export const ObjectPage = ({
             document.title = `Update ${titleMap[objectType]}`;
             return (Update && <Update
                 onCancel={() => onAction(ObjectDialogAction.Cancel)}
-                onUpdated={(data: { id: string }) => onAction(ObjectDialogAction.Save, data)}
+                onUpdated={(data) => onAction(ObjectDialogAction.Save, data)}
                 session={session}
                 zIndex={200}
             />)
@@ -194,12 +198,8 @@ export const ObjectPage = ({
     }, [objectType, onAction, pageType, session]);
 
     return (
-        <Box sx={{
-            minHeight: '100vh',
-            paddingTop: { xs: '64px', md: '80px' },
-            paddingBottom: 'calc(56px + env(safe-area-inset-bottom))',
-        }}>
+        <PageContainer sx={{ paddingLeft: 0, paddingRight: 0 }}>
             {displayedPage}
-        </Box>
+        </PageContainer>
     )
 }

@@ -3,7 +3,7 @@ import { standardFields } from 'graphql/fragment';
 
 export const standardQuery = gql`
     ${standardFields}
-    query standard($input: FindByIdInput!) {
+    query standard($input: FindByVersionInput!) {
         standard(input: $input) {
             ...standardFields
         }

@@ -571,4 +571,5 @@ export interface routineFields {
   updated_at: any;
   version: string;
   versionGroupId: string;
+  versions: string[];
 }

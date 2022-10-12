@@ -1,9 +1,8 @@
-import { AutocompleteOption, ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListStar, ListUser, ListView, Session } from "types";
+import { AutocompleteOption, ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListStar, ListUser, ListView, NavigableObject, Session } from "types";
 import { OrganizationListItem, ProjectListItem, RoutineListItem, RunListItem, StandardListItem, UserListItem } from 'components';
 import { getTranslation, getUserLanguages } from "./translationTools";
 import { ObjectListItemProps } from "components/lists/types";
 import { Theme } from "@mui/material";
-import { OpenObjectProps } from "utils";
 
 export type ListObjectType = ListOrganization | ListProject | ListRoutine | ListRun | ListStandard | ListStar | ListUser | ListView;
 
@@ -34,12 +33,19 @@ export const projectOptionLabel = (o: ListProject, languages: readonly string[])
 export const routineOptionLabel = (o: ListRoutine, languages: readonly string[]) => getTranslation(o, 'title', languages, true) ?? '';
 
 /**
- * Gets label for run, from its title
+ * Gets label for run, using title and time started
  * @param o Run object
  * @param languages User languages
  * @returns label
  */
-export const runOptionLabel = (o: ListRun, languages: readonly string[]) => o.title ?? getTranslation(o.routine, 'title', languages, true) ?? '';
+export const runOptionLabel = (o: ListRun, languages: readonly string[]) => {
+    const title = o.title ?? getTranslation(o.routine, 'title', languages, true) ?? '';
+    const date = o.timeStarted ? (new Date(o.timeStarted)) : null;
+    if (date) {
+        return `${title} (${date.toLocaleDateString()} ${date.toLocaleTimeString()})`;
+    }
+    return title;
+}
 
 /**
 * Gets label for routine, from its name
@@ -161,7 +167,10 @@ export function listToAutocomplete(
         id: o.id,
         isStarred: getListItemIsStarred(o),
         label: getListItemLabel(o, languages),
-        stars: getListItemStars(o)
+        routine: o.__typename === 'Run' ? o.routine : undefined,
+        stars: getListItemStars(o),
+        to: o.__typename === 'View' || o.__typename === 'Star' ? o.to : undefined,
+        versionGroupId: o.__typename === 'Routine' || o.__typename === 'Standard' ? o.versionGroupId : undefined,
     }));
 }
 
@@ -203,7 +212,7 @@ export interface ListToListItemProps {
     /**
      * Function to call when a list item is clicked
      */
-    onClick?: (item: OpenObjectProps['object'], event: React.MouseEvent<HTMLElement>) => void,
+    onClick?: (item: NavigableObject, event: React.MouseEvent<HTMLElement>) => void,
     /**
      * Current session
      */

@@ -3,9 +3,9 @@ import { CODE } from "@shared/consts";
 import { omit } from '@shared/utils';
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
-import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor, ProjectPermission, OrganizationPermission } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFieldsHelper, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, Permissioner, permissionsCheck, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
-import { OrganizationModel } from "./organization";
+import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor, ProjectPermission } from "../../schema/types";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, exceptionsBuilder, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidHandles, onlyValidIds, Permissioner, permissionsCheck, removeCountFieldsHelper, removeJoinTablesHelper, Searcher, selectHelper, validateMaxObjects, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
+import { OrganizationModel, organizationQuerier } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -14,6 +14,7 @@ import { ResourceListModel } from "./resourceList";
 import { WalletModel } from "./wallet";
 import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -43,15 +44,15 @@ export const projectFormatter = (): FormatConverter<Project, ProjectPermission> 
         'tags': 'Tag',
         'wallets': 'Wallet',
     },
-    constructUnions: (data) => {
-        let modified = addCreatorField(data);
-        modified = addOwnerField(modified);
-        return modified;
-    },
-    deconstructUnions: (partial) => {
-        let modified = removeCreatorField(partial);
-        modified = removeOwnerField(modified);
-        return modified;
+    unionMap: {
+        'creator': {
+            'User': 'createdByUser',
+            'Organization': 'createdByOrganization',
+        },
+        'owner': {
+            'User': 'user',
+            'Organization': 'organization',
+        }
     },
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
@@ -66,89 +67,95 @@ export const projectFormatter = (): FormatConverter<Project, ProjectPermission> 
                 ['isStarred', async (ids) => StarModel.query(prisma).getIsStarreds(userId, ids, 'Project')],
                 ['isUpvoted', async (ids) => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Project')],
                 ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Project')],
-                ['permissionsProject', async () => await ProjectModel.permissions(prisma).get({ objects, permissions, userId })],
+                ['permissionsProject', async () => await ProjectModel.permissions().get({ objects, permissions, prisma, userId })],
             ]
         });
     }
 })
 
-export const projectPermissioner = (prisma: PrismaType): Permissioner<ProjectPermission, ProjectSearchInput> => ({
+export const projectPermissioner = (): Permissioner<ProjectPermission, ProjectSearchInput> => ({
     async get({
         objects,
         permissions,
+        prisma,
         userId,
     }) {
-        // Initialize result with ID
-        const result = objects.map((o) => ({
-            canComment: true,
-            canDelete: false,
-            canEdit: false,
-            canReport: true,
-            canStar: true,
-            canVote: true,
-            canView: true,
+        // Initialize result with default permissions
+        const result: (ProjectPermission & { id?: string, handle?: string })[] = objects.map((o) => ({
+            handle: o.handle,
+            id: o.id,
+            canComment: false, // own || !isPrivate
+            canDelete: false, // own 
+            canEdit: false, // own
+            canReport: true, // !own && !isPrivate
+            canStar: false, // own || !isPrivate
+            canView: false, // own || !isPrivate
+            canVote: false, // own || !isPrivate
         }));
-        if (!userId) return result;
-        const ids = objects.map(x => x.id);
-        let ownerData: {
-            id: string,
-            user?: { id: string } | null | undefined,
-            organization?: { id: string } | null | undefined
-        }[] = [];
-        // If some owner data missing, query for owner data.
-        if (onlyValidIds(objects.map(x => x.owner)).length < objects.length) {
-            ownerData = await prisma.project.findMany({
-                where: { id: { in: ids } },
-                select: {
-                    id: true,
-                    user: { select: { id: true } },
-                    organization: { select: { id: true } },
+        // Check ownership
+        if (userId) {
+            // Query for objects owned by user, or an organization they have an admin role in
+            const owned = await prisma.project.findMany({
+                where: {
+                    OR: [
+                        { id: { in: onlyValidIds(objects.map((o) => o.id)) } },
+                        { handle: { in: onlyValidHandles(objects.map((o) => o.handle)) } },
+                    ],
+                    ...this.ownershipQuery(userId),
                 },
-            });
-        } else {
-            ownerData = objects.map((x) => {
-                const isOrg = Boolean(Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name);
-                return ({
-                    id: x.id,
-                    user: isOrg ? null : x.owner,
-                    organization: isOrg ? x.owner : null,
-                });
+                select: { id: true },
+            })
+            // Set permissions for owned objects
+            owned.forEach((o) => {
+                const index = objects.findIndex((r) => r.id === o.id);
+                result[index] = {
+                    ...result[index],
+                    canComment: true,
+                    canDelete: true,
+                    canEdit: true,
+                    canReport: false,
+                    canStar: true,
+                    canView: true,
+                    canVote: true,
+                }
             });
         }
-        // Find permissions for every organization
-        const organizationIds = onlyValidIds(ownerData.map(x => x.organization?.id));
-        const orgPermissions = await OrganizationModel.permissions(prisma).get({
-            objects: organizationIds.map(x => ({ id: x })),
-            userId
-        });
-        // Find which objects have ownership permissions
-        for (let i = 0; i < objects.length; i++) {
-            const unformatted = ownerData.find(y => y.id === objects[i].id);
-            if (!unformatted) continue;
-            // Check if user owns object directly, or through organization
-            if (unformatted.user?.id !== userId) {
-                const orgIdIndex = organizationIds.findIndex(id => id === unformatted?.organization?.id);
-                if (orgIdIndex < 0) continue;
-                if (!orgPermissions[orgIdIndex].canEdit) continue;
+        // Query all objects
+        const all = await prisma.project.findMany({
+            where: {
+                OR: [
+                    { id: { in: onlyValidIds(objects.map((o) => o.id)) } },
+                    { handle: { in: onlyValidHandles(objects.map((o) => o.handle)) } },
+                ]
+            },
+            select: { id: true, isPrivate: true },
+        })
+        // Set permissions for all objects
+        all.forEach((o) => {
+            const index = objects.findIndex((r) => r.id === o.id);
+            result[index] = {
+                ...result[index],
+                canComment: result[index].canComment || !o.isPrivate,
+                canReport: result[index].canReport === false ? false : !o.isPrivate,
+                canStar: result[index].canStar || !o.isPrivate,
+                canView: result[index].canView || !o.isPrivate,
+                canVote: result[index].canVote || !o.isPrivate,
             }
-            // Set owner permissions
-            result[i].canDelete = true;
-            result[i].canEdit = true;
-            result[i].canView = true;
-        }
-        // TODO isPrivate view check
-        // TODO check relationships for permissions
-        return result;
+        });
+        // Return result with IDs and handles removed
+        result.forEach((r) => delete r.id && delete r.handle);
+        return result as ProjectPermission[];
     },
     async canSearch({
         input,
+        prisma,
         userId
     }) {
         // Check permissions of specified objects TODO need better approach, but this will do for now
         if (input.ids) {
-            const permissions = await this.get({ objects: input.ids.map(id => ({ id })), permissions: [], userId });
+            const permissions = await this.get({ objects: input.ids.map(id => ({ id })), permissions: [], prisma, userId });
             // Check if trying to view hidden objects
-            if (input.includePrivate === true && !permissions.every(x => x.canView)) return 'none';
+            if (!permissions.every(x => x.canView)) return 'none';
             // If you own all data, you have full search permissions
             if (permissions.every(x => x.canEdit)) return 'full';
         }
@@ -181,7 +188,7 @@ export const projectPermissioner = (prisma: PrismaType): Permissioner<ProjectPer
     },
     ownershipQuery: (userId) => ({
         OR: [
-            { organization: { roles: { some: { assignees: { some: { user: { id: userId } } } } } } },
+            organizationQuerier().hasRoleInOrganizationQuery(userId),
             { user: { id: userId } }
         ]
     }),
@@ -219,33 +226,28 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
             })
         })
     },
-    customQueries(input: ProjectSearchInput): { [x: string]: any } {
-        // isComplete routines may be set to true or false generally, and also set exceptions
-        let isComplete: any;
-        if (Array.isArray(input.isCompleteExceptions) && input.isCompleteExceptions.length > 0) {
-            isComplete = { OR: [{ isComplete: input.isComplete }] };
-            for (const exception of input.isCompleteExceptions) {
-                if (['createdByOrganization', 'createdByUser', 'organization', 'project', 'user'].includes(exception.relation)) {
-                    isComplete.OR.push({ [exception.relation]: { id: exception.id } });
-                }
-            }
-        } else {
-            isComplete = { isComplete: input.isComplete };
-        }
-        return {
-            ...isComplete,
-            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            ...(input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
-            ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-            ...(input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            ...(input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
-            ...(input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
-            ...(input.userId !== undefined ? { userId: input.userId } : {}),
-            ...(input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
-            ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
-            ...(input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
-            ...(input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
-        }
+    customQueries(input: ProjectSearchInput, userId: string | null | undefined): { [x: string]: any } {
+        const isComplete = exceptionsBuilder({
+            canQuery: ['createdByOrganization', 'createdByUser', 'organization.id', 'project.id', 'user.id'],
+            exceptionField: 'isCompleteExceptions',
+            input,
+            mainField: 'isComplete',
+        })
+        return combineQueries([
+            isComplete,
+            visibilityBuilder({ model: ProjectModel, userId, visibility: input.visibility }),
+            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            (input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
+            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
+            (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
+            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            (input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
+            (input.userId !== undefined ? { userId: input.userId } : {}),
+            (input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
+            (input.parentId !== undefined ? { parentId: input.parentId } : {}),
+            (input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
+            (input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
+        ])
     },
 })
 
@@ -259,62 +261,24 @@ export const projectMutater = (prisma: PrismaType) => ({
         if (!createMany && !updateMany && !deleteMany) return;
         if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0073') });
-        // Collect organizationIds from each object, and check if the user is an admin/owner of every organization
-        const organizationIds: (string | null | undefined)[] = [];
+        // Validate userIds and organizationIds
+        await validateObjectOwnership({ userId, createMany, updateMany, deleteMany, prisma, objectType: 'Project' });
+        // Validate max projects
+        await validateMaxObjects({ userId, createMany, updateMany, deleteMany, prisma, objectType: 'Project', maxCount: 100 });
         if (createMany) {
             projectsCreate.validateSync(createMany, { abortEarly: false });
             TranslationModel.profanityCheck(createMany);
             createMany.forEach(input => TranslationModel.validateLineBreaks(input, ['description'], CODE.LineBreaksDescription));
-            // Add createdByOrganizationIds to organizationIds array, if they are set
-            organizationIds.push(...onlyValidIds(createMany.map(input => input.createdByOrganizationId)))
-            // Check if user will pass max projects limit
-            //TODO
-            // const existingCount = await prisma.project.count({
-            //     where: {
-            //         OR: [
-            //             { user: { id: userId } },
-            //             { organization: { members: { some: { userId: userId, role: MemberRole.Owner as any } } } },
-            //         ]
-            //     }
-            // })
-            // if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
-            //     throw new CustomError(CODE.MaxProjectsReached, 'Reached the maximum number of projects allowed on this account', { code: genErrorCode('0074') });
-            // }
-            // TODO handle
+            // TODO validate handle
         }
         if (updateMany) {
             projectsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
             TranslationModel.profanityCheck(updateMany.map(u => u.data));
-            // Add new organizationIds to organizationIds array, if they are set
-            organizationIds.push(...onlyValidIds(updateMany.map(input => input.data.organizationId)))
-            // Add existing organizationIds to organizationIds array, if userId does not match the object's userId
-            const objects = await prisma.project.findMany({
-                where: { id: { in: updateMany.map(input => input.where.id) } },
-                select: { id: true, userId: true, organizationId: true },
-            });
-            organizationIds.push(...objects.filter(object => object.userId !== userId).map(object => object.organizationId));
             for (const input of updateMany) {
                 await WalletModel.verify(prisma).verifyHandle('Project', input.where.id, input.data.handle);
                 TranslationModel.validateLineBreaks(input.data, ['description'], CODE.LineBreaksDescription);
             }
         }
-        if (deleteMany) {
-            const objects = await prisma.project.findMany({
-                where: { id: { in: deleteMany } },
-                select: { id: true, userId: true, organizationId: true },
-            });
-            // Split objects by userId and organizationId
-            const userIds = objects.filter(object => Boolean(object.userId)).map(object => object.userId);
-            if (userIds.some(id => id !== userId))
-                throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0243') })
-            // Add to organizationIds array, to check ownership status
-            organizationIds.push(...objects.filter(object => !userId.includes(object.organizationId ?? '')).map(object => object.organizationId));
-        }
-        // Find roles for every organization
-        const roles = await OrganizationModel.query(prisma).hasRole(userId, organizationIds);
-        // If any role is undefined, the user is not authorized to delete one or more objects
-        if (roles.some(role => !role))
-            throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0076') })
     },
     /**
      * Performs adds, updates, and deletes of projects. First validates that every action is allowed.
@@ -429,6 +393,7 @@ export const ProjectModel = ({
     mutate: projectMutater,
     permissions: projectPermissioner,
     search: projectSearcher(),
+    type: 'Project' as GraphQLModelType,
 })
 
 //==============================================================

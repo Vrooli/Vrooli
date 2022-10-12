@@ -7,19 +7,18 @@ import { mutationWrapper } from "graphql/utils";
 import { useCallback, useEffect, useMemo } from "react";
 import { displayDate, getTranslation, getUserLanguages } from "utils/display";
 import { ListMenuItemData, RunPickerMenuProps } from "../types";
-import {
-    Delete as DeleteIcon,
-} from "@mui/icons-material";
 import { getRunPercentComplete, parseSearchParams, PubSub } from "utils";
 import { useMutation } from "@apollo/client";
-import { runCreate, runCreateVariables } from "graphql/generated/runCreate";
+import { runCreateVariables, runCreate_runCreate } from "graphql/generated/runCreate";
 import { deleteOneMutation, runCreateMutation } from "graphql/mutation";
 import { Run } from "types";
-import { deleteOne, deleteOneVariables } from "graphql/generated/deleteOne";
+import { deleteOneVariables, deleteOne_deleteOne } from "graphql/generated/deleteOne";
 import { DeleteOneType } from "@shared/consts";
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { RunStatus } from "graphql/generated/globalTypes";
+import { DeleteIcon } from "@shared/icons";
+import { SnackSeverity } from "../Snack/Snack";
 
 const titleAria = 'run-picker-dialog-title';
 
@@ -47,13 +46,13 @@ export const RunPickerMenu = ({
         }
     }, [routine, onSelect, handleClose]);
 
-    const [runCreate] = useMutation<runCreate, runCreateVariables>(runCreateMutation);
+    const [runCreate] = useMutation(runCreateMutation);
     const createNewRun = useCallback(() => {
         if (!routine) {
-            PubSub.get().publishSnack({ message: 'Could not read routine data.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Could not read routine data.', severity: SnackSeverity.Error });
             return;
         }
-        mutationWrapper({
+        mutationWrapper<runCreate_runCreate, runCreateVariables>({
             mutation: runCreate,
             input: {
                 id: uuid(),
@@ -61,33 +60,27 @@ export const RunPickerMenu = ({
                 version: routine.version ?? '',
                 title: getTranslation(routine, 'title', getUserLanguages(session)) ?? 'Unnamed Routine',
             },
-            successCondition: (response) => response.data.runCreate !== null,
-            onSuccess: (response) => {
-                const newRun = response.data.runCreate;
-                onAdd(newRun);
-                onSelect(newRun);
+            successCondition: (data) => data !== null,
+            onSuccess: (data) => {
+                onAdd(data);
+                onSelect(data);
                 handleClose();
             },
-            onError: () => { PubSub.get().publishSnack({ message: 'Failed to create run.', severity: 'error' }) },
+            errorMessage: () => 'Failed to create run.',
         })
     }, [handleClose, onAdd, onSelect, routine, runCreate, session]);
 
-    const [deleteOne] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation)
+    const [deleteOne] = useMutation(deleteOneMutation)
     const deleteRun = useCallback((run: Run) => {
-        mutationWrapper({
+        mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
             mutation: deleteOne,
             input: { id: run.id, objectType: DeleteOneType.Run },
-            onSuccess: (response) => {
-                if (response?.data?.deleteOne?.success) {
-                    PubSub.get().publishSnack({ message: `${displayDate(run.timeStarted)} deleted.` });
-                    onDelete(run);
-                } else {
-                    PubSub.get().publishSnack({ message: `Error deleting ${displayDate(run.timeStarted)}.`, severity: 'error' });
-                }
+            successCondition: (data) => data.success,
+            successMessage: () => `Run ${displayDate(run.timeStarted)} deleted.`,
+            onSuccess: (data) => {
+                onDelete(run);
             },
-            onError: () => {
-                PubSub.get().publishSnack({ message: `Failed to delete ${displayDate(run.timeStarted)}.` });
-            }
+            errorMessage: () => `Failed to delete run ${displayDate(run.timeStarted)}.`,
         })
     }, [deleteOne, onDelete])
 
@@ -143,12 +136,12 @@ export const RunPickerMenu = ({
                 {itemText}
                 <Tooltip title="Delete" placement="right">
                     <IconButton edge="end" onClick={(event: any) => handleDelete(event, data.value)}>
-                        <DeleteIcon />
+                        <DeleteIcon fill={palette.background.textPrimary} />
                     </IconButton>
                 </Tooltip>
             </ListItem>
         )
-    }), [runOptions, onSelect, handleClose, handleDelete]);
+    }), [runOptions, palette.background.textPrimary, onSelect, handleClose, handleDelete]);
 
     return (
         <Menu

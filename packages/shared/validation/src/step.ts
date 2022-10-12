@@ -1,10 +1,10 @@
-import { id, minNumberErrorMessage, requiredErrorMessage, title } from './base';
+import { blankToUndefined, id, minNumberErrorMessage, requiredErrorMessage, title } from './base';
 import * as yup from 'yup';
 import { RunStepStatus } from '@shared/consts';
 
 const order = yup.number().integer().min(0, minNumberErrorMessage);
 const contextSwitches = yup.number().integer().min(0, minNumberErrorMessage);
-const stepStatus = yup.string().oneOf(Object.values(RunStepStatus))
+const stepStatus = yup.string().transform(blankToUndefined).oneOf(Object.values(RunStepStatus))
 const timeElapsed = yup.number().integer().min(0, minNumberErrorMessage);
 const step = yup.array().of(yup.number().integer().min(0, minNumberErrorMessage));
 

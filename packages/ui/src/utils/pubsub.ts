@@ -6,7 +6,7 @@
  *      PubSub.get().publishSnack({ message: 'Hello World' });
  */
 import { COOKIE, ValueOf } from '@shared/consts';
-import { AlertDialogState, SnackPub } from 'components';
+import { AlertDialogState, SnackSeverity } from 'components';
 import { Session } from 'types';
 
 export const Pubs = {
@@ -20,12 +20,20 @@ export const Pubs = {
     AlertDialog: "alertDialog",
     Session: "session",
     Snack: "snack",
-    ArrowMenuOpen: "arrowMenuOpen",
     Theme: "theme",
     NodeDrag: "NodeDrag",
     NodeDrop: "NodeDrop",
 }
 export type Pubs = ValueOf<typeof Pubs>;
+
+export type SnackPub = {
+    message?: string;
+    severity: SnackSeverity;
+    data?: any;
+    buttonText?: string;
+    buttonClicked?: (event?: any) => any;
+    autoHideDuration?: number;
+}
 
 export class PubSub {
     private static instance: PubSub;
@@ -76,9 +84,6 @@ export class PubSub {
     publishSnack(data: SnackPub) {
         this.publish(Pubs.Snack, data);
     }
-    publishArrowMenuOpen(data: boolean) {
-        this.publish(Pubs.ArrowMenuOpen, data);
-    }
     publishTheme(theme: 'light' | 'dark') {
         this.publish(Pubs.Theme, theme);
     }
@@ -124,9 +129,6 @@ export class PubSub {
     }
     subscribeSnack(subscriber: (data: SnackPub) => void) {
         return this.subscribe(Pubs.Snack, subscriber);
-    }
-    subscribeArrowMenuOpen(subscriber: (data: boolean) => void) {
-        return this.subscribe(Pubs.ArrowMenuOpen, subscriber);
     }
     subscribeTheme(subscriber: (theme: 'light' | 'dark') => void) {
         return this.subscribe(Pubs.Theme, subscriber);

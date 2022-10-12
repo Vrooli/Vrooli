@@ -13,13 +13,13 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { DialogTitle } from 'components';
+import { DialogTitle, SnackSeverity } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LinkDialogProps } from '../types';
 import { Node, NodeLink } from 'types';
 import { getTranslation, PubSub } from 'utils';
 import { NodeType } from 'graphql/generated/globalTypes';
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
 
 const helpText =
     `This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.
@@ -65,7 +65,7 @@ export const LinkDialog = ({
 
     const addLink = useCallback(() => {
         if (!fromNode || !toNode) {
-            PubSub.get().publishSnack({ message: 'Please select both from and to nodes', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Please select both from and to nodes', severity: SnackSeverity.Error });
             return;
         }
         onClose({

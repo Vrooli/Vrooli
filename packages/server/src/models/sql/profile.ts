@@ -17,6 +17,7 @@ import { WalletModel } from "./wallet";
 import { genErrorCode } from "../../logger";
 import { ResourceListModel } from "./resourceList";
 import { TagHiddenModel } from "./tagHidden";
+import { GraphQLModelType } from ".";
 const { AccountStatus } = pkg;
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
@@ -39,23 +40,20 @@ const tagSelect = {
 
 const joinMapper = { hiddenTags: 'tag', roles: 'role', starredBy: 'user' };
 const supplementalFields = ['starredTags', 'hiddenTags'];
-export const profileFormatter = (): FormatConverter<User, any> => ({
+export const profileFormatter = (): FormatConverter<Profile, any> => ({
     relationshipMap: {
         '__typename': 'Profile',
         'comments': 'Comment',
         'roles': 'Role',
         'emails': 'Email',
         'wallets': 'Wallet',
-        'standards': 'Standard',
-        'tags': 'Tag',
         'resourceLists': 'ResourceList',
-        'organizations': 'Member',
         'projects': 'Project',
         'projectsCreated': 'Project',
         'routines': 'Routine',
         'routinesCreated': 'Routine',
         'starredBy': 'User',
-        'starred': 'Star',
+        'stars': 'Star',
         'starredTags': 'Tag',
         'hiddenTags': 'TagHidden',
         'sentReports': 'Report',
@@ -191,7 +189,6 @@ export const profileVerifier = () => ({
     },
     /**
     * Updates email object with new verification code, and sends email to user with link
-    * @param user User object
     */
     async setupVerificationCode(emailAddress: string, prisma: PrismaType): Promise<void> {
         // Generate new code
@@ -567,5 +564,6 @@ export const ProfileModel = ({
     mutate: profileMutater,
     port: porter,
     query: profileQuerier,
+    type: 'Profile' as GraphQLModelType,
     verify: profileVerifier(),
 })

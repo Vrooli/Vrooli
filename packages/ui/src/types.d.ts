@@ -16,6 +16,7 @@ import { FetchResult } from "@apollo/client";
 import { comment_comment } from 'graphql/generated/comment';
 import { comments_comments_threads } from 'graphql/generated/comments';
 import { run_run_inputs, run_run_steps } from 'graphql/generated/run';
+import { SearchException } from 'graphql/generated/globalTypes';
 
 // Top-level props that can be passed into any routed component
 export type SessionChecked = boolean;
@@ -28,6 +29,23 @@ export type Session = {
 export interface CommonProps {
     session: Session;
     sessionChecked: SessionChecked;
+}
+
+/**
+ * An object connected to routing
+ */
+export type NavigableObject = {
+    __typename: string
+    handle?: string | null,
+    id: string,
+    routine?: {
+        id: string
+    } | null,
+    to?: {
+        __typename: string,
+        handle?: string | null,
+        id?: string,
+    }
 }
 
 // Rename auto-generated query objects
@@ -95,11 +113,11 @@ export type ShapeWrapper<T> = Partial<Omit<T, '__typename' | 'createdAt' | 'crea
 // Common query input groups
 export type IsCompleteInput = {
     isComplete?: boolean;
-    isCompleteExceptions: { id: string, relation: string }[];
+    isCompleteExceptions?: SearchException[];
 }
 export type IsInternalInput = {
     isInternal?: boolean;
-    isInternalExceptions: { id: string, relation: string }[];
+    isInternalExceptions?: SearchException[];
 }
 
 /**
@@ -141,12 +159,22 @@ export type RoutineStep = DecisionStep | SubroutineStep | RoutineListStep
 
 export interface ObjectOption {
     __typename: ListObjectType['__typename'];
+    handle?: string | null;
     id: string;
+    versionGroupId?: string | null;
     isFromHistory?: boolean;
     isStarred?: boolean;
     label: string;
     stars?: number;
     [key: string]: any;
+    routine?: {
+        id: string
+    } | null,
+    to?: {
+        __typename: string,
+        handle?: string | null,
+        id?: string,
+    }
 }
 
 export interface ShortcutOption {

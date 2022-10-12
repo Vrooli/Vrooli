@@ -1,21 +1,14 @@
 import { useState } from 'react';
-import { makeStyles } from '@mui/styles';
-import { Button, Popover, Theme } from '@mui/material';
+import { Button, Popover, useTheme } from '@mui/material';
 import { PopupMenuProps } from '../types';
-
-const useStyles = makeStyles((theme: Theme) => ({
-    paper: {
-        background: theme.palette.primary.light,
-        borderRadius: '24px',
-    },
-}));
 
 export function PopupMenu({
     text = 'Menu',
     children,
     ...props
 }: PopupMenuProps) {
-    const classes = useStyles();
+    const { palette } = useTheme();
+
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
     const handleClick = (event) => {
@@ -39,9 +32,6 @@ export function PopupMenu({
                 anchorEl={anchorEl}
                 onClose={handleClose}
                 disableScrollLock={true}
-                classes={{
-                    paper: classes.paper
-                }}
                 anchorOrigin={{
                     vertical: 'bottom',
                     horizontal: 'center',
@@ -49,6 +39,12 @@ export function PopupMenu({
                 transformOrigin={{
                     vertical: 'top',
                     horizontal: 'center',
+                }}
+                sx={{
+                    '& .MuiPopover-paper': {
+                        background: palette.primary.light,
+                        borderRadius: '24px',
+                    }
                 }}
             >
                 {children}

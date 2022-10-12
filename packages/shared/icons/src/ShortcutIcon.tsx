@@ -1,18 +1,9 @@
-import { SvgBase } from './base';
+import { SvgPath } from './base';
 import { SvgProps } from './types';
 
 export const ShortcutIcon = (props: SvgProps) => (
-    <SvgBase props={props}>
-        <path
-            style={{
-                stroke: props.fill ?? 'white',
-                strokeOpacity: 1,
-                strokeWidth: 3.4,
-                strokeLinecap: 'round',
-                strokeLinejoin: 'round',
-                fill: 'none',
-            }}
-            d="m19 12.5-3.5 3.7m3.6-3.7-3.6-3.7m-10.6-1v4.6H19"
-        />
-    </SvgBase>
+    <SvgPath
+        props={props}
+        d="M3.2 7.8v4.6c0 1 .7 1.7 1.7 1.7H15l-.8.9c-1.5 1.7 1 4 2.5 2.4l3.5-3.7c.7-.7.7-1.7 0-2.5l-3.5-3.6C15 6 12.6 8.3 14.2 10l.8.8H6.6v-3c0-2-3.4-2-3.4 0Z"
+    />
 )

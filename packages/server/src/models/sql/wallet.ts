@@ -3,9 +3,10 @@ import { walletsUpdate } from '@shared/validation';
 import { CustomError } from "../../error";
 import { PrismaType } from "../../types";
 import { Count, Wallet, WalletUpdateInput } from "../../schema/types";
-import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, removeJoinTablesHelper, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { hasProfanity } from "../../utils/censor";
 import { genErrorCode } from "../../logger";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -17,7 +18,6 @@ export const walletFormatter = (): FormatConverter<Wallet, any> => ({
         'handles': 'Handle',
         'user': 'User',
         'organization': 'Organization',
-        'project': 'Project',
     },
 })
 
@@ -192,6 +192,7 @@ export const WalletModel = ({
     prismaObject: (prisma: PrismaType) => prisma.wallet,
     format: walletFormatter(),
     mutate: walletMutater,
+    type: 'Wallet' as GraphQLModelType,
     verify: walletVerifier,
 })
 

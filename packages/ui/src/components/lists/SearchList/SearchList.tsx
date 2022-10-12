@@ -6,12 +6,7 @@ import { Box, Button, List, Tooltip, Typography, useTheme } from "@mui/material"
 import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clickSize, containerShadow } from "styles";
-import {
-    Add as AddIcon,
-    Build as AdvancedIcon,
-    Sort as SortListIcon,
-} from '@mui/icons-material';
-import { HistoryIcon as TimeIcon } from '@shared/icons';
+import { BuildIcon, HistoryIcon as TimeIcon, PlusIcon, SortIcon } from '@shared/icons';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
 import { addSearchParams, getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, parseSearchParams, removeSearchParams, SearchParams, searchTypeToParams, SortValueToLabelMap } from "utils";
 import { useLocation } from '@shared/route';
@@ -64,6 +59,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 }: SearchListProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    console.log('searchlist render', where)
 
     const { advancedSearchSchema, defaultSortBy, sortByOptions, query } = useMemo<SearchParams>(() => searchTypeToParams[searchType], [searchType]);
 
@@ -134,6 +130,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     // On search filters/sort change, reset the page
     useEffect(() => {
         after.current = undefined;
+        console.log('getpagedata? 1', canSearch)
         if (canSearch) getPageData();
     }, [advancedSearchParams, canSearch, searchString, searchType, sortBy, timeFrame, where, getPageData]);
 
@@ -349,7 +346,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         onClick={handleSortOpen}
                         sx={{ ...searchButtonStyle }}
                     >
-                        <SortListIcon sx={{ fill: palette.secondary.main }} />
+                        <SortIcon fill={palette.secondary.main} />
                         {sortByLabel}
                     </Box>
                 </Tooltip>
@@ -367,7 +364,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         onClick={handleAdvancedSearchDialogOpen}
                         sx={{ ...searchButtonStyle }}
                     >
-                        <AdvancedIcon sx={{ fill: palette.secondary.main }} />
+                        <BuildIcon fill={palette.secondary.main} />
                         Advanced
                     </Box>
                 </Tooltip>}
@@ -379,7 +376,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 margin: 'auto',
                 paddingTop: 5,
             }}>
-                <Button fullWidth onClick={handleAdd} startIcon={<AddIcon />}>Add New</Button>
+                <Button fullWidth onClick={handleAdd} startIcon={<PlusIcon />}>Add New</Button>
             </Box>}
         </>
     )

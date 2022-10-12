@@ -7,17 +7,17 @@ import {
     Tooltip,
     useTheme,
 } from '@mui/material';
-import { DiscordIcon, GitHubIcon, SvgProps, TwitterIcon } from '@shared/icons';
+import { DiscordIcon, GitHubIcon, SvgComponent, TwitterIcon } from '@shared/icons';
 import { ContactInfoProps } from '../types';
 
-const contactInfo: [string, string, string, (props: SvgProps) => JSX.Element][] = [
+const contactInfo: [string, string, string, SvgComponent][] = [
     ['Find us on Twitter', 'Twitter', SOCIALS.Twitter, TwitterIcon],
     ['Join our Discord', 'Discord', SOCIALS.Discord, DiscordIcon],
     ['Source code', 'Code', SOCIALS.GitHub, GitHubIcon],
 ]
 
 export const ContactInfo = ({
-    className,
+    sx,
     ...props
 }: ContactInfoProps) => {
     const { palette } = useTheme();
@@ -28,7 +28,7 @@ export const ContactInfo = ({
     }
 
     return (
-        <Box sx={{ minWidth: 'fit-content', height: 'fit-content' }} {...props}>
+        <Box sx={{ minWidth: 'fit-content', height: 'fit-content', ...(sx ?? {}) }} {...props}>
             <BottomNavigation
                 showLabels
                 sx={{

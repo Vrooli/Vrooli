@@ -1,10 +1,10 @@
-import { id, language, maxStringErrorMessage, minStringErrorMessage, requiredErrorMessage } from './base';
+import { blankToUndefined, id, language, maxStringErrorMessage, minStringErrorMessage, requiredErrorMessage } from './base';
 import * as yup from 'yup';
 import { ReportFor } from '@shared/consts';
 
-const createdFor = yup.string().oneOf(Object.values(ReportFor))
-const details = yup.string().max(1024, maxStringErrorMessage)
-const reason = yup.string().min(1, minStringErrorMessage).max(128, maxStringErrorMessage)
+const createdFor = yup.string().transform(blankToUndefined).oneOf(Object.values(ReportFor))
+const details = yup.string().transform(blankToUndefined).max(1024, maxStringErrorMessage)
+const reason = yup.string().transform(blankToUndefined).min(1, minStringErrorMessage).max(128, maxStringErrorMessage)
 
 /**
  * Information required when creating a comment

@@ -3,10 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { StandardSelectSwitchProps } from '../types';
 import { noSelect } from 'styles';
 import { StandardSelectOrCreateDialog } from 'components/dialogs';
-import {
-    Link as StandardIcon,
-} from '@mui/icons-material';
-import { EditIcon as CustomIcon } from '@shared/icons';
+import { EditIcon as CustomIcon, LinkIcon } from '@shared/icons';
 
 const grey = {
     400: '#BFC7CF',
@@ -41,7 +38,7 @@ export function StandardSelectSwitch({
         }
     }, [disabled, onChange, openCreateDialog, selected]);
 
-    const Icon = useMemo(() => Boolean(selected) ? StandardIcon : CustomIcon, [selected]);
+    const Icon = useMemo(() => Boolean(selected) ? LinkIcon : CustomIcon, [selected]);
 
     return (
         <>
@@ -83,7 +80,7 @@ export function StandardSelectSwitch({
                             transition: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)',
                             transform: `translateX(${Boolean(selected) ? '24' : '0'}px)`,
                         }}>
-                            <Icon width='30px' height='30px' fill="white" sx={{ fill: 'white '}} />
+                            <Icon width='30px' height='30px' fill="white" />
                         </IconButton>
                     </Box>
                     {/* Input */}

@@ -5,7 +5,7 @@ export type BottomNavProps = Pick<CommonProps, 'session'>
 export type CommandPaletteProps = Pick<CommonProps, 'session'>
 
 export interface ContactInfoProps {
-    className?: string;
+    sx?: { [key: string]: any };
 }
 
 export type NavbarProps = Pick<CommonProps, 'session' | 'sessionChecked'>

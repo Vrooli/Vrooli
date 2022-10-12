@@ -3,6 +3,7 @@ import { APP_LINKS } from '@shared/consts';
 import { useLocation, Redirect } from '@shared/route';
 import { PageProps } from './types';
 import { PubSub } from 'utils';
+import { SnackSeverity } from 'components';
 
 export const Page = ({
     children,
@@ -22,7 +23,7 @@ export const Page = ({
     if (mustBeLoggedIn) {
         if (session.isLoggedIn) return children;
         if (sessionChecked && location !== redirect) { 
-            PubSub.get().publishSnack({ message: 'Page restricted. Please log in', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Page restricted. Please log in', severity: SnackSeverity.Error });
             return <Redirect to={redirect} />
         }
         return null;

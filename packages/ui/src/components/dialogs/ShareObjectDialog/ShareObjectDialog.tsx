@@ -3,16 +3,11 @@
  */
 import { Box, Button, Dialog, Stack, Typography, useTheme } from '@mui/material';
 import { ShareObjectDialogProps } from '../types';
-import {
-    ContentCopy as CopyIcon,
-    Email as EmailIcon,
-    LinkedIn as LinkedInIcon,
-    Twitter as TwitterIcon
-} from '@mui/icons-material';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { useState } from 'react';
 import { ObjectType } from 'utils';
 import QRCode from "react-qr-code";
+import { CopyIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
 
 // Title for social media posts
 const postTitle: { [key in ObjectType]?: string } = {
@@ -94,22 +89,22 @@ export const ShareObjectDialog = ({
                 <Stack direction="column" spacing={1} mb={2} sx={{ alignItems: 'center' }}>
                     <Button
                         onClick={copyInviteLink}
-                        startIcon={<CopyIcon />}
+                        startIcon={<CopyIcon fill='black' />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
                     >Copy link</Button>
                     <Button
                         onClick={() => openLink(`mailto:?subject=${encodeURIComponent(postTitle[objectType] ?? '')}&body=${encodeURIComponent(getLink())}`)}
-                        startIcon={<EmailIcon />}
+                        startIcon={<EmailIcon fill='black' />}
                         sx={{ ...buttonProps }}
                     >Share by email</Button>
                     <Button
                         onClick={() => openLink(`https://twitter.com/intent/tweet?text=${encodeURIComponent(getLink())}`)}
-                        startIcon={<TwitterIcon />}
+                        startIcon={<TwitterIcon fill='black' />}
                         sx={{ ...buttonProps }}
                     >Tweet</Button>
                     <Button
                         onClick={() => openLink(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(getLink())}&title=${encodeURIComponent(postTitle[objectType] ?? '')}&summary=${encodeURIComponent(getLink())}`)}
-                        startIcon={<LinkedInIcon />}
+                        startIcon={<LinkedInIcon fill='black' />}
                         sx={{ ...buttonProps }}
                     >Post on LinkedIn</Button>
                     <Box sx={{

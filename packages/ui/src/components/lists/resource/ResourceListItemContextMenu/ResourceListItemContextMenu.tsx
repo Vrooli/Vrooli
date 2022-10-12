@@ -1,13 +1,7 @@
 import { ResourceListItemContextMenuProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
-import {
-    Delete as DeleteIcon,
-    MoveDown as MoveDownIcon,
-    MoveUp as MoveUpIcon,
-    OpenWith as MoveIcon,
-} from '@mui/icons-material';
 import { ListMenu } from 'components';
-import { EditIcon } from '@shared/icons';
+import { DeleteIcon, EditIcon, MoveLeftIcon, MoveLeftRightIcon, MoveRightIcon, SvgComponent } from '@shared/icons';
 
 export enum ResourceContextMenuOption {
     AddBefore = 'AddBefore',
@@ -17,12 +11,12 @@ export enum ResourceContextMenuOption {
     Move = 'Move',
 }
 
-const listOptionsMap: { [key in ResourceContextMenuOption]: [string, any] } = {
-    [ResourceContextMenuOption.AddBefore]: ['Add resource before', MoveDownIcon],
-    [ResourceContextMenuOption.AddAfter]: ['Add resource after', MoveUpIcon],
+const listOptionsMap: { [key in ResourceContextMenuOption]: [string, SvgComponent] } = {
+    [ResourceContextMenuOption.AddBefore]: ['Add resource before', MoveLeftIcon],
+    [ResourceContextMenuOption.AddAfter]: ['Add resource after', MoveRightIcon],
     [ResourceContextMenuOption.Edit]: ['Edit resource', EditIcon],
     [ResourceContextMenuOption.Delete]: ['Delete resource', DeleteIcon],
-    [ResourceContextMenuOption.Move]: ['Move resource', MoveIcon],
+    [ResourceContextMenuOption.Move]: ['Move resource', MoveLeftRightIcon],
 }
 
 const listOptions: ListMenuItemData<ResourceContextMenuOption>[] = Object.keys(listOptionsMap).map((o) => ({

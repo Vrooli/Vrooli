@@ -11,8 +11,8 @@ import { ResourceDialog } from 'components/dialogs';
 import { updateArray } from 'utils';
 import { resourceDeleteManyMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { resourceDeleteMany, resourceDeleteManyVariables } from 'graphql/generated/resourceDeleteMany';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
+import { resourceDeleteManyVariables, resourceDeleteMany_resourceDeleteMany } from 'graphql/generated/resourceDeleteMany';
 import { AddIcon } from '@shared/icons';
 
 export const ResourceListHorizontal = ({
@@ -42,21 +42,21 @@ export const ResourceListHorizontal = ({
         if (handleUpdate) {
             handleUpdate({
                 ...list,
-                resources: updateArray(list.resources, index, updatedResource),
+                resources: updateArray(list.resources, index, updatedResource) as any[],
             });
         }
     }, [handleUpdate, list]);
 
-    const [deleteMutation] = useMutation<resourceDeleteMany, resourceDeleteManyVariables>(resourceDeleteManyMutation);
+    const [deleteMutation] = useMutation(resourceDeleteManyMutation);
     const onDelete = useCallback((index: number) => {
         console.log('onDelete', index, list);
         if (!list) return;
         const resource = list.resources[index];
         if (mutate && resource.id) {
-            mutationWrapper({
+            mutationWrapper<resourceDeleteMany_resourceDeleteMany, resourceDeleteManyVariables>({
                 mutation: deleteMutation,
                 input: { ids: [resource.id] },
-                onSuccess: (response) => {
+                onSuccess: () => {
                     if (handleUpdate) {
                         handleUpdate({
                             ...list,

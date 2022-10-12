@@ -6,22 +6,18 @@ import { useLazyQuery } from "@apollo/client";
 import { organization, organizationVariables } from "graphql/generated/organization";
 import { organizationQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import {
-    Apartment as ProfileIcon,
-    CardGiftcard as DonateIcon,
-    Share as ShareIcon,
-} from "@mui/icons-material";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, StarButton, SelectRoutineTypeMenu } from "components";
 import { containerShadow } from "styles";
 import { OrganizationViewProps } from "../types";
 import { Organization, ResourceList } from "types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, placeholderColor, PubSub, SearchType } from "utils";
+import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, openObject, placeholderColor, SearchType, uuidToBase36 } from "utils";
 import { ResourceListVertical } from "components/lists";
-import { validate as uuidValidate } from 'uuid';
-import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { EditIcon, EllipsisIcon } from "@shared/icons";
+import { uuidValidate } from '@shared/uuid';
+import { ResourceListUsedFor, VisibilityType } from "graphql/generated/globalTypes";
+import { DonateIcon, EditIcon, EllipsisIcon, OrganizationIcon } from "@shared/icons";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
+import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 
 enum TabOptions {
     Resources = "Resources",
@@ -40,7 +36,7 @@ export const OrganizationView = ({
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
     // Fetch data
-    const id = useMemo(() => getLastUrlPart(), []);
+    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
     const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery, { errorPolicy: 'all'});
     const [organization, setOrganization] = useState<Organization | null | undefined>(null);
     useEffect(() => {
@@ -56,6 +52,7 @@ export const OrganizationView = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
         if (availableLanguages.length === 0) return;
+        console.log('setting current language')
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
@@ -116,18 +113,12 @@ export const OrganizationView = ({
 
     const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
-    const shareLink = useCallback(() => {
-        navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.Organization}/${id}`);
-        PubSub.get().publishSnack({ message: 'Copied🎉' })
-    }, [id]);
-
     const onEdit = useCallback(() => {
-        setLocation(`${APP_LINKS.Organization}/edit/${id}`);
+        setLocation(`${APP_LINKS.Organization}/edit/${uuidToBase36(id)}`);
     }, [setLocation, id]);
 
     // Create search data
     const { searchType, itemKeyPrefix, placeholder, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
-        const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         switch (currTabType) {
             case TabOptions.Members:
                 return {
@@ -136,7 +127,7 @@ export const OrganizationView = ({
                     placeholder: "Search orgnization's members...",
                     noResultsText: "No members found",
                     where: { organizationId: id },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Profile, newValue.id),
+                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 };
             case TabOptions.Projects:
                 return {
@@ -144,8 +135,8 @@ export const OrganizationView = ({
                     itemKeyPrefix: 'project-list-item',
                     placeholder: "Search organization's projects...",
                     noResultsText: "No projects found",
-                    where: { organizationId: id, isComplete: !canEdit ? true : undefined, includePrivate: true },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Project, newValue.id),
+                    where: { organizationId: id, isComplete: !canEdit ? true : undefined, visibility: VisibilityType.All },
+                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 };
             case TabOptions.Routines:
                 return {
@@ -153,8 +144,8 @@ export const OrganizationView = ({
                     itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search organization's routines...",
                     noResultsText: "No routines found",
-                    where: { organizationId: id, isComplete: !canEdit ? true : undefined, isInternal: false, includePrivate: true },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
+                    where: { organizationId: id, isComplete: !canEdit ? true : undefined, isInternal: false, visibility: VisibilityType.All },
+                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 };
             case TabOptions.Standards:
                 return {
@@ -162,8 +153,8 @@ export const OrganizationView = ({
                     itemKeyPrefix: 'standard-list-item',
                     placeholder: "Search organization's standards...",
                     noResultsText: "No standards found",
-                    where: { organizationId: id, includePrivate: true },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
+                    where: { organizationId: id, visibility: VisibilityType.All },
+                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 }
             default:
                 return {
@@ -200,7 +191,7 @@ export const OrganizationView = ({
         switch (action) {
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.star.success) {
+                if (data.success) {
                     setOrganization({
                         ...organization,
                         isStarred: action === ObjectActionComplete.Star,
@@ -208,10 +199,12 @@ export const OrganizationView = ({
                 }
                 break;
             case ObjectActionComplete.Fork:
-                setLocation(`${APP_LINKS.Organization}/${data.fork.organization.id}`);
+                openObject(data.organization, setLocation);
+                window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
-                setLocation(`${APP_LINKS.Organization}/${data.copy.organization.id}`);
+                openObject(data.organization, setLocation);
+                window.location.reload();
                 break;
         }
     }, [organization, setLocation]);
@@ -255,11 +248,7 @@ export const OrganizationView = ({
                     transform: 'translateX(-50%)',
                 }}
             >
-                <ProfileIcon sx={{
-                    fill: profileColors[1],
-                    width: '80%',
-                    height: '80%',
-                }} />
+                <OrganizationIcon fill={profileColors[1]} width='80%' height='80%' />
             </Box>
             <Tooltip title="See all options">
                 <IconButton
@@ -334,19 +323,13 @@ export const OrganizationView = ({
                 <Stack direction="row" spacing={2} alignItems="center">
                     <Tooltip title="Donate">
                         <IconButton aria-label="Donate" size="small" onClick={() => { }}>
-                            <DonateIcon />
+                            <DonateIcon fill={palette.background.textSecondary} />
                         </IconButton>
                     </Tooltip>
-                    <Tooltip title="Share">
-                        <IconButton aria-label="Share" size="small" onClick={shareLink}>
-                            <ShareIcon />
-                        </IconButton>
-                    </Tooltip>
-                    <ReportsLink 
-                        href={`${APP_LINKS.Organization}/reports/${organization?.id}`}
-                        reports={organization?.reportsCount}
-                    />
-                    {canStar && <StarButton
+                    <ShareButton objectType={ObjectType.Organization} zIndex={zIndex} />
+                    <ReportsLink object={organization} />
+                    <StarButton
+                        disabled={!canStar}
                         session={session}
                         objectId={organization?.id ?? ''}
                         starFor={StarFor.Organization}
@@ -354,11 +337,11 @@ export const OrganizationView = ({
                         stars={organization?.stars ?? 0}
                         onChange={(isStar: boolean) => { }}
                         tooltipPlacement="bottom"
-                    />}
+                    />
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textPrimary, palette.background.textSecondary, palette.secondary.main, palette.secondary.dark, profileColors, openMoreMenu, loading, canEdit, name, onEdit, handle, organization?.created_at, organization?.id, organization?.reportsCount, organization?.isStarred, organization?.stars, bio, shareLink, canStar, session]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, profileColors, openMoreMenu, loading, canEdit, name, onEdit, handle, organization, bio, zIndex, canStar, session]);
 
     /**
      * Opens add new page
@@ -419,11 +402,10 @@ export const OrganizationView = ({
                     right: 8,
                 }}>
                     <SelectLanguageMenu
-                        availableLanguages={availableLanguages}
-                        canDropdownOpen={availableLanguages.length > 1}
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         session={session}
+                        translations={organization?.translations ?? partialData?.translations ?? []}
                         zIndex={zIndex}
                     />
                 </Box>

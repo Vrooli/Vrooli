@@ -5,7 +5,7 @@
 import { Box, IconButton, Palette, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import { RelationshipButtonsProps, RelationshipItemOrganization, RelationshipItemProject, RelationshipItemRoutine, RelationshipItemUser, RelationshipOwner } from '../types';
-import { getTranslation, getUserLanguages, ObjectType, openObject, PubSub } from 'utils';
+import { firstString, getTranslation, getUserLanguages, ObjectType, openObject, PubSub } from 'utils';
 import { ListMenu, OrganizationSelectOrCreateDialog, ProjectSelectOrCreateDialog, RoutineSelectOrCreateDialog, UserSelectDialog } from 'components/dialogs';
 import { Session } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
@@ -215,7 +215,7 @@ export function RelationshipButtons({
         // If owner is organization, use organization icon
         if (relationships.owner.__typename === 'Organization') {
             const OwnerIcon = OrganizationIcon;
-            const ownerName = getTranslation(relationships.owner as RelationshipItemOrganization, 'name', languages, true) ?? 'organization';
+            const ownerName = firstString(getTranslation(relationships.owner as RelationshipItemOrganization, 'name', languages, true), 'organization');
             return {
                 OwnerIcon,
                 ownerTooltip: `Owner: ${ownerName}`
@@ -238,7 +238,7 @@ export function RelationshipButtons({
             ProjectIcon: null,
             projectTooltip: disabled ? '' : 'Press to assign to a project'
         };
-        const projectName = getTranslation(relationships.project as RelationshipItemProject, 'name', languages, true) ?? 'project';
+        const projectName = firstString(getTranslation(relationships.project as RelationshipItemProject, 'name', languages, true), 'project');
         return {
             ProjectIcon: ProjIcon,
             projectTooltip: `Project: ${projectName}`
@@ -255,7 +255,7 @@ export function RelationshipButtons({
         // If parent is project, use project icon
         if (relationships.parent.__typename === 'Project') {
             const ParentIcon = ProjIcon;
-            const parentName = getTranslation(relationships.parent as RelationshipItemProject, 'name', languages, true) ?? 'project';
+            const parentName = firstString(getTranslation(relationships.parent as RelationshipItemProject, 'name', languages, true), 'project');
             return {
                 ParentIcon,
                 parentTooltip: `Parent: ${parentName}`
@@ -263,7 +263,7 @@ export function RelationshipButtons({
         }
         // If parent is routine, use routine icon
         const ParentIcon = RoutineIcon;
-        const parentName = getTranslation(relationships.parent as RelationshipItemRoutine, 'title', languages, true) ?? 'routine';
+        const parentName = firstString(getTranslation(relationships.parent as RelationshipItemRoutine, 'title', languages, true), 'routine');
         return {
             ParentIcon,
             parentTooltip: `Parent: ${parentName}`

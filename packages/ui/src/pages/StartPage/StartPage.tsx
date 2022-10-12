@@ -17,7 +17,7 @@ import { Forms, PubSub, useReactSearch } from 'utils';
 import { APP_LINKS, CODE } from '@shared/consts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
-import { DialogTitle, HelpButton, WalletInstallDialog, WalletSelectDialog } from 'components';
+import { DialogTitle, HelpButton, SnackSeverity, WalletInstallDialog, WalletSelectDialog } from 'components';
 import {
     LogInForm,
     ForgotPasswordForm,
@@ -26,11 +26,11 @@ import {
 } from 'forms';
 import { emailLogInMutation, guestLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { emailLogIn, emailLogInVariables } from 'graphql/generated/emailLogIn';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
+import { emailLogInVariables, emailLogIn_emailLogIn } from 'graphql/generated/emailLogIn';
 import { StartPageProps } from 'pages/types';
 import { hasErrorCode } from 'graphql/utils';
-import { guestLogIn } from 'graphql/generated/guestLogIn';
+import { guestLogIn_guestLogIn } from 'graphql/generated/guestLogIn';
 
 const helpText =
     `Logging in allows you to vote, save favorites, and contribute to the community.
@@ -57,8 +57,8 @@ export const StartPage = ({
         verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
     }), [search]);
 
-    const [emailLogIn] = useMutation<emailLogIn, emailLogInVariables>(emailLogInMutation);
-    const [guestLogIn] = useMutation<guestLogIn, any>(guestLogInMutation);
+    const [emailLogIn] = useMutation(emailLogInMutation);
+    const [guestLogIn] = useMutation(guestLogInMutation);
     // Handles email authentication popup
     const [emailPopupOpen, setEmailPopupOpen] = useState(false);
     const [popupForm, setPopupForm] = useState<Forms>(Forms.LogIn);
@@ -85,12 +85,12 @@ export const StartPage = ({
         if (verificationCode) {
             // If session is already verified, call guest log in
             if (session.id) {
-                mutationWrapper({
+                mutationWrapper<emailLogIn_emailLogIn, emailLogInVariables>({
                     mutation: emailLogIn,
                     input: { verificationCode },
-                    onSuccess: (response) => {
-                        PubSub.get().publishSnack({ message: 'Email verified!' });
-                        PubSub.get().publishSession(response.data.emailLogIn);
+                    onSuccess: (data) => {
+                        PubSub.get().publishSnack({ message: 'Email verified!', severity: SnackSeverity.Success });
+                        PubSub.get().publishSession(data);
                         setLocation(redirect ?? APP_LINKS.Home)
                     },
                     onError: (response) => {
@@ -149,7 +149,7 @@ export const StartPage = ({
         // Validate wallet
         const walletCompleteResult = await validateWallet(providerKey);
         if (walletCompleteResult?.session) {
-            PubSub.get().publishSnack({ message: 'Wallet verified.', severity: 'success' })
+            PubSub.get().publishSnack({ message: 'Wallet verified.', severity: SnackSeverity.Success })
             // Set actor role
             PubSub.get().publishSession(walletCompleteResult.session)
             // Redirect to main dashboard
@@ -158,7 +158,7 @@ export const StartPage = ({
     }, [openWalletConnectDialog, openWalletInstallDialog, toEmailLogIn, setLocation, redirect])
 
     const requestGuestToken = useCallback(() => {
-        mutationWrapper({
+        mutationWrapper<guestLogIn_guestLogIn, any>({
             mutation: guestLogIn,
             onSuccess: () => {
                 let theme: string = 'light';

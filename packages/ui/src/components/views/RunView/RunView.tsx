@@ -4,26 +4,21 @@ import { DecisionView, HelpButton, RunStepsDialog } from "components";
 import { SubroutineView } from "components/views/SubroutineView/SubroutineView";
 import { useLocation } from '@shared/route';
 import { RunViewProps } from "../types";
-import {
-    ArrowBack as PreviousIcon,
-    ArrowForward as NextIcon,
-    DoneAll as CompleteIcon,
-} from '@mui/icons-material';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getRunPercentComplete, getTranslation, getUserLanguages, locationArraysMatch, PubSub, routineHasSubroutines, RoutineStepType, runInputsUpdate, useReactSearch } from "utils";
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
-import { validate as uuidValidate } from 'uuid';
+import { uuidValidate } from '@shared/uuid';
 import { DecisionStep, Node, NodeDataEnd, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, Run, RunInput, RunStep, SubroutineStep } from "types";
-import { addSearchParams, removeSearchParams } from "utils/navigation/urlTools";
+import { addSearchParams, base36ToUuid, removeSearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
-import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
+import { runCompleteVariables, runComplete_runComplete } from "graphql/generated/runComplete";
 import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils";
-import { runUpdate, runUpdateVariables } from "graphql/generated/runUpdate";
-import { v4 as uuid } from 'uuid';
-import { CloseIcon } from "@shared/icons";
+import { runUpdateVariables, runUpdate_runUpdate } from "graphql/generated/runUpdate";
+import { uuid } from '@shared/uuid';
+import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, SuccessIcon } from "@shared/icons";
 
 /**
  * Maximum routine nesting supported
@@ -36,7 +31,7 @@ const MAX_NESTING = 20;
  * @param steps RoutineListStep to check in
  * @returns RoutineStep for the updated step, or the original step if the step was not found
  */
- const insertStep = (stepData: RoutineListStep, steps: RoutineListStep): RoutineListStep => {
+const insertStep = (stepData: RoutineListStep, steps: RoutineListStep): RoutineListStep => {
     // Initialize step to be returned
     let step: RoutineListStep = steps;
     // Loop through steps
@@ -138,7 +133,7 @@ const stepFromLocation = (locationArray: number[], steps: RoutineStep | null): R
  * @param step The subroutine step to check
  * @returns True if the subroutine step needs additional queries, false otherwise
  */
- const subroutineNeedsQuerying = (step: RoutineStep | null | undefined): boolean => {
+const subroutineNeedsQuerying = (step: RoutineStep | null | undefined): boolean => {
     // Check for valid parameters
     if (!step || step.type !== RoutineStepType.Subroutine) return false;
     const currSubroutine: Partial<Routine> = (step as SubroutineStep).routine;
@@ -173,9 +168,9 @@ const getStepComplexity = (step: RoutineStep): number => {
  * @returns RoutineStep for the given routine, or null if invalid
  */
 const convertRoutineToStep = (
-    routine: Routine | null | undefined, 
+    routine: Routine | null | undefined,
     languages: string[]
-    ): RoutineListStep | null => {
+): RoutineListStep | null => {
     // Check for required data to calculate steps
     if (!routine || !routine.nodes || !routine.nodeLinks) {
         console.log('routine does not have enough data to calculate steps');
@@ -260,7 +255,7 @@ export const RunView = ({
     const params = useReactSearch(null);
     const { runId, testMode } = useMemo(() => {
         return {
-            runId: typeof params.run === 'string' && uuidValidate(params.run) ? params.run : undefined,
+            runId: (typeof params.run === 'string' && uuidValidate(base36ToUuid(params.run))) ? base36ToUuid(params.run) : undefined,
             testMode: params.run === 'test',
         }
     }, [params])
@@ -435,7 +430,7 @@ export const RunView = ({
             // Check if this is because the subroutine data hasn't been fetched yet
             //TODO
             // Otherwise, this is an error
-            // PubSub.get().publishSnack({ message: 'Error: Step not found', severity: 'error' });
+            // PubSub.get().publishSnack({ message: 'Error: Step not found', severity: SnackSeverity.Error });
             return;
         }
         // If current step is a list, then redirect to first step in list
@@ -590,8 +585,8 @@ export const RunView = ({
         setCurrStepLocation(previousStep);
     }, [previousStep, setCurrStepLocation]);
 
-    const [logRunUpdate] = useMutation<runUpdate, runUpdateVariables>(runUpdateMutation);
-    const [logRunComplete] = useMutation<runComplete, runCompleteVariables>(runCompleteMutation);
+    const [logRunUpdate] = useMutation(runUpdateMutation);
+    const [logRunComplete] = useMutation(runCompleteMutation);
     /**
      * Navigate to the next subroutine, or complete the routine.
      * Also log progress, time elapsed, and other metrics
@@ -603,7 +598,6 @@ export const RunView = ({
         let newProgress = Array.isArray(progress) ? [...progress] : [];
         let newlyCompletedComplexity: number = (currStep ? getStepComplexity(currStep) : 0);
         const alreadyComplete: boolean = Boolean(newProgress.find(p => locationArraysMatch(p, currStepLocation)));
-        console.log('newprogress', newProgress, currStepLocation, alreadyComplete, newlyCompletedComplexity)
         // If step was not already completed, update progress
         if (!alreadyComplete) {
             newProgress.push(currStepLocation);
@@ -637,7 +631,7 @@ export const RunView = ({
         }];
         // If a next step exists, update
         if (nextStep) {
-            mutationWrapper({
+            mutationWrapper<runUpdate_runUpdate, runUpdateVariables>({
                 mutation: logRunUpdate,
                 input: {
                     id: run.id,
@@ -646,8 +640,8 @@ export const RunView = ({
                     stepsUpdate,
                     ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),
                 },
-                onSuccess: ({ data }) => {
-                    setRun(data.runUpdate);
+                onSuccess: (data) => {
+                    setRun(data);
                 }
             })
         }
@@ -658,7 +652,7 @@ export const RunView = ({
             const currNode = routine.nodes?.find(n => n.id === currNodeId);
             const wasSuccessful = (currNode?.data as NodeDataEnd)?.wasSuccessful ?? true;
             console.log('wasuccessful', wasSuccessful, currNode?.data)
-            mutationWrapper({
+            mutationWrapper<runComplete_runComplete, runCompleteVariables>({
                 mutation: logRunComplete,
                 input: {
                     id: run.id,
@@ -704,7 +698,7 @@ export const RunView = ({
         }
         // Log complete. No step data because this function was called from a decision node, 
         // which we currently don't store data about
-        mutationWrapper({
+        mutationWrapper<runComplete_runComplete, runCompleteVariables>({
             mutation: logRunComplete,
             input: {
                 id: run.id,
@@ -736,15 +730,15 @@ export const RunView = ({
             contextSwitches: currStepRunData.contextSwitches + contextSwitches,
         } : undefined
         // Send data to server
-        mutationWrapper({
+        mutationWrapper<runUpdate_runUpdate, runUpdateVariables>({
             mutation: logRunUpdate,
             input: {
                 id: run.id,
                 stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
                 ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),
             },
-            onSuccess: ({ data }) => {
-                setRun(data.runUpdate);
+            onSuccess: (data) => {
+                setRun(data);
             }
         })
     }, [contextSwitches, currStepRunData, logRunUpdate, run, testMode, timeElapsed]);
@@ -844,12 +838,12 @@ export const RunView = ({
                         </Stack>
                         {/* Steps explorer drawer */}
                         <RunStepsDialog
+                            currStep={currStepLocation}
                             handleLoadSubroutine={(id: string) => { getSubroutine({ variables: { input: { id } } }); }}
                             handleCurrStepLocationUpdate={setCurrStepLocation}
                             history={progress}
                             percentComplete={progressPercentage}
                             stepList={steps}
-                            sxs={{ icon: { width: '32px', height: '32px' } }}
                             zIndex={zIndex + 3}
                         />
                     </Box>
@@ -896,7 +890,7 @@ export const RunView = ({
                         }}>
                             {previousStep && <Button
                                 fullWidth
-                                startIcon={<PreviousIcon />}
+                                startIcon={<ArrowLeftIcon />}
                                 onClick={toPrevious}
                                 disabled={unsavedChanges}
                                 sx={{
@@ -915,7 +909,7 @@ export const RunView = ({
                         }}>
                             {nextStep && (<Button
                                 fullWidth
-                                startIcon={<NextIcon />}
+                                startIcon={<ArrowRightIcon />}
                                 onClick={toNext} // NOTE: changes are saved on next click
                                 disabled={!subroutineComplete}
                                 sx={{ width: 'min(48vw, 250px)' }}
@@ -926,7 +920,7 @@ export const RunView = ({
                             </Button>)}
                             {!nextStep && currentStep?.type !== RoutineStepType.Decision && (<Button
                                 fullWidth
-                                startIcon={<CompleteIcon />}
+                                startIcon={<SuccessIcon />}
                                 onClick={toNext}
                                 sx={{ width: 'min(48vw, 250px)' }}
                             >

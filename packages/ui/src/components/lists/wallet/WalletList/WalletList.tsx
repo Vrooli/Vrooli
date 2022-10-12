@@ -6,15 +6,15 @@ import { useCallback, useState } from 'react';
 import { Wallet } from 'types';
 import { Box, Button } from '@mui/material';
 import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { PubSub, updateArray } from 'utils';
 import { deleteOneMutation, walletUpdateMutation } from 'graphql/mutation';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
 import { WalletListItem } from '../WalletListItem/WalletListItem';
 import { DeleteOneType } from '@shared/consts';
-import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
-import { walletUpdate, walletUpdateVariables } from 'graphql/generated/walletUpdate';
-import { WalletInstallDialog, WalletSelectDialog } from 'components';
+import { deleteOneVariables, deleteOne_deleteOne } from 'graphql/generated/deleteOne';
+import { walletUpdateVariables, walletUpdate_walletUpdate } from 'graphql/generated/walletUpdate';
+import { SnackSeverity, WalletInstallDialog, WalletSelectDialog } from 'components';
 import { AddIcon } from '@shared/icons';
 
 export const WalletList = ({
@@ -23,28 +23,28 @@ export const WalletList = ({
     list,
 }: WalletListProps) => {
 
-    const [updateMutation, { loading: loadingUpdate }] = useMutation<walletUpdate, walletUpdateVariables>(walletUpdateMutation);
+    const [updateMutation, { loading: loadingUpdate }] = useMutation(walletUpdateMutation);
     const onUpdate = useCallback((index: number, updatedWallet: Wallet) => {
         if (loadingUpdate) return;
-        mutationWrapper({
+        mutationWrapper<walletUpdate_walletUpdate, walletUpdateVariables>({
             mutation: updateMutation,
             input: {
                 id: updatedWallet.id,
                 name: updatedWallet.name,
             },
-            onSuccess: (response) => {
+            onSuccess: () => {
                 handleUpdate(updateArray(list, index, updatedWallet));
             },
         })
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation);
+    const [deleteMutation, { loading: loadingDelete }] = useMutation(deleteOneMutation);
     const onDelete = useCallback((wallet: Wallet) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 
         // (i.e. one other wallet or one other email)
         if (list.length <= 1 && numVerifiedEmails === 0) {
-            PubSub.get().publishSnack({ message: 'Cannot delete your only authentication method!', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Cannot delete your only authentication method!', severity: SnackSeverity.Error });
             return;
         }
         // Confirmation dialog
@@ -53,10 +53,10 @@ export const WalletList = ({
             buttons: [
                 {
                     text: 'Yes', onClick: () => {
-                        mutationWrapper({
+                        mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
                             mutation: deleteMutation,
                             input: { id: wallet.id, objectType: DeleteOneType.Wallet },
-                            onSuccess: (response) => {
+                            onSuccess: () => {
                                 handleUpdate([...list.filter(w => w.id !== wallet.id)])
                             },
                         })
@@ -103,10 +103,10 @@ export const WalletList = ({
             // Check if wallet is already in list (i.e. user has already added this wallet)
             const existingWallet = list.find(w => w.stakingAddress === walletCompleteResult.wallet?.stakingAddress);
             if (existingWallet) {
-                PubSub.get().publishSnack({ message: 'Wallet already connected.', severity: 'warning' })
+                PubSub.get().publishSnack({ message: 'Wallet already connected.', severity: SnackSeverity.Warning })
             }
             else {
-                PubSub.get().publishSnack({ message: 'Wallet verified.', severity: 'success' });
+                PubSub.get().publishSnack({ message: 'Wallet verified.', severity: SnackSeverity.Success });
                 // Update list
                 handleUpdate([...list, walletCompleteResult.wallet]);
             }
@@ -132,7 +132,7 @@ export const WalletList = ({
         // Validate wallet
         const walletCompleteResult = await validateWallet(providerKey);
         if (walletCompleteResult) {
-            PubSub.get().publishSnack({ message: 'Wallet verified.', severity: 'success' })
+            PubSub.get().publishSnack({ message: 'Wallet verified.', severity: SnackSeverity.Success })
             // Update list
             handleUpdate(updateArray(list, selectedIndex, {
                 ...list[selectedIndex],

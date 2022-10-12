@@ -3,18 +3,15 @@ import { InputOutputListItemProps } from '../types';
 import { InputType } from '@shared/consts';
 import { inputCreate, outputCreate } from '@shared/validation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-    Delete as DeleteIcon,
-} from '@mui/icons-material';
 import { getTranslation, InputTranslationShape, InputTypeOption, InputTypeOptions, jsonToString, OutputTranslationShape, StandardShape, standardToFieldData, updateArray } from 'utils';
 import { useFormik } from 'formik';
 import { Standard } from 'types';
 import { BaseStandardInput, MarkdownInput, PreviewSwitch, Selector, StandardSelectSwitch } from 'components';
 import { FieldData } from 'forms/types';
 import { generateInputComponent } from 'forms/generators';
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
 import Markdown from 'markdown-to-jsx';
-import { ExpandLessIcon, ExpandMoreIcon, ReorderIcon } from '@shared/icons';
+import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, ReorderIcon } from '@shared/icons';
 
 const defaultStandard = (item: InputOutputListItemProps['item'], generatedSchema?: FieldData | null): StandardShape => ({
     __typename: 'Standard',
@@ -66,7 +63,7 @@ export const InputOutputListItem = ({
         setStandard(item.standard ?? defaultStandard(item));
     }, [item])
 
-    const canEditStandard = useMemo(() => standard.isInternal === true, [standard.isInternal]);
+    const canEditStandard = useMemo(() => isEditing && standard.isInternal === true, [isEditing, standard.isInternal]);
 
     /**
      * Schema only available when defining custom (internal) standard
@@ -205,13 +202,7 @@ export const InputOutputListItem = ({
                             marginTop: 'auto',
                             marginBottom: 'auto',
                         }}>
-                            <DeleteIcon sx={{
-                                fill: 'white',
-                                '&:hover': {
-                                    fill: '#ff6a6a'
-                                },
-                                transition: 'fill 0.5s ease-in-out',
-                            }} />
+                            <DeleteIcon fill={'white'} />
                         </IconButton>
                     </Tooltip>
                 )}

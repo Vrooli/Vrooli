@@ -1,4 +1,4 @@
-import { description, id, idArray, language, maxStringErrorMessage, minNumberErrorMessage, requiredErrorMessage, title } from './base';
+import { blankToUndefined, description, id, idArray, language, maxStringErrorMessage, minNumberErrorMessage, requiredErrorMessage, title } from './base';
 import * as yup from 'yup';
 import { ResourceUsedFor } from '@shared/consts';
 
@@ -12,14 +12,14 @@ export const adaHandleRegex = /^\$[a-zA-Z0-9]{3,16}$/
 
 const index = yup.number().integer().min(0, minNumberErrorMessage)
 // Link must match one of the regex above
-const link = yup.string().max(1024, maxStringErrorMessage).test(
+const link = yup.string().transform(blankToUndefined).max(1024, maxStringErrorMessage).test(
     'link',
     'Must be a URL, Cardano payment address, or ADA Handle',
     (value: string | undefined) => {
         return value !== undefined ? (urlRegex.test(value) || walletAddressRegex.test(value) || adaHandleRegex.test(value)) : true
     }
 )
-const usedFor = yup.string().oneOf(Object.values(ResourceUsedFor))
+const usedFor = yup.string().transform(blankToUndefined).oneOf(Object.values(ResourceUsedFor))
 
 export const resourceTranslationCreate = yup.object().shape({
     id: id.required(requiredErrorMessage),
@@ -35,19 +35,6 @@ export const resourceTranslationUpdate = yup.object().shape({
 });
 export const resourceTranslationsCreate = yup.array().of(resourceTranslationCreate.required(requiredErrorMessage))
 export const resourceTranslationsUpdate = yup.array().of(resourceTranslationUpdate.required(requiredErrorMessage))
-
-export const resourceCreateForm = yup.object().shape({
-    link: link.required(requiredErrorMessage),
-    description: description.notRequired().default(undefined),
-    title: title.notRequired().default(undefined),
-    usedFor: usedFor.notRequired().default(undefined),
-})
-export const resourceUpdateForm = yup.object().shape({
-    link: link.notRequired().default(undefined),
-    description: description.notRequired().default(undefined),
-    title: title.notRequired().default(undefined),
-    usedFor: usedFor.notRequired().default(undefined),
-})
 
 export const resourceCreate = yup.object().shape({
     id: id.required(requiredErrorMessage),

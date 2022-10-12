@@ -3,7 +3,7 @@ import { routineFields } from 'graphql/fragment';
 
 export const routineQuery = gql`
     ${routineFields}
-    query routine($input: FindByIdInput!) {
+    query routine($input: FindByVersionInput!) {
         routine(input: $input) {
             ...routineFields
         }

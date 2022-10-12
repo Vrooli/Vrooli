@@ -37,6 +37,7 @@ export const typeDef = gql`
         completedComplexity: Int!
         contextSwitches: Int!
         isPrivate: Boolean!
+        permissionsRun: RunPermission!
         timeStarted: Date
         timeElapsed: Int
         timeCompleted: Date
@@ -46,6 +47,12 @@ export const typeDef = gql`
         steps: [RunStep!]!
         inputs: [RunInput!]!
         user: User!
+    }
+
+    type RunPermission {
+        canDelete: Boolean!
+        canEdit: Boolean!
+        canView: Boolean!
     }
 
     type RunStep {
@@ -70,13 +77,13 @@ export const typeDef = gql`
         completedTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
-        includePrivate: Boolean
         status: RunStatus
         routineId: ID
         searchString: String
         sortBy: RunSortBy
         take: Int
         updatedTimeFrame: TimeFrame
+        visibility: VisibilityType
     }
 
     # Return type for search result
@@ -190,7 +197,7 @@ export const resolvers = {
         },
         runsCount: async (_parent: undefined, { input }: IWrap<RunCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, max: 1000, req });
-            return countHelper({ input, model: RunModel, prisma, where: { userId: req.userId ?? undefined } });
+            return countHelper({ input, model: RunModel, prisma, userId: req.userId });
         },
     },
     Mutation: {
