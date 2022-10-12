@@ -31,6 +31,23 @@ export interface CommonProps {
     sessionChecked: SessionChecked;
 }
 
+/**
+ * An object connected to routing
+ */
+export type NavigableObject = {
+    __typename: string
+    handle?: string | null,
+    id: string,
+    routine?: {
+        id: string
+    } | null,
+    to?: {
+        __typename: string,
+        handle?: string | null,
+        id?: string,
+    }
+}
+
 // Rename auto-generated query objects
 export type Comment = comment_comment;
 export type CommentThread = comments_comments_threads;
@@ -144,6 +161,7 @@ export interface ObjectOption {
     __typename: ListObjectType['__typename'];
     handle?: string | null;
     id: string;
+    versionGroupId?: string | null;
     isFromHistory?: boolean;
     isStarred?: boolean;
     label: string;
@@ -152,7 +170,7 @@ export interface ObjectOption {
     routine?: {
         id: string
     } | null,
-    to?: { 
+    to?: {
         __typename: string,
         handle?: string | null,
         id?: string,

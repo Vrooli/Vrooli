@@ -13,7 +13,7 @@ import { LanguageInput } from "components/inputs";
 import { GridSubmitButtons, HelpButton } from "components/buttons";
 import { findHandles, findHandlesVariables } from "graphql/generated/findHandles";
 import { findHandlesQuery } from "graphql/query";
-import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
+import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/generated/profileUpdate";
 import { PubSub } from 'utils'
 import { RefreshIcon } from "@shared/icons";
 import { DUMMY_ID, uuid } from '@shared/uuid';
@@ -71,7 +71,7 @@ export const SettingsProfile = ({
     }, [profile, session]);
 
     // Handle update
-    const [mutation] = useMutation<profileUpdate, profileUpdateVariables>(profileUpdateMutation);
+    const [mutation] = useMutation(profileUpdateMutation);
     const formik = useFormik({
         initialValues: {
             name: profile?.name ?? '',
@@ -105,10 +105,10 @@ export const SettingsProfile = ({
                 PubSub.get().publishSnack({ message: 'No changes made.', severity: SnackSeverity.Info });
                 return;
             }
-            mutationWrapper({
+            mutationWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
                 mutation,
                 input,
-                onSuccess: (data) => { onUpdated(data.profileUpdate); setLocation(APP_LINKS.Profile, { replace: true }) },
+                onSuccess: (data) => { onUpdated(data); setLocation(APP_LINKS.Profile, { replace: true }) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },

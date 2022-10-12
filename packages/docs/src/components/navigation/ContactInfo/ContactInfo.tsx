@@ -17,7 +17,6 @@ const contactInfo: [string, string, string, SvgComponent][] = [
 ]
 
 export const ContactInfo = ({
-    className,
     ...props
 }: ContactInfoProps) => {
     const { palette } = useTheme();

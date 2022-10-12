@@ -12,8 +12,8 @@ import { deleteOneMutation, walletUpdateMutation } from 'graphql/mutation';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
 import { WalletListItem } from '../WalletListItem/WalletListItem';
 import { DeleteOneType } from '@shared/consts';
-import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
-import { walletUpdate, walletUpdateVariables } from 'graphql/generated/walletUpdate';
+import { deleteOneVariables, deleteOne_deleteOne } from 'graphql/generated/deleteOne';
+import { walletUpdateVariables, walletUpdate_walletUpdate } from 'graphql/generated/walletUpdate';
 import { SnackSeverity, WalletInstallDialog, WalletSelectDialog } from 'components';
 import { AddIcon } from '@shared/icons';
 
@@ -23,10 +23,10 @@ export const WalletList = ({
     list,
 }: WalletListProps) => {
 
-    const [updateMutation, { loading: loadingUpdate }] = useMutation<walletUpdate, walletUpdateVariables>(walletUpdateMutation);
+    const [updateMutation, { loading: loadingUpdate }] = useMutation(walletUpdateMutation);
     const onUpdate = useCallback((index: number, updatedWallet: Wallet) => {
         if (loadingUpdate) return;
-        mutationWrapper({
+        mutationWrapper<walletUpdate_walletUpdate, walletUpdateVariables>({
             mutation: updateMutation,
             input: {
                 id: updatedWallet.id,
@@ -38,7 +38,7 @@ export const WalletList = ({
         })
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation);
+    const [deleteMutation, { loading: loadingDelete }] = useMutation(deleteOneMutation);
     const onDelete = useCallback((wallet: Wallet) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 
@@ -53,7 +53,7 @@ export const WalletList = ({
             buttons: [
                 {
                     text: 'Yes', onClick: () => {
-                        mutationWrapper({
+                        mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
                             mutation: deleteMutation,
                             input: { id: wallet.id, objectType: DeleteOneType.Wallet },
                             onSuccess: () => {

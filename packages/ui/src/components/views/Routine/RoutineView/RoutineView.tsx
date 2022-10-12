@@ -7,7 +7,7 @@ import { routineQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, BuildView, ReportsLink, ResourceListHorizontal, RunPickerMenu, RunView, SelectLanguageMenu, StarButton, StatusButton, UpTransition, UpvoteDownvote, OwnerLabel, VersionDisplay, SnackSeverity } from "components";
 import { RoutineViewProps } from "../types";
-import { formikToRunInputs, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, useReactSearch } from "utils";
+import { base36ToUuid, formikToRunInputs, getLanguageSubtag, getLastUrlPart, getObjectSlug, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, useReactSearch } from "utils";
 import { Routine, Run } from "types";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/graphqlWrapper";
@@ -15,7 +15,7 @@ import { CommentFor, NodeType, StarFor } from "graphql/generated/globalTypes";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 import { containerShadow } from "styles";
 import { uuidValidate } from '@shared/uuid';
-import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
+import { runCompleteVariables, runComplete_runComplete } from "graphql/generated/runComplete";
 import { useFormik } from "formik";
 import { FieldData } from "forms/types";
 import { generateInputWithLabel } from "forms/generators";
@@ -41,12 +41,22 @@ export const RoutineView = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     // Fetch data
-    const id = useMemo(() => getLastUrlPart(), []);
+    const { id, versionGroupId } = useMemo(() => {
+        // URL is /object/:versionGroupId/?:id
+        const last = base36ToUuid(getLastUrlPart(0), false);
+        const secondLast = base36ToUuid(getLastUrlPart(1), false);
+        return {
+            id: uuidValidate(secondLast) ? last : undefined,
+            versionGroupId: uuidValidate(secondLast) ? secondLast : last,
+        }
+    }, []);
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
-    const [routine, setRoutine] = useState<Routine>(initializeRoutine(language));
     useEffect(() => {
-        if (uuidValidate(id)) { getData({ variables: { input: { id } } }); }
-    }, [getData, id])
+        if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { input: { id, versionGroupId } } });
+        else PubSub.get().publishSnack({ message: 'Could not parse ID in URL', severity: SnackSeverity.Error });
+    }, [getData, id, versionGroupId])
+
+    const [routine, setRoutine] = useState<Routine>(initializeRoutine(language));
     useEffect(() => {
         if (!data?.routine) return;
         setRoutine(data.routine);
@@ -175,9 +185,10 @@ export const RoutineView = ({
         }
         // Otherwise, edit as single step
         else {
-            setLocation(`${APP_LINKS.Routine}/edit/${id}`);
+            if (!routine) return;
+            setLocation(`${APP_LINKS.Routine}/edit/${getObjectSlug(routine)}`);
         }
-    }, [routine?.nodes, routine?.nodeLinks, setLocation, id]);
+    }, [routine, setLocation]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -202,7 +213,7 @@ export const RoutineView = ({
         switch (action) {
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp:
-                if (data.vote.success) {
+                if (data.success) {
                     setRoutine({
                         ...routine,
                         isUpvoted: action === ObjectActionComplete.VoteUp,
@@ -211,7 +222,7 @@ export const RoutineView = ({
                 break;
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.star.success) {
+                if (data.success) {
                     setRoutine({
                         ...routine,
                         isStarred: action === ObjectActionComplete.Star,
@@ -219,11 +230,11 @@ export const RoutineView = ({
                 }
                 break;
             case ObjectActionComplete.Fork:
-                setLocation(`${APP_LINKS.Routine}/${data.fork.routine.id}`);
+                openObject(data.routine, setLocation);
                 window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
-                setLocation(`${APP_LINKS.Routine}/${data.copy.routine.id}`);
+                openObject(data.routine, setLocation);
                 window.location.reload();
                 break;
         }
@@ -260,10 +271,10 @@ export const RoutineView = ({
         onSubmit: () => { },
     });
 
-    const [runComplete] = useMutation<runComplete, runCompleteVariables>(runCompleteMutation);
+    const [runComplete] = useMutation(runCompleteMutation);
     const markAsComplete = useCallback(() => {
         if (!routine) return;
-        mutationWrapper({
+        mutationWrapper<runComplete_runComplete, runCompleteVariables>({
             mutation: runComplete,
             input: {
                 id: routine.id,
@@ -290,7 +301,7 @@ export const RoutineView = ({
             // Only show if logged in
             if (!session?.id) return null;
             return (
-                <Grid container spacing={1}>
+                <Grid container spacing={1} mt={1}>
                     <Grid item xs={12}>
                         <Button startIcon={<SuccessIcon />} fullWidth onClick={markAsComplete} color="secondary">Mark as Complete</Button>
                     </Grid>
@@ -299,7 +310,7 @@ export const RoutineView = ({
         }
         // If routine has nodes
         return (
-            <Grid container spacing={1}>
+            <Grid container spacing={1} mt={1}>
                 <Grid item xs={12} sm={6}>
                     <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button>
                 </Grid>
@@ -361,7 +372,7 @@ export const RoutineView = ({
         return (
             <>
                 {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
-                <Stack direction="column" spacing={1} padding={1}>
+                <Stack direction="column" spacing={2} padding={1}>
                     {/* Resources */}
                     {resourceList}
                     {/* Description */}
@@ -512,17 +523,20 @@ export const RoutineView = ({
                                     }} /> :
                                     <>
                                         <Typography variant="h5">{title}</Typography>
-                                        {
-                                            Array.isArray(routine?.nodes) && routine!.nodes.length > 0 && <StatusButton
-                                                status={status}
-                                                messages={statusMessages}
+                                        {routine?.permissionsRoutine?.canEdit && <Tooltip title="Edit routine">
+                                            <IconButton
+                                                aria-label="Edit routine"
+                                                size="small"
+                                                onClick={onEdit}
                                                 sx={{
+                                                    height: 'fit-content',
                                                     marginTop: 'auto',
                                                     marginBottom: 'auto',
-                                                    marginLeft: 2,
                                                 }}
-                                            />
-                                        }
+                                            >
+                                                <EditIcon fill={palette.secondary.light} />
+                                            </IconButton>
+                                        </Tooltip>}
                                     </>
                                 }
                             </Stack>
@@ -531,10 +545,22 @@ export const RoutineView = ({
                                 alignItems: 'center',
                                 justifyContent: 'center',
                             }}>
+                                {
+                                    Array.isArray(routine?.nodes) && routine!.nodes.length > 0 && <StatusButton
+                                        status={status}
+                                        messages={statusMessages}
+                                        sx={{
+                                            marginTop: 'auto',
+                                            marginBottom: 'auto',
+                                            marginLeft: 2,
+                                        }}
+                                    />
+                                }
                                 <OwnerLabel objectType={ObjectType.Routine} owner={routine?.owner} session={session} />
                                 <VersionDisplay
                                     currentVersion={routine?.version}
                                     prefix={" - "}
+                                    versions={routine?.versions}
                                 />
                                 <SelectLanguageMenu
                                     currentLanguage={language}
@@ -543,15 +569,6 @@ export const RoutineView = ({
                                     translations={routine?.translations ?? partialData?.translations ?? []}
                                     zIndex={zIndex}
                                 />
-                                {routine?.permissionsRoutine?.canEdit && <Tooltip title="Edit routine">
-                                    <IconButton
-                                        aria-label="Edit routine"
-                                        size="small"
-                                        onClick={onEdit}
-                                    >
-                                        <EditIcon fill={palette.secondary.light} />
-                                    </IconButton>
-                                </Tooltip>}
                             </Stack>
                         </Stack>
                         {/* Body container */}
@@ -568,16 +585,18 @@ export const RoutineView = ({
                         alignItems: 'center',
                         padding: 2,
                     }}>
-                        {canVote && <UpvoteDownvote
+                        <UpvoteDownvote
                             direction="row"
+                            disabled={!canVote}
                             session={session}
                             objectId={routine?.id ?? ''}
                             voteFor={VoteFor.Routine}
                             isUpvoted={routine?.isUpvoted}
                             score={routine?.score}
                             onChange={(isUpvote) => { routine && setRoutine({ ...routine, isUpvoted: isUpvote }); }}
-                        />}
-                        {canStar && <StarButton
+                        />
+                        <StarButton
+                            disabled={!canStar}
                             session={session}
                             objectId={routine?.id ?? ''}
                             showStars={false}
@@ -586,11 +605,8 @@ export const RoutineView = ({
                             stars={routine?.stars ?? 0}
                             onChange={(isStar: boolean) => { routine && setRoutine({ ...routine, isStarred: isStar }) }}
                             tooltipPlacement="bottom"
-                        />}
-                        <ReportsLink
-                            href={`${APP_LINKS.Routine}/reports/${routine?.id}`}
-                            reports={routine?.reportsCount}
                         />
+                        <ReportsLink object={routine} />
                         <Tooltip title="More options">
                             <IconButton
                                 aria-label="More"

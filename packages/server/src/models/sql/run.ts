@@ -3,7 +3,7 @@ import { CODE } from "@shared/consts";
 import { CustomError } from "../../error";
 import { Count, LogType, Run, RunCancelInput, RunCompleteInput, RunCreateInput, RunPermission, RunSearchInput, RunSortBy, RunStatus, RunUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, ValidateMutationsInput, Permissioner, getSearchStringQueryHelper, combineQueries, onlyValidIds } from "./base";
+import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLInfo, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, ValidateMutationsInput, Permissioner, getSearchStringQueryHelper, combineQueries, onlyValidIds } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { RunStepModel } from "./runStep";
@@ -12,6 +12,7 @@ import { validateProfanity } from "../../utils/censor";
 import { RunInputModel } from "./runInput";
 import { organizationQuerier } from "./organization";
 import { routinePermissioner } from "./routine";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -446,6 +447,6 @@ export const RunModel = ({
     mutate: runMutater,
     permissions: runPermissioner,
     search: runSearcher(),
-    type: 'Run',
+    type: 'Run' as GraphQLModelType,
     verify: runVerifier(),
 })

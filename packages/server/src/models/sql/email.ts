@@ -3,10 +3,11 @@ import { emailsCreate, emailsUpdate } from "@shared/validation";
 import { CustomError } from "../../error";
 import { Count, Email, EmailCreateInput, EmailUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { validateProfanity } from "../../utils/censor";
 import { genErrorCode } from "../../logger";
 import { ProfileModel } from "./profile";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -194,7 +195,7 @@ export const EmailModel = ({
     prismaObject: (prisma: PrismaType) => prisma.email,
     format: emailFormatter(),
     mutate: emailMutater,
-    type: 'Email',
+    type: 'Email' as GraphQLModelType,
     verify: emailVerifier(),
 })
 

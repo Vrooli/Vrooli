@@ -5,7 +5,7 @@ import { AllLanguages, getLanguageSubtag, getUserLanguages, PubSub } from 'utils
 import { FixedSizeList } from 'react-window';
 import { ListMenu, MenuTitle, SnackSeverity } from 'components';
 import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon, TranslateIcon } from '@shared/icons';
-import { translate, translateVariables } from 'graphql/generated/translate';
+import { translateVariables, translate_translate } from 'graphql/generated/translate';
 import { translateQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { queryWrapper } from 'graphql/utils';
@@ -65,7 +65,7 @@ export const SelectLanguageMenu = ({
     }, []);
 
     // Auto-translates from source to target language
-    const [getAutoTranslation] = useLazyQuery<translate, translateVariables>(translateQuery);
+    const [getAutoTranslation] = useLazyQuery(translateQuery);
     const autoTranslate = useCallback((source: string, target: string) => {
         console.log("TODO autotranslate");
         // Get source translation
@@ -74,13 +74,13 @@ export const SelectLanguageMenu = ({
             PubSub.get().publishSnack({ message: 'Could not find translation.', severity: SnackSeverity.Error })
             return;
         }
-        queryWrapper({
+        queryWrapper<translate_translate, translateVariables>({
             query: getAutoTranslation,
             input: { fields: JSON.stringify(sourceTranslation), languageSource: source, languageTarget: target },
             onSuccess: (data) => {
                 console.log('got translation', data)
                 // Try parse
-                if (data.translate) {
+                if (data) {
                     console.log('TODO')
                 } else {
                     PubSub.get().publishSnack({ message: 'Could not translate.', severity: SnackSeverity.Error });

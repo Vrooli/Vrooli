@@ -118,7 +118,7 @@ export async function deleteFile(file: string) {
  * @returns Array of data from each file
  */
 export async function readFiles(files: string[]) {
-    let data = [];
+    let data: (string | null)[] = [];
     for (const file of files) {
         const { name, ext, folder } = clean(file, 'public');
         const path = `${UPLOAD_DIR}/${folder}/${name}${ext}`;
@@ -139,7 +139,7 @@ export async function readFiles(files: string[]) {
  * @returns Array of each filename saved, or null if unsuccessful
  */
 export async function saveFiles(files: any, overwrite: boolean = true, acceptedTypes: string[] = []) {
-    let data = [];
+    let data: (string | null)[] = [];
     for (const file of files) {
         const { createReadStream, filename, mimetype } = await file;
         const stream = createReadStream();

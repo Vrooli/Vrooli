@@ -2,9 +2,10 @@ import { CODE, VoteFor } from "@shared/consts";
 import { CustomError } from "../../error";
 import { LogType, Vote, VoteInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { deconstructUnion, FormatConverter, GraphQLModelType, onlyValidIds } from "./base";
+import { FormatConverter, onlyValidIds } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -22,23 +23,13 @@ export const voteFormatter = (): FormatConverter<Vote, any> => ({
             'Tag': 'Tag',
         }
     },
-    constructUnions: (data) => {
-        let { comment, project, routine, standard, tag, ...modified } = data;
-        if (comment) modified.to = comment;
-        else if (project) modified.to = project;
-        else if (routine) modified.to = routine;
-        else if (standard) modified.to = standard;
-        else if (tag) modified.to = tag;
-        return modified;
-    },
-    deconstructUnions: (partial) => {
-        let modified = deconstructUnion(partial, 'to', [
-            ['Comment', 'comment'],
-            ['Project', 'project'],
-            ['Routine', 'routine'],
-            ['Standard', 'standard'],
-        ]);
-        return modified;
+    unionMap: {
+        'to': {
+            'Comment': 'comment',
+            'Project': 'project',
+            'Routine': 'routine',
+            'Standard': 'standard',
+        },
     },
 })
 
@@ -182,7 +173,7 @@ export const VoteModel = ({
     format: voteFormatter(),
     mutate: voteMutater,
     query: voteQuerier,
-    type: 'Vote',
+    type: 'Vote' as GraphQLModelType,
 })
 
 //==============================================================

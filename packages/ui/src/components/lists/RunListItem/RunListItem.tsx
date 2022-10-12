@@ -3,10 +3,10 @@ import { Box, LinearProgress, ListItem, ListItemButton, ListItemText, Stack, Too
 import { RunListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, RunSortBy, StarFor } from '@shared/consts';
+import { RunSortBy, StarFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading } from '..';
-import { displayDate, getTranslation, LabelledSortOption, labelledSortOptions, listItemColor } from 'utils';
+import { displayDate, getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, openObject } from 'utils';
 import { RunStatus } from 'graphql/generated/globalTypes';
 import { RoutineIcon } from '@shared/icons';
 import { StarButton } from 'components/buttons';
@@ -57,9 +57,9 @@ export function RunListItem({
         const completedComplexity = data?.completedComplexity ?? null;
         const totalComplexity = data?.routine?.complexity ?? null;
         const percentComplete = data?.status === RunStatus.Completed ? 100 :
-            (completedComplexity && totalComplexity) ? 
-            Math.min(Math.round(completedComplexity / totalComplexity * 100), 100) : 
-            0
+            (completedComplexity && totalComplexity) ?
+                Math.min(Math.round(completedComplexity / totalComplexity * 100), 100) :
+                0
         return {
             canStar: routinePermissions?.canStar === true,
             bio: getTranslation(data?.routine, 'bio', languages, true),
@@ -78,7 +78,7 @@ export function RunListItem({
         // If onClick provided, call it
         if (onClick) onClick(e, data);
         // Otherwise, navigate to the object's page
-        else setLocation(`${APP_LINKS.Routine}/${data.routine?.id ?? ''}?run="${data.id}"`);
+        else openObject(data, setLocation);
     }, [onClick, data, setLocation]);
 
     return (
@@ -137,14 +137,15 @@ export function RunListItem({
                         {/* Progress bar */}
                         <CompletionBar color="secondary" variant={loading ? 'indeterminate' : 'determinate'} value={percentComplete} sx={{ height: '15px' }} />
                     </Stack>
-                    {canStar && <StarButton
+                    <StarButton
+                        disabled={!canStar}
                         session={session}
                         objectId={data?.id ?? ''}
                         starFor={StarFor.Routine}
                         isStar={data?.routine?.isStarred ?? false}
                         stars={data?.routine?.stars ?? 0}
                         onChange={(isStar: boolean) => { }}
-                    />}
+                    />
                 </ListItemButton>
             </ListItem>
         </Tooltip>

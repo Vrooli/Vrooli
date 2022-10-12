@@ -9,11 +9,11 @@ import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { standardTranslationUpdate, standardUpdate as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, removeTranslation, shapeStandardUpdate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, removeTranslation, shapeStandardUpdate, TagShape, usePromptBeforeUnload } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
-import { standardUpdate, standardUpdateVariables } from "graphql/generated/standardUpdate";
+import { standardUpdateVariables, standardUpdate_standardUpdate } from "graphql/generated/standardUpdate";
 import { RelationshipsObject } from "components/inputs/types";
 
 export const StandardUpdate = ({
@@ -22,10 +22,22 @@ export const StandardUpdate = ({
     session,
     zIndex,
 }: StandardUpdateProps) => {
+
     // Fetch existing data
-    const id = useMemo(() => getLastUrlPart(), []);
-    const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery);
-    useEffect(() => { uuidValidate(id) && getData({ variables: { input: { id } } }) }, [getData, id])
+    const { id, versionGroupId } = useMemo(() => {
+        // URL is /object/:versionGroupId/?:id
+        const last = base36ToUuid(getLastUrlPart(0), false);
+        const secondLast = base36ToUuid(getLastUrlPart(1), false);
+        return {
+            id: uuidValidate(secondLast) ? last : undefined,
+            versionGroupId: uuidValidate(secondLast) ? secondLast : last,
+        }
+    }, []);
+    const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery, { errorPolicy: 'all' });
+    useEffect(() => {
+        if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { input: { id, versionGroupId } } });
+        else PubSub.get().publishSnack({ message: 'Could not parse ID in URL', severity: SnackSeverity.Error });
+    }, [getData, id, versionGroupId])
     const standard = useMemo(() => data?.standard, [data]);
 
     const [relationships, setRelationships] = useState<RelationshipsObject>({
@@ -66,7 +78,7 @@ export const StandardUpdate = ({
     }, [standard]);
 
     // Handle update
-    const [mutation] = useMutation<standardUpdate, standardUpdateVariables>(standardUpdateMutation);
+    const [mutation] = useMutation(standardUpdateMutation);
     const formik = useFormik({
         initialValues: {
             translationsUpdate: standard?.translations ?? [{
@@ -84,7 +96,7 @@ export const StandardUpdate = ({
                 return;
             }
             // Update
-            mutationWrapper({
+            mutationWrapper<standardUpdate_standardUpdate, standardUpdateVariables>({
                 mutation,
                 input: shapeStandardUpdate(standard, {
                     id: standard.id,
@@ -95,7 +107,7 @@ export const StandardUpdate = ({
                         id: t.id === DUMMY_ID ? uuid() : t.id,
                     })),
                 }),
-                onSuccess: (data) => { onUpdated(data.standardUpdate) },
+                onSuccess: (data) => { onUpdated(data) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },

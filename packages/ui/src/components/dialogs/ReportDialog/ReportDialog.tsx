@@ -2,7 +2,7 @@ import { useMutation } from '@apollo/client';
 import { reportCreateForm as validationSchema } from '@shared/validation';
 import { Dialog, DialogContent, Grid, Stack, TextField } from '@mui/material';
 import { useFormik } from 'formik';
-import { reportCreate, reportCreateVariables } from 'graphql/generated/reportCreate';
+import { reportCreateVariables, reportCreate_reportCreate } from 'graphql/generated/reportCreate';
 import { reportCreateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { ReportDialogProps } from '../types';
@@ -48,7 +48,7 @@ export const ReportDialog = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => { setLanguage(getUserLanguages(session)[0]) }, [session]);
 
-    const [mutation, { loading }] = useMutation<reportCreate, reportCreateVariables>(reportCreateMutation);
+    const [mutation, { loading }] = useMutation(reportCreateMutation);
     const formik = useFormik({
         initialValues: {
             createdFor: reportFor,
@@ -61,7 +61,7 @@ export const ReportDialog = ({
         enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
-            mutationWrapper({
+            mutationWrapper<reportCreate_reportCreate, reportCreateVariables>({
                 mutation,
                 input: {
                     createdFor: reportFor,
@@ -71,7 +71,7 @@ export const ReportDialog = ({
                     language,
                     reason: Boolean(values.otherReason) ? values.otherReason : values.reason,
                 },
-                successCondition: (data) => data.reportCreate !== null,
+                successCondition: (data) => data !== null,
                 successMessage: () => 'Report submitted.',
                 onSuccess: () => {
                     formik.resetForm();

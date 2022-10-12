@@ -2,10 +2,11 @@ import { runInputsCreate, runInputsUpdate } from "@shared/validation";
 import { CODE } from "@shared/consts";
 import { CustomError } from "../../error";
 import { Count, RunInputCreateInput, RunInputUpdateInput, RunInput } from "../../schema/types";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { genErrorCode } from "../../logger";
 import { validateProfanity } from "../../utils/censor";
 import { PrismaType } from "../../types";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -93,14 +94,14 @@ export const runInputMutater = (prisma: PrismaType) => ({
         let { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         // Further shape the input
         if (createMany) {
-            let result = [];
+            let result: { [x: string]: any }[] = [];
             for (const data of createMany) {
                 result.push(await this.toDBShapeAdd(userId, data as any));
             }
             createMany = result;
         }
         if (updateMany) {
-            let result = [];
+            let result: { where: { [x: string]: string }, data: { [x: string]: any } }[] = [];
             for (const data of updateMany) {
                 result.push({
                     where: data.where,
@@ -210,6 +211,6 @@ export const RunInputModel = ({
     format: runInputFormatter(),
     mutate: runInputMutater,
     // search: runInputSearcher(),
-    type: 'RunInput',
+    type: 'RunInput' as GraphQLModelType,
     verify: runInputVerifier(),
 })

@@ -2,7 +2,7 @@ import { Box, CircularProgress, IconButton, Stack, Tooltip, Typography, useTheme
 import { ObjectActionMenu, OwnerLabel, ResourceListHorizontal, SnackSeverity, TextCollapse, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { containerShadow } from "styles";
-import { formikToRunInputs, getTranslation, getUserLanguages, ObjectType, PubSub, runInputsToFormik, standardToFieldData } from "utils";
+import { formikToRunInputs, getTranslation, getUserLanguages, ObjectType, openObject, PubSub, runInputsToFormik, standardToFieldData, uuidToBase36 } from "utils";
 import { useLocation } from '@shared/route';
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
@@ -172,7 +172,7 @@ export const SubroutineView = ({
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
     const onEdit = useCallback(() => {
-        setLocation(`${APP_LINKS.Routine}/edit/${internalRoutine?.id}`);
+        setLocation(`${APP_LINKS.Routine}/edit/${uuidToBase36(internalRoutine?.id ?? '')}`);
     }, [internalRoutine?.id, setLocation]);
 
     const onMoreActionStart = useCallback((action: ObjectAction) => {
@@ -190,7 +190,7 @@ export const SubroutineView = ({
         switch (action) {
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp:
-                if (data.vote.success) {
+                if (data.success) {
                     setInternalRoutine({
                         ...internalRoutine,
                         isUpvoted: action === ObjectActionComplete.VoteUp,
@@ -199,7 +199,7 @@ export const SubroutineView = ({
                 break;
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.star.success) {
+                if (data.success) {
                     setInternalRoutine({
                         ...internalRoutine,
                         isStarred: action === ObjectActionComplete.Star,
@@ -207,11 +207,11 @@ export const SubroutineView = ({
                 }
                 break;
             case ObjectActionComplete.Fork:
-                setLocation(`${APP_LINKS.Routine}/${data.fork.routine.id}`);
+                openObject(data.routine, setLocation);
                 window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
-                setLocation(`${APP_LINKS.Routine}/${data.copy.routine.id}`);
+                openObject(data.routine, setLocation);
                 window.location.reload();
                 break;
         }
@@ -296,6 +296,7 @@ export const SubroutineView = ({
                         confirmVersionChange={confirmLeave}
                         currentVersion={internalRoutine?.version}
                         prefix={" - "}
+                        versions={internalRoutine?.versions}
                     />
                 </Stack>
             </Stack>

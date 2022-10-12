@@ -2,10 +2,10 @@ import { Box, ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme }
 import { OrganizationListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, StarFor } from '@shared/consts';
+import { StarFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading } from '..';
-import { getTranslation, listItemColor, placeholderColor } from 'utils';
+import { getTranslation, listItemColor, openObject, placeholderColor } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { OrganizationIcon } from '@shared/icons';
 import { ReportsButton, StarButton } from 'components/buttons';
@@ -23,13 +23,12 @@ export function OrganizationListItem({
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
 
-    const { bio, canEdit, canReport, canStar, name, reportsCount } = useMemo(() => {
+    const { bio, canEdit, canStar, name, reportsCount } = useMemo(() => {
         const permissions = data?.permissionsOrganization;
         const languages = session?.languages ?? navigator.languages;
         return {
             bio: getTranslation(data, 'bio', languages, true),
             canEdit: permissions?.canEdit === true,
-            canReport: permissions?.canReport === true,
             canStar: permissions?.canStar === true,
             name: getTranslation(data, 'name', languages, true),
             reportsCount: data?.reportsCount ?? 0,
@@ -44,11 +43,7 @@ export function OrganizationListItem({
         // If onClick provided, call it
         if (onClick) onClick(e, data);
         // Otherwise, navigate to the object's page
-        else {
-            // Prefer using handle if available
-            const link = data.handle ?? data.id;
-            setLocation(`${APP_LINKS.Organization}/${link}`);
-        }
+        else openObject(data, setLocation);
     }, [onClick, data, setLocation]);
 
     return (
@@ -128,14 +123,15 @@ export function OrganizationListItem({
                     </Stack>
                     {/* Star/Comment/Report */}
                     <Stack direction="column" spacing={1}>
-                        {canStar && <StarButton
+                        <StarButton
+                            disabled={!canStar}
                             session={session}
                             objectId={data?.id ?? ''}
                             starFor={StarFor.Organization}
                             isStar={data?.isStarred}
                             stars={data?.stars}
-                        />}
-                        {canReport && reportsCount > 0 && <ReportsButton
+                        />
+                        {reportsCount > 0 && <ReportsButton
                             reportsCount={data?.reportsCount ?? 0}
                             object={data}
                         />}

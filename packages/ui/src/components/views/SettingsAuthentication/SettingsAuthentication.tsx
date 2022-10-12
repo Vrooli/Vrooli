@@ -14,8 +14,7 @@ import { GridSubmitButtons, HelpButton } from "components/buttons";
 import { EmailList, WalletList } from "components/lists";
 import { Email, Wallet } from "types";
 import { PasswordTextField, SnackSeverity } from "components";
-import { logOut } from "graphql/generated/logOut";
-import { profileEmailUpdate, profileEmailUpdateVariables } from "graphql/generated/profileEmailUpdate";
+import { profileEmailUpdateVariables, profileEmailUpdate_profileEmailUpdate } from "graphql/generated/profileEmailUpdate";
 import { EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
 
 const helpText =
@@ -42,7 +41,7 @@ export const SettingsAuthentication = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const [logOut] = useMutation<logOut, any>(logOutMutation);
+    const [logOut] = useMutation(logOutMutation);
     const onLogOut = useCallback(() => {
         mutationWrapper({ mutation: logOut })
         PubSub.get().publishSession({});
@@ -74,7 +73,7 @@ export const SettingsAuthentication = ({
     const numVerifiedWallets = profile?.wallets?.filter((wallet) => wallet.verified)?.length ?? 0;
 
     // Handle update
-    const [mutation] = useMutation<profileEmailUpdate, profileEmailUpdateVariables>(profileEmailUpdateMutation);
+    const [mutation] = useMutation(profileEmailUpdateMutation);
     const formik = useFormik({
         initialValues: {
             currentPassword: '',
@@ -89,13 +88,13 @@ export const SettingsAuthentication = ({
                 return;
             }
             if (!formik.isValid) return;
-            mutationWrapper({
+            mutationWrapper<profileEmailUpdate_profileEmailUpdate, profileEmailUpdateVariables>({
                 mutation,
                 input: {
                     currentPassword: values.currentPassword,
                     newPassword: values.newPassword,
                 },
-                onSuccess: (data) => { onUpdated(data.profileEmailUpdate) },
+                onSuccess: (data) => { onUpdated(data) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },

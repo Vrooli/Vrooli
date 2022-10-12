@@ -7,8 +7,8 @@ import { AutocompleteSearchBar, ListTitleContainer, PageContainer } from 'compon
 import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { HistoryPageProps } from '../types';
-import { HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, OpenObjectProps, stringifySearchParams, useReactSearch } from 'utils';
-import { AutocompleteOption } from 'types';
+import { HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, stringifySearchParams, useReactSearch } from 'utils';
+import { AutocompleteOption, NavigableObject } from 'types';
 import { centeredDiv } from 'styles';
 import { RunStatus } from 'graphql/generated/globalTypes';
 
@@ -59,7 +59,7 @@ export const HistoryPage = ({
     /**
      * Opens page for list item
      */
-    const toItemPage = useCallback((item: OpenObjectProps['object'], event: any) => {
+    const toItemPage = useCallback((item: NavigableObject, event: any) => {
         event?.stopPropagation();
         // Navigate to item page
         openObject(item, setLocation);

@@ -9,7 +9,7 @@ import { clearSearchHistory, PubSub, shapeProfileUpdate, TagHiddenShape, TagShap
 import { SettingsDisplayProps } from "../types";
 import { GridSubmitButtons, HelpButton, SnackSeverity, TagSelector } from "components";
 import { ThemeSwitch } from "components/inputs";
-import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
+import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/generated/profileUpdate";
 import { uuid } from '@shared/uuid';
 import { HeartFilledIcon, InvisibleIcon, SearchIcon } from "@shared/icons";
 
@@ -74,7 +74,7 @@ export const SettingsDisplay = ({
     }, [profile]);
 
     // Handle update
-    const [mutation] = useMutation<profileUpdate, profileUpdateVariables>(profileUpdateMutation);
+    const [mutation] = useMutation(profileUpdateMutation);
     const formik = useFormik({
         initialValues: {
             theme,
@@ -102,12 +102,12 @@ export const SettingsDisplay = ({
                 PubSub.get().publishSnack({ message: 'No changes made.', severity: SnackSeverity.Error });
                 return;
             }
-            mutationWrapper({
+            mutationWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
                 mutation,
                 input,
                 successMessage: () => 'Display preferences updated.',
                 onSuccess: (data) => {
-                    onUpdated(data.profileUpdate);
+                    onUpdated(data);
                     formik.setSubmitting(false);
                 },
                 onError: () => { formik.setSubmitting(false) },

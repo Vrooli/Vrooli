@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
-import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Success, RoutineSearchResult, RoutineSortBy } from './types';
+import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Success, RoutineSearchResult, RoutineSortBy, FindByVersionInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, RoutineModel, updateHelper, visibilityBuilder } from '../models';
@@ -96,6 +96,7 @@ export const typeDef = gql`
         views: Int!
         version: String!
         versionGroupId: ID!
+        versions: [String!]!
         comments: [Comment!]!
         commentsCount: Int!
         creator: Contributor
@@ -297,7 +298,7 @@ export const typeDef = gql`
     }
 
     extend type Query {
-        routine(input: FindByIdInput!): Routine
+        routine(input: FindByVersionInput!): Routine
         routines(input: RoutineSearchInput!): RoutineSearchResult!
         routinesCount(input: RoutineCountInput!): Int!
     }
@@ -312,7 +313,7 @@ export const typeDef = gql`
 export const resolvers = {
     RoutineSortBy: RoutineSortBy,
     Query: {
-        routine: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
+        routine: async (_parent: undefined, { input }: IWrap<FindByVersionInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             await rateLimit({ info, max: 1000, req });
             return readOneHelper({ info, input, model: RoutineModel, prisma, userId: req.userId });
         },

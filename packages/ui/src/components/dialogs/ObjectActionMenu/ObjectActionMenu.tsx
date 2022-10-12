@@ -1,8 +1,8 @@
 import { useMutation } from "@apollo/client";
-import { copy, copyVariables } from 'graphql/generated/copy';
-import { fork, forkVariables } from 'graphql/generated/fork';
-import { star, starVariables } from 'graphql/generated/star';
-import { vote, voteVariables } from 'graphql/generated/vote';
+import { copyVariables, copy_copy } from 'graphql/generated/copy';
+import { forkVariables, fork_fork } from 'graphql/generated/fork';
+import { starVariables, star_star } from 'graphql/generated/star';
+import { voteVariables, vote_vote } from 'graphql/generated/vote';
 import { copyMutation, forkMutation, starMutation, voteMutation } from "graphql/mutation";
 import { useCallback, useMemo, useState } from "react";
 import { ReportFor, StarFor, VoteFor } from "@shared/consts";
@@ -67,10 +67,10 @@ export const ObjectActionMenu = ({
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
     // Mutations
-    const [copy] = useMutation<copy, copyVariables>(copyMutation);
-    const [fork] = useMutation<fork, forkVariables>(forkMutation);
-    const [star] = useMutation<star, starVariables>(starMutation);
-    const [vote] = useMutation<vote, voteVariables>(voteMutation);
+    const [copy] = useMutation(copyMutation);
+    const [fork] = useMutation(forkMutation);
+    const [star] = useMutation(starMutation);
+    const [vote] = useMutation(voteMutation);
 
     const handleCopy = useCallback(() => {
         // Check if objectType can be converted to CopyType
@@ -79,7 +79,7 @@ export const ObjectActionMenu = ({
             PubSub.get().publishSnack({ message: 'Copy not supported on this object type.', severity: SnackSeverity.Error });
             return;
         }
-        mutationWrapper({
+        mutationWrapper<copy_copy, copyVariables>({
             mutation: copy,
             input: { id: objectId, objectType: copyType },
             successMessage: () => `${objectName} copied.`,
@@ -94,7 +94,7 @@ export const ObjectActionMenu = ({
             PubSub.get().publishSnack({ message: 'Fork not supported on this object type.', severity: SnackSeverity.Error });
             return;
         }
-        mutationWrapper({
+        mutationWrapper<fork_fork, forkVariables>({
             mutation: fork,
             input: { id: objectId, objectType: forkType },
             successMessage: () => `${objectName} forked.`,
@@ -103,7 +103,7 @@ export const ObjectActionMenu = ({
     }, [fork, objectId, objectName, objectType, onActionComplete]);
 
     const handleStar = useCallback((isStar: boolean, starFor: StarFor) => {
-        mutationWrapper({
+        mutationWrapper<star_star, starVariables>({
             mutation: star,
             input: { isStar, starFor, forId: objectId },
             onSuccess: (data) => { onActionComplete(isStar ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data) },
@@ -111,7 +111,7 @@ export const ObjectActionMenu = ({
     }, [objectId, onActionComplete, star]);
 
     const handleVote = useCallback((isUpvote: boolean | null, voteFor: VoteFor) => {
-        mutationWrapper({
+        mutationWrapper<vote_vote, voteVariables>({
             mutation: vote,
             input: { isUpvote, voteFor, forId: objectId },
             onSuccess: (data) => { onActionComplete(isUpvote ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data) },

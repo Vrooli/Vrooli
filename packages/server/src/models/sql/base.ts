@@ -1,5 +1,5 @@
 // Components for providing basic functionality to model objects
-import { CopyInput, CopyType, Count, DeleteManyInput, DeleteOneInput, ForkInput, PageInfo, Success, TimeFrame, VisibilityType } from '../../schema/types';
+import { CopyInput, CopyType, Count, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, FindByVersionInput, ForkInput, PageInfo, Success, TimeFrame, VisibilityType } from '../../schema/types';
 import { PrismaType, RecursivePartial } from '../../types';
 import { GraphQLResolveInfo } from 'graphql';
 import { CommentModel } from './comment';
@@ -35,57 +35,15 @@ import { WalletModel } from './wallet';
 import { RunStepModel } from './runStep';
 import { NodeRoutineListModel } from './nodeRoutineList';
 import { RunInputModel } from './runInput';
-import { ValueOf } from '@shared/consts';
 import { uuidValidate } from '@shared/uuid';
+import { calculateVersionsFromString } from '@shared/validation';
+import { GraphQLModelType } from '.';
 const { difference, flatten, merge } = pkg;
 
 
 //======================================================================================================================
 /* #region Type Definitions */
 //======================================================================================================================
-
-export const GraphQLModelType = {
-    Comment: 'Comment',
-    Copy: 'Copy',
-    DevelopPageResult: 'DevelopPageResult',
-    Email: 'Email',
-    Fork: 'Fork',
-    Handle: 'Handle',
-    HistoryPageResult: 'HistoryPageResult',
-    HomePageResult: 'HomePageResult',
-    InputItem: 'InputItem',
-    LearnPageResult: 'LearnPageResult',
-    Member: 'Member',
-    Node: 'Node',
-    NodeEnd: 'NodeEnd',
-    NodeLoop: 'NodeLoop',
-    NodeRoutineList: 'NodeRoutineList',
-    NodeRoutineListItem: 'NodeRoutineListItem',
-    Organization: 'Organization',
-    OutputItem: 'OutputItem',
-    Profile: 'Profile',
-    Project: 'Project',
-    ProjectOrRoutineSearchResult: 'ProjectOrRoutineSearchResult',
-    ProjectOrOrganizationSearchResult: 'ProjectOrOrganizationSearchResult',
-    Report: 'Report',
-    ResearchPageResult: 'ResearchPageResult',
-    Resource: 'Resource',
-    ResourceList: 'ResourceList',
-    Role: 'Role',
-    Routine: 'Routine',
-    Run: 'Run',
-    RunInput: 'RunInput',
-    RunStep: 'RunStep',
-    Standard: 'Standard',
-    Star: 'Star',
-    Tag: 'Tag',
-    TagHidden: 'TagHidden',
-    User: 'User',
-    View: 'View',
-    Vote: 'Vote',
-    Wallet: 'Wallet',
-}
-export type GraphQLModelType = ValueOf<typeof GraphQLModelType>;
 
 /**
  * Basic structure of an object's business layer.
@@ -100,7 +58,7 @@ export type ModelLogic<GraphQLModel, SearchInput, PermissionObject> = {
     permissions?: () => Permissioner<PermissionObject, SearchInput>;
     verify?: { [x: string]: any };
     query?: (prisma: PrismaType) => Querier;
-    type: GraphQLModelType;
+    type: keyof typeof GraphQLModelType;
 }
 
 /**
@@ -114,8 +72,8 @@ export type GraphQLInfo = GraphQLResolveInfo | { [x: string]: any } | null;
  * This type of data is also easier to hard-code in a pinch.
  */
 export interface PartialGraphQLInfo {
-    [x: string]: GraphQLModelType | undefined | boolean | { [x: string]: PartialGraphQLInfo };
-    __typename?: GraphQLModelType;
+    [x: string]: keyof typeof GraphQLModelType | undefined | boolean | { [x: string]: PartialGraphQLInfo };
+    __typename?: keyof typeof GraphQLModelType;
 }
 
 /**
@@ -132,12 +90,11 @@ export type PartialPrismaSelect = { [x: string]: any };
  */
 export type PrismaSelect = { [x: string]: any };
 
-type NestedGraphQLModelType = GraphQLModelType | { [fieldName: string]: NestedGraphQLModelType };
+type NestedGraphQLModelType = keyof typeof GraphQLModelType | { [fieldName: string]: NestedGraphQLModelType };
 
-export type RelationshipMap = {
-    __typename: GraphQLModelType;
-    [relationshipName: string]: NestedGraphQLModelType
-};
+export type RelationshipMap<GraphQLModel> = { [key in keyof GraphQLModel]?: NestedGraphQLModelType } & { __typename: keyof typeof GraphQLModelType };
+
+export type UnionMap<GraphQLModel> = { [key in keyof GraphQLModel]?: { [x: string]: string } };
 
 /**
  * Helper functions for converting between Prisma types and GraphQL types
@@ -148,15 +105,12 @@ export type FormatConverter<GraphQLModel, PermissionObject> = {
      * If the relationship is a union (i.e. has mutliple possible types), 
      * the GraphQL type will be an object of field/GraphQLModelType pairs.
      */
-    relationshipMap: RelationshipMap;
+    relationshipMap: RelationshipMap<GraphQLModel>;
     /**
-     * Convert database fields to GraphQL union types
+     * Maps GraphQL union fields to their corresponding Prisma fields. 
+     * Each field is a key from the GraphQLModel type
      */
-    constructUnions?: (data: { [x: string]: any }) => any;
-    /**
-     * Convert GraphQL unions to database fields
-     */
-    deconstructUnions?: (partial: PartialGraphQLInfo | PartialPrismaSelect) => any;
+    unionMap?: UnionMap<GraphQLModel>;
     /**
      * Add join tables which are not present in GraphQL object
      */
@@ -332,7 +286,7 @@ export interface DuplicateResult<GraphQLObject> {
 /**
  * Maps model types to various helper functions
  */
-export const ObjectMap: { [key in GraphQLModelType]?: ModelLogic<any, any, any> } = {
+export const ObjectMap = {
     'Comment': CommentModel,
     'Email': EmailModel,
     'InputItem': InputItemModel,
@@ -381,6 +335,14 @@ const isRelationshipArray = (obj: any): boolean => Array.isArray(obj) && obj.eve
  * @returns Array of valid IDs
  */
 export const onlyValidIds = (ids: (string | null | undefined)[]): string[] => ids.filter(id => typeof id === 'string' && uuidValidate(id)) as string[];
+
+/**
+ * Filters out any invalid handles from an array of handles.
+ * Handles start with a $ and have 3 to 16 characters.
+ * @param handles - array of handles to filter
+ * @returns Array of valid handles
+ */
+export const onlyValidHandles = (handles: (string | null | undefined)[]): string[] => handles.filter(handle => typeof handle === 'string' && handle.match(/^\$[a-zA-Z0-9]{3,16}$/)) as string[];
 
 /**
  * Lowercases the first letter of a string
@@ -496,58 +458,6 @@ export const addCountFieldsHelper = (obj: any, map: CountMap | undefined): any =
 }
 
 /**
- * Helper function for Prisma createdByUser/createdByOrganization fields to GraphQL creator field
- */
-export const addCreatorField = (data: any): any => {
-    let { createdByUser, createdByOrganization, ...rest } = data;
-    return {
-        ...rest,
-        creator:
-            createdByUser?.id
-                ? createdByUser
-                : createdByOrganization?.id
-                    ? createdByOrganization
-                    : null
-    }
-}
-
-/**
- * Helper function for converting creator GraphQL field to Prisma createdByUser/createdByOrganization fields
- */
-export const removeCreatorField = (select: any): any => {
-    return deconstructUnion(select, 'creator', [
-        ['User', 'createdByUser'],
-        ['Organization', 'createdByOrganization']
-    ]);
-}
-
-/**
- * Helper function for Prisma user/organization fields to GraphQL owner field
- */
-export const addOwnerField = (data: any): any => {
-    let { user, organization, ...rest } = data;
-    return {
-        ...rest,
-        owner:
-            user?.id
-                ? user
-                : organization?.id
-                    ? organization
-                    : null
-    }
-}
-
-/**
- * Helper function for converting owner GraphQL field to Prisma user/organization fields
- */
-export const removeOwnerField = (select: any): any => {
-    return deconstructUnion(select, 'owner', [
-        ['User', 'user'],
-        ['Organization', 'organization']
-    ]);
-}
-
-/**
  * Helper function for converting Prisma relationship counts to GraphQL count fields
  * @param obj - Prisma-shaped object
  * @param map - Mapping of GraphQL field names to Prisma relationship names
@@ -572,6 +482,64 @@ export const removeCountFieldsHelper = (obj: any, map: CountMap): any => {
 }
 
 /**
+ * Deconstructs a GraphQL object's union fields into database fields
+ * @param data - GraphQL-shaped object
+ * @param unionMap - Mapping of GraphQL union field names to Prisma object field names
+ * @returns DB-shaped object
+ */
+export const deconstructUnionsHelper = <GraphQLModel>(data: { [x: string]: any }, unionMap: UnionMap<GraphQLModel>): { [x: string]: any } => {
+    // Create result object
+    let result: { [x: string]: any } = data;
+    // For each union field
+    for (const [key, value] of Object.keys(unionMap)) {
+        // If it's not in data, continue
+        if (!data[key]) continue;
+        // Remove the union field from the result
+        delete result[key];
+        // Get data in union field
+        const unionData = data[key];
+        // If not an object, skip
+        if(!isObject(unionData)) continue;
+        console.log('in deconstructunionhelper', key, JSON.stringify(unionData), '\n');
+        // Value is an object where the keys are possible types of the union object, and values are the db field associated with that type
+        // Iterate over the possible types
+        for (const [type, dbField] of Object.entries(value)) {
+            // If the type is in the union data, add the db field to the result
+            if ((unionData as any).__typename === type) {
+                // Add the db field to the result
+                result[dbField] = data[key];
+            }
+        }
+    }
+    return result;
+}
+
+/**
+ * Constructs a GraphQL object's union fields from Prisma select fields
+ * @param partialInfo - Partial info object
+ * @param unionMap - Mapping of GraphQL union field names to Prisma object field names
+ * @returns partialInfo object with union fields added
+ */
+export const constructUnionsHelper = <GraphQLModel>(partialInfo: { [x: string]: any }, unionMap: UnionMap<GraphQLModel>): { [x: string]: any } => {
+    // Create result object
+    let result: { [x: string]: any } = partialInfo;
+    // For each union field
+    for (const [key, value] of Object.entries(unionMap)) {
+        // For each type, dbField pair
+        for (const [type, dbField] of Object.entries(value as { [x: string]: string })) {
+            // If the dbField is in the partialInfo
+            if (result[dbField as string]) {
+                // Set the union field to the dbField
+                result[key] = result[dbField as string];
+                // Delete the dbField from the result
+                delete result[dbField as string];
+            }
+        }
+    }
+    return result;
+}
+
+/**
  * Adds "select" to the correct parts of an object to make it a Prisma select
  */
 export const padSelect = (fields: { [x: string]: any }): { [x: string]: any } => {
@@ -591,7 +559,7 @@ export const padSelect = (fields: { [x: string]: any }): { [x: string]: any } =>
  * @param nestedFields - Array of nested fields accessed since last parent
  * @return select with __typename fields
  */
-const injectTypenames = (select: { [x: string]: any }, parentRelationshipMap: RelationshipMap, nestedFields: string[] = []): PartialGraphQLInfo => {
+const injectTypenames = <GraphQLModel>(select: { [x: string]: any }, parentRelationshipMap: RelationshipMap<GraphQLModel>, nestedFields: string[] = []): PartialGraphQLInfo => {
     // Create result object
     let result: any = {};
     // Iterate over select object
@@ -605,14 +573,14 @@ const injectTypenames = (select: { [x: string]: any }, parentRelationshipMap: Re
         }
         // If value is an object, recurse
         // Find nested value in parent relationship map, using nestedFields
-        let nestedValue: GraphQLModelType | Partial<RelationshipMap> | undefined = parentRelationshipMap;
+        let nestedValue: GraphQLModelType | Partial<RelationshipMap<GraphQLModel>> | undefined = parentRelationshipMap;
         for (const field of nestedFields) {
             if (!isObject(nestedValue)) break;
             if (field in nestedValue) {
                 nestedValue = (nestedValue as any)[field];
             }
         }
-        if (typeof nestedValue === 'object') nestedValue = nestedValue[selectKey];
+        if (typeof nestedValue === 'object') nestedValue = nestedValue[selectKey as keyof GraphQLModel] as any;
         // If nestedValue is not an object, try to get its relationshipMap
         let relationshipMap;
         if (nestedValue !== undefined && typeof nestedValue !== 'object') {
@@ -648,7 +616,7 @@ const removeTypenames = (obj: { [x: string]: any }): { [x: string]: any } => {
  * @param relationshipMap - Map of relationship names to typenames
  * @returns Partial Prisma select. This can be passed into the function again without changing the result.
  */
-export const toPartialGraphQLInfo = (info: GraphQLInfo | PartialGraphQLInfo, relationshipMap: RelationshipMap): PartialGraphQLInfo | undefined => {
+export const toPartialGraphQLInfo = <GraphQLModel>(info: GraphQLInfo | PartialGraphQLInfo, relationshipMap: RelationshipMap<GraphQLModel>): PartialGraphQLInfo | undefined => {
     // Return undefined if info not set
     if (!info) return undefined;
     // Find select fields in info object
@@ -699,7 +667,7 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
     const formatter: FormatConverter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
     if (formatter) {
         if (formatter.removeSupplementalFields) result = formatter.removeSupplementalFields(result);
-        if (formatter.deconstructUnions) result = formatter.deconstructUnions(result);
+        if (formatter.unionMap) result = deconstructUnionsHelper(result, formatter.unionMap);
         if (formatter.addJoinTables) result = formatter.addJoinTables(result);
         if (formatter.addCountFields) result = formatter.addCountFields(result);
     }
@@ -749,9 +717,9 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
     }
     // Convert data to usable shape
     const type: string | undefined = partialInfo?.__typename;
-    const formatter: FormatConverter<GraphQLModel, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
+    const formatter: FormatConverter<GraphQLModel, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined as any;
     if (formatter) {
-        if (formatter.constructUnions) data = formatter.constructUnions(data);
+        if (formatter.unionMap) data = constructUnionsHelper(data, formatter.unionMap);
         if (formatter.removeJoinTables) data = formatter.removeJoinTables(data);
         if (formatter.removeCountFields) data = formatter.removeCountFields(data);
     }
@@ -990,32 +958,6 @@ export const joinRelationshipToPrisma = <N extends string>({
         }
     }
     return converted;
-}
-
-/**
- * Converts a GraphQL union into a Prisma select.
- * All possible union fields which the user wants to select are in partialInfo, but they are not separated by type.
- * This function performs a nested intersection between each union type's avaiable fields, and the fields which were 
- * requested by the user.
- * @param partialInfo - partialGraphQLInfo object
- * @param unionField - Name of the union field
- * @param relationshipTuples - array of [relationship type (i.e. how it appears in partialInfo), name to convert the field to]
- * @returns partilPrismaSelect object
- */
-export const deconstructUnion = (partialInfo: PartialGraphQLInfo, unionField: string, relationshipTuples: [GraphQLModelType, string][]): any => {
-    let { [unionField]: unionData, ...rest } = partialInfo;
-    // Create result object
-    let converted: { [x: string]: any } = {};
-    // If field in partialInfo is not an object, return partialInfo unmodified
-    if (!unionData) return partialInfo;
-    // Swap keys of union to match their prisma names
-    for (const [relType, relName] of relationshipTuples) {
-        // If union missing, skip
-        if (!isObject(unionData) || !(relType in unionData)) continue;
-        const currData = unionData[relType];
-        converted[relName] = currData;
-    }
-    return { ...rest, ...converted };
 }
 
 /**
@@ -1370,7 +1312,7 @@ export async function permissionsCheck<PermissionObject>({
 
 type ReadOneHelperProps<GraphQLModel> = {
     info: GraphQLInfo | PartialGraphQLInfo;
-    input: any;
+    input: FindByIdInput | FindByIdOrHandleInput | FindByVersionInput;
     model: ModelLogic<GraphQLModel, any, any>;
     prisma: PrismaType;
     userId: string | null;
@@ -1388,26 +1330,34 @@ export async function readOneHelper<GraphQLModel>({
     userId,
 }: ReadOneHelperProps<GraphQLModel>): Promise<RecursivePartial<GraphQLModel>> {
     const objectType = model.format.relationshipMap.__typename;
-    // Validate input
-    if (!input.id && !input.handle)
-        throw new CustomError(CODE.InvalidArgs, 'id is required', { code: genErrorCode('0019') });
+    // Validate input. Can read by id, handle, or versionGroupId
+    if (!input.id && !(input as FindByIdOrHandleInput).handle && !(input as FindByVersionInput).versionGroupId)
+        throw new CustomError(CODE.InvalidArgs, 'id or handle is required', { code: genErrorCode('0019') });
     // Partially convert info
     let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0020') });
+    // If using versionGroupId, find the latest completed version in that group and use that id from now on
+    let id: string | null | undefined;
+    if ((input as FindByVersionInput).versionGroupId) {
+        const versionId = await getLatestVersion({ objectType: model.type as 'Routine' | 'Standard', prisma, versionGroupId: (input as FindByVersionInput).versionGroupId as string });
+        id = versionId;
+    } else {
+        id = input.id;
+    }
     // Check permissions
     const authorized = await permissionsCheck({
         model,
-        object: { id: input.id || input.handle },
+        object: { id: id || (input as FindByIdOrHandleInput).handle as string },
         actions: ['canView'],
         prisma,
         userId,
     });
     if (!authorized) throw new CustomError(CODE.Unauthorized, `Not allowed to read object`, { code: genErrorCode('0249') });
     // Get the Prisma object
-    let object = input.id ?
-        await (model.prismaObject(prisma) as any).findUnique({ where: { id: input.id }, ...selectHelper(partialInfo) }) :
-        await (model.prismaObject(prisma) as any).findFirst({ where: { handle: input.handle }, ...selectHelper(partialInfo) });
+    let object = id ?
+        await (model.prismaObject(prisma) as any).findUnique({ where: { id: id }, ...selectHelper(partialInfo) }) :
+        await (model.prismaObject(prisma) as any).findFirst({ where: { handle: (input as FindByIdOrHandleInput).handle as string }, ...selectHelper(partialInfo) });
     if (!object)
         throw new CustomError(CODE.NotFound, `${objectType} not found`, { code: genErrorCode('0022') });
     // Return formatted for GraphQL
@@ -1723,6 +1673,7 @@ export async function deleteManyHelper({
     if (!model.mutate || !model.mutate(prisma).cud)
         throw new CustomError(CODE.InternalError, 'Model does not support delete', { code: genErrorCode('0036') });
     // Delete objects. cud will check permissions
+    console.log('deletemanyhelper a', model.type);
     const { deleted } = await model.mutate!(prisma).cud!({ partialInfo: {}, userId, deleteMany: input.ids });
     if (!deleted)
         throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in deleteManyHelper', { code: genErrorCode('0037') });
@@ -1766,7 +1717,7 @@ export async function copyHelper({
     if (!model.mutate || !model.mutate(prisma).duplicate)
         throw new CustomError(CODE.InternalError, 'Model does not support copy', { code: genErrorCode('0230') });
     // Check permissions
-    const permissions: { [x: string]: any }[] = model.permissions ? await model.permissions().get({ objects: [{ id: input.id }], prisma, userId }): [{}];
+    const permissions: { [x: string]: any }[] = model.permissions ? await model.permissions().get({ objects: [{ id: input.id }], prisma, userId }) : [{}];
     if (!permissions[0].canFork && !permissions[0].canCopy) {
         throw new CustomError(CODE.Unauthorized, 'Not allowed to copy object', { code: genErrorCode('0263') });
     }
@@ -1827,7 +1778,7 @@ export async function forkHelper({
     if (!model.mutate || !model.mutate(prisma).duplicate)
         throw new CustomError(CODE.InternalError, 'Model does not support fork', { code: genErrorCode('0234') });
     // Check permissions
-    const permissions: { [x: string]: any }[] = model.permissions ? await model.permissions().get({ objects: [{ id: input.id }], prisma, userId }): [{}];
+    const permissions: { [x: string]: any }[] = model.permissions ? await model.permissions().get({ objects: [{ id: input.id }], prisma, userId }) : [{}];
     if (!permissions[0].canFork && !permissions[0].canCopy) {
         throw new CustomError(CODE.Unauthorized, 'Not allowed to fork object', { code: genErrorCode('0262') });
     }
@@ -1965,7 +1916,6 @@ export async function existsArray({ ids, prismaDelegate, where }: ExistsArray): 
  * @returns Combined query object, with all fields combined
  */
 export function combineQueries(queries: ({ [x: string]: any } | null | undefined)[]): { [x: string]: any } {
-    console.log('combineQueries start', JSON.stringify(queries), '\n\n');
     const combined: { [x: string]: any } = {};
     for (const query of queries) {
         if (!query) continue;
@@ -2003,7 +1953,6 @@ export function combineQueries(queries: ({ [x: string]: any } | null | undefined
             else combined[key] = value;
         }
     }
-    console.log('combineQueries end', JSON.stringify(combined), '\n\n');
     return combined;
 }
 
@@ -2042,17 +1991,15 @@ export function exceptionsBuilder({
     input,
     mainField,
 }: ExceptionsBuilderProps): { [x: string]: any } {
-    console.log('exceptions builder start', mainField, exceptionField, JSON.stringify(input), '\n\n');
     // Initialize result
     const result: { [x: string]: any } = { [mainField]: input[mainField] ?? defaultValue };
     // Helper function for checking if a stringified object is a primitive or an array of primitives.
     // Returns boolean indicating whether it is a primitive, and the parsed object
     const getPrimitive = (x: string): [boolean, any] => {
-        console.log('getprimitive start', x)
         const primitiveCheck = (y: any): boolean => { return y === null || typeof y === 'string' || typeof y === 'number' || typeof y === 'boolean' };
         let value: any;
         try { value = JSON.parse(x); }
-        catch (err) { console.log('caught error parsing', err); return [false, undefined]; }
+        catch (err) { return [false, undefined]; }
         if (Array.isArray(value)) {
             if (value.every(primitiveCheck)) return [true, value]
         }
@@ -2078,10 +2025,8 @@ export function exceptionsBuilder({
      */
     const addToOr = (allowed: string[], field: string, value: string, recursedFields: string[] = []): void => {
         const [isPrimitive, parsedValue] = getPrimitive(value);
-        console.log('addtoor start', field, allowed, isPrimitive, parsedValue, '\n\n');
         // Check if field is allowed
         if (isPrimitive && allowed.includes(field)) {
-            console.log('in addtoor 1')
             // If not array, add to result
             if (!Array.isArray(parsedValue)) result.OR.push(fieldsToObject([...recursedFields, field], parsedValue));
             // Otherwise, wrap in { in: } and add to result
@@ -2089,7 +2034,6 @@ export function exceptionsBuilder({
         }
         // Check if field is allowed with 'id' appended
         else if (allowed.includes(`${field}.id`)) {
-            console.log('in addtoor 2')
             // If not array, add to result
             if (!Array.isArray(parsedValue) && typeof parsedValue === 'string') result.OR.push(fieldsToObject([...recursedFields, field, 'id'], parsedValue));
             // Otherwise, wrap in { in: } and add to result
@@ -2098,7 +2042,6 @@ export function exceptionsBuilder({
         // Otherwise, check if we should recurse
         else if (typeof parsedValue === 'object' && field in parsedValue) {
             const matchingFields = allowed.filter(x => x.startsWith(`${field}.`));
-            console.log('in addtoor 3', matchingFields)
             if (matchingFields.length > 0) {
                 addToOr(
                     allowed.filter(x => x.startsWith(`${field}.`)),
@@ -2109,11 +2052,8 @@ export function exceptionsBuilder({
             }
         }
     }
-    console.log('exceptions builder a', JSON.stringify(result), '\n\n');
     if (!(typeof input === 'object' && mainField in input)) return result;
-    console.log('exceptions builder b');
     // Get mainField value
-    console.log('exceptions builder c', result[mainField]);
     // If exceptionField is present, wrap in OR
     if (exceptionField in input) {
         result.OR = [{ [mainField]: result[mainField] }];
@@ -2130,7 +2070,6 @@ export function exceptionsBuilder({
             addToOr(canQuery, lowercaseFirstLetter(input[exceptionField].field), input[exceptionField].value);
         }
     }
-    console.log('exceptions builder end', JSON.stringify(result), '\n\n');
     return result;
 }
 
@@ -2309,7 +2248,7 @@ type ValidateMaxObjectsData = {
 /**
  * Validates that creating a new project, routine, or standard will not exceed the user's limit
  */
- export async function validateMaxObjects({
+export async function validateMaxObjects({
     createMany,
     deleteMany,
     maxCount,
@@ -2418,4 +2357,48 @@ type ValidateMaxObjectsData = {
     if (Object.keys(totalOrganizationIds).some(id => totalOrganizationIds[id] > maxCount)) {
         throw new CustomError(CODE.Unauthorized, `You have reached the maximum number of ${objectType}s you can create on this organization.`, { code: genErrorCode('0261') });
     }
+}
+
+interface GetLatestVersionProps {
+    includeIncomplete?: boolean,
+    objectType: 'Routine' | 'Standard',
+    prisma: PrismaType,
+    versionGroupId: string,
+}
+
+/**
+ * Finds the latest version of a versioned object
+ * @returns The id of the latest version
+ */
+export async function getLatestVersion({
+    includeIncomplete,
+    objectType,
+    prisma,
+    versionGroupId,
+}: GetLatestVersionProps): Promise<string | undefined> {
+    // Helper function to compare version strings
+    const compareVersions = (a: string, b: string): number => {
+        // Parse versions
+        const { major: major1, moderate: moderate1, minor: minor1 } = calculateVersionsFromString(a);
+        const { major: major2, moderate: moderate2, minor: minor2 } = calculateVersionsFromString(b);
+        // If major version is less than minimum
+        if (major1 < major2) return -1;
+        // If major version is equal to minimum and moderate version is less than minimum
+        if (major1 === major2 && moderate1 < moderate2) return -1;
+        // If major and moderate versions are equal to minimum and minor version is less than minimum
+        if (major1 === major2 && moderate1 === moderate2 && minor1 < minor2) return -1;
+        // If all versions are equal
+        if (major1 === major2 && moderate1 === moderate2 && minor1 === minor2) return 0;
+        // Else
+        return 1;
+    }
+    // Query versions
+    const select = { id: true, version: true };
+    const versions = objectType === 'Routine' ? 
+        await prisma.routine.findMany({ where: { versionGroupId, isComplete: includeIncomplete ? undefined : true }, select }) :
+        await prisma.standard.findMany({ where: { versionGroupId }, select });
+    // Sort versions
+    versions.sort((a, b) => compareVersions(a.version, b.version));
+    // Return latest version, or undefined if no versions
+    return versions.length > 0 ? versions[versions.length - 1].id : undefined;
 }

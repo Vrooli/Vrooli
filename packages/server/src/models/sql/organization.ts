@@ -1,11 +1,11 @@
 import { PrismaType, RecursivePartial } from "../../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor, OrganizationPermission } from "../../schema/types";
-import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, Permissioner, getSearchStringQueryHelper, onlyValidIds, visibilityBuilder, combineQueries, GraphQLModelType } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, Permissioner, getSearchStringQueryHelper, onlyValidIds, visibilityBuilder, combineQueries, onlyValidHandles } from "./base";
 import { CustomError } from "../../error";
 import { organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@shared/validation";
 import { CODE } from '@shared/consts';
 import { omit } from '@shared/utils';
-import { organization_users, role } from "@prisma/client";
+import { role } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { TranslationModel } from "./translation";
@@ -13,6 +13,7 @@ import { ResourceListModel } from "./resourceList";
 import { WalletModel } from "./wallet";
 import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -27,12 +28,10 @@ export const organizationFormatter = (): FormatConverter<Organization, Organizat
         'comments': 'Comment',
         'members': 'Member',
         'projects': 'Project',
-        'projectsCreated': 'Project',
         'reports': 'Report',
         'resourceLists': 'ResourceList',
         'routines': 'Routine',
-        'routersCreated': 'Routine',
-        'standards': 'Standard',
+        'routinesCreated': 'Routine',
         'starredBy': 'User',
         'tags': 'Tag',
     },
@@ -62,7 +61,8 @@ export const organizationPermissioner = (): Permissioner<OrganizationPermission,
         userId,
     }) {
         // Initialize result with default permissions
-        const result: (OrganizationPermission & { id?: string })[] = objects.map((o) => ({
+        const result: (OrganizationPermission & { id?: string, handle?: string })[] = objects.map((o) => ({
+            handle: o.handle,
             id: o.id,
             canAddMembers: false, // own, even if isOpenToNewMembers is false or isPrivate is true
             canDelete: false, // own
@@ -77,7 +77,12 @@ export const organizationPermissioner = (): Permissioner<OrganizationPermission,
             // Query for all roles
             const roles = await prisma.role.findMany({
                 where: {
-                    organization: { id: { in: onlyValidIds(objects.map((o) => o.id)) } },
+                    organization: {
+                        OR: [
+                            { id: { in: onlyValidIds(objects.map((o) => o.id)) } },
+                            { handle: { in: onlyValidHandles(objects.map((o) => o.handle)) } },
+                        ]
+                    },
                     assignees: { some: { user: { id: userId } } }
                 },
                 select: { title: true, organizationId: true }
@@ -104,7 +109,10 @@ export const organizationPermissioner = (): Permissioner<OrganizationPermission,
         // Query all objects
         const all = await prisma.organization.findMany({
             where: {
-                id: { in: onlyValidIds(objects.map(o => o.id)) },
+                OR: [
+                    { id: { in: onlyValidIds(objects.map((o) => o.id)) } },
+                    { handle: { in: onlyValidHandles(objects.map((o) => o.handle)) } },
+                ]
             },
             select: { id: true, isPrivate: true },
         })
@@ -118,8 +126,8 @@ export const organizationPermissioner = (): Permissioner<OrganizationPermission,
                 canView: result[index].canView || !o.isPrivate,
             }
         });
-        // Return result with IDs removed
-        result.forEach((r) => delete r.id);
+        // Return result with IDs and handles removed
+        result.forEach((r) => delete r.id && delete r.handle);
         return result as OrganizationPermission[];
     },
     async canSearch({
@@ -359,7 +367,7 @@ export const OrganizationModel = ({
     permissions: organizationPermissioner,
     search: organizationSearcher(),
     query: organizationQuerier,
-    type: 'Organization',
+    type: 'Organization' as GraphQLModelType,
 })
 
 //==============================================================

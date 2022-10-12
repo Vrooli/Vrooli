@@ -11,12 +11,12 @@ import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { uuidValidate } from '@shared/uuid';
 import { DecisionStep, Node, NodeDataEnd, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, Run, RunInput, RunStep, SubroutineStep } from "types";
-import { addSearchParams, removeSearchParams } from "utils/navigation/urlTools";
+import { addSearchParams, base36ToUuid, removeSearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
-import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
+import { runCompleteVariables, runComplete_runComplete } from "graphql/generated/runComplete";
 import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils";
-import { runUpdate, runUpdateVariables } from "graphql/generated/runUpdate";
+import { runUpdateVariables, runUpdate_runUpdate } from "graphql/generated/runUpdate";
 import { uuid } from '@shared/uuid';
 import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, SuccessIcon } from "@shared/icons";
 
@@ -255,7 +255,7 @@ export const RunView = ({
     const params = useReactSearch(null);
     const { runId, testMode } = useMemo(() => {
         return {
-            runId: typeof params.run === 'string' && uuidValidate(params.run) ? params.run : undefined,
+            runId: (typeof params.run === 'string' && uuidValidate(base36ToUuid(params.run))) ? base36ToUuid(params.run) : undefined,
             testMode: params.run === 'test',
         }
     }, [params])
@@ -585,8 +585,8 @@ export const RunView = ({
         setCurrStepLocation(previousStep);
     }, [previousStep, setCurrStepLocation]);
 
-    const [logRunUpdate] = useMutation<runUpdate, runUpdateVariables>(runUpdateMutation);
-    const [logRunComplete] = useMutation<runComplete, runCompleteVariables>(runCompleteMutation);
+    const [logRunUpdate] = useMutation(runUpdateMutation);
+    const [logRunComplete] = useMutation(runCompleteMutation);
     /**
      * Navigate to the next subroutine, or complete the routine.
      * Also log progress, time elapsed, and other metrics
@@ -631,7 +631,7 @@ export const RunView = ({
         }];
         // If a next step exists, update
         if (nextStep) {
-            mutationWrapper({
+            mutationWrapper<runUpdate_runUpdate, runUpdateVariables>({
                 mutation: logRunUpdate,
                 input: {
                     id: run.id,
@@ -641,7 +641,7 @@ export const RunView = ({
                     ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),
                 },
                 onSuccess: (data) => {
-                    setRun(data.runUpdate);
+                    setRun(data);
                 }
             })
         }
@@ -652,7 +652,7 @@ export const RunView = ({
             const currNode = routine.nodes?.find(n => n.id === currNodeId);
             const wasSuccessful = (currNode?.data as NodeDataEnd)?.wasSuccessful ?? true;
             console.log('wasuccessful', wasSuccessful, currNode?.data)
-            mutationWrapper({
+            mutationWrapper<runComplete_runComplete, runCompleteVariables>({
                 mutation: logRunComplete,
                 input: {
                     id: run.id,
@@ -698,7 +698,7 @@ export const RunView = ({
         }
         // Log complete. No step data because this function was called from a decision node, 
         // which we currently don't store data about
-        mutationWrapper({
+        mutationWrapper<runComplete_runComplete, runCompleteVariables>({
             mutation: logRunComplete,
             input: {
                 id: run.id,
@@ -730,7 +730,7 @@ export const RunView = ({
             contextSwitches: currStepRunData.contextSwitches + contextSwitches,
         } : undefined
         // Send data to server
-        mutationWrapper({
+        mutationWrapper<runUpdate_runUpdate, runUpdateVariables>({
             mutation: logRunUpdate,
             input: {
                 id: run.id,
@@ -738,7 +738,7 @@ export const RunView = ({
                 ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),
             },
             onSuccess: (data) => {
-                setRun(data.runUpdate);
+                setRun(data);
             }
         })
     }, [contextSwitches, currStepRunData, logRunUpdate, run, testMode, timeElapsed]);

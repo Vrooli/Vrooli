@@ -1,5 +1,5 @@
-import { Pubs, PubSub } from "utils";
-import { ApolloCache, DefaultContext, DocumentNode, MutationFunctionOptions, QueryFunctionOptions } from '@apollo/client';
+import { PubSub } from "utils";
+import { DocumentNode } from '@apollo/client';
 import { errorToMessage } from './errorParser';
 import { ApolloError } from 'types';
 import { SnackSeverity } from "components";
@@ -10,7 +10,7 @@ import { initializeApollo } from "./initialize";
 // DocumentNode definitions
 type InputType = { input: { [x: string]: any } }
 
-interface BaseWrapperProps<Output> {
+interface BaseWrapperProps<Output extends object> {
     // Callback to determine if mutation was a success, using mutation's return data
     successCondition?: (data: Output) => boolean;
     // Message displayed on success
@@ -27,28 +27,28 @@ interface BaseWrapperProps<Output> {
     spinnerDelay?: number | null;
 }
 
-interface DocumentNodeWrapperProps<Output, Input extends InputType> extends BaseWrapperProps<Output> {
+interface DocumentNodeWrapperProps<Output extends object, Input extends InputType> extends BaseWrapperProps<Output> {
     // DocumentNode used to create useMutation or useLazyQuery function
     node: DocumentNode;
     // data to pass into useMutation or useLazyQuery function
     input?: Input['input'];
 }
 
-interface MutationWrapperProps<Output, Input extends InputType> extends BaseWrapperProps<Output> {
+interface MutationWrapperProps<Output extends object, Input extends InputType> extends BaseWrapperProps<Output> {
     // useMutation function
-    mutation: (options?: MutationFunctionOptions<Output, Input, DefaultContext, ApolloCache<any>> | undefined) => Promise<any>;
+    mutation: (options?: any) => Promise<any>;
     // data to pass into useMutation function
     input?: Input['input'];
 }
 
-interface QueryWrapperProps<Output, Input extends InputType> extends BaseWrapperProps<Output> {
+interface QueryWrapperProps<Output extends object, Input extends InputType> extends BaseWrapperProps<Output> {
     // useLazyQuery function
-    query: (options?: QueryFunctionOptions<Output, Input> | undefined) => Promise<any>;
+    query: (options?: any) => Promise<any>;
     // data to pass into useLazyQuery function
     input?: Input['input'];
 }
 
-interface GraphqlWrapperHelperProps<Output> extends BaseWrapperProps<Output> {
+interface GraphqlWrapperHelperProps<Output extends object> extends BaseWrapperProps<Output> {
     // useMutation or useLazyQuery function
     call: () => Promise<any>;
 };
@@ -57,7 +57,7 @@ interface GraphqlWrapperHelperProps<Output> extends BaseWrapperProps<Output> {
  * Helper function to handle response and catch of useMutation and useLazyQuery functions.
  * @param 
  */
-export const graphqlWrapperHelper = <Output>({
+export const graphqlWrapperHelper = <Output extends object>({
     call,
     successCondition = () => true,
     successMessage,
@@ -67,31 +67,57 @@ export const graphqlWrapperHelper = <Output>({
     onError,
     spinnerDelay = 1000
 }: GraphqlWrapperHelperProps<Output>) => {
+    // Helper function to handle errors
+    const handleError = (data?: Output | ApolloError | undefined) => {
+        // Stop spinner
+        if (spinnerDelay) PubSub.get().publishLoading(false);
+        // Determine if error caused by bad response, or caught error
+        const isApolloError: boolean = data !== undefined && data !== null && data.hasOwnProperty('graphQLErrors');
+        // Determine message to display, if any
+        const message: string | undefined = typeof errorMessage === 'function' ? 
+            errorMessage(data) :
+            showDefaultErrorSnack ?
+                isApolloError ?
+                    errorToMessage(data as ApolloError) :
+                    errorToMessage({ message: 'Unknown error occurred' }) :
+                undefined;
+        if (message) {
+            PubSub.get().publishSnack({ message, severity: SnackSeverity.Error, data });
+        }
+        // Determine if error callback should be called
+        if (typeof onError === 'function') {
+            onError(isApolloError ? data as ApolloError : { message: 'Unknown error occurred' });
+        }
+    }
+    // Start loading spinner
     if (spinnerDelay) PubSub.get().publishLoading(spinnerDelay);
+    // Call function
     call().then((response: { data?: Output | null | undefined }) => {
-        if (successCondition(response.data as Output)) {
-            if (successMessage) PubSub.get().publishSnack({ message: successMessage && successMessage(response.data as Output), severity: SnackSeverity.Success });
+        // We need to go one layer deeper to get the actual data. 
+        // If this doesn't exist, then there must be an error
+        if (!response.data || 
+            typeof response.data !== 'object' || 
+            Array.isArray(response.data) || 
+            Object.keys(response.data).length === 0) {
+            handleError();
+            return;
+        }
+        // Get object/primitive inside response.data
+        const data: Output = Object.values(response.data)[0];
+        // If this is a Count object with count = 0, then there must be an error
+        if ((data as any)?.__typename === 'Count' && (data as any)?.count === 0) {
+            handleError(data);
+            return;
+        }
+        if (successCondition(data)) {
+            if (successMessage) PubSub.get().publishSnack({ message: successMessage && successMessage(data), severity: SnackSeverity.Success });
             if (spinnerDelay) PubSub.get().publishLoading(false);
-            if (onSuccess && typeof onSuccess === 'function') onSuccess(response.data as Output);
+            if (onSuccess && typeof onSuccess === 'function') onSuccess(data);
         } else {
-            if (errorMessage) {
-                PubSub.get().publishSnack({ message: errorMessage && errorMessage(response.data as Output), severity: SnackSeverity.Error, data: response });
-            }
-            else if (showDefaultErrorSnack) {
-                PubSub.get().publishSnack({ message: 'Unknown error occurred.', severity: SnackSeverity.Error, data: response });
-            }
-            if (spinnerDelay) PubSub.get().publish(Pubs.Loading, false);
-            if (onError && typeof onError === 'function') onError({ message: 'Unknown error occurred.' });
+            handleError(data);
         }
     }).catch((response: ApolloError) => {
-        if (spinnerDelay) PubSub.get().publishLoading(false);
-        if (errorMessage) {
-            PubSub.get().publishSnack({ message: errorMessage && errorMessage(response), severity: SnackSeverity.Error, data: response });
-        }
-        else if (showDefaultErrorSnack) {
-            PubSub.get().publishSnack({ message: errorToMessage(response), severity: SnackSeverity.Error, data: response });
-        }
-        if (onError && typeof onError === 'function') onError(response);
+        handleError(response);
     })
 }
 
@@ -99,7 +125,7 @@ export const graphqlWrapperHelper = <Output>({
  * Calls a useMutation or useLazyQuery function and handles response and catch, using the DocumentNode. 
  * This is useful when you want to query or mutate outside of a component (i.e. you can't create a hook)
  */
-export const documentNodeWrapper = <Output, Input extends InputType>(props: DocumentNodeWrapperProps<Output, Input>) => {
+export const documentNodeWrapper = <Output extends object, Input extends InputType>(props: DocumentNodeWrapperProps<Output, Input>) => {
     const { node, ...rest } = props;
     // Initialize apollo client
     const client = initializeApollo();
@@ -117,7 +143,7 @@ export const documentNodeWrapper = <Output, Input extends InputType>(props: Docu
 /**
  * Wraps a useMutation function and handles response and catch
  */
-export const mutationWrapper = <Output, Input extends InputType>(props: MutationWrapperProps<Output, Input>) => {
+export const mutationWrapper = <Output extends object, Input extends InputType>(props: MutationWrapperProps<Output, Input>) => {
     const { mutation, ...rest } = props;
     return graphqlWrapperHelper({
         call: () => mutation({ variables: rest.input ? { input: rest.input } as Input : undefined }),
@@ -128,7 +154,7 @@ export const mutationWrapper = <Output, Input extends InputType>(props: Mutation
 /**
  * Wraps a useLazyQuery function and handles response and catch
  */
-export const queryWrapper = <Output, Input extends InputType>(props: QueryWrapperProps<Output, Input>) => {
+export const queryWrapper = <Output extends object, Input extends InputType>(props: QueryWrapperProps<Output, Input>) => {
     const { query, ...rest } = props;
     return graphqlWrapperHelper({
         call: () => query({ variables: rest.input ? { input: rest.input } as Input : undefined }),

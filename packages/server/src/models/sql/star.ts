@@ -3,7 +3,7 @@ import { isObject } from '@shared/utils';
 import { CustomError } from "../../error";
 import { LogType, Star, StarInput, StarSearchInput, StarSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { combineQueries, deconstructUnion, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, ModelLogic, ObjectMap, onlyValidIds, PartialGraphQLInfo, readManyHelper, Searcher } from "./base";
+import { combineQueries, FormatConverter, getSearchStringQueryHelper, ModelLogic, ObjectMap, onlyValidIds, readManyHelper, Searcher } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { resolveStarTo } from "../../schema/resolvers";
@@ -13,6 +13,7 @@ import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
 import { CommentModel } from "./comment";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -32,28 +33,16 @@ export const starFormatter = (): FormatConverter<Star, any> => ({
             'User': 'User',
         }
     },
-    constructUnions: (data) => {
-        let { comment, organization, project, routine, standard, tag, user, ...modified } = data;
-        if (comment) modified.to = comment;
-        else if (organization) modified.to = organization;
-        else if (project) modified.to = project;
-        else if (routine) modified.to = routine;
-        else if (standard) modified.to = standard;
-        else if (tag) modified.to = tag;
-        else if (user) modified.to = user;
-        return modified;
-    },
-    deconstructUnions: (partial) => {
-        let modified = deconstructUnion(partial, 'to', [
-            ['Comment', 'comment'],
-            ['Organization', 'organization'],
-            ['Project', 'project'],
-            ['Routine', 'routine'],
-            ['Standard', 'standard'],
-            ['Tag', 'tag'],
-            ['User', 'user'],
-        ]);
-        return modified;
+    unionMap: {
+        'to': {
+            'Comment': 'comment',
+            'Organization': 'organization',
+            'Project': 'project',
+            'Routine': 'routine',
+            'Standard': 'standard',
+            'Tag': 'tag',
+            'User': 'user',
+        },
     },
     async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Star>[]> {
         // Query for data that star is applied to
@@ -249,7 +238,7 @@ export const StarModel = ({
     mutate: starMutater,
     query: starQuerier,
     search: starSearcher(),
-    type: 'Star',
+    type: 'Star' as GraphQLModelType,
 })
 
 //==============================================================

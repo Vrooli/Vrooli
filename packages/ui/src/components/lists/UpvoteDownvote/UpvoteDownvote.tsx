@@ -1,7 +1,7 @@
 import { useMutation } from '@apollo/client';
 import { Box, Stack, Tooltip, Typography } from '@mui/material';
 import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from '@shared/icons';
-import { vote, voteVariables } from 'graphql/generated/vote';
+import { voteVariables, vote_vote } from 'graphql/generated/vote';
 import { voteMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -9,6 +9,7 @@ import { UpvoteDownvoteProps } from '../types';
 
 export const UpvoteDownvote = ({
     direction = "column",
+    disabled = false,
     session,
     score,
     isUpvoted,
@@ -33,12 +34,12 @@ export const UpvoteDownvote = ({
         return scoreNum;
     }, [internalIsUpvoted, isUpvoted, score]);
 
-    const [mutation] = useMutation<vote, voteVariables>(voteMutation);
+    const [mutation] = useMutation(voteMutation);
     const handleVote = useCallback((e: any, isUpvote: boolean | null) => {
         // Prevent propagation of normal click event
         e.stopPropagation();
         // Send vote mutation
-        mutationWrapper({
+        mutationWrapper<vote_vote, voteVariables>({
             mutation,
             input: { isUpvote, voteFor, forId: objectId },
             onSuccess: () => { onChange(isUpvote) },
@@ -46,36 +47,36 @@ export const UpvoteDownvote = ({
     }, [objectId, voteFor, onChange, mutation]);
 
     const handleUpvoteClick = useCallback((event: any) => {
-        if (!session.id) return;
+        if (!session.id || disabled) return;
         // If already upvoted, cancel the vote
         const vote = internalIsUpvoted === true ? null : true;
         setInternalIsUpvoted(vote);
         handleVote(event, vote);
-    }, [session.id, internalIsUpvoted, handleVote]);
+    }, [session.id, disabled, internalIsUpvoted, handleVote]);
 
     const handleDownvoteClick = useCallback((event: any) => {
-        if (!session.id) return;
+        if (!session.id || disabled) return;
         // If already downvoted, cancel the vote
         const vote = internalIsUpvoted === false ? null : false;
         setInternalIsUpvoted(vote);
         handleVote(event, vote);
-    }, [session.id, internalIsUpvoted, handleVote]);
+    }, [session.id, disabled, internalIsUpvoted, handleVote]);
 
     const { UpvoteIcon, upvoteColor } = useMemo(() => {
-        const upvoteColor = !session.id ? "rgb(189 189 189)" : 
+        const upvoteColor = (!session.id || disabled) ? "rgb(189 189 189)" : 
             internalIsUpvoted === true ? "#34c38b" : 
             "#687074";
         const UpvoteIcon = direction === "column" ? UpvoteWideIcon : UpvoteTallIcon;
         return { UpvoteIcon, upvoteColor };
-    } , [direction, session.id, internalIsUpvoted]);
+    } , [session.id, disabled, internalIsUpvoted, direction]);
 
     const { DownvoteIcon, downvoteColor } = useMemo(() => {
-        const downvoteColor = !session.id ? "rgb(189 189 189)" :
+        const downvoteColor = (!session.id || disabled) ? "rgb(189 189 189)" :
             internalIsUpvoted === false ? "#af2929" :
             "#687074";
         const DownvoteIcon = direction === "column" ? DownvoteWideIcon : DownvoteTallIcon;
         return { DownvoteIcon, downvoteColor };
-    } , [direction, session.id, internalIsUpvoted]);
+    } , [session.id, disabled, internalIsUpvoted, direction]);
 
     return (
         <Stack direction={direction}>
@@ -87,7 +88,7 @@ export const UpvoteDownvote = ({
                     role="button"
                     aria-pressed={internalIsUpvoted === true}
                     sx={{
-                        cursor: session.id ? 'pointer' : 'default',
+                        cursor: (session.id || disabled) ? 'pointer' : 'default',
                         display: 'flex',
                         '&:hover': {
                             filter: session.id ? `brightness(120%)` : 'none',
@@ -108,7 +109,7 @@ export const UpvoteDownvote = ({
                     role="button"
                     aria-pressed={internalIsUpvoted === false}
                     sx={{
-                        cursor: session.id ? 'pointer' : 'default',
+                        cursor: (session.id || disabled) ? 'pointer' : 'default',
                         display: 'flex',
                         '&:hover': {
                             filter: session.id ? `brightness(120%)` : 'none',

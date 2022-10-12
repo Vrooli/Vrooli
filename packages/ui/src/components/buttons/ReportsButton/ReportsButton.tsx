@@ -2,21 +2,9 @@ import { Box, ListItemText, Stack, Tooltip } from '@mui/material';
 import { useCallback } from 'react';
 import { ReportsButtonProps } from '../types';
 import { multiLineEllipsis } from 'styles';
-import { APP_LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { ReportIcon } from '@shared/icons';
-
-function determineLink(typename?: string) {
-    switch (typename) {
-        case 'Organization': return APP_LINKS.Organization;
-        case 'Routine': return APP_LINKS.Routine;
-        case 'Standard': return APP_LINKS.Standard;
-        case 'User': return APP_LINKS.User;
-        default:
-            console.error('Invalid typename');
-            return '';
-    }
-}
+import { getObjectUrlBase, getObjectSlug } from 'utils';
 
 export const ReportsButton = ({
     reportsCount = 0,
@@ -27,11 +15,11 @@ export const ReportsButton = ({
 
     // When clicked, navigate to reports page
     const handleClick = useCallback((event) => {
+        if (!object) return;
         // Do not want the click to propogate to the routine list item, which would cause the routine page to open.
         event.stopPropagation();
-
-        setLocation(`${determineLink(object?.__typename)}/reports/${object?.id}`)
-    }, [object?.__typename, object?.id, setLocation]);
+        setLocation(`${getObjectUrlBase(object)}/reports/${getObjectSlug(object)}`)
+    }, [object, setLocation]);
 
     return (
         <Stack
@@ -43,7 +31,7 @@ export const ReportsButton = ({
         >
             <Tooltip placement={tooltipPlacement} title={'View reports'}>
                 <Box onClick={handleClick} sx={{ display: 'contents', cursor: 'pointer' }}>
-                    <ReportIcon fill='#a96666' />
+                    <ReportIcon fill={'#a96666'} />
                 </Box>
             </Tooltip>
             <ListItemText

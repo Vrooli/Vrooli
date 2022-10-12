@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
-import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getUserLanguages, parseSearchParams, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine, addSearchParams, keepSearchParams, TagShape, usePromptBeforeUnload, getFormikErrorsWithTranslations, handleTranslationChange, getTranslationData } from 'utils';
+import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getUserLanguages, parseSearchParams, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine, addSearchParams, keepSearchParams, TagShape, usePromptBeforeUnload, getFormikErrorsWithTranslations, handleTranslationChange, getTranslationData, getObjectUrlBase, getObjectSlug, openObject } from 'utils';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, ResourceList, Routine, Run } from 'types';
 import { useLocation } from '@shared/route';
 import { APP_LINKS, ResourceListUsedFor } from '@shared/consts';
@@ -15,8 +15,8 @@ import { BuildViewProps } from '../types';
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { StatusMessageArray } from 'components/buttons/types';
 import { StatusButton } from 'components/buttons';
-import { routineUpdate, routineUpdateVariables } from 'graphql/generated/routineUpdate';
-import { routineCreate, routineCreateVariables } from 'graphql/generated/routineCreate';
+import { routineUpdateVariables, routineUpdate_routineUpdate } from 'graphql/generated/routineUpdate';
+import { routineCreateVariables, routineCreate_routineCreate } from 'graphql/generated/routineCreate';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
 import { AddLinkIcon, CloseIcon, CompressIcon, EditIcon, RedoIcon, UndoIcon } from '@shared/icons';
 import { requiredErrorMessage, routineTranslationUpdate, routineUpdate as validationSchema, title as titleValidation } from '@shared/validation';
@@ -97,8 +97,8 @@ export const BuildView = ({
 
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
     // Routine mutators
-    const [routineCreate] = useMutation<routineCreate, routineCreateVariables>(routineCreateMutation);
-    const [routineUpdate] = useMutation<routineUpdate, routineUpdateVariables>(routineUpdateMutation);
+    const [routineCreate] = useMutation(routineCreateMutation);
+    const [routineUpdate] = useMutation(routineUpdateMutation);
     // The routine's status (valid/invalid/incomplete)
     const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ['Calculating...'] });
     // Determines the size of the nodes and edges
@@ -238,7 +238,7 @@ export const BuildView = ({
                     PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: SnackSeverity.Error });
                     return;
                 }
-                mutationWrapper({
+                mutationWrapper<routineCreate_routineCreate, routineCreateVariables>({
                     mutation: routineCreate,
                     input: shapeRoutineCreate({
                         ...changedRoutine,
@@ -253,10 +253,18 @@ export const BuildView = ({
                         tags: tags,
                         translations: values.translationsUpdate,
                     }),
-                    successMessage: () => 'Routine created.',
                     onSuccess: (data) => {
-                        onChange(data.routineCreate);
-                        setLocation(`${APP_LINKS.Routine}/${data.routineCreate.id}?build=true`)
+                        onChange(data);
+                        setLocation(`${getObjectUrlBase(data)}/${getObjectSlug(data)}?build=true`)
+                        PubSub.get().publishSnack({
+                            message: `Routine created!`,
+                            severity: SnackSeverity.Success,
+                            buttonText: 'Create another',
+                            buttonClicked: () => { 
+                                setLocation(`add?build=true`, { replace: Boolean(sessionStorage.getItem('lastPath')) }); 
+                                window.location.reload();
+                            },
+                        })
                     },
                 })
             }
@@ -271,7 +279,7 @@ export const BuildView = ({
                     PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: SnackSeverity.Error });
                     return;
                 }
-                mutationWrapper({
+                mutationWrapper<routineUpdate_routineUpdate, routineUpdateVariables>({
                     mutation: routineUpdate,
                     input: shapeRoutineUpdate(routine, {
                         ...changedRoutine,
@@ -287,7 +295,7 @@ export const BuildView = ({
                     }),
                     successMessage: () => 'Routine updated.',
                     onSuccess: (data) => {
-                        onChange(data.routineUpdate);
+                        onChange(data);
                         keepSearchParams(setLocation, ['build']);
                         setIsEditing(false);
                     },
@@ -1133,12 +1141,12 @@ export const BuildView = ({
                 setLocation(APP_LINKS.Home);
                 break;
             case ObjectAction.Fork:
-                setLocation(`${APP_LINKS.Routine}/${data.fork.routine.id}`);
+                openObject(data.routine, setLocation);
                 window.location.reload();
                 break;
             case ObjectAction.Star:
             case ObjectAction.StarUndo:
-                if (data.star.success) {
+                if (data.success) {
                     onChange({
                         ...routine,
                         isStarred: action === ObjectAction.Star,
@@ -1150,7 +1158,7 @@ export const BuildView = ({
                 break;
             case ObjectAction.VoteDown:
             case ObjectAction.VoteUp:
-                if (data.vote.success) {
+                if (data.success) {
                     onChange({
                         ...routine,
                         isUpvoted: action === ObjectAction.VoteUp,

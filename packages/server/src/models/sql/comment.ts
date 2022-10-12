@@ -4,7 +4,7 @@ import { omit } from '@shared/utils';
 import { CustomError } from "../../error";
 import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, Count } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
-import { addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, Querier, addSupplementalFieldsHelper, Permissioner, permissionsCheck, getSearchStringQueryHelper, onlyValidIds, combineQueries, GraphQLModelType } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, Querier, addSupplementalFieldsHelper, Permissioner, getSearchStringQueryHelper, onlyValidIds, combineQueries } from "./base";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
 import { StarModel } from "./star";
@@ -13,6 +13,7 @@ import { OrganizationModel, organizationQuerier } from "./organization";
 import { projectPermissioner } from "./project";
 import { routinePermissioner } from "./routine";
 import { standardPermissioner } from "./standard";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -35,28 +36,17 @@ export const commentFormatter = (): FormatConverter<Comment, CommentPermission> 
         },
         'reports': 'Report',
         'starredBy': 'User',
-        'votes': 'Vote',
     },
-    constructUnions: (data) => {
-        let { organization, project, routine, standard, user, ...modified } = data;
-        if (organization) modified.creator = organization;
-        else if (user) modified.creator = user;
-        if (project) modified.commentedOn = project;
-        else if (routine) modified.commentedOn = routine;
-        else if (standard) modified.commentedOn = standard;
-        return modified;
-    },
-    deconstructUnions: (partial) => {
-        let modified = deconstructUnion(partial, 'creator', [
-            ['User', 'user'],
-            ['Organization', 'organization'],
-        ]);
-        modified = deconstructUnion(modified, 'commentedOn', [
-            ['Project', 'project'],
-            ['Routine', 'routine'],
-            ['Standard', 'standard'],
-        ]);
-        return modified;
+    unionMap: {
+        'creator': {
+            'User': 'user',
+            'Organization': 'organization',
+        },
+        'commentedOn': {
+            'Project': 'project',
+            'Routine': 'routine',
+            'Standard': 'standard',
+        }
     },
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
@@ -545,7 +535,7 @@ export const CommentModel = ({
     permissions: commentPermissioner,
     query: commentQuerier,
     search: commentSearcher(),
-    type: 'Comment',
+    type: 'Comment' as GraphQLModelType,
 })
 
 //==============================================================

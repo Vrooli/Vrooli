@@ -4,9 +4,9 @@ import { omit } from '@shared/utils';
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count, StandardPermission } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, validateMaxObjects, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, Permissioner, relationshipToPrisma, removeCountFieldsHelper, removeJoinTablesHelper, Searcher, selectHelper, validateMaxObjects, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
 import { validateProfanity } from "../../utils/censor";
-import { OrganizationModel, organizationQuerier } from "./organization";
+import { organizationQuerier } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -17,6 +17,7 @@ import { randomString } from "../../auth/walletAuth";
 import { sortify } from "../../utils/objectTools";
 import { ResourceListModel } from "./resourceList";
 import { uuid } from '@shared/uuid';
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -24,7 +25,7 @@ import { uuid } from '@shared/uuid';
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
-const supplementalFields = ['isUpvoted', 'isStarred', 'isViewed', 'permissionsStandard'];
+const supplementalFields = ['isUpvoted', 'isStarred', 'isViewed', 'permissionsStandard', 'versions'];
 export const standardFormatter = (): FormatConverter<Standard, StandardPermission> => ({
     relationshipMap: {
         '__typename': 'Standard',
@@ -40,13 +41,11 @@ export const standardFormatter = (): FormatConverter<Standard, StandardPermissio
         'starredBy': 'User',
         'tags': 'Tag',
     },
-    constructUnions: (data) => {
-        let modified = addCreatorField(data);
-        return modified;
-    },
-    deconstructUnions: (partial) => {
-        let modified = removeCreatorField(partial);
-        return modified;
+    unionMap: {
+        'creator': {
+            'User': 'createdByUser',
+            'Organization': 'createdByOrganization',
+        },
     },
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
@@ -62,6 +61,40 @@ export const standardFormatter = (): FormatConverter<Standard, StandardPermissio
                 ['isUpvoted', async (ids) => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Standard')],
                 ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Standard')],
                 ['permissionsStandard', async () => await StandardModel.permissions().get({ objects, permissions, prisma, userId })],
+                ['versions', async (ids) => {
+                    // Find versionGroupIds of routines
+                    const groupData = await prisma.standard.findMany({
+                        where: {
+                            id: { in: ids },
+                        },
+                        select: {
+                            version: true,
+                            versionGroupId: true,
+                        }
+                    });
+                    // Find unique versionGroupIds
+                    const versionGroupIds = new Set(groupData.map(r => r.versionGroupId).filter(Boolean) as string[]);
+                    // Find all versions of routines in versionGroupIds
+                    const versions = await prisma.standard.findMany({
+                        where: {
+                            versionGroupId: { in: [...versionGroupIds] },
+                        },
+                        select: {
+                            id: true,
+                            version: true,
+                            versionGroupId: true,
+                        }
+                    });
+                    // For every routine from ids, find all versions of that routine
+                    const result = groupData.map((r) => {
+                        if (r.versionGroupId) {
+                            return versions.filter(v => v.versionGroupId === r.versionGroupId).map(v => v.version);
+                        } else {
+                            return [r.version];
+                        }
+                    });
+                    return result;
+                }],
             ]
         });
     }
@@ -545,6 +578,7 @@ export const standardMutater = (prisma: PrismaType) => ({
                     data: await this.toDBShapeUpdate(userId, input.data),
                     ...select
                 });
+                // TODO handle version update
                 // Convert to GraphQL
                 const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array
@@ -616,7 +650,7 @@ export const StandardModel = ({
     permissions: standardPermissioner,
     query: standardQuerier,
     search: standardSearcher(),
-    type: 'Standard',
+    type: 'Standard' as GraphQLModelType,
     verify: standardVerifier(),
 })
 

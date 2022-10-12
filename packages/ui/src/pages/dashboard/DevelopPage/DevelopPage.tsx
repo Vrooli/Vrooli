@@ -6,8 +6,8 @@ import { developPage } from 'graphql/generated/developPage';
 import { profile } from 'graphql/generated/profile';
 import { developPageQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ResourceList } from 'types';
-import { DevelopSearchPageTabOption, listToListItems, openObject, OpenObjectProps, stringifySearchParams } from 'utils';
+import { NavigableObject, ResourceList } from 'types';
+import { DevelopSearchPageTabOption, listToListItems, openObject, stringifySearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { DevelopPageProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
@@ -60,7 +60,7 @@ export const DevelopPage = ({
     /**
      * Opens page for list item
      */
-    const toItemPage = useCallback((item: OpenObjectProps['object'], event: any) => {
+    const toItemPage = useCallback((item: NavigableObject, event: any) => {
         event?.stopPropagation();
         // Navigate to item page
         openObject(item, setLocation);

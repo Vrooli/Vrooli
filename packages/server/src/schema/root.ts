@@ -65,6 +65,12 @@ export const typeDef = gql`
         id: ID!
     }
 
+    # Input for finding object by versionId (id) or versionGroupId
+    input FindByVersionInput {
+        id: ID
+        versionGroupId: ID
+    }
+
     # Input for finding object by id OR handle
     input FindByIdOrHandleInput {
         id: ID

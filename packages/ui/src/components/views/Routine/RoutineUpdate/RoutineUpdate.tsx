@@ -8,13 +8,13 @@ import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { routineTranslationUpdate, routineUpdate as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputShape, ObjectType, OutputShape, PubSub, removeTranslation, shapeRoutineUpdate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputShape, ObjectType, OutputShape, PubSub, removeTranslation, shapeRoutineUpdate, TagShape, usePromptBeforeUnload } from "utils";
 import { GridSubmitButtons, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession, VersionInput } from "components";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { InputOutputContainer } from "components/lists/inputOutput";
-import { routineUpdate, routineUpdateVariables } from "graphql/generated/routineUpdate";
+import { routineUpdateVariables, routineUpdate_routineUpdate } from "graphql/generated/routineUpdate";
 import { RelationshipItemRoutine, RelationshipsObject } from "components/inputs/types";
 
 export const RoutineUpdate = ({
@@ -23,10 +23,22 @@ export const RoutineUpdate = ({
     session,
     zIndex,
 }: RoutineUpdateProps) => {
+
     // Fetch existing data
-    const id = useMemo(() => getLastUrlPart(), []);
-    const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
-    useEffect(() => { uuidValidate(id) && getData({ variables: { input: { id } } }) }, [getData, id])
+    const { id, versionGroupId } = useMemo(() => {
+        // URL is /object/:versionGroupId/?:id
+        const last = base36ToUuid(getLastUrlPart(0), false);
+        const secondLast = base36ToUuid(getLastUrlPart(1), false);
+        return {
+            id: uuidValidate(secondLast) ? last : undefined,
+            versionGroupId: uuidValidate(secondLast) ? secondLast : last,
+        }
+    }, []);
+    const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
+    useEffect(() => {
+        if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { input: { id, versionGroupId } } });
+        else PubSub.get().publishSnack({ message: 'Could not parse ID in URL', severity: SnackSeverity.Error });
+    }, [getData, id, versionGroupId])
     const routine = useMemo(() => data?.routine, [data]);
 
     const [relationships, setRelationships] = useState<RelationshipsObject>({
@@ -81,7 +93,7 @@ export const RoutineUpdate = ({
     }, [routine]);
 
     // Handle update
-    const [mutation] = useMutation<routineUpdate, routineUpdateVariables>(routineUpdateMutation);
+    const [mutation] = useMutation(routineUpdateMutation);
     const formik = useFormik({
         initialValues: {
             translationsUpdate: routine?.translations ?? [{
@@ -100,7 +112,7 @@ export const RoutineUpdate = ({
                 PubSub.get().publishSnack({ message: 'Could not find existing routine data.', severity: SnackSeverity.Error });
                 return;
             }
-            mutationWrapper({
+            mutationWrapper<routineUpdate_routineUpdate, routineUpdateVariables>({
                 mutation,
                 input: shapeRoutineUpdate(routine, {
                     id: routine.id,
@@ -119,7 +131,7 @@ export const RoutineUpdate = ({
                         id: t.id === DUMMY_ID ? uuid() : t.id,
                     })),
                 }),
-                onSuccess: (data) => { onUpdated(data.routineUpdate) },
+                onSuccess: (data) => { onUpdated(data) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },
@@ -223,7 +235,7 @@ export const RoutineUpdate = ({
                     placeholder="Instructions"
                     value={instructions}
                     minRows={4}
-                    onChange={(newText: string) => onTranslationChange({ target: { name: 'instructions', value: newText }})}
+                    onChange={(newText: string) => onTranslationChange({ target: { name: 'instructions', value: newText } })}
                     error={touchedInstructions && Boolean(errorInstructions)}
                     helperText={touchedInstructions ? errorInstructions : null}
                 />

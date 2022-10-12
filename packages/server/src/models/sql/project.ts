@@ -3,8 +3,8 @@ import { CODE } from "@shared/consts";
 import { omit } from '@shared/utils';
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
-import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor, ProjectPermission, OrganizationPermission, VisibilityType } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, exceptionsBuilder, FormatConverter, getSearchStringQueryHelper, GraphQLModelType, modelToGraphQL, onlyValidIds, Permissioner, permissionsCheck, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, validateMaxObjects, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
+import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor, ProjectPermission } from "../../schema/types";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, exceptionsBuilder, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidHandles, onlyValidIds, Permissioner, permissionsCheck, removeCountFieldsHelper, removeJoinTablesHelper, Searcher, selectHelper, validateMaxObjects, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
 import { OrganizationModel, organizationQuerier } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -14,6 +14,7 @@ import { ResourceListModel } from "./resourceList";
 import { WalletModel } from "./wallet";
 import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -43,15 +44,15 @@ export const projectFormatter = (): FormatConverter<Project, ProjectPermission> 
         'tags': 'Tag',
         'wallets': 'Wallet',
     },
-    constructUnions: (data) => {
-        let modified = addCreatorField(data);
-        modified = addOwnerField(modified);
-        return modified;
-    },
-    deconstructUnions: (partial) => {
-        let modified = removeCreatorField(partial);
-        modified = removeOwnerField(modified);
-        return modified;
+    unionMap: {
+        'creator': {
+            'User': 'createdByUser',
+            'Organization': 'createdByOrganization',
+        },
+        'owner': {
+            'User': 'user',
+            'Organization': 'organization',
+        }
     },
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
@@ -80,7 +81,8 @@ export const projectPermissioner = (): Permissioner<ProjectPermission, ProjectSe
         userId,
     }) {
         // Initialize result with default permissions
-        const result: (ProjectPermission & { id?: string })[] = objects.map((o) => ({
+        const result: (ProjectPermission & { id?: string, handle?: string })[] = objects.map((o) => ({
+            handle: o.handle,
             id: o.id,
             canComment: false, // own || !isPrivate
             canDelete: false, // own 
@@ -95,7 +97,10 @@ export const projectPermissioner = (): Permissioner<ProjectPermission, ProjectSe
             // Query for objects owned by user, or an organization they have an admin role in
             const owned = await prisma.project.findMany({
                 where: {
-                    id: { in: onlyValidIds(objects.map(o => o.id)) },
+                    OR: [
+                        { id: { in: onlyValidIds(objects.map((o) => o.id)) } },
+                        { handle: { in: onlyValidHandles(objects.map((o) => o.handle)) } },
+                    ],
                     ...this.ownershipQuery(userId),
                 },
                 select: { id: true },
@@ -118,7 +123,10 @@ export const projectPermissioner = (): Permissioner<ProjectPermission, ProjectSe
         // Query all objects
         const all = await prisma.project.findMany({
             where: {
-                id: { in: onlyValidIds(objects.map(o => o.id)) },
+                OR: [
+                    { id: { in: onlyValidIds(objects.map((o) => o.id)) } },
+                    { handle: { in: onlyValidHandles(objects.map((o) => o.handle)) } },
+                ]
             },
             select: { id: true, isPrivate: true },
         })
@@ -134,8 +142,8 @@ export const projectPermissioner = (): Permissioner<ProjectPermission, ProjectSe
                 canVote: result[index].canVote || !o.isPrivate,
             }
         });
-        // Return result with IDs removed
-        result.forEach((r) => delete r.id);
+        // Return result with IDs and handles removed
+        result.forEach((r) => delete r.id && delete r.handle);
         return result as ProjectPermission[];
     },
     async canSearch({
@@ -385,7 +393,7 @@ export const ProjectModel = ({
     mutate: projectMutater,
     permissions: projectPermissioner,
     search: projectSearcher(),
-    type: 'Project',
+    type: 'Project' as GraphQLModelType,
 })
 
 //==============================================================

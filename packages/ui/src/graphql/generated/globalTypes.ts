@@ -417,6 +417,11 @@ export interface FindByIdOrHandleInput {
   handle?: string | null;
 }
 
+export interface FindByVersionInput {
+  id?: string | null;
+  versionGroupId?: string | null;
+}
+
 export interface FindHandlesInput {
   organizationId?: string | null;
 }

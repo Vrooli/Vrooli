@@ -6,8 +6,8 @@ import { profile } from 'graphql/generated/profile';
 import { researchPage } from 'graphql/generated/researchPage';
 import { profileQuery, researchPageQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ResourceList } from 'types';
-import { listToListItems, openObject, OpenObjectProps, stringifySearchParams, SearchPageTabOption } from 'utils';
+import { NavigableObject, ResourceList } from 'types';
+import { listToListItems, openObject, stringifySearchParams, SearchPageTabOption } from 'utils';
 import { useLocation } from '@shared/route';
 import { ResearchPageProps } from '../types';
 
@@ -60,7 +60,7 @@ export const ResearchPage = ({
     /**
      * Opens page for list item
      */
-    const toItemPage = useCallback((item: OpenObjectProps['object'], event: any) => {
+    const toItemPage = useCallback((item: NavigableObject, event: any) => {
         event?.stopPropagation();
         // Navigate to item page
         openObject(item, setLocation);

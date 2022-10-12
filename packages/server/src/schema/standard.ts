@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { countHelper, createHelper, readManyHelper, readOneHelper, StandardModel, updateHelper, visibilityBuilder } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSearchResult, StandardSortBy } from './types';
+import { FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSearchResult, StandardSortBy, FindByVersionInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
@@ -68,6 +68,7 @@ export const typeDef = gql`
         yup: String
         version: String!
         versionGroupId: ID!
+        versions: [String!]!
         score: Int!
         stars: Int!
         views: Int!
@@ -153,7 +154,7 @@ export const typeDef = gql`
     }
 
     extend type Query {
-        standard(input: FindByIdInput!): Standard
+        standard(input: FindByVersionInput!): Standard
         standards(input: StandardSearchInput!): StandardSearchResult!
         standardsCount(input: StandardCountInput!): Int!
     }
@@ -167,7 +168,7 @@ export const typeDef = gql`
 export const resolvers = {
     StandardSortBy: StandardSortBy,
     Query: {
-        standard: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard> | null> => {
+        standard: async (_parent: undefined, { input }: IWrap<FindByVersionInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard> | null> => {
             await rateLimit({ info, max: 1000, req });
             return readOneHelper({ info, input, model: StandardModel, prisma, userId: req.userId });
         },

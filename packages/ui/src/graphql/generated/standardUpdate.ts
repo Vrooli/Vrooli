@@ -123,6 +123,7 @@ export interface standardUpdate_standardUpdate {
   isUpvoted: boolean | null;
   version: string;
   versionGroupId: string;
+  versions: string[];
 }
 
 export interface standardUpdate {

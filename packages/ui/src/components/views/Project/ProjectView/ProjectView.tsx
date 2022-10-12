@@ -11,7 +11,7 @@ import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
 import { Project, ResourceList } from "types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, SearchType } from "utils";
+import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, openObject, SearchType, uuidToBase36 } from "utils";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
@@ -32,8 +32,8 @@ export const ProjectView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     // Fetch data
-    const id = useMemo(() => getLastUrlPart(), []);
-    const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery, { errorPolicy: 'all'});
+    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
+    const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery, { errorPolicy: 'all' });
     const [project, setProject] = useState<Project | null | undefined>(null);
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { input: { id } } })
@@ -106,7 +106,7 @@ export const ProjectView = ({
     const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
     const onEdit = useCallback(() => {
-        setLocation(`${APP_LINKS.Project}/edit/${id}`);
+        setLocation(`${APP_LINKS.Project}/edit/${uuidToBase36(id)}`);
     }, [setLocation, id]);
 
     // More menu
@@ -132,7 +132,7 @@ export const ProjectView = ({
         switch (action) {
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp:
-                if (data.vote.success) {
+                if (data.success) {
                     setProject({
                         ...project,
                         isUpvoted: action === ObjectActionComplete.VoteUp,
@@ -141,7 +141,7 @@ export const ProjectView = ({
                 break;
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.star.success) {
+                if (data.success) {
                     setProject({
                         ...project,
                         isStarred: action === ObjectActionComplete.Star,
@@ -149,11 +149,11 @@ export const ProjectView = ({
                 }
                 break;
             case ObjectActionComplete.Fork:
-                setLocation(`${APP_LINKS.Project}/${data.fork.project.id}`);
+                openObject(data.project, setLocation);
                 window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
-                setLocation(`${APP_LINKS.Project}/${data.copy.project.id}`);
+                openObject(data.project, setLocation);
                 window.location.reload();
                 break;
         }
@@ -168,7 +168,6 @@ export const ProjectView = ({
 
     // Create search data
     const { searchType, itemKeyPrefix, placeholder, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
-        const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         // The first tab doesn't have search results, as it is the project's set resources
         switch (currTabType) {
             case TabOptions.Routines:
@@ -178,7 +177,7 @@ export const ProjectView = ({
                     placeholder: "Search project's routines...",
                     noResultsText: "No routines found",
                     where: { projectId: id, isComplete: !canEdit ? true : undefined, isInternal: false, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
+                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 };
             case TabOptions.Standards:
                 return {
@@ -187,7 +186,7 @@ export const ProjectView = ({
                     placeholder: "Search project's standards...",
                     noResultsText: "No standards found",
                     where: { projectId: id, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
+                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 }
             default:
                 return {
@@ -297,7 +296,8 @@ export const ProjectView = ({
                         </IconButton>
                     </Tooltip>
                     <ShareButton objectType={ObjectType.Project} zIndex={zIndex} />
-                    {canStar && <StarButton
+                    <StarButton
+                        disabled={!canStar}
                         session={session}
                         objectId={project?.id ?? ''}
                         starFor={StarFor.Project}
@@ -305,7 +305,7 @@ export const ProjectView = ({
                         stars={project?.stars ?? 0}
                         onChange={(isStar: boolean) => { }}
                         tooltipPlacement="bottom"
-                    />}
+                    />
                 </Stack>
             </Stack>
         </Box>

@@ -7,12 +7,12 @@ import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { projectTranslationUpdate, projectUpdate as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { projectUpdateMutation } from "graphql/mutation";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, removeTranslation, shapeProjectUpdate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, removeTranslation, shapeProjectUpdate, TagShape, usePromptBeforeUnload } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { projectUpdate, projectUpdateVariables } from "graphql/generated/projectUpdate";
+import { projectUpdateVariables, projectUpdate_projectUpdate } from "graphql/generated/projectUpdate";
 import { ProjectUpdateProps } from "../types";
 import { RelationshipsObject } from "components/inputs/types";
 
@@ -23,7 +23,7 @@ export const ProjectUpdate = ({
     zIndex,
 }: ProjectUpdateProps) => {
     // Fetch existing data
-    const id = useMemo(() => getLastUrlPart(), []);
+    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
     const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery);
     useEffect(() => { uuidValidate(id) && getData({ variables: { input: { id } } }) }, [getData, id])
     const project = useMemo(() => data?.project, [data]);
@@ -67,7 +67,7 @@ export const ProjectUpdate = ({
     }, [project]);
 
     // Handle update
-    const [mutation] = useMutation<projectUpdate, projectUpdateVariables>(projectUpdateMutation);
+    const [mutation] = useMutation(projectUpdateMutation);
     const formik = useFormik({
         initialValues: {
             id: project?.id ?? uuid(),
@@ -85,7 +85,7 @@ export const ProjectUpdate = ({
                 PubSub.get().publishSnack({ message: 'Could not find existing project data.', severity: SnackSeverity.Error });
                 return;
             }
-            mutationWrapper({
+            mutationWrapper<projectUpdate_projectUpdate, projectUpdateVariables>({
                 mutation,
                 input: shapeProjectUpdate(project, {
                     id: project.id,
@@ -100,7 +100,7 @@ export const ProjectUpdate = ({
                         id: t.id === DUMMY_ID ? uuid() : t.id,
                     })),
                 }),
-                onSuccess: (data) => { onUpdated(data.projectUpdate) },
+                onSuccess: (data) => { onUpdated(data) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },

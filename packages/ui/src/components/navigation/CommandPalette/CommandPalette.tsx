@@ -8,7 +8,7 @@ import { actionsItems, getObjectSlug, getObjectUrlBase, listToAutocomplete, PubS
 import { AutocompleteSearchBar } from 'components/inputs';
 import { APP_LINKS } from '@shared/consts';
 import { AutocompleteOption } from 'types';
-import { useQuery } from '@apollo/client';
+import { useLazyQuery } from '@apollo/client';
 import { CommandPaletteProps } from '../types';
 import { homePage, homePageVariables } from 'graphql/generated/homePage';
 import { homePageQuery } from 'graphql/query';
@@ -65,7 +65,7 @@ const CommandPalette = ({
         return () => { PubSub.get().unsubscribe(dialogSub) };
     }, [])
 
-    const { data, refetch, loading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
+    const [refetch, { data, loading }] = useLazyQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
     useEffect(() => { open && refetch() }, [open, refetch, searchString]);
 
 
@@ -111,6 +111,7 @@ const CommandPalette = ({
         }
         // Otherwise, object url must be constructed
         else {
+            console.log('onInputSelect', newValue, getObjectSlug(newValue));
             newLocation = `${getObjectUrlBase(newValue)}/${getObjectSlug(newValue)}`
         }
         // If new pathname is the same, reload page

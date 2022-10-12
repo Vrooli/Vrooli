@@ -2,9 +2,9 @@ import { Box, ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme }
 import { UserListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, StarFor } from '@shared/consts';
+import { StarFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { getTranslation, listItemColor, placeholderColor } from 'utils';
+import { getTranslation, listItemColor, openObject, placeholderColor } from 'utils';
 import { TextLoading } from '../TextLoading/TextLoading';
 import { smallHorizontalScrollbar } from '../styles';
 import { UserIcon } from '@shared/icons';
@@ -41,11 +41,7 @@ export const UserListItem = ({
         // If onClick provided, call it
         if (onClick) onClick(e, data);
         // Otherwise, navigate to the user's profile
-        else {
-            // Prefer using handle if available
-            const link = data.handle ?? data.id;
-            setLocation(`${APP_LINKS.Profile}/${link}`);
-        }
+        else openObject(data, setLocation);
     }, [onClick, data, setLocation]);
 
     return (
@@ -107,14 +103,15 @@ export const UserListItem = ({
                     </Stack>
                     {/* Star/Comment/Report */}
                     <Stack direction="column" spacing={1}>
-                        {!isOwn && <StarButton
+                        <StarButton
+                            disabled={isOwn}
                             session={session}
                             objectId={data?.id ?? ''}
                             starFor={StarFor.User}
                             isStar={data?.isStarred}
                             stars={data?.stars}
-                        />}
-                        {!isOwn && reportsCount > 0 && <ReportsButton
+                        />
+                        {reportsCount > 0 && <ReportsButton
                             reportsCount={data?.reportsCount ?? 0}
                             object={data}
                         />}

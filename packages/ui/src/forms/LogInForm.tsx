@@ -14,7 +14,7 @@ import {
 import { Forms, PubSub, useReactSearch } from 'utils';
 import { emailLogInForm } from '@shared/validation';
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
-import { emailLogIn, emailLogInVariables } from 'graphql/generated/emailLogIn';
+import { emailLogInVariables, emailLogIn_emailLogIn } from 'graphql/generated/emailLogIn';
 import { LogInFormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
@@ -33,7 +33,7 @@ export const LogInForm = ({
         verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
     }), [search]);
 
-    const [emailLogIn, { loading }] = useMutation<emailLogIn, emailLogInVariables>(emailLogInMutation);  
+    const [emailLogIn, { loading }] = useMutation(emailLogInMutation);  
 
     const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
     const toSignUp = () => onFormChange(Forms.SignUp);
@@ -45,13 +45,13 @@ export const LogInForm = ({
         },
         validationSchema: emailLogInForm,
         onSubmit: (values) => {
-            mutationWrapper({
+            mutationWrapper<emailLogIn_emailLogIn, emailLogInVariables>({
                 mutation: emailLogIn,
                 input: { ...values, verificationCode },
-                successCondition: (data) => data.emailLogIn !== null,
+                successCondition: (data) => data !== null,
                 onSuccess: (data) => { 
                     if (verificationCode) PubSub.get().publishSnack({ message: 'Email verified!', severity: SnackSeverity.Success });
-                    PubSub.get().publishSession(data.emailLogIn); setLocation(redirect ?? APP_LINKS.Home) 
+                    PubSub.get().publishSession(data); setLocation(redirect ?? APP_LINKS.Home) 
                 },
                 showDefaultErrorSnack: false,
                 onError: (response) => {

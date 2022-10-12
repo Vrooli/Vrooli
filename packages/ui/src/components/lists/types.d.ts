@@ -105,6 +105,7 @@ export interface TagListProps {
 
 export interface UpvoteDownvoteProps {
     direction?: 'row' | 'column';
+    disabled?: boolean;
     session: Session;
     score?: number; // Net score - can be negative
     isUpvoted?: boolean | null; // If not passed, then there is neither an upvote nor a downvote
