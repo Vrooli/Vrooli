@@ -29,7 +29,7 @@ export const SelectRoutineTypeMenu = ({
     }, [setLocation]);
 
     const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
-    if (!loggedIn) {
+    if (Boolean(anchorEl) && !loggedIn) {
         PubSub.get().publishSnack({ message: 'Must be logged in.', severity: SnackSeverity.Error });
         setLocation(`${APP_LINKS.Start}${stringifySearchParams({
             redirect: window.location.pathname

@@ -90,18 +90,17 @@ export const actionsToMenu = ({ actions, setLocation, sx = {} }: ActionsToMenuPr
 interface ActionsToBottomNavProps {
     actions: Action[];
     setLocation: SetLocation;
-    classes?: { [key: string]: string };
 }
-export const actionsToBottomNav = ({ actions, setLocation, classes = { root: '' } }: ActionsToBottomNavProps) => {
+export const actionsToBottomNav = ({ actions, setLocation }: ActionsToBottomNavProps) => {
     return actions.map(({ label, value, link, onClick, Icon, numNotifications }) => (
         <BottomNavigationAction
             key={value}
-            classes={classes}
             label={label}
             value={value}
             onClick={() => { openLink(setLocation, link); if (onClick) onClick() }}
-            icon={<Badge badgeContent={numNotifications} color="error"><Icon /></Badge>} />
-    ))
+            icon={<Badge badgeContent={numNotifications} color="error"><Icon /></Badge>}
+        />
+    ));
 }
 
 // Display an action as an icon button
