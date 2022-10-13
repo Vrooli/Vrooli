@@ -66,7 +66,7 @@ export const resolvers = {
     ForkType: ForkType,
     Mutation: {
         copy: async (_parent: undefined, { input }: IWrap<CopyInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<CopyResult> => {
-            await rateLimit({ info, max: 500, byAccountOrKey: true, req });
+            await rateLimit({ info, maxUser: 500, req });
             const validTypes: Array<keyof typeof CopyType> = [
                 CopyType.Node,
                 CopyType.Organization,
@@ -82,7 +82,7 @@ export const resolvers = {
             return { [lowercaseFirstLetter(input.objectType)]: result };
         },
         fork: async (_parent: undefined, { input }: IWrap<ForkInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<ForkResult> => {
-            await rateLimit({ info, max: 500, byAccountOrKey: true, req });
+            await rateLimit({ info, maxUser: 500, req });
             const validTypes: Array<keyof typeof ForkType> = [
                 ForkType.Organization,
                 ForkType.Project,

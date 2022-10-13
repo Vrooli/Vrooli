@@ -38,7 +38,7 @@ export const resolvers = {
     DeleteOneType: DeleteOneType,
     Mutation: {
         deleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            await rateLimit({ info, max: 1000, byAccountOrKey: true, req });
+            await rateLimit({ info, maxUser: 1000, req });
             const validTypes: Array<keyof typeof DeleteOneType> = [
                 DeleteOneType.Comment, 
                 DeleteOneType.Email,

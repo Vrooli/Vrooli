@@ -7,7 +7,7 @@ import { emailLogInSchema, emailSignUpSchema, passwordSchema, emailRequestPasswo
 import { CODE, COOKIE } from "@shared/consts";
 import { CustomError } from '../error';
 import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from '../auth/walletAuth';
-import { generateSessionJwt } from '../auth/auth.js';
+import { assertRequestFrom, generateSessionJwt } from '../auth/auth.js';
 import { IWrap, RecursivePartial } from '../types';
 import { WalletCompleteInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, WalletInitInput, Session, Success, WalletComplete, ApiKeyStatus } from './types';
 import { GraphQLResolveInfo } from 'graphql';
@@ -111,19 +111,19 @@ export const resolvers = {
     AccountStatus: AccountStatus,
     Mutation: {
         apiKeyCreate: async (_parent: undefined, { input }: IWrap<any>, { req }: Context, info: GraphQLResolveInfo): Promise<String> => {
-            // Creating API keys must be done from our own site
-            if (!req.fromSafeOrigin) throw new CustomError(CODE.Unauthorized, 'Unknown origin', { code: genErrorCode('0245') });
+            assertRequestFrom(req, { isOfficialUser: true });
+            await rateLimit({ info, maxUser: 5, req });
             // TODO
             throw new CustomError(CODE.NotImplemented);
         },
         apiKeyDelete: async (_parent: undefined, { input }: IWrap<any>, { req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            // Deleting API keys must be done from our own site
-            if (!req.fromSafeOrigin) throw new CustomError(CODE.Unauthorized, 'Unknown origin', { code: genErrorCode('0246') });
+            assertRequestFrom(req, { isOfficialUser: true });
+            await rateLimit({ info, maxUser: 5, req });
             // TODO
             throw new CustomError(CODE.NotImplemented);
         },
         apiKeyValidate: async (_parent: undefined, { input }: IWrap<any>, { req, res }: Context, info: GraphQLResolveInfo): Promise<ApiKeyStatus> => {
-            await rateLimit({ info, max: 5000, req });
+            await rateLimit({ info, maxApi: 5000, req });
             // If session is expired
             if (!req.apiToken || !req.validToken) {
                 res.clearCookie(COOKIE.Jwt);
@@ -133,7 +133,7 @@ export const resolvers = {
             throw new CustomError(CODE.NotImplemented);
         },
         emailLogIn: async (_parent: undefined, { input }: IWrap<EmailLogInInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<Session> => {
-            await rateLimit({ info, max: 100, req });
+            await rateLimit({ info, maxUser: 100, req });
             // Validate arguments with schema
             emailLogInSchema.validateSync(input, { abortEarly: false });
             let user;
@@ -210,7 +210,7 @@ export const resolvers = {
             }
         },
         emailSignUp: async (_parent: undefined, { input }: IWrap<EmailSignUpInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
-            await rateLimit({ info, max: 10, req });
+            await rateLimit({ info, maxUser: 10, req });
             // Validate input format
             emailSignUpSchema.validateSync(input, { abortEarly: false });
             // Check for censored words
@@ -261,7 +261,7 @@ export const resolvers = {
             return session;
         },
         emailRequestPasswordChange: async (_parent: undefined, { input }: IWrap<EmailRequestPasswordChangeInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            await rateLimit({ info, max: 10, req });
+            await rateLimit({ info, maxUser: 10, req });
             // Validate input format
             emailRequestPasswordChangeSchema.validateSync(input, { abortEarly: false });
             // Validate email address
@@ -277,7 +277,7 @@ export const resolvers = {
             return { success };
         },
         emailResetPassword: async (_parent: undefined, { input }: IWrap<EmailResetPasswordInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
-            await rateLimit({ info, max: 10, req });
+            await rateLimit({ info, maxUser: 10, req });
             // Validate input format
             passwordSchema.validateSync(input.newPassword, { abortEarly: false });
             // Find user
@@ -314,7 +314,7 @@ export const resolvers = {
             return await ProfileModel.verify.toSession(user, prisma, { isLoggedIn: true, users: req.users });
         },
         guestLogIn: async (_parent: undefined, _args: undefined, { req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
-            await rateLimit({ info, max: 500, req });
+            await rateLimit({ info, maxUser: 500, req });
             // Create session
             const session: RecursivePartial<Session> = {
                 isLoggedIn: false
@@ -328,7 +328,7 @@ export const resolvers = {
             return { success: true };
         },
         validateSession: async (_parent: undefined, _args: undefined, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
-            await rateLimit({ info, max: 5000, req });
+            await rateLimit({ info, maxUser: 5000, req });
             const userId = getUserId(req);
             // If session is expired
             if (!userId || !req.validToken) {
@@ -362,7 +362,7 @@ export const resolvers = {
          * @returns Nonce that wallet must sign and send to walletComplete endpoint
          */
         walletInit: async (_parent: undefined, { input }: IWrap<WalletInitInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<string> => {
-            await rateLimit({ info, max: 100, req });
+            await rateLimit({ info, maxUser: 100, req });
             // // Make sure that wallet is on mainnet (i.e. starts with 'stake1')
             const deserializedStakingAddress = serializedAddressToBech32(input.stakingAddress);
             if (!deserializedStakingAddress.startsWith('stake1'))
@@ -409,7 +409,7 @@ export const resolvers = {
         },
         // Verify that signed message from user wallet has been signed by the correct public address
         walletComplete: async (_parent: undefined, { input }: IWrap<WalletCompleteInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<WalletComplete> => {
-            await rateLimit({ info, max: 100, req });
+            await rateLimit({ info, maxUser: 100, req });
             const userId = getUserId(req);
             // Find wallet with public address
             const walletData = await prisma.wallet.findUnique({

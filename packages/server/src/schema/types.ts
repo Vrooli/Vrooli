@@ -2715,7 +2715,7 @@ export type Session = {
   __typename?: 'Session';
   id?: Maybe<Scalars['ID']>;
   isLoggedIn: Scalars['Boolean'];
-  users?: Maybe<Array<Maybe<SessionUser>>>;
+  users?: Maybe<Array<SessionUser>>;
 };
 
 export type SessionUser = {

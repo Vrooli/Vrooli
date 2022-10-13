@@ -735,7 +735,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                 input: { id: deleteId, objectType: DeleteOneType.Routine },
                 model: RoutineModel,
                 prisma,
-                userId,
+                req: { users: [{ id: userId }] }
             })
             return deleteId;
         }

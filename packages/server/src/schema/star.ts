@@ -76,7 +76,7 @@ export const resolvers = {
     Query: {
         stars: async (_parent: undefined, { input }: IWrap<StarSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<StarSearchResult> => {
             assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, max: 2000, req });
+            await rateLimit({ info, maxUser: 2000, req });
             return readManyHelper({ info, input, model: StarModel, prisma, req, additionalQueries: { req } });
         },
     },
@@ -87,7 +87,7 @@ export const resolvers = {
          */
         star: async (_parent: undefined, { input }: IWrap<StarInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
             assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, max: 1000, byAccountOrKey: true, req });
+            await rateLimit({ info, maxUser: 1000, req });
             const success = await StarModel.mutate(prisma).star(getUserId(req) as string, input);
             return { success };
         },

@@ -45,18 +45,18 @@ export const resolvers = {
          * Associate a new email address to your account.
          */
         emailCreate: async (_parent: undefined, { input }: IWrap<EmailCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
-            await rateLimit({ info, max: 10, byAccountOrKey: true, req });
+            await rateLimit({ info, maxUser: 10, req });
             return createHelper({ info, input, model: EmailModel, prisma, req })
         },
         /**
          * Update an existing email address that is associated with your account.
          */
         emailUpdate: async (_parent: undefined, { input }: IWrap<EmailUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
-            await rateLimit({ info, max: 10, byAccountOrKey: true, req });
+            await rateLimit({ info, maxUser: 10, req });
             return updateHelper({ info, input, model: EmailModel, prisma, req })
         },
         sendVerificationEmail: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            await rateLimit({ info, max: 50, byAccountOrKey: true, req });
+            await rateLimit({ info, maxUser: 50, req });
             await ProfileModel.verify.setupVerificationCode(input.emailAddress, prisma);
             return { success: true };   
         },

@@ -76,7 +76,7 @@ export const viewFormatter = (): FormatConverter<View, any> => ({
                     input: { ids: toIdsByType[type] },
                     model,
                     prisma,
-                    userId,
+                    req: { users: [{ id: userId }] }
                 })
                 tos.push(...paginated.edges.map(x => x.node));
             }

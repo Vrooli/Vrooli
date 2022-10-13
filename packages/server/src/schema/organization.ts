@@ -168,25 +168,25 @@ export const resolvers = {
     OrganizationSortBy: OrganizationSortBy,
     Query: {
         organization: async (_parent: undefined, { input }: IWrap<FindByIdOrHandleInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization> | null> => {
-            await rateLimit({ info, max: 1000, req });
+            await rateLimit({ info, maxUser: 1000, req });
             return readOneHelper({ info, input, model: OrganizationModel, prisma, req })
         },
         organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<OrganizationSearchResult> => {
-            await rateLimit({ info, max: 1000, req });
+            await rateLimit({ info, maxUser: 1000, req });
             return readManyHelper({ info, input, model: OrganizationModel, prisma, req })
         },
         organizationsCount: async (_parent: undefined, { input }: IWrap<OrganizationCountInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<number> => {
-            await rateLimit({ info, max: 1000, req });
+            await rateLimit({ info, maxUser: 1000, req });
             return countHelper({ input, model: OrganizationModel, prisma, req })
         },
     },
     Mutation: {
         organizationCreate: async (_parent: undefined, { input }: IWrap<OrganizationCreateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
-            await rateLimit({ info, max: 100, byAccountOrKey: true, req });
+            await rateLimit({ info, maxUser: 100, req });
             return createHelper({ info, input, model: OrganizationModel, prisma, req })
         },
         organizationUpdate: async (_parent: undefined, { input }: IWrap<OrganizationUpdateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
-            await rateLimit({ info, max: 250, byAccountOrKey: true, req });
+            await rateLimit({ info, maxUser: 250, req });
             return updateHelper({ info, input, model: OrganizationModel, prisma, req })
         },
     }

@@ -53,7 +53,7 @@ export const resolvers = {
     Query: {
         views: async (_parent: undefined, { input }: IWrap<ViewSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ViewSearchResult> => {
             assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, max: 2000, req });
+            await rateLimit({ info, maxUser: 2000, req });
             return readManyHelper({ info, input, model: ViewModel, prisma, req, additionalQueries: { req } });
         },
     },

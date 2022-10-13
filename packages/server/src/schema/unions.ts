@@ -161,7 +161,7 @@ export const resolvers = {
     },
     Query: {
         projectOrRoutines: async (_parent: undefined, { input }: IWrap<ProjectOrRoutineSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ProjectOrRoutineSearchResult> => {
-            await rateLimit({ info, max: 2000, req });
+            await rateLimit({ info, maxUser: 2000, req });
             const partial = toPartialGraphQLInfo(info, {
                 '__typename': 'ProjectOrRoutineSearchResult',
                 'Project': 'Project',
@@ -273,7 +273,7 @@ export const resolvers = {
             return combined;
         },
         projectOrOrganizations: async (_parent: undefined, { input }: IWrap<ProjectOrOrganizationSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ProjectOrOrganizationSearchResult> => {
-            await rateLimit({ info, max: 2000, req });
+            await rateLimit({ info, maxUser: 2000, req });
             const partial = toPartialGraphQLInfo(info, {
                 '__typename': 'ProjectOrOrganizationSearchResult',
                 'Project': 'Project',

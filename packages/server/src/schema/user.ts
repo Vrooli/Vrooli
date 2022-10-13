@@ -175,26 +175,26 @@ export const resolvers = {
     Query: {
         profile: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
             assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, max: 2000, byAccountOrKey: true, req });
+            await rateLimit({ info, maxUser: 2000, req });
             return ProfileModel.query(prisma).findProfile(getUserId(req) as string, info);
         },
         user: async (_parent: undefined, { input }: IWrap<FindByIdOrHandleInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<User> | null> => {
-            await rateLimit({ info, max: 1000, req });
+            await rateLimit({ info, maxUser: 1000, req });
             return readOneHelper({ info, input, model: UserModel, prisma, req });
         },
         users: async (_parent: undefined, { input }: IWrap<UserSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<UserSearchResult> => {
-            await rateLimit({ info, max: 1000, req });
+            await rateLimit({ info, maxUser: 1000, req });
             return readManyHelper({ info, input, model: UserModel, prisma, req });
         },
         usersCount: async (_parent: undefined, { input }: IWrap<UserCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
-            await rateLimit({ info, max: 1000, req });
+            await rateLimit({ info, maxUser: 1000, req });
             return countHelper({ input, model: UserModel, prisma, req });
         },
     },
     Mutation: {
         profileUpdate: async (_parent: undefined, { input }: IWrap<ProfileUpdateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
             assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, max: 250, byAccountOrKey: true, req });
+            await rateLimit({ info, maxUser: 250, req });
             // Update object
             const updated = await ProfileModel.mutate(prisma).updateProfile(getUserId(req) as string, input, info);
             if (!updated) 
@@ -203,7 +203,7 @@ export const resolvers = {
         },
         profileEmailUpdate: async (_parent: undefined, { input }: IWrap<ProfileEmailUpdateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
             assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, max: 100, byAccountOrKey: true, req });
+            await rateLimit({ info, maxUser: 100, req });
             // Update object
             const updated = await ProfileModel.mutate(prisma).updateEmails(getUserId(req) as string, input, info);
             if (!updated) 
@@ -212,7 +212,7 @@ export const resolvers = {
         },
         userDeleteOne: async (_parent: undefined, { input }: IWrap<UserDeleteInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<Success> => {
             assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, max: 5, req });
+            await rateLimit({ info, maxUser: 5, req });
             return await ProfileModel.mutate(prisma).deleteProfile(getUserId(req) as string, input);
         },
         /**
@@ -222,7 +222,7 @@ export const resolvers = {
          */
         exportData: async (_parent: undefined, _args: undefined, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<string> => {
             assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, max: 5, byAccountOrKey: true, req });
+            await rateLimit({ info, maxUser: 5, req });
             return await ProfileModel.port(prisma).exportData(getUserId(req) as string);
         }
     }

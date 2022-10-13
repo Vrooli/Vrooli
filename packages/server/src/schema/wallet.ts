@@ -54,7 +54,7 @@ export const resolvers = {
          * Finds all ADA handles for your profile, or an organization you belong to.
          */
         findHandles: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<string[]> => {
-            await rateLimit({ info, max: 50, req });
+            await rateLimit({ info, maxUser: 50, req });
             // const policyID = 'de95598bb370b6d289f42dfc1de656d65c250ec4cdc930d32b1dc0e5'; // Fake policy ID for testing
             const policyID = 'f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a'; // Mainnet ADA Handle policy ID
             const walletFields = {
@@ -179,7 +179,7 @@ export const resolvers = {
     },
     Mutation: {
         walletUpdate: async (_parent: undefined, { input }: IWrap<WalletUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Wallet>> => {
-            await rateLimit({ info, max: 250, byAccountOrKey: true, req });
+            await rateLimit({ info, maxUser: 250, req });
             return updateHelper({ info, input, model: WalletModel, prisma: prisma, req })
         },
     }

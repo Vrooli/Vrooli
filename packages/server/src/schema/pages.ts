@@ -92,7 +92,7 @@ export const typeDef = gql`
 export const resolvers = {
     Query: {
         homePage: async (_parent: undefined, { input }: IWrap<HomePageInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<HomePageResult> => {
-            await rateLimit({ info, max: 5000, req });
+            await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
                 '__typename': 'HomePageResult',
                 'organizations': 'Organization',
@@ -166,7 +166,7 @@ export const resolvers = {
          * Queries data shown on Learn page
          */
         learnPage: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<LearnPageResult> => {
-            await rateLimit({ info, max: 5000, req });
+            await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
                 '__typename': 'LearnPageResult',
                 'courses': 'Project',
@@ -210,7 +210,7 @@ export const resolvers = {
          * Queries data shown on Research page
          */
         researchPage: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ResearchPageResult> => {
-            await rateLimit({ info, max: 5000, req });
+            await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
                 '__typename': 'ResearchPageResult',
                 'processes': 'Routine',
@@ -303,7 +303,7 @@ export const resolvers = {
          * Queries data shown on Develop page
          */
         developPage: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<DevelopPageResult> => {
-            await rateLimit({ info, max: 5000, req });
+            await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
                 '__typename': 'DevelopPageResult',
                 'completed': {
@@ -410,7 +410,7 @@ export const resolvers = {
          */
         historyPage: async (_parent: undefined, { input }: IWrap<HistoryPageInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<HistoryPageResult> => {
             assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, max: 5000, req });
+            await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
                 '__typename': 'HistoryPageResult',
                 'activeRuns': 'Run',
@@ -473,7 +473,7 @@ export const resolvers = {
          * Returns site-wide statistics
          */
         statisticsPage: async (_parent: undefined, { input }: IWrap<StatisticsPageInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<StatisticsPageResult> => {
-            await rateLimit({ info, max: 500, req });
+            await rateLimit({ info, maxUser: 500, req });
             // Query current stats
             // Read historical stats from file
             throw new CustomError(CODE.NotImplemented);
