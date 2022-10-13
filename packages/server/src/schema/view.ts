@@ -1,6 +1,7 @@
 import { CODE, ViewSortBy } from '@shared/consts';
 import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from 'graphql';
+import { assertRequestFrom } from '../auth/auth';
 import { Context } from '../context';
 import { CustomError } from '../error';
 import { genErrorCode } from '../logger';
@@ -51,11 +52,9 @@ export const resolvers = {
     ViewSortBy: ViewSortBy,
     Query: {
         views: async (_parent: undefined, { input }: IWrap<ViewSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ViewSearchResult> => {
-            // Only accessible if logged in and not using an API key
-            if (!req.userId || req.apiToken) 
-                throw new CustomError(CODE.Unauthorized, 'Must be logged in to query views', { code: genErrorCode('0253') });
+            assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, max: 2000, req });
-            return readManyHelper({ info, input, model: ViewModel, prisma, userId: req.userId, additionalQueries: { userId: req.userId } });
+            return readManyHelper({ info, input, model: ViewModel, prisma, req, additionalQueries: { req } });
         },
     },
 }

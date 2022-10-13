@@ -2715,7 +2715,15 @@ export type Session = {
   __typename?: 'Session';
   id?: Maybe<Scalars['ID']>;
   isLoggedIn: Scalars['Boolean'];
-  languages?: Maybe<Array<Scalars['String']>>;
+  users?: Maybe<Array<Maybe<SessionUser>>>;
+};
+
+export type SessionUser = {
+  __typename?: 'SessionUser';
+  handle?: Maybe<Scalars['String']>;
+  id: Scalars['String'];
+  languages?: Maybe<Array<Maybe<Scalars['String']>>>;
+  name?: Maybe<Scalars['String']>;
   theme?: Maybe<Scalars['String']>;
 };
 

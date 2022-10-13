@@ -315,29 +315,29 @@ export const resolvers = {
     Query: {
         routine: async (_parent: undefined, { input }: IWrap<FindByVersionInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             await rateLimit({ info, max: 1000, req });
-            return readOneHelper({ info, input, model: RoutineModel, prisma, userId: req.userId });
+            return readOneHelper({ info, input, model: RoutineModel, prisma, req });
         },
         routines: async (_parent: undefined, { input }: IWrap<RoutineSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RoutineSearchResult> => {
             await rateLimit({ info, max: 1000, req });
-            return readManyHelper({ info, input, model: RoutineModel, prisma, userId: req.userId });
+            return readManyHelper({ info, input, model: RoutineModel, prisma, req });
         },
         routinesCount: async (_parent: undefined, { input }: IWrap<RoutineCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, max: 1000, req });
-            return countHelper({ input, model: RoutineModel, prisma, userId: req.userId });
+            return countHelper({ input, model: RoutineModel, prisma, req });
         },
     },
     Mutation: {
         routineCreate: async (_parent: undefined, { input }: IWrap<RoutineCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             await rateLimit({ info, max: 500, byAccountOrKey: true, req });
-            return createHelper({ info, input, model: RoutineModel, prisma, userId: req.userId });
+            return createHelper({ info, input, model: RoutineModel, prisma, req });
         },
         routineUpdate: async (_parent: undefined, { input }: IWrap<RoutineUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             await rateLimit({ info, max: 1000, byAccountOrKey: true, req });
-            return updateHelper({ info, input, model: RoutineModel, prisma, userId: req.userId });
+            return updateHelper({ info, input, model: RoutineModel, prisma, req });
         },
         routineDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
             await rateLimit({ info, max: 250, byAccountOrKey: true, req });
-            return deleteOneHelper({ input, model: RoutineModel, prisma, userId: req.userId });
+            return deleteOneHelper({ input, model: RoutineModel, prisma, req });
         },
     }
 }

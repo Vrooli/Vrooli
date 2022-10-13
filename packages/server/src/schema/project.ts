@@ -173,25 +173,25 @@ export const resolvers = {
     Query: {
         project: async (_parent: undefined, { input }: IWrap<FindByIdOrHandleInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project> | null> => {
             await rateLimit({ info, max: 1000, req });
-            return readOneHelper({ info, input, model: ProjectModel, prisma, userId: req.userId })
+            return readOneHelper({ info, input, model: ProjectModel, prisma, req })
         },
         projects: async (_parent: undefined, { input }: IWrap<ProjectSearchInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<ProjectSearchResult> => {
             await rateLimit({ info, max: 1000, req });
-            return readManyHelper({ info, input, model: ProjectModel, prisma, userId: req.userId })
+            return readManyHelper({ info, input, model: ProjectModel, prisma, req })
         },
         projectsCount: async (_parent: undefined, { input }: IWrap<ProjectCountInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, max: 1000, req });
-            return countHelper({ input, model: ProjectModel, prisma, userId: req.userId })
+            return countHelper({ input, model: ProjectModel, prisma, req })
         },
     },
     Mutation: {
         projectCreate: async (_parent: undefined, { input }: IWrap<ProjectCreateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
             await rateLimit({ info, max: 100, byAccountOrKey: true, req });
-            return createHelper({ info, input, model: ProjectModel, prisma, userId: req.userId })
+            return createHelper({ info, input, model: ProjectModel, prisma, req })
         },
         projectUpdate: async (_parent: undefined, { input }: IWrap<ProjectUpdateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
             await rateLimit({ info, max: 250, byAccountOrKey: true, req });
-            return updateHelper({ info, input, model: ProjectModel, prisma, userId: req.userId })
+            return updateHelper({ info, input, model: ProjectModel, prisma, req })
         },
     }
 }

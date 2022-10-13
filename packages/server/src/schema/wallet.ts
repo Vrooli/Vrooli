@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
 import { Wallet, WalletUpdateInput } from './types';
 import { Context } from '../context';
-import { onlyValidIds, updateHelper, WalletModel } from '../models';
+import { getUserId, onlyValidIds, updateHelper, WalletModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 import { CustomError } from '../error';
 import { CODE } from '@shared/consts';
@@ -71,19 +71,16 @@ export const resolvers = {
             let wallets;
             if (input.organizationId) {
                 wallets = await prisma.wallet.findMany({
-                    where: {
-                        organizationId: input.organizationId
-                    },
+                    where: { organizationId: input.organizationId },
                     select: walletFields
                 })
             }
             else {
-                if (!req.userId) 
+                const userId = getUserId(req);
+                if (!userId) 
                     throw new CustomError(CODE.Unauthorized, 'Must be logged in to query your wallets', { code: genErrorCode('0166') })
                 wallets = await prisma.wallet.findMany({
-                    where: {
-                        userId: req.userId
-                    },
+                    where: { userId },
                     select: walletFields
                 })
             }
@@ -183,7 +180,7 @@ export const resolvers = {
     Mutation: {
         walletUpdate: async (_parent: undefined, { input }: IWrap<WalletUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Wallet>> => {
             await rateLimit({ info, max: 250, byAccountOrKey: true, req });
-            return updateHelper({ info, input, model: WalletModel, prisma: prisma, userId: req.userId })
+            return updateHelper({ info, input, model: WalletModel, prisma: prisma, req })
         },
     }
 }

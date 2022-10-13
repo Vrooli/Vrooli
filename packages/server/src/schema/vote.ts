@@ -5,10 +5,11 @@ import { VoteInput, Success, VoteFor } from './types';
 import { IWrap } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
-import { VoteModel } from '../models';
+import { getUserId, VoteModel } from '../models';
 import { rateLimit } from '../rateLimit';
 import { genErrorCode } from '../logger';
 import { resolveVoteTo } from './resolvers';
+import { assertRequestFrom } from '../auth/auth';
 
 export const typeDef = gql`
     enum VoteFor {
@@ -49,11 +50,9 @@ export const resolvers = {
          * @returns 
          */
         vote: async (_parent: undefined, { input }: IWrap<VoteInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            // Only accessible if logged in and not using an API key
-            if (!req.userId || req.apiToken) 
-                throw new CustomError(CODE.Unauthorized, 'Must be logged in to vote', { code: genErrorCode('0165') });
+            assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, max: 1000, byAccountOrKey: true, req });
-            const success = await VoteModel.mutate(prisma).vote(req.userId, input);
+            const success = await VoteModel.mutate(prisma).vote(getUserId(req) as string, input);
             return { success };
         },
     }

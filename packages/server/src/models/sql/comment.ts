@@ -3,8 +3,8 @@ import { commentsCreate, commentsUpdate, commentTranslationCreate, commentTransl
 import { omit } from '@shared/utils';
 import { CustomError } from "../../error";
 import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, Count } from "../../schema/types";
-import { PrismaType, RecursivePartial } from "../../types";
-import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, Querier, addSupplementalFieldsHelper, Permissioner, getSearchStringQueryHelper, onlyValidIds, combineQueries } from "./base";
+import { PrismaType, RecursivePartial, ReqForUserAuth } from "../../types";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, PartialGraphQLInfo, GraphQLInfo, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, Querier, addSupplementalFieldsHelper, Permissioner, getSearchStringQueryHelper, onlyValidIds, combineQueries, getUserId } from "./base";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
 import { StarModel } from "./star";
@@ -315,7 +315,7 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
      * parentId equal to one of the second-level comments).
      */
     async searchNested(
-        userId: string | null,
+        req: ReqForUserAuth,
         input: CommentSearchInput,
         info: GraphQLInfo | PartialGraphQLInfo,
         nestLimit: number = 2,
@@ -359,7 +359,7 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
         // Calculate end cursor
         const endCursor = searchResults[searchResults.length - 1].id;
         // If not as nestLimit, recurse with all result IDs
-        const childThreads = nestLimit > 0 ? await this.searchThreads(userId, {
+        const childThreads = nestLimit > 0 ? await this.searchThreads(getUserId(req), {
             ids: searchResults.map(r => r.id),
             take: input.take ?? 10,
             sortBy: input.sortBy ?? commentSearcher().defaultSort,
@@ -376,7 +376,7 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
         let comments: any = flattenThreads(childThreads);
         // Shape comments and add supplemental fields
         comments = comments.map((c: any) => modelToGraphQL(c, partialInfo as PartialGraphQLInfo));
-        comments = await addSupplementalFields(prisma, userId, comments, partialInfo);
+        comments = await addSupplementalFields(prisma, getUserId(req), comments, partialInfo);
         // Put comments back into "threads" object, using another helper function. 
         // Comments can be matched by their ID
         const shapeThreads = (threads: CommentThread[]) => {

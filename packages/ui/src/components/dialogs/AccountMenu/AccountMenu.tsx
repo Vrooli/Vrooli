@@ -5,10 +5,11 @@ import {
     ListItemIcon,
     ListItemText,
     Menu,
+    Tooltip,
     useTheme,
 } from '@mui/material';
 import { Stack } from '@mui/system';
-import { CloseIcon, UserIcon } from '@shared/icons';
+import { CloseIcon, LogOutIcon, PlusIcon, UserIcon } from '@shared/icons';
 import { AccountMenuProps } from '../types';
 import { noSelect } from 'styles';
 import { ThemeSwitch } from 'components/inputs';
@@ -16,12 +17,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { profileUpdateVariables, profileUpdate_profileUpdate } from 'graphql/generated/profileUpdate';
 import { useMutation } from '@apollo/client';
-import { shapeProfileUpdate } from 'utils';
+import { PubSub, shapeProfileUpdate } from 'utils';
 import { mutationWrapper } from 'graphql/utils';
 import { useFormik } from 'formik';
-import { profileUpdateMutation } from 'graphql/mutation';
+import { logOutMutation, profileUpdateMutation } from 'graphql/mutation';
 import { APP_LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
+
+// Maximum accounts to sign in with
+const MAX_ACCOUNTS = 10;
 
 export const AccountMenu = ({
     anchorEl,
@@ -88,7 +92,22 @@ export const AccountMenu = ({
         onClose();
     }, [onClose, session?.id, setLocation]);
 
+    const handleAddAccount = useCallback(() => {
+        setLocation(APP_LINKS.Start);
+        onClose();
+    }, [onClose, setLocation]);
+
+    const [logOut] = useMutation(logOutMutation);
+    const handleLogOut = useCallback(() => {
+        mutationWrapper({ mutation: logOut })
+        PubSub.get().publishSession({});
+        setLocation(APP_LINKS.Home);
+        onClose();
+    }, [onClose, setLocation, logOut]);
+
+
     // TODO temporarily one profile, since we don't support multiple sessions yet
+    const accounts = useMemo<any[]>(() => { return [session] }, [session]);
     const profileListItems = useMemo(() => (<ListItem
         button
         key={session?.id ?? ''}
@@ -123,7 +142,10 @@ export const AccountMenu = ({
                 },
                 '& .MuiMenu-list': {
                     paddingTop: '0',
-                }
+                },
+                '& .MuiList-root': {
+                    padding: '0',
+                },
             }}
         >
             {/* Custom menu title with theme switch, preferred language selector, text size quantity box, and close icon */}
@@ -134,7 +156,8 @@ export const AccountMenu = ({
                     ...noSelect,
                     display: 'flex',
                     alignItems: 'center',
-                    padding: 2,
+                    justifyContent: 'center',
+                    padding: 1,
                     background: palette.primary.dark,
                     color: palette.primary.contrastText,
                     textAlign: 'center',
@@ -166,7 +189,35 @@ export const AccountMenu = ({
                 {profileListItems}
             </List>
             {/* Buttons to add account and log out */}
-            {/* TODO */}
+            <Stack
+                direction='row'
+                spacing={1}
+                sx={{
+                    padding: 1,
+                    background: palette.primary.dark,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}>
+                {/* Add account icon */}
+                {accounts.length < MAX_ACCOUNTS && <Tooltip title="Add account">
+                    <IconButton
+                        aria-label="add account"
+                        onClick={handleAddAccount}
+                    >
+                        <PlusIcon fill={palette.primary.contrastText} />
+                    </IconButton>
+                </Tooltip>}
+                {/* Log out icon */}
+                {accounts.length > 0 && <Tooltip title="Log out">
+                    <IconButton
+                        aria-label="log out"
+                        onClick={handleLogOut}
+                    >
+                        <LogOutIcon fill={palette.primary.contrastText} />
+                    </IconButton>
+                </Tooltip>}
+            </Stack>
         </Menu>
     )
 }

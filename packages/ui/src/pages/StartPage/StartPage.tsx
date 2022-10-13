@@ -83,7 +83,7 @@ export const StartPage = ({
      */
     useEffect(() => {
         if (verificationCode) {
-            // If session is already verified, call guest log in
+            // If still logged in, call emailLogIn right away
             if (session.id) {
                 mutationWrapper<emailLogIn_emailLogIn, emailLogInVariables>({
                     mutation: emailLogIn,

@@ -128,15 +128,15 @@ export const resolvers = {
     Query: {
         tag: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag> | null> => {
             await rateLimit({ info, max: 1000, req });
-            return readOneHelper({ info, input, model: TagModel, prisma, userId: req.userId })
+            return readOneHelper({ info, input, model: TagModel, prisma, req })
         },
         tags: async (_parent: undefined, { input }: IWrap<TagSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<TagSearchResult> => {
             await rateLimit({ info, max: 1000, req });
-            return readManyHelper({ info, input, model: TagModel, prisma, userId: req.userId })
+            return readManyHelper({ info, input, model: TagModel, prisma, req })
         },
         tagsCount: async (_parent: undefined, { input }: IWrap<TagCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, max: 1000, req });
-            return countHelper({ input, model: TagModel, prisma, userId: req.userId })
+            return countHelper({ input, model: TagModel, prisma, req })
         },
     },
     Mutation: {
@@ -146,21 +146,21 @@ export const resolvers = {
          */
         tagCreate: async (_parent: undefined, { input }: IWrap<TagCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>> => {
             await rateLimit({ info, max: 500, byAccountOrKey: true, req });
-            return createHelper({ info, input, model: TagModel, prisma, userId: req.userId })
+            return createHelper({ info, input, model: TagModel, prisma, req })
         },
         /**
          * Update tags you've created
          */
         tagUpdate: async (_parent: undefined, { input }: IWrap<TagUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>> => {
             await rateLimit({ info, max: 500, byAccountOrKey: true, req });
-            return updateHelper({ info, input, model: TagModel, prisma, userId: req.userId })
+            return updateHelper({ info, input, model: TagModel, prisma, req })
         },
         /**
          * Delete tags you've created. Other tags must go through a reporting system
          */
         tagDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Count> => {
             await rateLimit({ info, max: 250, byAccountOrKey: true, req });
-            return deleteManyHelper({ input, model: TagModel, prisma, userId: req.userId })
+            return deleteManyHelper({ input, model: TagModel, prisma, req })
         },
     }
 }

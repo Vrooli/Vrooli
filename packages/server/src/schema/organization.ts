@@ -169,25 +169,25 @@ export const resolvers = {
     Query: {
         organization: async (_parent: undefined, { input }: IWrap<FindByIdOrHandleInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization> | null> => {
             await rateLimit({ info, max: 1000, req });
-            return readOneHelper({ info, input, model: OrganizationModel, prisma, userId: req.userId })
+            return readOneHelper({ info, input, model: OrganizationModel, prisma, req })
         },
         organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<OrganizationSearchResult> => {
             await rateLimit({ info, max: 1000, req });
-            return readManyHelper({ info, input, model: OrganizationModel, prisma, userId: req.userId })
+            return readManyHelper({ info, input, model: OrganizationModel, prisma, req })
         },
         organizationsCount: async (_parent: undefined, { input }: IWrap<OrganizationCountInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, max: 1000, req });
-            return countHelper({ input, model: OrganizationModel, prisma, userId: req.userId })
+            return countHelper({ input, model: OrganizationModel, prisma, req })
         },
     },
     Mutation: {
         organizationCreate: async (_parent: undefined, { input }: IWrap<OrganizationCreateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
             await rateLimit({ info, max: 100, byAccountOrKey: true, req });
-            return createHelper({ info, input, model: OrganizationModel, prisma, userId: req.userId })
+            return createHelper({ info, input, model: OrganizationModel, prisma, req })
         },
         organizationUpdate: async (_parent: undefined, { input }: IWrap<OrganizationUpdateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
             await rateLimit({ info, max: 250, byAccountOrKey: true, req });
-            return updateHelper({ info, input, model: OrganizationModel, prisma, userId: req.userId })
+            return updateHelper({ info, input, model: OrganizationModel, prisma, req })
         },
     }
 }

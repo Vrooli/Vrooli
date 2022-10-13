@@ -7,9 +7,10 @@ import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, Orga
 import { CODE } from '@shared/consts';
 import { IWrap } from '../types';
 import { Context } from '../context';
-import { addSupplementalFieldsMultiTypes, OrganizationModel, PartialGraphQLInfo, ProjectModel, readManyAsFeed, RoutineModel, RunModel, StandardModel, StarModel, toPartialGraphQLInfo, UserModel, ViewModel } from '../models';
+import { addSupplementalFieldsMultiTypes, getUserId, OrganizationModel, PartialGraphQLInfo, ProjectModel, readManyAsFeed, RoutineModel, RunModel, StandardModel, StarModel, toPartialGraphQLInfo, UserModel, ViewModel } from '../models';
 import { CustomError } from '../error';
 import { rateLimit } from '../rateLimit';
+import { assertRequestFrom } from '../auth/auth';
 
 export const typeDef = gql`
 
@@ -100,11 +101,10 @@ export const resolvers = {
                 'standards': 'Standard',
                 'users': 'User',
             }) as PartialGraphQLInfo;
-            const userId = req.userId;
             const MinimumStars = 0; // Minimum stars required to show up in results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
-            const commonReadParams = { prisma, userId }
+            const commonReadParams = { prisma, req }
             // Query organizations
             const { nodes: organizations } = await readManyAsFeed({
                 ...commonReadParams,
@@ -150,7 +150,7 @@ export const resolvers = {
                 [organizations, projects, routines, standards, users],
                 [partial.organizations, partial.projects, partial.routines, partial.standards, partial.users] as PartialGraphQLInfo[],
                 ['o', 'p', 'r', 's', 'u'],
-                userId,
+                getUserId(req),
                 prisma,
             )
             // Return results
@@ -172,11 +172,10 @@ export const resolvers = {
                 'courses': 'Project',
                 'tutorials': 'Routine',
             }) as PartialGraphQLInfo;
-            const userId = req.userId;
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
-            const commonReadParams = { prisma, userId }
+            const commonReadParams = { prisma, req }
             // Query courses
             const { nodes: courses } = await readManyAsFeed({
                 ...commonReadParams,
@@ -198,7 +197,7 @@ export const resolvers = {
                 [courses, tutorials],
                 [partial.courses, partial.tutorials] as PartialGraphQLInfo[],
                 ['c', 't'],
-                userId,
+                getUserId(req),
                 prisma,
             )
             // Return data
@@ -223,11 +222,10 @@ export const resolvers = {
                 'needInvestments': 'Project',
                 'needMembers': 'Organization',
             }) as PartialGraphQLInfo;
-            const userId = req.userId;
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
-            const commonReadParams = { prisma, userId }
+            const commonReadParams = { prisma, req }
             // Query processes
             const { nodes: processes } = await readManyAsFeed({
                 ...commonReadParams,
@@ -279,7 +277,7 @@ export const resolvers = {
                 [processes, newlyCompletedProjects, newlyCompletedRoutines, needVotes, needInvestments, needMembers],
                 [partial.processes, (partial.newlyCompleted as PartialGraphQLInfo)?.Project, (partial.newlyCompleted as PartialGraphQLInfo)?.Routine, partial.needVotes, partial.needInvestments, partial.needMembers] as PartialGraphQLInfo[],
                 ['p', 'ncp', 'ncr', 'nv', 'ni', 'nm'],
-                userId,
+                getUserId(req),
                 prisma,
             )
             // Return data
@@ -321,15 +319,15 @@ export const resolvers = {
                     'Routine': 'Routine',
                 },
             }) as PartialGraphQLInfo;
-            const userId = req.userId;
             // If not signed in, return empty data
+            const userId = getUserId(req);
             if (!userId) return {
                 completed: [],
                 inProgress: [],
                 recent: [],
             }
             const take = 5;
-            const commonReadParams = { prisma, userId }
+            const commonReadParams = { prisma, req }
             // Query for routines you've completed
             const { nodes: completedRoutines } = await readManyAsFeed({
                 ...commonReadParams,
@@ -411,8 +409,7 @@ export const resolvers = {
          * Queries data shown on History page 
          */
         historyPage: async (_parent: undefined, { input }: IWrap<HistoryPageInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<HistoryPageResult> => {
-            // Only accessible if logged in and not using an API key
-            if (!req.userId || req.apiToken) throw new CustomError(CODE.Unauthorized, 'Must be signed in to see this page');
+            assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, max: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
                 '__typename': 'HistoryPageResult',
@@ -421,9 +418,9 @@ export const resolvers = {
                 'recentlyViewed': 'View',
                 'recentlyStarred': 'Star',
             }) as PartialGraphQLInfo;
-            const userId = req.userId;
+            const userId = getUserId(req) as string;
             const take = 5;
-            const commonReadParams = { prisma, userId }
+            const commonReadParams = { prisma, req }
             // Query for incomplete runs
             const { nodes: activeRuns } = await readManyAsFeed({
                 ...commonReadParams,

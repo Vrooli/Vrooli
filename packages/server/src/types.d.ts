@@ -18,16 +18,16 @@ declare global {
              * True if user is logged in. False if not, or if token is invalid or for an API token
              */
             isLoggedIn?: boolean;
-            languages: string[] | null;
-            roles?: string[];
             /**
-             * ID of the logged in user, or the user that owns the API token
+             * Users logged in with this session (if isLoggedIn is true)
              */
-            userId: string | null;
+            users?: SessionUser[];
             validToken?: boolean;
         }
     }
 }
+
+export type ReqForUserAuth = { users?: { id: SessionUser['id'] }[] }
 
 /**
  * Prisma type shorthand

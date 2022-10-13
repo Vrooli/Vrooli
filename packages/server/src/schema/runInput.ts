@@ -62,7 +62,7 @@ export const resolvers = {
     Query: {
         runInputs: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<any> => {
             await rateLimit({ info, max: 1000, req });
-            return readManyHelper({ info, input, model: RunInputModel, prisma, userId: req.userId });
+            return readManyHelper({ info, input, model: RunInputModel, prisma, req });
         },
     },
 }

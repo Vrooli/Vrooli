@@ -36,7 +36,7 @@ export const NavList = ({
         return () => window.removeEventListener("resize", updateWindowDimensions);
     }, [updateWindowDimensions]);
 
-    const nav_actions = useMemo<Action[]>(() => getUserActions({ session, exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn] }), [session]);
+    const nav_actions = useMemo<Action[]>(() => getUserActions({ session, exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn, ACTION_TAGS.Profile] }), [session]);
 
     // Handle account menu
     const [accountMenuAnchor, setAccountMenuAnchor] = useState<any>(null);
@@ -94,8 +94,8 @@ export const NavList = ({
                     Log In
                 </Button>
             )}
-            {/* Profile icon for mobile */}
-            {isMobile && session?.isLoggedIn === true && (
+            {/* Profile icon */}
+            {session?.isLoggedIn === true && (
                 <IconButton
                     color="inherit"
                     onClick={openAccountMenu}

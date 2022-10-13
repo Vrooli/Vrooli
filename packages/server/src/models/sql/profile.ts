@@ -1,5 +1,5 @@
 import { PrismaType, RecursivePartial } from "../../types";
-import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success, Tag, TagCreateInput, TagHidden, User, UserDeleteInput } from "../../schema/types";
+import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, SessionUser, Success, Tag, TagCreateInput, TagHidden, User, UserDeleteInput } from "../../schema/types";
 import { sendResetPasswordLink, sendVerificationLink } from "../../worker/email/queue";
 import { addJoinTablesHelper, addSupplementalFields, FormatConverter, GraphQLInfo, modelToGraphQL, padSelect, PartialGraphQLInfo, readOneHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo } from "./base";
 import { user } from "@prisma/client";
@@ -18,6 +18,7 @@ import { genErrorCode } from "../../logger";
 import { ResourceListModel } from "./resourceList";
 import { TagHiddenModel } from "./tagHidden";
 import { GraphQLModelType } from ".";
+import { Request } from "express";
 const { AccountStatus } = pkg;
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
@@ -119,10 +120,11 @@ export const profileVerifier = () => ({
      * Attemps to log a user in
      * @param password Plaintext password
      * @param user User object
-     * @param info Prisma query info
+     * @param prisma Prisma type
+     * @param req Express request object
      * @returns Session data
      */
-    async logIn(password: string, user: any, prisma: PrismaType): Promise<Session | null> {
+    async logIn(password: string, user: any, prisma: PrismaType, req: Request): Promise<Session | null> {
         // First, check if the log in fail counter should be reset
         const unable_to_reset = [AccountStatus.HardLocked, AccountStatus.Deleted];
         // If account is not deleted or hard-locked, and lockout duration has passed
@@ -152,7 +154,7 @@ export const profileVerifier = () => ({
                     roles: { select: { role: { select: { title: true } } } }
                 }
             });
-            return await this.toSession(userData, prisma);
+            return await this.toSession(userData, prisma, req);
         }
         // If password is invalid
         let new_status: any = AccountStatus.Unlocked;
@@ -262,13 +264,12 @@ export const profileVerifier = () => ({
         }
     },
     /**
-     * Creates session object from user. 
-     * Also updates user's lastSessionVerified
+     * Creates SessionUser object from user.
+     * Also updates user's lastSessionVerified time
      * @param user User object
-     * @param prisma 
-     * @returns Session object
+     * @param prisma Prisma type
      */
-    async toSession(user: RecursivePartial<user>, prisma: PrismaType): Promise<Session> {
+    async toSessionUser(user: RecursivePartial<user>, prisma: PrismaType): Promise<SessionUser> {
         if (!user.id)
             throw new CustomError(CODE.ErrorUnknown, 'User ID not found', { code: genErrorCode('0064') });
         // Update user's lastSessionVerified
@@ -276,12 +277,30 @@ export const profileVerifier = () => ({
             where: { id: user.id },
             data: { lastSessionVerified: new Date().toISOString() }
         })
-        // Return shaped session object
+        // Return shaped SessionUser object
         return {
+            handle: user.handle ?? undefined,
             id: user.id,
-            theme: user.theme ?? 'light',
-            isLoggedIn: true,
-            languages: (user as any)?.languages ? (user as any).languages.map((language: any) => language.language) : null,
+            languages: [], //TODO add to database
+            name: user.name ?? undefined,
+            theme: user.theme ?? undefined,
+        }
+    },
+    /**
+     * Creates session object from user and existing session data
+     * @param user User object
+     * @param prisma 
+     * @param session current session object
+     * @returns Updated session object, with user data added to the START of the users array
+     */
+    async toSession(user: RecursivePartial<user>, prisma: PrismaType, session: Partial<Session>): Promise<Session> {
+        const sessionUser = await this.toSessionUser(user, prisma);
+        // Add sessionUser to users property. Make sure not to duplicate user if already in array
+        const existingUsers = (session.users ?? []).filter(u => u?.id === sessionUser.id);
+        return {
+            ...session,
+            isLoggedIn: session.isLoggedIn ?? false,
+            users: [sessionUser, ...existingUsers],
         }
     }
 })
@@ -327,7 +346,7 @@ const profileQuerier = (prisma: PrismaType) => ({
             input: { id: userId },
             model: ProfileModel,
             prisma,
-            userId,
+            req: { users: [{ id: userId }] },
         })
         const { starredTags, hiddenTags } = await this.myTags(userId, partial);
         // Format for GraphQL
