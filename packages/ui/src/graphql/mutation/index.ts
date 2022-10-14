@@ -37,6 +37,7 @@ export * from './sendVerificationEmail';
 export * from './standardCreate';
 export * from './standardUpdate';
 export * from './star';
+export * from './switchCurrentAccount';
 export * from './tagCreate';
 export * from './tagDeleteMany';
 export * from './tagUpdate';

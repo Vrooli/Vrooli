@@ -9,7 +9,7 @@ import { CustomError } from '../error';
 import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from '../auth/walletAuth';
 import { assertRequestFrom, generateSessionJwt } from '../auth/auth.js';
 import { IWrap, RecursivePartial } from '../types';
-import { WalletCompleteInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, WalletInitInput, Session, Success, WalletComplete, ApiKeyStatus } from './types';
+import { WalletCompleteInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, WalletInitInput, Session, Success, WalletComplete, ApiKeyStatus, LogOutInput, SwitchCurrentAccountInput } from './types';
 import { GraphQLResolveInfo } from 'graphql';
 import { Context } from '../context';
 import { hasProfanity } from '../utils/censor';
@@ -52,6 +52,14 @@ export const typeDef = gql`
         id: ID!
         code: String!
         newPassword: String!
+    }
+
+    input LogOutInput {
+        id: ID
+    }
+
+    input SwitchCurrentAccountInput {
+        id: ID!
     }
 
     input WalletInitInput {
@@ -99,8 +107,9 @@ export const typeDef = gql`
         emailRequestPasswordChange(input: EmailRequestPasswordChangeInput!): Success!
         emailResetPassword(input: EmailResetPasswordInput!): Session!
         guestLogIn: Session!
-        logOut: Success!
+        logOut(input: LogOutInput!): Session!
         validateSession: Session!
+        switchCurrentAccount(input: SwitchCurrentAccountInput!): Session!
         walletInit(input: WalletInitInput!): String!
         walletComplete(input: WalletCompleteInput!): WalletComplete!
     }
@@ -145,10 +154,7 @@ export const resolvers = {
                 // Find user by id
                 user = await prisma.user.findUnique({
                     where: { id: userId },
-                    select: {
-                        id: true,
-                        theme: true,
-                    }
+                    select: { id: true }
                 });
                 if (!user)
                     throw new CustomError(CODE.InternalError, 'User not found', { code: genErrorCode('0129') });
@@ -199,6 +205,7 @@ export const resolvers = {
                 }
                 // Create new session
                 const session = await ProfileModel.verify.logIn(input?.password as string, user, prisma, req);
+                console.log('email log in session', JSON.stringify(session));
                 if (session) {
                     // Set session token
                     await generateSessionJwt(res, session);
@@ -251,7 +258,7 @@ export const resolvers = {
             if (!user)
                 throw new CustomError(CODE.ErrorUnknown, 'Could not create user', { code: genErrorCode('0142') });
             // Create session from user object
-            const session = await ProfileModel.verify.toSession(user, prisma, { isLoggedIn: true, users: req.users });
+            const session = await ProfileModel.verify.toSession(user, prisma, req);
             // Set up session token
             await generateSessionJwt(res, session);
             // Send verification email
@@ -284,11 +291,8 @@ export const resolvers = {
                 where: { id: input.id },
                 select: {
                     id: true,
-                    status: true,
-                    theme: true,
                     resetPasswordCode: true,
                     lastResetPasswordReqestAttempt: true,
-                    emails: { select: { emailAddress: true } },
                 }
             });
             if (!user)
@@ -322,13 +326,27 @@ export const resolvers = {
             await generateSessionJwt(res, session);
             return session;
         },
-        logOut: async (_parent: undefined, _args: undefined, { res }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            res.clearCookie(COOKIE.Jwt);
-            return { success: true };
+        logOut: async (_parent: undefined, { input }: IWrap<LogOutInput>, { req, res }: Context, _info: GraphQLResolveInfo): Promise<Session> => {
+            // If ID not specified OR there is only one user in the session, log out all sessions
+            if (!input.id || (!Array.isArray(req.users) || req.users.length <= 1)) {
+                res.clearCookie(COOKIE.Jwt);
+                // Return guest session
+                await generateSessionJwt(res, { isLoggedIn: false });
+                return { isLoggedIn: false };
+            }
+            // Otherwise, remove the specified user from the session
+            else {
+                const session = { isLoggedIn: true, users: req.users.filter(u => u.id !== input.id) };
+                await generateSessionJwt(res, session);
+                return session;
+            }
         },
         validateSession: async (_parent: undefined, _args: undefined, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             await rateLimit({ info, maxUser: 5000, req });
+            console.log('validate session start');
+            console.log(req.isLoggedIn, req.validToken, JSON.stringify(req.users), '\n\n')
             const userId = getUserId(req);
+            console.log('validate session got user id', userId);
             // If session is expired
             if (!userId || !req.validToken) {
                 res.clearCookie(COOKIE.Jwt);
@@ -345,16 +363,24 @@ export const resolvers = {
             // Otherwise, check if session can be verified from userId
             const userData = await prisma.user.findUnique({
                 where: { id: userId },
-                select: {
-                    id: true,
-                    status: true,
-                    theme: true,
-                }
+                select: { id: true }
             });
             if (userData) return await ProfileModel.verify.toSession(userData, prisma, { isLoggedIn: req.isLoggedIn ?? false, users: req.users });
             // If user data failed to fetch, clear session and return error
             res.clearCookie(COOKIE.Jwt);
             throw new CustomError(CODE.ErrorUnknown, 'Could not validate session', { code: genErrorCode('0148') });
+        },
+        switchCurrentAccount: async (_parent: undefined, { input }: IWrap<SwitchCurrentAccountInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
+            // Find index of user in session
+            const index = req.users?.findIndex(u => u.id === input.id) ?? -1;
+            // If user not found, throw error
+            if (!req.users || index === -1) throw new CustomError(CODE.Unauthorized, 'User not found in session', { code: genErrorCode('0272') });
+            // Filter out user from session, then place at front
+            const users = req.users.filter(u => u.id !== input.id) ?? [];
+            const session = { isLoggedIn: true, users: [req.users[index], ...users] };
+            // Set up session token
+            await generateSessionJwt(res, session);
+            return session;
         },
         /**
          * Starts handshake for establishing trust between backend and user wallet
@@ -408,8 +434,7 @@ export const resolvers = {
         },
         // Verify that signed message from user wallet has been signed by the correct public address
         walletComplete: async (_parent: undefined, { input }: IWrap<WalletCompleteInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<WalletComplete> => {
-            await rateLimit({ info, maxUser: 100, req });
-            const userId = getUserId(req);
+            await rateLimit({ info, maxUser: 100, req });;
             // Find wallet with public address
             const walletData = await prisma.wallet.findUnique({
                 where: { stakingAddress: input.stakingAddress },
@@ -418,7 +443,7 @@ export const resolvers = {
                     nonce: true,
                     nonceCreationTime: true,
                     user: {
-                        select: { id: true, theme: true, languages: { select: { language: true } } }
+                        select: { id: true }
                     },
                     verified: true,
                 }
@@ -432,51 +457,55 @@ export const resolvers = {
             const walletVerified = verifySignedMessage(input.stakingAddress, walletData.nonce, input.signedPayload);
             if (!walletVerified)
                 throw new CustomError(CODE.Unauthorized, 'Wallet could not be verified', { code: genErrorCode('0151') });
-            let userData = walletData.user;
-            // If user doesn't exist, either create new user, or assign to existing user
-            let firstLogIn = false;
-            if (!userData?.id) {
-                // If signed in, query existing user data
-                if (userId) {
-                    userData = await prisma.user.findUnique({
-                        where: { id: userId },
-                        select: { id: true, theme: true, languages: { select: { language: true } } }
-                    })
-                }
-                // If not signed in, create new user
-                else {
-                    firstLogIn = true;
-                    userData = await prisma.user.create({
-                        data: {
-                            name: `user${randomString(8)}`,
-                            wallets: {
-                                connect: { id: walletData.id }
-                            },
-                            resourceLists: {
-                                create: [
-                                    {
-                                        usedFor: ResourceListUsedFor.Learn,
-                                    },
-                                    {
-                                        usedFor: ResourceListUsedFor.Research,
-                                    },
-                                    {
-                                        usedFor: ResourceListUsedFor.Develop,
-                                    },
-                                    {
-                                        usedFor: ResourceListUsedFor.Display,
-                                    }
-                                ]
-                            }
-                        },
-                        select: { id: true, theme: true, languages: { select: { language: true } } }
-                    });
-                }
-            }
-            // If user exists, make sure it is not verified with a different user
-            // You can take a wallet from a different user if it's not verified
-            else if (userId && userData.id !== userId && walletData.verified)
+            let userId: string | undefined = walletData.user?.id;
+            // If wallet is verified and assigned to another user, throw error
+            // Otherwise, we can take ownership of wallet
+            if (walletData.verified && userId && !req.users?.find(u => u.id === userId)) {
                 throw new CustomError(CODE.Unauthorized, 'Wallet assigned to a different user', { code: genErrorCode('0152') });
+            }
+            // If there are no users in the session, create a new user
+            let firstLogIn: boolean = false;
+            if (!Array.isArray(req.users) || req.users.length === 0) {
+                firstLogIn = true;
+                const userData = await prisma.user.create({
+                    data: {
+                        name: `user${randomString(8)}`,
+                        wallets: {
+                            connect: { id: walletData.id }
+                        },
+                        resourceLists: {
+                            create: [
+                                {
+                                    usedFor: ResourceListUsedFor.Learn,
+                                },
+                                {
+                                    usedFor: ResourceListUsedFor.Research,
+                                },
+                                {
+                                    usedFor: ResourceListUsedFor.Develop,
+                                },
+                                {
+                                    usedFor: ResourceListUsedFor.Display,
+                                }
+                            ]
+                        }
+                    },
+                    select: { id: true }
+                });
+                userId = userData.id;
+            }
+            // Otherwise, connect wallet to first user in session
+            else {
+                userId = req.users[0].id;
+                await prisma.wallet.update({
+                    where: { id: walletData.id },
+                    data: {
+                        user: {
+                            connect: { id: userId }
+                        }
+                    }
+                })
+            }
             // Update wallet and remove nonce data
             const wallet = await prisma.wallet.update({
                 where: { id: walletData.id },
@@ -485,7 +514,6 @@ export const resolvers = {
                     lastVerifiedTime: new Date().toISOString(),
                     nonce: null,
                     nonceCreationTime: null,
-                    userId: userData?.id,
                 },
                 select: {
                     id: true,
@@ -502,14 +530,7 @@ export const resolvers = {
                 }
             })
             // Create session token
-            const session: Session = userData ?
-                await ProfileModel.verify.toSession(userData, prisma, req) :
-                { isLoggedIn: false }
-            // Update user's lastSessionVerified
-            await prisma.user.update({
-                where: { id: userData?.id },
-                data: { lastSessionVerified: new Date().toISOString() }
-            })
+            const session = await ProfileModel.verify.toSession({ id: userId }, prisma, req)
             // Add session token to return payload
             await generateSessionJwt(res, session);
             return {

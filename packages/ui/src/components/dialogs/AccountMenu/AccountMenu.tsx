@@ -1,11 +1,11 @@
 import {
+    Divider,
     IconButton,
     List,
     ListItem,
     ListItemIcon,
     ListItemText,
     Menu,
-    Tooltip,
     useTheme,
 } from '@mui/material';
 import { Stack } from '@mui/system';
@@ -13,17 +13,20 @@ import { CloseIcon, LogOutIcon, PlusIcon, UserIcon } from '@shared/icons';
 import { AccountMenuProps } from '../types';
 import { noSelect } from 'styles';
 import { ThemeSwitch } from 'components/inputs';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { profileUpdateVariables, profileUpdate_profileUpdate } from 'graphql/generated/profileUpdate';
 import { useMutation } from '@apollo/client';
 import { PubSub, shapeProfileUpdate } from 'utils';
 import { mutationWrapper } from 'graphql/utils';
 import { useFormik } from 'formik';
-import { logOutMutation, profileUpdateMutation } from 'graphql/mutation';
+import { logOutMutation, profileUpdateMutation, switchCurrentAccountMutation } from 'graphql/mutation';
 import { APP_LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { getCurrentUser, guestSession } from 'utils/authentication';
+import { SessionUser } from 'types';
+import { logOutVariables, logOut_logOut } from 'graphql/generated/logOut';
+import { switchCurrentAccountVariables, switchCurrentAccount_switchCurrentAccount } from 'graphql/generated/switchCurrentAccount';
 
 // Maximum accounts to sign in with
 const MAX_ACCOUNTS = 10;
@@ -38,19 +41,13 @@ export const AccountMenu = ({
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
     const open = Boolean(anchorEl);
 
-    // Handle theme
-    const [theme, setTheme] = useState<string>('light');
-    useEffect(() => {
-        setTheme(palette.mode);
-    }, [palette.mode]);
-
     // Handle update. Only updates when menu closes, and account settings have changed.
     const [mutation] = useMutation(profileUpdateMutation);
     const formik = useFormik({
         initialValues: {
-            theme,
+            theme: getCurrentUser(session).theme ?? 'light',
         },
-        enableReinitialize: true, // Needed because existing data is obtained from async fetch
+        enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
             // If not logged in, do nothing
@@ -60,13 +57,14 @@ export const AccountMenu = ({
             if (!formik.isValid) return;
             const input = shapeProfileUpdate({
                 id: userId,
-                theme: palette.mode,
+                theme: getCurrentUser(session).theme ?? 'light',
             }, {
                 id: userId,
                 theme: values.theme,
             })
             // If no changes, don't update
             if (!input || Object.keys(input).length === 0) {
+                formik.setSubmitting(false);
                 return;
             }
             mutationWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
@@ -78,48 +76,69 @@ export const AccountMenu = ({
         },
     });
 
-    /**
-     * Handle account click.
-     */
-    const handleUserClick = useCallback((id: string) => {
+    const handleClose = useCallback(() => {
+        formik.handleSubmit();
+        onClose();
+    }, [formik, onClose]);
+
+    const [switchCurrentAccount] = useMutation(switchCurrentAccountMutation);
+    const handleUserClick = useCallback((user: SessionUser) => {
+        // Close menu
+        handleClose();
         // If already selected, go to profile page
-        if (userId === id) {
+        if (userId === user.id) {
             setLocation(APP_LINKS.Profile);
         }
         // Otherwise, switch to selected account
         else {
-            console.log('TODO')
+            mutationWrapper<switchCurrentAccount_switchCurrentAccount, switchCurrentAccountVariables>({
+                mutation: switchCurrentAccount,
+                input: { id: user.id },
+                successMessage: () => `Logged in as ${user.name ?? user.handle}`,
+                onSuccess: (data) => { PubSub.get().publishSession(data) },
+            })
         }
-        // Close menu
-        onClose();
-    }, [onClose, userId, setLocation]);
+    }, [handleClose, userId, setLocation, switchCurrentAccount]);
 
     const handleAddAccount = useCallback(() => {
         setLocation(APP_LINKS.Start);
-        onClose();
-    }, [onClose, setLocation]);
+        handleClose();
+    }, [handleClose, setLocation]);
 
     const [logOut] = useMutation(logOutMutation);
     const handleLogOut = useCallback(() => {
-        mutationWrapper({ mutation: logOut })
-        PubSub.get().publishSession(guestSession);
+        handleClose();
+        const user = getCurrentUser(session);
+        mutationWrapper<logOut_logOut, logOutVariables>({
+            mutation: logOut,
+            input: { id: user.id },
+            successMessage: () => `Logged out of ${user.name ?? user.handle}`,
+            onSuccess: (data) => { PubSub.get().publishSession(data) },
+            // If error, log out anyway
+            onError: () => { PubSub.get().publishSession(guestSession) },
+        })
         setLocation(APP_LINKS.Home);
-        onClose();
-    }, [onClose, setLocation, logOut]);
+    }, [handleClose, session, logOut, setLocation]);
 
 
-    // TODO temporarily one profile, since we don't support multiple sessions yet
-    const accounts = useMemo<any[]>(() => { return [session] }, [session]);
-    const profileListItems = useMemo(() => (<ListItem
-        button
-        key={userId ?? ''}
-        onClick={() => handleUserClick(userId ?? '')}
-    >
-        <ListItemIcon>
-            <UserIcon />
-        </ListItemIcon>
-        <ListItemText primary={'me'} />
-    </ListItem>), [handleUserClick, userId])
+    const accounts = useMemo(() => session.users ?? [], [session.users]);
+    const profileListItems = accounts.map((account) => (
+        <ListItem
+            button
+            key={account.id}
+            onClick={() => handleUserClick(account)}
+            sx={{
+                background: account.id === userId ? palette.secondary.light : palette.background.default,
+            }}
+        >
+            <ListItemIcon>
+                <UserIcon fill={palette.background.textPrimary} />
+            </ListItemIcon>
+            <ListItemText primary={account.name ?? account.handle} />
+        </ListItem>
+    ), [accounts, handleUserClick]);
+
+    const shadowColor = palette.mode === 'light' ? '0 0 0' : '255 255 255';
 
     return (
         <Menu
@@ -136,11 +155,15 @@ export const AccountMenu = ({
                 vertical: 'bottom',
                 horizontal: 'right',
             }}
-            onClose={(e) => { onClose() }}
+            onClose={(e) => { handleClose() }}
             sx={{
                 zIndex: 20000,
                 '& .MuiMenu-paper': {
-                    background: palette.background.default
+                    background: palette.background.default,
+                    minWidth: 'min(100%, 250px)',
+                    boxShadow: `0px 5px 5px -3px rgb(${shadowColor} / 20%), 
+                         0px 8px 10px 1px rgb(${shadowColor} / 14%), 
+                         0px 3px 14px 2px rgb(${shadowColor} / 12%)`
                 },
                 '& .MuiMenu-list': {
                     paddingTop: '0',
@@ -158,7 +181,7 @@ export const AccountMenu = ({
                     ...noSelect,
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
+                    justifyContent: 'space-between',
                     padding: 1,
                     background: palette.primary.dark,
                     color: palette.primary.contrastText,
@@ -180,7 +203,7 @@ export const AccountMenu = ({
                 <IconButton
                     aria-label="close"
                     edge="end"
-                    onClick={onClose}
+                    onClick={handleClose}
                     sx={{ marginLeft: 'auto' }}
                 >
                     <CloseIcon fill={palette.primary.contrastText} />
@@ -189,37 +212,21 @@ export const AccountMenu = ({
             {/* List of logged/in accounts */}
             <List>
                 {profileListItems}
+                <Divider sx={{ background: palette.background.textSecondary }} />
+                {/* Buttons to add account and log out */}
+                {accounts.length < MAX_ACCOUNTS && <ListItem button onClick={handleAddAccount}>
+                    <ListItemIcon>
+                        <PlusIcon fill={palette.background.textPrimary} />
+                    </ListItemIcon>
+                    <ListItemText primary={'Add account'} />
+                </ListItem>}
+                {accounts.length > 0 && <ListItem button onClick={handleLogOut}>
+                    <ListItemIcon>
+                        <LogOutIcon fill={palette.background.textPrimary} />
+                    </ListItemIcon>
+                    <ListItemText primary={'Log out'} />
+                </ListItem>}
             </List>
-            {/* Buttons to add account and log out */}
-            <Stack
-                direction='row'
-                spacing={1}
-                sx={{
-                    padding: 1,
-                    background: palette.primary.dark,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                }}>
-                {/* Add account icon */}
-                {accounts.length < MAX_ACCOUNTS && <Tooltip title="Add account">
-                    <IconButton
-                        aria-label="add account"
-                        onClick={handleAddAccount}
-                    >
-                        <PlusIcon fill={palette.primary.contrastText} />
-                    </IconButton>
-                </Tooltip>}
-                {/* Log out icon */}
-                {accounts.length > 0 && <Tooltip title="Log out">
-                    <IconButton
-                        aria-label="log out"
-                        onClick={handleLogOut}
-                    >
-                        <LogOutIcon fill={palette.primary.contrastText} />
-                    </IconButton>
-                </Tooltip>}
-            </Stack>
         </Menu>
     )
 }

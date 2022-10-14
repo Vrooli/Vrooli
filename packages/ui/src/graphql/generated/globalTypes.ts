@@ -477,6 +477,10 @@ export interface InputItemUpdateInput {
   translationsUpdate?: InputItemTranslationUpdateInput[] | null;
 }
 
+export interface LogOutInput {
+  id?: string | null;
+}
+
 export interface LogSearchInput {
   actions?: string[] | null;
   after?: string | null;
@@ -1426,6 +1430,10 @@ export interface StarSearchInput {
   searchString?: string | null;
   sortBy?: StarSortBy | null;
   take?: number | null;
+}
+
+export interface SwitchCurrentAccountInput {
+  id: string;
 }
 
 export interface TagCountInput {

@@ -91,6 +91,7 @@ export const BuildView = ({
         const routineId = id.length > 0 ? id : window.location.pathname.split('/').pop();
         // Editing if specified in search params, or id not set (new routine)
         if (searchParams.edit || !routineId || !uuidValidate(routineId)) {
+            console.log('page load is editing', searchParams, routineId);
             setIsEditing(true);
         }
     }, [id]);

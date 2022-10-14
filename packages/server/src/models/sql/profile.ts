@@ -125,6 +125,7 @@ export const profileVerifier = () => ({
      * @returns Session data
      */
     async logIn(password: string, user: any, prisma: PrismaType, req: Request): Promise<Session | null> {
+        console.log('profile logIn start', JSON.stringify(user), '\n\n')
         // First, check if the log in fail counter should be reset
         const unable_to_reset = [AccountStatus.HardLocked, AccountStatus.Deleted];
         // If account is not deleted or hard-locked, and lockout duration has passed
@@ -150,6 +151,7 @@ export const profileVerifier = () => ({
                 },
                 select: {
                     id: true,
+                    name: true,
                     theme: true,
                     roles: { select: { role: { select: { title: true } } } }
                 }
@@ -174,7 +176,7 @@ export const profileVerifier = () => ({
      * Updated user object with new password reset code, and sends email to user with reset link
      * @param user User object
      */
-    async setupPasswordReset(user: any, prisma: PrismaType): Promise<boolean> {
+    async setupPasswordReset(user: { id: string, resetPasswordCode: string | null }, prisma: PrismaType): Promise<boolean> {
         // Generate new code
         const resetPasswordCode = this.generateCode();
         // Store code and request time in user row
@@ -269,21 +271,28 @@ export const profileVerifier = () => ({
      * @param user User object
      * @param prisma Prisma type
      */
-    async toSessionUser(user: RecursivePartial<user>, prisma: PrismaType): Promise<SessionUser> {
+    async toSessionUser(user: { id: string }, prisma: PrismaType): Promise<SessionUser> {
         if (!user.id)
             throw new CustomError(CODE.ErrorUnknown, 'User ID not found', { code: genErrorCode('0064') });
         // Update user's lastSessionVerified
-        await prisma.user.update({
+        const userData = await prisma.user.update({
             where: { id: user.id },
-            data: { lastSessionVerified: new Date().toISOString() }
+            data: { lastSessionVerified: new Date().toISOString() },
+            select: {
+                id: true,
+                handle: true,
+                languages: { select: { language: true } },
+                name: true,
+                theme: true,
+            }
         })
         // Return shaped SessionUser object
         return {
-            handle: user.handle ?? undefined,
+            handle: userData.handle ?? undefined,
             id: user.id,
-            languages: [], //TODO add to database
-            name: user.name ?? undefined,
-            theme: user.theme ?? undefined,
+            languages: userData.languages.map((l) => l.language).filter(Boolean) as string[],
+            name: userData.name,
+            theme: userData.theme,
         }
     },
     /**
@@ -293,14 +302,14 @@ export const profileVerifier = () => ({
      * @param session current session object
      * @returns Updated session object, with user data added to the START of the users array
      */
-    async toSession(user: RecursivePartial<user>, prisma: PrismaType, session: Partial<Session>): Promise<Session> {
+    async toSession(user: { id: string }, prisma: PrismaType, session: Partial<Session>): Promise<Session> {
         const sessionUser = await this.toSessionUser(user, prisma);
-        // Add sessionUser to users property. Make sure not to duplicate user if already in array
-        const existingUsers = (session.users ?? []).filter(u => u?.id === sessionUser.id);
+        console.log('profile tosession sessionuser', sessionUser, '\n\n');
         return {
-            ...session,
+            __typename: 'Session',
             isLoggedIn: true,
-            users: [sessionUser, ...existingUsers],
+            // Make sure users are unique by id
+            users: [sessionUser, ...(session.users ?? []).filter((u: SessionUser) => u.id !== sessionUser.id)],
         }
     }
 })

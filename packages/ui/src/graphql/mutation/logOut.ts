@@ -1,9 +1,11 @@
 import { gql } from 'graphql-tag';
+import { sessionFields } from 'graphql/fragment';
 
 export const logOutMutation = gql`
-    mutation logOut {
-        logOut {
-            success
+    ${sessionFields}
+    mutation logOut($input: LogOutInput!) {
+        logOut(input: $input) {
+            ...sessionFields
         }
     }
 `

@@ -43,7 +43,7 @@ export const UserView = ({
         // Otherwise, use the id provided in the URL
         return pathnameEnd;
     }, [session]);
-    const isOwn: boolean = useMemo(() => Boolean(getCurrentUser(session) === id), [id, session]);
+    const isOwn: boolean = useMemo(() => Boolean(getCurrentUser(session).id === id), [id, session]);
     // Fetch data
     const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery, { errorPolicy: 'all' });
     const [user, setUser] = useState<User | null | undefined>(null);

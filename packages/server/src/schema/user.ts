@@ -8,7 +8,7 @@ import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
 import { genErrorCode } from '../logger';
-import { assertRequestFrom } from '../auth/auth';
+import { assertRequestFrom, generateSessionJwt } from '../auth/auth';
 
 export const typeDef = gql`
     enum UserSortBy {
@@ -197,8 +197,12 @@ export const resolvers = {
             await rateLimit({ info, maxUser: 250, req });
             // Update object
             const updated = await ProfileModel.mutate(prisma).updateProfile(getUserId(req) as string, input, info);
-            if (!updated) 
+            if (!updated)
                 throw new CustomError(CODE.ErrorUnknown, 'Could not update profile', { code: genErrorCode('0160') });
+            // Update session
+            const session = await ProfileModel.verify.toSession({ id: getUserId(req) as string }, prisma, req);
+            console.log('updating user session', JSON.stringify(session), '\n')
+            await generateSessionJwt(res, session);
             return updated;
         },
         profileEmailUpdate: async (_parent: undefined, { input }: IWrap<ProfileEmailUpdateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
@@ -206,7 +210,7 @@ export const resolvers = {
             await rateLimit({ info, maxUser: 100, req });
             // Update object
             const updated = await ProfileModel.mutate(prisma).updateEmails(getUserId(req) as string, input, info);
-            if (!updated) 
+            if (!updated)
                 throw new CustomError(CODE.ErrorUnknown, 'Could not update profile', { code: genErrorCode('0162') });
             return updated;
         },

@@ -101,6 +101,7 @@ export const actionsToBottomNav = ({ actions, setLocation }: ActionsToBottomNavP
             value={value}
             onClick={() => { openLink(setLocation, link); if (onClick) onClick() }}
             icon={<Badge badgeContent={numNotifications} color="error"><Icon /></Badge>}
+            sx={{ color: 'white' }}
         />
     ));
 }

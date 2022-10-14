@@ -33,7 +33,7 @@ export function ThemeSwitch({
             }}>
                 {/* Track */}
                 <Box component="span" sx={{
-                    display: 'inline-block',
+                    display: 'flex',
                     backgroundColor: trackColor,
                     borderRadius: '16px',
                     width: '100%',
