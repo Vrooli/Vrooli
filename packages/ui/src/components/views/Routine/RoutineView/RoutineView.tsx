@@ -21,6 +21,7 @@ import { FieldData } from "forms/types";
 import { generateInputWithLabel } from "forms/generators";
 import { CommentContainer, ContentCollapse, TextCollapse } from "components/containers";
 import { EditIcon, EllipsisIcon, PlayIcon, RoutineIcon, SuccessIcon } from "@shared/icons";
+import { getCurrentUser } from "utils/authentication";
 
 const statsHelpText =
     `Statistics are calculated to measure various aspects of a routine. 
@@ -299,7 +300,7 @@ export const RoutineView = ({
         // If routine has no nodes
         if (!routine?.nodes?.length) {
             // Only show if logged in
-            if (!session?.id) return null;
+            if (!getCurrentUser(session).id) return null;
             return (
                 <Grid container spacing={1} mt={1}>
                     <Grid item xs={12}>
@@ -323,7 +324,7 @@ export const RoutineView = ({
                 </Grid>}
             </Grid>
         )
-    }, [routine, viewGraph, status, runRoutine, session?.id, markAsComplete]);
+    }, [routine, viewGraph, status, runRoutine, session, markAsComplete]);
 
     /**
      * Copy current value of input to clipboard

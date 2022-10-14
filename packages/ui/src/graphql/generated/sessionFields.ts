@@ -7,10 +7,17 @@
 // GraphQL fragment: sessionFields
 // ====================================================
 
+export interface sessionFields_users {
+  __typename: "SessionUser";
+  handle: string | null;
+  id: string;
+  languages: (string | null)[] | null;
+  name: string | null;
+  theme: string | null;
+}
+
 export interface sessionFields {
   __typename: "Session";
-  id: string | null;
-  theme: string | null;
   isLoggedIn: boolean;
-  languages: string[] | null;
+  users: sessionFields_users[] | null;
 }

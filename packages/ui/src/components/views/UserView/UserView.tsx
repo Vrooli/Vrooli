@@ -17,6 +17,7 @@ import { ResourceListUsedFor, VisibilityType } from "graphql/generated/globalTyp
 import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { getCurrentUser } from "utils/authentication";
 
 enum TabOptions {
     Resources = "Resources",
@@ -38,11 +39,11 @@ export const UserView = ({
     const id: string = useMemo(() => {
         const pathnameEnd = base36ToUuid(getLastUrlPart());
         // If no id is provided, use the current user's id
-        if (!uuidValidate(pathnameEnd)) return session.id ?? '';
+        if (!uuidValidate(pathnameEnd)) return getCurrentUser(session).id ?? '';
         // Otherwise, use the id provided in the URL
         return pathnameEnd;
     }, [session]);
-    const isOwn: boolean = useMemo(() => Boolean(session?.id && session.id === id), [id, session]);
+    const isOwn: boolean = useMemo(() => Boolean(getCurrentUser(session) === id), [id, session]);
     // Fetch data
     const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery, { errorPolicy: 'all' });
     const [user, setUser] = useState<User | null | undefined>(null);

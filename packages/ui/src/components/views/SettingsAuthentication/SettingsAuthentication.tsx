@@ -16,6 +16,7 @@ import { Email, Wallet } from "types";
 import { PasswordTextField, SnackSeverity } from "components";
 import { profileEmailUpdateVariables, profileEmailUpdate_profileEmailUpdate } from "graphql/generated/profileEmailUpdate";
 import { EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
+import { guestSession } from "utils/authentication";
 
 const helpText =
     `This page allows you to manage your wallets, emails, and other authentication settings.`;
@@ -44,7 +45,7 @@ export const SettingsAuthentication = ({
     const [logOut] = useMutation(logOutMutation);
     const onLogOut = useCallback(() => {
         mutationWrapper({ mutation: logOut })
-        PubSub.get().publishSession({});
+        PubSub.get().publishSession(guestSession);
         setLocation(APP_LINKS.Home);
     }, [logOut, setLocation]);
 

@@ -10,12 +10,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, ResourceListHorizontal, Selector, TagSelector } from "components";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { uuid, uuidValidate } from '@shared/uuid';
+import { uuid } from '@shared/uuid';
 import { FieldData } from "forms/types";
 import { BaseStandardInput, PreviewSwitch, RelationshipButtons, userFromSession } from "components/inputs";
 import { generateInputComponent, generateYupSchema } from "forms/generators";
 import { standardCreateVariables, standardCreate_standardCreate } from "graphql/generated/standardCreate";
 import { RelationshipsObject } from "components/inputs/types";
+import { getCurrentUser } from "utils/authentication";
 
 export const StandardCreate = ({
     onCreated,
@@ -150,7 +151,7 @@ export const StandardCreate = ({
         handleTranslationChange(formik, 'translationsCreate', e, language)
     }, [formik, language]);
 
-    const isLoggedIn = useMemo(() => session?.isLoggedIn === true && uuidValidate(session?.id ?? ''), [session]);
+    const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
 
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(false);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);

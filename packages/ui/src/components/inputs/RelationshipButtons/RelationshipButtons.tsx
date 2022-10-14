@@ -12,6 +12,7 @@ import { ListMenuItemData } from 'components/dialogs/types';
 import { TextShrink } from 'components/text/TextShrink/TextShrink';
 import { CompleteIcon as CompletedIcon, InvisibleIcon, OrganizationIcon, ProjectIcon as ProjIcon, RoutineIcon, UserIcon as SelfIcon, VisibleIcon } from '@shared/icons';
 import { useLocation } from '@shared/route';
+import { getCurrentUser } from 'utils/authentication';
 
 /**
  * Converts session to user object
@@ -20,7 +21,7 @@ import { useLocation } from '@shared/route';
  */
 export const userFromSession = (session: Session): RelationshipOwner => ({
     __typename: 'User',
-    id: session.id,
+    id: getCurrentUser(session).id,
     handle: null,
     name: 'Self',
 })
@@ -223,13 +224,13 @@ export function RelationshipButtons({
         }
         // If owner is user, use self icon
         const OwnerIcon = SelfIcon;
-        const isSelf = relationships.owner.id === session.id;
+        const isSelf = relationships.owner.id === getCurrentUser(session).id;
         const ownerName = (relationships.owner as RelationshipItemUser).name;
         return {
             OwnerIcon,
             ownerTooltip: `Owner: ${isSelf ? 'Self' : ownerName}`
         };
-    }, [disabled, languages, relationships.owner, session.id]);
+    }, [disabled, languages, relationships.owner, session]);
 
     // Current project icon
     const { ProjectIcon, projectTooltip } = useMemo(() => {

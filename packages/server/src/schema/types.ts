@@ -2713,7 +2713,6 @@ export type SendVerificationEmailInput = {
 
 export type Session = {
   __typename?: 'Session';
-  id?: Maybe<Scalars['ID']>;
   isLoggedIn: Scalars['Boolean'];
   users?: Maybe<Array<SessionUser>>;
 };

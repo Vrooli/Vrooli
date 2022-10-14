@@ -9,10 +9,11 @@ import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { HomePageProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import { actionsItems, listToAutocomplete, listToListItems, ObjectType, openObject, SearchPageTabOption, shortcutsItems, useReactSearch } from 'utils';
+import { actionsItems, getUserLanguages, listToAutocomplete, listToListItems, ObjectType, openObject, SearchPageTabOption, shortcutsItems, useReactSearch } from 'utils';
 import { AutocompleteOption, NavigableObject } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
+import { getCurrentUser } from 'utils/authentication';
 
 const faqText =
     `## What is This?
@@ -108,7 +109,7 @@ export const HomePage = ({
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
     const { data, refetch, loading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
     useEffect(() => { refetch() }, [refetch, searchString]);
-    const showHistoryTab = useMemo(() => session?.isLoggedIn === true, [session?.isLoggedIn]);
+    const showHistoryTab = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
 
     // Handle tabs
     const tabIndex = useMemo(() => {
@@ -119,7 +120,7 @@ export const HomePage = ({
         setLocation(tabOptions[newIndex][1], { replace: true });
     };
 
-    const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
+    const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const firstResults: AutocompleteOption[] = [];

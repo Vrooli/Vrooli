@@ -2,7 +2,7 @@ import { Box, Grid, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme
 import { CommentThreadItemProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
 import { TextLoading, UpvoteDownvote } from '../..';
-import { displayDate, getFormikErrorsWithTranslations, getTranslation, getTranslationData, handleTranslationBlur, handleTranslationChange, PubSub, usePromptBeforeUnload } from 'utils';
+import { displayDate, getFormikErrorsWithTranslations, getTranslation, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, PubSub, usePromptBeforeUnload } from 'utils';
 import { MarkdownInput } from 'components/inputs';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
@@ -35,7 +35,7 @@ export function CommentThreadItem({
 
     const { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText } = useMemo(() => {
         const permissions = data?.permissionsComment;
-        const languages = session?.languages ?? navigator.languages;
+        const languages = getUserLanguages(session);
         return {
             canDelete: permissions?.canDelete === true,
             canEdit: permissions?.canEdit === true,

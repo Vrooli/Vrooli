@@ -11,6 +11,7 @@ import { DevelopSearchPageTabOption, listToListItems, openObject, stringifySearc
 import { useLocation } from '@shared/route';
 import { DevelopPageProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
+import { getCurrentUser } from 'utils/authentication';
 
 const completedText =
     `Find projects and routines that you've recently completed
@@ -44,7 +45,7 @@ export const DevelopPage = ({
 }: DevelopPageProps) => {
     const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all' });
-    useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
+    useEffect(() => { if (getCurrentUser(session).id) getProfile() }, [getProfile, session])
     const [resourceList, setResourceList] = useState<ResourceList | null>(null);
     useEffect(() => {
         if (!profileData?.profile?.resourceLists) return;

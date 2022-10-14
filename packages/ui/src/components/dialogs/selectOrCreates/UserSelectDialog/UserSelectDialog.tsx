@@ -8,7 +8,7 @@ import {
     useTheme
 } from '@mui/material';
 import { DialogTitle, ShareSiteDialog } from 'components';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { UserSelectDialogProps } from '../types';
 import { User } from 'types';
 import { SearchList } from 'components/lists';
@@ -18,6 +18,7 @@ import { user, userVariables } from 'graphql/generated/user';
 import { SearchType, userSearchSchema, removeSearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';
+import { getCurrentUser } from 'utils/authentication';
 
 const helpText =
     `This dialog allows you to connect a user to an object.
@@ -35,6 +36,7 @@ export const UserSelectDialog = ({
 }: UserSelectDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     /**
      * Before closing, remove all URL search params for advanced search
@@ -123,7 +125,7 @@ export const UserSelectDialog = ({
                         searchPlaceholder={'Select existing users...'}
                         session={session}
                         take={20}
-                        where={{ userId: session?.id }}
+                        where={{ userId }}
                         zIndex={zIndex}
                     />
                 </Stack>

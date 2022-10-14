@@ -5,7 +5,7 @@ import { useCallback, useMemo } from 'react';
 import { StarFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading } from '..';
-import { getTranslation, listItemColor, openObject, placeholderColor } from 'utils';
+import { getTranslation, getUserLanguages, listItemColor, openObject, placeholderColor } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { OrganizationIcon } from '@shared/icons';
 import { ReportsButton, StarButton } from 'components/buttons';
@@ -25,7 +25,7 @@ export function OrganizationListItem({
 
     const { bio, canEdit, canStar, name, reportsCount } = useMemo(() => {
         const permissions = data?.permissionsOrganization;
-        const languages = session?.languages ?? navigator.languages;
+        const languages = getUserLanguages(session);
         return {
             bio: getTranslation(data, 'bio', languages, true),
             canEdit: permissions?.canEdit === true,

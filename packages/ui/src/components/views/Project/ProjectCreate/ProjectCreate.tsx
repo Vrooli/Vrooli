@@ -10,9 +10,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { uuid, uuidValidate } from '@shared/uuid';
+import { uuid } from '@shared/uuid';
 import { projectCreateVariables, projectCreate_projectCreate } from "graphql/generated/projectCreate";
 import { RelationshipsObject } from "components/inputs/types";
+import { getCurrentUser } from "utils/authentication";
 
 export const ProjectCreate = ({
     onCreated,
@@ -120,7 +121,7 @@ export const ProjectCreate = ({
         handleTranslationChange(formik, 'translationsCreate', e, language)
     }, [formik, language]);
 
-    const isLoggedIn = useMemo(() => session?.isLoggedIn === true && uuidValidate(session?.id ?? ''), [session]);
+    const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{

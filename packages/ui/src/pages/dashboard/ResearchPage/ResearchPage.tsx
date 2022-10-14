@@ -10,6 +10,7 @@ import { NavigableObject, ResourceList } from 'types';
 import { listToListItems, openObject, stringifySearchParams, SearchPageTabOption } from 'utils';
 import { useLocation } from '@shared/route';
 import { ResearchPageProps } from '../types';
+import { getCurrentUser } from 'utils/authentication';
 
 const donateOrInvestText =
     ``
@@ -44,7 +45,7 @@ export const ResearchPage = ({
 }: ResearchPageProps) => {
     const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all' });
-    useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
+    useEffect(() => { if (getCurrentUser(session).id) getProfile() }, [getProfile, session])
     const [resourceList, setResourceList] = useState<ResourceList | null>(null);
     useEffect(() => {
         if (!profileData?.profile?.resourceLists) return;

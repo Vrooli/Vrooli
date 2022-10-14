@@ -478,7 +478,7 @@ export const RunView = ({
     }, [languages, subroutineData]);
 
     const { instructions, title } = useMemo(() => {
-        const languages = session?.languages ?? navigator.languages;
+        const languages = getUserLanguages(session);
         // Find step above current step
         const currStepParent = stepFromLocation(currStepLocation.slice(0, -1), steps);
         return {
@@ -486,7 +486,7 @@ export const RunView = ({
             // Ignore title if it's for the main routine (i.e. step is still loading, probably)
             title: (currStepParent?.title && currStepLocation.length > 1) ? currStepParent.title : '',
         };
-    }, [currStepLocation, routine, session?.languages, steps]);
+    }, [currStepLocation, routine, session, steps]);
 
     /**
      * Calculates previous step location array, or null

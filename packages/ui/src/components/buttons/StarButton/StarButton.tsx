@@ -7,6 +7,7 @@ import { starVariables, star_star } from 'graphql/generated/star';
 import { starMutation } from 'graphql/mutation';
 import { uuidValidate } from '@shared/uuid';
 import { StarFilledIcon, StarOutlineIcon } from '@shared/icons';
+import { getCurrentUser } from 'utils/authentication';
 
 export const StarButton = ({
     disabled = false,
@@ -20,6 +21,8 @@ export const StarButton = ({
     sxs,
     tooltipPlacement = "left"
 }: StarButtonProps) => {
+    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
+
     // Used to respond to user clicks immediately, without having 
     // to wait for the mutation to complete
     const [internalIsStar, setInternalIsStar] = useState<boolean | null>(isStar ?? null);
@@ -34,7 +37,7 @@ export const StarButton = ({
     }, [internalIsStar, isStar, stars]);
 
     const handleClick = useCallback((event: any) => {
-        if (!session.id) return;
+        if (!userId) return;
         const isStar = !internalIsStar;
         setInternalIsStar(isStar);
         // Prevent propagation of normal click event
@@ -47,11 +50,11 @@ export const StarButton = ({
             input: { isStar, starFor, forId: objectId },
             onSuccess: () => { if (onChange) onChange(isStar, event) },
         })
-    }, [session.id, internalIsStar, starFor, objectId, onChange]);
+    }, [userId, internalIsStar, starFor, objectId, onChange]);
 
     const Icon = internalIsStar ? StarFilledIcon : StarOutlineIcon;
     const tooltip = internalIsStar ? 'Remove from favorites' : 'Add to favorites';
-    const color = session?.id && !disabled ? '#cbae30' : 'rgb(189 189 189)';
+    const color = userId && !disabled ? '#cbae30' : 'rgb(189 189 189)';
     return (
         <Stack
             direction="row"
@@ -64,7 +67,7 @@ export const StarButton = ({
             }}
         >
             <Tooltip placement={tooltipPlacement} title={tooltip}>
-                <Box onClick={handleClick} sx={{ display: 'contents', cursor: session?.id ? 'pointer' : 'default' }}>
+                <Box onClick={handleClick} sx={{ display: 'contents', cursor: userId ? 'pointer' : 'default' }}>
                     <Icon fill={color} />
                 </Box>
             </Tooltip>

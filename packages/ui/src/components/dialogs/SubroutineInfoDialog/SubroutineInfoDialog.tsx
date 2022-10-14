@@ -24,6 +24,7 @@ import { NodeDataRoutineListItem, ResourceList } from 'types';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { CloseIcon, OpenInNewIcon } from '@shared/icons';
 import { RelationshipItemRoutine, RelationshipsObject } from 'components/inputs/types';
+import { getCurrentUser } from 'utils/authentication';
 
 export const SubroutineInfoDialog = ({
     data,
@@ -38,6 +39,7 @@ export const SubroutineInfoDialog = ({
     zIndex,
 }: SubroutineInfoDialogProps) => {
     const { palette } = useTheme();
+    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     const subroutine = useMemo<NodeDataRoutineListItem | undefined>(() => {
         if (!data?.node || !data?.routineItemId) return undefined;
@@ -203,7 +205,7 @@ export const SubroutineInfoDialog = ({
         removeTranslation(formik, 'translationsUpdate', language);
     }, [formik, languages]);
 
-    const canEdit = useMemo<boolean>(() => isEditing && (subroutine?.routine?.isInternal || subroutine?.routine?.owner?.id === session.id || subroutine?.routine?.permissionsRoutine?.canEdit === true), [isEditing, session.id, subroutine?.routine?.isInternal, subroutine?.routine?.owner?.id, subroutine?.routine?.permissionsRoutine?.canEdit]);
+    const canEdit = useMemo<boolean>(() => isEditing && (subroutine?.routine?.isInternal || subroutine?.routine?.owner?.id === userId || subroutine?.routine?.permissionsRoutine?.canEdit === true), [isEditing, subroutine?.routine?.isInternal, subroutine?.routine?.owner?.id, subroutine?.routine?.permissionsRoutine?.canEdit, userId]);
 
     /**
      * Navigate to the subroutine's build page

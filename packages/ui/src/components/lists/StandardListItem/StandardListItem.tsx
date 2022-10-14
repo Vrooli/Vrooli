@@ -5,7 +5,7 @@ import { useCallback, useMemo } from 'react';
 import { StarFor, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading, UpvoteDownvote } from '..';
-import { getTranslation, listItemColor, openObject } from 'utils';
+import { getTranslation, getUserLanguages, listItemColor, openObject } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { CommentsButton, ReportsButton, StarButton } from 'components/buttons';
 
@@ -23,7 +23,7 @@ export function StandardListItem({
 
     const { canComment, canEdit, canStar, canVote, description, reportsCount } = useMemo(() => {
         const permissions = data?.permissionsStandard;
-        const languages = session?.languages ?? navigator.languages;
+        const languages = getUserLanguages(session);
         return {
             canComment: permissions?.canComment === true,
             canEdit: permissions?.canEdit === true,

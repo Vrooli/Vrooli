@@ -2,6 +2,7 @@ import { FormikErrors, FormikProps } from "formik";
 import { ObjectSchema, ValidationError } from 'yup';
 import { Session } from "types";
 import { uuid } from '@shared/uuid';
+import { getCurrentUser } from "utils/authentication";
 
 export type TranslationObject = {
     id: string,
@@ -464,13 +465,17 @@ export const getLanguageSubtag = (language: string): string => {
  * @param session Session data
  * @returns Array of user-preferred language subtags
  */
-export const getUserLanguages = (session?: { languages?: Session['languages'] }): string[] => {
-    if (session?.languages && session.languages.length > 0) {
-        return session.languages.map(getLanguageSubtag);
+export const getUserLanguages = (session: Session | null | undefined): string[] => {
+    // First check session data for preferred languages
+    const { languages } = getCurrentUser(session);
+    if (languages && languages.length > 0) {
+        return (languages.filter(Boolean) as string[]).map(getLanguageSubtag)
     }
+    // If no languages are in session data, check browser
     if (navigator.language) {
         return [getLanguageSubtag(navigator.language)];
     }
+    // Default to English
     return ["en"];
 }
 

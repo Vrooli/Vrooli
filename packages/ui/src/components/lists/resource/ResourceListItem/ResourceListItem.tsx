@@ -6,7 +6,7 @@ import { useCallback, useMemo } from 'react';
 import { ResourceSortBy, ResourceUsedFor } from '@shared/consts';
 import { adaHandleRegex, urlRegex, walletAddressRegex } from '@shared/validation';
 import { useLocation } from '@shared/route';
-import { firstString, getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, openLink, PubSub, ResourceType } from 'utils';
+import { firstString, getTranslation, getUserLanguages, LabelledSortOption, labelledSortOptions, listItemColor, openLink, PubSub, ResourceType } from 'utils';
 import { Resource } from 'types';
 import { getResourceIcon } from '..';
 import { SnackSeverity, TextLoading } from 'components';
@@ -36,7 +36,7 @@ export function ResourceListItem({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { description, title } = useMemo(() => {
-        const languages = session?.languages ?? navigator.languages;
+        const languages = getUserLanguages(session);
         return {
             description: getTranslation(data, 'description', languages, true),
             title: getTranslation(data, 'title', languages, true),

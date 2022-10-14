@@ -1187,7 +1187,7 @@ const pickObjectById = (data: any, id: string): ({ id: string } & { [x: string]:
 export const getUserId = (req: ReqForUserAuth): string | null => {
     if (!req || !Array.isArray(req?.users) || req.users.length === 0) return null;
     const userId = req.users[0].id;
-    return uuidValidate(userId) ? userId : null;
+    return typeof userId === 'string' && uuidValidate(userId) ? userId : null;
 }
 
 /**

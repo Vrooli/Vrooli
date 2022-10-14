@@ -9,6 +9,7 @@ import {
 import { openLink } from 'utils';
 import { Session, SetLocation } from 'types';
 import { CreateAccountIcon, DevelopIcon, HomeIcon, LearnIcon, ProfileIcon, ResearchIcon, SearchIcon, SvgComponent } from '@shared/icons';
+import { getCurrentUser, guestSession } from 'utils/authentication';
 
 export enum ACTION_TAGS {
     Home = 'Home',
@@ -35,7 +36,8 @@ interface GetUserActionsProps {
     session?: Session | null | undefined;
     exclude?: ACTION_TAGS[] | null | undefined;
 }
-export function getUserActions({ session = {}, exclude = [] }: GetUserActionsProps): Action[] {
+export function getUserActions({ session = guestSession, exclude = [] }: GetUserActionsProps): Action[] {
+    const { id: userId } = getCurrentUser(session);
     // Home action always available
     let actions: ActionArray[] = [
         ['Home', ACTION_TAGS.Home, LINKS.Home, null, HomeIcon, 0],
@@ -48,7 +50,7 @@ export function getUserActions({ session = {}, exclude = [] }: GetUserActionsPro
         ['Develop', ACTION_TAGS.Develop, LINKS.Develop, null, DevelopIcon, 0],
     );
     // Log in/out
-    if (session?.isLoggedIn === true) {
+    if (userId) {
         actions.push(['Profile', ACTION_TAGS.Profile, LINKS.Profile, null, ProfileIcon, 0])
     } else {
         actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, null, CreateAccountIcon, 0]);

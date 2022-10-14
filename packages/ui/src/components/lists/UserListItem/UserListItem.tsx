@@ -4,11 +4,12 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { StarFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { getTranslation, listItemColor, openObject, placeholderColor } from 'utils';
+import { getTranslation, getUserLanguages, listItemColor, openObject, placeholderColor } from 'utils';
 import { TextLoading } from '../TextLoading/TextLoading';
 import { smallHorizontalScrollbar } from '../styles';
 import { UserIcon } from '@shared/icons';
 import { ReportsButton, StarButton } from 'components/buttons';
+import { getCurrentUser } from 'utils/authentication';
 
 export const UserListItem = ({
     data,
@@ -20,12 +21,12 @@ export const UserListItem = ({
 }: UserListItemProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const isOwn = useMemo(() => data?.id === session?.id, [data, session]);
+    const isOwn = useMemo(() => data?.id === getCurrentUser(session).id, [data, session]);
 
     const profileColors = useMemo(() => placeholderColor(), []);
 
     const { bio, name, reportsCount } = useMemo(() => {
-        const languages = session?.languages ?? navigator.languages;
+        const languages = getUserLanguages(session);
         return {
             bio: getTranslation(data, 'bio', languages, true),
             name: data?.name ?? (data?.handle ? `$${data.handle}` : ''),

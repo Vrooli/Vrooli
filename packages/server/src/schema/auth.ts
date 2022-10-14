@@ -79,7 +79,6 @@ export const typeDef = gql`
     }
 
     type Session {
-        id: ID
         isLoggedIn: Boolean!
         users: [SessionUser!]
     }

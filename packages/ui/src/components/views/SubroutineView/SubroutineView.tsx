@@ -32,13 +32,13 @@ export const SubroutineView = ({
     }, [routine]);
 
     const { description, instructions, title } = useMemo(() => {
-        const languages = session.languages ?? navigator.languages;
+        const languages = getUserLanguages(session);
         return {
             description: getTranslation(internalRoutine, 'description', languages, true),
             instructions: getTranslation(internalRoutine, 'instructions', languages, true),
             title: getTranslation(internalRoutine, 'title', languages, true),
         }
-    }, [internalRoutine, session.languages]);
+    }, [internalRoutine, session]);
 
     const confirmLeave = useCallback((callback: () => any) => {
         // Confirmation dialog for leaving routine

@@ -7,7 +7,7 @@ import { AutocompleteSearchBar, ListTitleContainer, PageContainer } from 'compon
 import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { HistoryPageProps } from '../types';
-import { HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, stringifySearchParams, useReactSearch } from 'utils';
+import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, stringifySearchParams, useReactSearch } from 'utils';
 import { AutocompleteOption, NavigableObject } from 'types';
 import { centeredDiv } from 'styles';
 import { RunStatus } from 'graphql/generated/globalTypes';
@@ -99,7 +99,7 @@ export const HistoryPage = ({
         session,
     }), [data?.historyPage?.recentlyStarred, loading, session, toItemPage])
 
-    const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
+    const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const flattened = (Object.values(data?.historyPage ?? [])).reduce((acc, curr) => acc.concat(curr), []);

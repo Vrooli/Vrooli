@@ -74,7 +74,7 @@ export const getListItemLabel = (
     object: ListObjectType,
     languages?: readonly string[]
 ): string => {
-    const lang = languages ?? getUserLanguages();
+    const lang = languages ?? getUserLanguages(undefined);
     switch (object.__typename) {
         case 'Organization':
             return organizationOptionLabel(object, lang);

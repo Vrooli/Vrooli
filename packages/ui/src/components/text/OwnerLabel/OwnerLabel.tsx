@@ -1,4 +1,4 @@
-import { getObjectSlug, getObjectUrlBase, getTranslation, ObjectType, openObject } from "utils";
+import { getObjectSlug, getObjectUrlBase, getTranslation, getUserLanguages, ObjectType, openObject } from "utils";
 import { Tooltip, Typography, useTheme } from "@mui/material"
 import { OwnerLabelProps } from "../types";
 import { Comment, Project, Routine, Standard, User } from "types";
@@ -36,7 +36,7 @@ export const OwnerLabel = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const ownerLabel = useMemo(() => getLabel(owner, language ? [language] : (session?.languages ?? navigator.languages)), [language, owner, session?.languages]);
+    const ownerLabel = useMemo(() => getLabel(owner, language ? [language] : getUserLanguages(session)), [language, owner, session]);
 
     const ownerLink = useMemo<string>(() => {
         if (!owner) return '';

@@ -5,7 +5,7 @@ import { useCallback, useMemo } from 'react';
 import { StarFor, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { CommentsButton, ReportsButton, StarButton, TagList, TextLoading, UpvoteDownvote } from 'components';
-import { getTranslation, listItemColor, openObject } from 'utils';
+import { getTranslation, getUserLanguages, listItemColor, openObject } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 
 export function ProjectListItem({
@@ -22,7 +22,7 @@ export function ProjectListItem({
 
     const { canComment, canEdit, canStar, canVote, description, name, reportsCount } = useMemo(() => {
         const permissions = data?.permissionsProject;
-        const languages = session?.languages ?? navigator.languages;
+        const languages = getUserLanguages(session);
         return {
             canComment: permissions?.canComment === true,
             canEdit: permissions?.canEdit === true,

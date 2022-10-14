@@ -8,7 +8,7 @@ import {
     useTheme
 } from '@mui/material';
 import { BaseObjectDialog, DialogTitle } from 'components';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RoutineSelectOrCreateDialogProps } from '../types';
 import { Routine } from 'types';
 import { SearchList } from 'components/lists';
@@ -19,6 +19,7 @@ import { RoutineCreate } from 'components/views/Routine/RoutineCreate/RoutineCre
 import { SearchType, routineSearchSchema, removeSearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';
+import { getCurrentUser } from 'utils/authentication';
 
 const helpText =
     `This dialog allows you to connect a new or existing routine to an object.
@@ -36,6 +37,7 @@ export const RoutineSelectOrCreateDialog = ({
 }: RoutineSelectOrCreateDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     /**
      * Before closing, remove all URL search params for advanced search
@@ -141,7 +143,7 @@ export const RoutineSelectOrCreateDialog = ({
                         searchPlaceholder={'Select existing routines...'}
                         session={session}
                         take={20}
-                        where={{ userId: session?.id }}
+                        where={{ userId }}
                         zIndex={zIndex}
                     />
                 </Stack>

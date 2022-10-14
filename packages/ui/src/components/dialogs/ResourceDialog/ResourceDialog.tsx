@@ -6,9 +6,9 @@ import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { ResourceDialogProps } from '../types';
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getObjectSlug, getObjectUrlBase, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResourceCreate, shapeResourceUpdate, usePromptBeforeUnload } from 'utils';
-import { resourceCreate, resourceCreateVariables, resourceCreate_resourceCreate } from 'graphql/generated/resourceCreate';
+import { resourceCreateVariables, resourceCreate_resourceCreate } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
-import { resourceUpdate, resourceUpdateVariables, resourceUpdate_resourceUpdate } from 'graphql/generated/resourceUpdate';
+import { resourceUpdateVariables, resourceUpdate_resourceUpdate } from 'graphql/generated/resourceUpdate';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AutocompleteSearchBar, LanguageInput } from 'components/inputs';
 import { AutocompleteOption, Resource } from 'types';

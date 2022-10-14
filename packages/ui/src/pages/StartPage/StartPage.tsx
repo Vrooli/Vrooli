@@ -31,6 +31,7 @@ import { emailLogInVariables, emailLogIn_emailLogIn } from 'graphql/generated/em
 import { StartPageProps } from 'pages/types';
 import { hasErrorCode } from 'graphql/utils';
 import { guestLogIn_guestLogIn } from 'graphql/generated/guestLogIn';
+import { getCurrentUser } from 'utils/authentication';
 
 const helpText =
     `Logging in allows you to vote, save favorites, and contribute to the community.
@@ -50,6 +51,7 @@ const emailTitleAria = 'email-login-dialog-title';
 export const StartPage = ({
     session,
 }: StartPageProps) => {
+    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
     const [, setLocation] = useLocation();
     const search = useReactSearch();
     const { redirect, verificationCode } = useMemo(() => ({
@@ -84,7 +86,7 @@ export const StartPage = ({
     useEffect(() => {
         if (verificationCode) {
             // If still logged in, call emailLogIn right away
-            if (session.id) {
+            if (userId) {
                 mutationWrapper<emailLogIn_emailLogIn, emailLogInVariables>({
                     mutation: emailLogIn,
                     input: { verificationCode },
@@ -111,7 +113,7 @@ export const StartPage = ({
                 setPopupForm(Forms.LogIn);
             }
         }
-    }, [emailLogIn, verificationCode, redirect, session.id, setLocation])
+    }, [emailLogIn, verificationCode, redirect, setLocation, userId])
 
     // Wallet provider popups
     const [connectOpen, setConnectOpen] = useState(false);
@@ -160,13 +162,8 @@ export const StartPage = ({
     const requestGuestToken = useCallback(() => {
         mutationWrapper<guestLogIn_guestLogIn, any>({
             mutation: guestLogIn,
-            onSuccess: () => {
-                let theme: string = 'light';
-                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) theme = 'dark';
-                PubSub.get().publishSession({
-                    isLoggedIn: true,
-                    theme,
-                })
+            onSuccess: (data) => {
+                PubSub.get().publishSession(data)
                 setLocation(redirect ?? APP_LINKS.Welcome);
             },
         })

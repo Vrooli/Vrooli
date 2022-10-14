@@ -8,7 +8,7 @@ import {
     useTheme
 } from '@mui/material';
 import { BaseObjectDialog, DialogTitle } from 'components';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { OrganizationSelectOrCreateDialogProps } from '../types';
 import { Organization } from 'types';
 import { SearchList } from 'components/lists';
@@ -19,6 +19,7 @@ import { OrganizationCreate } from 'components/views/Organization/OrganizationCr
 import { SearchType, organizationSearchSchema, removeSearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';
+import { getCurrentUser } from 'utils/authentication';
 
 const helpText =
     `This dialog allows you to connect a new or existing organization to an object.
@@ -38,6 +39,7 @@ export const OrganizationSelectOrCreateDialog = ({
 }: OrganizationSelectOrCreateDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     /**
      * Before closing, remove all URL search params for advanced search
@@ -143,7 +145,7 @@ export const OrganizationSelectOrCreateDialog = ({
                         searchPlaceholder={'Select existing organizations...'}
                         session={session}
                         take={20}
-                        where={{ userId: session?.id }}
+                        where={{ userId }}
                         zIndex={zIndex}
                     />
                 </Stack>

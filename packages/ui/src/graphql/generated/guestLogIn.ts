@@ -7,12 +7,19 @@
 // GraphQL mutation operation: guestLogIn
 // ====================================================
 
+export interface guestLogIn_guestLogIn_users {
+  __typename: "SessionUser";
+  handle: string | null;
+  id: string;
+  languages: (string | null)[] | null;
+  name: string | null;
+  theme: string | null;
+}
+
 export interface guestLogIn_guestLogIn {
   __typename: "Session";
-  id: string | null;
-  theme: string | null;
   isLoggedIn: boolean;
-  languages: string[] | null;
+  users: guestLogIn_guestLogIn_users[] | null;
 }
 
 export interface guestLogIn {

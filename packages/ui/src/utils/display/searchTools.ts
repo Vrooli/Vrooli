@@ -8,6 +8,7 @@ import { RunStatus } from 'graphql/generated/globalTypes';
 import { getLocalStorageKeys } from 'utils/localStorage';
 import { PubSub } from 'utils/pubsub';
 import { SnackSeverity } from 'components';
+import { getCurrentUser } from 'utils/authentication';
 
 export const commentSearchSchema: FormSchema = {
     formLayout: {
@@ -938,7 +939,8 @@ export const convertSearchForFormik = (values: { [x: string]: any }, schema: For
 /**
  * Clears search history from all search bars
  */
-export const clearSearchHistory = ({ id }: Session) => {
+export const clearSearchHistory = (session: Session) => {
+    const { id } = getCurrentUser(session);
     // Find all search history objects in localStorage
     const searchHistoryKeys = getLocalStorageKeys({
         prefix: 'search-history-',

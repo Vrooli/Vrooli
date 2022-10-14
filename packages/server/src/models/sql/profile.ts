@@ -299,7 +299,7 @@ export const profileVerifier = () => ({
         const existingUsers = (session.users ?? []).filter(u => u?.id === sessionUser.id);
         return {
             ...session,
-            isLoggedIn: session.isLoggedIn ?? false,
+            isLoggedIn: true,
             users: [sessionUser, ...existingUsers],
         }
     }

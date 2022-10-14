@@ -1,6 +1,7 @@
 import pkg from '@prisma/client';
 import { Request } from 'express';
 import { Maybe } from 'schema/types';
+import { SessionUser } from './schema/types';
 
 // Request type
 declare global {
@@ -27,7 +28,7 @@ declare global {
     }
 }
 
-export type ReqForUserAuth = { users?: { id: SessionUser['id'] }[] }
+export type ReqForUserAuth = { users?: { id?: string | null }[] }
 
 /**
  * Prisma type shorthand

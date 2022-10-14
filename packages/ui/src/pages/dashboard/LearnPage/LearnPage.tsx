@@ -11,6 +11,7 @@ import { NavigableObject, ResourceList } from 'types';
 import { listToListItems, openObject, SearchPageTabOption, stringifySearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { LearnPageProps } from '../types';
+import { getCurrentUser } from 'utils/authentication';
 
 const courseText =
     `Courses are community-created projects, each designed to teach a specific skill. Any project associated with the "learn" tag will be listed here.
@@ -36,7 +37,7 @@ export const LearnPage = ({
 }: LearnPageProps) => {
     const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all' });
-    useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
+    useEffect(() => { if (getCurrentUser(session).id) getProfile() }, [getProfile, session])
     const [resourceList, setResourceList] = useState<ResourceList | null>(null);
     useEffect(() => {
         if (!profileData?.profile?.resourceLists) return;

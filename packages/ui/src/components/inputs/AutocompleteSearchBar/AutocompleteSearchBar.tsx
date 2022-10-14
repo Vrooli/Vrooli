@@ -6,6 +6,7 @@ import { ActionIcon, DeleteIcon, HistoryIcon, OrganizationIcon, PlayIcon, Projec
 import { getLocalStorageKeys, ObjectType, performAction, useDebounce } from 'utils';
 import { StarFor } from '@shared/consts';
 import { StarButton } from 'components/buttons';
+import { getCurrentUser } from 'utils/authentication';
 
 type OptionHistory = { timestamp: number, option: AutocompleteOption };
 
@@ -140,6 +141,7 @@ export function AutocompleteSearchBar({
     ...props
 }: AutocompleteSearchBarProps) {
     const { palette } = useTheme();
+    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     // Input internal value (since value passed back is debounced)
     const [internalValue, setInternalValue] = useState<string>(value);
@@ -163,7 +165,7 @@ export function AutocompleteSearchBar({
     const [optionsWithHistory, setOptionsWithHistory] = useState<AutocompleteOption[]>(options);
     useEffect(() => {
         // Grab history from local storage
-        const searchHistory = getSearchHistory(id, session.id ?? '');
+        const searchHistory = getSearchHistory(id, userId ?? '');
         // Filter out history keys that don't contain internal value
         let filteredHistory = Object.entries(searchHistory).filter(([key]) => key.toLowerCase().includes(internalValue.toLowerCase()));
         // Order remaining history keys by most recent. Value is stored as { timestamp: string, value: AutocompleteOption }
@@ -175,25 +177,25 @@ export function AutocompleteSearchBar({
         // Filter out options that are in history (use id to check)
         const filteredOptions = options.filter(option => !historyOptions.some(historyOption => historyOption.id === option.id));
         // If any options have a stars/isStarred values which differs from history, update history
-        updateHistoryItems(id, session.id ?? '', filteredOptions);
+        updateHistoryItems(id, userId ?? '', filteredOptions);
         // Combine history and options
         let combinedOptions = [...historyOptions, ...filteredOptions];
         // In case there are bad options, filter out anything with: an empty or whitespace-only label, or no id
         combinedOptions = combinedOptions.filter(option => option.label && option.label.trim() !== '' && option.id);
         // Update state
         setOptionsWithHistory(combinedOptions);
-    }, [options, internalValue, id, session.id]);
+    }, [options, internalValue, id, userId]);
 
     const removeFromHistory = useCallback((option: AutocompleteOption) => {
         // Get existing history
-        const existingHistory = getSearchHistory(id, session.id ?? '');
+        const existingHistory = getSearchHistory(id, userId ?? '');
         // Remove the option from history
         delete existingHistory[option.label];
         // Save the new history
-        localStorage.setItem(`search-history-${id}-${session.id ?? ''}`, JSON.stringify(existingHistory));
+        localStorage.setItem(`search-history-${id}-${userId ?? ''}`, JSON.stringify(existingHistory));
         // Update options with history
         setOptionsWithHistory(optionsWithHistory.filter(o => o.id !== option.id));
-    }, [id, optionsWithHistory, session.id]);
+    }, [id, optionsWithHistory, userId]);
 
     /**
      * If no options but loading, display a loading indicator
@@ -226,7 +228,7 @@ export function AutocompleteSearchBar({
     const handleSelect = useCallback((option: AutocompleteOption) => {
         console.log('handle select', option);
         // Add to search history
-        const existingHistory = getSearchHistory(id, session.id ?? '');
+        const existingHistory = getSearchHistory(id, userId ?? '');
         // If history has more than 500 entries, remove the oldest
         if (Object.keys(existingHistory).length > 500) {
             const oldestKey = Object.keys(existingHistory).sort((a, b) => existingHistory[a].timestamp - existingHistory[b].timestamp)[0];
@@ -238,7 +240,7 @@ export function AutocompleteSearchBar({
             option: ({ ...option, isFromHistory: true }),
         };
         // Save to local storage
-        localStorage.setItem(`search-history-${id}-${session.id ?? ''}`, JSON.stringify(existingHistory));
+        localStorage.setItem(`search-history-${id}-${userId ?? ''}`, JSON.stringify(existingHistory));
         // If action, perform action and clear input
         if (option.__typename === 'Action') {
             performAction(option, session);
@@ -251,7 +253,7 @@ export function AutocompleteSearchBar({
         }
         // Trigger onInputChange
         onInputChange(option);
-    }, [id, onChangeDebounced, onInputChange, session]);
+    }, [id, onChangeDebounced, onInputChange, session, userId]);
 
     const onSubmit = useCallback((event: React.SyntheticEvent<Element, Event>, value: AutocompleteOption | null, reason: AutocompleteChangeReason, details?: AutocompleteChangeDetails<any> | undefined) => {
         // If there is a highlighted option, use that
@@ -273,9 +275,9 @@ export function AutocompleteSearchBar({
         // Update the option's isStarred and stars value
         const updatedOption = { ...option, isStarred, stars: isStarred ? (option.stars ?? 0) + 1 : (option.stars ?? 1) - 1 };
         // Update history and state
-        updateHistoryItems(id, session.id ?? '', [updatedOption]);
+        updateHistoryItems(id, userId ?? '', [updatedOption]);
         setOptionsWithHistory(optionsWithHistory.map(o => o.id === option.id ? updatedOption : o));
-    }, [id, optionsWithHistory, session.id]);
+    }, [id, optionsWithHistory, userId]);
 
     // On key down, fill search input with highlighted option if right arrow is pressed
     const onKeyDown = useCallback((event: React.KeyboardEvent) => {

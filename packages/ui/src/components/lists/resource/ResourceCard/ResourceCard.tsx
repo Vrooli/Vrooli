@@ -4,7 +4,7 @@ import {
     Tooltip,
     Typography,
 } from '@mui/material';
-import { firstString, getTranslation, openLink, PubSub, ResourceType, usePress } from 'utils';
+import { firstString, getTranslation, getUserLanguages, openLink, PubSub, ResourceType, usePress } from 'utils';
 import { useCallback, useMemo } from 'react';
 import { useLocation } from '@shared/route';
 import { ResourceCardProps } from '../../../cards/types';
@@ -36,14 +36,14 @@ export const ResourceCard = ({
     const [, setLocation] = useLocation();
 
     const { description, title } = useMemo(() => {
-        const languages = session?.languages ?? navigator.languages;
+        const languages = getUserLanguages(session);
         const description = getTranslation(data, 'description', languages, true);
         const title = getTranslation(data, 'title', languages, true);
         return {
             description: (description && description.length > 0) ? description : data.link,
             title: (title && title.length > 0) ? title : UsedForDisplay[data.usedFor ?? ResourceUsedFor.Context],
         };
-    }, [data, session?.languages]);
+    }, [data, session]);
 
     const Icon = useMemo(() => {
         return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link)

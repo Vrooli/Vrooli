@@ -6,7 +6,7 @@ import { useCallback, useMemo } from 'react';
 import { RunSortBy, StarFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading } from '..';
-import { displayDate, getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, openObject } from 'utils';
+import { displayDate, getTranslation, getUserLanguages, LabelledSortOption, labelledSortOptions, listItemColor, openObject } from 'utils';
 import { RunStatus } from 'graphql/generated/globalTypes';
 import { RoutineIcon } from '@shared/icons';
 import { StarButton } from 'components/buttons';
@@ -53,7 +53,7 @@ export function RunListItem({
 
     const { canStar, name, percentComplete, startedAt, completedAt } = useMemo(() => {
         const routinePermissions = data?.routine?.permissionsRoutine;
-        const languages = session?.languages ?? navigator.languages;
+        const languages = getUserLanguages(session);
         const completedComplexity = data?.completedComplexity ?? null;
         const totalComplexity = data?.routine?.complexity ?? null;
         const percentComplete = data?.status === RunStatus.Completed ? 100 :

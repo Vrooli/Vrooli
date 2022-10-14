@@ -23,6 +23,7 @@ import { useFormik } from 'formik';
 import { logOutMutation, profileUpdateMutation } from 'graphql/mutation';
 import { APP_LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
+import { getCurrentUser, guestSession } from 'utils/authentication';
 
 // Maximum accounts to sign in with
 const MAX_ACCOUNTS = 10;
@@ -34,6 +35,7 @@ export const AccountMenu = ({
 }: AccountMenuProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
     const open = Boolean(anchorEl);
 
     // Handle theme
@@ -52,15 +54,15 @@ export const AccountMenu = ({
         validationSchema,
         onSubmit: (values) => {
             // If not logged in, do nothing
-            if (!session?.id) {
+            if (!userId) {
                 return;
             }
             if (!formik.isValid) return;
             const input = shapeProfileUpdate({
-                id: session.id,
+                id: userId,
                 theme: palette.mode,
             }, {
-                id: session.id,
+                id: userId,
                 theme: values.theme,
             })
             // If no changes, don't update
@@ -81,7 +83,7 @@ export const AccountMenu = ({
      */
     const handleUserClick = useCallback((id: string) => {
         // If already selected, go to profile page
-        if (session?.id === id) {
+        if (userId === id) {
             setLocation(APP_LINKS.Profile);
         }
         // Otherwise, switch to selected account
@@ -90,7 +92,7 @@ export const AccountMenu = ({
         }
         // Close menu
         onClose();
-    }, [onClose, session?.id, setLocation]);
+    }, [onClose, userId, setLocation]);
 
     const handleAddAccount = useCallback(() => {
         setLocation(APP_LINKS.Start);
@@ -100,7 +102,7 @@ export const AccountMenu = ({
     const [logOut] = useMutation(logOutMutation);
     const handleLogOut = useCallback(() => {
         mutationWrapper({ mutation: logOut })
-        PubSub.get().publishSession({});
+        PubSub.get().publishSession(guestSession);
         setLocation(APP_LINKS.Home);
         onClose();
     }, [onClose, setLocation, logOut]);
@@ -110,14 +112,14 @@ export const AccountMenu = ({
     const accounts = useMemo<any[]>(() => { return [session] }, [session]);
     const profileListItems = useMemo(() => (<ListItem
         button
-        key={session?.id ?? ''}
-        onClick={() => handleUserClick(session.id ?? '')}
+        key={userId ?? ''}
+        onClick={() => handleUserClick(userId ?? '')}
     >
         <ListItemIcon>
             <UserIcon />
         </ListItemIcon>
         <ListItemText primary={'me'} />
-    </ListItem>), [handleUserClick, session.id])
+    </ListItem>), [handleUserClick, userId])
 
     return (
         <Menu

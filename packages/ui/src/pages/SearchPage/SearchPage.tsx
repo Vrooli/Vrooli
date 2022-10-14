@@ -9,9 +9,9 @@ import { useLocation } from '@shared/route';
 import { SearchPageProps } from "../types";
 import { getObjectUrlBase, PubSub, parseSearchParams, stringifySearchParams, openObject, SearchType, SearchPageTabOption as TabOption, addSearchParams } from "utils";
 import { ListOrganization, ListProject, ListRoutine, ListStandard, ListUser } from "types";
-import { uuidValidate } from '@shared/uuid';
 import { APP_LINKS } from "@shared/consts";
 import { AddIcon } from "@shared/icons";
+import { getCurrentUser } from "utils/authentication";
 
 // Tab data type
 type BaseParams = {
@@ -124,8 +124,7 @@ export function SearchPage({
         console.log('onaddclick')
         const addUrl = `${getObjectUrlBase({ __typename: searchType as string })}/add`
         // If not logged in, redirect to login page
-        const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
-        if (!loggedIn) {
+        if (!getCurrentUser(session).id) {
             PubSub.get().publishSnack({ message: 'Must be logged in.', severity: SnackSeverity.Error });
             setLocation(`${APP_LINKS.Start}${stringifySearchParams({
                 redirect: addUrl
@@ -144,7 +143,7 @@ export function SearchPage({
         else {
             setLocation(addUrl)
         }
-    }, [openAddRoutine, searchType, session?.id, session?.isLoggedIn, setLocation]);
+    }, [openAddRoutine, searchType, session, setLocation]);
 
     const onPopupButtonClick = useCallback((ev: any) => {
         const tabType = tabOptions[tabIndex][1];
