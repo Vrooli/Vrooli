@@ -9,7 +9,7 @@ import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
-import { OrganizationModel, organizationQuerier } from "./organization";
+import { organizationQuerier } from "./organization";
 import { projectPermissioner } from "./project";
 import { routinePermissioner } from "./routine";
 import { standardPermissioner } from "./standard";

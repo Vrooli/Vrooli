@@ -67,18 +67,28 @@ if [ -z "$VERSION" ]; then
     read -r VERSION
 fi
 
-# Update package.json files for server, shared, ui, and docs
+# Update package.json files for every package
 cd ${HERE}/../packages
-for PACKAGE in server shared ui docs; do
-    info "Updating package.json for ${PACKAGE}"
-    cd ${PACKAGE}
+# Find every directory containing a package.json file
+for dir in $(find . -name package.json -exec dirname {} \;); do
+    info "Updating package.json for ${dir}"
+    # Go to directory
+    cd ${dir}
+    # Patch with yarn
     yarn version patch --new-version ${VERSION} --no-git-tag-version
-    if [ $? -ne 0 ]; then
-        error "Failed to update package.json for ${PACKAGE}"
-        exit 1
-    fi
-    cd ..
+    # Go back to packages directory
+    cd ${HERE}/../packages
 done
+# for PACKAGE in server ui docs; do
+#     info "Updating package.json for ${PACKAGE}"
+#     cd ${PACKAGE}
+#     yarn version patch --new-version ${VERSION} --no-git-tag-version
+#     if [ $? -ne 0 ]; then
+#         error "Failed to update package.json for ${PACKAGE}"
+#         exit 1
+#     fi
+#     cd ..
+# done
 
 # Navigate to UI directory
 cd ui

@@ -492,23 +492,21 @@ export const deconstructUnionsHelper = <GraphQLModel>(data: { [x: string]: any }
     // Create result object
     let result: { [x: string]: any } = data;
     // For each union field
-    for (const [key, value] of Object.keys(unionMap)) {
+    for (const [key, value] of Object.entries(unionMap)) {
         // If it's not in data, continue
         if (!data[key]) continue;
-        // Remove the union field from the result
-        delete result[key];
         // Get data in union field
         const unionData = data[key];
+        // Remove the union field from the result
+        delete result[key];
         // If not an object, skip
         if(!isObject(unionData)) continue;
-        console.log('in deconstructunionhelper', key, JSON.stringify(unionData), '\n');
         // Value is an object where the keys are possible types of the union object, and values are the db field associated with that type
         // Iterate over the possible types
-        for (const [type, dbField] of Object.entries(value)) {
+        for (const [type, dbField] of Object.entries(value as { [x: string]: string })) {
             // If the type is in the union data, add the db field to the result
-            if ((unionData as any).__typename === type) {
-                // Add the db field to the result
-                result[dbField] = data[key];
+            if (unionData[type]) {
+                result[dbField] = unionData[type];
             }
         }
     }
@@ -527,7 +525,7 @@ export const constructUnionsHelper = <GraphQLModel>(partialInfo: { [x: string]: 
     // For each union field
     for (const [key, value] of Object.entries(unionMap)) {
         // For each type, dbField pair
-        for (const [type, dbField] of Object.entries(value as { [x: string]: string })) {
+        for (const [_, dbField] of Object.entries(value as { [x: string]: string })) {
             // If the dbField is in the partialInfo
             if (result[dbField as string]) {
                 // Set the union field to the dbField
@@ -1378,7 +1376,7 @@ export async function readOneHelper<GraphQLModel>({
     // If logged in and object has view count, handle it
     if (userId && objectType in ViewFor) {
         ViewModel.mutate(prisma).view(userId, { forId: object.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language
-    } else console.log('readonehelper: object type not in viewfor', objectType);
+    }
     return (await addSupplementalFields(prisma, userId, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
 }
 
@@ -1692,7 +1690,6 @@ export async function deleteManyHelper({
     if (!model.mutate || !model.mutate(prisma).cud)
         throw new CustomError(CODE.InternalError, 'Model does not support delete', { code: genErrorCode('0036') });
     // Delete objects. cud will check permissions
-    console.log('deletemanyhelper a', model.type);
     const { deleted } = await model.mutate!(prisma).cud!({ partialInfo: {}, userId, deleteMany: input.ids });
     if (!deleted)
         throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in deleteManyHelper', { code: genErrorCode('0037') });

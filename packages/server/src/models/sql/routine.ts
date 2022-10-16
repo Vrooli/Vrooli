@@ -287,7 +287,6 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
             input,
             mainField: 'isInternal',
         })
-        console.log('before routine customqueries combinequeries', JSON.stringify(isComplete), '\n', JSON.stringify(isInternal), '\n');
         return combineQueries([
             isComplete,
             isInternal,

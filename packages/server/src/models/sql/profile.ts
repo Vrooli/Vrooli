@@ -125,7 +125,6 @@ export const profileVerifier = () => ({
      * @returns Session data
      */
     async logIn(password: string, user: any, prisma: PrismaType, req: Request): Promise<Session | null> {
-        console.log('profile logIn start', JSON.stringify(user), '\n\n')
         // First, check if the log in fail counter should be reset
         const unable_to_reset = [AccountStatus.HardLocked, AccountStatus.Deleted];
         // If account is not deleted or hard-locked, and lockout duration has passed
@@ -304,7 +303,6 @@ export const profileVerifier = () => ({
      */
     async toSession(user: { id: string }, prisma: PrismaType, session: Partial<Session>): Promise<Session> {
         const sessionUser = await this.toSessionUser(user, prisma);
-        console.log('profile tosession sessionuser', sessionUser, '\n\n');
         return {
             __typename: 'Session',
             isLoggedIn: true,

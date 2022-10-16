@@ -37,7 +37,6 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
     }
     // Verify that the session token is valid
     jwt.verify(token, process.env.JWT_SECRET, async (error: any, payload: any) => {
-        console.log('in authenticate, jwt.verify');
         if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
             // If from unsafe origin, deny access.
             if (!req.fromSafeOrigin) throw new CustomError(CODE.Unauthorized, 'Unsafe origin with expired/missing API token', { code: genErrorCode('0248') });
@@ -49,7 +48,6 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
         req.isLoggedIn = payload.isLoggedIn === true && Array.isArray(payload.users) && payload.users.length > 0;
         // Users, but make sure they all have unique ids
         req.users = [...new Map((payload.users ?? []).map((user: SessionUser) => [user.id, user])).values()] as SessionUser[];
-        console.log('in authenticate req.users', JSON.stringify(req.users), '\n\n')
         req.validToken = true;
         next();
     })
@@ -86,8 +84,6 @@ const basicToken = (): BasicToken => ({
  * @returns 
  */
 export async function generateSessionJwt(res: Response, session: RecursivePartial<Session>): Promise<undefined> {
-    console.log('generating session jwt');
-    console.log(JSON.stringify(session), '\n\n')
     const tokenContents: SessionToken = {
         ...basicToken(),
         isLoggedIn: session.isLoggedIn ?? false,

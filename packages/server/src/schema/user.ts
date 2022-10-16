@@ -201,7 +201,6 @@ export const resolvers = {
                 throw new CustomError(CODE.ErrorUnknown, 'Could not update profile', { code: genErrorCode('0160') });
             // Update session
             const session = await ProfileModel.verify.toSession({ id: getUserId(req) as string }, prisma, req);
-            console.log('updating user session', JSON.stringify(session), '\n')
             await generateSessionJwt(res, session);
             return updated;
         },

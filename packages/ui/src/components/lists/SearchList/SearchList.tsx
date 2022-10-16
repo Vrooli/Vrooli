@@ -2,10 +2,10 @@
  * Search list for a single object type
  */
 import { useLazyQuery } from "@apollo/client";
-import { Box, Button, List, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Button, List, Palette, Tooltip, Typography, useTheme } from "@mui/material";
 import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { clickSize, containerShadow } from "styles";
+import { containerShadow } from "styles";
 import { BuildIcon, HistoryIcon as TimeIcon, PlusIcon, SortIcon } from '@shared/icons';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
 import { addSearchParams, getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, parseSearchParams, removeSearchParams, SearchParams, searchTypeToParams, SortValueToLabelMap } from "utils";
@@ -17,19 +17,23 @@ type TimeFrame = {
     before?: Date;
 }
 
-const searchButtonStyle = {
-    ...clickSize,
+const searchButtonStyle = (palette: Palette) => ({
+    minHeight: '34px',
     display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
     borderRadius: '50px',
-    border: `1px solid ${(t) => t.palette.secondary.main}`,
+    border: `2px solid ${palette.secondary.main}`,
     margin: 1,
-    padding: 1,
+    padding: 0,
+    paddingLeft: 1,
+    paddingRight: 1,
     cursor: 'pointer',
     '&:hover': {
         transform: 'scale(1.1)',
     },
     transition: 'transform 0.2s ease-in-out',
-};
+});
 
 /**
  * Helper method for converting fetched data to an array of object data
@@ -344,28 +348,28 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 <Tooltip title="Sort by" placement="top">
                     <Box
                         onClick={handleSortOpen}
-                        sx={{ ...searchButtonStyle }}
+                        sx={searchButtonStyle(palette)}
                     >
                         <SortIcon fill={palette.secondary.main} />
-                        {sortByLabel}
+                        <Typography variant="body2" sx={{ marginLeft: 0.5 }}>{sortByLabel}</Typography>
                     </Box>
                 </Tooltip>
                 <Tooltip title="Time created" placement="top">
                     <Box
                         onClick={handleTimeOpen}
-                        sx={{ ...searchButtonStyle }}
+                        sx={searchButtonStyle(palette)}
                     >
                         <TimeIcon fill={palette.secondary.main} />
-                        {timeFrameLabel}
+                        <Typography variant="body2" sx={{ marginLeft: 0.5 }}>{timeFrameLabel}</Typography>
                     </Box>
                 </Tooltip>
                 {advancedSearchParams && <Tooltip title="See all search settings" placement="top">
                     <Box
                         onClick={handleAdvancedSearchDialogOpen}
-                        sx={{ ...searchButtonStyle }}
+                        sx={searchButtonStyle(palette)}
                     >
                         <BuildIcon fill={palette.secondary.main} />
-                        Advanced
+                        <Typography variant="body2" sx={{ marginLeft: 0.5 }}>Advanced</Typography>
                     </Box>
                 </Tooltip>}
             </Box>

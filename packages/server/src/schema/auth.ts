@@ -205,7 +205,6 @@ export const resolvers = {
                 }
                 // Create new session
                 const session = await ProfileModel.verify.logIn(input?.password as string, user, prisma, req);
-                console.log('email log in session', JSON.stringify(session));
                 if (session) {
                     // Set session token
                     await generateSessionJwt(res, session);
@@ -343,10 +342,7 @@ export const resolvers = {
         },
         validateSession: async (_parent: undefined, _args: undefined, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             await rateLimit({ info, maxUser: 5000, req });
-            console.log('validate session start');
-            console.log(req.isLoggedIn, req.validToken, JSON.stringify(req.users), '\n\n')
             const userId = getUserId(req);
-            console.log('validate session got user id', userId);
             // If session is expired
             if (!userId || !req.validToken) {
                 res.clearCookie(COOKIE.Jwt);

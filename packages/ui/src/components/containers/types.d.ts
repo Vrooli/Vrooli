@@ -68,6 +68,7 @@ export interface ContentCollapseProps {
         root?: { [x: string]: any };
     }
     title?: string | null;
+    titleComponent?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span" | "legend";
     children?: React.ReactNode;
 }
 
