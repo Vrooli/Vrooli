@@ -9,7 +9,7 @@
 # -v: Version number to use (e.g. "1.0.0")
 # -d: Deploy to VPS (y/N)
 # -h: Show this help message
-HERE=`dirname $0`
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 
 # Read arguments
@@ -69,8 +69,8 @@ fi
 
 # Update package.json files for every package
 cd ${HERE}/../packages
-# Find every directory containing a package.json file
-for dir in $(find . -name package.json -exec dirname {} \;); do
+# Find every directory containing a package.json file, up to 3 levels deep
+for dir in $(find . -maxdepth 3 -name package.json -printf '%h '); do
     info "Updating package.json for ${dir}"
     # Go to directory
     cd ${dir}
@@ -79,16 +79,6 @@ for dir in $(find . -name package.json -exec dirname {} \;); do
     # Go back to packages directory
     cd ${HERE}/../packages
 done
-# for PACKAGE in server ui docs; do
-#     info "Updating package.json for ${PACKAGE}"
-#     cd ${PACKAGE}
-#     yarn version patch --new-version ${VERSION} --no-git-tag-version
-#     if [ $? -ne 0 ]; then
-#         error "Failed to update package.json for ${PACKAGE}"
-#         exit 1
-#     fi
-#     cd ..
-# done
 
 # Navigate to UI directory
 cd ui
