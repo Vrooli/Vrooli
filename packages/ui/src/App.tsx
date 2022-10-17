@@ -150,6 +150,16 @@ export function App() {
         setTheme(theme);
     }, [session])
 
+    // Detect online/offline status
+    useEffect(() => {
+        window.addEventListener('online', () => {
+            PubSub.get().publishSnack({ message: 'You are now online', severity: SnackSeverity.Success });
+        });
+        window.addEventListener('offline', () => {
+            PubSub.get().publishSnack({ message: 'No internet connection', severity: SnackSeverity.Error });
+        });
+    }, []);
+
     // Handle site-wide keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {

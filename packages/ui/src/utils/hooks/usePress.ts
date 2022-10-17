@@ -4,9 +4,11 @@ interface UsePressProps {
     onLongPress: (target: React.MouseEvent['target']) => void;
     onClick?: (target: React.MouseEvent['target']) => void;
     onHover?: (target: React.MouseEvent['target']) => void;
+    onHoverEnd?: (target: React.MouseEvent['target']) => void;
     onRightClick?: (target: React.MouseEvent['target']) => void;
     shouldPreventDefault?: boolean;
-    delay?: number;
+    pressDelay?: number;
+    hoverDelay?: number;
 }
 
 type UsePressReturn = {
@@ -56,9 +58,11 @@ export const usePress = ({
     onLongPress,
     onClick,
     onHover,
+    onHoverEnd,
     onRightClick,
     shouldPreventDefault = true,
-    delay = 300,
+    pressDelay = 300,
+    hoverDelay = 900,
 }: UsePressProps): UsePressReturn => {
     // Stores is long press has been triggered
     const longPressTriggered = useRef<boolean>(false);
@@ -75,10 +79,12 @@ export const usePress = ({
     const isRightClick = useRef<boolean>(false);
     // Stores if object is currently being pressed
     const isPressed = useRef<boolean>(false);
+    // Stores if object is currently being hovered
+    const isHovered = useRef<boolean>(false);
 
     const hover = useCallback((event: React.MouseEvent | React.TouchEvent) => {
-        // Ignore if pressing
-        if (isPressed.current) return;
+        // Ignore if pressing or already hovered
+        if (isPressed.current || isHovered.current) return;
         // Cancel if already triggered
         if (hoverTimeout.current) {
             clearTimeout(hoverTimeout.current); 
@@ -87,10 +93,11 @@ export const usePress = ({
         // Set timeout. Hover delay is longer than press delay
         hoverTimeout.current = setTimeout(() => {
             if (target.current) onHover?.(target.current);
-        }, delay * 3);
+            isHovered.current = true;
+        }, hoverDelay);
         // Store target
         target.current = event.target ?? event.currentTarget as React.MouseEvent['target'];
-    }, [onHover, delay]);
+    }, [onHover, hoverDelay]);
 
     const start = useCallback((event: React.MouseEvent | React.TouchEvent) => {
         // Cancel hover timeout
@@ -120,8 +127,8 @@ export const usePress = ({
         pressTimeout.current = setTimeout(() => {
             if (!longPressTriggered.current && target.current) onLongPress(target.current);
             longPressTriggered.current = true;
-        }, delay);
-    }, [onLongPress, shouldPreventDefault, delay]);
+        }, pressDelay);
+    }, [onLongPress, shouldPreventDefault, pressDelay]);
 
     const move = useCallback((event: React.MouseEvent | React.TouchEvent) => {
         if (longPressTriggered.current || !pressTimeout.current) return;
@@ -145,6 +152,11 @@ export const usePress = ({
         if (hoverTimeout.current) {
             clearTimeout(hoverTimeout.current);
             hoverTimeout.current = undefined;
+        }
+        // If hover was triggered, trigger hoverEnd
+        if (isHovered.current) {
+            if (target.current) onHoverEnd?.(target.current);
+            isHovered.current = false;
         }
         // Calculate distatnce travelled
         const travelDistance = Math.sqrt(
@@ -172,7 +184,7 @@ export const usePress = ({
         if (shouldPreventDefault && target.current && isTouchEvent(event)) {
             target.current.removeEventListener("touchend", preventDefaultTouch as any);
         }
-    }, [onClick, shouldPreventDefault, onRightClick]);
+    }, [shouldPreventDefault, onHoverEnd, onRightClick, onClick]);
 
     return {
         onMouseDown: e => start(e),

@@ -31,6 +31,7 @@ export function register(config) {
 
         // Function for checking registration of service worker
         const checkRegister = () => {
+            console.log('checking register...');
             const swUrl = `${process.env.PUBLIC_URL}/service-worker.js`;
             if (isLocalhost) {
                 // This is running on localhost. Let's check if a service worker still exists or not.
@@ -52,7 +53,11 @@ export function register(config) {
 
         // Check for registration on load and visibility change
         window.addEventListener('load', checkRegister);
-        document.addEventListener('visibilitychange', checkRegister);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                checkRegister();
+            }
+        });
     }
 }
 

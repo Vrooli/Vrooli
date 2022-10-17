@@ -20,25 +20,25 @@ export const PullToRefresh = () => {
     // Detect scroll
     useEffect(() => {
         const handleScroll = (e: Event) => {
-            console.log('handleScroll', window.scrollY);
-            PubSub.get().publishSnack({ message: 'scrollY: ' + window.scrollY , severity: SnackSeverity.Info });
+            if (Math.round(window.scrollY) % 15 === 0) PubSub.get().publishSnack({ message: 'scrollY: ' + window.scrollY, severity: SnackSeverity.Info });
             // Find scroll y position
             const scrollY = window.scrollY;
             // If scrolled far enough upwards, then indicate that the user wants to refresh
-            if (scrollY < -150) {
+            if (scrollY < -175 && !refs.current.willRefresh) {
                 setWillRefresh(true);
+                PubSub.get().publishSnack({ message: 'Will refresh', severity: SnackSeverity.Warning });
                 refs.current.willRefresh = true;
             }
             // If scrolled back to 0, then refresh
             if (scrollY === 0 && refs.current.willRefresh) {
-                PubSub.get().publishSnack({ message: 'page refreshed' , severity: SnackSeverity.Warning });
-                //window.location.reload();
+                PubSub.get().publishSnack({ message: 'page refreshed', severity: SnackSeverity.Warning });
+                refs.current.willRefresh = false;
+                window.location.reload();
             }
         };
         window.addEventListener('scroll', handleScroll);
         return () => {
             window.removeEventListener('scroll', handleScroll);
-            setWillRefresh(false);
         };
     }, []);
 
@@ -52,7 +52,7 @@ export const PullToRefresh = () => {
                 top: 0,
                 left: 0,
                 right: 0,
-                paddingTop: { xs: '72px', md: '88px' },
+                paddingTop: { xs: '96px', md: '112px' },
                 paddingBottom: 40,
                 height: '56px',
                 display: 'flex',
@@ -62,7 +62,12 @@ export const PullToRefresh = () => {
                 background: palette.background.default,
             }}
         >
-            <IconButton sx={{ background: palette.background.paper }}>
+            <IconButton sx={{
+                background: palette.background.paper,
+                // Spin when will refresh
+                transform: willRefresh ? 'rotate(360deg)' : 'rotate(0deg)',
+                transition: 'transform 500ms cubic-bezier(0.4, 0, 0.2, 1)',
+            }}>
                 <RefreshIcon
                     fill={palette.background.textPrimary}
                     width={willRefresh ? 30 : 24}

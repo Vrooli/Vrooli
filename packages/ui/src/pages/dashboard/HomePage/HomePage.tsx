@@ -9,7 +9,7 @@ import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { HomePageProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import { actionsItems, getUserLanguages, listToAutocomplete, listToListItems, ObjectType, openObject, SearchPageTabOption, shortcutsItems, useReactSearch } from 'utils';
+import { actionsItems, getUserLanguages, listToAutocomplete, listToListItems, ObjectType, openObject, SearchPageTabOption, shortcutsItems, stringifySearchParams, useReactSearch } from 'utils';
 import { AutocompleteOption, NavigableObject } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
@@ -286,8 +286,15 @@ export const HomePage = ({
     }, [setCreateNewAnchor]);
     const closeCreateNew = useCallback(() => setCreateNewAnchor(null), []);
     const handleCreateNewSelect = useCallback((path: string) => {
-        setLocation(path);
-    }, [setLocation]);
+        // If not logged in, redirect to login page
+        if (!getCurrentUser(session).id) {
+            setLocation(`${APP_LINKS.Start}${stringifySearchParams({
+                redirect: path
+            })}`);
+        }
+        // Otherwise, navigate to create page
+        else setLocation(path);
+    }, [session, setLocation]);
 
     return (
         <PageContainer>

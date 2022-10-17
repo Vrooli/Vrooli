@@ -61,7 +61,7 @@ export function ThemeSwitch({
                     type="checkbox"
                     checked={isDark}
                     aria-label="user-organization-toggle"
-                    onClick={handleChange}
+                    onChange={handleChange}
                     style={{
                         position: 'absolute',
                         width: '100%',
