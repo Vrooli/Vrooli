@@ -311,15 +311,15 @@ export const RoutineView = ({
         }
         // If routine has nodes
         return (
-            <Grid container spacing={1} mt={1}>
-                <Grid item xs={12} sm={6}>
+            <Grid container spacing={1} mt={1} justifyContent="center">
+                <Grid item xs={6}>
                     <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button>
                 </Grid>
                 {/* Show continue if routine already has progress TODO */}
-                {status === Status.Valid && <Grid item xs={12} sm={6}>
+                {status === Status.Valid && <Grid item xs={6}>
                     {routine && routine.runs?.length > 0 ?
                         <Button startIcon={<PlayIcon />} fullWidth onClick={runRoutine} color="secondary">Continue</Button> :
-                        <Button startIcon={<PlayIcon />} fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
+                        <Button startIcon={<PlayIcon />} fullWidth onClick={runRoutine} color="secondary">Start</Button>
                     }
                 </Grid>}
             </Grid>

@@ -170,6 +170,7 @@ export const assertRequestFrom = (req: Request, conditions: RequestConditions) =
     // Check isUser condition
     if (conditions.isUser !== undefined) {
         const isUser = hasUserData && (hasApiToken || req.fromSafeOrigin === true)
+        console.log('before mustbeloggedin error', isUser, hasUserData, hasApiToken, req.fromSafeOrigin)
         if (conditions.isUser === true && !isUser) throw new CustomError(CODE.Unauthorized, 'Must be logged in.', { code: genErrorCode('0267') });
         if (conditions.isUser === false && isUser) throw new CustomError(CODE.Unauthorized, 'Must be logged in.', { code: genErrorCode('0268') });
     }

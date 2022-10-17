@@ -24,7 +24,8 @@ export const BottomNav = ({
                 zIndex: 5,
                 bottom: 0,
                 paddingBottom: 'env(safe-area-inset-bottom)',
-                // safe-area-inset-bottom is the iOS navigation bar
+                paddingLeft: 'env(safe-area-inset-left)',
+                paddingRight: 'env(safe-area-inset-right)',
                 height: 'calc(56px + env(safe-area-inset-bottom))',
                 width: '100%',
                 display: { xs: 'flex', md: 'none' },

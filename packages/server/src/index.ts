@@ -104,6 +104,7 @@ const main = async () => {
     initStatsCronJobs();
 
     logger.log(LogLevel.info, `🚀 Server running at ${SERVER_URL}`);
+    console.log('yeet');
 }
 
 main();

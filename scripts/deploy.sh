@@ -15,7 +15,7 @@
 # -n: Nginx proxy location (e.g. "/root/NginxSSLReverseProxy")
 # -l: Project location (e.g. "/root/Vrooli")
 # -h: Show this help message
-HERE=`dirname $0`
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 
 # Read arguments

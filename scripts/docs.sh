@@ -1,5 +1,5 @@
 #!/bin/sh
-HERE=`dirname $0`
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 
 # If in development mode, convert shared packages to typescript

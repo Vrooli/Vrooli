@@ -160,6 +160,7 @@ export const routinePermissioner = (): Permissioner<RoutinePermission, RoutineSe
         prisma,
         userId,
     }) {
+        console.log('routine permissioner startttttt', userId, JSON.stringify(objects), '\n\n')
         // Initialize result with default permissions
         const result: (RoutinePermission & { id?: string })[] = objects.map((o) => ({
             id: o.id,
@@ -183,6 +184,7 @@ export const routinePermissioner = (): Permissioner<RoutinePermission, RoutineSe
                 },
                 select: { id: true, isDeleted: true },
             })
+            console.log('routine permissioner owned', owned)
             // Set permissions for owned objects
             owned.forEach((o) => {
                 const index = objects.findIndex((r) => r.id === o.id);
@@ -207,6 +209,7 @@ export const routinePermissioner = (): Permissioner<RoutinePermission, RoutineSe
             },
             select: { id: true, isDeleted: true, isInternal: true, isPrivate: true },
         })
+        console.log('routine permissioner alllllll', JSON.stringify(all), '\n\n')
         // Set permissions for all objects
         all.forEach((o) => {
             const index = objects.findIndex((r) => r.id === o.id);
@@ -223,6 +226,7 @@ export const routinePermissioner = (): Permissioner<RoutinePermission, RoutineSe
         });
         // Return result with IDs removed
         result.forEach((r) => delete r.id);
+        console.log('routine permissioner endddddd', JSON.stringify(result), '\n\n')
         return result as RoutinePermission[];
     },
     async canSearch({
@@ -287,6 +291,7 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
             input,
             mainField: 'isInternal',
         })
+        console.log('before routine customqueries combinequeries', JSON.stringify(isComplete), '\n', JSON.stringify(isInternal), '\n');
         return combineQueries([
             isComplete,
             isInternal,

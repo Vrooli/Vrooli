@@ -393,11 +393,11 @@ export const HomePage = ({
                 <Stack direction="column" spacing={2} justifyContent="center" alignItems="center">
                     <Typography component="h3" variant="h4" textAlign="center">Can't find what you're looking for?</Typography>
                     <Grid container spacing={2} sx={{ width: 'min(100%, 500px)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                        <Grid item xs={12} sm={6}>
-                            <Button fullWidth onClick={openAdvancedSearch} startIcon={<SearchIcon />}>Advanced Search</Button>
+                        <Grid item xs={6}>
+                            <Button fullWidth onClick={openAdvancedSearch} startIcon={<SearchIcon />}>Advanced</Button>
                         </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <Button fullWidth onClick={openCreateNew} startIcon={<CreateIcon />}>Create New</Button>
+                        <Grid item xs={6}>
+                            <Button fullWidth onClick={openCreateNew} startIcon={<CreateIcon />}>Create</Button>
                         </Grid>
                     </Grid>
                 </Stack>

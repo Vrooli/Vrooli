@@ -1,5 +1,5 @@
 #!/bin/bash
-HERE=`dirname $0`
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 
 # Loop through shared folder and convert typescript to javascript

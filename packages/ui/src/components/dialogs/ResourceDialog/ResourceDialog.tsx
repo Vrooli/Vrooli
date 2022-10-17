@@ -178,12 +178,6 @@ export const ResourceDialog = ({
         handleTranslationChange(formik, 'translationsUpdate', e, language)
     }, [formik, language]);
 
-    const handleClose = () => {
-        console.log('resourcedialog resetting form')
-        formik.resetForm();
-        onClose();
-    }
-
     // Search dialog to find routines, organizations, etc. to link to
     const [searchString, setSearchString] = useState<string>('');
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
@@ -220,6 +214,13 @@ export const ResourceDialog = ({
         console.log('resourcedialog oninputselect')
         formik.setFieldValue('link', `${window.location.origin}${newLocation}`);
     }, [closeSearch, formik]);
+
+    const handleClose = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
+        // Don't close if formik is dirty and clicked outside
+        if (formik.dirty && reason === 'backdropClick') return;
+        // Otherwise, close
+        onClose();
+    }, [formik.dirty, onClose]);
 
 
     return (
