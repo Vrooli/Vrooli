@@ -1,6 +1,8 @@
 import { Box, IconButton, useTheme } from "@mui/material";
 import { RefreshIcon } from "@shared/icons";
+import { SnackSeverity } from "components/dialogs";
 import { useEffect, useRef, useState } from "react";
+import { PubSub } from "utils";
 
 /**
  * Pull-to-refresh component. Needed because iOS PWAs don't support this natively.
@@ -8,8 +10,9 @@ import { useEffect, useRef, useState } from "react";
 export const PullToRefresh = () => {
     const { palette } = useTheme();
     const [willRefresh, setWillRefresh] = useState<boolean>(false);
-    const refs = useRef({
+    const refs = useRef<{ willRefresh: boolean, startX: number | null }>({
         willRefresh: false,
+        startX: null,
     });
     // Determine if in PWA mode
     const isPWA = window.matchMedia('(display-mode: standalone)').matches;
@@ -18,6 +21,7 @@ export const PullToRefresh = () => {
     useEffect(() => {
         const handleScroll = (e: Event) => {
             console.log('handleScroll', window.scrollY);
+            PubSub.get().publishSnack({ message: 'scrollY: ' + window.scrollY , severity: SnackSeverity.Info });
             // Find scroll y position
             const scrollY = window.scrollY;
             // If scrolled far enough upwards, then indicate that the user wants to refresh
@@ -27,7 +31,8 @@ export const PullToRefresh = () => {
             }
             // If scrolled back to 0, then refresh
             if (scrollY === 0 && refs.current.willRefresh) {
-                window.location.reload();
+                PubSub.get().publishSnack({ message: 'page refreshed' , severity: SnackSeverity.Warning });
+                //window.location.reload();
             }
         };
         window.addEventListener('scroll', handleScroll);

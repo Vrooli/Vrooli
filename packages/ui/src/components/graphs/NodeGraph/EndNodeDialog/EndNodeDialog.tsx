@@ -46,7 +46,10 @@ export const EndNodeDialog = ({
         },
     });
 
-    const onClose = useCallback(() => {
+    const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
+        // Don't close if formik is dirty and clicked outside
+        if (formik.dirty && reason === 'backdropClick') return;
+        // Otherwise, close
         formik.resetForm();
         handleClose();
     }, [formik, handleClose]);
@@ -54,7 +57,7 @@ export const EndNodeDialog = ({
     return (
         <Dialog
             open={isOpen}
-            onClose={onClose}
+            onClose={handleCancel}
             aria-labelledby={titleAria}
             sx={{
                 zIndex,
@@ -62,7 +65,7 @@ export const EndNodeDialog = ({
         >
             <DialogTitle
                 ariaLabel={titleAria}
-                onClose={onClose}
+                onClose={handleCancel}
                 title={isEditing ? "Edit End Node" : 'End Node Information'}
             />
             <form onSubmit={formik.handleSubmit}>
@@ -132,7 +135,7 @@ export const EndNodeDialog = ({
                         errors={formik.errors}
                         isCreate={false}
                         loading={formik.isSubmitting}
-                        onCancel={onClose}
+                        onCancel={handleCancel}
                         onSetSubmitting={formik.setSubmitting}
                         onSubmit={formik.handleSubmit}
                     />}

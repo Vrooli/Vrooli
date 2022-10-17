@@ -7,7 +7,7 @@ import { reportCreateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { ReportDialogProps } from '../types';
 import { getUserLanguages, usePromptBeforeUnload } from 'utils';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
 import { DialogTitle, GridSubmitButtons, Selector } from 'components';
 import { uuid } from '@shared/uuid';
@@ -83,14 +83,17 @@ export const ReportDialog = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-    const handleClose = () => {
+    const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
+        // Don't close if formik is dirty and clicked outside
+        if (formik.dirty && reason === 'backdropClick') return;
+        // Otherwise, close
         formik.resetForm();
         onClose();
-    }
+    }, [formik, onClose]);
 
     return (
         <Dialog
-            onClose={handleClose}
+            onClose={handleCancel}
             open={open}
             aria-labelledby={titleAria}
             sx={{
@@ -109,7 +112,7 @@ export const ReportDialog = ({
                 ariaLabel={titleAria}
                 title={title}
                 helpText={helpText}
-                onClose={handleClose}
+                onClose={handleCancel}
             />
             <DialogContent>
                 <form onSubmit={formik.handleSubmit}>
@@ -170,7 +173,7 @@ export const ReportDialog = ({
                                 errors={formik.errors}
                                 isCreate={true}
                                 loading={formik.isSubmitting}
-                                onCancel={onClose}
+                                onCancel={handleCancel}
                                 onSetSubmitting={formik.setSubmitting}
                                 onSubmit={formik.handleSubmit}
                             />

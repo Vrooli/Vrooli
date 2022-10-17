@@ -94,7 +94,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     const [sortAnchorEl, setSortAnchorEl] = useState<HTMLElement | null>(null);
     const [timeAnchorEl, setTimeAnchorEl] = useState<HTMLElement | null>(null);
-    const [timeFrameLabel, setTimeFrameLabel] = useState<string>('Time');
+    const [timeFrameLabel, setTimeFrameLabel] = useState<string>('');
     const after = useRef<string | undefined>(undefined);
 
     /**
@@ -248,7 +248,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     const handleTimeClose = (label?: string, frame?: { after?: Date | undefined, before?: Date | undefined }) => {
         setTimeAnchorEl(null);
         setTimeFrame(frame);
-        if (label) setTimeFrameLabel(label);
+        if (label) setTimeFrameLabel(label === 'All Time' ? '' : label);
     };
 
     /**
@@ -369,7 +369,9 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         sx={searchButtonStyle(palette)}
                     >
                         <BuildIcon fill={palette.secondary.main} />
-                        <Typography variant="body2" sx={{ marginLeft: 0.5 }}>Advanced</Typography>
+                        {Object.keys(advancedSearchParams).length > 0 && <Typography variant="body2" sx={{ marginLeft: 0.5 }}>
+                            *{Object.keys(advancedSearchParams).length}
+                        </Typography>}
                     </Box>
                 </Tooltip>}
             </Box>

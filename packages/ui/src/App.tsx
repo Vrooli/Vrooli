@@ -150,14 +150,6 @@ export function App() {
         setTheme(theme);
     }, [session])
 
-    useEffect(() => {
-        window.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                PubSub.get().publishSnack({ message: 'Welcome back!', severity: SnackSeverity.Info });
-            }
-        });
-    }, [])
-
     // Handle site-wide keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {

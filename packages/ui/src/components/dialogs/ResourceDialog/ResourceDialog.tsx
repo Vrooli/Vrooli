@@ -215,13 +215,13 @@ export const ResourceDialog = ({
         formik.setFieldValue('link', `${window.location.origin}${newLocation}`);
     }, [closeSearch, formik]);
 
-    const handleClose = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
+    const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
         // Don't close if formik is dirty and clicked outside
         if (formik.dirty && reason === 'backdropClick') return;
         // Otherwise, close
+        formik.resetForm();
         onClose();
-    }, [formik.dirty, onClose]);
-
+    }, [formik, onClose]);
 
     return (
         <>
@@ -277,7 +277,7 @@ export const ResourceDialog = ({
             </Dialog >
             {/*  Main content */}
             <Dialog
-                onClose={handleClose}
+                onClose={handleCancel}
                 open={open}
                 aria-labelledby={titleAria}
                 sx={{
@@ -293,7 +293,7 @@ export const ResourceDialog = ({
                     ariaLabel={titleAria}
                     title={(index < 0) ? 'Add Resource' : 'Update Resource'}
                     helpText={helpText}
-                    onClose={handleClose}
+                    onClose={handleCancel}
                 />
                 <DialogContent>
                     <form>
@@ -400,7 +400,7 @@ export const ResourceDialog = ({
                                     errors={errors}
                                     isCreate={index < 0}
                                     loading={formik.isSubmitting || addLoading || updateLoading}
-                                    onCancel={handleClose}
+                                    onCancel={handleCancel}
                                     onSetSubmitting={formik.setSubmitting}
                                     onSubmit={formik.handleSubmit}
                                 />
