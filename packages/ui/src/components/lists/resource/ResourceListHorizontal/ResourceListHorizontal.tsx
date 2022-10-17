@@ -93,6 +93,7 @@ export const ResourceListHorizontal = ({
     const openDialog = useCallback(() => { setIsDialogOpen(true) }, []);
     const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1) }, []);
     const openUpdateDialog = useCallback((index: number) => {
+        console.log('openUpdateDialog', index);
         setEditingIndex(index);
         setIsDialogOpen(true)
     }, []);
@@ -160,6 +161,8 @@ export const ResourceListHorizontal = ({
                             session={session}
                             data={c}
                             onContextMenu={openContext}
+                            onEdit={openUpdateDialog}
+                            onDelete={onDelete}
                             aria-owns={Boolean(selectedIndex) ? contextId : undefined}
                         />
                     ))}

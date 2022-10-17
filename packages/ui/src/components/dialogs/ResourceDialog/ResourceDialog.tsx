@@ -102,8 +102,8 @@ export const ResourceDialog = ({
                 })),
             };
             if (mutate) {
-                const onSuccess = (response) => {
-                    (index < 0) ? onCreated(response.data.resourceCreate) : onUpdated(index ?? 0, response.data.resourceUpdate);
+                const onSuccess = (data: resourceCreate_resourceCreate | resourceUpdate_resourceUpdate) => {
+                    (index < 0) ? onCreated(data) : onUpdated(index ?? 0, data);
                     formik.resetForm();
                     onClose();
                 }

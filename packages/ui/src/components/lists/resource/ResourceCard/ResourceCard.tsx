@@ -1,11 +1,13 @@
 import {
     Box,
+    IconButton,
     Stack,
     Tooltip,
     Typography,
+    useTheme,
 } from '@mui/material';
 import { firstString, getTranslation, getUserLanguages, openLink, PubSub, ResourceType, usePress } from 'utils';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useLocation } from '@shared/route';
 import { ResourceCardProps } from '../../../cards/types';
 import { containerShadow, multiLineEllipsis, noSelect } from 'styles';
@@ -13,6 +15,7 @@ import { getResourceIcon } from '..';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { urlRegex, walletAddressRegex, adaHandleRegex } from '@shared/validation';
 import { SnackSeverity, UsedForDisplay } from 'components/dialogs';
+import { DeleteIcon, EditIcon } from '@shared/icons';
 
 /**
  * Determines if a resource is a URL, wallet payment address, or an ADA handle
@@ -31,9 +34,14 @@ export const ResourceCard = ({
     data,
     index,
     onContextMenu,
+    onEdit,
+    onDelete,
     session,
 }: ResourceCardProps) => {
     const [, setLocation] = useLocation();
+    const { palette } = useTheme();
+
+    const [showIcons, setShowIcons] = useState(false);
 
     const { description, title } = useMemo(() => {
         const languages = getUserLanguages(session);
@@ -50,43 +58,63 @@ export const ResourceCard = ({
     }, [data]);
 
     const handleClick = useCallback((target: React.MouseEvent['target']) => {
-        console.log('handle clickkkkkkkkkkk')
-        // Find the resource type
-        const resourceType = getResourceType(data.link);
-        // If null, show error
-        if (!resourceType) {
-            PubSub.get().publishSnack({ message: 'Unable to open link', severity: SnackSeverity.Error });
-            return;
+        // Check if edit or delete button was clicked
+        const targetId: string | undefined = (target as any).id;
+        console.log('handleclick', targetId);
+        if (targetId && targetId.startsWith('edit-')) {
+            onEdit?.(index);
         }
-        // If URL, open in new tab
-        if (resourceType === ResourceType.Url) openLink(setLocation, data.link);
-        // If wallet address, open dialog to copy to clipboard
-        else if (resourceType === ResourceType.Wallet) {
-            PubSub.get().publishAlertDialog({
-                message: `Wallet address: ${data.link}`,
-                buttons: [
-                    {
-                        text: 'Copy', onClick: () => {
-                            navigator.clipboard.writeText(data.link);
-                            PubSub.get().publishSnack({ message: 'Copied.', severity: SnackSeverity.Success });
-                        }
-                    },
-                    { text: 'Close' }
-                ]
-            });
+        else if (targetId && targetId.startsWith('delete-')) {
+            onDelete?.(index);
         }
-        // If handle, open ADA Handle payment site
-        else if (resourceType === ResourceType.Handle) openLink(setLocation, `https://handle.me/${data.link}`);
-    }, [data.link, setLocation]);
+        else {
+            // Find the resource type
+            const resourceType = getResourceType(data.link);
+            // If null, show error
+            if (!resourceType) {
+                PubSub.get().publishSnack({ message: 'Unable to open link', severity: SnackSeverity.Error });
+                return;
+            }
+            // If URL, open in new tab
+            if (resourceType === ResourceType.Url) openLink(setLocation, data.link);
+            // If wallet address, open dialog to copy to clipboard
+            else if (resourceType === ResourceType.Wallet) {
+                PubSub.get().publishAlertDialog({
+                    message: `Wallet address: ${data.link}`,
+                    buttons: [
+                        {
+                            text: 'Copy', onClick: () => {
+                                navigator.clipboard.writeText(data.link);
+                                PubSub.get().publishSnack({ message: 'Copied.', severity: SnackSeverity.Success });
+                            }
+                        },
+                        { text: 'Close' }
+                    ]
+                });
+            }
+            // If handle, open ADA Handle payment site
+            else if (resourceType === ResourceType.Handle) openLink(setLocation, `https://handle.me/${data.link}`);
+        }
+    }, [data.link, index, onDelete, onEdit, setLocation]);
     const handleContextMenu = useCallback((target: React.MouseEvent['target']) => {
         if (onContextMenu && canEdit) onContextMenu(target, index);
     }, [onContextMenu, canEdit, index]);
 
+    const handleHover = useCallback(() => {
+        if (canEdit) {
+            setShowIcons(true);
+        }
+    }, [canEdit]);
+
+    const handleHoverEnd = useCallback(() => { setShowIcons(false) }, []);
+
     const pressEvents = usePress({
         onLongPress: handleContextMenu,
         onClick: handleClick,
-        // onHover: handleContextMenu,
+        onHover: handleHover,
+        onHoverEnd: handleHoverEnd,
         onRightClick: handleContextMenu,
+        hoverDelay: 100,
     });
 
     return (
@@ -113,6 +141,21 @@ export const ResourceCard = ({
                     },
                 } as any}
             >
+                {/* Edit and delete icons, only visible on hover */}
+                {showIcons && (
+                    <>
+                        <Tooltip title="Edit">
+                            <IconButton id='edit-icon-button' sx={{ position: 'absolute', top: 4, left: 4, background: palette.secondary.main }}>
+                                <EditIcon id='edit-icon' fill={palette.secondary.contrastText} />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                            <IconButton id='delete-icon-button' sx={{ position: 'absolute', top: 4, right: 4, background: palette.secondary.main }}>
+                                <DeleteIcon id='delete-icon' fill={palette.secondary.contrastText} />
+                            </IconButton>
+                        </Tooltip>
+                    </>
+                )}
                 {/* Content */}
                 <Stack
                     direction="column"
