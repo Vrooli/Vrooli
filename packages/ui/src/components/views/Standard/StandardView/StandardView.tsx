@@ -74,13 +74,10 @@ export const StandardView = ({
     });
 
     const { canEdit, canStar, description, name } = useMemo(() => {
-        const permissions = standard?.permissionsStandard;
-        return {
-            canEdit: permissions?.canEdit === true,
-            canStar: permissions?.canStar === true,
-            description: getTranslation(standard ?? partialData, [language]).description,
-            name: firstString(standard?.name, partialData?.name),
-        };
+        const { canEdit, canStar } = standard?.permissionsStandard ?? {};
+        const { description } = getTranslation(standard ?? partialData, [language]);
+        const name = firstString(standard?.name, partialData?.name);
+        return { canEdit, canStar, description, name };
     }, [standard, language, partialData]);
 
     useEffect(() => {

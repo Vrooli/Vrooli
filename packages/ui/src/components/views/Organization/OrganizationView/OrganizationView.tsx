@@ -57,12 +57,12 @@ export const OrganizationView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { bio, canStar, handle, name, resourceList } = useMemo(() => {
-        const permissions = organization?.permissionsOrganization;
+        const { canStar } = organization?.permissionsOrganization ?? {};
         const resourceList: ResourceList | undefined = Array.isArray(organization?.resourceLists) ? organization?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
         const { bio, name } = getTranslation(organization ?? partialData, [language]);
         return {
             bio: bio && bio.trim().length > 0 ? bio : undefined,
-            canStar: permissions?.canStar === true,
+            canStar,
             handle: organization?.handle ?? partialData?.handle,
             name,
             resourceList,

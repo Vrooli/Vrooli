@@ -1,6 +1,8 @@
 import { Box, IconButton, useTheme } from "@mui/material";
 import { RefreshIcon } from "@shared/icons";
+import { SnackSeverity } from "components/dialogs";
 import { useEffect, useRef, useState } from "react";
+import { PubSub } from "utils";
 
 /**
  * Pull-to-refresh component. Needed because iOS PWAs don't support this natively.
@@ -28,7 +30,7 @@ export const PullToRefresh = () => {
                 setIconSize(32);
             }
             // If scrolling upwards, set icon size from 24 to 32
-            else if (scrollY < -50 && refs.current.willRefresh) {
+            else if (scrollY < -50 && !refs.current.willRefresh) {
                 setIconSize(Math.round(20 + (scrollY / -14.5)));
             }
             // If scrolled back to 0, then refresh

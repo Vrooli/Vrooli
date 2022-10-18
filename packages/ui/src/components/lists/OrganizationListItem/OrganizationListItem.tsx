@@ -24,16 +24,10 @@ export function OrganizationListItem({
     const profileColors = useMemo(() => placeholderColor(), []);
 
     const { bio, canEdit, canStar, name, reportsCount } = useMemo(() => {
-        const permissions = data?.permissionsOrganization;
+        const { canEdit, canStar } = data?.permissionsOrganization ?? {};
         const languages = getUserLanguages(session);
         const { bio, name } = getTranslation(data, languages, true);
-        return {
-            bio,
-            canEdit: permissions?.canEdit === true,
-            canStar: permissions?.canStar === true,
-            name,
-            reportsCount: data?.reportsCount ?? 0,
-        };
+        return { bio, canEdit, canStar, name, reportsCount: data?.reportsCount ?? 0 };
     }, [data, session]);
 
     const handleClick = useCallback((e: any) => {

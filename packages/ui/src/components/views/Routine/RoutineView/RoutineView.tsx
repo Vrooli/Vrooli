@@ -77,18 +77,10 @@ export const RoutineView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { canStar, canVote, title, description, instructions, status, statusMessages } = useMemo(() => {
-        const permissions = routine?.permissionsRoutine;
+        const { canStar, canVote } = routine?.permissionsRoutine ?? {};
         const { messages: statusMessages, status } = getRoutineStatus(routine ?? partialData);
         const { description, instructions, title } = getTranslation(routine ?? partialData, [language]);
-        return {
-            canStar: permissions?.canStar === true,
-            canVote: permissions?.canVote === true,
-            title,
-            description,
-            instructions,
-            status,
-            statusMessages,
-        };
+        return { canStar, canVote, title, description, instructions, status, statusMessages };
     }, [routine, language, partialData]);
 
     useEffect(() => {

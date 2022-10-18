@@ -52,11 +52,11 @@ export const ProjectView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { canStar, name, description, handle, resourceList } = useMemo(() => {
-        const permissions = project?.permissionsProject;
+        const { canStar } = project?.permissionsProject ?? {};
         const resourceList: ResourceList | undefined = Array.isArray(project?.resourceLists) ? project?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
         const { description, name } = getTranslation(project ?? partialData, [language]);
         return {
-            canStar: permissions?.canStar === true,
+            canStar,
             name,
             description,
             handle: project?.handle ?? partialData?.handle,

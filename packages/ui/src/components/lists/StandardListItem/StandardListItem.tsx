@@ -22,17 +22,10 @@ export function StandardListItem({
     const [, setLocation] = useLocation();
 
     const { canComment, canEdit, canStar, canVote, description, reportsCount } = useMemo(() => {
-        const permissions = data?.permissionsStandard;
+        const { canComment, canEdit, canStar, canVote } = data?.permissionsStandard ?? {};
         const languages = getUserLanguages(session);
         const { description } = getTranslation(data, languages, true);
-        return {
-            canComment: permissions?.canComment === true,
-            canEdit: permissions?.canEdit === true,
-            canStar: permissions?.canStar === true,
-            canVote: permissions?.canVote === true,
-            description,
-            reportsCount: data?.reportsCount ?? 0,
-        }
+        return { canComment, canEdit, canStar, canVote, description, reportsCount: data?.reportsCount ?? 0 }
     }, [data, session]);
 
     const handleClick = useCallback((e: any) => {

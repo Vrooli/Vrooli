@@ -34,17 +34,10 @@ export function CommentThreadItem({
     const { palette } = useTheme();
 
     const { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText } = useMemo(() => {
-        const permissions = data?.permissionsComment;
+        const { canDelete, canEdit, canReply, canReport, canStar, canVote } = data?.permissionsComment ?? {};
         const languages = getUserLanguages(session);
-        return {
-            canDelete: permissions?.canDelete === true,
-            canEdit: permissions?.canEdit === true,
-            canReply: permissions?.canReply === true,
-            canReport: permissions?.canReport === true,
-            canStar: permissions?.canStar === true,
-            canVote: permissions?.canVote === true,
-            displayText: getTranslation(data, languages, true).text,
-        };
+        const { text } = getTranslation(data, languages, true);
+        return { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText: text };
     }, [data, session]);
 
     const [replyOpen, setReplyOpen] = useState(false);
