@@ -21,7 +21,7 @@ const getLabel = (
     if (owner.__typename === 'User' || owner.hasOwnProperty('name')) {
         return (owner as User).name ?? owner.handle ?? '';
     } else {
-        return getTranslation(owner, 'name', languages, true) ?? owner.handle ?? '';
+        return getTranslation(owner, languages, true).name ?? owner.handle ?? '';
     }
 }
 

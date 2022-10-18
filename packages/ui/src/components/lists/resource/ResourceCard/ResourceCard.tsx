@@ -45,8 +45,7 @@ export const ResourceCard = ({
 
     const { description, title } = useMemo(() => {
         const languages = getUserLanguages(session);
-        const description = getTranslation(data, 'description', languages, true);
-        const title = getTranslation(data, 'title', languages, true);
+        const { description, title } = getTranslation(data, languages, true);
         return {
             description: (description && description.length > 0) ? description : data.link,
             title: (title && title.length > 0) ? title : UsedForDisplay[data.usedFor ?? ResourceUsedFor.Context],
@@ -97,8 +96,8 @@ export const ResourceCard = ({
         }
     }, [data.link, index, onDelete, onEdit, setLocation]);
     const handleContextMenu = useCallback((target: EventTarget) => {
-        if (onContextMenu && canEdit) onContextMenu(target, index);
-    }, [onContextMenu, canEdit, index]);
+        if (onContextMenu) onContextMenu(target, index);
+    }, [onContextMenu, index]);
 
     const handleHover = useCallback(() => {
         if (canEdit) {

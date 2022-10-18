@@ -139,7 +139,7 @@ export const RoutineListNode = ({
 
     const { label } = useMemo(() => {
         return {
-            label: getTranslation(node, 'title', [language], true) ?? '',
+            label: getTranslation(node, [language], true).title ?? '',
         }
     }, [language, node]);
 

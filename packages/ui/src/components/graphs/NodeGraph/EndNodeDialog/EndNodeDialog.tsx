@@ -22,8 +22,8 @@ export const EndNodeDialog = ({
 }: EndNodeDialogProps) => {
     const formik = useFormik({
         initialValues: {
-            title: !getTranslation(node, 'title', [language], false) ? 'End' : getTranslation(node, 'title', [language], false) as string,
-            description: getTranslation(node, 'description', [language], false) ?? '',
+            title: !getTranslation(node, [language], false).title ? 'End' : getTranslation(node, [language], false).title as string,
+            description: getTranslation(node, [language], false).description ?? '',
             wasSuccessful: node.data?.wasSuccessful ?? true,
         },
         enableReinitialize: true,

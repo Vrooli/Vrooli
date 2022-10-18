@@ -30,8 +30,8 @@ const toFieldData = (schemaKey: string, item: InputOutputListItemProps['item'], 
     if (!item.standard || item.standard.isInternal === false) return null;
     return standardToFieldData({
         fieldName: schemaKey,
-        description: getTranslation(item, 'description', [language]) ?? getTranslation(item.standard, 'description', [language]),
-        helpText: getTranslation(item, 'helpText', [language], false),
+        description: getTranslation(item, [language]).description ?? getTranslation(item.standard, [language]).description,
+        helpText: getTranslation(item, [language], false).helpText,
         props: item.standard.props ?? '',
         name: item.standard.name ?? '',
         type: item.standard.type ?? InputTypeOptions[0].value,
@@ -101,8 +101,8 @@ export const InputOutputListItem = ({
     const formik = useFormik({
         initialValues: {
             id: item.id,
-            description: getTranslation(item, 'description', [language]) ?? '',
-            helpText: getTranslation(item, 'helpText', [language]) ?? '',
+            description: getTranslation(item, [language]).description ?? '',
+            helpText: getTranslation(item, [language]).helpText ?? '',
             isRequired: true,
             name: item.name ?? '' as string,
             // Value of generated input component preview
@@ -313,8 +313,8 @@ export const InputOutputListItem = ({
                                     fieldData: standard ?
                                         standardToFieldData({
                                             fieldName: schemaKey,
-                                            description: getTranslation(item, 'description', [language]) ?? getTranslation(standard, 'description', [language]),
-                                            helpText: getTranslation(item, 'helpText', [language], false),
+                                            description: getTranslation(item, [language]).description ?? getTranslation(standard, [language]).description,
+                                            helpText: getTranslation(item, [language], false).helpText,
                                             props: standard?.props ?? '',
                                             name: standard?.name ?? '',
                                             type: standard?.type ?? InputTypeOptions[0].value,

@@ -76,15 +76,17 @@ export const ResourceListHorizontal = ({
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
-    const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-    const contextId = useMemo(() => `resource-context-menu-${selectedIndex}`, [selectedIndex]);
+    const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
+    const selectedIndex = useMemo(() => selectedResource ? list?.resources?.findIndex(r => r.id === selectedResource.id) : -1, [list, selectedResource]);
+    const contextId = useMemo(() => `resource-context-menu-${selectedResource?.id}`, [selectedResource]);
     const openContext = useCallback((target: EventTarget, index: number) => {
         setContextAnchor(target);
-        setSelectedIndex(index);
-    }, []);
+        const resource = list?.resources[index];
+        setSelectedResource(resource as any);
+    }, [list?.resources]);
     const closeContext = useCallback(() => {
         setContextAnchor(null);
-        setSelectedIndex(null);
+        setSelectedResource(null);
     }, []);
 
     // Add/update resource dialog
@@ -119,15 +121,17 @@ export const ResourceListHorizontal = ({
             {dialog}
             {/* Right-click context menu */}
             <ResourceListItemContextMenu
+                canEdit={canEdit}
                 id={contextId}
                 anchorEl={contextAnchor}
-                index={selectedIndex}
+                index={selectedIndex ?? -1}
                 onClose={closeContext}
                 onAddBefore={() => { }} //TODO
                 onAddAfter={() => { }} //TODO
                 onDelete={onDelete}
                 onEdit={() => openUpdateDialog(selectedIndex ?? 0)}
                 onMove={() => { }} //TODO
+                resource={selectedResource}
                 zIndex={zIndex + 1}
             />
             <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>

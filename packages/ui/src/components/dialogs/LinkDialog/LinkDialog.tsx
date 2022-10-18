@@ -111,7 +111,7 @@ export const LinkDialog = ({
      * Find the text to display for a node
      */
     const getNodeTitle = useCallback((node: Node) => {
-        const title = getTranslation(node, 'title', [language]);
+        const { title } = getTranslation(node, [language]);
         if (title) return title;
         if (node.type === NodeType.Start) return 'Start';
         if (node.type === NodeType.End) return 'End';

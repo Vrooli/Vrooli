@@ -39,7 +39,7 @@ export const UnlinkedNodesDialog = ({
             isEditing: false,
             isLinked: false,
             key: `unlinked-node-${node.id}`,
-            label: getTranslation(node, 'title', [language], false) ?? null,
+            label: getTranslation(node, [language], false).title ?? null,
             labelVisible: false,
             scale: 0.5,
             zIndex,
@@ -129,9 +129,9 @@ export const UnlinkedNodesDialog = ({
                                     {createNode(node)}
                                 </Box>
                                 {/* Node title */}
-                                {node.type === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, 'title', [language], true)}</Typography>)}
+                                {node.type === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, [language], true).title}</Typography>)}
                                 {/* Delete node icon */}
-                                <Tooltip title={`Delete ${getTranslation(node, 'title', [language], true)} node`} placement="left">
+                                <Tooltip title={`Delete ${getTranslation(node, [language], true).title} node`} placement="left">
                                     <Box sx={{ marginLeft: 'auto' }}>
                                         <IconButton
                                             color="inherit"

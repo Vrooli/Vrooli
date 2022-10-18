@@ -79,12 +79,13 @@ export const RoutineView = ({
     const { canStar, canVote, title, description, instructions, status, statusMessages } = useMemo(() => {
         const permissions = routine?.permissionsRoutine;
         const { messages: statusMessages, status } = getRoutineStatus(routine ?? partialData);
+        const { description, instructions, title } = getTranslation(routine ?? partialData, [language]);
         return {
             canStar: permissions?.canStar === true,
             canVote: permissions?.canVote === true,
-            title: getTranslation(routine, 'title', [language]) ?? getTranslation(partialData, 'title', [language]),
-            description: getTranslation(routine, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
-            instructions: getTranslation(routine, 'instructions', [language]) ?? getTranslation(partialData, 'instructions', [language]),
+            title,
+            description,
+            instructions,
             status,
             statusMessages,
         };
@@ -250,9 +251,9 @@ export const RoutineView = ({
             const currInput = routine.inputs[i];
             if (!currInput.standard) continue;
             const currSchema = standardToFieldData({
-                description: getTranslation(currInput, 'description', getUserLanguages(session), false) ?? getTranslation(currInput.standard, 'description', getUserLanguages(session), false),
+                description: getTranslation(currInput, getUserLanguages(session), false).description ?? getTranslation(currInput.standard, getUserLanguages(session), false).description,
                 fieldName: `inputs-${currInput.id}`,
-                helpText: getTranslation(currInput, 'helpText', getUserLanguages(session), false),
+                helpText: getTranslation(currInput, getUserLanguages(session), false).helpText,
                 props: currInput.standard.props,
                 name: currInput.name ?? currInput.standard?.name,
                 type: currInput.standard.type,

@@ -179,7 +179,7 @@ export const BuildInfoDialog = ({
         mutationWrapper<fork_fork, forkVariables>({
             mutation: fork,
             input: { id: routine.id, objectType: ForkType.Routine },
-            successMessage: () => `${getTranslation(routine, 'title', [language], true)} forked.`,
+            successMessage: () => `${getTranslation(routine, [language], true).title} forked.`,
             onSuccess: (data) => { handleAction(ObjectAction.Fork, data) },
         })
     }, [fork, handleAction, language, routine]);
@@ -277,7 +277,7 @@ export const BuildInfoDialog = ({
                 isOpen={deleteOpen}
                 objectId={routine?.id ?? ''}
                 objectType={DeleteOneType.Routine}
-                objectName={getTranslation(routine, 'title', [language], false) ?? ''}
+                objectName={getTranslation(routine, [language], false).title ?? ''}
                 handleClose={handleDeleteClose}
                 zIndex={zIndex + 3}
             />

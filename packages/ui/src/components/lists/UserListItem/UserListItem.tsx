@@ -27,8 +27,9 @@ export const UserListItem = ({
 
     const { bio, name, reportsCount } = useMemo(() => {
         const languages = getUserLanguages(session);
+        const { bio } = getTranslation(data, languages, true);
         return {
-            bio: getTranslation(data, 'bio', languages, true),
+            bio,
             name: data?.name ?? (data?.handle ? `$${data.handle}` : ''),
             reportsCount: data?.reportsCount ?? 0,
         }

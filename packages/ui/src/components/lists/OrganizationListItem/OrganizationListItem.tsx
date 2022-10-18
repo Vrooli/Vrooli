@@ -26,11 +26,12 @@ export function OrganizationListItem({
     const { bio, canEdit, canStar, name, reportsCount } = useMemo(() => {
         const permissions = data?.permissionsOrganization;
         const languages = getUserLanguages(session);
+        const { bio, name } = getTranslation(data, languages, true);
         return {
-            bio: getTranslation(data, 'bio', languages, true),
+            bio,
             canEdit: permissions?.canEdit === true,
             canStar: permissions?.canStar === true,
-            name: getTranslation(data, 'name', languages, true),
+            name,
             reportsCount: data?.reportsCount ?? 0,
         };
     }, [data, session]);

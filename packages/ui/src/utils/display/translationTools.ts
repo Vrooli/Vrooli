@@ -344,29 +344,26 @@ export const AllLanguages = {
 };
 
 /**
- * Retrieves a value from an object's translations
- * @param obj The object to retrieve the value from
- * @param field The field to retrieve the value from
- * @param languages The languages the user is requesting
+ * Retrieves an object's translation for a given language code.
+ * @param obj The object to retrieve the translation from.
+ * @param languages The languages the user is requesting, in order of preference.
  * @param showAny If true, will default to returning the first language if no value is found
- * @returns The value of the field in the object's translations
+ * @returns The requested translation or an empty object if none is found
  */
 export const getTranslation = <
-    KeyField extends string,
-    Translation extends { [key in KeyField]?: string | null | undefined } & { id: string, language: string },
-    Obj extends { translations?: Translation[] | null | undefined }
->(obj: Obj | null | undefined, field: KeyField, languages: readonly string[], showAny: boolean = true): string | null | undefined => {
-    if (!obj || !obj.translations) return undefined;
+    Translation extends { language: string },
+>(obj: { translations?: Translation[] | undefined } | null | undefined, languages: readonly string[], showAny: boolean = true): Partial<Translation> => {
+    if (!obj || !obj.translations) return {}
     // Loop through translations
     for (const translation of obj.translations) {
-        // If this translation is one of the languages we're looking for, check for the field
+        // If this translation is one of the languages we're looking for
         if (languages.includes(translation.language)) {
-            if (translation[field]) return translation[field];
+            return translation;
         }
     }
-    if (showAny && obj.translations.length > 0) return obj.translations[0][field];
-    // If we didn't find a translation, return undefined
-    return undefined;
+    if (showAny && obj.translations.length > 0) return obj.translations[0];
+    // If we didn't find a translation, return an empty object
+    return {};
 }
 
 /**

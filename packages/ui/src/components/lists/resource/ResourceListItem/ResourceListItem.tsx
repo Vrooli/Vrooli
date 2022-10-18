@@ -37,9 +37,10 @@ export function ResourceListItem({
     const [, setLocation] = useLocation();
     const { description, title } = useMemo(() => {
         const languages = getUserLanguages(session);
+        const { description, title } = getTranslation(data, languages, true);
         return {
-            description: getTranslation(data, 'description', languages, true),
-            title: getTranslation(data, 'title', languages, true),
+            description,
+            title,
         };
     }, [data, session]);
 
@@ -136,4 +137,4 @@ export function ResourceListItem({
 
 export const ResourceSortOptions: LabelledSortOption<ResourceSortBy>[] = labelledSortOptions(ResourceSortBy);
 export const resourceDefaultSortOption = ResourceSortOptions[1];
-export const resourceOptionLabel = (o: Resource, languages: readonly string[]) => getTranslation(o, 'title', languages, true) ?? '';
+export const resourceOptionLabel = (o: Resource, languages: readonly string[]) => getTranslation(o, languages, true).title ?? '';

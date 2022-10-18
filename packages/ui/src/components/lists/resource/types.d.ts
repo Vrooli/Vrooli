@@ -1,4 +1,4 @@
-import { ResourceList } from "types";
+import { Resource, ResourceList } from "types";
 
 export interface ResourceListHorizontalProps {
     title?: string;
@@ -33,6 +33,7 @@ export interface ResourceListItemProps {
 }
 
 export interface ResourceListItemContextMenuProps {
+    canEdit: boolean;
     id: string;
     anchorEl: HTMLElement | null;
     index: number | null;
@@ -42,5 +43,6 @@ export interface ResourceListItemContextMenuProps {
     onEdit: (index: number) => void;
     onDelete: (index: number) => void;
     onMove: (index: number) => void;
+    resource: Resource | null;
     zIndex: number;
 }

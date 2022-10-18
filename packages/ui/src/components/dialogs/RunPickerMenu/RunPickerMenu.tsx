@@ -58,7 +58,7 @@ export const RunPickerMenu = ({
                 id: uuid(),
                 routineId: routine.id,
                 version: routine.version ?? '',
-                title: getTranslation(routine, 'title', getUserLanguages(session)) ?? 'Unnamed Routine',
+                title: getTranslation(routine, getUserLanguages(session)).title ?? 'Unnamed Routine',
             },
             successCondition: (data) => data !== null,
             onSuccess: (data) => {

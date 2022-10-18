@@ -51,7 +51,7 @@ export const SubroutineNode = ({
     const { title } = useMemo(() => {
         const languages = navigator.languages;
         return {
-            title: firstString(getTranslation(data, 'title', languages, true), getTranslation(data.routine, 'title', languages, true)),
+            title: firstString(getTranslation(data, languages, true).title, getTranslation(data.routine, languages, true).title),
         }
     }, [data]);
 

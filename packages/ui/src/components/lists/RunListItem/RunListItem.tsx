@@ -51,9 +51,10 @@ export function RunListItem({
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => colorOptions[Math.floor(Math.random() * colorOptions.length)], []);
 
-    const { canStar, name, percentComplete, startedAt, completedAt } = useMemo(() => {
+    const { canStar, completedAt, percentComplete, startedAt, title } = useMemo(() => {
         const routinePermissions = data?.routine?.permissionsRoutine;
         const languages = getUserLanguages(session);
+        const { title } = getTranslation(data?.routine, languages, true);
         const completedComplexity = data?.completedComplexity ?? null;
         const totalComplexity = data?.routine?.complexity ?? null;
         const percentComplete = data?.status === RunStatus.Completed ? 100 :
@@ -62,11 +63,10 @@ export function RunListItem({
                 0
         return {
             canStar: routinePermissions?.canStar === true,
-            bio: getTranslation(data?.routine, 'bio', languages, true),
-            name: data?.title ?? getTranslation(data?.routine, 'name', languages, true),
+            completedAt: data?.timeCompleted ? displayDate(data.timeCompleted) : null,
             percentComplete,
             startedAt: data?.timeStarted ? displayDate(data.timeStarted) : null,
-            completedAt: data?.timeCompleted ? displayDate(data.timeCompleted) : null,
+            title,
         };
     }, [data, session]);
 
@@ -117,7 +117,7 @@ export function RunListItem({
                     >
                         {/* Name/Title */}
                         {loading ? <TextLoading /> : <ListItemText
-                            primary={name}
+                            primary={title}
                             sx={{ ...multiLineEllipsis(1) }}
                         />}
                         {/* Additional loading bar */}

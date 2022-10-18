@@ -43,7 +43,7 @@ export function CommentThreadItem({
             canReport: permissions?.canReport === true,
             canStar: permissions?.canStar === true,
             canVote: permissions?.canVote === true,
-            displayText: getTranslation(data, 'text', languages, true),
+            displayText: getTranslation(data, languages, true).text,
         };
     }, [data, session]);
 

@@ -63,12 +63,10 @@ export const ShareObjectDialog = ({
      * Opens navigator share dialog (if supported)
      */
     const shareNative = () => {
-        if (navigator.share) {
-            navigator.share({
-                title: postTitle[objectType],
-                url: getLink(),
-            })
-        }
+        navigator.share({
+            title: postTitle[objectType],
+            url: getLink(),
+        })
     }
 
     return (

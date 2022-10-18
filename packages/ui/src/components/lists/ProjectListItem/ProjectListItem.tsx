@@ -23,13 +23,14 @@ export function ProjectListItem({
     const { canComment, canEdit, canStar, canVote, description, name, reportsCount } = useMemo(() => {
         const permissions = data?.permissionsProject;
         const languages = getUserLanguages(session);
+        const { description, name } = getTranslation(data, languages, true);
         return {
             canComment: permissions?.canComment === true,
             canEdit: permissions?.canEdit === true,
             canStar: permissions?.canStar === true,
             canVote: permissions?.canVote === true,
-            description: getTranslation(data, 'description', languages, true),
-            name: getTranslation(data, 'name', languages, true),
+            description,
+            name,
             reportsCount: data?.reportsCount ?? 0,
         }
     }, [data, session]);

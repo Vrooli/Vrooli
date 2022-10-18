@@ -58,7 +58,7 @@ export const StandardView = ({
 
     const schema = useMemo<FieldData | null>(() => (standard ? standardToFieldData({
         fieldName: 'preview',
-        description: getTranslation(standard, 'description', [language]),
+        description: getTranslation(standard, [language]).description,
         helpText: null,
         props: standard.props,
         name: standard.name,
@@ -78,7 +78,7 @@ export const StandardView = ({
         return {
             canEdit: permissions?.canEdit === true,
             canStar: permissions?.canStar === true,
-            description: getTranslation(standard, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
+            description: getTranslation(standard ?? partialData, [language]).description,
             name: firstString(standard?.name, partialData?.name),
         };
     }, [standard, language, partialData]);

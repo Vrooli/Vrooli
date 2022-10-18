@@ -67,9 +67,7 @@ export const DecisionView = ({
             {/* Each decision as its own ListItem, with title and description */}
             {decisions.map((decision, index) => {
                 const languages = getUserLanguages(session);
-                const title = getTranslation(decision.node, 'title', languages, true)
-                const description = getTranslation(decision.node, 'description', languages, false);
-                const instructions = getTranslation(decision.node, 'instructions', languages, false);
+                const { description, title } = getTranslation(decision.node, languages, true);
                 return (<ListItem
                     disablePadding
                     onClick={() => { toDecision(index); }}
@@ -93,7 +91,7 @@ export const DecisionView = ({
                             />
                             {/* Bio/Description */}
                             {description && <ListItemText
-                                primary={description ?? instructions}
+                                primary={description}
                                 sx={{ 
                                     ...multiLineEllipsis(2), 
                                 }}

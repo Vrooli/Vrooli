@@ -66,14 +66,15 @@ export function RoutineListItem({
     const { canComment, canEdit, canStar, canVote, description, reportsCount, title } = useMemo(() => {
         const permissions = data?.permissionsRoutine;
         const languages = getUserLanguages(session);
+        const { description, title } = getTranslation(data, languages, true);
         return {
             canComment: permissions?.canComment === true,
             canEdit: permissions?.canEdit === true,
             canStar: permissions?.canStar === true,
             canVote: permissions?.canVote === true,
-            description: getTranslation(data, 'description', languages, true),
+            description,
             reportsCount: data?.reportsCount ?? 0,
-            title: getTranslation(data, 'title', languages, true),
+            title,
         }
     }, [data, session]);
 

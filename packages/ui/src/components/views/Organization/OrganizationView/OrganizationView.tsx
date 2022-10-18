@@ -59,12 +59,12 @@ export const OrganizationView = ({
     const { bio, canStar, handle, name, resourceList } = useMemo(() => {
         const permissions = organization?.permissionsOrganization;
         const resourceList: ResourceList | undefined = Array.isArray(organization?.resourceLists) ? organization?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
-        const bioText = getTranslation(organization, 'bio', [language]) ?? getTranslation(partialData, 'bio', [language]);
+        const { bio, name } = getTranslation(organization ?? partialData, [language]);
         return {
-            bio: bioText && bioText.trim().length > 0 ? bioText : undefined,
+            bio: bio && bio.trim().length > 0 ? bio : undefined,
             canStar: permissions?.canStar === true,
             handle: organization?.handle ?? partialData?.handle,
-            name: getTranslation(organization, 'name', [language]) ?? getTranslation(partialData, 'name', [language]),
+            name,
             resourceList,
         };
     }, [language, organization, partialData]);

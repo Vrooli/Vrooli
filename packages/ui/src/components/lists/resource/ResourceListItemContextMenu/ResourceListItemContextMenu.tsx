@@ -1,7 +1,8 @@
 import { ResourceListItemContextMenuProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { ListMenu } from 'components';
-import { DeleteIcon, EditIcon, MoveLeftIcon, MoveLeftRightIcon, MoveRightIcon, SvgComponent } from '@shared/icons';
+import { CopyIcon, DeleteIcon, EditIcon, MoveLeftIcon, MoveLeftRightIcon, MoveRightIcon, SvgComponent } from '@shared/icons';
+import { getTranslation } from 'utils';
 
 export enum ResourceContextMenuOption {
     AddBefore = 'AddBefore',
@@ -9,6 +10,7 @@ export enum ResourceContextMenuOption {
     Delete = 'Delete',
     Edit = 'Edit',
     Move = 'Move',
+    Share = 'Share',
 }
 
 const listOptionsMap: { [key in ResourceContextMenuOption]: [string, SvgComponent] } = {
@@ -17,6 +19,7 @@ const listOptionsMap: { [key in ResourceContextMenuOption]: [string, SvgComponen
     [ResourceContextMenuOption.Edit]: ['Edit resource', EditIcon],
     [ResourceContextMenuOption.Delete]: ['Delete resource', DeleteIcon],
     [ResourceContextMenuOption.Move]: ['Move resource', MoveLeftRightIcon],
+    [ResourceContextMenuOption.Share]: ['Share resource', CopyIcon],
 }
 
 const listOptions: ListMenuItemData<ResourceContextMenuOption>[] = Object.keys(listOptionsMap).map((o) => ({
@@ -27,6 +30,7 @@ const listOptions: ListMenuItemData<ResourceContextMenuOption>[] = Object.keys(l
 
 // Custom context menu for nodes
 export const ResourceListItemContextMenu = ({
+    canEdit,
     id,
     anchorEl,
     index,
@@ -36,8 +40,10 @@ export const ResourceListItemContextMenu = ({
     onEdit,
     onDelete,
     onMove,
+    resource,
     zIndex,
 }: ResourceListItemContextMenuProps) => {
+
     const onMenuItemSelect = (value: ResourceContextMenuOption) => {
         console.log('onMenuItemSelect', index);
         if (index === null || index < 0) return;
@@ -57,16 +63,27 @@ export const ResourceListItemContextMenu = ({
             case ResourceContextMenuOption.Move:
                 onMove(index);
                 break;
+            case ResourceContextMenuOption.Share:
+                if (!resource?.link) return;
+                const { title, description } = getTranslation(resource, []); //TODO languages
+                navigator.share({
+                    title: title ?? undefined,
+                    text: description ?? undefined,
+                    url: resource?.link
+                });
+                break;
         }
         onClose();
     }
+
+    const listOptionsFiltered = canEdit ? listOptions : listOptions.filter(o => o.value === ResourceContextMenuOption.Share);
 
     return (
         <ListMenu
             id={id}
             anchorEl={anchorEl}
             title='Resource Options'
-            data={listOptions}
+            data={listOptionsFiltered}
             onSelect={onMenuItemSelect}
             onClose={onClose}
             zIndex={zIndex}

@@ -216,7 +216,7 @@ export function RelationshipButtons({
         // If owner is organization, use organization icon
         if (relationships.owner.__typename === 'Organization') {
             const OwnerIcon = OrganizationIcon;
-            const ownerName = firstString(getTranslation(relationships.owner as RelationshipItemOrganization, 'name', languages, true), 'organization');
+            const ownerName = firstString(getTranslation(relationships.owner as RelationshipItemOrganization, languages, true).name, 'organization');
             return {
                 OwnerIcon,
                 ownerTooltip: `Owner: ${ownerName}`
@@ -239,7 +239,7 @@ export function RelationshipButtons({
             ProjectIcon: null,
             projectTooltip: disabled ? '' : 'Press to assign to a project'
         };
-        const projectName = firstString(getTranslation(relationships.project as RelationshipItemProject, 'name', languages, true), 'project');
+        const projectName = firstString(getTranslation(relationships.project as RelationshipItemProject, languages, true).name, 'project');
         return {
             ProjectIcon: ProjIcon,
             projectTooltip: `Project: ${projectName}`
@@ -256,7 +256,7 @@ export function RelationshipButtons({
         // If parent is project, use project icon
         if (relationships.parent.__typename === 'Project') {
             const ParentIcon = ProjIcon;
-            const parentName = firstString(getTranslation(relationships.parent as RelationshipItemProject, 'name', languages, true), 'project');
+            const parentName = firstString(getTranslation(relationships.parent as RelationshipItemProject, languages, true).name, 'project');
             return {
                 ParentIcon,
                 parentTooltip: `Parent: ${parentName}`
@@ -264,7 +264,7 @@ export function RelationshipButtons({
         }
         // If parent is routine, use routine icon
         const ParentIcon = RoutineIcon;
-        const parentName = firstString(getTranslation(relationships.parent as RelationshipItemRoutine, 'title', languages, true), 'routine');
+        const parentName = firstString(getTranslation(relationships.parent as RelationshipItemRoutine, languages, true).title, 'routine');
         return {
             ParentIcon,
             parentTooltip: `Parent: ${parentName}`

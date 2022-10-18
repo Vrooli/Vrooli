@@ -48,13 +48,11 @@ export const ShareSiteDialog = ({
      * Opens navigator share dialog (if supported)
      */
     const shareNative = () => {
-        if (navigator.share) {
-            navigator.share({
-                title: postTitle,
-                text: postText,
-                url: inviteLink,
-            })
-        }
+        navigator.share({
+            title: postTitle,
+            text: postText,
+            url: inviteLink,
+        })
     }
 
     return (

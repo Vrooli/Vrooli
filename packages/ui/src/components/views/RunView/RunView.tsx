@@ -210,8 +210,8 @@ const convertRoutineToStep = (
                 type: RoutineStepType.Subroutine,
                 index: item.index,
                 routine: item.routine as any,
-                title: getTranslation(item.routine, 'title', languages, true) ?? 'Untitled',
-                description: getTranslation(item.routine, 'description', languages, true) ?? 'Description not found matching selected language',
+                title: getTranslation(item.routine, languages, true).title ?? 'Untitled',
+                description: getTranslation(item.routine, languages, true).description ?? 'Description not found matching selected language',
             }))
         // Find decision step
         const links = routine.nodeLinks.filter((link: NodeLink) => link.fromId === node.id);
@@ -225,8 +225,8 @@ const convertRoutineToStep = (
             type: RoutineStepType.RoutineList,
             nodeId: node.id,
             isOrdered: (node.data as NodeDataRoutineList).isOrdered ?? false,
-            title: getTranslation(node, 'title', languages, true) ?? 'Untitled',
-            description: getTranslation(node, 'description', languages, true) ?? 'Description not found matching selected language',
+            title: getTranslation(node, languages, true).title ?? 'Untitled',
+            description: getTranslation(node, languages, true).description ?? 'Description not found matching selected language',
             steps: [...subroutineSteps, ...decisionSteps] as Array<SubroutineStep | DecisionStep>
         });
     }
@@ -235,8 +235,8 @@ const convertRoutineToStep = (
         type: RoutineStepType.RoutineList,
         routineId: routine.id,
         isOrdered: true,
-        title: getTranslation(routine, 'title', languages, true) ?? 'Untitled',
-        description: getTranslation(routine, 'description', languages, true) ?? 'Description not found matching selected language',
+        title: getTranslation(routine, languages, true).title ?? 'Untitled',
+        description: getTranslation(routine, languages, true).description ?? 'Description not found matching selected language',
         steps: resultSteps,
     };
 }
@@ -482,7 +482,7 @@ export const RunView = ({
         // Find step above current step
         const currStepParent = stepFromLocation(currStepLocation.slice(0, -1), steps);
         return {
-            instructions: getTranslation(routine, 'instructions', languages, true),
+            instructions: getTranslation(routine, languages, true).instructions,
             // Ignore title if it's for the main routine (i.e. step is still loading, probably)
             title: (currStepParent?.title && currStepLocation.length > 1) ? currStepParent.title : '',
         };
@@ -660,7 +660,7 @@ export const RunView = ({
                     completedComplexity: alreadyComplete ? undefined : newlyCompletedComplexity,
                     finalStepCreate: stepsCreate ? stepsCreate[0] : undefined,
                     finalStepUpdate: stepsUpdate ? stepsUpdate[0] : undefined,
-                    title: getTranslation(routine, 'title', getUserLanguages(session), true) ?? 'Unnamed Routine',
+                    title: getTranslation(routine, getUserLanguages(session), true).title ?? 'Unnamed Routine',
                     version: routine.version ?? '',
                     wasSuccessful,
                     ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),
@@ -703,7 +703,7 @@ export const RunView = ({
             input: {
                 id: run.id,
                 exists: true,
-                title: getTranslation(routine, 'title', getUserLanguages(session), true) ?? 'Unnamed Routine',
+                title: getTranslation(routine, getUserLanguages(session), true).title ?? 'Unnamed Routine',
                 version: routine.version ?? '',
                 wasSuccessful: success,
                 ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),

@@ -33,10 +33,11 @@ export const SubroutineView = ({
 
     const { description, instructions, title } = useMemo(() => {
         const languages = getUserLanguages(session);
+        const { description, instructions, title } = getTranslation(internalRoutine, languages, true);
         return {
-            description: getTranslation(internalRoutine, 'description', languages, true),
-            instructions: getTranslation(internalRoutine, 'instructions', languages, true),
-            title: getTranslation(internalRoutine, 'title', languages, true),
+            description,
+            instructions,
+            title,
         }
     }, [internalRoutine, session]);
 
@@ -66,9 +67,9 @@ export const SubroutineView = ({
             const currInput = internalRoutine.inputs[i];
             if (!currInput.standard) continue;
             const currSchema = standardToFieldData({
-                description: getTranslation(currInput, 'description', getUserLanguages(session), false) ?? getTranslation(currInput.standard, 'description', getUserLanguages(session), false),
+                description: getTranslation(currInput, getUserLanguages(session), false).description ?? getTranslation(currInput.standard, getUserLanguages(session), false).description,
                 fieldName: `inputs-${currInput.id}`,
-                helpText: getTranslation(currInput, 'helpText', getUserLanguages(session), false),
+                helpText: getTranslation(currInput, getUserLanguages(session), false).helpText,
                 props: currInput.standard.props,
                 name: currInput.name ?? currInput.standard.name,
                 type: currInput.standard.type,
