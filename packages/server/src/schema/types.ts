@@ -3129,6 +3129,7 @@ export type UserCountInput = {
 };
 
 export type UserDeleteInput = {
+  deletePublicData: Scalars['Boolean'];
   password: Scalars['String'];
 };
 

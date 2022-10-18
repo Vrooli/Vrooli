@@ -115,6 +115,7 @@ export const typeDef = gql`
 
     input UserDeleteInput {
         password: String!
+        deletePublicData: Boolean!
     }
 
     input UserSearchInput {
@@ -216,6 +217,7 @@ export const resolvers = {
         userDeleteOne: async (_parent: undefined, { input }: IWrap<UserDeleteInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<Success> => {
             assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 5, req });
+            // TODO anonymize public data
             return await ProfileModel.mutate(prisma).deleteProfile(getUserId(req) as string, input);
         },
         /**

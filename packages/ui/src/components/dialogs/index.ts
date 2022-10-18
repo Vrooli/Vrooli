@@ -4,6 +4,7 @@ export * from './AdvancedSearchDialog/AdvancedSearchDialog';
 export * from './AlertDialog/AlertDialog';
 export * from './BaseObjectDialog/BaseObjectDialog';
 export * from './BuildInfoDialog/BuildInfoDialog';
+export * from './DeleteAccountDialog/DeleteAccountDialog';
 export * from './DeleteDialog/DeleteDialog';
 export * from './DialogTitle/DialogTitle';
 export * from './LinkDialog/LinkDialog';

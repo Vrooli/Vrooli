@@ -25,6 +25,13 @@ export interface BaseObjectDialogProps extends DialogProps {
     zIndex: number;
 };
 
+export interface DeleteAccountDialogProps {
+    handleClose: (wasDeleted: boolean) => void;
+    isOpen: boolean;
+    session: Session;
+    zIndex: number;
+}
+
 export interface DeleteDialogProps {
     handleClose: (wasDeleted: boolean) => void;
     isOpen: boolean;

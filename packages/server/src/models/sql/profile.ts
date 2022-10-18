@@ -575,7 +575,7 @@ const profileMutater = (prisma: PrismaType) => ({
         if (!profileVerifier().validatePassword(input.password, user))
             throw new CustomError(CODE.BadCredentials, 'Incorrect password', { code: genErrorCode('0072') });
         // Delete user. User's created objects are deleted separately, with explicit confirmation 
-        // given by the user. This is to minimize the chance of deleting objects which other users rely on.
+        // given by the user. This is to minimize the chance of deleting objects which other users rely on. TODO
         await prisma.user.delete({
             where: { id: userId }
         })

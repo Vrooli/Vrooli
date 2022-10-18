@@ -1512,6 +1512,7 @@ export interface UserCountInput {
 
 export interface UserDeleteInput {
   password: string;
+  deletePublicData: boolean;
 }
 
 export interface UserSearchInput {
