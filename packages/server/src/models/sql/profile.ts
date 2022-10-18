@@ -568,6 +568,7 @@ const profileMutater = (prisma: PrismaType) => ({
     //     // Tags (can only be anonymized, not deleted)
     // },
     async deleteProfile(userId: string, input: UserDeleteInput): Promise<Success> {
+        console.log('in delete profile', userId)
         // Check for correct password
         let user = await prisma.user.findUnique({ where: { id: userId } });
         if (!user)

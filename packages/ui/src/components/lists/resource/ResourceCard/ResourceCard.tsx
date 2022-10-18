@@ -57,9 +57,9 @@ export const ResourceCard = ({
         return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link)
     }, [data]);
 
-    const handleClick = useCallback((target: React.MouseEvent['target']) => {
+    const handleClick = useCallback((target: EventTarget) => {
         // Check if edit or delete button was clicked
-        const targetId: string | undefined = (target as any).id;
+        const targetId: string | undefined = target.id;
         console.log('handleclick', targetId);
         if (targetId && targetId.startsWith('edit-')) {
             onEdit?.(index);
@@ -96,7 +96,7 @@ export const ResourceCard = ({
             else if (resourceType === ResourceType.Handle) openLink(setLocation, `https://handle.me/${data.link}`);
         }
     }, [data.link, index, onDelete, onEdit, setLocation]);
-    const handleContextMenu = useCallback((target: React.MouseEvent['target']) => {
+    const handleContextMenu = useCallback((target: EventTarget) => {
         if (onContextMenu && canEdit) onContextMenu(target, index);
     }, [onContextMenu, canEdit, index]);
 

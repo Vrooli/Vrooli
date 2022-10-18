@@ -61,8 +61,8 @@ export const SubroutineNode = ({
         }
         handleAction(action, data.id);
     }, [data.id, handleAction]);
-    const openSubroutine = useCallback((target: React.MouseEvent['target']) => {
-        if (!shouldOpen((target as any)?.id)) return;
+    const openSubroutine = useCallback((target: EventTarget) => {
+        if (!shouldOpen(target.id)) return;
         onAction(null, BuildAction.OpenSubroutine)
     }, [onAction]);
     const deleteSubroutine = useCallback((event) => { onAction(event, BuildAction.DeleteSubroutine) }, [onAction]);
@@ -118,7 +118,7 @@ export const SubroutineNode = ({
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `subroutine-context-menu-${data.id}`, [data?.id]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((target: React.MouseEvent['target']) => {
+    const openContext = useCallback((target: EventTarget) => {
         // Ignore if not editing
         if (!isEditing) return;
         setContextAnchor(target)

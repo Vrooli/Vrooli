@@ -37,7 +37,7 @@ const buttonProps = {
 
 const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
 
-const titleAria = 'share-object-dialog-title'
+const titleAria = 'share-object-dialog-title';
 
 export const ShareObjectDialog = ({
     objectType,
@@ -57,6 +57,18 @@ export const ShareObjectDialog = ({
         navigator.clipboard.writeText(getLink());
         setCopied(true);
         setTimeout(() => setCopied(false), 5000);
+    }
+
+    /**
+     * Opens navigator share dialog (if supported)
+     */
+    const shareNative = () => {
+        if (navigator.share) {
+            navigator.share({
+                title: postTitle[objectType],
+                url: getLink(),
+            })
+        }
     }
 
     return (
@@ -107,6 +119,10 @@ export const ShareObjectDialog = ({
                         startIcon={<LinkedInIcon fill='black' />}
                         sx={{ ...buttonProps }}
                     >Post on LinkedIn</Button>
+                    <Button
+                        onClick={shareNative}
+                        sx={{ ...buttonProps }}
+                    >Other</Button>
                     <Box sx={{
                         width: '200px',
                         height: '200px',

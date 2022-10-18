@@ -1,11 +1,11 @@
 import React, { useCallback, useRef } from "react";
 
 interface UsePressProps {
-    onLongPress: (target: React.MouseEvent['target']) => void;
-    onClick?: (target: React.MouseEvent['target']) => void;
-    onHover?: (target: React.MouseEvent['target']) => void;
-    onHoverEnd?: (target: React.MouseEvent['target']) => void;
-    onRightClick?: (target: React.MouseEvent['target']) => void;
+    onLongPress: (target: EventTarget) => void;
+    onClick?: (target: EventTarget) => void;
+    onHover?: (target: EventTarget) => void;
+    onHoverEnd?: (target: EventTarget) => void;
+    onRightClick?: (target: EventTarget) => void;
     shouldPreventDefault?: boolean;
     pressDelay?: number;
     hoverDelay?: number;

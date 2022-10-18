@@ -13,10 +13,11 @@ import {
     DeleteNodeIcon, 
     EditIcon, 
     MoveNodeIcon, 
+    SvgComponent, 
     UnlinkNodeIcon 
 } from '@shared/icons';
 
-const allOptionsMap: { [index in Exclude<BuildAction, BuildAction.AddSubroutine>]?: [string, any] } = {
+const allOptionsMap: { [index in Exclude<BuildAction, BuildAction.AddSubroutine>]?: [string, SvgComponent] } = {
     [BuildAction.AddIncomingLink]: ['Add incoming link', AddIncomingLinkIcon],
     [BuildAction.AddOutgoingLink]: ['Add outgoing link', AddOutgoingLinkIcon],
     [BuildAction.AddListBeforeNode]: ['Add routine list before', AddRoutineListBeforeIcon],

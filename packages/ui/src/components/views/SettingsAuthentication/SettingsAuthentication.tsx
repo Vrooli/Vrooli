@@ -247,7 +247,6 @@ export const SettingsAuthentication = ({
                     width: 'min(100%, 400px)',
                     marginLeft: 'auto',
                     marginRight: 'auto',
-                    marginTop: 5,
                     marginBottom: 2,
                     whiteSpace: 'nowrap',
                 }}

@@ -47,7 +47,7 @@ export const StartNode = ({
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((target: React.MouseEvent['target']) => {
+    const openContext = useCallback((target: EventTarget) => {
         if (!isEditing) return;
         setContextAnchor(target)
     }, [isEditing]);

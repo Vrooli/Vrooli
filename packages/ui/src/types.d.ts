@@ -191,10 +191,13 @@ export interface ActionOption {
 
 export type AutocompleteOption = ObjectOption | ShortcutOption | ActionOption;
 
-// Enable Nami integration
 declare global {
+    // Enable Nami integration
     interface Window { cardano: any; }
+    // Add ID to EventTarget
+    interface EventTarget { id?: string; }
 }
+// Enable Nami integration
 window.cardano = window.cardano || {};
 
 // Apollo GraphQL

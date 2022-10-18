@@ -27,9 +27,6 @@ while getopts ":v:d:h" opt; do
     n)
       NGINX_LOCATION=$OPTARG
       ;;
-    l)
-      PROJECT_LOCATION=$OPTARG
-      ;;
     h)
       echo "Usage: $0 [-v VERSION] [-d DEPLOY] [-h]"
       echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
@@ -53,15 +50,6 @@ if [ -z "$VERSION" ]; then
     read -r VERSION
 fi
 
-# Ask for project location, if not supplied in arguments
-if [ -z "$PROJECT_LOCATION" ]; then
-    echo "Where is the project located? (defaults to /root/Vrooli)"
-    read -r PROJECT_LOCATION
-    if [ -z "$PROJECT_LOCATION" ]; then
-        PROJECT_LOCATION="/root/Vrooli"
-    fi
-fi
-
 # Check if nginx-proxy and nginx-proxy-le are running
 if [ ! "$(docker ps -q -f name=nginx-proxy)" ] || [ ! "$(docker ps -q -f name=nginx-proxy-le)" ]; then
     error "Proxy containers are not running!"
@@ -83,13 +71,13 @@ if [ ! "$(docker ps -q -f name=nginx-proxy)" ] || [ ! "$(docker ps -q -f name=ng
 fi
 
 # Copy current database and build to a safe location, under a temporary directory.
-cd "${PROJECT_LOCATION}"
+cd ${HERE}/..
 DB_TMP="/var/tmp/${VERSION}/postgres"
 BUILD_TMP="/var/tmp/${VERSION}/old-build"
 # Don't copy database if it already exists in /var/tmp
 if [ ! -d "${DB_TMP}" ]; then
     info "Copying old database to ${DB_TMP}"
-    cp -rp ./data/postgres "${DB_TMP}"
+    cp -rp ${HERE}/../data/postgres "${DB_TMP}"
     if [ $? -ne 0 ]; then
         error "Could not copy database to ${DB_TMP}"
         exit 1
@@ -99,7 +87,7 @@ else
 fi
 if [ ! -d "${BUILD_TMP}" ]; then
     info "Moving old build to ${BUILD_TMP}"
-    mv -f ./packages/ui/build "${BUILD_TMP}"
+    mv -f ${HERE}/../packages/ui/build "${BUILD_TMP}"
     if [ $? -ne 0 ]; then
         error "Could not move build to ${BUILD_TMP}"
         exit 1
@@ -119,7 +107,7 @@ git pull
 
 # Running setup.sh
 info "Running setup.sh..."
-./scripts/setup.sh
+${HERE}/setup.sh
 if [ $? -ne 0 ]; then
     error "setup.sh failed"
     exit 1
@@ -127,8 +115,8 @@ fi
 
 # Move and decompress build created by build.sh to the correct location.
 info "Moving and decompressing new build to correct location..."
-rm -rf ./packages/ui/build
-tar -xzf /var/tmp/${VERSION}/build.tar.gz -C ./packages/ui
+rm -rf ${HERE}/../packages/ui/build
+tar -xzf /var/tmp/${VERSION}/build.tar.gz -C ${HERE}/../packages/ui
 if [ $? -ne 0 ]; then
     error "Could not move and decompress build to correct location"
     exit 1
@@ -136,6 +124,6 @@ fi
 
 # Restart docker containers.
 info "Restarting docker containers..."
-docker-compose -f docker-compose-prod.yml up --build -d
+docker-compose -f ${HERE}/../docker-compose-prod.yml up --build -d
 
 success "Done! You may need to wait a few minutes for the Docker containers to finish starting up."

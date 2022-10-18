@@ -1,14 +1,13 @@
 import { Box, IconButton, useTheme } from "@mui/material";
 import { RefreshIcon } from "@shared/icons";
-import { SnackSeverity } from "components/dialogs";
 import { useEffect, useRef, useState } from "react";
-import { PubSub } from "utils";
 
 /**
  * Pull-to-refresh component. Needed because iOS PWAs don't support this natively.
  */
 export const PullToRefresh = () => {
     const { palette } = useTheme();
+    const [iconSize, setIconSize] = useState<number>(20);
     const [willRefresh, setWillRefresh] = useState<boolean>(false);
     const refs = useRef<{ willRefresh: boolean, startX: number | null }>({
         willRefresh: false,
@@ -20,18 +19,20 @@ export const PullToRefresh = () => {
     // Detect scroll
     useEffect(() => {
         const handleScroll = (e: Event) => {
-            if (Math.round(window.scrollY) % 15 === 0) PubSub.get().publishSnack({ message: 'scrollY: ' + window.scrollY, severity: SnackSeverity.Info });
             // Find scroll y position
             const scrollY = window.scrollY;
             // If scrolled far enough upwards, then indicate that the user wants to refresh
             if (scrollY < -175 && !refs.current.willRefresh) {
                 setWillRefresh(true);
-                PubSub.get().publishSnack({ message: 'Will refresh', severity: SnackSeverity.Warning });
                 refs.current.willRefresh = true;
+                setIconSize(32);
+            }
+            // If scrolling upwards, set icon size from 24 to 32
+            else if (scrollY < -50 && refs.current.willRefresh) {
+                setIconSize(Math.round(20 + (scrollY / -14.5)));
             }
             // If scrolled back to 0, then refresh
             if (scrollY === 0 && refs.current.willRefresh) {
-                PubSub.get().publishSnack({ message: 'page refreshed', severity: SnackSeverity.Warning });
                 refs.current.willRefresh = false;
                 window.location.reload();
             }
@@ -70,8 +71,8 @@ export const PullToRefresh = () => {
             }}>
                 <RefreshIcon
                     fill={palette.background.textPrimary}
-                    width={willRefresh ? 30 : 24}
-                    height={willRefresh ? 30 : 24}
+                    width={iconSize}
+                    height={iconSize}
                 />
             </IconButton>
         </Box>

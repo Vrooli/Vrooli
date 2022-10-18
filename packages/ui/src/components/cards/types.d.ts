@@ -4,7 +4,7 @@ export interface ResourceCardProps {
     canEdit: boolean;
     data: Resource;
     index: number;
-    onContextMenu: (target: React.MouseEvent['target'], index: number) => void;
+    onContextMenu: (target: EventTarget, index: number) => void;
     onEdit: (index: number) => void;
     onDelete: (index: number) => void;
     session: Session;

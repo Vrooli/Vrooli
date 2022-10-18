@@ -81,7 +81,7 @@ for dir in $(find . -maxdepth 3 -name package.json -printf '%h '); do
 done
 
 # Navigate to UI directory
-cd ui
+cd ${HERE}/../packages/ui
 
 # Create local .env file
 touch .env
@@ -122,7 +122,7 @@ if [ -z "${BRAVE_REWARDS_TOKEN}" ]; then
 else
     info "Creating build/.well-known/brave-rewards-verification.txt file..."
     mkdir build/.well-known
-    cd build/.well-known
+    cd ${HERE}/../packages/ui/build/.well-known
     echo "This is a Brave Rewards publisher verification file.\n" > brave-rewards-verification.txt
     echo "Domain: vrooli.com" >> brave-rewards-verification.txt
     echo "Token: ${BRAVE_REWARDS_TOKEN}" >> brave-rewards-verification.txt

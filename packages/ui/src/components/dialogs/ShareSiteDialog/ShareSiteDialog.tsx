@@ -44,6 +44,19 @@ export const ShareSiteDialog = ({
         setTimeout(() => setCopied(false), 5000);
     }
 
+    /**
+     * Opens navigator share dialog (if supported)
+     */
+    const shareNative = () => {
+        if (navigator.share) {
+            navigator.share({
+                title: postTitle,
+                text: postText,
+                url: inviteLink,
+            })
+        }
+    }
+
     return (
         <Dialog
             onClose={onClose}
@@ -59,34 +72,38 @@ export const ShareSiteDialog = ({
                 },
             }}
         >
-            <Box sx={{ 
-                padding: 2, 
-                background: copied ? "#0e650b" : "#072781", 
+            <Box sx={{
+                padding: 2,
+                background: copied ? "#0e650b" : "#072781",
                 color: 'white',
                 transition: 'background 0.2s ease-in-out',
             }}>
                 <Typography variant="h4" component="h1" mb={1}>Spread the Word 🌍</Typography>
                 <Stack direction="column" spacing={1} mb={2} sx={{ alignItems: 'center' }}>
-                    <Button 
-                        onClick={copyInviteLink} 
+                    <Button
+                        onClick={copyInviteLink}
                         startIcon={<CopyIcon fill="black" />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
                     >Copy link</Button>
-                    <Button 
-                        onClick={() => openLink(`mailto:?subject=${encodeURIComponent(postTitle)}&body=${encodeURIComponent(postText)}`)} 
+                    <Button
+                        onClick={() => openLink(`mailto:?subject=${encodeURIComponent(postTitle)}&body=${encodeURIComponent(postText)}`)}
                         startIcon={<EmailIcon fill="black" />}
                         sx={{ ...buttonProps }}
                     >Share by email</Button>
-                    <Button 
+                    <Button
                         onClick={() => openLink(`https://twitter.com/intent/tweet?text=${encodeURIComponent(postText)}`)}
-                        startIcon={<TwitterIcon fill="black" />} 
+                        startIcon={<TwitterIcon fill="black" />}
                         sx={{ ...buttonProps }}
                     >Tweet about us</Button>
-                    <Button 
-                        onClick={() => openLink(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(inviteLink)}&title=${encodeURIComponent(postTitle)}&summary=${encodeURIComponent(postText)}`)} 
+                    <Button
+                        onClick={() => openLink(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(inviteLink)}&title=${encodeURIComponent(postTitle)}&summary=${encodeURIComponent(postText)}`)}
                         startIcon={<LinkedInIcon fill="black" />}
                         sx={{ ...buttonProps }}
                     >Post on LinkedIn</Button>
+                    <Button
+                        onClick={shareNative}
+                        sx={{ ...buttonProps }}
+                    >Other</Button>
                     <Box sx={{
                         width: '220px',
                         height: '220px',
@@ -100,7 +117,7 @@ export const ShareSiteDialog = ({
                         />
                     </Box>
                 </Stack>
-                { copied ? <Typography variant="h6" component="h4" textAlign="center" mb={1}>🎉 Copied! 🎉</Typography> : null}
+                {copied ? <Typography variant="h6" component="h4" textAlign="center" mb={1}>🎉 Copied! 🎉</Typography> : null}
             </Box>
         </Dialog>
     )

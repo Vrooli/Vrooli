@@ -2390,12 +2390,12 @@ interface GetLatestVersionProps {
  * @returns The id of the latest version
  */
 export async function getLatestVersion({
-    includeIncomplete,
+    includeIncomplete = true,
     objectType,
     prisma,
     versionGroupId,
 }: GetLatestVersionProps): Promise<string | undefined> {
-    console.log('in getlatestversion', objectType, versionGroupId);
+    console.log('in getlatestversion', objectType, versionGroupId, includeIncomplete);
     // Helper function to compare version strings
     const compareVersions = (a: string, b: string): number => {
         // Parse versions

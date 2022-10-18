@@ -20,7 +20,7 @@ export const DateDisplay = ({
 
     // Full date popup
     const [anchorEl, setAnchorEl] = useState<any | null>(null);
-    const open = useCallback((target: React.MouseEvent['target']) => {
+    const open = useCallback((target: EventTarget) => {
         setAnchorEl(target)
     }, []);
     const close = useCallback(() => setAnchorEl(null), []);

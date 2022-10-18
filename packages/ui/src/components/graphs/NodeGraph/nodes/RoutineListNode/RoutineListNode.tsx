@@ -60,8 +60,8 @@ export const RoutineListNode = ({
     // Default to open if editing and empty
     const [collapseOpen, setCollapseOpen] = useState<boolean>(isEditing && (node?.data as NodeDataRoutineList)?.routines?.length === 0);
     const collapseDebounce = useDebounce(setCollapseOpen, 20);
-    const toggleCollapse = useCallback((target: React.MouseEvent['target']) => {
-        if (isLinked && shouldCollapse((target as any).id)) {
+    const toggleCollapse = useCallback((target: EventTarget) => {
+        if (isLinked && shouldCollapse(target.id)) {
             PubSub.get().publishFastUpdate({ duration: 1000 });
             collapseDebounce(!collapseOpen);
         }
@@ -305,7 +305,7 @@ export const RoutineListNode = ({
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((target: React.MouseEvent['target']) => {
+    const openContext = useCallback((target: EventTarget) => {
         // Ignore if not linked, not editing, or in the middle of an event (drag, collapse, move, etc.)
         if (!canDrag || !isLinked || !isEditing || isLabelDialogOpen.current || fastUpdateRef.current) return;
         setContextAnchor(target)

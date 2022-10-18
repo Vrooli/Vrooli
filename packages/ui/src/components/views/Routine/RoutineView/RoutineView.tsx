@@ -51,7 +51,8 @@ export const RoutineView = ({
             versionGroupId: uuidValidate(secondLast) ? secondLast : last,
         }
     }, []);
-    const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
+    const [getData, { data, loading, error }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
+    console.log('query error', error);
     useEffect(() => {
         if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { input: { id, versionGroupId } } });
         else PubSub.get().publishSnack({ message: 'Could not parse ID in URL', severity: SnackSeverity.Error });
