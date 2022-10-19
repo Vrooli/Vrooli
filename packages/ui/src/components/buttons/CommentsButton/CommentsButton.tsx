@@ -28,16 +28,21 @@ export const CommentsButton = ({
             spacing={0.5}
             sx={{
                 marginRight: 0,
+                pointerEvents: 'none',
             }}
         >
             <Tooltip placement={tooltipPlacement} title={'View comments'}>
-                <Box onClick={handleClick} sx={{ display: 'contents', cursor: disabled ? 'none' : 'pointer' }}>
+                <Box onClick={handleClick} sx={{
+                    display: 'contents',
+                    cursor: disabled ? 'none' : 'pointer',
+                    pointerEvents: disabled ? 'none' : 'all',
+                }}>
                     <CommentIcon fill={disabled ? 'rgb(189 189 189)' : '#76a7c3'} />
                 </Box>
             </Tooltip>
             <ListItemText
                 primary={commentsCount}
-                sx={{ ...multiLineEllipsis(1) }}
+                sx={{ ...multiLineEllipsis(1), pointerEvents: 'none' }}
             />
         </Stack>
     )

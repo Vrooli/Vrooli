@@ -40,6 +40,8 @@ const createPopupOptions: ListMenuItemData<string>[] = [
     { label: 'Routine (Multi Step)', value: `${APP_LINKS.Routine}/add?build=true` },
 ]
 
+const zIndex = 200;
+
 export const DevelopPage = ({
     session
 }: DevelopPageProps) => {
@@ -61,9 +63,7 @@ export const DevelopPage = ({
     /**
      * Opens page for list item
      */
-    const toItemPage = useCallback((item: NavigableObject, event: any) => {
-        event?.stopPropagation();
-        // Navigate to item page
+    const toItemPage = useCallback((item: NavigableObject) => {
         openObject(item, setLocation);
     }, [setLocation]);
 
@@ -74,6 +74,7 @@ export const DevelopPage = ({
         loading: developPageLoading,
         onClick: toItemPage,
         session,
+        zIndex,
     }), [developPageData?.developPage?.inProgress, developPageLoading, session, toItemPage])
 
     const recent = useMemo(() => listToListItems({
@@ -83,6 +84,7 @@ export const DevelopPage = ({
         loading: developPageLoading,
         onClick: toItemPage,
         session,
+        zIndex,
     }), [developPageData?.developPage?.recent, developPageLoading, session, toItemPage])
 
     const completed = useMemo(() => listToListItems({
@@ -92,6 +94,7 @@ export const DevelopPage = ({
         loading: developPageLoading,
         onClick: toItemPage,
         session,
+        zIndex,
     }), [developPageData?.developPage?.completed, developPageLoading, session, toItemPage])
 
     const toSeeAllInProgress = useCallback((event: any) => {

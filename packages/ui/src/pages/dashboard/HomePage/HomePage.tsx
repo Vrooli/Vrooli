@@ -89,6 +89,8 @@ const examplesData: [string, string][] = [
     ['Create a Cardano native asset token', '3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
 ]
 
+const zIndex = 200;
+
 /**
  * Containers a search bar, lists of routines, projects, tags, and organizations, 
  * and a FAQ section.
@@ -188,8 +190,7 @@ export const HomePage = ({
     /**
      * Opens page for list item
      */
-    const toItemPage = useCallback((item: NavigableObject, event: any) => {
-        event?.stopPropagation();
+    const toItemPage = useCallback((item: NavigableObject) => {
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
         // Navigate to item page
@@ -251,6 +252,7 @@ export const HomePage = ({
                 loading,
                 onClick: toItemPage,
                 session,
+                zIndex,
             });
             if (loading || listFeedItems.length > 0) {
                 listFeeds.push((

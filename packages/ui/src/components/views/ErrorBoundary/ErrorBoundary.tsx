@@ -22,10 +22,21 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         if (this.state.hasError) {
             // Show centered error message
             return (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    height: '100%',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                }}
+                >
                     <div style={{ textAlign: 'center' }}>
                         <h1>Something went wrong 😔</h1>
-                        <p>Try refreshing the page. If the problem persists, you may contact us at official@vrooli.com</p>
+                        <p>Try refreshing the page, or closing and reopening the application. If the problem persists, you may contact us at official@vrooli.com</p>
                     </div>
                 </div>
             );

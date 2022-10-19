@@ -21,7 +21,6 @@ export function TitleContainer({
         <Tooltip placement="bottom" title={tooltip}>
             <Box id={id} display="flex" justifyContent="center">
                 <Box
-                    onClick={(e) => { onClick && onClick(e) }}
                     sx={{
                         ...containerShadow,
                         borderRadius: '8px',
@@ -36,11 +35,14 @@ export function TitleContainer({
                     }}
                 >
                     {/* Title container */}
-                    <Box sx={{
-                        background: palette.primary.dark,
-                        color: palette.primary.contrastText,
-                        padding: 0.5,
-                    }}>
+                    <Box
+                        onClick={(e) => { onClick && onClick(e) }}
+                        sx={{
+                            background: palette.primary.dark,
+                            color: palette.primary.contrastText,
+                            padding: 0.5,
+                        }}
+                    >
                         {/* Title */}
                         <Stack direction="row" justifyContent="center" alignItems="center">
                             <Typography component="h2" variant="h4" textAlign="center">{title}</Typography>

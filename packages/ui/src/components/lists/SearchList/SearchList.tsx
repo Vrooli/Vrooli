@@ -214,7 +214,8 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         loading,
         onClick: (item) => onObjectSelect(item),
         session: session,
-    }), [searchType, hideRoles, allData, pageData, itemKeyPrefix, loading, session, onObjectSelect])
+        zIndex,
+    }), [searchType, hideRoles, allData, pageData, itemKeyPrefix, loading, session, zIndex, onObjectSelect])
     console.log('listItems', new Date().getTime(), listItems, loading, pageData)
 
     // If near the bottom of the page, load more data

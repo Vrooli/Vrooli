@@ -2,8 +2,10 @@ import { VoteFor } from '@shared/consts';
 import { SearchType } from 'components/dialogs';
 import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListUser, Session, Tag } from 'types';
 
-export interface ObjectListItemProps<DataType> {
-    data: DataType | null;
+export type ObjectListItemType = ListOrganization | ListProject | ListRoutine | ListRun | ListStandard | ListUser;
+
+export interface ObjectListItemProps<T extends ObjectListItemType> { 
+    data: T | null;
     /**
      * True if role (admin, owner, etc.) should be hidden
      */
@@ -21,19 +23,9 @@ export interface ObjectListItemProps<DataType> {
      * onClick handler. Passes back full data so we can display 
      * known properties of the object, while waiting for the full data to be fetched.
      */
-    onClick?: (e: React.MouseEvent<any>, data: DataType) => any;
-    /**
-     * Tooltip text to display when hovering over the item
-     */
-    tooltip?: string | null | undefined;
+    onClick?: (data: T) => any;
+    zIndex: number;
 }
-
-export type OrganizationListItemProps = ObjectListItemProps<ListOrganization>;
-export type ProjectListItemProps = ObjectListItemProps<ListProject>;
-export type RoutineListItemProps = ObjectListItemProps<ListRoutine>;
-export type RunListItemProps = ObjectListItemProps<ListRun>;
-export type StandardListItemProps = ObjectListItemProps<ListStandard>;
-export type UserListItemProps = ObjectListItemProps<ListUser>;
 
 export interface SortMenuProps {
     sortOptions: any[];

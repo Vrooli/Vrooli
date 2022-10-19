@@ -25,6 +25,8 @@ const tabOptions = [
     ['History', APP_LINKS.History],
 ];
 
+const zIndex = 200;
+
 /**
  * Containers a search bar, lists of routines, projects, tags, and organizations, 
  * and a FAQ section.
@@ -59,9 +61,7 @@ export const HistoryPage = ({
     /**
      * Opens page for list item
      */
-    const toItemPage = useCallback((item: NavigableObject, event: any) => {
-        event?.stopPropagation();
-        // Navigate to item page
+    const toItemPage = useCallback((item: NavigableObject) => {
         openObject(item, setLocation);
     }, [setLocation]);
 
@@ -71,6 +71,7 @@ export const HistoryPage = ({
         keyPrefix: 'active-runs-list-item',
         loading,
         session,
+        zIndex,
     }), [data?.historyPage?.activeRuns, loading, session])
 
     const completedRuns = useMemo(() => listToListItems({
@@ -79,6 +80,7 @@ export const HistoryPage = ({
         keyPrefix: 'completed-runs-list-item',
         loading,
         session,
+        zIndex,
     }), [data?.historyPage?.completedRuns, loading, session])
 
     const recent = useMemo(() => listToListItems({
@@ -88,6 +90,7 @@ export const HistoryPage = ({
         loading,
         onClick: toItemPage,
         session,
+        zIndex,
     }), [data?.historyPage?.recentlyViewed, loading, session, toItemPage])
 
     const starred = useMemo(() => listToListItems({
@@ -97,6 +100,7 @@ export const HistoryPage = ({
         loading,
         onClick: toItemPage,
         session,
+        zIndex,
     }), [data?.historyPage?.recentlyStarred, loading, session, toItemPage])
 
     const languages = useMemo(() => getUserLanguages(session), [session]);

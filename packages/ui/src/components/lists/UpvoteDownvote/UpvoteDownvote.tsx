@@ -19,7 +19,7 @@ export const UpvoteDownvote = ({
     onChange,
 }: UpvoteDownvoteProps) => {
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
-    
+
     // Used to respond to user clicks immediately, without having 
     // to wait for the mutation to complete
     const [internalIsUpvoted, setInternalIsUpvoted] = useState<boolean | null>(isUpvoted ?? null);
@@ -66,23 +66,23 @@ export const UpvoteDownvote = ({
     }, [userId, disabled, internalIsUpvoted, handleVote]);
 
     const { UpvoteIcon, upvoteColor } = useMemo(() => {
-        const upvoteColor = (!userId || disabled) ? "rgb(189 189 189)" : 
-            internalIsUpvoted === true ? "#34c38b" : 
-            "#687074";
+        const upvoteColor = (!userId || disabled) ? "rgb(189 189 189)" :
+            internalIsUpvoted === true ? "#34c38b" :
+                "#687074";
         const UpvoteIcon = direction === "column" ? UpvoteWideIcon : UpvoteTallIcon;
         return { UpvoteIcon, upvoteColor };
-    } , [userId, disabled, internalIsUpvoted, direction]);
+    }, [userId, disabled, internalIsUpvoted, direction]);
 
     const { DownvoteIcon, downvoteColor } = useMemo(() => {
         const downvoteColor = (!userId || disabled) ? "rgb(189 189 189)" :
             internalIsUpvoted === false ? "#af2929" :
-            "#687074";
+                "#687074";
         const DownvoteIcon = direction === "column" ? DownvoteWideIcon : DownvoteTallIcon;
         return { DownvoteIcon, downvoteColor };
-    } , [userId, disabled, internalIsUpvoted, direction]);
+    }, [userId, disabled, internalIsUpvoted, direction]);
 
     return (
-        <Stack direction={direction}>
+        <Stack direction={direction} sx={{ pointerEvents: 'none' }}>
             {/* Upvote arrow */}
             <Tooltip title="Upvote" placement={direction === "column" ? "left" : "top"}>
                 <Box
@@ -92,6 +92,7 @@ export const UpvoteDownvote = ({
                     aria-pressed={internalIsUpvoted === true}
                     sx={{
                         cursor: (userId || disabled) ? 'pointer' : 'default',
+                        pointerEvents: 'all',
                         display: 'flex',
                         '&:hover': {
                             filter: userId ? `brightness(120%)` : 'none',
@@ -103,7 +104,7 @@ export const UpvoteDownvote = ({
                 </Box>
             </Tooltip>
             {/* Score */}
-            <Typography variant="body1" textAlign="center" sx={{ margin: 'auto' }}>{internalScore}</Typography>
+            <Typography variant="body1" textAlign="center" sx={{ margin: 'auto', pointerEvents: 'none' }}>{internalScore}</Typography>
             {/* Downvote arrow */}
             <Tooltip title="Downvote" placement={direction === "column" ? "left" : "top"}>
                 <Box
@@ -113,6 +114,7 @@ export const UpvoteDownvote = ({
                     aria-pressed={internalIsUpvoted === false}
                     sx={{
                         cursor: (userId || disabled) ? 'pointer' : 'default',
+                        pointerEvents: 'all',
                         display: 'flex',
                         '&:hover': {
                             filter: userId ? `brightness(120%)` : 'none',

@@ -27,16 +27,21 @@ export const ReportsButton = ({
             spacing={0.5}
             sx={{
                 marginRight: 0,
+                pointerEvents: 'none',
             }}
         >
             <Tooltip placement={tooltipPlacement} title={'View reports'}>
-                <Box onClick={handleClick} sx={{ display: 'contents', cursor: 'pointer' }}>
+                <Box onClick={handleClick} sx={{
+                    display: 'contents',
+                    cursor: 'pointer',
+                    pointerEvents: 'all',
+                }}>
                     <ReportIcon fill={'#a96666'} />
                 </Box>
             </Tooltip>
             <ListItemText
                 primary={reportsCount}
-                sx={{ ...multiLineEllipsis(1) }}
+                sx={{ ...multiLineEllipsis(1), pointerEvents: 'none' }}
             />
         </Stack>
     )

@@ -40,6 +40,8 @@ If you are not logged in, default resources will be displayed.`
 const voteText =
     `Projects listed here are requesting your vote on Project Catalyst! Click on their proposal resources to learn more.`
 
+const zIndex = 200;
+
 export const ResearchPage = ({
     session
 }: ResearchPageProps) => {
@@ -61,9 +63,7 @@ export const ResearchPage = ({
     /**
      * Opens page for list item
      */
-    const toItemPage = useCallback((item: NavigableObject, event: any) => {
-        event?.stopPropagation();
-        // Navigate to item page
+    const toItemPage = useCallback((item: NavigableObject) => {
         openObject(item, setLocation);
     }, [setLocation]);
 
@@ -74,6 +74,7 @@ export const ResearchPage = ({
         loading: researchPageLoading,
         onClick: toItemPage,
         session,
+        zIndex,
     }), [researchPageData?.researchPage?.processes, researchPageLoading, session, toItemPage])
 
     const newlyCompleted = useMemo(() => listToListItems({
@@ -83,6 +84,7 @@ export const ResearchPage = ({
         loading: researchPageLoading,
         onClick: toItemPage,
         session,
+        zIndex,
     }), [researchPageData?.researchPage?.newlyCompleted, researchPageLoading, session, toItemPage])
 
     const needVotes = useMemo(() => listToListItems({
@@ -92,6 +94,7 @@ export const ResearchPage = ({
         loading: researchPageLoading,
         onClick: toItemPage,
         session,
+        zIndex,
     }), [researchPageData?.researchPage?.needVotes, researchPageLoading, session, toItemPage])
 
     const needInvestments = useMemo(() => listToListItems({
@@ -101,6 +104,7 @@ export const ResearchPage = ({
         loading: researchPageLoading,
         onClick: toItemPage,
         session,
+        zIndex,
     }), [researchPageData?.researchPage?.needInvestments, researchPageLoading, session, toItemPage])
 
     const needMembers = useMemo(() => listToListItems({
@@ -110,6 +114,7 @@ export const ResearchPage = ({
         loading: researchPageLoading,
         onClick: toItemPage,
         session,
+        zIndex,
     }), [researchPageData?.researchPage?.needMembers, researchPageLoading, session, toItemPage])
 
     const toCreateProcess = useCallback((event: any) => {

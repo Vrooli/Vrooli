@@ -22,6 +22,7 @@ export const StarButton = ({
     tooltipPlacement = "left"
 }: StarButtonProps) => {
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
+    console.log('star button', userId, objectId, starFor);
 
     // Used to respond to user clicks immediately, without having 
     // to wait for the mutation to complete
@@ -63,17 +64,22 @@ export const StarButton = ({
                 marginRight: 0,
                 marginTop: 'auto !important',
                 marginBottom: 'auto !important',
+                pointerEvents: 'none',
                 ...(sxs?.root ?? {}),
             }}
         >
             <Tooltip placement={tooltipPlacement} title={tooltip}>
-                <Box onClick={handleClick} sx={{ display: 'contents', cursor: userId ? 'pointer' : 'default' }}>
+                <Box onClick={handleClick} sx={{
+                    display: 'contents',
+                    cursor: userId ? 'pointer' : 'default',
+                    pointerEvents: disabled ? 'none' : 'all',
+                }}>
                     <Icon fill={color} />
                 </Box>
             </Tooltip>
             {showStars && internalStars !== null && <ListItemText
                 primary={internalStars}
-                sx={{ ...multiLineEllipsis(1) }}
+                sx={{ ...multiLineEllipsis(1), pointerEvents: 'none' }}
             />}
         </Stack>
     )

@@ -32,6 +32,8 @@ In the future, we will add many new learning features, such as:
 const tutorialText =
     `Tutorials are community-created routines, each designed to teach a specific skill. Any routine associated with the "learn" tag will be listed here.`
 
+const zIndex = 200;
+
 export const LearnPage = ({
     session,
 }: LearnPageProps) => {
@@ -53,8 +55,7 @@ export const LearnPage = ({
     /**
      * Opens page for list item
      */
-    const toItemPage = useCallback((item: NavigableObject, event: any) => {
-        event?.stopPropagation();
+    const toItemPage = useCallback((item: NavigableObject) => {
         // Navigate to item page
         openObject(item, setLocation);
     }, [setLocation]);
@@ -104,6 +105,7 @@ export const LearnPage = ({
         loading: learnPageLoading,
         onClick: toItemPage,
         session,
+        zIndex,
     }), [learnPageData?.learnPage?.courses, learnPageLoading, session, toItemPage])
 
     const tutorials = useMemo(() => listToListItems({
@@ -113,6 +115,7 @@ export const LearnPage = ({
         loading: learnPageLoading,
         onClick: toItemPage,
         session,
+        zIndex,
     }), [learnPageData?.learnPage?.tutorials, learnPageLoading, session, toItemPage])
 
     return (
