@@ -1,6 +1,6 @@
 import { ListItem, ListItemButton, ListItemText, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
-import { containerShadow, multiLineEllipsis } from "styles";
+import { multiLineEllipsis } from "styles";
 import { Node, NodeDataEnd, NodeLink } from "types";
 import { getTranslation, getUserLanguages } from "utils";
 import { DecisionViewProps } from "../types";
@@ -75,7 +75,7 @@ export const DecisionView = ({
                         display: 'flex',
                         background: decision.color,
                         color: 'white',
-                        ...containerShadow,
+                        boxShadow: 12,
                         borderRadius: '12px',
                     }}
                 >

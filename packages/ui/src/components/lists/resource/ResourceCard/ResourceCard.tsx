@@ -10,7 +10,7 @@ import { firstString, getTranslation, getUserLanguages, openLink, PubSub, Resour
 import { useCallback, useMemo, useState } from 'react';
 import { useLocation } from '@shared/route';
 import { ResourceCardProps } from '../../../cards/types';
-import { containerShadow, multiLineEllipsis, noSelect } from 'styles';
+import { multiLineEllipsis, noSelect } from 'styles';
 import { getResourceIcon } from '..';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { urlRegex, walletAddressRegex, adaHandleRegex } from '@shared/validation';
@@ -122,7 +122,7 @@ export const ResourceCard = ({
                 {...pressEvents}
                 sx={{
                     ...noSelect,
-                    ...containerShadow,
+                    boxShadow: 12,
                     background: (t: any) => t.palette.primary.light,
                     color: (t: any) => t.palette.primary.contrastText,
                     borderRadius: '16px',

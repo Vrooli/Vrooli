@@ -1,7 +1,6 @@
 import { Box, CircularProgress, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { ObjectActionMenu, OwnerLabel, ResourceListHorizontal, SnackSeverity, TextCollapse, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { containerShadow } from "styles";
 import { formikToRunInputs, getTranslation, getUserLanguages, ObjectType, openObject, PubSub, runInputsToFormik, standardToFieldData, uuidToBase36 } from "utils";
 import { useLocation } from '@shared/route';
 import { SubroutineViewProps } from "../types";
@@ -237,7 +236,7 @@ export const SubroutineView = ({
             overflow: 'overlay',
             // safe-area-inset-bottom is the iOS navigation bar
             marginBottom: 'calc(64px + env(safe-area-inset-bottom))',
-            ...containerShadow
+            boxShadow: 12,
         }}>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu

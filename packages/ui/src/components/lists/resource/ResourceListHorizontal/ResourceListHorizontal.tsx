@@ -3,7 +3,6 @@
 import { Box, CircularProgress, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { ResourceCard, ResourceListItemContextMenu } from 'components';
 import { ResourceListHorizontalProps } from '../types';
-import { containerShadow } from 'styles';
 import { useCallback, useMemo, useState } from 'react';
 import { Resource } from 'types';
 import { cardRoot } from 'components/cards/styles';
@@ -137,7 +136,7 @@ export const ResourceListHorizontal = ({
             <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>
             <Box
                 sx={{
-                    ...containerShadow,
+                    boxShadow: 12,
                     borderRadius: '16px',
                     background: palette.background.default,
                     border: `1px ${palette.text.primary}`,

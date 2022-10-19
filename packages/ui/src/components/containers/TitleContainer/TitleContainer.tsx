@@ -1,7 +1,7 @@
 // Used to display popular/search results of a particular object type
 import { Box, CircularProgress, Link, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { TitleContainerProps } from '../types';
-import { clickSize, containerShadow } from 'styles';
+import { clickSize } from 'styles';
 import { HelpButton } from 'components';
 
 export function TitleContainer({
@@ -22,7 +22,7 @@ export function TitleContainer({
             <Box id={id} display="flex" justifyContent="center">
                 <Box
                     sx={{
-                        ...containerShadow,
+                        boxShadow: 12,
                         borderRadius: '8px',
                         overflow: 'overlay',
                         background: palette.background.default,

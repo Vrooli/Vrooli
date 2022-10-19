@@ -5,7 +5,6 @@ import { useLazyQuery } from "@apollo/client";
 import { Box, Button, List, Palette, Tooltip, Typography, useTheme } from "@mui/material";
 import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { containerShadow } from "styles";
 import { BuildIcon, HistoryIcon as TimeIcon, PlusIcon, SortIcon } from '@shared/icons';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
 import { addSearchParams, getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, parseSearchParams, removeSearchParams, SearchParams, searchTypeToParams, SortValueToLabelMap } from "utils";
@@ -286,7 +285,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 marginLeft: 'auto',
                 marginRight: 'auto',
                 ...(hasItems ? {
-                    ...containerShadow,
+                    boxShadow: 12,
                     background: palette.background.paper,
                     borderRadius: '8px',
                     overflow: 'overlay',

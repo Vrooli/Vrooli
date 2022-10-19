@@ -79,7 +79,7 @@ export const ShareObjectDialog = ({
                 '& .MuiDialogContent-root': {
                     overflow: 'hidden',
                     borderRadius: 2,
-                    boxShadow: "0 0 35px 0 rgba(0,0,0,0.5)",
+                    boxShadow: 12,
                     textAlign: "center",
                     padding: "1em",
                 },

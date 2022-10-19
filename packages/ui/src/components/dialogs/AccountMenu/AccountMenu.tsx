@@ -138,8 +138,6 @@ export const AccountMenu = ({
         </ListItem>
     ), [accounts, handleUserClick]);
 
-    const shadowColor = palette.mode === 'light' ? '0 0 0' : '255 255 255';
-
     return (
         <Menu
             id='account-menu-id'
@@ -161,9 +159,7 @@ export const AccountMenu = ({
                 '& .MuiMenu-paper': {
                     background: palette.background.default,
                     minWidth: 'min(100%, 250px)',
-                    boxShadow: `0px 5px 5px -3px rgb(${shadowColor} / 20%), 
-                         0px 8px 10px 1px rgb(${shadowColor} / 14%), 
-                         0px 3px 14px 2px rgb(${shadowColor} / 12%)`
+                    boxShadow: 12,
                 },
                 '& .MuiMenu-list': {
                     paddingTop: '0',

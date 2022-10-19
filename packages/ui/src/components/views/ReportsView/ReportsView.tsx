@@ -3,7 +3,7 @@ import { reports, reportsVariables } from "graphql/generated/reports";
 import { reportsQuery } from "graphql/query";
 import { APP_LINKS } from "@shared/consts";
 import { useMemo } from "react";
-import { useTheme } from "@mui/material";
+import { Box, useTheme } from "@mui/material";
 import { base36ToUuid, getLastUrlPart } from "utils";
 import { PageTitle } from "components/text";
 
@@ -168,13 +168,13 @@ const BaseReportsView = (props: { data: reports }): JSX.Element => {
             <PageTitle title='Reports' helpText={helpText} />
             {edges.map((edge, i) => {
                 const report = edge.node;
-                return <div
+                return <Box
                     key={i}
-                    style={{
+                    sx={{
                         background: palette.background.paper,
                         color: palette.background.textPrimary,
                         borderRadius: "16px",
-                        boxShadow: "0 4px 16px 0 #00000050",
+                        boxShadow: 12,
                         margin: "16px 16px 0 16px",
                         padding: "1rem",
                     }}
@@ -185,7 +185,7 @@ const BaseReportsView = (props: { data: reports }): JSX.Element => {
                     <p style={{ margin: "1rem 0 0 0" }}>
                         <b>Details:</b>  {report.details}
                     </p>
-                </div>
+                </Box>
             })}
         </>
     )

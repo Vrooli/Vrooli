@@ -13,7 +13,6 @@ import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/graphqlWrapper";
 import { CommentFor, NodeType, StarFor } from "graphql/generated/globalTypes";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
-import { containerShadow } from "styles";
 import { uuidValidate } from '@shared/uuid';
 import { runCompleteVariables, runComplete_runComplete } from "graphql/generated/runComplete";
 import { useFormik } from "formik";
@@ -484,7 +483,7 @@ export const RoutineView = ({
                 marginBottom: 8,
             }}>
                 <Box sx={{
-                    ...containerShadow,
+                    boxShadow: 12,
                     background: palette.background.paper,
                     width: 'min(100%, 700px)',
                     borderRadius: 1,

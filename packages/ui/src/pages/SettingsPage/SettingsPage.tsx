@@ -97,7 +97,7 @@ export function SettingsPage({
             alignItems: 'center',
         }}>
             <Box sx={{
-                boxShadow: { xs: 'none', sm: '0px 0px 12px gray' },
+                boxShadow: { xs: 'none', sm: 12 },
                 borderRadius: { xs: 0, sm: 2 },
                 overflow: 'overlay',
                 background: palette.background.default,

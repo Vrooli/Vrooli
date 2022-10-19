@@ -232,6 +232,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                         display: 'flex',
                         background: listItemColor(index, palette),
                         padding: '8px 16px',
+                        cursor: 'pointer',
                     }}
                 >
                     {leftColumn}

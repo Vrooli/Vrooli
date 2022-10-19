@@ -13,7 +13,6 @@ export const PopoverWithArrow = ({
     ...props
 }: PopoverWithArrowProps) => {
     const { palette } = useTheme();
-    const shadowColor = palette.mode === 'light' ? '0 0 0' : '255 255 255';
     const isOpen = Boolean(anchorEl);
     const [canTouch, setCanTouch] = useState(false);
 
@@ -67,9 +66,7 @@ export const PopoverWithArrow = ({
                     minHeight: '25px',
                     background: palette.background.paper,
                     color: palette.background.textPrimary,
-                    boxShadow: `0px 5px 5px -3px rgb(${shadowColor} / 20%), 
-                         0px 8px 10px 1px rgb(${shadowColor} / 14%), 
-                         0px 3px 14px 2px rgb(${shadowColor} / 12%)`
+                    boxShadow: 12,
                 }
             }}
         >

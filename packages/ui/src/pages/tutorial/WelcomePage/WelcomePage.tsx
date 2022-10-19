@@ -45,7 +45,7 @@ export const WelcomePage = () => {
             textAlign: 'center',
         }}>
             <Box sx={{
-                boxShadow: `rgb(0 0 0 / 50%) 0px 0px 35px 0px`,
+                boxShadow: 12,
                 padding: 2,
                 borderRadius: 2,
                 overflow: 'overlay',

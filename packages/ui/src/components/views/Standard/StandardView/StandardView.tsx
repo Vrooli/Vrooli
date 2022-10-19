@@ -10,7 +10,6 @@ import { StandardViewProps } from "../types";
 import { base36ToUuid, firstString, getLanguageSubtag, getLastUrlPart, getObjectSlug, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, openObject, PubSub, standardToFieldData } from "utils";
 import { Standard } from "types";
 import { CommentFor, StarFor } from "graphql/generated/globalTypes";
-import { containerShadow } from "styles";
 import { uuidValidate } from '@shared/uuid';
 import { FieldData, FieldDataJSON } from "forms/types";
 import { useFormik } from "formik";
@@ -260,7 +259,7 @@ export const StandardView = ({
                     overflowY: 'auto',
                     borderRadius: { xs: '8px 8px 0 0', sm: '8px' },
                     overflow: 'overlay',
-                    boxShadow: { xs: 'none', sm: (containerShadow as any).boxShadow },
+                    boxShadow: { xs: 'none', sm: 12},
                     width: 'min(100%, 600px)',
                 }}>
                     {/* Heading container */}

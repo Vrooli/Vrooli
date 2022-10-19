@@ -15,7 +15,7 @@ import {
     routineNodeCheckboxOption,
     routineNodeCheckboxLabel,
 } from '../styles';
-import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
+import { multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { BuildAction, firstString, getTranslation, updateTranslationFields, usePress } from 'utils';
 import { EditableLabel, NodeContextMenu } from 'components';
 import { CloseIcon } from '@shared/icons';
@@ -146,7 +146,7 @@ export const SubroutineNode = ({
             />
             <Box
                 sx={{
-                    ...containerShadow,
+                    boxShadow: 12,
                     minWidth: nodeSize,
                     fontSize: fontSize,
                     position: 'relative',
