@@ -6,3 +6,4 @@ export * from './usePress';
 export * from './usePromptBeforeUnload';
 export * from './useReactHash';
 export * from './useReactSearch';
+export * from './useWindowSize';

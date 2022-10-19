@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
  * @param minKeyboardHeight The minimum height of the keyboard to consider it open. Defaults to 300.
  * @returns Whether the keyboard is open or not.
  */
-export const useKeyboardOpen = (minKeyboardHeight: number = 300) => {
+export const useKeyboardOpen = (minKeyboardHeight: number = 300): boolean => {
     const [isKeyboardOpen, setIsKeyboardOpen] = useState<boolean>(false);
 
     useEffect(() => {

@@ -5,7 +5,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { StarFor, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading, UpvoteDownvote } from '..';
-import { getListItemIsStarred, getListItemPermissions, getListItemReportsCount, getListItemStarFor, getListItemStars, getListItemSubtitle, getListItemTitle, getUserLanguages, listItemColor, ObjectType, openObject, placeholderColor, usePress } from 'utils';
+import { getListItemIsStarred, getListItemPermissions, getListItemReportsCount, getListItemStarFor, getListItemStars, getListItemSubtitle, getListItemTitle, getUserLanguages, listItemColor, ObjectType, openObject, placeholderColor, usePress, useWindowSize } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { BranchIcon, CopyIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, OpenInNewIcon, OrganizationIcon, ReportIcon, ShareIcon, StarFilledIcon, StarOutlineIcon, StatsIcon, SvgComponent, UpvoteWideIcon, UserIcon } from '@shared/icons';
 import { CommentsButton, ReportsButton, StarButton } from 'components/buttons';
@@ -77,9 +77,11 @@ export function ObjectListItem<T extends ObjectListItemType>({
     session,
     zIndex,
 }: ObjectListItemProps<T>) {
-    const { palette } = useTheme();
+    const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
     const id = useMemo(() => data?.id ?? uuid(), [data]);
+
     const profileColors = useMemo(() => placeholderColor(), []);
     const permissions = useMemo(() => getListItemPermissions(data, session), [data, session]);
     const { subtitle, title } = useMemo(() => {
@@ -115,10 +117,11 @@ export function ObjectListItem<T extends ObjectListItemType>({
     });
 
     /**
-     * Left column is only shown on wide screens. It's either 
+     * Left column is only shown on wide screens (if not a profile picture). It's either 
      * a vote button, an object icon, or nothing.
      */
     const leftColumn = useMemo(() => {
+        if (isMobile && ![ObjectType.Organization, ObjectType.User].includes(data?.__typename as any)) return null;
         // Show icons for organizations and users
         switch (data?.__typename) {
             case ObjectType.Organization:
@@ -126,9 +129,10 @@ export function ObjectListItem<T extends ObjectListItemType>({
                 const Icon: SvgComponent = data?.__typename === ObjectType.Organization ? OrganizationIcon : UserIcon;
                 return (
                     <Box
-                        width="50px"
-                        minWidth="50px"
-                        height="50px"
+                        width={isMobile ? '40px' : '50px'}
+                        minWidth={isMobile ? '40px' : '50px'}
+                        height={isMobile ? '40px' : '50px'}
+                        marginBottom={isMobile ? 'auto' : 'unset'}
                         borderRadius='100%'
                         bgcolor={profileColors[0]}
                         justifyContent='center'
@@ -138,7 +142,11 @@ export function ObjectListItem<T extends ObjectListItemType>({
                             pointerEvents: 'none',
                         }}
                     >
-                        <Icon fill={profileColors[1]} width="35px" height="35px" />
+                        <Icon
+                            fill={profileColors[1]}
+                            width={isMobile ? '25px' : '35px'}
+                            height={isMobile ? '25px' : '35px'}
+                        />
                     </Box>
                 )
             case ObjectType.Project:
@@ -158,18 +166,53 @@ export function ObjectListItem<T extends ObjectListItemType>({
             default:
                 return null;
         }
-    }, [data, permissions.canVote, profileColors, session]);
+    }, [data, isMobile, permissions.canVote, profileColors, session]);
 
     /**
-     * Right column is only shown on wide screens. It displays 
+     * Action buttons are shown as a column on wide screens, and 
+     * a row on mobile. It displays 
      * the star, comments, and reports buttons.
      */
-    const rightColumn = useMemo(() => {
+    const actionButtons = useMemo(() => {
         const commentableObjects: string[] = [ObjectType.Project, ObjectType.Routine, ObjectType.Standard];
         const reportsCount: number = getListItemReportsCount(data);
         const starFor: StarFor | null = getListItemStarFor(data);
         return (
-            <Stack direction="column" spacing={1} sx={{ pointerEvents: 'none' }}>
+            <Stack
+                direction={isMobile ? "row" : "column"}
+                spacing={1}
+                sx={{
+                    pointerEvents: 'none',
+                    justifyContent: isMobile ? 'right' : 'center',
+                    alignItems: isMobile ? 'center' : 'start',
+                }}
+            >
+                {!hideRole && permissions.canEdit && <Tooltip title={`Edit`}>
+                    <Box onClick={() => { }} sx={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                        pointerEvents: 'all',
+                        paddingBottom: isMobile ? '0px' : '4px',
+                        paddingRight: isMobile ? '4px' : '0px',
+                    }}>
+                        <EditIcon fill={palette.secondary.main} />
+                    </Box>
+                </Tooltip>}
+                {/* Add upvote/downvote if mobile */}
+                {isMobile && [ObjectType.Project, ObjectType.Routine, ObjectType.Standard].includes(data?.__typename as any) && (
+                    <UpvoteDownvote
+                        direction='row'
+                        disabled={!permissions.canVote}
+                        session={session}
+                        objectId={data?.id ?? ''}
+                        voteFor={(data as any)?.__typename as VoteFor}
+                        isUpvoted={(data as any)?.isUpvoted}
+                        score={(data as any)?.score}
+                        onChange={(isUpvoted: boolean | null) => { }}
+                    />
+                )}
                 {starFor && <StarButton
                     disabled={!permissions.canStar}
                     session={session}
@@ -189,7 +232,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                 />}
             </Stack>
         )
-    }, [data, permissions, session]);
+    }, [data, hideRole, isMobile, palette.secondary.main, permissions.canComment, permissions.canEdit, permissions.canStar, permissions.canVote, session, title]);
 
     /**
      * Run list items may get a progress bar
@@ -260,17 +303,6 @@ export function ObjectListItem<T extends ObjectListItemType>({
                                             pointerEvents: 'none',
                                         }}
                                     />
-                                    {!hideRole && permissions.canEdit && <ListItemText
-                                        primary={`(Can Edit)`}
-                                        sx={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            width: '100%',
-                                            color: palette.mode === 'light' ? '#fa4f4f' : '#f2a7a7',
-                                            flex: 200,
-                                            pointerEvents: 'none',
-                                        }}
-                                    />}
                                 </Stack>
                             )
                         }
@@ -290,8 +322,10 @@ export function ObjectListItem<T extends ObjectListItemType>({
                                 sx={{ ...smallHorizontalScrollbar(palette) }}
                             /> :
                             null}
+                        {/* Action buttons if mobile */}
+                        {isMobile && actionButtons}
                     </Stack>
-                    {rightColumn}
+                    {!isMobile && actionButtons}
                 </ListItem>
             </Tooltip>
         </>

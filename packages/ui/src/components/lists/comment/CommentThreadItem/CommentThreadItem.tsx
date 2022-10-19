@@ -173,6 +173,7 @@ export function CommentThreadItem({
                                             fontWeight: 'bold',
                                         }
                                     }} />
+                                    {}
                                 {canEdit && !(data?.creator?.id && data.creator.id === session?.id) && <ListItemText
                                     primary={`(Can Edit)`}
                                     sx={{

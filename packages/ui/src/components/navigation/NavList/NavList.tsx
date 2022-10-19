@@ -3,10 +3,10 @@ import {
     ContactInfo,
     PopupMenu
 } from 'components';
-import { Action, actionsToMenu, ACTION_TAGS, getUserActions, openLink } from 'utils';
+import { Action, actionsToMenu, ACTION_TAGS, getUserActions, openLink, useWindowSize } from 'utils';
 import { Button, Container, IconButton, Palette, useTheme } from '@mui/material';
 import { useLocation } from '@shared/route';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { NavListProps } from '../types';
 import { APP_LINKS } from '@shared/consts';
 import { LogInIcon, ProfileIcon } from '@shared/icons';
@@ -28,13 +28,7 @@ export const NavList = ({
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const [isMobile, setIsMobile] = useState(false); // Not shown on mobile
-    const updateWindowDimensions = useCallback(() => setIsMobile(window.innerWidth <= breakpoints.values.md), [breakpoints]);
-    useEffect(() => {
-        updateWindowDimensions();
-        window.addEventListener("resize", updateWindowDimensions);
-        return () => window.removeEventListener("resize", updateWindowDimensions);
-    }, [updateWindowDimensions]);
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
     const nav_actions = useMemo<Action[]>(() => getUserActions({ session, exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn, ACTION_TAGS.Profile] }), [session]);
 
