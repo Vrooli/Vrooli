@@ -53,7 +53,7 @@ export function HistorySearchPage({
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(() => {
-        const searchParams = parseSearchParams(window.location.search);
+        const searchParams = parseSearchParams();
         const availableTypes: TabOption[] = tabOptions.map(t => t[1]);
         const index = availableTypes.indexOf(searchParams.type as TabOption);
         return Math.max(0, index);

@@ -1,6 +1,6 @@
 import { Box, Dialog, Grid, IconButton, Palette, Slider, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
-import { BuildRunState, setSearchParams } from 'utils';
+import { BuildRunState, setSearchParams, uuidToBase36 } from 'utils';
 import { BuildBottomContainerProps } from '../types';
 import { useLocation } from '@shared/route';
 import { RunPickerMenu, UpTransition } from 'components/dialogs';
@@ -67,7 +67,7 @@ export const BuildBottomContainer = ({
         // Otherwise, open routine where last left off in run
         else {
             setSearchParams(setLocation, {
-                run: run.id,
+                run: uuidToBase36(run.id),
                 step: run.steps.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
             });
         }

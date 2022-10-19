@@ -37,7 +37,7 @@ export const AdvancedSearchDialog = ({
         // Calculate initial values from schema, to use if values not already in URL
         const fieldInputs: FieldData[] = generateDefaultProps(schema?.fields ?? []);
         // Parse search params from URL, and filter out search fields that are not in schema
-        const urlValues = schema ? convertSearchForFormik(parseSearchParams(window.location.search), schema) : {} as { [key: string]: any };
+        const urlValues = schema ? convertSearchForFormik(parseSearchParams(), schema) : {} as { [key: string]: any };
         // Filter out search params that are not in schema
         let values: { [x: string]: any } = {};
         // Add fieldInputs to values

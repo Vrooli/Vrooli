@@ -8,10 +8,10 @@ type ParseSearchParamsResult = { [x: string]: Primitive | Primitive[] | ParseSea
 /**
  * Converts url search params to object
  * See https://stackoverflow.com/a/8649003/10240279
- * @param searchParams Search params (i.e. window.location.search)
  * @returns Object with key/value pairs, or empty object if no params
  */
-export const parseSearchParams = (searchParams: string): ParseSearchParamsResult => {
+export const parseSearchParams = (): ParseSearchParamsResult => {
+    const searchParams = window.location.search;
     if (searchParams.length <= 1 || !searchParams.startsWith('?')) return {};
     let search = searchParams.substring(1);
     try {
@@ -75,7 +75,7 @@ export const stringifySearchParams = (params: { [key: string]: any }): string =>
  * @param params Object with key/value pairs, representing search params
  */
 export const addSearchParams = (setLocation: SetLocation, params: { [key: string]: any }) => {
-    const currentParams = parseSearchParams(window.location.search);
+    const currentParams = parseSearchParams();
     const newParams = { ...currentParams, ...params };
     setLocation(`${window.location.pathname}${stringifySearchParams(newParams)}`, { replace: true });
 };
@@ -96,7 +96,7 @@ export const setSearchParams = (setLocation: SetLocation, params: { [key: string
  */
 export const keepSearchParams = (setLocation: SetLocation, keep: string[]) => {
     const keepResult: { [key: string]: any } = {};
-    const searchParams = parseSearchParams(window.location.search);
+    const searchParams = parseSearchParams();
     keep.forEach(key => {
         if (searchParams[key] !== undefined) keepResult[key] = searchParams[key];
     });
@@ -110,7 +110,7 @@ export const keepSearchParams = (setLocation: SetLocation, keep: string[]) => {
  */
 export const removeSearchParams = (setLocation: SetLocation, remove: string[]) => {
     const removeResult: { [key: string]: any } = {};
-    const searchParams = parseSearchParams(window.location.search);
+    const searchParams = parseSearchParams();
     Object.keys(searchParams).forEach(key => {
         if (!remove.includes(key)) removeResult[key] = searchParams[key];
     });
@@ -171,7 +171,7 @@ export const base36ToUuid = (base36: string, showError = true): string => {
         const uuid = toBigInt(base36, 36).toString(16).padStart(32, '0').replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
         return uuid === '0' ? '' : uuid;
     } catch (error) {
-        if (showError) PubSub.get().publishSnack({ message: 'Could not parse ID in URL', severity: SnackSeverity.Error });
+        if (showError) PubSub.get().publishSnack({ message: 'Could not parse ID in URL', severity: SnackSeverity.Error, data: { base36 } });
         return '';
     }
 }

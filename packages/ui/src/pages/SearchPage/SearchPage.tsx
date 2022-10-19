@@ -88,7 +88,7 @@ export function SearchPage({
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(() => {
-        const searchParams = parseSearchParams(window.location.search);
+        const searchParams = parseSearchParams();
         const availableTypes: TabOption[] = tabOptions.map(t => t[1]);
         const index = availableTypes.indexOf(searchParams.type as TabOption);
         // Return valid index, or default to Routines

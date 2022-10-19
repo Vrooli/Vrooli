@@ -301,7 +301,7 @@ export const SubroutineView = ({
                 </Stack>
             </Stack>
             {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
-            <Stack direction="column" spacing={1} padding={1}>
+            <Stack direction="column" spacing={2} padding={2}>
                 {/* Resources */}
                 {resourceList}
                 {/* Description */}

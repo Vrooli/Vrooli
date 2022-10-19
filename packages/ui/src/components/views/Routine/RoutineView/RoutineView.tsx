@@ -7,7 +7,7 @@ import { routineQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, BuildView, ReportsLink, ResourceListHorizontal, RunPickerMenu, RunView, SelectLanguageMenu, StarButton, StatusButton, UpTransition, UpvoteDownvote, OwnerLabel, VersionDisplay, SnackSeverity } from "components";
 import { RoutineViewProps } from "../types";
-import { base36ToUuid, formikToRunInputs, getLanguageSubtag, getLastUrlPart, getObjectSlug, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, useReactSearch } from "utils";
+import { base36ToUuid, formikToRunInputs, getLanguageSubtag, getLastUrlPart, getObjectSlug, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, useReactSearch, uuidToBase36 } from "utils";
 import { Routine, Run } from "types";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/graphqlWrapper";
@@ -56,7 +56,7 @@ export const RoutineView = ({
         if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { input: { id, versionGroupId } } });
         // If IDs are not invalid, throw error if we are not creating a new routine
         else {
-            const { build } = parseSearchParams(window.location.search);
+            const { build } = parseSearchParams();
             if (!build || build !== true)PubSub.get().publishSnack({ message: 'Could not parse ID in URL', severity: SnackSeverity.Error });
         }
     }, [getData, id, versionGroupId])
@@ -90,7 +90,7 @@ export const RoutineView = ({
         document.title = `${title} | Vrooli`;
     }, [title]);
 
-    const [isBuildOpen, setIsBuildOpen] = useState<boolean>(Boolean(parseSearchParams(window.location.search)?.build));
+    const [isBuildOpen, setIsBuildOpen] = useState<boolean>(Boolean(parseSearchParams()?.build));
     /**
      * If routine ID is not valid, create default routine data
      */
@@ -122,7 +122,7 @@ export const RoutineView = ({
         // Otherwise, open routine where last left off in run
         else {
             setSearchParams(setLocation, {
-                run: run.id,
+                run: uuidToBase36(run.id),
                 step: run.steps?.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
             })
         }
@@ -370,7 +370,7 @@ export const RoutineView = ({
         return (
             <>
                 {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
-                <Stack direction="column" spacing={2} padding={1}>
+                <Stack direction="column" spacing={2}>
                     {/* Resources */}
                     {resourceList}
                     {/* Description */}

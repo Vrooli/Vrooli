@@ -37,9 +37,9 @@ export const RunPickerMenu = ({
     // If runId is in the URL, select that run automatically
     useEffect(() => {
         if (!routine) return;
-        const searchParams = parseSearchParams(window.location.search);
+        const searchParams = parseSearchParams();
         if (!searchParams.run) return
-        const run = routine.runs.find(run => run.id === searchParams.run);
+        const run = routine.runs?.find(run => run.id === searchParams.run);
         if (run) {
             onSelect(run);
             handleClose();

@@ -87,7 +87,7 @@ export const BuildView = ({
      * On page load, check if editing
      */
     useEffect(() => {
-        const searchParams = parseSearchParams(window.location.search);
+        const searchParams = parseSearchParams();
         const routineId = id.length > 0 ? id : window.location.pathname.split('/').pop();
         // Editing if specified in search params, or id not set (new routine)
         if (searchParams.edit || !routineId || !uuidValidate(routineId)) {

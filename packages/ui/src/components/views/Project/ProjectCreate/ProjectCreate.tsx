@@ -49,7 +49,7 @@ export const ProjectCreate = ({
 
     // TODO upgrade to pull data from search params like it's done in AdvancedSearchDialog
     useEffect(() => {
-        const params = parseSearchParams(window.location.search);
+        const params = parseSearchParams();
         if (typeof params.tag === 'string') setTags([{ tag: params.tag }]);
         else if (Array.isArray(params.tags)) setTags(params.tags.map((t: any) => ({ tag: t })));
     }, []);

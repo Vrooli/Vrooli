@@ -70,7 +70,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     const [searchString, setSearchString] = useState<string>('');
     const [timeFrame, setTimeFrame] = useState<TimeFrame | undefined>(undefined);
     useEffect(() => {
-        const searchParams = parseSearchParams(window.location.search)
+        const searchParams = parseSearchParams()
         if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
         if (typeof searchParams.sort === 'string') {
             // Check if sortBy is valid
@@ -153,7 +153,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     // Handle advanced search
     useEffect(() => {
-        const searchParams = parseSearchParams(window.location.search)
+        const searchParams = parseSearchParams()
         if (!advancedSearchSchema?.fields) {
             setAdvancedSearchParams(null);
             return;
