@@ -1,8 +1,6 @@
 import { Box, IconButton, useTheme } from "@mui/material";
 import { RefreshIcon } from "@shared/icons";
-import { SnackSeverity } from "components/dialogs";
 import { useEffect, useRef, useState } from "react";
-import { PubSub } from "utils";
 
 /**
  * Pull-to-refresh component. Needed because iOS PWAs don't support this natively.

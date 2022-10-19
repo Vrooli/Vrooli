@@ -60,6 +60,7 @@ export const ResourceCard = ({
         // Check if edit or delete button was clicked
         const targetId: string | undefined = target.id;
         console.log('handleclick', targetId);
+        PubSub.get().publishSnack({ message: `handleclick: ${targetId}`, severity: SnackSeverity.Info });
         if (targetId && targetId.startsWith('edit-')) {
             onEdit?.(index);
         }

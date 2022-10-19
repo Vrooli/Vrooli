@@ -8,6 +8,7 @@ import { useState } from 'react';
 import QRCode from "react-qr-code";
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
+import { usePress } from 'utils';
 
 // Invite link
 const inviteLink = `https://vrooli.com${APP_LINKS.Start}`;
@@ -20,10 +21,6 @@ const buttonProps = (palette: Palette) => ({
     height: '48px',
     width: '48px',
     background: palette.secondary.main,
-    // color: palette.secondary.contrastText,
-    // display: "flex",
-    // marginBottom: "5px",
-    // transition: "0.3s ease-in-out",
     '&:hover': {
         filter: `brightness(120%)`,
         background: palette.secondary.main,
@@ -57,6 +54,32 @@ export const ShareSiteDialog = ({
             url: inviteLink,
         })
     }
+
+    /**
+    * When QR code is long-pressed in PWA, open copy/save photo dialog
+    */
+    const handleQRCodeLongPress = () => {
+        const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+        if (!isPWA) return;
+        // Find image using parent element's ID
+        const qrCode = document.getElementById('qr-code-box')?.firstChild as HTMLImageElement;
+        if (!qrCode) return;
+        // Create file
+        const file = new File([qrCode.src], 'qr-code.png', { type: 'image/png' });
+        // Open save dialog
+        const url = URL.createObjectURL(file);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'qr-code.png';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    const pressEvents = usePress({
+        onLongPress: handleQRCodeLongPress,
+        onClick: handleQRCodeLongPress,
+        onRightClick: handleQRCodeLongPress,
+    });
 
     return (
         <Dialog
@@ -98,15 +121,18 @@ export const ShareSiteDialog = ({
                         </IconButton>
                     </Tooltip>
                 </Stack>
-                <Box sx={{
-                    width: '210px',
-                    height: '210px',
-                    background: palette.secondary.main,
-                    borderRadius: 1,
-                    padding: 0.5,
-                    marginLeft: 'auto',
-                    marginRight: 'auto',
-                }}>
+                <Box
+                    id="qr-code-box"
+                    {...pressEvents}
+                    sx={{
+                        width: '210px',
+                        height: '210px',
+                        background: palette.secondary.main,
+                        borderRadius: 1,
+                        padding: 0.5,
+                        marginLeft: 'auto',
+                        marginRight: 'auto',
+                    }}>
                     <QRCode
                         size={200}
                         style={{ height: "auto", maxWidth: "100%", width: "100%" }}

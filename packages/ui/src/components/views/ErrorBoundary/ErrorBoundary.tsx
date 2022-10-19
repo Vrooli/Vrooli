@@ -32,6 +32,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                     left: 0,
                     right: 0,
                     bottom: 0,
+                    paddingLeft: '16px',
+                    paddingRight: '16px',
                 }}
                 >
                     <div style={{ textAlign: 'center' }}>

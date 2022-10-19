@@ -54,7 +54,11 @@ export const RoutineView = ({
     console.log('query error', error);
     useEffect(() => {
         if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { input: { id, versionGroupId } } });
-        else PubSub.get().publishSnack({ message: 'Could not parse ID in URL', severity: SnackSeverity.Error });
+        // If IDs are not invalid, throw error if we are not creating a new routine
+        else {
+            const { build } = parseSearchParams(window.location.search);
+            if (!build || build !== true)PubSub.get().publishSnack({ message: 'Could not parse ID in URL', severity: SnackSeverity.Error });
+        }
     }, [getData, id, versionGroupId])
 
     const [routine, setRoutine] = useState<Routine>(initializeRoutine(language));

@@ -1,13 +1,13 @@
 /**
  * Dialog for sharing an object
  */
-import { Box, Button, Dialog, Stack, Typography, useTheme } from '@mui/material';
+import { Box, Dialog, IconButton, Palette, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { ShareObjectDialogProps } from '../types';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { useState } from 'react';
-import { ObjectType } from 'utils';
+import { ObjectType, usePress } from 'utils';
 import QRCode from "react-qr-code";
-import { CopyIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
+import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
 
 // Title for social media posts
 const postTitle: { [key in ObjectType]?: string } = {
@@ -19,23 +19,18 @@ const postTitle: { [key in ObjectType]?: string } = {
     'User': 'Check out this user on Vrooli',
 }
 
-const buttonProps = {
-    height: "48px",
-    background: "white",
-    color: "black",
-    borderRadius: "10px",
-    width: "20em",
-    display: "flex",
-    marginBottom: "5px",
-    transition: "0.3s ease-in-out",
+const buttonProps = (palette: Palette) => ({
+    height: '48px',
+    width: '48px',
+    background: palette.secondary.main,
     '&:hover': {
         filter: `brightness(120%)`,
-        color: 'white',
-        border: '1px solid white',
+        background: palette.secondary.main,
     }
-}
+})
 
 const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
+const getLink = () => window.location.href.split('?')[0].split('#')[0];
 
 const titleAria = 'share-object-dialog-title';
 
@@ -48,11 +43,6 @@ export const ShareObjectDialog = ({
     const { palette } = useTheme();
 
     const [copied, setCopied] = useState<boolean>(false);
-
-    /**
-     * Get URL minus search and hash
-     */
-    const getLink = () => window.location.href.split('?')[0].split('#')[0];
     const copyInviteLink = () => {
         navigator.clipboard.writeText(getLink());
         setCopied(true);
@@ -68,6 +58,33 @@ export const ShareObjectDialog = ({
             url: getLink(),
         })
     }
+
+    /**
+    * When QR code is long-pressed in PWA, open copy/save photo dialog
+    */
+    const handleQRCodeLongPress = () => {
+        const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+        if (!isPWA) return;
+        // Find image using parent element's ID
+        const qrCode = document.getElementById('qr-code-box')?.firstChild as HTMLImageElement;
+        if (!qrCode) return;
+        // Create file
+        const file = new File([qrCode.src], 'qr-code.png', { type: 'image/png' });
+        // Open save dialog
+        const url = URL.createObjectURL(file);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'qr-code.png';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    const pressEvents = usePress({
+        onLongPress: handleQRCodeLongPress,
+        onClick: handleQRCodeLongPress,
+        onRightClick: handleQRCodeLongPress,
+    });
+
 
     return (
         <Dialog
@@ -90,50 +107,53 @@ export const ShareObjectDialog = ({
                 title="Share"
                 onClose={onClose}
             />
-            <Box sx={{
-                padding: 2,
-                background: copied ? "#0e650b" : palette.background.default,
-                color: 'white',
-                transition: 'background 0.2s ease-in-out',
-            }}>
-                <Stack direction="column" spacing={1} mb={2} sx={{ alignItems: 'center' }}>
-                    <Button
-                        onClick={copyInviteLink}
-                        startIcon={<CopyIcon fill='black' />}
-                        sx={{ ...buttonProps, marginBottom: 0 }}
-                    >Copy link</Button>
-                    <Button
-                        onClick={() => openLink(`mailto:?subject=${encodeURIComponent(postTitle[objectType] ?? '')}&body=${encodeURIComponent(getLink())}`)}
-                        startIcon={<EmailIcon fill='black' />}
-                        sx={{ ...buttonProps }}
-                    >Share by email</Button>
-                    <Button
-                        onClick={() => openLink(`https://twitter.com/intent/tweet?text=${encodeURIComponent(getLink())}`)}
-                        startIcon={<TwitterIcon fill='black' />}
-                        sx={{ ...buttonProps }}
-                    >Tweet</Button>
-                    <Button
-                        onClick={() => openLink(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(getLink())}&title=${encodeURIComponent(postTitle[objectType] ?? '')}&summary=${encodeURIComponent(getLink())}`)}
-                        startIcon={<LinkedInIcon fill='black' />}
-                        sx={{ ...buttonProps }}
-                    >Post on LinkedIn</Button>
-                    <Button
-                        onClick={shareNative}
-                        sx={{ ...buttonProps }}
-                    >Other</Button>
-                    <Box sx={{
-                        width: '200px',
-                        height: '200px',
-
-                    }}>
-                        <QRCode
-                            size={200}
-                            style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                            value={window.location.href}
-                        />
-                    </Box>
+            <Box sx={{ padding: 2 }}>
+                <Stack direction="row" spacing={1} mb={2} display="flex" justifyContent="center" alignItems="center">
+                    <Tooltip title="Copy invite link">
+                        <IconButton onClick={copyInviteLink} sx={buttonProps(palette)}>
+                            <CopyIcon fill={palette.secondary.contrastText} />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Share by email">
+                        <IconButton onClick={() => openLink(`mailto:?subject=${encodeURIComponent(postTitle[objectType] ?? '')}&body=${encodeURIComponent(getLink())}`)} sx={buttonProps(palette)}>
+                            <EmailIcon fill={palette.secondary.contrastText} />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Tweet about us">
+                        <IconButton onClick={() => openLink(`https://twitter.com/intent/tweet?text=${encodeURIComponent(getLink())}`)} sx={buttonProps(palette)}>
+                            <TwitterIcon fill={palette.secondary.contrastText} />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Post on LinkedIn">
+                        <IconButton onClick={() => openLink(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(getLink())}&title=${encodeURIComponent(postTitle[objectType] ?? '')}&summary=${encodeURIComponent(getLink())}`)} sx={buttonProps(palette)}>
+                            <LinkedInIcon fill={palette.secondary.contrastText} />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Share by another method">
+                        <IconButton onClick={shareNative} sx={buttonProps(palette)}>
+                            <EllipsisIcon fill={palette.secondary.contrastText} />
+                        </IconButton>
+                    </Tooltip>
                 </Stack>
-                {copied ? <Typography variant="h6" component="h4" textAlign="center" mb={1}>🎉 Copied! 🎉</Typography> : null}
+                <Box
+                    id="qr-code-box"
+                    {...pressEvents}
+                    sx={{
+                        width: '210px',
+                        height: '210px',
+                        background: palette.secondary.main,
+                        borderRadius: 1,
+                        padding: 0.5,
+                        marginLeft: 'auto',
+                        marginRight: 'auto',
+                    }}>
+                    <QRCode
+                        size={200}
+                        style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                        value={window.location.href}
+                    />
+                </Box>
+                {copied ? <Typography variant="h6" component="h4" textAlign="center" mb={1} mt={2}>🎉 Copied! 🎉</Typography> : null}
             </Box>
         </Dialog>
     )
