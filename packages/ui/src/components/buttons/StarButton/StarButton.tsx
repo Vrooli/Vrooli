@@ -1,4 +1,4 @@
-import { Box, ListItemText, Stack, Tooltip } from '@mui/material';
+import { Box, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StarButtonProps } from '../types';
 import { multiLineEllipsis } from 'styles';
@@ -21,6 +21,7 @@ export const StarButton = ({
     sxs,
     tooltipPlacement = "left"
 }: StarButtonProps) => {
+    const { palette } = useTheme();
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
     console.log('star button', userId, objectId, starFor);
 
@@ -55,7 +56,12 @@ export const StarButton = ({
 
     const Icon = internalIsStar ? StarFilledIcon : StarOutlineIcon;
     const tooltip = internalIsStar ? 'Remove from favorites' : 'Add to favorites';
-    const color = userId && !disabled ? '#cbae30' : 'rgb(189 189 189)';
+    const fill = useMemo<string>(() => {
+        if (!userId || disabled) return 'rgb(189 189 189)';
+        if (internalIsStar) return '#cbae30';
+        return palette.secondary.main;
+    }, [userId, disabled, internalIsStar, palette]);
+
     return (
         <Stack
             direction="row"
@@ -74,7 +80,7 @@ export const StarButton = ({
                     cursor: userId ? 'pointer' : 'default',
                     pointerEvents: disabled ? 'none' : 'all',
                 }}>
-                    <Icon fill={color} />
+                    <Icon fill={fill} />
                 </Box>
             </Tooltip>
             {showStars && internalStars !== null && <ListItemText

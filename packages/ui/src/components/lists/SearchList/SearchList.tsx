@@ -330,19 +330,18 @@ export function SearchList<DataType extends ObjectListItemType, SortBy, Query, Q
                 anchorEl={timeAnchorEl}
                 onClose={handleTimeClose}
             />
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <Box sx={{ width: 'min(100%, 400px)' }}>
-                    <AutocompleteSearchBar
-                        id={`search-bar-${id}`}
-                        placeholder={searchPlaceholder}
-                        options={autocompleteOptions}
-                        loading={loading}
-                        value={searchString}
-                        onChange={handleSearch}
-                        onInputChange={onInputSelect}
-                        session={session}
-                    />
-                </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 1 }}>
+                <AutocompleteSearchBar
+                    id={`search-bar-${id}`}
+                    placeholder={searchPlaceholder}
+                    options={autocompleteOptions}
+                    loading={loading}
+                    value={searchString}
+                    onChange={handleSearch}
+                    onInputChange={onInputSelect}
+                    session={session}
+                    sxs={{ root: { width: 'min(100%, 600px)', paddingLeft: 2, paddingRight: 2 } }}
+                />
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 1 }}>
                 <Tooltip title="Sort by" placement="top">

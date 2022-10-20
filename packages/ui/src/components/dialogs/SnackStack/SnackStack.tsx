@@ -54,7 +54,7 @@ export const SnackStack = () => {
             position: 'fixed',
             // Displays above the bottom nav bar, accounting for PWA inset-bottom
             bottom: { xs: 'calc(64px + env(safe-area-inset-bottom))', md: 'calc(8px + env(safe-area-inset-bottom))' },
-            left: '8px',
+            left: 'calc(8px + env(safe-area-inset-left))',
             zIndex: 20000,
         }}>
             {snacks.map((snack) => (

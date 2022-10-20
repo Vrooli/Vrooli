@@ -276,7 +276,7 @@ export const Routes = (props: CommonProps) => {
                 >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Welcome')} {...props}>
-                            <WelcomePage />
+                            <WelcomePage {...props} />
                         </Page>
                     </Suspense>
                 </Route>

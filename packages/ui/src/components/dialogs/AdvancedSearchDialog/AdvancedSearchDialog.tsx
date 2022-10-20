@@ -2,9 +2,9 @@
  * Displays all search options for an organization
  */
 import {
+    Box,
     Button,
     Dialog,
-    DialogContent,
     Grid,
     useTheme
 } from '@mui/material';
@@ -100,7 +100,12 @@ export const AdvancedSearchDialog = ({
                 },
                 '& .MuiPaper-root': {
                     margin: { xs: 0, sm: 2, md: 4 },
-                    maxWidth: { xs: '100%!important', md: 'calc(100% - 64px)' },
+                    maxWidth: { xs: '100%!important', sm: 'calc(100% - 64px)' },
+                    display: { xs: 'block', sm: 'inline-block' },
+                },
+                // Remove ::after element that is added to the dialog
+                '& .MuiDialog-container::after': {
+                    content: 'none',
                 },
             }}
         >
@@ -110,11 +115,15 @@ export const AdvancedSearchDialog = ({
                 onClose={handleClose}
             />
             <form onSubmit={formik.handleSubmit}>
-                <DialogContent sx={{
+                <Box sx={{
                     padding: { xs: 1, sm: 2 },
+                    margin: 'auto',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
                 }}>
                     {grid}
-                </DialogContent>
+                </Box>
                 {/* Search/Cancel buttons */}
                 <Grid container spacing={1} sx={{
                     background: theme.palette.primary.dark,

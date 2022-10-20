@@ -431,7 +431,7 @@ export const OrganizationView = ({
                         currTabType === TabOptions.Resources ? resources : (
                             <SearchList
                                 canSearch={uuidValidate(id)}
-                                handleAdd={toAddNew}
+                                handleAdd={canEdit ? toAddNew : undefined}
                                 hideRoles={true}
                                 id="organization-view-list"
                                 itemKeyPrefix={itemKeyPrefix}

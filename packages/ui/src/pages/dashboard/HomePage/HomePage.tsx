@@ -362,7 +362,7 @@ export const HomePage = ({
                     onInputChange={onInputSelect}
                     session={session}
                     showSecondaryLabel={true}
-                    sxs={{ root: { width: 'min(100%, 600px)' } }}
+                    sxs={{ root: { width: 'min(100%, 600px)', paddingLeft: 2, paddingRight: 2 } }}
                 />
                 {/* =========  #endregion ========= */}
             </Stack>

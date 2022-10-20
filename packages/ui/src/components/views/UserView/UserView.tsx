@@ -437,7 +437,7 @@ export const UserView = ({
                         currTabType === TabOptions.Resources ? resources : (
                             <SearchList
                                 canSearch={uuidValidate(id)}
-                                handleAdd={toAddNew}
+                                handleAdd={isOwn ? toAddNew : undefined}
                                 hideRoles={true}
                                 id="user-view-list"
                                 itemKeyPrefix={itemKeyPrefix}

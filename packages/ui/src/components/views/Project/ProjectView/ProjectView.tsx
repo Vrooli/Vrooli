@@ -396,7 +396,7 @@ export const ProjectView = ({
                         currTabType === TabOptions.Resources ? resources : (
                             <SearchList
                                 canSearch={uuidValidate(id)}
-                                handleAdd={toAddNew}
+                                handleAdd={canEdit ? toAddNew : undefined}
                                 hideRoles={true}
                                 id="project-view-list"
                                 itemKeyPrefix={itemKeyPrefix}

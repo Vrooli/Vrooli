@@ -1,4 +1,4 @@
-import { Box, LinearProgress, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, Chip, LinearProgress, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { ObjectListItemProps, ObjectListItemType } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -354,15 +354,43 @@ export function ObjectListItem<T extends ObjectListItemType>({
                         />}
                         {/* Progress bar */}
                         {progressBar}
-                        {/* Tags */}
-                        {Array.isArray((data as any)?.tags) && (data as any)?.tags.length > 0 ?
-                            <TagList
-                                session={session}
-                                parentId={data?.id ?? ''}
-                                tags={(data as any).tags}
-                                sx={{ ...smallHorizontalScrollbar(palette) }}
-                            /> :
-                            null}
+                        <Stack direction="row" spacing={1} sx={{ pointerEvents: 'none' }}>
+                            {/* Incomplete chip */}
+                            {
+                                data && (data as any).isComplete === false && <Tooltip placement="top" title="Marked as incomplete">
+                                    <Chip
+                                        label="Incomplete"
+                                        size="small"
+                                        sx={{
+                                            backgroundColor: palette.error.main,
+                                            color: palette.error.contrastText,
+                                            width: 'fit-content',
+                                        }} />
+                                </Tooltip>
+                            }
+                            {/* Internal chip */}
+                            {
+                                data && (data as any).isInternal === true && <Tooltip placement="top" title="Marked as internal. Only the owner can use this routine">
+                                    <Chip
+                                        label="Internal"
+                                        size="small"
+                                        sx={{
+                                            backgroundColor: palette.warning.main,
+                                            color: palette.error.contrastText,
+                                            width: 'fit-content',
+                                        }} />
+                                </Tooltip>
+                            }
+                            {/* Tags */}
+                            {Array.isArray((data as any)?.tags) && (data as any)?.tags.length > 0 ?
+                                <TagList
+                                    session={session}
+                                    parentId={data?.id ?? ''}
+                                    tags={(data as any).tags}
+                                    sx={{ ...smallHorizontalScrollbar(palette) }}
+                                /> :
+                                null}
+                        </Stack>
                         {/* Action buttons if mobile */}
                         {isMobile && actionButtons}
                     </Stack>

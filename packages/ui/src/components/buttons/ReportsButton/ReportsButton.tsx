@@ -1,4 +1,4 @@
-import { Box, ListItemText, Stack, Tooltip } from '@mui/material';
+import { Box, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback } from 'react';
 import { ReportsButtonProps } from '../types';
 import { multiLineEllipsis } from 'styles';
@@ -11,6 +11,7 @@ export const ReportsButton = ({
     object,
     tooltipPlacement = "left",
 }: ReportsButtonProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     // When clicked, navigate to reports page
@@ -36,7 +37,7 @@ export const ReportsButton = ({
                     cursor: 'pointer',
                     pointerEvents: 'all',
                 }}>
-                    <ReportIcon fill={'#a96666'} />
+                    <ReportIcon fill={palette.secondary.main} />
                 </Box>
             </Tooltip>
             <ListItemText
