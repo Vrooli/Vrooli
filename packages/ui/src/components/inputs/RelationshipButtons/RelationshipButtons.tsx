@@ -26,10 +26,11 @@ export const userFromSession = (session: Session): RelationshipOwner => ({
     name: 'Self',
 })
 
-const commonButtonProps = (palette: Palette) => ({
+const commonButtonProps = (palette: Palette, disabled) => ({
     width: { xs: '58px', md: '69px' },
     height: { xs: '58px', md: '69px' },
     overflow: 'hidden',
+    boxShadow: disabled ? 0 : 4,
     background: palette.primary.light,
     '&:hover': {
         background: palette.primary.light,
@@ -369,31 +370,31 @@ export function RelationshipButtons({
 
                 {/* Owner button */}
                 {isOwnerAvailable && <Tooltip title={ownerTooltip}>
-                    <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleOwnerClick}>
+                    <IconButton sx={{ ...commonButtonProps(palette, disabled) }} onClick={handleOwnerClick}>
                         {OwnerIcon && <OwnerIcon {...commonIconProps(palette)} />}
                     </IconButton>
                 </Tooltip>}
                 {/* Project button */}
                 {isProjectAvailable && <Tooltip title={projectTooltip}>
-                    <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleProjectClick}>
+                    <IconButton sx={{ ...commonButtonProps(palette, disabled) }} onClick={handleProjectClick}>
                         {ProjectIcon && <ProjectIcon {...commonIconProps(palette)} />}
                     </IconButton>
                 </Tooltip>}
                 {/* Parent button */}
                 {isParentAvailable && <Tooltip title={parentTooltip}>
-                    <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleParentClick}>
+                    <IconButton sx={{ ...commonButtonProps(palette, disabled) }} onClick={handleParentClick}>
                         {ParentIcon && <ParentIcon {...commonIconProps(palette)} />}
                     </IconButton>
                 </Tooltip>}
                 {/* Privacy button */}
                 {isPrivateAvailable && <Tooltip title={privacyTooltip}>
-                    <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handlePrivateClick}>
+                    <IconButton sx={{ ...commonButtonProps(palette, disabled) }} onClick={handlePrivateClick}>
                         {PrivacyIcon && <PrivacyIcon {...commonIconProps(palette)} />}
                     </IconButton>
                 </Tooltip>}
                 {/* Complete button */}
                 {isCompleteAvailable && <Tooltip title={completeTooltip}>
-                    <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleCompleteClick}>
+                    <IconButton sx={{ ...commonButtonProps(palette, disabled) }} onClick={handleCompleteClick}>
                         {CompleteIcon && <CompleteIcon {...commonIconProps(palette)} />}
                     </IconButton>
                 </Tooltip>}

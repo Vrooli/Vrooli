@@ -117,7 +117,7 @@ export const OrganizationView = ({
     }, [setLocation, id]);
 
     // Create search data
-    const { searchType, itemKeyPrefix, placeholder, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
+    const { searchType, itemKeyPrefix, placeholder, where, noResultsText } = useMemo<SearchListGenerator>(() => {
         switch (currTabType) {
             case TabOptions.Members:
                 return {
@@ -126,7 +126,6 @@ export const OrganizationView = ({
                     placeholder: "Search orgnization's members...",
                     noResultsText: "No members found",
                     where: { organizationId: id },
-                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 };
             case TabOptions.Projects:
                 return {
@@ -135,7 +134,6 @@ export const OrganizationView = ({
                     placeholder: "Search organization's projects...",
                     noResultsText: "No projects found",
                     where: { organizationId: id, isComplete: !canEdit ? true : undefined, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 };
             case TabOptions.Routines:
                 return {
@@ -144,7 +142,6 @@ export const OrganizationView = ({
                     placeholder: "Search organization's routines...",
                     noResultsText: "No routines found",
                     where: { organizationId: id, isComplete: !canEdit ? true : undefined, isInternal: false, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 };
             case TabOptions.Standards:
                 return {
@@ -153,7 +150,6 @@ export const OrganizationView = ({
                     placeholder: "Search organization's standards...",
                     noResultsText: "No standards found",
                     where: { organizationId: id, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 }
             default:
                 return {
@@ -162,10 +158,9 @@ export const OrganizationView = ({
                     placeholder: '',
                     noResultsText: '',
                     where: {},
-                    onSearchSelect: (o: any) => { },
                 }
         }
-    }, [currTabType, setLocation, id, canEdit]);
+    }, [currTabType, id, canEdit]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -447,7 +442,6 @@ export const OrganizationView = ({
                                 itemKeyPrefix={itemKeyPrefix}
                                 noResultsText={noResultsText}
                                 searchType={searchType}
-                                onObjectSelect={onSearchSelect}
                                 searchPlaceholder={placeholder}
                                 session={session}
                                 take={20}

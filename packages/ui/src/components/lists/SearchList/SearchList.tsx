@@ -6,8 +6,8 @@ import { Box, Button, List, Palette, Tooltip, Typography, useTheme } from "@mui/
 import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BuildIcon, HistoryIcon as TimeIcon, PlusIcon, SortIcon } from '@shared/icons';
-import { SearchQueryVariablesInput, SearchListProps } from "../types";
-import { addSearchParams, getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, parseSearchParams, removeSearchParams, SearchParams, searchTypeToParams, SortValueToLabelMap } from "utils";
+import { SearchQueryVariablesInput, SearchListProps, ObjectListItemType } from "../types";
+import { addSearchParams, getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, openObject, parseSearchParams, removeSearchParams, SearchParams, searchTypeToParams, SortValueToLabelMap } from "utils";
 import { useLocation } from '@shared/route';
 import { AutocompleteOption } from "types";
 
@@ -44,7 +44,8 @@ const parseData = (data: any) => {
     return queryData.edges.map((edge, index) => edge.node);
 };
 
-export function SearchList<DataType, SortBy, Query, QueryVariables extends SearchQueryVariablesInput<SortBy>>({
+export function SearchList<DataType extends ObjectListItemType, SortBy, Query, QueryVariables extends SearchQueryVariablesInput<SortBy>>({
+    beforeNavigation,
     canSearch = true,
     handleAdd,
     hideRoles,
@@ -54,7 +55,6 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     searchPlaceholder = 'Search...',
     take = 20,
     searchType,
-    onObjectSelect,
     onScrolledFar,
     where,
     session,
@@ -206,15 +206,15 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     }, [allData, session]);
 
     const listItems = useMemo(() => listToListItems({
+        beforeNavigation,
         dummyItems: new Array(5).fill(searchType),
         hideRoles,
         items: (allData.length > 0 ? allData : parseData(pageData)) as any[],
         keyPrefix: itemKeyPrefix,
         loading,
-        onClick: (item) => onObjectSelect(item),
         session: session,
         zIndex,
-    }), [searchType, hideRoles, allData, pageData, itemKeyPrefix, loading, session, zIndex, onObjectSelect])
+    }), [beforeNavigation, searchType, hideRoles, allData, pageData, itemKeyPrefix, loading, session, zIndex])
     console.log('listItems', new Date().getTime(), listItems, loading, pageData)
 
     // If near the bottom of the page, load more data
@@ -272,8 +272,8 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         // Determine object from selected label
         const selectedItem = allData.find(o => (o as any)?.id === newValue?.id);
         if (!selectedItem) return;
-        onObjectSelect(selectedItem);
-    }, [allData, onObjectSelect]);
+        openObject(selectedItem, setLocation);
+    }, [allData, setLocation]);
 
     const searchResultContainer = useMemo(() => {
         const hasItems = listItems.length > 0;

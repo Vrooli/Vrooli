@@ -59,7 +59,7 @@ export const UserSelectDialog = ({
 
     // If user selected from search, query for full data
     const [getUser, { data: userData }] = useLazyQuery<user, userVariables>(userQuery);
-    const handleUserSelect = useCallback((user: User) => {
+    const fetchFullData = useCallback((user: User) => {
         // Query for full user data, if not already known (would be known if the same user was selected last time)
         if (userData?.user?.id === user.id) {
             handleAdd(userData?.user);
@@ -67,6 +67,8 @@ export const UserSelectDialog = ({
         } else {
             getUser({ variables: { input: { id: user.id } } });
         }
+        // Return false so the list item does not navigate
+        return false;
     }, [getUser, userData, handleAdd, onClose]);
     useEffect(() => {
         if (userData?.user) {
@@ -120,7 +122,7 @@ export const UserSelectDialog = ({
                         id="user-select-or-create-list"
                         itemKeyPrefix='user-list-item'
                         noResultsText={"No results. Maybe you should invite them?"}
-                        onObjectSelect={(newValue) => handleUserSelect(newValue)}
+                        beforeNavigation={fetchFullData}
                         searchType={SearchType.User}
                         searchPlaceholder={'Select existing users...'}
                         session={session}

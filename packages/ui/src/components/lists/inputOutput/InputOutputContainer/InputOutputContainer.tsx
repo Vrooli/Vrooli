@@ -186,7 +186,7 @@ export const InputOutputContainer = ({
                     root: {
                         background: palette.primary.dark,
                         color: palette.primary.contrastText,
-                        border: `1px solid ${palette.background.textPrimary}`,
+                        boxShadow: 2,
                         borderRadius: 2,
                         padding: 0,
                         overflow: 'overlay',

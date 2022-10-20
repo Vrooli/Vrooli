@@ -96,3 +96,18 @@ export const openObject = (object: NavigableObject, setLocation: SetLocation) =>
     // Navigate to object page
     setLocation(`${getObjectUrlBase(object)}/${getObjectSlug(object)}${getObjectSearchParams(object)}`);
 }
+
+/**
+ * Opens the edit page for an object with an id and __typename
+ * @param object Object to open
+ * @param setLocation Function to set location in history
+ */
+export const openObjectEdit = (object: NavigableObject, setLocation: SetLocation) => {
+    // Check if __typename is in objectLinkMap
+    if (!ObjectType.hasOwnProperty(object.__typename)) {
+        PubSub.get().publishSnack({ message: 'Could not parse object type.', severity: SnackSeverity.Error });
+        return;
+    }
+    // Navigate to object page TODO multi-step routines have different route. Maybe routine update should redirect when this is detected?
+    setLocation(`${getObjectUrlBase(object)}/edit/${getObjectSlug(object)}${getObjectSearchParams(object)}`);
+}

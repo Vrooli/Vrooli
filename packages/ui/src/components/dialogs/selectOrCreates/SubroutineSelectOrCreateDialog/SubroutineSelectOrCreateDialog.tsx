@@ -70,9 +70,11 @@ export const SubroutineSelectOrCreateDialog = ({
     // If routine selected from search, query for full data
     const [getRoutine, { data: routineData }] = useLazyQuery<routine, routineVariables>(routineQuery);
     const queryingRef = useRef(false);
-    const handleRoutineSelect = useCallback((routine: Routine) => {
+    const fetchFullData = useCallback((routine: Routine) => {
         queryingRef.current = true;
         getRoutine({ variables: { input: { id: routine.id } } });
+        // Return false so the list item does not navigate
+        return false;
     }, [getRoutine]);
     useEffect(() => {
         if (routineData?.routine && queryingRef.current) {
@@ -165,7 +167,7 @@ export const SubroutineSelectOrCreateDialog = ({
                         itemKeyPrefix='routine-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
                         searchType={SearchType.Routine}
-                        onObjectSelect={(newValue) => handleRoutineSelect(newValue)}
+                        beforeNavigation={fetchFullData}
                         searchPlaceholder={'Select existing subroutine...'}
                         session={session}
                         take={20}

@@ -167,7 +167,7 @@ export const ProjectView = ({
     const closeAddRoutine = useCallback(() => setAddRoutineAnchor(null), []);
 
     // Create search data
-    const { searchType, itemKeyPrefix, placeholder, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
+    const { searchType, itemKeyPrefix, placeholder, where, noResultsText } = useMemo<SearchListGenerator>(() => {
         // The first tab doesn't have search results, as it is the project's set resources
         switch (currTabType) {
             case TabOptions.Routines:
@@ -177,7 +177,6 @@ export const ProjectView = ({
                     placeholder: "Search project's routines...",
                     noResultsText: "No routines found",
                     where: { projectId: id, isComplete: !canEdit ? true : undefined, isInternal: false, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 };
             case TabOptions.Standards:
                 return {
@@ -186,7 +185,6 @@ export const ProjectView = ({
                     placeholder: "Search project's standards...",
                     noResultsText: "No standards found",
                     where: { projectId: id, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 }
             default:
                 return {
@@ -196,11 +194,10 @@ export const ProjectView = ({
                     noResultsText: '',
                     searchQuery: null,
                     where: {},
-                    onSearchSelect: (o: any) => { },
                     searchItemFactory: (a: any, b: any) => null
                 }
         }
-    }, [canEdit, currTabType, id, setLocation]);
+    }, [canEdit, currTabType, id]);
 
     /**
      * Displays name, avatar, bio, and quick links
@@ -410,7 +407,6 @@ export const ProjectView = ({
                                 itemKeyPrefix={itemKeyPrefix}
                                 noResultsText={noResultsText}
                                 searchType={searchType}
-                                onObjectSelect={onSearchSelect}
                                 searchPlaceholder={placeholder}
                                 session={session}
                                 take={20}

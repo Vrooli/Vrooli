@@ -68,7 +68,7 @@ export const RoutineSelectOrCreateDialog = ({
     // If routine selected from search, query for full data
     const [getRoutine, { data: routineData }] = useLazyQuery<routine, routineVariables>(routineQuery);
     const queryingRef = useRef(false);
-    const handleRoutineSelect = useCallback((routine: Routine) => {
+    const fetchFullData = useCallback((routine: Routine) => {
         // Query for full routine data, if not already known (would be known if the same routine was selected last time)
         if (routineData?.routine?.id === routine.id) {
             handleAdd(routineData?.routine);
@@ -77,6 +77,8 @@ export const RoutineSelectOrCreateDialog = ({
             queryingRef.current = true;
             getRoutine({ variables: { input: { id: routine.id } } });
         }
+        // Return false so the list item does not navigate
+        return false;
     }, [getRoutine, routineData, handleAdd, onClose]);
     useEffect(() => {
         if (routineData?.routine && queryingRef.current) {
@@ -138,7 +140,7 @@ export const RoutineSelectOrCreateDialog = ({
                         id="routine-select-or-create-list"
                         itemKeyPrefix='routine-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
-                        onObjectSelect={(newValue) => handleRoutineSelect(newValue)}
+                        beforeNavigation={fetchFullData}
                         searchType={SearchType.Routine}
                         searchPlaceholder={'Select existing routines...'}
                         session={session}

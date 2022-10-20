@@ -8,7 +8,7 @@ import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { HistoryPageProps } from '../types';
 import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, stringifySearchParams, useReactSearch } from 'utils';
-import { AutocompleteOption, NavigableObject } from 'types';
+import { AutocompleteOption } from 'types';
 import { centeredDiv } from 'styles';
 import { RunStatus } from 'graphql/generated/globalTypes';
 
@@ -58,13 +58,6 @@ export const HistoryPage = ({
         setLocation(tabOptions[newIndex][1], { replace: true });
     };
 
-    /**
-     * Opens page for list item
-     */
-    const toItemPage = useCallback((item: NavigableObject) => {
-        openObject(item, setLocation);
-    }, [setLocation]);
-
     const activeRuns = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Run'),
         items: data?.historyPage?.activeRuns,
@@ -88,20 +81,18 @@ export const HistoryPage = ({
         items: data?.historyPage?.recentlyViewed,
         keyPrefix: 'recent-list-item',
         loading,
-        onClick: toItemPage,
         session,
         zIndex,
-    }), [data?.historyPage?.recentlyViewed, loading, session, toItemPage])
+    }), [data?.historyPage?.recentlyViewed, loading, session])
 
     const starred = useMemo(() => listToListItems({
         dummyItems: ['Organization', 'Project', 'Routine', 'Standard', 'User'],
         items: data?.historyPage?.recentlyStarred,
         keyPrefix: 'starred-list-item',
         loading,
-        onClick: toItemPage,
         session,
         zIndex,
-    }), [data?.historyPage?.recentlyStarred, loading, session, toItemPage])
+    }), [data?.historyPage?.recentlyStarred, loading, session])
 
     const languages = useMemo(() => getUserLanguages(session), [session]);
 

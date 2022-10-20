@@ -11,7 +11,9 @@ export const useKeyboardOpen = (minKeyboardHeight: number = 300): boolean => {
     useEffect(() => {
         const listener = () => {
             if (!window.visualViewport) return;
-            const newState = window.screen.height - minKeyboardHeight > window.visualViewport.height;
+            // Calculate difference in height between window and visual viewport. 
+            const newState = (window.visualViewport.height - window.innerHeight) > minKeyboardHeight;
+            // const newState = window.screen.height - minKeyboardHeight > window.visualViewport.height;
             if (isKeyboardOpen !== newState) {
                 setIsKeyboardOpen(newState);
             }

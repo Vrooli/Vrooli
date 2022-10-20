@@ -68,7 +68,7 @@ export const ProjectSelectOrCreateDialog = ({
     // If project selected from search, query for full data
     const [getProject, { data: projectData }] = useLazyQuery<project, projectVariables>(projectQuery);
     const queryingRef = useRef(false);
-    const handleProjectSelect = useCallback((project: Project) => {
+    const fetchFullData = useCallback((project: Project) => {
         // Query for full project data, if not already known (would be known if the same project was selected last time)
         if (projectData?.project?.id === project.id) {
             handleAdd(projectData?.project);
@@ -77,6 +77,8 @@ export const ProjectSelectOrCreateDialog = ({
             queryingRef.current = true;
             getProject({ variables: { input: { id: project.id } } });
         }
+        // Return false so the list item does not navigate
+        return false;
     }, [getProject, projectData, handleAdd, onClose]);
     useEffect(() => {
         if (projectData?.project && queryingRef.current) {
@@ -138,7 +140,7 @@ export const ProjectSelectOrCreateDialog = ({
                         id="project-select-or-create-list"
                         itemKeyPrefix='project-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
-                        onObjectSelect={(newValue) => handleProjectSelect(newValue)}
+                        beforeNavigation={fetchFullData}
                         searchType={SearchType.Project}
                         searchPlaceholder={'Select existing projects...'}
                         session={session}

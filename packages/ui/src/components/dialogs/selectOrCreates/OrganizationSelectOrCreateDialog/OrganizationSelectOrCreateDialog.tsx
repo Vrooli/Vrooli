@@ -70,7 +70,7 @@ export const OrganizationSelectOrCreateDialog = ({
     // If organization selected from search, query for full data
     const [getOrganization, { data: organizationData }] = useLazyQuery<organization, organizationVariables>(organizationQuery);
     const queryingRef = useRef(false);
-    const handleOrganizationSelect = useCallback((organization: Organization) => {
+    const fetchFullData = useCallback((organization: Organization) => {
         // Query for full organization data, if not already known (would be known if the same organization was selected last time)
         if (organizationData?.organization?.id === organization.id) {
             handleAdd(organizationData?.organization);
@@ -79,6 +79,8 @@ export const OrganizationSelectOrCreateDialog = ({
             queryingRef.current = true;
             getOrganization({ variables: { input: { id: organization.id } } });
         }
+        // Return false so the list item does not navigate
+        return false;
     }, [getOrganization, organizationData, handleAdd, onClose]);
     useEffect(() => {
         if (organizationData?.organization && queryingRef.current) {
@@ -140,7 +142,7 @@ export const OrganizationSelectOrCreateDialog = ({
                         id="organization-select-or-create-list"
                         itemKeyPrefix='organization-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
-                        onObjectSelect={(newValue) => handleOrganizationSelect(newValue)}
+                        beforeNavigation={fetchFullData}
                         searchType={SearchType.Organization}
                         searchPlaceholder={'Select existing organizations...'}
                         session={session}

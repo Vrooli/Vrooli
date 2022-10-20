@@ -5,7 +5,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { StarFor, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading, UpvoteDownvote } from '..';
-import { getListItemIsStarred, getListItemPermissions, getListItemReportsCount, getListItemStarFor, getListItemStars, getListItemSubtitle, getListItemTitle, getUserLanguages, listItemColor, ObjectType, openObject, placeholderColor, usePress, useWindowSize } from 'utils';
+import { getListItemIsStarred, getListItemPermissions, getListItemReportsCount, getListItemStarFor, getListItemStars, getListItemSubtitle, getListItemTitle, getUserLanguages, listItemColor, ObjectType, openObject, openObjectEdit, placeholderColor, usePress, useWindowSize } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { BranchIcon, CopyIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, OpenInNewIcon, OrganizationIcon, ReportIcon, ShareIcon, StarFilledIcon, StarOutlineIcon, StatsIcon, SvgComponent, UpvoteWideIcon, UserIcon } from '@shared/icons';
 import { CommentsButton, ReportsButton, StarButton } from 'components/buttons';
@@ -69,11 +69,11 @@ function CompletionBar(props) {
 }
 
 export function ObjectListItem<T extends ObjectListItemType>({
+    beforeNavigation,
     data,
     hideRole,
     index,
     loading,
-    onClick,
     session,
     zIndex,
 }: ObjectListItemProps<T>) {
@@ -104,11 +104,29 @@ export function ObjectListItem<T extends ObjectListItemType>({
         if (!target.id || !target.id.startsWith('list-item-')) return;
         // If data not supplied, don't open
         if (!data) return;
-        // If onClick provided, call it
-        if (onClick) onClick(data);
-        // Otherwise, navigate to the object's page
-        else openObject(data, setLocation);
-    }, [onClick, data, setLocation]);
+        // If beforeNavigation is supplied, call it
+        if (beforeNavigation) {
+            const shouldContinue = beforeNavigation(data);
+            if (shouldContinue === false) return;
+        }
+        // Navigate to the object's page
+        openObject(data, setLocation);
+    }, [data, beforeNavigation, setLocation]);
+
+    const handleEditClick = useCallback((event: any) => {
+        const target = event.target;
+        console.log('handle edit click', target.id)
+        if (!target.id || !target.id.startsWith('edit-list-item-')) return;
+        // If data not supplied, don't open
+        if (!data) return;
+        // If beforeNavigation is supplied, call it
+        if (beforeNavigation) {
+            const shouldContinue = beforeNavigation(data);
+            if (shouldContinue === false) return;
+        }
+        // Navigate to the object's edit page
+        openObjectEdit(data, setLocation);
+    }, [beforeNavigation, data, setLocation]);
 
     const pressEvents = usePress({
         onLongPress: handleContextMenu,
@@ -188,16 +206,18 @@ export function ObjectListItem<T extends ObjectListItemType>({
                 }}
             >
                 {!hideRole && permissions.canEdit && <Tooltip title={`Edit`}>
-                    <Box onClick={() => { }} sx={{
+                    <Box 
+                    id={`edit-list-item-button-${id}`}
+                    onClick={handleEditClick} 
+                    sx={{
                         display: 'flex',
                         justifyContent: 'center',
                         alignItems: 'center',
                         cursor: 'pointer',
                         pointerEvents: 'all',
                         paddingBottom: isMobile ? '0px' : '4px',
-                        paddingRight: isMobile ? '4px' : '0px',
                     }}>
-                        <EditIcon fill={palette.secondary.main} />
+                        <EditIcon id={`edit-list-item-icon${id}`} fill={palette.secondary.main} />
                     </Box>
                 </Tooltip>}
                 {/* Add upvote/downvote if mobile */}
@@ -232,7 +252,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                 />}
             </Stack>
         )
-    }, [data, hideRole, isMobile, palette.secondary.main, permissions.canComment, permissions.canEdit, permissions.canStar, permissions.canVote, session, title]);
+    }, [data, handleEditClick, hideRole, id, isMobile, palette.secondary.main, permissions.canComment, permissions.canEdit, permissions.canStar, permissions.canVote, session]);
 
     /**
      * Run list items may get a progress bar

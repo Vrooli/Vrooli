@@ -131,7 +131,12 @@ export const QuantityBox = ({
                         id={`quantity-box-${id}`}
                         aria-describedby={`helper-text-${id}`}
                         type="number"
-                        inputProps={{ min, max }}
+                        inputMode="numeric"
+                        inputProps={{ 
+                            min, 
+                            max,
+                            pattern: "[0-9]*",
+                        }}
                         value={value}
                         onChange={(e) => updateValue(e.target.value)}
                         sx={{

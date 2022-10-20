@@ -7,8 +7,8 @@ import { learnPage } from 'graphql/generated/learnPage';
 import { profile } from 'graphql/generated/profile';
 import { learnPageQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { NavigableObject, ResourceList } from 'types';
-import { listToListItems, openObject, SearchPageTabOption, stringifySearchParams } from 'utils';
+import { ResourceList } from 'types';
+import { listToListItems, SearchPageTabOption, stringifySearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { LearnPageProps } from '../types';
 import { getCurrentUser } from 'utils/authentication';
@@ -53,14 +53,6 @@ export const LearnPage = ({
     const { data: learnPageData, loading: learnPageLoading } = useQuery<learnPage>(learnPageQuery, { errorPolicy: 'all' });
 
     /**
-     * Opens page for list item
-     */
-    const toItemPage = useCallback((item: NavigableObject) => {
-        // Navigate to item page
-        openObject(item, setLocation);
-    }, [setLocation]);
-
-    /**
      * Navigates to "New Project" page, with "Learn" tag as default
      */
     const toCreateCourse = useCallback((event: any) => {
@@ -103,20 +95,18 @@ export const LearnPage = ({
         items: learnPageData?.learnPage?.courses,
         keyPrefix: 'course-list-item',
         loading: learnPageLoading,
-        onClick: toItemPage,
         session,
         zIndex,
-    }), [learnPageData?.learnPage?.courses, learnPageLoading, session, toItemPage])
+    }), [learnPageData?.learnPage?.courses, learnPageLoading, session])
 
     const tutorials = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Routine'),
         items: learnPageData?.learnPage?.tutorials,
         keyPrefix: 'tutorial-list-item',
         loading: learnPageLoading,
-        onClick: toItemPage,
         session,
         zIndex,
-    }), [learnPageData?.learnPage?.tutorials, learnPageLoading, session, toItemPage])
+    }), [learnPageData?.learnPage?.tutorials, learnPageLoading, session])
 
     return (
         <PageContainer>

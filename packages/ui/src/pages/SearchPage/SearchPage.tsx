@@ -7,8 +7,7 @@ import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
 import { useLocation } from '@shared/route';
 import { SearchPageProps } from "../types";
-import { getObjectUrlBase, PubSub, parseSearchParams, stringifySearchParams, openObject, SearchType, SearchPageTabOption as TabOption, addSearchParams } from "utils";
-import { ListOrganization, ListProject, ListRoutine, ListStandard, ListUser } from "types";
+import { getObjectUrlBase, PubSub, parseSearchParams, stringifySearchParams, SearchType, SearchPageTabOption as TabOption, addSearchParams } from "utils";
 import { APP_LINKS } from "@shared/consts";
 import { AddIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
@@ -70,15 +69,11 @@ const tabParams: { [key in TabOption]: BaseParams } = {
 // [title, searchType] for each tab
 const tabOptions: [string, TabOption][] = Object.entries(tabParams).map(([key, value]) => [value.title, key as TabOption]);
 
-type SearchObject = ListOrganization | ListProject | ListRoutine | ListStandard | ListUser;
-
 export function SearchPage({
     session,
 }: SearchPageProps) {
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
-
-    const handleSelected = useCallback((selected: SearchObject) => { openObject(selected, setLocation) }, [setLocation]);
 
     // Popup button, which opens either an add or invite dialog
     const [popupButton, setPopupButton] = useState<boolean>(false);
@@ -239,7 +234,6 @@ export function SearchPage({
                 searchPlaceholder={'Search...'}
                 take={20}
                 searchType={searchType}
-                onObjectSelect={handleSelected}
                 onScrolledFar={handleScrolledFar}
                 session={session}
                 zIndex={200}

@@ -66,7 +66,7 @@ export const StandardSelectOrCreateDialog = ({
     // If standard selected from search, query for full data
     const [getStandard, { data: standardData }] = useLazyQuery<standard, standardVariables>(standardQuery);
     const queryingRef = useRef(false);
-    const handeStandardSelect = useCallback((standard: Standard) => {
+    const fetchFullData = useCallback((standard: Standard) => {
         // Query for full standard data, if not already known (would be known if the same standard was selected last time)
         if (standardData?.standard?.id === standard.id) {
             handleAdd(standardData?.standard);
@@ -75,6 +75,8 @@ export const StandardSelectOrCreateDialog = ({
             queryingRef.current = true;
             getStandard({ variables: { input: { id: standard.id } } });
         }
+        // Return false so the list item does not navigate
+        return false;
     }, [getStandard, standardData, handleAdd, onClose]);
     useEffect(() => {
         if (standardData?.standard && queryingRef.current) {
@@ -137,7 +139,7 @@ export const StandardSelectOrCreateDialog = ({
                         itemKeyPrefix='standard-list-item'
                         noResultsText={"None found. Maybe you should create one?"}
                         searchType={SearchType.Standard}
-                        onObjectSelect={(newValue) => handeStandardSelect(newValue)}
+                        beforeNavigation={fetchFullData}
                         searchPlaceholder={'Select existing standard...'}
                         session={session}
                         take={20}

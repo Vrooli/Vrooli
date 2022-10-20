@@ -3,11 +3,10 @@
  */
 import { Box, Stack, Tab, Tabs, Typography } from "@mui/material";
 import { PageContainer, SearchList } from "components";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLocation } from '@shared/route';
 import { DevelopSearchPageProps } from "../types";
-import { parseSearchParams, openObject, SearchType, DevelopSearchPageTabOption as TabOption, addSearchParams } from "utils";
-import { ListProject, ListRoutine } from "types";
+import { parseSearchParams, SearchType, DevelopSearchPageTabOption as TabOption, addSearchParams } from "utils";
 
 // Tab data type
 type BaseParams = {
@@ -42,14 +41,10 @@ const tabParams: { [key in TabOption]: BaseParams } = {
 // [title, searchType] for each tab
 const tabOptions: [string, TabOption][] = Object.entries(tabParams).map(([key, value]) => [value.title, key as TabOption]);
 
-type SearchObject = ListProject | ListRoutine;
-
 export function DevelopSearchPage({
     session,
 }: DevelopSearchPageProps) {
     const [, setLocation] = useLocation();
-
-    const handleSelected = useCallback((selected: SearchObject) => { openObject(selected, setLocation) }, [setLocation]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(() => {
@@ -114,7 +109,6 @@ export function DevelopSearchPage({
                 searchPlaceholder={'Search...'}
                 take={20}
                 searchType={searchType}
-                onObjectSelect={handleSelected}
                 session={session}
                 zIndex={200}
                 where={where}

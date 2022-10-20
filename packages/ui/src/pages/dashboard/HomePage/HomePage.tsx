@@ -188,15 +188,12 @@ export const HomePage = ({
     }, [searchString, setLocation]);
 
     /**
-     * Opens page for list item
+     * Replaces current state with search string, so that search is not lost
      */
-    const toItemPage = useCallback((item: NavigableObject) => {
+    const beforeNavigation = useCallback((item: NavigableObject) => {
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
-        // Navigate to item page
-        openObject(item, setLocation);
     }, [searchString, setLocation]);
-
 
     /**
      * Determine the order that the feed lists should be displayed in.
@@ -250,7 +247,7 @@ export const HomePage = ({
                 items: currentList,
                 keyPrefix: `feed-list-item-${tab}`,
                 loading,
-                onClick: toItemPage,
+                beforeNavigation,
                 session,
                 zIndex,
             });
@@ -269,7 +266,7 @@ export const HomePage = ({
             }
         }
         return listFeeds;
-    }, [data, feedOrder, getFeedTitle, loading, session, toItemPage, toSearchPage]);
+    }, [beforeNavigation, data, feedOrder, getFeedTitle, loading, session, toSearchPage]);
 
     // Menu for opening an advanced search page
     const [advancedSearchAnchor, setAdvancedSearchAnchor] = useState<any>(null);

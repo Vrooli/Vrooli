@@ -214,7 +214,7 @@ export const getListItemIsStarred = (
  * @param object A searchable object
  * @returns number of reports
  */
- export const getListItemReportsCount = (
+export const getListItemReportsCount = (
     object: ListObjectType | null,
 ): number => {
     if (!object) return 0;
@@ -262,6 +262,11 @@ export function listToAutocomplete(
 
 export interface ListToListItemProps {
     /**
+     * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
+     * If the callback returns false, the list item will not be selected.
+     */
+    beforeNavigation?: (item: NavigableObject) => boolean | void,
+    /**
      * List of dummy items types to display while loading
      */
     dummyItems?: string[];
@@ -282,10 +287,6 @@ export interface ListToListItemProps {
      */
     loading: boolean,
     /**
-     * Function to call when a list item is clicked
-     */
-    onClick?: (item: NavigableObject) => void,
-    /**
      * Current session
      */
     session: Session,
@@ -297,12 +298,12 @@ export interface ListToListItemProps {
  * @returns A list of ListItems
  */
 export function listToListItems({
+    beforeNavigation,
     dummyItems,
     keyPrefix,
     hideRoles,
     items,
     loading,
-    onClick,
     session,
     zIndex,
 }: ListToListItemProps): JSX.Element[] {
@@ -329,13 +330,13 @@ export function listToListItems({
         if (curr.__typename === 'View' || curr.__typename === 'Star') {
             curr = (curr as ListStar | ListView).to as ObjectListItemType;
         }
-        listItems.push(<ObjectListItem 
+        listItems.push(<ObjectListItem
             key={`${keyPrefix}-${curr.id}`}
+            beforeNavigation={beforeNavigation}
             data={curr}
             hideRole={hideRoles}
             index={i}
             loading={false}
-            onClick={onClick}
             session={session}
             zIndex={zIndex}
         />);

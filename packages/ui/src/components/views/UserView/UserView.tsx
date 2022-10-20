@@ -121,7 +121,7 @@ export const UserView = ({
     }, [setLocation]);
 
     // Create search data
-    const { searchType, itemKeyPrefix, placeholder, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
+    const { searchType, itemKeyPrefix, placeholder, where, noResultsText } = useMemo<SearchListGenerator>(() => {
         // The first tab doesn't have search results, as it is the user's set resources
         switch (currTabType) {
             case TabOptions.Organizations:
@@ -131,7 +131,6 @@ export const UserView = ({
                     placeholder: "Search user's organizations...",
                     noResultsText: "No organizations found",
                     where: { userId: id, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 }
             case TabOptions.Projects:
                 return {
@@ -140,7 +139,6 @@ export const UserView = ({
                     placeholder: "Search user's projects...",
                     noResultsText: "No projects found",
                     where: { userId: id, isComplete: !isOwn ? true : undefined, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 }
             case TabOptions.Routines:
                 return {
@@ -149,7 +147,6 @@ export const UserView = ({
                     placeholder: "Search user's routines...",
                     noResultsText: "No routines found",
                     where: { userId: id, isComplete: !isOwn ? true : undefined, isInternal: false, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 }
             case TabOptions.Standards:
                 return {
@@ -158,10 +155,6 @@ export const UserView = ({
                     placeholder: "Search user's standards...",
                     noResultsText: "No standards found",
                     where: { userId: id, visibilityType: VisibilityType.All },
-                    onSearchSelect: (newValue) => openObject({
-                        __typename: ObjectType.Standard,
-                        id: newValue.id,
-                    }, setLocation),
                 }
             default:
                 return {
@@ -170,10 +163,9 @@ export const UserView = ({
                     placeholder: '',
                     noResultsText: '',
                     where: {},
-                    onSearchSelect: (o: any) => { },
                 }
         }
-    }, [currTabType, id, isOwn, setLocation]);
+    }, [currTabType, id, isOwn]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -460,7 +452,6 @@ export const UserView = ({
                                 itemKeyPrefix={itemKeyPrefix}
                                 noResultsText={noResultsText}
                                 searchType={searchType}
-                                onObjectSelect={onSearchSelect}
                                 searchPlaceholder={placeholder}
                                 session={session}
                                 take={20}

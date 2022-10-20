@@ -333,6 +333,7 @@ export const SelectLanguageMenu = ({
                     borderRadius: '50px',
                     cursor: 'pointer',
                     background: '#4e7d31',
+                    boxShadow: 4,
                     '&:hover': {
                         filter: 'brightness(120%)',
                     },

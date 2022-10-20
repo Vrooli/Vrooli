@@ -136,10 +136,10 @@ export const ResourceListHorizontal = ({
             <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>
             <Box
                 sx={{
-                    boxShadow: 12,
                     borderRadius: '16px',
                     background: palette.background.default,
                     border: `1px ${palette.text.primary}`,
+                    overflow: 'hidden',
                 }}
             >
                 <Stack direction="row" spacing={2} p={1} sx={{

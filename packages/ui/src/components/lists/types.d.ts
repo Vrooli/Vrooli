@@ -4,7 +4,15 @@ import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, List
 
 export type ObjectListItemType = ListOrganization | ListProject | ListRoutine | ListRun | ListStandard | ListUser;
 
-export interface ObjectListItemProps<T extends ObjectListItemType> { 
+export interface ObjectListItemProps<T extends ObjectListItemType> {
+    /**
+     * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
+     * If the callback returns false, the list item will not be selected.
+     * 
+     * NOTE: Passes back full data so we can display 
+     * known properties of the object, while waiting for the full data to be fetched.
+     */
+    beforeNavigation?: (item: NavigableObject) => boolean | void,
     data: T | null;
     /**
      * True if role (admin, owner, etc.) should be hidden
@@ -19,11 +27,6 @@ export interface ObjectListItemProps<T extends ObjectListItemType> {
      */
     loading: boolean;
     session: Session;
-    /**
-     * onClick handler. Passes back full data so we can display 
-     * known properties of the object, while waiting for the full data to be fetched.
-     */
-    onClick?: (data: T) => any;
     zIndex: number;
 }
 
@@ -53,10 +56,14 @@ export interface SearchListGenerator {
     placeholder: string;
     noResultsText: string;
     where: any;
-    onSearchSelect: (objectData: any) => void;
 }
 
 export interface SearchListProps {
+    /**
+     * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
+     * If the callback returns false, the list item will not be selected.
+     */
+    beforeNavigation?: (item: any) => boolean | void,
     canSearch?: boolean;
     handleAdd?: (event?: any) => void; // Not shown if not passed
     /**
@@ -68,7 +75,6 @@ export interface SearchListProps {
     searchPlaceholder?: string;
     take?: number; // Number of items to fetch per page
     searchType: SearchType;
-    onObjectSelect: (objectData: any) => void; // Passes all object data to the parent, so the known information can be displayed while more details are queried
     onScrolledFar?: () => void; // Called when scrolled far enough to prompt the user to create a new object
     where?: any; // Additional where clause to pass to the query
     noResultsText?: string; // Text to display when no results are found
