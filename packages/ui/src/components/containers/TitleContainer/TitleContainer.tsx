@@ -25,7 +25,7 @@ export function TitleContainer({
                         boxShadow: 12,
                         borderRadius: '8px',
                         overflow: 'overlay',
-                        background: palette.background.default,
+                        background: palette.background.paper,
                         width: 'min(100%, 700px)',
                         cursor: onClick ? 'pointer' : 'default',
                         '&:hover': {

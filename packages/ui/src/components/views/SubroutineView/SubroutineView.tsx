@@ -240,21 +240,13 @@ export const SubroutineView = ({
         }}>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
-                isUpvoted={internalRoutine?.isUpvoted}
-                isStarred={internalRoutine?.isStarred}
-                objectId={internalRoutine?.id ?? ''}
-                objectName={title ?? ''}
-                objectType={ObjectType.Routine}
                 anchorEl={moreMenuAnchor}
-                title='Subroutine Options'
+                object={internalRoutine as any}
                 onActionStart={onMoreActionStart}
                 onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
-                permissions={{
-                    ...(internalRoutine?.permissionsRoutine ?? {}),
-                    canDelete: false,
-                }}
                 session={session}
+                title='Subroutine Options'
                 zIndex={zIndex + 1}
             />
             {/* Heading container */}

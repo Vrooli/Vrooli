@@ -1,7 +1,6 @@
 import { AutocompleteOption, ListStar, ListView, NavigableObject, Session } from "types";
 import { getTranslation, getUserLanguages } from "./translationTools";
 import { ObjectListItemType } from "components/lists/types";
-import { Theme } from "@mui/material";
 import { displayDate, firstString } from "./stringTools";
 import { getCurrentUser } from "utils/authentication";
 import { ObjectListItem } from "components";
@@ -16,7 +15,7 @@ export type ListObjectType = ObjectListItemType | ListStar | ListView;
  * @returns The title of the object
  */
 export const getListItemTitle = (
-    object: ListObjectType | null,
+    object: ListObjectType | null | undefined,
     languages?: readonly string[]
 ): string => {
     if (!object) return "";
@@ -52,7 +51,7 @@ export const getListItemTitle = (
  * @param languages User languages
  */
 export const getListItemSubtitle = (
-    object: ListObjectType | null,
+    object: ListObjectType | null | undefined,
     languages?: readonly string[]
 ): string => {
     if (!object) return "";
@@ -90,7 +89,7 @@ export const getListItemSubtitle = (
  * @param session The current session
  */
 export const getListItemPermissions = (
-    object: ListObjectType | null,
+    object: ListObjectType | null | undefined,
     session: Session,
 ): {
     canComment: boolean;
@@ -142,7 +141,7 @@ export const getListItemPermissions = (
  * @returns stars
  */
 export const getListItemStars = (
-    object: ListObjectType | null,
+    object: ListObjectType | null | undefined,
 ): number => {
     if (!object) return 0;
     switch (object.__typename) {
@@ -163,7 +162,7 @@ export const getListItemStars = (
 }
 
 export const getListItemStarFor = (
-    object: ListObjectType | null,
+    object: ListObjectType | null | undefined,
 ): StarFor | null => {
     if (!object) return null;
     switch (object.__typename) {
@@ -189,7 +188,7 @@ export const getListItemStarFor = (
  * @returns isStarred
  */
 export const getListItemIsStarred = (
-    object: ListObjectType | null,
+    object: ListObjectType | null | undefined,
 ): boolean => {
     if (!object) return false;
     switch (object.__typename) {
@@ -210,12 +209,36 @@ export const getListItemIsStarred = (
 }
 
 /**
+ * Gets isUpvoted for a single object
+ * @param object A searchable object
+ * @returns isUpvoted
+ */
+export const getListItemIsUpvoted = (
+    object: ListObjectType | null | undefined,
+): boolean | null => {
+    if (!object) return false;
+    switch (object.__typename) {
+        case 'Project':
+        case 'Routine':
+        case 'Standard':
+            return object.isUpvoted;
+        case 'Run':
+            return object.routine?.isUpvoted ?? null;
+        case 'Star':
+        case 'View':    
+            return getListItemIsUpvoted(object.to as any);
+        default:
+            return null;
+    }
+}
+
+/**
  * Gets reportsCount for a single object
  * @param object A searchable object
  * @returns number of reports
  */
 export const getListItemReportsCount = (
-    object: ListObjectType | null,
+    object: ListObjectType | null | undefined,
 ): number => {
     if (!object) return 0;
     switch (object.__typename) {
@@ -342,19 +365,6 @@ export function listToListItems({
         />);
     }
     return listItems;
-}
-
-/**
- * Determines background color for a list item. Alternates between 
- * two colors.
- * @param index Index of list item
- * @param palette MUI theme palette
- * @returns String of background color
- */
-export const listItemColor = (index: number, palette: Theme['palette']): string => {
-    const lightColors = [palette.background.default, palette.background.paper];
-    const darkColors = [palette.background.default, palette.background.paper];
-    return (palette.mode === 'light') ? lightColors[index % lightColors.length] : darkColors[index % darkColors.length];
 }
 
 /**

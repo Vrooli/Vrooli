@@ -74,8 +74,7 @@ export const CommentThread = ({
                     isOpen={isOpen}
                     language={language}
                     loading={false}
-                    objectId={data.comment.commentedOn.id}
-                    objectType={data.comment.commentedOn.__typename}
+                    object={data.comment.commentedOn}
                     session={session}
                     zIndex={zIndex}
                 />

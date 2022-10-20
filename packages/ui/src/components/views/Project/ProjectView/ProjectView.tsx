@@ -10,7 +10,7 @@ import { ObjectActionMenu, DateDisplay, ResourceListVertical, SearchList, Select
 import { ProjectViewProps } from "../types";
 import { Project, ResourceList } from "types";
 import { SearchListGenerator } from "components/lists/types";
-import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, openObject, SearchType, uuidToBase36 } from "utils";
+import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, openObject, SearchType, uuidToBase36 } from "utils";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
@@ -292,7 +292,7 @@ export const ProjectView = ({
                             <DonateIcon fill={palette.background.textSecondary} />
                         </IconButton>
                     </Tooltip>
-                    <ShareButton objectType={ObjectType.Project} zIndex={zIndex} />
+                    <ShareButton object={project} zIndex={zIndex} />
                     <StarButton
                         disabled={!canStar}
                         session={session}
@@ -306,7 +306,7 @@ export const ProjectView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, openMoreMenu, loading, canEdit, name, onEdit, handle, project?.created_at, project?.id, project?.isStarred, project?.stars, description, zIndex, canStar, session]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, openMoreMenu, loading, canEdit, name, onEdit, handle, project, description, zIndex, canStar, session]);
 
     /**
     * Opens add new page
@@ -326,18 +326,13 @@ export const ProjectView = ({
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
-                isUpvoted={project?.isUpvoted}
-                isStarred={project?.isStarred}
-                objectId={id}
-                objectName={name ?? ''}
-                objectType={ObjectType.Project}
                 anchorEl={moreMenuAnchor}
-                title='Project Options'
+                object={project as any}
                 onActionStart={onMoreActionStart}
                 onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
-                permissions={project?.permissionsProject}
                 session={session}
+                title='Project Options'
                 zIndex={zIndex + 1}
             />
             {/* Add menu for selecting between single-step and multi-step routines */}

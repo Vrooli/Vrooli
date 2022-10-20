@@ -5,7 +5,7 @@ import { ShareIcon } from '@shared/icons';
 import { ShareObjectDialog } from 'components/dialogs';
 
 export const ShareButton = ({
-    objectType,
+    object,
     zIndex,
 }: ShareButtonProps) => {
     const { palette } = useTheme();
@@ -17,7 +17,7 @@ export const ShareButton = ({
     return (
         <>
             <ShareObjectDialog
-                objectType={objectType}
+                object={object}
                 open={open}
                 onClose={closeDialog}
                 zIndex={zIndex + 1}

@@ -228,18 +228,13 @@ export const StandardView = ({
         }}>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
-                isUpvoted={standard?.isUpvoted}
-                isStarred={standard?.isStarred}
-                objectId={id ?? ''}
-                objectName={name ?? ''}
-                objectType={ObjectType.Standard}
                 anchorEl={moreMenuAnchor}
-                title='Standard Options'
+                object={standard as any}
                 onActionStart={onMoreActionStart}
                 onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
-                permissions={standard?.permissionsStandard}
                 session={session}
+                title='Standard Options'
                 zIndex={zIndex + 1}
             />
             <Stack direction="column" spacing={5} sx={{
@@ -259,7 +254,7 @@ export const StandardView = ({
                     overflowY: 'auto',
                     borderRadius: { xs: '8px 8px 0 0', sm: '8px' },
                     overflow: 'overlay',
-                    boxShadow: { xs: 'none', sm: 12},
+                    boxShadow: { xs: 'none', sm: 12 },
                     width: 'min(100%, 600px)',
                 }}>
                     {/* Heading container */}
@@ -296,7 +291,7 @@ export const StandardView = ({
                                         marginRight: 1,
                                     }}
                                 >
-                                    <EllipsisIcon fill={palette.primary.contrastText}  />
+                                    <EllipsisIcon fill={palette.primary.contrastText} />
                                 </IconButton>
                             </Tooltip>
                         </Stack>

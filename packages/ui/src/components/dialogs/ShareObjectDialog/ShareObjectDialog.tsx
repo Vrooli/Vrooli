@@ -4,8 +4,8 @@
 import { Box, Dialog, IconButton, Palette, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { ShareObjectDialogProps } from '../types';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
-import { useState } from 'react';
-import { ObjectType, usePress } from 'utils';
+import { useMemo, useState } from 'react';
+import { getObjectSearchParams, getObjectSlug, getObjectUrlBase, ObjectType, usePress } from 'utils';
 import QRCode from "react-qr-code";
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
 
@@ -30,21 +30,23 @@ const buttonProps = (palette: Palette) => ({
 })
 
 const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
-const getLink = () => window.location.href.split('?')[0].split('#')[0];
 
 const titleAria = 'share-object-dialog-title';
 
 export const ShareObjectDialog = ({
-    objectType,
+    object,
     open,
     onClose,
     zIndex,
 }: ShareObjectDialogProps) => {
     const { palette } = useTheme();
 
+    const title = useMemo(() => object && object.__typename in postTitle ? postTitle[object.__typename] : 'Check out this object on Vrooli', [object]);
+    const url = useMemo(() => object ? `${getObjectUrlBase(object)}/${getObjectSlug(object)}${getObjectSearchParams(object)}` : window.location.href.split('?')[0].split('#')[0], [object]);
+
     const [copied, setCopied] = useState<boolean>(false);
     const copyInviteLink = () => {
-        navigator.clipboard.writeText(getLink());
+        navigator.clipboard.writeText(url);
         setCopied(true);
         setTimeout(() => setCopied(false), 5000);
     }
@@ -52,12 +54,7 @@ export const ShareObjectDialog = ({
     /**
      * Opens navigator share dialog (if supported)
      */
-    const shareNative = () => {
-        navigator.share({
-            title: postTitle[objectType],
-            url: getLink(),
-        })
-    }
+    const shareNative = () => { navigator.share({ title, url }) }
 
     /**
     * When QR code is long-pressed in PWA, open copy/save photo dialog
@@ -115,17 +112,17 @@ export const ShareObjectDialog = ({
                         </IconButton>
                     </Tooltip>
                     <Tooltip title="Share by email">
-                        <IconButton onClick={() => openLink(`mailto:?subject=${encodeURIComponent(postTitle[objectType] ?? '')}&body=${encodeURIComponent(getLink())}`)} sx={buttonProps(palette)}>
+                        <IconButton onClick={() => openLink(`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(url)}`)} sx={buttonProps(palette)}>
                             <EmailIcon fill={palette.secondary.contrastText} />
                         </IconButton>
                     </Tooltip>
                     <Tooltip title="Tweet about us">
-                        <IconButton onClick={() => openLink(`https://twitter.com/intent/tweet?text=${encodeURIComponent(getLink())}`)} sx={buttonProps(palette)}>
+                        <IconButton onClick={() => openLink(`https://twitter.com/intent/tweet?text=${encodeURIComponent(url)}`)} sx={buttonProps(palette)}>
                             <TwitterIcon fill={palette.secondary.contrastText} />
                         </IconButton>
                     </Tooltip>
                     <Tooltip title="Post on LinkedIn">
-                        <IconButton onClick={() => openLink(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(getLink())}&title=${encodeURIComponent(postTitle[objectType] ?? '')}&summary=${encodeURIComponent(getLink())}`)} sx={buttonProps(palette)}>
+                        <IconButton onClick={() => openLink(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(url)}`)} sx={buttonProps(palette)}>
                             <LinkedInIcon fill={palette.secondary.contrastText} />
                         </IconButton>
                     </Tooltip>

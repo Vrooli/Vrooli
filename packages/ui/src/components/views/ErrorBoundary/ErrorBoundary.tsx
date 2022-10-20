@@ -38,7 +38,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 >
                     <div style={{ textAlign: 'center' }}>
                         <h1>Something went wrong 😔</h1>
-                        <p>Try refreshing the page, or closing and reopening the application. If the problem persists, you may contact us at official@vrooli.com</p>
+                        <p>Try refreshing the page, or closing and reopening the application. If the problem persists, 
+                            you may contact us at <a href="mailto:official@vrooli.com">official@vrooli.com</a> and we will try to help you as soon as possible.
+                        </p>
                     </div>
                 </div>
             );

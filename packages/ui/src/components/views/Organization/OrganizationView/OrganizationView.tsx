@@ -10,7 +10,7 @@ import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageM
 import { OrganizationViewProps } from "../types";
 import { Organization, ResourceList } from "types";
 import { SearchListGenerator } from "components/lists/types";
-import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, openObject, placeholderColor, SearchType, uuidToBase36 } from "utils";
+import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, openObject, placeholderColor, SearchType, uuidToBase36 } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { uuidValidate } from '@shared/uuid';
 import { ResourceListUsedFor, VisibilityType } from "graphql/generated/globalTypes";
@@ -36,7 +36,7 @@ export const OrganizationView = ({
     const profileColors = useMemo(() => placeholderColor(), []);
     // Fetch data
     const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
-    const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery, { errorPolicy: 'all'});
+    const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery, { errorPolicy: 'all' });
     const [organization, setOrganization] = useState<Organization | null | undefined>(null);
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { input: { id } } })
@@ -320,7 +320,7 @@ export const OrganizationView = ({
                             <DonateIcon fill={palette.background.textSecondary} />
                         </IconButton>
                     </Tooltip>
-                    <ShareButton objectType={ObjectType.Organization} zIndex={zIndex} />
+                    <ShareButton object={organization} zIndex={zIndex} />
                     <ReportsLink object={organization} />
                     <StarButton
                         disabled={!canStar}
@@ -361,18 +361,13 @@ export const OrganizationView = ({
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
-                isUpvoted={null}
-                isStarred={organization?.isStarred}
-                objectId={id}
-                objectName={name ?? ''}
-                objectType={ObjectType.Organization}
                 anchorEl={moreMenuAnchor}
-                title='Organization Options'
+                object={organization as any}
                 onActionStart={onMoreActionStart}
                 onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
-                permissions={organization?.permissionsOrganization}
                 session={session}
+                title='Organization Options'
                 zIndex={zIndex + 1}
             />
             {/* Add menu for selecting between single-step and multi-step routines */}

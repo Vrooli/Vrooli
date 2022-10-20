@@ -8,7 +8,7 @@ import { userQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton, SelectRoutineTypeMenu } from "components";
 import { UserViewProps } from "../types";
-import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, openObject, placeholderColor, SearchType } from "utils";
+import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, openObject, placeholderColor, SearchType } from "utils";
 import { ResourceList, User } from "types";
 import { SearchListGenerator } from "components/lists/types";
 import { uuidValidate } from '@shared/uuid';
@@ -326,7 +326,7 @@ export const UserView = ({
                             <DonateIcon fill={palette.background.textSecondary} />
                         </IconButton>
                     </Tooltip>
-                    <ShareButton objectType={ObjectType.User} zIndex={zIndex} />
+                    <ShareButton object={user} zIndex={zIndex} />
                     <StarButton
                         disabled={isOwn}
                         session={session}
@@ -367,22 +367,13 @@ export const UserView = ({
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
-                isUpvoted={null}
-                isStarred={user?.isStarred}
-                objectId={id}
-                objectName={name ?? ''}
-                objectType={ObjectType.User}
                 anchorEl={moreMenuAnchor}
-                title='User Options'
+                object={user}
                 onActionStart={onMoreActionStart}
                 onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
-                permissions={{
-                    canEdit: isOwn,
-                    canReport: !isOwn,
-                    canStar: !isOwn,
-                }}
                 session={session}
+                title='User Options'
                 zIndex={zIndex + 1}
             />
             {/* Add menu for selecting between single-step and multi-step routines */}

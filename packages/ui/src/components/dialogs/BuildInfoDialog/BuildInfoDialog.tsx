@@ -267,7 +267,7 @@ export const BuildInfoDialog = ({
             />}
             {/* Share dialog */}
             <ShareObjectDialog
-                objectType={ObjectType.Routine}
+                object={routine}
                 open={shareOpen}
                 onClose={closeShare}
                 zIndex={zIndex + 1}

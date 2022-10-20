@@ -1,4 +1,4 @@
-import { Comment, CommentThread } from "types";
+import { Comment, CommentThread, NavigableObject } from "types";
 import { ObjectType } from "utils";
 
 export interface CommentConnectorProps {
@@ -23,15 +23,9 @@ export interface CommentThreadItemProps {
     language: string;
     loading: boolean;
     /**
-     * ID of the object which has a comment, not
-     * the comment itself or its parent
+     * Object which has a comment, not the comment itself or the comment thread
      */
-    objectId: string;
-    /**
-     * Type of the object which has a comment, not
-     * the comment itself or its parent
-     */
-    objectType: ObjectType['Project'] | ObjectType['Routine'] | ObjectType['Standard'];
+    object: NavigableObject | null | undefined;
     session: Session;
     zIndex;
 }

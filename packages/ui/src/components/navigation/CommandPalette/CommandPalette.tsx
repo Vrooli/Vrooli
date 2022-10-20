@@ -130,7 +130,6 @@ const CommandPalette = ({
             aria-labelledby={titleAria}
             sx={{
                 '& .MuiDialog-paper': {
-                    border: palette.mode === 'dark' ? `1px solid white` : 'unset',
                     minWidth: 'min(100%, 600px)',
                     minHeight: 'min(100%, 200px)',
                     position: 'absolute',

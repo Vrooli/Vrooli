@@ -57,7 +57,7 @@ export const RoutineView = ({
         // If IDs are not invalid, throw error if we are not creating a new routine
         else {
             const { build } = parseSearchParams();
-            if (!build || build !== true)PubSub.get().publishSnack({ message: 'Could not parse ID in URL', severity: SnackSeverity.Error });
+            if (!build || build !== true) PubSub.get().publishSnack({ message: 'Could not parse ID in URL', severity: SnackSeverity.Error });
         }
     }, [getData, id, versionGroupId])
 
@@ -462,18 +462,13 @@ export const RoutineView = ({
             </Dialog>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
-                isUpvoted={routine?.isUpvoted}
-                isStarred={routine?.isStarred}
-                objectId={id ?? ''}
-                objectName={title ?? ''}
-                objectType={ObjectType.Routine}
                 anchorEl={moreMenuAnchor}
-                title='Routine Options'
+                object={routine as any}
                 onActionStart={onMoreActionStart}
                 onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
-                permissions={routine?.permissionsRoutine}
                 session={session}
+                title='Routine Options'
                 zIndex={zIndex + 1}
             />
             <Stack direction="column" sx={{

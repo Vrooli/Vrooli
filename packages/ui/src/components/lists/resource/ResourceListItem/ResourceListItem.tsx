@@ -6,7 +6,7 @@ import { useCallback, useMemo } from 'react';
 import { ResourceSortBy, ResourceUsedFor } from '@shared/consts';
 import { adaHandleRegex, urlRegex, walletAddressRegex } from '@shared/validation';
 import { useLocation } from '@shared/route';
-import { firstString, getTranslation, getUserLanguages, LabelledSortOption, labelledSortOptions, listItemColor, openLink, PubSub, ResourceType } from 'utils';
+import { firstString, getTranslation, getUserLanguages, LabelledSortOption, labelledSortOptions, openLink, PubSub, ResourceType } from 'utils';
 import { Resource } from 'types';
 import { getResourceIcon } from '..';
 import { SnackSeverity, TextLoading } from 'components';
@@ -93,8 +93,9 @@ export function ResourceListItem({
                 onClick={handleClick}
                 sx={{
                     display: 'flex',
-                    background: listItemColor(index, palette),
+                    background: palette.background.paper,
                     color: palette.background.textPrimary,
+                    borderBottom: `1px solid ${palette.divider}`,
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>

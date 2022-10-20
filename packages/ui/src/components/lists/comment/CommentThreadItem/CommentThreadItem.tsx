@@ -2,7 +2,7 @@ import { Box, Grid, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme
 import { CommentThreadItemProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
 import { TextLoading, UpvoteDownvote } from '../..';
-import { displayDate, getFormikErrorsWithTranslations, getTranslation, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, PubSub, usePromptBeforeUnload } from 'utils';
+import { displayDate, getFormikErrorsWithTranslations, getTranslation, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, usePromptBeforeUnload } from 'utils';
 import { MarkdownInput } from 'components/inputs';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
@@ -18,6 +18,7 @@ import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
 import { GridSubmitButtons, ReportButton, StarButton } from 'components/buttons';
 import { DeleteIcon, ReplyIcon } from '@shared/icons';
 import { uuidValidate } from '@shared/uuid';
+import { CommentFor } from 'graphql/generated/globalTypes';
 
 export function CommentThreadItem({
     data,
@@ -26,12 +27,16 @@ export function CommentThreadItem({
     isOpen,
     language,
     loading,
-    objectId,
-    objectType,
+    object,
     session,
     zIndex,
 }: CommentThreadItemProps) {
     const { palette } = useTheme();
+
+    const { objectId, objectType } = useMemo(() => ({
+        objectId: object?.id,
+        objectType: object?.__typename as CommentFor,
+    }), [object]);
 
     const { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText } = useMemo(() => {
         const { canDelete, canEdit, canReply, canReport, canStar, canVote } = data?.permissionsComment ?? {};
@@ -45,7 +50,7 @@ export function CommentThreadItem({
     const formik = useFormik({
         initialValues: {
             id: DUMMY_ID,
-            createdFor: objectType,
+            createdFor: objectType ,
             forId: objectId,
             parentId: data?.id,
             translationsCreate: [{
@@ -57,7 +62,7 @@ export function CommentThreadItem({
         validationSchema,
         enableReinitialize: true,
         onSubmit: (values) => {
-            if (!data) return;
+            if (!data || !values.createdFor || !values.forId) return;
             mutationWrapper<commentCreate_commentCreate, commentCreateVariables>({
                 mutation: addMutation,
                 input: {
@@ -163,8 +168,8 @@ export function CommentThreadItem({
                             <Stack direction="row" spacing={1} sx={{
                                 overflow: 'auto',
                             }}>
-                                <OwnerLabel
-                                    objectType={objectType}
+                                {objectType && <OwnerLabel
+                                    objectType={objectType as any as ObjectType}
                                     owner={data?.creator}
                                     session={session}
                                     sxs={{
@@ -172,8 +177,7 @@ export function CommentThreadItem({
                                             color: palette.background.textPrimary,
                                             fontWeight: 'bold',
                                         }
-                                    }} />
-                                    {}
+                                    }} />}
                                 {canEdit && !(data?.creator?.id && data.creator.id === session?.id) && <ListItemText
                                     primary={`(Can Edit)`}
                                     sx={{
@@ -232,7 +236,7 @@ export function CommentThreadItem({
                                 <ReplyIcon fill={palette.background.textSecondary} />
                             </IconButton>
                         </Tooltip>}
-                        <ShareButton objectType={objectType} zIndex={zIndex} />
+                        <ShareButton object={object} zIndex={zIndex} />
                         {canReport && <ReportButton
                             forId={data?.id ?? ''}
                             reportFor={objectType as any as ReportFor}
