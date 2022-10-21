@@ -1,5 +1,5 @@
-import { Box, IconButton, Palette, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, EditableLabel, UnlinkedNodesDialog, BuildInfoDialog, HelpButton, userFromSession, SnackSeverity } from 'components';
+import { Box, IconButton, Stack, Typography, useTheme } from '@mui/material';
+import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, EditableLabel, BuildInfoDialog, HelpButton, userFromSession, SnackSeverity, GraphActions } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
@@ -18,7 +18,7 @@ import { StatusButton } from 'components/buttons';
 import { routineUpdateVariables, routineUpdate_routineUpdate } from 'graphql/generated/routineUpdate';
 import { routineCreateVariables, routineCreate_routineCreate } from 'graphql/generated/routineCreate';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
-import { AddLinkIcon, CloseIcon, CompressIcon, EditIcon, RedoIcon, UndoIcon } from '@shared/icons';
+import { CloseIcon, EditIcon } from '@shared/icons';
 import { requiredErrorMessage, routineTranslationUpdate, routineUpdate as validationSchema, title as titleValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { RelationshipsObject } from 'components/inputs/types';
@@ -45,16 +45,6 @@ You also have the option to *unlink* nodes. These are stored on the top status b
 
 At the bottom of the screen, there is a slider to control the scale of the graph, and buttons to create/update and cancel the routine.
 `
-
-const commonButtonProps = (palette: Palette) => ({
-    background: palette.secondary.main,
-    marginRight: 1,
-    transition: 'brightness 0.2s ease-in-out',
-    '&:hover': {
-        filter: `brightness(120%)`,
-        background: palette.secondary.main,
-    },
-})
 
 /**
  * Generates a new link object, but doesn't add it to the routine
@@ -261,8 +251,8 @@ export const BuildView = ({
                             message: `Routine created!`,
                             severity: SnackSeverity.Success,
                             buttonText: 'Create another',
-                            buttonClicked: () => { 
-                                setLocation(`add?build=true`, { replace: Boolean(sessionStorage.getItem('lastPath')) }); 
+                            buttonClicked: () => {
+                                setLocation(`add?build=true`, { replace: Boolean(sessionStorage.getItem('lastPath')) });
                                 window.location.reload();
                             },
                         })
@@ -1169,10 +1159,6 @@ export const BuildView = ({
         }
     }, [setLocation, onChange, routine]);
 
-    // Open/close unlinked nodes drawer
-    const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);
-    const toggleUnlinkedNodes = useCallback(() => setIsUnlinkedNodesOpen(curr => !curr), []);
-
     /**
      * Cleans up graph by removing empty columns and row gaps within columns.
      * Also adds end nodes to the end of each unfinished path. 
@@ -1245,62 +1231,6 @@ export const BuildView = ({
         // Update changedRoutine with resultRoutine
         addToChangeStack(resultRoutine);
     }, [addToChangeStack, changedRoutine, columns]);
-
-    const editActions = useMemo(() => {
-        if (!isEditing) return null;
-        return (<Stack direction="row" spacing={1} sx={{
-            zIndex: 2,
-            height: '48px',
-            background: 'transparent',
-            color: palette.primary.contrastText,
-            justifyContent: 'center',
-            alignItems: 'center',
-            paddingTop: '8px',
-        }}>
-            {(canUndo || canRedo) && <Tooltip title={canUndo ? 'Undo' : ''}>
-                <IconButton
-                    id="undo-button"
-                    disabled={!canUndo}
-                    onClick={undo}
-                    aria-label="Undo"
-                    sx={commonButtonProps(palette)}
-                >
-                    <UndoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
-                </IconButton>
-            </Tooltip>}
-            {(canUndo || canRedo) && <Tooltip title={canRedo ? 'Redo' : ''}>
-                <IconButton
-                    id="redo-button"
-                    disabled={!canRedo}
-                    onClick={redo}
-                    aria-label="Redo"
-                    sx={commonButtonProps(palette)}
-                >
-                    <RedoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
-                </IconButton>
-            </Tooltip>}
-            <Tooltip title='Clean up graph'>
-                <IconButton
-                    id="clean-graph-button"
-                    onClick={cleanUpGraph}
-                    aria-label='Clean up graph'
-                    sx={commonButtonProps(palette)}
-                >
-                    <CompressIcon id="clean-up-button-icon" fill={palette.secondary.contrastText} />
-                </IconButton>
-            </Tooltip>
-            <Tooltip title='Add new link'>
-                <IconButton
-                    id="add-link-button"
-                    onClick={openLinkDialog}
-                    aria-label='Add link'
-                    sx={commonButtonProps(palette)}
-                >
-                    <AddLinkIcon id="add-link-button-icon" fill={palette.secondary.contrastText} />
-                </IconButton>
-            </Tooltip>
-        </Stack>)
-    }, [canRedo, canUndo, cleanUpGraph, isEditing, openLinkDialog, palette, redo, undo]);
 
     return (
         <Box sx={{
@@ -1393,7 +1323,7 @@ export const BuildView = ({
                 {/* Title */}
                 <EditableLabel
                     canEdit={isEditing}
-                    handleUpdate={(newText: string) => handleTranslationChange(formik, 'translationsUpdate', { target: { name: 'title', value: newText }}, language)}
+                    handleUpdate={(newText: string) => handleTranslationChange(formik, 'translationsUpdate', { target: { name: 'title', value: newText } }, language)}
                     placeholder={loading ? 'Loading...' : 'Enter title...'}
                     renderLabel={(t) => (
                         <Typography
@@ -1449,14 +1379,6 @@ export const BuildView = ({
                     marginRight: 1,
                 }} />
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <UnlinkedNodesDialog
-                        handleNodeDelete={handleNodeDelete}
-                        handleToggleOpen={toggleUnlinkedNodes}
-                        language={language}
-                        nodes={nodesOffGraph}
-                        open={isUnlinkedNodesOpen}
-                        zIndex={zIndex + 3}
-                    />
                     {/* Edit button */}
                     {canEdit && !isEditing ? (
                         <IconButton aria-label="confirm-title-change" onClick={startEditing} >
@@ -1486,8 +1408,20 @@ export const BuildView = ({
                     />
                 </Box>
             </Stack>
-            {/* Third displays above graph, only when editing */}
-            {editActions}
+            {/* Third displays above graph, only when editing or the routine is incomplete */}
+            <GraphActions
+                canRedo={canRedo}
+                canUndo={canUndo}
+                handleCleanUpGraph={cleanUpGraph}
+                handleNodeDelete={handleNodeDelete}
+                handleOpenLinkDialog={openLinkDialog}
+                handleRedo={redo}
+                handleUndo={undo}
+                isEditing={isEditing}
+                language={language}
+                nodesOffGraph={nodesOffGraph}
+                zIndex={zIndex}
+            />
             {/* Displays main routine's information and some buttons */}
             <Box sx={{
                 background: palette.background.default,

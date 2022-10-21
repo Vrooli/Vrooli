@@ -336,9 +336,7 @@ export const InputOutputListItem = ({
                                         getOptionLabel={(option: InputTypeOption) => option.label}
                                         inputAriaLabel='input-type-selector'
                                         label="Type"
-                                        style={{
-                                            marginBottom: 2
-                                        }}
+                                        sx={{ marginBottom: 2 }}
                                     />
                                     <BaseStandardInput
                                         fieldName={schemaKey}

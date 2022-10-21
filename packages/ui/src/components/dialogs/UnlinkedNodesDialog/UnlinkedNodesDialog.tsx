@@ -41,7 +41,7 @@ export const UnlinkedNodesDialog = ({
             key: `unlinked-node-${node.id}`,
             label: getTranslation(node, [language], false).title ?? null,
             labelVisible: false,
-            scale: 0.5,
+            scale: 0.8,
             zIndex,
         }
         // Determine node to display based on node type
@@ -89,7 +89,7 @@ export const UnlinkedNodesDialog = ({
                 maxHeight: { xs: '62vh', sm: '65vh', md: '72vh' },
                 overflowX: 'hidden',
                 overflowY: 'auto',
-                width: open ? '250px' : 'fit-content',
+                width: open ? { xs: '100%', sm: '375px' } : 'fit-content',
                 transition: 'height 1s ease-in-out',
                 zIndex: 1500,
                 "&::-webkit-scrollbar": {
@@ -123,7 +123,6 @@ export const UnlinkedNodesDialog = ({
                             <Box key={node.id} sx={{ display: 'flex', alignItems: 'center' }}>
                                 {/* Miniature version of node */}
                                 <Box sx={{
-                                    width: '50px',
                                     height: '50px',
                                 }}>
                                     {createNode(node)}
