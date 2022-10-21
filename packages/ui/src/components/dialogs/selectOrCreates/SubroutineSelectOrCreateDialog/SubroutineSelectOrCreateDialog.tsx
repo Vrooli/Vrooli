@@ -1,6 +1,5 @@
 import {
     Dialog,
-    DialogContent,
     IconButton,
     Stack,
     Tooltip,
@@ -119,12 +118,19 @@ export const SubroutineSelectOrCreateDialog = ({
                 zIndex,
                 '& .MuiDialogContent-root': {
                     overflow: 'visible',
-                    background: palette.background.default,
+                    minWidth: 'min(600px, 100%)',
                 },
-                '& .MuiDialog-paper': {
+                '& .MuiDialog-paperScrollBody': {
                     overflow: 'visible',
-                    width: 'min(100%, 600px)',
-                }
+                    background: palette.background.default,
+                    margin: { xs: 0, sm: 2, md: 4 },
+                    maxWidth: { xs: '100%!important', sm: 'calc(100% - 64px)' },
+                    display: { xs: 'block', sm: 'inline-block' },
+                },
+                // Remove ::after element that is added to the dialog
+                '& .MuiDialog-container::after': {
+                    content: 'none',
+                },
             }}
         >
             {/* Popup for creating a new routine */}
@@ -147,35 +153,33 @@ export const SubroutineSelectOrCreateDialog = ({
                 title={'Add Subroutine'}
                 onClose={onClose}
             />
-            <DialogContent>
-                <Stack direction="column" spacing={2}>
-                    <Stack direction="row" alignItems="center" justifyContent="center">
-                        <Typography component="h2" variant="h4">Routines</Typography>
-                        <Tooltip title="Add new" placement="top">
-                            <IconButton
-                                size="medium"
-                                onClick={handleCreateOpen}
-                                sx={{ padding: 1 }}
-                            >
-                                <AddIcon fill={palette.secondary.main} width='1.5em' height='1.5em' />
-                            </IconButton>
-                        </Tooltip>
-                    </Stack>
-                    <SearchList
-                        canSearch={Boolean(nodeId)} // Can only query when a node is selected
-                        id="subroutine-select-or-create-list"
-                        itemKeyPrefix='routine-list-item'
-                        noResultsText={"None found. Maybe you should create one?"}
-                        searchType={SearchType.Routine}
-                        beforeNavigation={fetchFullData}
-                        searchPlaceholder={'Select existing subroutine...'}
-                        session={session}
-                        take={20}
-                        where={where}
-                        zIndex={zIndex}
-                    />
+            <Stack direction="column" spacing={2}>
+                <Stack direction="row" alignItems="center" justifyContent="center">
+                    <Typography component="h2" variant="h4">Routines</Typography>
+                    <Tooltip title="Add new" placement="top">
+                        <IconButton
+                            size="medium"
+                            onClick={handleCreateOpen}
+                            sx={{ padding: 1 }}
+                        >
+                            <AddIcon fill={palette.secondary.main} width='1.5em' height='1.5em' />
+                        </IconButton>
+                    </Tooltip>
                 </Stack>
-            </DialogContent>
+                <SearchList
+                    canSearch={Boolean(nodeId)} // Can only query when a node is selected
+                    id="subroutine-select-or-create-list"
+                    itemKeyPrefix='routine-list-item'
+                    noResultsText={"None found. Maybe you should create one?"}
+                    searchType={SearchType.Routine}
+                    beforeNavigation={fetchFullData}
+                    searchPlaceholder={'Select existing subroutine...'}
+                    session={session}
+                    take={20}
+                    where={where}
+                    zIndex={zIndex}
+                />
+            </Stack>
         </Dialog>
     )
 }

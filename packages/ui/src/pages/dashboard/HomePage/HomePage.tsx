@@ -1,4 +1,4 @@
-import { Box, Button, Grid, Stack, Tab, Tabs, Typography, useTheme } from '@mui/material';
+import { Box, Button, Grid, Stack, Tab, Tabs, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { centeredDiv } from 'styles';
 import { homePage, homePageVariables } from 'graphql/generated/homePage';
@@ -9,7 +9,7 @@ import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { HomePageProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import { actionsItems, getUserLanguages, listToAutocomplete, listToListItems, ObjectType, openObject, SearchPageTabOption, shortcutsItems, stringifySearchParams, useReactSearch } from 'utils';
+import { actionsItems, getUserLanguages, listToAutocomplete, listToListItems, openObject, SearchPageTabOption, shortcutsItems, stringifySearchParams, useReactSearch } from 'utils';
 import { AutocompleteOption, NavigableObject } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
@@ -82,13 +82,6 @@ const tabOptions = [
     ['History', APP_LINKS.History],
 ];
 
-const examplesData: [string, string][] = [
-    ['Start a new business', '5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
-    // ['Learn about Project Catalyst', ''], //TODO
-    // ['Fund your project', ''], //TODO
-    ['Create a Cardano native asset token', '3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
-]
-
 const zIndex = 200;
 
 /**
@@ -101,7 +94,6 @@ const zIndex = 200;
 export const HomePage = ({
     session
 }: HomePageProps) => {
-    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const [searchString, setSearchString] = useState<string>('');
     const searchParams = useReactSearch();
@@ -366,33 +358,8 @@ export const HomePage = ({
                 />
                 {/* =========  #endregion ========= */}
             </Stack>
-            {/* Examples stack */}
-            <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: '40px', paddingBottom: '40px' }}>
-                <Typography component="h2" variant="h5" pb={1}>Examples</Typography>
-                {
-                    examplesData.map((example, index) => (
-                        <Typography
-                            key={`example-${index}`}
-                            component="p"
-                            variant="h6"
-                            onClick={() => {
-                                openObject({
-                                    __typename: ObjectType.Routine,
-                                    id: example[1],
-                                }, setLocation)
-                            }}
-                            sx={{
-                                color: palette.text.secondary,
-                                fontStyle: 'italic',
-                                cursor: 'pointer',
-                                textAlign: 'center',
-                            }}
-                        >"{example[0]}"</Typography>
-                    ))
-                }
-            </Stack>
             {/* Result feeds (or popular feeds if no search string) */}
-            <Stack spacing={10} direction="column">
+            <Stack spacing={10} direction="column" mt={10}>
                 {/* Search results */}
                 {feeds}
                 {/* Advanced search prompt TODO */}

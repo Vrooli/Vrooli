@@ -85,11 +85,21 @@ export const UserSelectDialog = ({
             aria-labelledby={titleAria}
             sx={{
                 zIndex,
-                '& .MuiDialogContent-root': { overflow: 'visible', background: palette.background.default },
-                '& .MuiDialog-paper': {
+                '& .MuiDialogContent-root': {
                     overflow: 'visible',
-                    width: 'min(100%, 600px)',
-                }
+                    minWidth: 'min(600px, 100%)',
+                },
+                '& .MuiPaper-root': {
+                    overflow: 'visible',
+                    background: palette.background.default,
+                    margin: { xs: 0, sm: 2, md: 4 },
+                    maxWidth: { xs: '100%!important', sm: 'calc(100% - 64px)' },
+                    display: { xs: 'block', sm: 'inline-block' },
+                },
+                // Remove ::after element that is added to the dialog
+                '& .MuiDialog-container::after': {
+                    content: 'none',
+                },
             }}
         >
             {/* Invite user dialog */}
@@ -104,34 +114,32 @@ export const UserSelectDialog = ({
                 helpText={helpText}
                 onClose={onClose}
             />
-            <DialogContent>
-                <Stack direction="column" spacing={2}>
-                    <Stack direction="row" alignItems="center" justifyContent="center">
-                        <Typography component="h2" variant="h4">Users</Typography>
-                        <Tooltip title="Add new" placement="top">
-                            <IconButton
-                                size="medium"
-                                onClick={openShareDialog}
-                                sx={{ padding: 1 }}
-                            >
-                                <AddIcon fill={palette.secondary.main} width='1.5em' height='1.5em' />
-                            </IconButton>
-                        </Tooltip>
-                    </Stack>
-                    <SearchList
-                        id="user-select-or-create-list"
-                        itemKeyPrefix='user-list-item'
-                        noResultsText={"No results. Maybe you should invite them?"}
-                        beforeNavigation={fetchFullData}
-                        searchType={SearchType.User}
-                        searchPlaceholder={'Select existing users...'}
-                        session={session}
-                        take={20}
-                        where={{ userId }}
-                        zIndex={zIndex}
-                    />
+            <Stack direction="column" spacing={2}>
+                <Stack direction="row" alignItems="center" justifyContent="center">
+                    <Typography component="h2" variant="h4">Users</Typography>
+                    <Tooltip title="Add new" placement="top">
+                        <IconButton
+                            size="medium"
+                            onClick={openShareDialog}
+                            sx={{ padding: 1 }}
+                        >
+                            <AddIcon fill={palette.secondary.main} width='1.5em' height='1.5em' />
+                        </IconButton>
+                    </Tooltip>
                 </Stack>
-            </DialogContent>
+                <SearchList
+                    id="user-select-or-create-list"
+                    itemKeyPrefix='user-list-item'
+                    noResultsText={"No results. Maybe you should invite them?"}
+                    beforeNavigation={fetchFullData}
+                    searchType={SearchType.User}
+                    searchPlaceholder={'Select existing users...'}
+                    session={session}
+                    take={20}
+                    where={{ userId }}
+                    zIndex={zIndex}
+                />
+            </Stack>
         </Dialog>
     )
 }

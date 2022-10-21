@@ -153,7 +153,7 @@ export const uuidToBase36 = (uuid: string): string => {
         const base36 = toBigInt(uuid.replace(/-/g, ''), 16).toString(36);
         return base36 === '0' ? '' : base36;
     } catch (error) {
-        PubSub.get().publishSnack({ message: 'Could not convert ID', severity: SnackSeverity.Error });
+        PubSub.get().publishSnack({ message: 'Could not convert ID', severity: SnackSeverity.Error, data: { uuid } });
         return '';
     }
 }

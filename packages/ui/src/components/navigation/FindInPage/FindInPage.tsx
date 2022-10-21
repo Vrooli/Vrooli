@@ -183,13 +183,13 @@ const FindInPage = () => {
             sx={{
                 '& .MuiDialog-paper': {
                     background: palette.background.paper,
-                    border: palette.mode === 'dark' ? `1px solid white` : 'unset',
                     minWidth: 'min(100%, 350px)',
                     position: 'absolute',
                     top: '0%',
                     right: '0%',
                     overflowY: 'visible',
                     margin: { xs: '8px', sm: '16px' },
+                    boxShadow: 12,
                 },
                 '& .MuiDialogContent-root': {
                     padding: '12px 8px',

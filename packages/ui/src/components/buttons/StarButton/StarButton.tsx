@@ -23,7 +23,6 @@ export const StarButton = ({
 }: StarButtonProps) => {
     const { palette } = useTheme();
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
-    console.log('star button', userId, objectId, starFor);
 
     // Used to respond to user clicks immediately, without having 
     // to wait for the mutation to complete

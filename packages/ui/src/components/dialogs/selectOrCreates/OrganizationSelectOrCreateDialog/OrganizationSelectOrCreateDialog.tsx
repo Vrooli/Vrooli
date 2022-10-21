@@ -1,6 +1,5 @@
 import {
     Dialog,
-    DialogContent,
     IconButton,
     Stack,
     Tooltip,
@@ -98,11 +97,21 @@ export const OrganizationSelectOrCreateDialog = ({
             aria-labelledby={titleAria}
             sx={{
                 zIndex,
-                '& .MuiDialogContent-root': { overflow: 'visible', background: palette.background.default },
-                '& .MuiDialog-paper': { 
+                '& .MuiDialogContent-root': {
                     overflow: 'visible',
-                    width: 'min(100%, 600px)',
-                }
+                    minWidth: 'min(600px, 100%)',
+                },
+                '& .MuiDialog-paperScrollBody': {
+                    overflow: 'visible',
+                    background: palette.background.default,
+                    margin: { xs: 0, sm: 2, md: 4 },
+                    maxWidth: { xs: '100%!important', sm: 'calc(100% - 64px)' },
+                    display: { xs: 'block', sm: 'inline-block' },
+                },
+                // Remove ::after element that is added to the dialog
+                '& .MuiDialog-container::after': {
+                    content: 'none',
+                },
             }}
         >
             {/* Popup for creating a new organization */}
@@ -124,34 +133,32 @@ export const OrganizationSelectOrCreateDialog = ({
                 helpText={helpText}
                 onClose={onClose}
             />
-            <DialogContent>
-                <Stack direction="column" spacing={2}>
-                    <Stack direction="row" alignItems="center" justifyContent="center">
-                        <Typography component="h2" variant="h4">Organizations</Typography>
-                        <Tooltip title="Add new" placement="top">
-                            <IconButton
-                                size="medium"
-                                onClick={handleCreateOpen}
-                                sx={{ padding: 1 }}
-                            >
-                                <AddIcon fill={palette.secondary.main} width='1.5em' height='1.5em' />
-                            </IconButton>
-                        </Tooltip>
-                    </Stack>
-                    <SearchList
-                        id="organization-select-or-create-list"
-                        itemKeyPrefix='organization-list-item'
-                        noResultsText={"None found. Maybe you should create one?"}
-                        beforeNavigation={fetchFullData}
-                        searchType={SearchType.Organization}
-                        searchPlaceholder={'Select existing organizations...'}
-                        session={session}
-                        take={20}
-                        where={{ userId }}
-                        zIndex={zIndex}
-                    />
+            <Stack direction="column" spacing={2}>
+                <Stack direction="row" alignItems="center" justifyContent="center">
+                    <Typography component="h2" variant="h4">Organizations</Typography>
+                    <Tooltip title="Add new" placement="top">
+                        <IconButton
+                            size="medium"
+                            onClick={handleCreateOpen}
+                            sx={{ padding: 1 }}
+                        >
+                            <AddIcon fill={palette.secondary.main} width='1.5em' height='1.5em' />
+                        </IconButton>
+                    </Tooltip>
                 </Stack>
-            </DialogContent>
+                <SearchList
+                    id="organization-select-or-create-list"
+                    itemKeyPrefix='organization-list-item'
+                    noResultsText={"None found. Maybe you should create one?"}
+                    beforeNavigation={fetchFullData}
+                    searchType={SearchType.Organization}
+                    searchPlaceholder={'Select existing organizations...'}
+                    session={session}
+                    take={20}
+                    where={{ userId }}
+                    zIndex={zIndex}
+                />
+            </Stack>
         </Dialog>
     )
 }

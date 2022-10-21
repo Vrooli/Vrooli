@@ -15,7 +15,6 @@ const getLabel = (
     owner: Comment['creator'] | Project['owner'] | Routine['owner'] | Standard['creator'] | null | undefined,
     languages: readonly string[]
 ): string => {
-    console.log('getting label', owner, languages)
     if (!owner) return '';
     // Check if user or organization. Only users have a non-translated name
     if (owner.__typename === 'User' || owner.hasOwnProperty('name')) {
@@ -40,6 +39,7 @@ export const OwnerLabel = ({
 
     const ownerLink = useMemo<string>(() => {
         if (!owner) return '';
+        console.log('getting owner link', owner);
         return `${getObjectUrlBase(owner)}/${getObjectSlug(owner)}`
     }, [owner]);
 

@@ -390,7 +390,6 @@ export const updateTranslationFields = <
         // If an existing field is not in changes, keep it unchanged.
         // If a new field is not in the existing translation, add it.
         if (translation.language === language) {
-            console.log('found translation. updating...', translation);
             translationFound = true;
             translations.push({
                 ...translation,
@@ -404,7 +403,6 @@ export const updateTranslationFields = <
     }
     // If no translation was found, add a new one
     if (!translationFound) {
-        console.log('no translation found, so adding new one...')
         translations.push({
             id: uuid(),
             ...changes,
@@ -510,8 +508,6 @@ export const getTranslationData = <
 } => {
     if (!formik.values[field] || !Array.isArray(formik.values[field])) return { error: undefined, index: -1, touched: undefined, value: undefined };
     const index = formik.values[field].findIndex(t => t.language === language);
-    console.log('translations', formik.values[field]);
-    console.log('errors', formik.errors[field]);
     const value = formik.values[field][index];
     const touched = formik.touched[field]?.[index];
     const error = typeof formik.errors[field]?.[index] === 'object' ? formik.errors[field]?.[index] as any : undefined;
@@ -554,7 +550,6 @@ export const handleTranslationChange = <
     // Get field name and value from event
     const { name: changedField, value } = event.target;
     // Get index of translation object
-    console.log('handletranschange')
     const { index } = getTranslationData(formik, translationField, language);
     // Set the value using dot notation
     formik.setFieldValue(`${translationField}.${index}.${String(changedField)}`, value);
@@ -649,7 +644,6 @@ export const removeTranslation = <
     // Get copy of current translations
     const translations = [...formik.values[translationField]];
     // Get index of translation object
-    console.log('remove translation')
     const { index } = getTranslationData(formik, translationField, language);
     // Remove translation object from translations
     translations.splice(index, 1);

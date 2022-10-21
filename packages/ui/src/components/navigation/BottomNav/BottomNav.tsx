@@ -18,7 +18,6 @@ export const BottomNav = ({
     // Hide the nav if the keyboard is open. This is because fixed bottom navs 
     // will appear above the keyboard on Android for some reason.
     const invisible = useKeyboardOpen();
-    console.log('invisible', invisible);
 
     if (invisible) return null;
     return (

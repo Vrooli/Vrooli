@@ -99,7 +99,15 @@ export const actionsToBottomNav = ({ actions, setLocation }: ActionsToBottomNavP
             key={value}
             label={label}
             value={value}
-            onClick={() => { openLink(setLocation, link); if (onClick) onClick() }}
+            onClick={() => {
+                // Check if link is different from current location
+                const shouldScroll = link === window.location.pathname;
+                // If same, scroll to top of page instead of navigating
+                if (shouldScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+                // Otherwise, navigate to link
+                else openLink(setLocation, link);
+                if (onClick) onClick()
+            }}
             icon={<Badge badgeContent={numNotifications} color="error"><Icon /></Badge>}
             sx={{ color: 'white' }}
         />

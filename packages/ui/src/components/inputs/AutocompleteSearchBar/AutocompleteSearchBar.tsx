@@ -368,7 +368,13 @@ export function AutocompleteSearchBar({
             renderInput={(params) => (
                 <Paper
                     component="form"
-                    sx={{ ...(sxs?.paper ?? {}), p: '2px 4px', display: 'flex', alignItems: 'center', borderRadius: '10px' }}
+                    sx={{ 
+                        ...(sxs?.paper ?? {}), 
+                        p: '2px 4px', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        borderRadius: '10px' 
+                    }}
                 >
                     <Input
                         id={params.id}

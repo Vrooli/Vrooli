@@ -94,14 +94,14 @@ export const AdvancedSearchDialog = ({
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': {
-                    background: theme.palette.background.default,
-                    color: theme.palette.background.textPrimary,
                     minWidth: 'min(400px, 100%)',
                 },
                 '& .MuiPaper-root': {
                     margin: { xs: 0, sm: 2, md: 4 },
                     maxWidth: { xs: '100%!important', sm: 'calc(100% - 64px)' },
                     display: { xs: 'block', sm: 'inline-block' },
+                    background: theme.palette.background.default,
+                    color: theme.palette.background.textPrimary,
                 },
                 // Remove ::after element that is added to the dialog
                 '& .MuiDialog-container::after': {
@@ -129,6 +129,7 @@ export const AdvancedSearchDialog = ({
                     background: theme.palette.primary.dark,
                     maxWidth: 'min(700px, 100%)',
                     margin: 0,
+                    paddingBottom: 'env(safe-area-inset-bottom)',
                 }}>
                     <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
                         <Button

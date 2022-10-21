@@ -35,13 +35,15 @@ export type NavigableObject = {
     __typename: string
     handle?: string | null,
     id: string,
+    versionGroupId?: string | null,
     routine?: {
+        __typename: string
         id: string
     } | null,
     to?: {
         __typename: string,
         handle?: string | null,
-        id?: string,
+        id: string,
     }
 }
 
@@ -165,12 +167,13 @@ export interface ObjectOption {
     stars?: number;
     [key: string]: any;
     routine?: {
+        __typename: string
         id: string
     } | null,
     to?: {
         __typename: string,
         handle?: string | null,
-        id?: string,
+        id: string,
     }
 }
 

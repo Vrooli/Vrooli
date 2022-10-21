@@ -50,8 +50,7 @@ export const RoutineView = ({
             versionGroupId: uuidValidate(secondLast) ? secondLast : last,
         }
     }, []);
-    const [getData, { data, loading, error }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
-    console.log('query error', error);
+    const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
     useEffect(() => {
         if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { input: { id, versionGroupId } } });
         // If IDs are not invalid, throw error if we are not creating a new routine
@@ -599,7 +598,7 @@ export const RoutineView = ({
                             onChange={(isStar: boolean) => { routine && setRoutine({ ...routine, isStarred: isStar }) }}
                             tooltipPlacement="bottom"
                         />
-                        <ReportsLink object={routine} />
+                        {routine.id && <ReportsLink object={routine} />}
                         <Tooltip title="More options">
                             <IconButton
                                 aria-label="More"

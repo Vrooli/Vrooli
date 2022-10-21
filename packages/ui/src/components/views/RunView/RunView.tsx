@@ -255,7 +255,7 @@ export const RunView = ({
     const params = useReactSearch(null);
     const { runId, testMode } = useMemo(() => {
         return {
-            runId: (typeof params.run === 'string' && uuidValidate(base36ToUuid(params.run, false))) ? base36ToUuid(params.run, false) : undefined,
+            runId: (typeof params.run === 'string' && uuidValidate(base36ToUuid(params.run, false))) ? base36ToUuid(params.run) : undefined,
             testMode: params.run === 'test',
         }
     }, [params])

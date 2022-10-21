@@ -56,7 +56,7 @@ export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string =>
  * @param object Object being navigated to
  * @returns String used to reference object in URL slug
  */
-export const getObjectSlug = (object: any) => {
+export const getObjectSlug = (object: NavigableObject): string => {
     // If object is a star/vote/some other type that links to a main object, use that object's slug
     if (object.to) return getObjectSlug(object.to);
     // If object is a run, navigate to the routine

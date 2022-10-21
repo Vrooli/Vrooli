@@ -111,7 +111,6 @@ const CommandPalette = ({
         }
         // Otherwise, object url must be constructed
         else {
-            console.log('onInputSelect', newValue, getObjectSlug(newValue));
             newLocation = `${getObjectUrlBase(newValue)}/${getObjectSlug(newValue)}`
         }
         // If new pathname is the same, reload page
