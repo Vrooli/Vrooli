@@ -78,10 +78,8 @@ export const BuildView = ({
      */
     useEffect(() => {
         const searchParams = parseSearchParams();
-        const routineId = id.length > 0 ? id : window.location.pathname.split('/').pop();
-        // Editing if specified in search params, or id not set (new routine)
-        if (searchParams.edit || !routineId || !uuidValidate(routineId)) {
-            console.log('page load is editing', searchParams, routineId);
+        const isCreate = window.location.pathname.split('/').pop() === 'add';
+        if (searchParams.edit || isCreate) {
             setIsEditing(true);
         }
     }, [id]);
@@ -224,7 +222,7 @@ export const BuildView = ({
         validationSchema: validationSchema({ minVersion: routine?.version ?? '0.0.1' }),
         onSubmit: (values) => {
             // If routine is new, create it
-            if (!uuidValidate(id)) {
+            if (window.location.pathname.split('/').pop() === 'add') {
                 if (!changedRoutine) {
                     PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: SnackSeverity.Error });
                     return;

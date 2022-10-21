@@ -263,15 +263,14 @@ export const RoutineListNode = ({
 
     /**
      * Border color indicates status of node.
-     * Default (grey) for valid or unlinked, 
      * Yellow for missing subroutines,
      * Red for not fully connected (missing in or out links)
      */
-    const borderColor = useMemo(() => {
-        if (!isLinked) return 'gray';
+    const borderColor = useMemo<string | null>(() => {
+        if (!isLinked) return null;
         if (linksIn.length === 0 || linksOut.length === 0) return 'red';
         if (routines.length === 0) return 'yellow';
-        return 'gray';
+        return null;
     }, [linksIn, isLinked, linksOut, routines]);
 
 
@@ -330,7 +329,7 @@ export const RoutineListNode = ({
                 overflow: 'hidden',
                 backgroundColor: palette.background.paper,
                 color: palette.background.textPrimary,
-                boxShadow: `0px 0px 12px ${borderColor}`,
+                boxShadow: borderColor ? `0px 0px 12px ${borderColor}` : 12,
             }}
         >
             <NodeContextMenu

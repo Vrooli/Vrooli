@@ -30,13 +30,12 @@ export const EndNode = ({
 
     /**
      * Border color indicates status of node.
-     * Default (grey) for valid or unlinked, 
      * Red for not fully connected (missing in links)
      */
-    const borderColor = useMemo(() => {
-        if (!isLinked) return 'gray';
+    const borderColor = useMemo<string | null>(() => {
+        if (!isLinked) return null;
         if (linksIn.length === 0) return 'red';
-        return 'gray';
+        return null;
     }, [isLinked, linksIn.length]);
 
     const labelObject = useMemo(() => labelVisible && scale >= 0.5 ? (
@@ -123,7 +122,7 @@ export const EndNode = ({
                         backgroundColor: node.data?.wasSuccessful === false ? '#7c262a' : '#387e30',
                         color: 'white',
                         borderRadius: '100%',
-                        boxShadow: `0px 0px 12px ${borderColor}`,
+                        boxShadow: borderColor ? `0px 0px 12px ${borderColor}` : 12,
                         '&:hover': {
                             filter: `brightness(120%)`,
                             transform: 'scale(1.1)',

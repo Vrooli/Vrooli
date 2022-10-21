@@ -20,12 +20,11 @@ export const StartNode = ({
 
     /**
      * Border color indicates status of node.
-     * Default (grey) for valid or unlinked, 
      * Red for not fully connected (missing in links)
      */
-    const borderColor = useMemo(() => {
+    const borderColor = useMemo<string | null>(() => {
         if (linksOut.length === 0) return 'red';
-        return 'gray';
+        return null;
     }, [linksOut.length]);
 
     const labelObject = useMemo(() => labelVisible && scale >= 0.5 ? (
@@ -74,7 +73,7 @@ export const StartNode = ({
                     aria-owns={contextOpen ? contextId : undefined}
                     {...pressEvents}
                     sx={{
-                        boxShadow: `0px 0px 12px ${borderColor}`,
+                        boxShadow: borderColor ? `0px 0px 12px ${borderColor}` : 12,
                         width: nodeSize,
                         height: nodeSize,
                         fontSize: fontSize,

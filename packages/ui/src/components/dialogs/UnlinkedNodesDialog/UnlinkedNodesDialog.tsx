@@ -86,7 +86,7 @@ export const UnlinkedNodesDialog = ({
                 paddingRight: 1,
                 marginRight: 1,
                 marginTop: open ? '4px' : 'unset',
-                maxHeight: { xs: '62vh', sm: '65vh', md: '72vh' },
+                maxHeight: { xs: '50vh', sm: '65vh', md: '72vh' },
                 overflowX: 'hidden',
                 overflowY: 'auto',
                 width: open ? { xs: '100%', sm: '375px' } : 'fit-content',

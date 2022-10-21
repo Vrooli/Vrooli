@@ -17,11 +17,11 @@ export const ColorIconButton = ({
             sx={{
                 backgroundColor: background,
                 pointerEvents: disabled ? 'none' : 'auto',
-                filter: disabled ? 'grayscale(100%) brightness(0.5)' : 'none',
+                filter: disabled ? 'grayscale(1) opacity(0.5)' : 'none',
                 transition: 'filter 0.2s ease-in-out',
                 '&:hover': {
                     backgroundColor: background,
-                    filter: disabled ? 'grayscale(100%) brightness(0.5)' : 'brightness(1.2)',
+                    filter: disabled ? 'grayscale(1) opacity(0.5)' : 'brightness(1.2)',
                 },
                 ...(sx ?? {}),
             }}
