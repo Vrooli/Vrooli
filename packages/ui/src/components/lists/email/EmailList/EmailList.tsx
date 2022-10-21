@@ -4,7 +4,7 @@
 import { EmailListProps } from '../types';
 import { useCallback } from 'react';
 import { Email } from 'types';
-import { Box, IconButton, Stack, TextField, useTheme } from '@mui/material';
+import { Box, Stack, TextField, useTheme } from '@mui/material';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { PubSub, updateArray } from 'utils';
@@ -19,6 +19,7 @@ import { deleteOneVariables, deleteOne_deleteOne } from 'graphql/generated/delet
 import { sendVerificationEmailVariables, sendVerificationEmail_sendVerificationEmail } from 'graphql/generated/sendVerificationEmail';
 import { AddIcon } from '@shared/icons';
 import { SnackSeverity } from 'components/dialogs';
+import { ColorIconButton } from 'components/buttons';
 
 export const EmailList = ({
     handleUpdate,
@@ -159,16 +160,16 @@ export const EmailList = ({
                         }
                     }}
                 />
-                <IconButton
+                <ColorIconButton
                     aria-label='add-new-email-button'
+                    background={palette.secondary.main}
                     type='submit'
                     sx={{
-                        background: palette.secondary.main,
                         borderRadius: '0 5px 5px 0',
                         height: '56px',
                     }}>
                     <AddIcon />
-                </IconButton>
+                </ColorIconButton>
             </Stack>
         </form>
     )

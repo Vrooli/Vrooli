@@ -1,3 +1,4 @@
+export * from './ColorIconButton/ColorIconButton';
 export * from './CommentsButton/CommentsButton';
 export * from './GridSubmitButtons/GridSubmitButtons';
 export * from './PopupMenu/PopupMenu';

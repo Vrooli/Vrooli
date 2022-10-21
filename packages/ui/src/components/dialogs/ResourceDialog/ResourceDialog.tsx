@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { resourceCreate as validationSchema, resourceTranslationUpdate } from '@shared/validation';
-import { Dialog, DialogContent, FormControl, Grid, IconButton, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
+import { Dialog, DialogContent, FormControl, Grid, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
 import { useFormik } from 'formik';
 import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AutocompleteSearchBar, LanguageInput } from 'components/inputs';
 import { AutocompleteOption, Resource } from 'types';
 import { DUMMY_ID, uuid } from '@shared/uuid';
-import { DialogTitle, getResourceIcon, GridSubmitButtons, SnackSeverity } from 'components';
+import { ColorIconButton, DialogTitle, getResourceIcon, GridSubmitButtons, SnackSeverity } from 'components';
 import { SearchIcon } from '@shared/icons';
 import { homePage, homePageVariables } from 'graphql/generated/homePage';
 import { homePageQuery } from 'graphql/query';
@@ -326,16 +326,16 @@ export const ResourceDialog = ({
                                         }
                                     }}
                                 />
-                                <IconButton
+                                <ColorIconButton
                                     aria-label='find URL'
                                     onClick={openSearch}
+                                    background={palette.secondary.main}
                                     sx={{
-                                        background: palette.secondary.main,
                                         borderRadius: '0 5px 5px 0',
                                         height: '56px',
                                     }}>
                                     <SearchIcon />
-                                </IconButton>
+                                </ColorIconButton>
                             </Stack>
                             {/* Select resource type */}
                             <FormControl fullWidth>

@@ -3,12 +3,12 @@ import {
     BottomNavigation,
     BottomNavigationAction,
     Box,
-    IconButton,
     Tooltip,
     useTheme,
 } from '@mui/material';
 import { DiscordIcon, GitHubIcon, SvgComponent, TwitterIcon } from '@shared/icons';
 import { ContactInfoProps } from '../types';
+import { ColorIconButton } from 'components/buttons';
 
 const contactInfo: [string, string, string, SvgComponent][] = [
     ['Find us on Twitter', 'Twitter', SOCIALS.Twitter, TwitterIcon],
@@ -42,9 +42,9 @@ export const ContactInfo = ({
                             label={label}
                             onClick={(e) => openLink(e, link)}
                             icon={
-                                <IconButton sx={{ background: palette.secondary.main }}>
+                                <ColorIconButton background={palette.secondary.main} >
                                     <Icon fill={palette.secondary.contrastText} />
-                                </IconButton>
+                                </ColorIconButton>
                             }
                             sx={{
                                 alignItems: 'center',

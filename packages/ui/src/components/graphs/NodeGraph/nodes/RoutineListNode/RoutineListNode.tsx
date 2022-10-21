@@ -22,6 +22,7 @@ import { getTranslation, BuildAction, updateTranslationFields, PubSub, usePress,
 import { EditableLabel } from 'components/inputs';
 import { AddIcon, CloseIcon, ExpandLessIcon, ExpandMoreIcon } from '@shared/icons';
 import { requiredErrorMessage, title as titleValidation } from '@shared/validation';
+import { ColorIconButton } from 'components/buttons';
 
 /**
  * Distance before a click is considered a drag
@@ -275,11 +276,12 @@ export const RoutineListNode = ({
 
 
     const addButton = useMemo(() => isEditing ? (
-        <IconButton
+        <ColorIconButton
             onClick={handleSubroutineAdd}
             onTouchStart={handleSubroutineAdd}
+            background='#6daf72'
             sx={{
-                boxShadow: '0px 0px 12px gray',
+                boxShadow: 12,
                 width: addSize,
                 height: addSize,
                 position: 'relative',
@@ -287,18 +289,12 @@ export const RoutineListNode = ({
                 margin: '5px auto',
                 display: 'flex',
                 alignItems: 'center',
-                backgroundColor: '#6daf72',
                 color: 'white',
                 borderRadius: '100%',
-                '&:hover': {
-                    backgroundColor: '#6daf72',
-                    filter: `brightness(110%)`,
-                    transition: 'filter 0.2s',
-                },
             }}
         >
             <AddIcon />
-        </IconButton>
+        </ColorIconButton>
     ) : null, [addSize, handleSubroutineAdd, isEditing]);
 
     // Right click context menu

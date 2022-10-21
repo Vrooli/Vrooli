@@ -1,15 +1,17 @@
-import { Box, IconButton, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography, useTheme } from '@mui/material';
 import { useCallback, useMemo } from 'react';
 import { ThemeSwitchProps } from '../types';
 import { noSelect } from 'styles';
 import { PubSub } from 'utils';
 import { DarkModeIcon, LightModeIcon } from '@shared/icons';
+import { ColorIconButton } from 'components/buttons';
 
 export function ThemeSwitch({
     showText = true,
     theme,
     onChange,
 }: ThemeSwitchProps) {
+    const { palette } = useTheme();
 
     const handleChange = useCallback(() => {
         const newTheme = theme === 'light' ? 'dark' : 'light';
@@ -40,7 +42,7 @@ export function ThemeSwitch({
                     height: '100%',
                 }}>
                     {/* Thumb */}
-                    <IconButton sx={{
+                    <ColorIconButton background={palette.secondary.main} sx={{
                         display: 'inline-flex',
                         width: '40px',
                         height: '40px',
@@ -48,13 +50,9 @@ export function ThemeSwitch({
                         top: 0,
                         transition: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)',
                         transform: `translateX(${isDark ? '24' : '0'}px)`,
-                        backgroundColor: (t) => t.palette.secondary.main,
-                        '&:hover': {
-                            backgroundColor: (t) => t.palette.secondary.main,
-                        },
                     }}>
-                        <Icon fill="white" />
-                    </IconButton>
+                        <Icon fill={palette.secondary.contrastText} />
+                    </ColorIconButton>
                 </Box>
                 {/* Input */}
                 <input

@@ -1,5 +1,5 @@
 import { useMutation } from '@apollo/client';
-import { Box, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from '@shared/icons';
 import { voteVariables, vote_vote } from 'graphql/generated/vote';
 import { voteMutation } from 'graphql/mutation';
@@ -84,47 +84,43 @@ export const UpvoteDownvote = ({
     return (
         <Stack direction={direction} sx={{ pointerEvents: 'none' }}>
             {/* Upvote arrow */}
-            <Tooltip title="Upvote" placement={direction === "column" ? "left" : "top"}>
-                <Box
-                    display="inline-block"
-                    onClick={handleUpvoteClick}
-                    role="button"
-                    aria-pressed={internalIsUpvoted === true}
-                    sx={{
-                        cursor: (userId || disabled) ? 'pointer' : 'default',
-                        pointerEvents: 'all',
-                        display: 'flex',
-                        '&:hover': {
-                            filter: userId ? `brightness(120%)` : 'none',
-                            transition: 'filter 0.2s',
-                        },
-                    }}
-                >
-                    <UpvoteIcon width="36px" height="36px" fill={upvoteColor} />
-                </Box>
-            </Tooltip>
+            <Box
+                display="inline-block"
+                onClick={handleUpvoteClick}
+                role="button"
+                aria-pressed={internalIsUpvoted === true}
+                sx={{
+                    cursor: (userId || disabled) ? 'pointer' : 'default',
+                    pointerEvents: 'all',
+                    display: 'flex',
+                    '&:hover': {
+                        filter: userId ? `brightness(120%)` : 'none',
+                        transition: 'filter 0.2s',
+                    },
+                }}
+            >
+                <UpvoteIcon width="36px" height="36px" fill={upvoteColor} />
+            </Box>
             {/* Score */}
             <Typography variant="body1" textAlign="center" sx={{ margin: 'auto', pointerEvents: 'none' }}>{internalScore}</Typography>
             {/* Downvote arrow */}
-            <Tooltip title="Downvote" placement={direction === "column" ? "left" : "top"}>
-                <Box
-                    display="inline-block"
-                    onClick={handleDownvoteClick}
-                    role="button"
-                    aria-pressed={internalIsUpvoted === false}
-                    sx={{
-                        cursor: (userId || disabled) ? 'pointer' : 'default',
-                        pointerEvents: 'all',
-                        display: 'flex',
-                        '&:hover': {
-                            filter: userId ? `brightness(120%)` : 'none',
-                            transition: 'filter 0.2s',
-                        },
-                    }}
-                >
-                    <DownvoteIcon width="36px" height="36px" fill={downvoteColor} />
-                </Box>
-            </Tooltip>
+            <Box
+                display="inline-block"
+                onClick={handleDownvoteClick}
+                role="button"
+                aria-pressed={internalIsUpvoted === false}
+                sx={{
+                    cursor: (userId || disabled) ? 'pointer' : 'default',
+                    pointerEvents: 'all',
+                    display: 'flex',
+                    '&:hover': {
+                        filter: userId ? `brightness(120%)` : 'none',
+                        transition: 'filter 0.2s',
+                    },
+                }}
+            >
+                <DownvoteIcon width="36px" height="36px" fill={downvoteColor} />
+            </Box>
         </Stack>
     )
 }

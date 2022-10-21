@@ -1,6 +1,5 @@
 import {
     Box,
-    IconButton,
     Stack,
     Tooltip,
     Typography,
@@ -16,6 +15,7 @@ import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { urlRegex, walletAddressRegex, adaHandleRegex } from '@shared/validation';
 import { SnackSeverity, UsedForDisplay } from 'components/dialogs';
 import { DeleteIcon, EditIcon } from '@shared/icons';
+import { ColorIconButton } from 'components/buttons';
 
 /**
  * Determines if a resource is a URL, wallet payment address, or an ADA handle
@@ -59,8 +59,6 @@ export const ResourceCard = ({
     const handleClick = useCallback((target: EventTarget) => {
         // Check if edit or delete button was clicked
         const targetId: string | undefined = target.id;
-        console.log('handleclick', targetId);
-        PubSub.get().publishSnack({ message: `handleclick: ${targetId}`, severity: SnackSeverity.Info });
         if (targetId && targetId.startsWith('edit-')) {
             onEdit?.(index);
         }
@@ -145,14 +143,22 @@ export const ResourceCard = ({
                 {showIcons && (
                     <>
                         <Tooltip title="Edit">
-                            <IconButton id='edit-icon-button' sx={{ position: 'absolute', top: 4, left: 4, background: palette.secondary.main }}>
+                            <ColorIconButton
+                                id='edit-icon-button'
+                                background={palette.secondary.main}
+                                sx={{ position: 'absolute', top: 4, left: 4 }}
+                            >
                                 <EditIcon id='edit-icon' fill={palette.secondary.contrastText} />
-                            </IconButton>
+                            </ColorIconButton>
                         </Tooltip>
                         <Tooltip title="Delete">
-                            <IconButton id='delete-icon-button' sx={{ position: 'absolute', top: 4, right: 4, background: palette.secondary.main }}>
+                            <ColorIconButton
+                                id='delete-icon-button'
+                                background={palette.secondary.main}
+                                sx={{ position: 'absolute', top: 4, right: 4 }}
+                            >
                                 <DeleteIcon id='delete-icon' fill={palette.secondary.contrastText} />
-                            </IconButton>
+                            </ColorIconButton>
                         </Tooltip>
                     </>
                 )}

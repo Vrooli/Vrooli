@@ -1,5 +1,5 @@
-import { IconButton, Stack, Tooltip, useTheme } from '@mui/material';
-import { ContentCollapse } from 'components';
+import { Stack, Tooltip, useTheme } from '@mui/material';
+import { ColorIconButton, ContentCollapse } from 'components';
 import { InputOutputContainerProps } from '../types';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { InputShape, OutputShape, updateArray } from 'utils';
@@ -40,11 +40,12 @@ interface AddButtonProps {
  */
 const AddButton = ({ index, isInput, handleAdd }: AddButtonProps) => (
     <Tooltip placement="top" title="Add">
-        <IconButton
+        <ColorIconButton
             id={`add-${isInput ? 'input' : 'output'}-item-${index}`}
             color="inherit"
             onClick={() => handleAdd(index, {} as any)}
             aria-label="add item"
+            background="#6daf72"
             sx={{
                 zIndex: 1,
                 width: 'fit-content',
@@ -53,18 +54,11 @@ const AddButton = ({ index, isInput, handleAdd }: AddButtonProps) => (
                 marginBottom: '16px !important',
                 display: 'flex',
                 alignItems: 'center',
-                backgroundColor: '#6daf72',
-                color: 'white',
                 borderRadius: '100%',
-                '&:hover': {
-                    backgroundColor: '#6daf72',
-                    filter: `brightness(110%)`,
-                    transition: 'filter 0.2s',
-                },
             }}
         >
-            <AddIcon />
-        </IconButton>
+            <AddIcon fill='white' />
+        </ColorIconButton>
     </Tooltip>
 )
 

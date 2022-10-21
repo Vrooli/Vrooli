@@ -1,15 +1,21 @@
-import { ButtonProps } from '@mui/material';
+import { ButtonProps, IconButtonProps } from '@mui/material';
 import { ReportFor, StarFor } from '@shared/consts';
 import { SvgProps } from 'assets/img/types';
 import React from 'react';
 import { NavigableObject, Session } from 'types';
 import { Status } from 'utils';
 
+export interface ColorIconButtonProps extends IconButtonProps {
+    background: string;
+    children: JSX.Element | null;
+    disabled?: boolean;
+    sx?: { [key: string]: any };
+}
+
 export interface CommentsButtonProps {
     commentsCount: number | null; // Defaults to 0
     disabled?: boolean;
     object: { id: string, handle?: string | null, __typename: string } | null | undefined;
-    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 }
 
 export interface GridSubmitButtonsProps {
@@ -58,7 +64,6 @@ export interface ReportButtonProps {
 export interface ReportsButtonProps {
     reportsCount: number | null; // Defaults to 0
     object: { id: string, __typename: string } | null | undefined;
-    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 }
 
 export interface ReportsLinkProps {

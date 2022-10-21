@@ -2,7 +2,7 @@
  * Horizontal button list for assigning owner, project, and parent 
  * to objects
  */
-import { Box, IconButton, Palette, Stack, Tooltip, useTheme } from '@mui/material';
+import { Box, Palette, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import { RelationshipButtonsProps, RelationshipItemOrganization, RelationshipItemProject, RelationshipItemRoutine, RelationshipItemUser, RelationshipOwner } from '../types';
 import { firstString, getTranslation, getUserLanguages, ObjectType, openObject, PubSub } from 'utils';
@@ -13,6 +13,7 @@ import { TextShrink } from 'components/text/TextShrink/TextShrink';
 import { CompleteIcon as CompletedIcon, InvisibleIcon, OrganizationIcon, ProjectIcon as ProjIcon, RoutineIcon, UserIcon as SelfIcon, VisibleIcon } from '@shared/icons';
 import { useLocation } from '@shared/route';
 import { getCurrentUser } from 'utils/authentication';
+import { ColorIconButton } from 'components/buttons';
 
 /**
  * Converts session to user object
@@ -31,11 +32,6 @@ const commonButtonProps = (palette: Palette, disabled) => ({
     height: { xs: '58px', md: '69px' },
     overflow: 'hidden',
     boxShadow: disabled ? 0 : 4,
-    background: palette.primary.light,
-    '&:hover': {
-        background: palette.primary.light,
-        filter: 'brightness(120%)',
-    },
 })
 
 const commonIconProps = (palette: Palette) => ({
@@ -370,33 +366,33 @@ export function RelationshipButtons({
 
                 {/* Owner button */}
                 {isOwnerAvailable && <Tooltip title={ownerTooltip}>
-                    <IconButton sx={{ ...commonButtonProps(palette, disabled) }} onClick={handleOwnerClick}>
+                    <ColorIconButton background={palette.primary.light} sx={{ ...commonButtonProps(palette, disabled) }} onClick={handleOwnerClick}>
                         {OwnerIcon && <OwnerIcon {...commonIconProps(palette)} />}
-                    </IconButton>
+                    </ColorIconButton>
                 </Tooltip>}
                 {/* Project button */}
                 {isProjectAvailable && <Tooltip title={projectTooltip}>
-                    <IconButton sx={{ ...commonButtonProps(palette, disabled) }} onClick={handleProjectClick}>
+                    <ColorIconButton background={palette.primary.light} sx={{ ...commonButtonProps(palette, disabled) }} onClick={handleProjectClick}>
                         {ProjectIcon && <ProjectIcon {...commonIconProps(palette)} />}
-                    </IconButton>
+                    </ColorIconButton>
                 </Tooltip>}
                 {/* Parent button */}
                 {isParentAvailable && <Tooltip title={parentTooltip}>
-                    <IconButton sx={{ ...commonButtonProps(palette, disabled) }} onClick={handleParentClick}>
+                    <ColorIconButton background={palette.primary.light} sx={{ ...commonButtonProps(palette, disabled) }} onClick={handleParentClick}>
                         {ParentIcon && <ParentIcon {...commonIconProps(palette)} />}
-                    </IconButton>
+                    </ColorIconButton>
                 </Tooltip>}
                 {/* Privacy button */}
                 {isPrivateAvailable && <Tooltip title={privacyTooltip}>
-                    <IconButton sx={{ ...commonButtonProps(palette, disabled) }} onClick={handlePrivateClick}>
+                    <ColorIconButton background={palette.primary.light} sx={{ ...commonButtonProps(palette, disabled) }} onClick={handlePrivateClick}>
                         {PrivacyIcon && <PrivacyIcon {...commonIconProps(palette)} />}
-                    </IconButton>
+                    </ColorIconButton>
                 </Tooltip>}
                 {/* Complete button */}
                 {isCompleteAvailable && <Tooltip title={completeTooltip}>
-                    <IconButton sx={{ ...commonButtonProps(palette, disabled) }} onClick={handleCompleteClick}>
+                    <ColorIconButton background={palette.primary.light} sx={{ ...commonButtonProps(palette, disabled) }} onClick={handleCompleteClick}>
                         {CompleteIcon && <CompleteIcon {...commonIconProps(palette)} />}
-                    </IconButton>
+                    </ColorIconButton>
                 </Tooltip>}
             </Stack>
         </Box>

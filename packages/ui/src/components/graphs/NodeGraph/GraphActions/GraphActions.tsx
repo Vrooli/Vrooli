@@ -2,27 +2,16 @@
  * Used to create/update a link between two routine nodes
  */
 import {
-    IconButton,
-    Palette,
     Stack,
     Tooltip,
     useTheme
 } from '@mui/material';
 import { AddLinkIcon, CompressIcon, RedoIcon, UndoIcon } from '@shared/icons';
+import { ColorIconButton } from 'components/buttons';
 import { UnlinkedNodesDialog } from 'components/dialogs';
 import { useCallback, useMemo, useState } from 'react';
 import { useWindowSize } from 'utils';
 import { GraphActionsProps } from '../types';
-
-const commonButtonProps = (palette: Palette) => ({
-    background: palette.secondary.main,
-    marginRight: 1,
-    transition: 'brightness 0.2s ease-in-out',
-    '&:hover': {
-        filter: `brightness(120%)`,
-        background: palette.secondary.main,
-    },
-})
 
 export const GraphActions = ({
     canRedo,
@@ -58,46 +47,46 @@ export const GraphActions = ({
         }}>
             {showAll && <>
                 <Tooltip title={canUndo ? 'Undo' : ''}>
-                    <IconButton
+                    <ColorIconButton
                         id="undo-button"
                         disabled={!canUndo}
                         onClick={handleUndo}
                         aria-label="Undo"
-                        sx={commonButtonProps(palette)}
+                        background={palette.secondary.main}
                     >
                         <UndoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
-                    </IconButton>
+                    </ColorIconButton>
                 </Tooltip>
                 <Tooltip title={canRedo ? 'Redo' : ''}>
-                    <IconButton
+                    <ColorIconButton
                         id="redo-button"
                         disabled={!canRedo}
                         onClick={handleRedo}
                         aria-label="Redo"
-                        sx={commonButtonProps(palette)}
+                        background={palette.secondary.main}
                     >
                         <RedoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
-                    </IconButton>
+                    </ColorIconButton>
                 </Tooltip>
                 <Tooltip title='Clean up graph'>
-                    <IconButton
+                    <ColorIconButton
                         id="clean-graph-button"
                         onClick={handleCleanUpGraph}
                         aria-label='Clean up graph'
-                        sx={commonButtonProps(palette)}
+                        background={palette.secondary.main}
                     >
                         <CompressIcon id="clean-up-button-icon" fill={palette.secondary.contrastText} />
-                    </IconButton>
+                    </ColorIconButton>
                 </Tooltip>
                 <Tooltip title='Add new link'>
-                    <IconButton
+                    <ColorIconButton
                         id="add-link-button"
                         onClick={handleOpenLinkDialog}
                         aria-label='Add link'
-                        sx={commonButtonProps(palette)}
+                        background={palette.secondary.main}
                     >
                         <AddLinkIcon id="add-link-button-icon" fill={palette.secondary.contrastText} />
-                    </IconButton>
+                    </ColorIconButton>
                 </Tooltip>
             </>}
             {(isEditing || nodesOffGraph.length > 0) && <UnlinkedNodesDialog

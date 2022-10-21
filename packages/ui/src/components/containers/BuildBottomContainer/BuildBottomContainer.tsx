@@ -1,4 +1,4 @@
-import { Box, Dialog, Grid, IconButton, Palette, Slider, Stack, Tooltip, useTheme } from '@mui/material';
+import { Box, Dialog, Grid, Palette, Slider, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import { BuildRunState, setSearchParams, uuidToBase36 } from 'utils';
 import { BuildBottomContainerProps } from '../types';
@@ -6,18 +6,13 @@ import { useLocation } from '@shared/route';
 import { RunPickerMenu, UpTransition } from 'components/dialogs';
 import { RunView } from 'components/views';
 import { Run } from 'types';
-import { GridSubmitButtons } from 'components/buttons';
+import { ColorIconButton, GridSubmitButtons } from 'components/buttons';
 import { PauseIcon, PlayIcon } from '@shared/icons';
 
 const iconButtonProps = {
-    background: '#e4efee', 
     padding: 0, 
     width: '48px', 
     height: '48px',
-    '&:hover': {
-        background: '#e4efee',
-        filter: 'brightness(1.1)',
-    },
 }
 
 const iconProps = (palette: Palette) => ({
@@ -144,15 +139,15 @@ export const BuildBottomContainer = ({
                     </Tooltip> */}
                     {runState === BuildRunState.Running ? (
                         <Tooltip title="Pause Routine" placement="top">
-                            <IconButton aria-label="pause-routine" size='large' sx={iconButtonProps}>
+                            <ColorIconButton aria-label="pause-routine" background='#e4efee' sx={iconButtonProps}>
                                 <PauseIcon {...iconProps(palette)} />
-                            </IconButton>
+                            </ColorIconButton>
                         </Tooltip>
                     ) : (
                         <Tooltip title="Run Routine" placement="top">
-                            <IconButton aria-label="run-routine" size='large' onClick={runRoutine} sx={iconButtonProps}>
+                            <ColorIconButton aria-label="run-routine" onClick={runRoutine} background='#e4efee' sx={iconButtonProps}>
                                 <PlayIcon {...iconProps(palette)} />
-                            </IconButton>
+                            </ColorIconButton>
                         </Tooltip>
                     )}
                     {/* <Tooltip title={hasNext ? "Next" : ''} placement="top">

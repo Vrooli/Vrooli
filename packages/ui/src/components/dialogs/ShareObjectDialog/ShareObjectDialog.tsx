@@ -1,13 +1,14 @@
 /**
  * Dialog for sharing an object
  */
-import { Box, Dialog, IconButton, Palette, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, Dialog, Palette, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { ShareObjectDialogProps } from '../types';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { useMemo, useState } from 'react';
 import { getObjectSearchParams, getObjectSlug, getObjectUrlBase, ObjectType, usePress } from 'utils';
 import QRCode from "react-qr-code";
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
+import { ColorIconButton } from 'components/buttons';
 
 // Title for social media posts
 const postTitle: { [key in ObjectType]?: string } = {
@@ -22,11 +23,6 @@ const postTitle: { [key in ObjectType]?: string } = {
 const buttonProps = (palette: Palette) => ({
     height: '48px',
     width: '48px',
-    background: palette.secondary.main,
-    '&:hover': {
-        filter: `brightness(120%)`,
-        background: palette.secondary.main,
-    }
 })
 
 const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
@@ -107,29 +103,49 @@ export const ShareObjectDialog = ({
             <Box sx={{ padding: 2 }}>
                 <Stack direction="row" spacing={1} mb={2} display="flex" justifyContent="center" alignItems="center">
                     <Tooltip title="Copy invite link">
-                        <IconButton onClick={copyInviteLink} sx={buttonProps(palette)}>
+                        <ColorIconButton
+                            onClick={copyInviteLink}
+                            background={palette.secondary.main}
+                            sx={buttonProps(palette)}
+                        >
                             <CopyIcon fill={palette.secondary.contrastText} />
-                        </IconButton>
+                        </ColorIconButton>
                     </Tooltip>
                     <Tooltip title="Share by email">
-                        <IconButton onClick={() => openLink(`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(url)}`)} sx={buttonProps(palette)}>
+                        <ColorIconButton
+                            onClick={() => openLink(`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(url)}`)}
+                            background={palette.secondary.main}
+                            sx={buttonProps(palette)}
+                        >
                             <EmailIcon fill={palette.secondary.contrastText} />
-                        </IconButton>
+                        </ColorIconButton>
                     </Tooltip>
                     <Tooltip title="Tweet about us">
-                        <IconButton onClick={() => openLink(`https://twitter.com/intent/tweet?text=${encodeURIComponent(url)}`)} sx={buttonProps(palette)}>
+                        <ColorIconButton
+                            onClick={() => openLink(`https://twitter.com/intent/tweet?text=${encodeURIComponent(url)}`)}
+                            background={palette.secondary.main}
+                            sx={buttonProps(palette)}
+                        >
                             <TwitterIcon fill={palette.secondary.contrastText} />
-                        </IconButton>
+                        </ColorIconButton>
                     </Tooltip>
                     <Tooltip title="Post on LinkedIn">
-                        <IconButton onClick={() => openLink(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(url)}`)} sx={buttonProps(palette)}>
+                        <ColorIconButton
+                            onClick={() => openLink(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(url)}`)}
+                            background={palette.secondary.main}
+                            sx={buttonProps(palette)}
+                        >
                             <LinkedInIcon fill={palette.secondary.contrastText} />
-                        </IconButton>
+                        </ColorIconButton>
                     </Tooltip>
                     <Tooltip title="Share by another method">
-                        <IconButton onClick={shareNative} sx={buttonProps(palette)}>
+                        <ColorIconButton
+                            onClick={shareNative}
+                            background={palette.secondary.main}
+                            sx={buttonProps(palette)}
+                        >
                             <EllipsisIcon fill={palette.secondary.contrastText} />
-                        </IconButton>
+                        </ColorIconButton>
                     </Tooltip>
                 </Stack>
                 <Box

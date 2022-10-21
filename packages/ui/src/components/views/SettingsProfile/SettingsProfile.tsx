@@ -1,4 +1,4 @@
-import { Autocomplete, Box, Container, Grid, IconButton, Stack, TextField, Typography, useTheme } from "@mui/material"
+import { Autocomplete, Box, Container, Grid, Stack, TextField, Typography, useTheme } from "@mui/material"
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
@@ -10,7 +10,7 @@ import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationDat
 import { SettingsProfileProps } from "../types";
 import { useLocation } from '@shared/route';
 import { LanguageInput } from "components/inputs";
-import { GridSubmitButtons, HelpButton } from "components/buttons";
+import { ColorIconButton, GridSubmitButtons, HelpButton } from "components/buttons";
 import { findHandles, findHandlesVariables } from "graphql/generated/findHandles";
 import { findHandlesQuery } from "graphql/query";
 import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/generated/profileUpdate";
@@ -210,15 +210,14 @@ export const SettingsProfile = ({
                                     width: '100%',
                                 }}
                             />
-                            <IconButton
+                            <ColorIconButton
                                 aria-label='fetch-handles'
+                                background={palette.secondary.main}
                                 onClick={fetchHandles}
-                                sx={{
-                                    background: palette.secondary.main,
-                                    borderRadius: '0 5px 5px 0',
-                                }}>
+                                sx={{ borderRadius: '0 5px 5px 0' }}
+                            >
                                 <RefreshIcon />
-                            </IconButton>
+                            </ColorIconButton>
                         </Stack>
                     </Grid>
                     <Grid item xs={12}>
