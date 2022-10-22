@@ -5,7 +5,7 @@ import { assertRequestFrom } from '../auth/auth';
 import { Context } from '../context';
 import { CustomError } from '../error';
 import { genErrorCode } from '../logger';
-import { readManyHelper, ViewModel } from '../models';
+import { getUserId, readManyHelper, ViewModel } from '../models';
 import { rateLimit } from '../rateLimit';
 import { IWrap } from '../types';
 import { ViewSearchInput, ViewSearchResult } from './types';
@@ -54,7 +54,9 @@ export const resolvers = {
         views: async (_parent: undefined, { input }: IWrap<ViewSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ViewSearchResult> => {
             assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 2000, req });
-            return readManyHelper({ info, input, model: ViewModel, prisma, req, additionalQueries: { req } });
+            const userId = getUserId(req);
+            if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to view views.', { code: genErrorCode('0275') });
+            return readManyHelper({ info, input, model: ViewModel, prisma, req, additionalQueries: { userId } });
         },
     },
 }

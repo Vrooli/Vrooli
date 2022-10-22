@@ -5,6 +5,9 @@ import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { countHelper, createHelper, deleteManyHelper, getUserId, readManyHelper, readOneHelper, RunModel, updateHelper } from '../models';
 import { rateLimit } from '../rateLimit';
+import { CustomError } from '../error';
+import { genErrorCode } from '../logger';
+import { CODE } from '@shared/consts';
 
 export const typeDef = gql`
     enum RunSortBy {
@@ -193,7 +196,9 @@ export const resolvers = {
         },
         runs: async (_parent: undefined, { input }: IWrap<RunSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RunSearchResult> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, model: RunModel, prisma, req, additionalQueries: { req } });
+            const userId = getUserId(req);
+            if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to view runs.', { code: genErrorCode('0273') });
+            return readManyHelper({ info, input, model: RunModel, prisma, req, additionalQueries: { userId } });
         },
         runsCount: async (_parent: undefined, { input }: IWrap<RunCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, maxUser: 1000, req });

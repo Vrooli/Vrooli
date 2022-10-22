@@ -38,7 +38,6 @@ import { RunInputModel } from './runInput';
 import { uuidValidate } from '@shared/uuid';
 import { calculateVersionsFromString } from '@shared/validation';
 import { GraphQLModelType } from '.';
-import { Request } from 'express';
 const { difference, flatten, merge } = pkg;
 
 
@@ -1352,7 +1351,6 @@ export async function readOneHelper<GraphQLModel>({
     let id: string | null | undefined;
     if ((input as FindByVersionInput).versionGroupId) {
         const versionId = await getLatestVersion({ objectType: model.type as 'Routine' | 'Standard', prisma, versionGroupId: (input as FindByVersionInput).versionGroupId as string });
-        console.log('readonehelper got latest version', versionId);
         id = versionId;
     } else {
         id = input.id;
@@ -2395,7 +2393,6 @@ export async function getLatestVersion({
     prisma,
     versionGroupId,
 }: GetLatestVersionProps): Promise<string | undefined> {
-    console.log('in getlatestversion', objectType, versionGroupId, includeIncomplete);
     // Helper function to compare version strings
     const compareVersions = (a: string, b: string): number => {
         // Parse versions
@@ -2417,7 +2414,6 @@ export async function getLatestVersion({
     const versions = objectType === 'Routine' ? 
         await prisma.routine.findMany({ where: { versionGroupId, isComplete: includeIncomplete ? undefined : true }, select }) :
         await prisma.standard.findMany({ where: { versionGroupId }, select });
-    console.log('got versions', versions)
     // Sort versions
     versions.sort((a, b) => compareVersions(a.version, b.version));
     // Return latest version, or undefined if no versions
