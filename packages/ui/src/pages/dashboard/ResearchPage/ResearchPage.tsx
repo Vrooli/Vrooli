@@ -6,10 +6,11 @@ import { profile } from 'graphql/generated/profile';
 import { researchPage } from 'graphql/generated/researchPage';
 import { profileQuery, researchPageQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { NavigableObject, ResourceList } from 'types';
-import { listToListItems, openObject, stringifySearchParams, SearchPageTabOption } from 'utils';
+import { ResourceList } from 'types';
+import { listToListItems, stringifySearchParams, SearchPageTabOption } from 'utils';
 import { useLocation } from '@shared/route';
 import { ResearchPageProps } from '../types';
+import { getCurrentUser } from 'utils/authentication';
 
 const donateOrInvestText =
     ``
@@ -39,12 +40,14 @@ If you are not logged in, default resources will be displayed.`
 const voteText =
     `Projects listed here are requesting your vote on Project Catalyst! Click on their proposal resources to learn more.`
 
+const zIndex = 200;
+
 export const ResearchPage = ({
     session
 }: ResearchPageProps) => {
     const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all' });
-    useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
+    useEffect(() => { if (getCurrentUser(session).id) getProfile() }, [getProfile, session])
     const [resourceList, setResourceList] = useState<ResourceList | null>(null);
     useEffect(() => {
         if (!profileData?.profile?.resourceLists) return;
@@ -57,59 +60,50 @@ export const ResearchPage = ({
 
     const { data: researchPageData, loading: researchPageLoading } = useQuery<researchPage>(researchPageQuery, { errorPolicy: 'all' });
 
-    /**
-     * Opens page for list item
-     */
-    const toItemPage = useCallback((item: NavigableObject, event: any) => {
-        event?.stopPropagation();
-        // Navigate to item page
-        openObject(item, setLocation);
-    }, [setLocation]);
-
     const processes = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Routine'),
         items: researchPageData?.researchPage?.processes,
         keyPrefix: 'research-process-list-item',
         loading: researchPageLoading,
-        onClick: toItemPage,
         session,
-    }), [researchPageData?.researchPage?.processes, researchPageLoading, session, toItemPage])
+        zIndex,
+    }), [researchPageData?.researchPage?.processes, researchPageLoading, session])
 
     const newlyCompleted = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Project'),
         items: researchPageData?.researchPage?.newlyCompleted,
         keyPrefix: 'newly-completed-list-item',
         loading: researchPageLoading,
-        onClick: toItemPage,
         session,
-    }), [researchPageData?.researchPage?.newlyCompleted, researchPageLoading, session, toItemPage])
+        zIndex,
+    }), [researchPageData?.researchPage?.newlyCompleted, researchPageLoading, session])
 
     const needVotes = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Project'),
         items: researchPageData?.researchPage?.needVotes,
         keyPrefix: 'need-votes-list-item',
         loading: researchPageLoading,
-        onClick: toItemPage,
         session,
-    }), [researchPageData?.researchPage?.needVotes, researchPageLoading, session, toItemPage])
+        zIndex,
+    }), [researchPageData?.researchPage?.needVotes, researchPageLoading, session])
 
     const needInvestments = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Project'),
         items: researchPageData?.researchPage?.needInvestments,
         keyPrefix: 'need-investments-list-item',
         loading: researchPageLoading,
-        onClick: toItemPage,
         session,
-    }), [researchPageData?.researchPage?.needInvestments, researchPageLoading, session, toItemPage])
+        zIndex,
+    }), [researchPageData?.researchPage?.needInvestments, researchPageLoading, session])
 
     const needMembers = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Organization'),
         items: researchPageData?.researchPage?.needMembers,
         keyPrefix: 'need-members-list-item',
         loading: researchPageLoading,
-        onClick: toItemPage,
         session,
-    }), [researchPageData?.researchPage?.needMembers, researchPageLoading, session, toItemPage])
+        zIndex,
+    }), [researchPageData?.researchPage?.needMembers, researchPageLoading, session])
 
     const toCreateProcess = useCallback((event: any) => {
         event?.stopPropagation();

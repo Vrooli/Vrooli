@@ -4,7 +4,7 @@
  * @param element The element to remove the highlight spans from. If not given, the entire document is used.
  */
 export const removeHighlights = (highlightClass: string, element?: HTMLElement) => {
-    const root = element || document.getElementById('page-container');
+    const root = element || document.getElementById('content-wrap');
     if (!root) return;
     const highlightedElements = root.querySelectorAll(`.${highlightClass}`);
     highlightedElements.forEach((root) => {
@@ -24,7 +24,7 @@ export const removeHighlights = (highlightClass: string, element?: HTMLElement) 
  */
 export const getTextNodes = (element?: HTMLElement) => {
     const textNodes: Text[] = [];
-    const root = element || document.getElementById('page-container');
+    const root = element || document.getElementById('content-wrap');
     if (!root) return textNodes;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
     let node = walker.nextNode();

@@ -76,7 +76,7 @@ export const viewFormatter = (): FormatConverter<View, any> => ({
                     input: { ids: toIdsByType[type] },
                     model,
                     prisma,
-                    userId,
+                    req: { users: [{ id: userId }] }
                 })
                 tos.push(...paginated.edges.map(x => x.node));
             }
@@ -180,7 +180,6 @@ const viewMutater = (prisma: PrismaType) => ({
         })
         // If view already existed, update view time
         if (view) {
-            console.log('view exists', JSON.stringify(view), '\n\n')
             await prisma.view.update({
                 where: { id: view.id },
                 data: {
@@ -199,7 +198,6 @@ const viewMutater = (prisma: PrismaType) => ({
                 }
             })
         }
-        console.log('created view', JSON.stringify(view), '\n\n');
         // Check if a view from this user should increment the view count
         let isOwn = false;
         switch (input.viewFor) {

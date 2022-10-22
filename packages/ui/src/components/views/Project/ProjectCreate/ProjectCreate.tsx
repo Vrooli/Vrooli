@@ -10,9 +10,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { uuid, uuidValidate } from '@shared/uuid';
+import { uuid } from '@shared/uuid';
 import { projectCreateVariables, projectCreate_projectCreate } from "graphql/generated/projectCreate";
 import { RelationshipsObject } from "components/inputs/types";
+import { getCurrentUser } from "utils/authentication";
 
 export const ProjectCreate = ({
     onCreated,
@@ -29,7 +30,6 @@ export const ProjectCreate = ({
         project: null,
     });
     const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
-        console.log('onRelationshipsChange', newRelationshipsObject);
         setRelationships({
             ...relationships,
             ...newRelationshipsObject,
@@ -48,7 +48,7 @@ export const ProjectCreate = ({
 
     // TODO upgrade to pull data from search params like it's done in AdvancedSearchDialog
     useEffect(() => {
-        const params = parseSearchParams(window.location.search);
+        const params = parseSearchParams();
         if (typeof params.tag === 'string') setTags([{ tag: params.tag }]);
         else if (Array.isArray(params.tags)) setTags(params.tags.map((t: any) => ({ tag: t })));
     }, []);
@@ -120,7 +120,7 @@ export const ProjectCreate = ({
         handleTranslationChange(formik, 'translationsCreate', e, language)
     }, [formik, language]);
 
-    const isLoggedIn = useMemo(() => session?.isLoggedIn === true && uuidValidate(session?.id ?? ''), [session]);
+    const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{

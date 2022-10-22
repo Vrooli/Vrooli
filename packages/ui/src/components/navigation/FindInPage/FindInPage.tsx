@@ -13,18 +13,14 @@ import {
 import { getTextNodes, normalizeText, PubSub, removeHighlights, wrapMatches } from 'utils';
 import { Stack } from '@mui/system';
 import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from '@shared/icons';
+import { ColorIconButton } from 'components/buttons';
 
-const commonButtonSx = (palette: Palette, isActivated?: boolean) => ({
-    background: isActivated ? palette.secondary.dark : 'transparent',
+const commonButtonSx = (palette: Palette) => ({
     borderRadius: '0',
     padding: '4px',
     color: 'inherit',
     width: '30px',
     height: '100%',
-    '&:hover': {
-        background: isActivated ? palette.secondary.dark : 'transparent',
-        filter: 'brightness(120%)',
-    },
 })
 
 const commonIconProps = (palette: Palette) => ({
@@ -183,13 +179,13 @@ const FindInPage = () => {
             sx={{
                 '& .MuiDialog-paper': {
                     background: palette.background.paper,
-                    border: palette.mode === 'dark' ? `1px solid white` : 'unset',
                     minWidth: 'min(100%, 350px)',
                     position: 'absolute',
                     top: '0%',
                     right: '0%',
                     overflowY: 'visible',
                     margin: { xs: '8px', sm: '16px' },
+                    boxShadow: 12,
                 },
                 '& .MuiDialogContent-root': {
                     padding: '12px 8px',
@@ -249,36 +245,63 @@ const FindInPage = () => {
                         {/* Buttons for case-sensitive, match whole word, and regex */}
                         <Box display="flex" alignItems="center">
                             <Tooltip title="Match case (Alt+C)">
-                                <IconButton aria-label="case-sensitive" sx={commonButtonSx(palette, isCaseSensitive)} onClick={onCaseSensitiveChange}>
+                                <ColorIconButton
+                                    aria-label="case-sensitive"
+                                    background={isCaseSensitive ? palette.secondary.dark : palette.background.paper}
+                                    sx={commonButtonSx(palette)}
+                                    onClick={onCaseSensitiveChange}
+                                >
                                     <CaseSensitiveIcon {...commonIconProps(palette)} />
-                                </IconButton>
+                                </ColorIconButton>
                             </Tooltip>
                             <Tooltip title="Match whole word (Alt+W)">
-                                <IconButton aria-label="match whole word" sx={commonButtonSx(palette, isWholeWord)} onClick={onWholeWordChange}>
+                                <ColorIconButton
+                                    aria-label="match whole word"
+                                    background={isWholeWord ? palette.secondary.dark : palette.background.paper}
+                                    sx={commonButtonSx(palette)}
+                                    onClick={onWholeWordChange}
+                                >
                                     <WholeWordIcon {...commonIconProps(palette)} />
-                                </IconButton>
+                                </ColorIconButton>
                             </Tooltip>
                             <Tooltip title="Use regular expression (Alt+R)">
-                                <IconButton aria-label="match regex" sx={commonButtonSx(palette, isRegex)} onClick={onRegexChange}>
+                                <ColorIconButton
+                                    aria-label="match regex"
+                                    background={isRegex ? palette.secondary.dark : palette.background.paper}
+                                    sx={commonButtonSx(palette)}
+                                    onClick={onRegexChange}
+                                >
                                     <RegexIcon {...commonIconProps(palette)} />
-                                </IconButton>
+                                </ColorIconButton>
                             </Tooltip>
                         </Box>
                     </Stack>
                     {/* Up and down arrows, and close icon */}
                     <Box display="flex" alignItems="center" justifyContent="flex-end">
                         <Tooltip title="Previous result (Shift+Enter)">
-                            <IconButton aria-label="previous result" sx={commonButtonSx(palette)} onClick={onPrevious}>
+                            <IconButton
+                                aria-label="previous result"
+                                sx={commonButtonSx(palette)}
+                                onClick={onPrevious}
+                            >
                                 <ArrowUpIcon {...commonIconProps(palette)} />
                             </IconButton>
                         </Tooltip>
                         <Tooltip title="Next result (Enter)">
-                            <IconButton aria-label="next result" sx={commonButtonSx(palette)} onClick={onNext}>
+                            <IconButton
+                                aria-label="next result"
+                                sx={commonButtonSx(palette)}
+                                onClick={onNext}
+                            >
                                 <ArrowDownIcon {...commonIconProps(palette)} />
                             </IconButton>
                         </Tooltip>
                         <Tooltip title="Close">
-                            <IconButton aria-label="close" sx={commonButtonSx(palette)} onClick={close}>
+                            <IconButton
+                                aria-label="close"
+                                sx={commonButtonSx(palette)}
+                                onClick={close}
+                            >
                                 <CloseIcon {...commonIconProps(palette)} />
                             </IconButton>
                         </Tooltip>

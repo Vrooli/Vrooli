@@ -213,6 +213,9 @@ export const listStarFields = gql`
             ... on User {
                 ...listStarUserFields
             }
+            ... on Tag {
+                ...listStarTagFields
+            }
         }
     }
 `

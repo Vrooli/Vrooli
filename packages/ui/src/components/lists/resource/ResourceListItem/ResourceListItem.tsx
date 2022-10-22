@@ -6,7 +6,7 @@ import { useCallback, useMemo } from 'react';
 import { ResourceSortBy, ResourceUsedFor } from '@shared/consts';
 import { adaHandleRegex, urlRegex, walletAddressRegex } from '@shared/validation';
 import { useLocation } from '@shared/route';
-import { firstString, getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, openLink, PubSub, ResourceType } from 'utils';
+import { firstString, getTranslation, getUserLanguages, LabelledSortOption, labelledSortOptions, openLink, PubSub, ResourceType } from 'utils';
 import { Resource } from 'types';
 import { getResourceIcon } from '..';
 import { SnackSeverity, TextLoading } from 'components';
@@ -36,10 +36,11 @@ export function ResourceListItem({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const { description, title } = useMemo(() => {
-        const languages = session?.languages ?? navigator.languages;
+        const languages = getUserLanguages(session);
+        const { description, title } = getTranslation(data, languages, true);
         return {
-            description: getTranslation(data, 'description', languages, true),
-            title: getTranslation(data, 'title', languages, true),
+            description,
+            title,
         };
     }, [data, session]);
 
@@ -92,8 +93,9 @@ export function ResourceListItem({
                 onClick={handleClick}
                 sx={{
                     display: 'flex',
-                    background: listItemColor(index, palette),
+                    background: palette.background.paper,
                     color: palette.background.textPrimary,
+                    borderBottom: `1px solid ${palette.divider}`,
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>
@@ -136,4 +138,4 @@ export function ResourceListItem({
 
 export const ResourceSortOptions: LabelledSortOption<ResourceSortBy>[] = labelledSortOptions(ResourceSortBy);
 export const resourceDefaultSortOption = ResourceSortOptions[1];
-export const resourceOptionLabel = (o: Resource, languages: readonly string[]) => getTranslation(o, 'title', languages, true) ?? '';
+export const resourceOptionLabel = (o: Resource, languages: readonly string[]) => getTranslation(o, languages, true).title ?? '';

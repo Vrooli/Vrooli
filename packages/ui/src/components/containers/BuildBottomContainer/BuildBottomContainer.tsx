@@ -1,23 +1,18 @@
-import { Box, Dialog, Grid, IconButton, Palette, Slider, Stack, Tooltip, useTheme } from '@mui/material';
+import { Box, Dialog, Grid, Palette, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
-import { BuildRunState, setSearchParams } from 'utils';
+import { BuildRunState, setSearchParams, uuidToBase36 } from 'utils';
 import { BuildBottomContainerProps } from '../types';
 import { useLocation } from '@shared/route';
 import { RunPickerMenu, UpTransition } from 'components/dialogs';
 import { RunView } from 'components/views';
 import { Run } from 'types';
-import { GridSubmitButtons } from 'components/buttons';
+import { ColorIconButton, GridSubmitButtons } from 'components/buttons';
 import { PauseIcon, PlayIcon } from '@shared/icons';
 
 const iconButtonProps = {
-    background: '#e4efee', 
     padding: 0, 
     width: '48px', 
     height: '48px',
-    '&:hover': {
-        background: '#e4efee',
-        filter: 'brightness(1.1)',
-    },
 }
 
 const iconProps = (palette: Palette) => ({
@@ -34,13 +29,11 @@ export const BuildBottomContainer = ({
     handleSubmit,
     handleRunDelete,
     handleRunAdd,
-    handleScaleChange,
     hasPrevious,
     hasNext,
     isAdding,
     isEditing,
     loading,
-    scale,
     session,
     sliderColor,
     routine,
@@ -49,10 +42,6 @@ export const BuildBottomContainer = ({
 }: BuildBottomContainerProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-
-    const onScaleChange = useCallback((_event: any, newScale: number | number[]) => {
-        handleScaleChange(newScale as number);
-    }, [handleScaleChange]);
 
     const [isRunOpen, setIsRunOpen] = useState(false)
     const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
@@ -67,7 +56,7 @@ export const BuildBottomContainer = ({
         // Otherwise, open routine where last left off in run
         else {
             setSearchParams(setLocation, {
-                run: run.id,
+                run: uuidToBase36(run.id),
                 step: run.steps.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
             });
         }
@@ -94,37 +83,13 @@ export const BuildBottomContainer = ({
     };
 
     /**
-     * Slider for scaling the graph
-     */
-    const slider = useMemo(() => (
-        <Slider
-            aria-label="graph-scale"
-            defaultValue={1}
-            max={1}
-            min={0.25}
-            onChange={onScaleChange}
-            step={0.01}
-            value={scale}
-            valueLabelDisplay="auto"
-            sx={{
-                color: sliderColor,
-                maxWidth: '500px',
-                marginRight: 2,
-            }}
-        />
-    ), [scale, sliderColor, onScaleChange]);
-
-    /**
      * Display previous, play/pause, and next if not editing.
      * If editing, display update and cancel.
      */
     const buttons = useMemo(() => {
         return isEditing ?
             (
-                <Grid container spacing={1} sx={{
-                    display: { xs: 'contents', md: 'flex' },
-                    width: { xs: '100%', md: '300px' },
-                }}>
+                <Grid container spacing={1} sx={{ width: 'min(100%, 600px)' }}>
                     <GridSubmitButtons
                         disabledCancel={loading || !canCancelMutate}
                         disabledSubmit={loading || !canSubmitMutate}
@@ -144,15 +109,15 @@ export const BuildBottomContainer = ({
                     </Tooltip> */}
                     {runState === BuildRunState.Running ? (
                         <Tooltip title="Pause Routine" placement="top">
-                            <IconButton aria-label="pause-routine" size='large' sx={iconButtonProps}>
+                            <ColorIconButton aria-label="pause-routine" background='#e4efee' sx={iconButtonProps}>
                                 <PauseIcon {...iconProps(palette)} />
-                            </IconButton>
+                            </ColorIconButton>
                         </Tooltip>
                     ) : (
                         <Tooltip title="Run Routine" placement="top">
-                            <IconButton aria-label="run-routine" size='large' onClick={runRoutine} sx={iconButtonProps}>
+                            <ColorIconButton aria-label="run-routine" onClick={runRoutine} background='#e4efee' sx={iconButtonProps}>
                                 <PlayIcon {...iconProps(palette)} />
-                            </IconButton>
+                            </ColorIconButton>
                         </Tooltip>
                     )}
                     {/* <Tooltip title={hasNext ? "Next" : ''} placement="top">
@@ -205,7 +170,6 @@ export const BuildBottomContainer = ({
                     zIndex={zIndex + 1}
                 />}
             </Dialog>
-            {slider}
             {buttons}
         </Box>
     )

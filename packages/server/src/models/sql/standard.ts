@@ -465,7 +465,7 @@ export const standardMutater = (prisma: PrismaType) => ({
                 input: { id: deleteId, objectType: DeleteOneType.Standard },
                 model: StandardModel,
                 prisma,
-                userId,
+                req: { users: [{ id: userId }] },
             })
             return deleteId;
         }

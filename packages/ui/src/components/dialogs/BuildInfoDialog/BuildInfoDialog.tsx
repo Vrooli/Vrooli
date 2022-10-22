@@ -32,6 +32,7 @@ import { mutationWrapper } from 'graphql/utils';
 import { forkMutation, starMutation, voteMutation } from 'graphql/mutation';
 import { BranchIcon, CloseIcon, DeleteIcon, DownvoteWideIcon, InfoIcon, ReportIcon, ShareIcon, StarFilledIcon, StarOutlineIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from '@shared/icons';
 import { requiredErrorMessage, title as titleValidation } from '@shared/validation';
+import { getCurrentUser } from 'utils/authentication';
 
 export const BuildInfoDialog = ({
     formik,
@@ -52,7 +53,7 @@ export const BuildInfoDialog = ({
 }: BuildInfoDialogProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    console.log('buildinfodialog renderrr')
+    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     // Handle translations
     const { description, instructions, title, errorDescription, errorInstructions, touchedDescription, touchedInstructions } = useMemo(() => {
@@ -119,7 +120,7 @@ export const BuildInfoDialog = ({
         // [value, label, icon, secondaryLabel]
         const results: [ObjectAction, string, SvgComponent, string | null][] = [];
         // If signed in and not editing, show vote/star options
-        if (session?.isLoggedIn === true && !isEditing) {
+        if (userId && !isEditing) {
             results.push(routine?.isUpvoted ?
                 [ObjectAction.VoteDown, 'Downvote', DownvoteWideIcon, null] :
                 [ObjectAction.VoteUp, 'Upvote', UpvoteWideIcon, null]
@@ -149,7 +150,7 @@ export const BuildInfoDialog = ({
             )
         }
         return results;
-    }, [isEditing, routine?.id, routine?.isStarred, routine?.isUpvoted, routine?.permissionsRoutine?.canFork, routine?.permissionsRoutine?.canReport, session?.isLoggedIn]);
+    }, [isEditing, routine?.id, routine?.isStarred, routine?.isUpvoted, routine?.permissionsRoutine?.canFork, routine?.permissionsRoutine?.canReport, userId]);
 
     // Handle delete
     const [deleteOpen, setDeleteOpen] = useState(false);
@@ -178,7 +179,7 @@ export const BuildInfoDialog = ({
         mutationWrapper<fork_fork, forkVariables>({
             mutation: fork,
             input: { id: routine.id, objectType: ForkType.Routine },
-            successMessage: () => `${getTranslation(routine, 'title', [language], true)} forked.`,
+            successMessage: () => `${getTranslation(routine, [language], true).title} forked.`,
             onSuccess: (data) => { handleAction(ObjectAction.Fork, data) },
         })
     }, [fork, handleAction, language, routine]);
@@ -266,7 +267,7 @@ export const BuildInfoDialog = ({
             />}
             {/* Share dialog */}
             <ShareObjectDialog
-                objectType={ObjectType.Routine}
+                object={routine}
                 open={shareOpen}
                 onClose={closeShare}
                 zIndex={zIndex + 1}
@@ -276,7 +277,7 @@ export const BuildInfoDialog = ({
                 isOpen={deleteOpen}
                 objectId={routine?.id ?? ''}
                 objectType={DeleteOneType.Routine}
-                objectName={getTranslation(routine, 'title', [language], false) ?? ''}
+                objectName={getTranslation(routine, [language], false).title ?? ''}
                 handleClose={handleDeleteClose}
                 zIndex={zIndex + 3}
             />

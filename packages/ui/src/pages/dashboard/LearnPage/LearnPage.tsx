@@ -7,10 +7,11 @@ import { learnPage } from 'graphql/generated/learnPage';
 import { profile } from 'graphql/generated/profile';
 import { learnPageQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { NavigableObject, ResourceList } from 'types';
-import { listToListItems, openObject, SearchPageTabOption, stringifySearchParams } from 'utils';
+import { ResourceList } from 'types';
+import { listToListItems, SearchPageTabOption, stringifySearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { LearnPageProps } from '../types';
+import { getCurrentUser } from 'utils/authentication';
 
 const courseText =
     `Courses are community-created projects, each designed to teach a specific skill. Any project associated with the "learn" tag will be listed here.
@@ -31,12 +32,14 @@ In the future, we will add many new learning features, such as:
 const tutorialText =
     `Tutorials are community-created routines, each designed to teach a specific skill. Any routine associated with the "learn" tag will be listed here.`
 
+const zIndex = 200;
+
 export const LearnPage = ({
     session,
 }: LearnPageProps) => {
     const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all' });
-    useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
+    useEffect(() => { if (getCurrentUser(session).id) getProfile() }, [getProfile, session])
     const [resourceList, setResourceList] = useState<ResourceList | null>(null);
     useEffect(() => {
         if (!profileData?.profile?.resourceLists) return;
@@ -48,15 +51,6 @@ export const LearnPage = ({
     }, []);
 
     const { data: learnPageData, loading: learnPageLoading } = useQuery<learnPage>(learnPageQuery, { errorPolicy: 'all' });
-
-    /**
-     * Opens page for list item
-     */
-    const toItemPage = useCallback((item: NavigableObject, event: any) => {
-        event?.stopPropagation();
-        // Navigate to item page
-        openObject(item, setLocation);
-    }, [setLocation]);
 
     /**
      * Navigates to "New Project" page, with "Learn" tag as default
@@ -101,18 +95,18 @@ export const LearnPage = ({
         items: learnPageData?.learnPage?.courses,
         keyPrefix: 'course-list-item',
         loading: learnPageLoading,
-        onClick: toItemPage,
         session,
-    }), [learnPageData?.learnPage?.courses, learnPageLoading, session, toItemPage])
+        zIndex,
+    }), [learnPageData?.learnPage?.courses, learnPageLoading, session])
 
     const tutorials = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Routine'),
         items: learnPageData?.learnPage?.tutorials,
         keyPrefix: 'tutorial-list-item',
         loading: learnPageLoading,
-        onClick: toItemPage,
         session,
-    }), [learnPageData?.learnPage?.tutorials, learnPageLoading, session, toItemPage])
+        zIndex,
+    }), [learnPageData?.learnPage?.tutorials, learnPageLoading, session])
 
     return (
         <PageContainer>

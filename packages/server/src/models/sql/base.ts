@@ -1,6 +1,6 @@
 // Components for providing basic functionality to model objects
-import { CopyInput, CopyType, Count, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, FindByVersionInput, ForkInput, PageInfo, Success, TimeFrame, VisibilityType } from '../../schema/types';
-import { PrismaType, RecursivePartial } from '../../types';
+import { CopyInput, CopyType, Count, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, FindByVersionInput, ForkInput, PageInfo, Session, SessionUser, Success, TimeFrame, VisibilityType } from '../../schema/types';
+import { PrismaType, RecursivePartial, ReqForUserAuth } from '../../types';
 import { GraphQLResolveInfo } from 'graphql';
 import { CommentModel } from './comment';
 import { NodeModel } from './node';
@@ -491,23 +491,21 @@ export const deconstructUnionsHelper = <GraphQLModel>(data: { [x: string]: any }
     // Create result object
     let result: { [x: string]: any } = data;
     // For each union field
-    for (const [key, value] of Object.keys(unionMap)) {
+    for (const [key, value] of Object.entries(unionMap)) {
         // If it's not in data, continue
         if (!data[key]) continue;
-        // Remove the union field from the result
-        delete result[key];
         // Get data in union field
         const unionData = data[key];
+        // Remove the union field from the result
+        delete result[key];
         // If not an object, skip
         if(!isObject(unionData)) continue;
-        console.log('in deconstructunionhelper', key, JSON.stringify(unionData), '\n');
         // Value is an object where the keys are possible types of the union object, and values are the db field associated with that type
         // Iterate over the possible types
-        for (const [type, dbField] of Object.entries(value)) {
+        for (const [type, dbField] of Object.entries(value as { [x: string]: string })) {
             // If the type is in the union data, add the db field to the result
-            if ((unionData as any).__typename === type) {
-                // Add the db field to the result
-                result[dbField] = data[key];
+            if (unionData[type]) {
+                result[dbField] = unionData[type];
             }
         }
     }
@@ -526,7 +524,7 @@ export const constructUnionsHelper = <GraphQLModel>(partialInfo: { [x: string]: 
     // For each union field
     for (const [key, value] of Object.entries(unionMap)) {
         // For each type, dbField pair
-        for (const [type, dbField] of Object.entries(value as { [x: string]: string })) {
+        for (const [_, dbField] of Object.entries(value as { [x: string]: string })) {
             // If the dbField is in the partialInfo
             if (result[dbField as string]) {
                 // Set the union field to the dbField
@@ -1179,6 +1177,17 @@ const pickObjectById = (data: any, id: string): ({ id: string } & { [x: string]:
 }
 
 /**
+ * Finds current userId in Request object
+ * @param req Request object
+ * @returns First userId in Session object, or null if not found/invalid
+ */
+export const getUserId = (req: ReqForUserAuth): string | null => {
+    if (!req || !Array.isArray(req?.users) || req.users.length === 0) return null;
+    const userId = req.users[0].id;
+    return typeof userId === 'string' && uuidValidate(userId) ? userId : null;
+}
+
+/**
  * Adds supplemental fields to the select object, and all of its relationships (and their relationships, etc.)
  * Groups objects types together, so database is called only once for each type.
  * @param prisma Prisma client
@@ -1315,7 +1324,7 @@ type ReadOneHelperProps<GraphQLModel> = {
     input: FindByIdInput | FindByIdOrHandleInput | FindByVersionInput;
     model: ModelLogic<GraphQLModel, any, any>;
     prisma: PrismaType;
-    userId: string | null;
+    req: ReqForUserAuth;
 }
 
 /**
@@ -1327,9 +1336,10 @@ export async function readOneHelper<GraphQLModel>({
     input,
     model,
     prisma,
-    userId,
+    req,
 }: ReadOneHelperProps<GraphQLModel>): Promise<RecursivePartial<GraphQLModel>> {
     const objectType = model.format.relationshipMap.__typename;
+    const userId = getUserId(req);
     // Validate input. Can read by id, handle, or versionGroupId
     if (!input.id && !(input as FindByIdOrHandleInput).handle && !(input as FindByVersionInput).versionGroupId)
         throw new CustomError(CODE.InvalidArgs, 'id or handle is required', { code: genErrorCode('0019') });
@@ -1365,7 +1375,7 @@ export async function readOneHelper<GraphQLModel>({
     // If logged in and object has view count, handle it
     if (userId && objectType in ViewFor) {
         ViewModel.mutate(prisma).view(userId, { forId: object.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language
-    } else console.log('readonehelper: object type not in viewfor', objectType);
+    }
     return (await addSupplementalFields(prisma, userId, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
 }
 
@@ -1381,7 +1391,7 @@ type ReadManyHelperProps<GraphQLModel, SearchInput extends SearchInputBase<any>>
     input: any;
     model: ModelLogic<GraphQLModel, SearchInput, any>;
     prisma: PrismaType;
-    userId: string | null;
+    req: ReqForUserAuth;
 }
 
 /**
@@ -1397,8 +1407,9 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     input,
     model,
     prisma,
-    userId,
+    req,
 }: ReadManyHelperProps<GraphQLModel, SearchInput>): Promise<PaginatedSearchResult> {
+    const userId = getUserId(req);
     // Partially convert info type
     let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
@@ -1476,7 +1487,7 @@ type CountHelperProps<GraphQLModel, CountInput extends CountInputBase> = {
     input: CountInput;
     model: ModelLogic<GraphQLModel, any, any>;
     prisma: PrismaType;
-    userId: string | null;
+    req: ReqForUserAuth;
     where?: { [x: string]: any };
     visibility?: VisibilityType;
 }
@@ -1489,10 +1500,11 @@ export async function countHelper<GraphQLModel, CountInput extends CountInputBas
     input,
     model,
     prisma,
-    userId,
+    req,
     where,
     visibility = VisibilityType.Public,
 }: CountHelperProps<GraphQLModel, CountInput>): Promise<number> {
+    const userId = getUserId(req);
     // Create query for created metric
     const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
     // Create query for created metric
@@ -1513,7 +1525,7 @@ type CreateHelperProps<GraphQLModel> = {
     input: any;
     model: ModelLogic<GraphQLModel, any, any>;
     prisma: PrismaType;
-    userId: string | null;
+    req: ReqForUserAuth;
 }
 
 /**
@@ -1526,8 +1538,9 @@ export async function createHelper<GraphQLModel>({
     input,
     model,
     prisma,
-    userId,
+    req,
 }: CreateHelperProps<GraphQLModel>): Promise<RecursivePartial<GraphQLModel>> {
+    const userId = getUserId(req);
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object', { code: genErrorCode('0025') });
     if (!model.mutate || !model.mutate(prisma).cud)
@@ -1563,7 +1576,7 @@ type UpdateHelperProps<GraphQLModel> = {
     input: any;
     model: ModelLogic<GraphQLModel, any, any>;
     prisma: PrismaType;
-    userId: string | null;
+    req: ReqForUserAuth;
     where?: (obj: any) => { [x: string]: any };
 }
 
@@ -1576,9 +1589,10 @@ export async function updateHelper<GraphQLModel>({
     input,
     model,
     prisma,
-    userId,
+    req,
     where = (obj) => ({ id: obj.id }),
 }: UpdateHelperProps<any>): Promise<RecursivePartial<GraphQLModel>> {
+    const userId = getUserId(req);
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object', { code: genErrorCode('0029') });
     if (!model.mutate || !model.mutate(prisma).cud)
@@ -1614,7 +1628,7 @@ type DeleteOneHelperProps = {
     input: DeleteOneInput;
     model: ModelLogic<any, any, any>;
     prisma: PrismaType;
-    userId: string | null;
+    req: ReqForUserAuth;
 }
 
 /**
@@ -1625,8 +1639,9 @@ export async function deleteOneHelper({
     input,
     model,
     prisma,
-    userId,
+    req,
 }: DeleteOneHelperProps): Promise<Success> {
+    const userId = getUserId(req);
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete object', { code: genErrorCode('0033') });
     if (!model.mutate || !model.mutate(prisma).cud)
@@ -1655,7 +1670,7 @@ type DeleteManyHelperProps = {
     input: DeleteManyInput;
     model: ModelLogic<any, any, any>;
     prisma: PrismaType;
-    userId: string | null;
+    req: ReqForUserAuth;
 }
 
 /**
@@ -1666,14 +1681,14 @@ export async function deleteManyHelper({
     input,
     model,
     prisma,
-    userId,
+    req,
 }: DeleteManyHelperProps): Promise<Count> {
+    const userId = getUserId(req);
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete objects', { code: genErrorCode('0035') });
     if (!model.mutate || !model.mutate(prisma).cud)
         throw new CustomError(CODE.InternalError, 'Model does not support delete', { code: genErrorCode('0036') });
     // Delete objects. cud will check permissions
-    console.log('deletemanyhelper a', model.type);
     const { deleted } = await model.mutate!(prisma).cud!({ partialInfo: {}, userId, deleteMany: input.ids });
     if (!deleted)
         throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in deleteManyHelper', { code: genErrorCode('0037') });
@@ -1698,7 +1713,7 @@ type CopyHelperProps<GraphQLModel> = {
     input: CopyInput;
     model: ModelLogic<GraphQLModel, any, any>;
     prisma: PrismaType;
-    userId: string | null;
+    req: ReqForUserAuth;
 }
 
 /**
@@ -1710,8 +1725,9 @@ export async function copyHelper({
     input,
     model,
     prisma,
-    userId,
+    req,
 }: CopyHelperProps<any>): Promise<any> {
+    const userId = getUserId(req);
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to copy object', { code: genErrorCode('0229') });
     if (!model.mutate || !model.mutate(prisma).duplicate)
@@ -1749,7 +1765,7 @@ export async function copyHelper({
         input: { id: object.id },
         model,
         prisma,
-        userId,
+        req,
     })
     return fullObject;
 }
@@ -1759,7 +1775,7 @@ type ForkHelperProps<GraphQLModelType> = {
     input: ForkInput,
     model: ModelLogic<GraphQLModelType, any, any>,
     prisma: PrismaType,
-    userId: string | null,
+    req: ReqForUserAuth;
 }
 
 /**
@@ -1771,8 +1787,9 @@ export async function forkHelper({
     input,
     model,
     prisma,
-    userId,
+    req,
 }: ForkHelperProps<any>): Promise<any> {
+    const userId = getUserId(req);
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to fork object', { code: genErrorCode('0233') });
     if (!model.mutate || !model.mutate(prisma).duplicate)
@@ -1807,7 +1824,7 @@ export async function forkHelper({
         input: { id: object.id },
         model,
         prisma,
-        userId,
+        req,
     })
     return fullObject;
 }
@@ -1822,7 +1839,7 @@ export async function readManyAsFeed<GraphQLModel, SearchInput extends SearchInp
     input,
     model,
     prisma,
-    userId,
+    req,
 }: Omit<ReadManyHelperProps<GraphQLModel, SearchInput>, 'addSupplemental'>): Promise<{ pageInfo: any, nodes: any[] }> {
     const readManyResult = await readManyHelper({
         additionalQueries,
@@ -1831,7 +1848,7 @@ export async function readManyAsFeed<GraphQLModel, SearchInput extends SearchInp
         input,
         model,
         prisma,
-        userId,
+        req,
     })
     const nodes = readManyResult.edges.map(({ node }: any) =>
         modelToGraphQL(node, toPartialGraphQLInfo(info, model.format.relationshipMap) as PartialGraphQLInfo)) as any[]
@@ -2371,7 +2388,7 @@ interface GetLatestVersionProps {
  * @returns The id of the latest version
  */
 export async function getLatestVersion({
-    includeIncomplete,
+    includeIncomplete = true,
     objectType,
     prisma,
     versionGroupId,

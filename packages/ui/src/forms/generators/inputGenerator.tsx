@@ -227,6 +227,7 @@ export const toRadio = ({
             key={`field-${fieldData.fieldName}-${index}`}
             sx={{ paddingLeft: 1 }}
         >
+            <FormLabel component="legend">{fieldData.label}</FormLabel>
             <RadioGroup
                 aria-label={fieldData.fieldName}
                 row={props.row}

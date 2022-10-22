@@ -7,11 +7,10 @@ import { project, projectVariables } from "graphql/generated/project";
 import { projectQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton, SelectRoutineTypeMenu } from "components";
-import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
 import { Project, ResourceList } from "types";
 import { SearchListGenerator } from "components/lists/types";
-import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, openObject, SearchType, uuidToBase36 } from "utils";
+import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, openObject, SearchType, uuidToBase36 } from "utils";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
@@ -52,12 +51,13 @@ export const ProjectView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { canStar, name, description, handle, resourceList } = useMemo(() => {
-        const permissions = project?.permissionsProject;
+        const { canStar } = project?.permissionsProject ?? {};
         const resourceList: ResourceList | undefined = Array.isArray(project?.resourceLists) ? project?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
+        const { description, name } = getTranslation(project ?? partialData, [language]);
         return {
-            canStar: permissions?.canStar === true,
-            name: getTranslation(project, 'name', [language]) ?? getTranslation(partialData, 'name', [language]),
-            description: getTranslation(project, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
+            canStar,
+            name,
+            description,
             handle: project?.handle ?? partialData?.handle,
             resourceList,
         };
@@ -167,7 +167,7 @@ export const ProjectView = ({
     const closeAddRoutine = useCallback(() => setAddRoutineAnchor(null), []);
 
     // Create search data
-    const { searchType, itemKeyPrefix, placeholder, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
+    const { searchType, itemKeyPrefix, placeholder, where, noResultsText } = useMemo<SearchListGenerator>(() => {
         // The first tab doesn't have search results, as it is the project's set resources
         switch (currTabType) {
             case TabOptions.Routines:
@@ -177,7 +177,6 @@ export const ProjectView = ({
                     placeholder: "Search project's routines...",
                     noResultsText: "No routines found",
                     where: { projectId: id, isComplete: !canEdit ? true : undefined, isInternal: false, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 };
             case TabOptions.Standards:
                 return {
@@ -186,7 +185,6 @@ export const ProjectView = ({
                     placeholder: "Search project's standards...",
                     noResultsText: "No standards found",
                     where: { projectId: id, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 }
             default:
                 return {
@@ -196,11 +194,10 @@ export const ProjectView = ({
                     noResultsText: '',
                     searchQuery: null,
                     where: {},
-                    onSearchSelect: (o: any) => { },
                     searchItemFactory: (a: any, b: any) => null
                 }
         }
-    }, [canEdit, currTabType, id, setLocation]);
+    }, [canEdit, currTabType, id]);
 
     /**
      * Displays name, avatar, bio, and quick links
@@ -214,7 +211,7 @@ export const ProjectView = ({
             bgcolor={palette.background.paper}
             sx={{
                 borderRadius: { xs: '0', sm: 2 },
-                boxShadow: { xs: 'none', sm: (containerShadow as any).boxShadow },
+                boxShadow: { xs: 'none', sm: 12 },
                 width: { xs: '100%', sm: 'min(500px, 100vw)' }
             }}
         >
@@ -295,7 +292,7 @@ export const ProjectView = ({
                             <DonateIcon fill={palette.background.textSecondary} />
                         </IconButton>
                     </Tooltip>
-                    <ShareButton objectType={ObjectType.Project} zIndex={zIndex} />
+                    <ShareButton object={project} zIndex={zIndex} />
                     <StarButton
                         disabled={!canStar}
                         session={session}
@@ -309,7 +306,7 @@ export const ProjectView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, openMoreMenu, loading, canEdit, name, onEdit, handle, project?.created_at, project?.id, project?.isStarred, project?.stars, description, zIndex, canStar, session]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, openMoreMenu, loading, canEdit, name, onEdit, handle, project, description, zIndex, canStar, session]);
 
     /**
     * Opens add new page
@@ -329,18 +326,13 @@ export const ProjectView = ({
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
-                isUpvoted={project?.isUpvoted}
-                isStarred={project?.isStarred}
-                objectId={id}
-                objectName={name ?? ''}
-                objectType={ObjectType.Project}
                 anchorEl={moreMenuAnchor}
-                title='Project Options'
+                object={project as any}
                 onActionStart={onMoreActionStart}
                 onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
-                permissions={project?.permissionsProject}
                 session={session}
+                title='Project Options'
                 zIndex={zIndex + 1}
             />
             {/* Add menu for selecting between single-step and multi-step routines */}
@@ -404,13 +396,12 @@ export const ProjectView = ({
                         currTabType === TabOptions.Resources ? resources : (
                             <SearchList
                                 canSearch={uuidValidate(id)}
-                                handleAdd={toAddNew}
+                                handleAdd={canEdit ? toAddNew : undefined}
                                 hideRoles={true}
                                 id="project-view-list"
                                 itemKeyPrefix={itemKeyPrefix}
                                 noResultsText={noResultsText}
                                 searchType={searchType}
-                                onObjectSelect={onSearchSelect}
                                 searchPlaceholder={placeholder}
                                 session={session}
                                 take={20}

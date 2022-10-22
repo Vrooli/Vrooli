@@ -375,10 +375,6 @@ export interface historyPage_historyPage_recentlyViewed {
   to: historyPage_historyPage_recentlyViewed_to;
 }
 
-export interface historyPage_historyPage_recentlyStarred_to_Tag {
-  __typename: "Tag";
-}
-
 export interface historyPage_historyPage_recentlyStarred_to_Comment_commentedOn_Project_translations {
   __typename: "ProjectTranslation";
   id: string;
@@ -681,7 +677,24 @@ export interface historyPage_historyPage_recentlyStarred_to_User {
   isStarred: boolean;
 }
 
-export type historyPage_historyPage_recentlyStarred_to = historyPage_historyPage_recentlyStarred_to_Tag | historyPage_historyPage_recentlyStarred_to_Comment | historyPage_historyPage_recentlyStarred_to_Organization | historyPage_historyPage_recentlyStarred_to_Project | historyPage_historyPage_recentlyStarred_to_Routine | historyPage_historyPage_recentlyStarred_to_Standard | historyPage_historyPage_recentlyStarred_to_User;
+export interface historyPage_historyPage_recentlyStarred_to_Tag_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface historyPage_historyPage_recentlyStarred_to_Tag {
+  __typename: "Tag";
+  id: string;
+  created_at: any;
+  isStarred: boolean;
+  stars: number;
+  tag: string;
+  translations: historyPage_historyPage_recentlyStarred_to_Tag_translations[];
+}
+
+export type historyPage_historyPage_recentlyStarred_to = historyPage_historyPage_recentlyStarred_to_Comment | historyPage_historyPage_recentlyStarred_to_Organization | historyPage_historyPage_recentlyStarred_to_Project | historyPage_historyPage_recentlyStarred_to_Routine | historyPage_historyPage_recentlyStarred_to_Standard | historyPage_historyPage_recentlyStarred_to_User | historyPage_historyPage_recentlyStarred_to_Tag;
 
 export interface historyPage_historyPage_recentlyStarred {
   __typename: "Star";

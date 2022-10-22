@@ -6,6 +6,8 @@ import { useEffect } from 'react';
 import { PubSub } from 'utils';
 import { ArticleIcon, HelpIcon, PlayIcon, ProfileIcon, YouTubeIcon } from '@shared/icons';
 import { PageContainer } from 'components';
+import { getCurrentUser } from 'utils/authentication';
+import { WelcomePageProps } from 'pages/types';
 
 const buttonProps = {
     height: "48px",
@@ -22,7 +24,9 @@ const buttonProps = {
     }
 }
 
-export const WelcomePage = () => {
+export const WelcomePage = ({
+    session
+}: WelcomePageProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
@@ -45,7 +49,7 @@ export const WelcomePage = () => {
             textAlign: 'center',
         }}>
             <Box sx={{
-                boxShadow: `rgb(0 0 0 / 50%) 0px 0px 35px 0px`,
+                boxShadow: 12,
                 padding: 2,
                 borderRadius: 2,
                 overflow: 'overlay',
@@ -71,11 +75,11 @@ export const WelcomePage = () => {
                         startIcon={<ArticleIcon fill="black" />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
                     >Read the White Paper</Button>
-                    <Button
+                    {Boolean(getCurrentUser(session).id) && <Button
                         onClick={() => setLocation(`${APP_LINKS.Settings}?page="profile"`)}
                         startIcon={<ProfileIcon fill="black" />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
-                    >Set Up Profile</Button>
+                    >Set Up Profile</Button>}
                     <Button
                         onClick={() => setLocation(APP_LINKS.Example)}
                         startIcon={<PlayIcon fill="black" />}

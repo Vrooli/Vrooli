@@ -290,8 +290,7 @@ export interface SelectorProps extends SelectProps {
     required?: boolean;
     disabled?: boolean;
     color?: string;
-    className?: string;
-    style?: any;
+    sx?: { [x: string]: any };
 }
 
 export interface StandardSelectSwitchProps extends UseSwitchProps {

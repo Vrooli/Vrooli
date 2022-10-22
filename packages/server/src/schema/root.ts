@@ -124,13 +124,13 @@ export const resolvers = {
     },
     Query: {
         readAssets: async (_parent: undefined, { input }: any, { req }: Context, info: GraphQLResolveInfo): Promise<Array<String | null>> => {
-            await rateLimit({ info, max: 1000, req });
+            await rateLimit({ info, maxUser: 1000, req });
             return await readFiles(input.files);
         },
     },
     Mutation: {
         writeAssets: async (_parent: undefined, { input }: any, { req }: Context, info: GraphQLResolveInfo): Promise<boolean> => {
-            await rateLimit({ info, max: 500, req });
+            await rateLimit({ info, maxUser: 500, req });
             throw new CustomError(CODE.NotImplemented); // TODO add safety checks before allowing uploads
             const data = await saveFiles(input.files);
             // Any failed writes will return null

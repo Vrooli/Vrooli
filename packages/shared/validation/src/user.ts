@@ -85,6 +85,14 @@ export const emailLogInSchema = yup.object().shape({
 })
 
 /**
+ * Schema for traditional email/password log in FORM.
+ */
+ export const userDeleteOneSchema = yup.object().shape({
+    password: yup.string().transform(blankToUndefined).max(128, maxStringErrorMessage).required(requiredErrorMessage),
+    deletePublicData: yup.boolean().required(requiredErrorMessage),
+})
+
+/**
  * Schema for sending a password reset request
  */
 export const emailRequestPasswordChangeSchema = yup.object().shape({

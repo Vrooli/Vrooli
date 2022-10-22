@@ -38,7 +38,7 @@ export const resolvers = {
     DeleteOneType: DeleteOneType,
     Mutation: {
         deleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            await rateLimit({ info, max: 1000, byAccountOrKey: true, req });
+            await rateLimit({ info, maxUser: 1000, req });
             const validTypes: Array<keyof typeof DeleteOneType> = [
                 DeleteOneType.Comment, 
                 DeleteOneType.Email,
@@ -55,7 +55,7 @@ export const resolvers = {
                 throw new CustomError(CODE.InvalidArgs, 'Invalid delete object type.', { code: genErrorCode('0216') });
             }
             const model: ModelLogic<any, any, any> = ObjectMap[input.objectType as keyof typeof GraphQLModelType] as ModelLogic<any, any, any>;
-            return deleteOneHelper({ input, model, prisma, userId: req.userId });
+            return deleteOneHelper({ input, model, prisma, req });
         },
     }
 }

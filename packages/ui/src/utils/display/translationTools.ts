@@ -2,6 +2,7 @@ import { FormikErrors, FormikProps } from "formik";
 import { ObjectSchema, ValidationError } from 'yup';
 import { Session } from "types";
 import { uuid } from '@shared/uuid';
+import { getCurrentUser } from "utils/authentication";
 
 export type TranslationObject = {
     id: string,
@@ -343,29 +344,26 @@ export const AllLanguages = {
 };
 
 /**
- * Retrieves a value from an object's translations
- * @param obj The object to retrieve the value from
- * @param field The field to retrieve the value from
- * @param languages The languages the user is requesting
+ * Retrieves an object's translation for a given language code.
+ * @param obj The object to retrieve the translation from.
+ * @param languages The languages the user is requesting, in order of preference.
  * @param showAny If true, will default to returning the first language if no value is found
- * @returns The value of the field in the object's translations
+ * @returns The requested translation or an empty object if none is found
  */
 export const getTranslation = <
-    KeyField extends string,
-    Translation extends { [key in KeyField]?: string | null | undefined } & { id: string, language: string },
-    Obj extends { translations?: Translation[] | null | undefined }
->(obj: Obj | null | undefined, field: KeyField, languages: readonly string[], showAny: boolean = true): string | null | undefined => {
-    if (!obj || !obj.translations) return undefined;
+    Translation extends { language: string },
+>(obj: { translations?: Translation[] | undefined } | null | undefined, languages: readonly string[], showAny: boolean = true): Partial<Translation> => {
+    if (!obj || !obj.translations) return {}
     // Loop through translations
     for (const translation of obj.translations) {
-        // If this translation is one of the languages we're looking for, check for the field
+        // If this translation is one of the languages we're looking for
         if (languages.includes(translation.language)) {
-            if (translation[field]) return translation[field];
+            return translation;
         }
     }
-    if (showAny && obj.translations.length > 0) return obj.translations[0][field];
-    // If we didn't find a translation, return undefined
-    return undefined;
+    if (showAny && obj.translations.length > 0) return obj.translations[0];
+    // If we didn't find a translation, return an empty object
+    return {};
 }
 
 /**
@@ -392,7 +390,6 @@ export const updateTranslationFields = <
         // If an existing field is not in changes, keep it unchanged.
         // If a new field is not in the existing translation, add it.
         if (translation.language === language) {
-            console.log('found translation. updating...', translation);
             translationFound = true;
             translations.push({
                 ...translation,
@@ -406,7 +403,6 @@ export const updateTranslationFields = <
     }
     // If no translation was found, add a new one
     if (!translationFound) {
-        console.log('no translation found, so adding new one...')
         translations.push({
             id: uuid(),
             ...changes,
@@ -464,13 +460,17 @@ export const getLanguageSubtag = (language: string): string => {
  * @param session Session data
  * @returns Array of user-preferred language subtags
  */
-export const getUserLanguages = (session?: { languages?: Session['languages'] }): string[] => {
-    if (session?.languages && session.languages.length > 0) {
-        return session.languages.map(getLanguageSubtag);
+export const getUserLanguages = (session: Session | null | undefined): string[] => {
+    // First check session data for preferred languages
+    const { languages } = getCurrentUser(session);
+    if (languages && languages.length > 0) {
+        return (languages.filter(Boolean) as string[]).map(getLanguageSubtag)
     }
+    // If no languages are in session data, check browser
     if (navigator.language) {
         return [getLanguageSubtag(navigator.language)];
     }
+    // Default to English
     return ["en"];
 }
 
@@ -508,8 +508,6 @@ export const getTranslationData = <
 } => {
     if (!formik.values[field] || !Array.isArray(formik.values[field])) return { error: undefined, index: -1, touched: undefined, value: undefined };
     const index = formik.values[field].findIndex(t => t.language === language);
-    console.log('translations', formik.values[field]);
-    console.log('errors', formik.errors[field]);
     const value = formik.values[field][index];
     const touched = formik.touched[field]?.[index];
     const error = typeof formik.errors[field]?.[index] === 'object' ? formik.errors[field]?.[index] as any : undefined;
@@ -552,7 +550,6 @@ export const handleTranslationChange = <
     // Get field name and value from event
     const { name: changedField, value } = event.target;
     // Get index of translation object
-    console.log('handletranschange')
     const { index } = getTranslationData(formik, translationField, language);
     // Set the value using dot notation
     formik.setFieldValue(`${translationField}.${index}.${String(changedField)}`, value);
@@ -647,7 +644,6 @@ export const removeTranslation = <
     // Get copy of current translations
     const translations = [...formik.values[translationField]];
     // Get index of translation object
-    console.log('remove translation')
     const { index } = getTranslationData(formik, translationField, language);
     // Remove translation object from translations
     translations.splice(index, 1);

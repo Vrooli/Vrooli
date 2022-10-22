@@ -1,6 +1,5 @@
 import {
     Dialog,
-    DialogContent,
     IconButton,
     Stack,
     Tooltip,
@@ -37,7 +36,6 @@ export const SubroutineSelectOrCreateDialog = ({
     session,
     zIndex,
 }: SubroutineSelectOrCreateDialogProps) => {
-    console.log('subroutineselectorcreatedialog', routineId)
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -70,9 +68,11 @@ export const SubroutineSelectOrCreateDialog = ({
     // If routine selected from search, query for full data
     const [getRoutine, { data: routineData }] = useLazyQuery<routine, routineVariables>(routineQuery);
     const queryingRef = useRef(false);
-    const handleRoutineSelect = useCallback((routine: Routine) => {
+    const fetchFullData = useCallback((routine: Routine) => {
         queryingRef.current = true;
         getRoutine({ variables: { input: { id: routine.id } } });
+        // Return false so the list item does not navigate
+        return false;
     }, [getRoutine]);
     useEffect(() => {
         if (routineData?.routine && queryingRef.current) {
@@ -86,12 +86,10 @@ export const SubroutineSelectOrCreateDialog = ({
      * Query conditions change depending on a few factors
      */
     const where = useMemo(() => {
-        console.log('where start', routineId)
         // If no routineId, then we are creating a new routine
         if (!routineId || !uuidValidate(routineId)) return { visibility: VisibilityType.All };
         // Ignore current routine
         const excludeIds = { excludeIds: [routineId] };
-        console.log('where excludeIds', excludeIds)
         // Don't include incomplete/internal routines, unless they're your own
         const incomplete: IsCompleteInput = { isComplete: true };
         const internal: IsInternalInput = { isInternal: false };
@@ -117,12 +115,19 @@ export const SubroutineSelectOrCreateDialog = ({
                 zIndex,
                 '& .MuiDialogContent-root': {
                     overflow: 'visible',
-                    background: palette.background.default,
+                    minWidth: 'min(600px, 100%)',
                 },
-                '& .MuiDialog-paper': {
+                '& .MuiDialog-paperScrollBody': {
                     overflow: 'visible',
-                    width: 'min(100%, 600px)',
-                }
+                    background: palette.background.default,
+                    margin: { xs: 0, sm: 2, md: 4 },
+                    maxWidth: { xs: '100%!important', sm: 'calc(100% - 64px)' },
+                    display: { xs: 'block', sm: 'inline-block' },
+                },
+                // Remove ::after element that is added to the dialog
+                '& .MuiDialog-container::after': {
+                    content: 'none',
+                },
             }}
         >
             {/* Popup for creating a new routine */}
@@ -145,35 +150,33 @@ export const SubroutineSelectOrCreateDialog = ({
                 title={'Add Subroutine'}
                 onClose={onClose}
             />
-            <DialogContent>
-                <Stack direction="column" spacing={2}>
-                    <Stack direction="row" alignItems="center" justifyContent="center">
-                        <Typography component="h2" variant="h4">Routines</Typography>
-                        <Tooltip title="Add new" placement="top">
-                            <IconButton
-                                size="medium"
-                                onClick={handleCreateOpen}
-                                sx={{ padding: 1 }}
-                            >
-                                <AddIcon fill={palette.secondary.main} width='1.5em' height='1.5em' />
-                            </IconButton>
-                        </Tooltip>
-                    </Stack>
-                    <SearchList
-                        canSearch={Boolean(nodeId)} // Can only query when a node is selected
-                        id="subroutine-select-or-create-list"
-                        itemKeyPrefix='routine-list-item'
-                        noResultsText={"None found. Maybe you should create one?"}
-                        searchType={SearchType.Routine}
-                        onObjectSelect={(newValue) => handleRoutineSelect(newValue)}
-                        searchPlaceholder={'Select existing subroutine...'}
-                        session={session}
-                        take={20}
-                        where={where}
-                        zIndex={zIndex}
-                    />
+            <Stack direction="column" spacing={2}>
+                <Stack direction="row" alignItems="center" justifyContent="center">
+                    <Typography component="h2" variant="h4">Routines</Typography>
+                    <Tooltip title="Add new" placement="top">
+                        <IconButton
+                            size="medium"
+                            onClick={handleCreateOpen}
+                            sx={{ padding: 1 }}
+                        >
+                            <AddIcon fill={palette.secondary.main} width='1.5em' height='1.5em' />
+                        </IconButton>
+                    </Tooltip>
                 </Stack>
-            </DialogContent>
+                <SearchList
+                    canSearch={Boolean(nodeId)} // Can only query when a node is selected
+                    id="subroutine-select-or-create-list"
+                    itemKeyPrefix='routine-list-item'
+                    noResultsText={"None found. Maybe you should create one?"}
+                    searchType={SearchType.Routine}
+                    beforeNavigation={fetchFullData}
+                    searchPlaceholder={'Select existing subroutine...'}
+                    session={session}
+                    take={20}
+                    where={where}
+                    zIndex={zIndex}
+                />
+            </Stack>
         </Dialog>
     )
 }

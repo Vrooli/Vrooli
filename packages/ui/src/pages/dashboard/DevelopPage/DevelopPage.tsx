@@ -6,11 +6,12 @@ import { developPage } from 'graphql/generated/developPage';
 import { profile } from 'graphql/generated/profile';
 import { developPageQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { NavigableObject, ResourceList } from 'types';
-import { DevelopSearchPageTabOption, listToListItems, openObject, stringifySearchParams } from 'utils';
+import { ResourceList } from 'types';
+import { DevelopSearchPageTabOption, listToListItems, stringifySearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { DevelopPageProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
+import { getCurrentUser } from 'utils/authentication';
 
 const completedText =
     `Find projects and routines that you've recently completed
@@ -39,12 +40,14 @@ const createPopupOptions: ListMenuItemData<string>[] = [
     { label: 'Routine (Multi Step)', value: `${APP_LINKS.Routine}/add?build=true` },
 ]
 
+const zIndex = 200;
+
 export const DevelopPage = ({
     session
 }: DevelopPageProps) => {
     const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all' });
-    useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
+    useEffect(() => { if (getCurrentUser(session).id) getProfile() }, [getProfile, session])
     const [resourceList, setResourceList] = useState<ResourceList | null>(null);
     useEffect(() => {
         if (!profileData?.profile?.resourceLists) return;
@@ -57,41 +60,32 @@ export const DevelopPage = ({
 
     const { data: developPageData, loading: developPageLoading } = useQuery<developPage>(developPageQuery, { errorPolicy: 'all' });
 
-    /**
-     * Opens page for list item
-     */
-    const toItemPage = useCallback((item: NavigableObject, event: any) => {
-        event?.stopPropagation();
-        // Navigate to item page
-        openObject(item, setLocation);
-    }, [setLocation]);
-
     const inProgress = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Routine'),
         items: developPageData?.developPage?.inProgress,
         keyPrefix: 'in-progress-list-item',
         loading: developPageLoading,
-        onClick: toItemPage,
         session,
-    }), [developPageData?.developPage?.inProgress, developPageLoading, session, toItemPage])
+        zIndex,
+    }), [developPageData?.developPage?.inProgress, developPageLoading, session])
 
     const recent = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Routine'),
         items: developPageData?.developPage?.recent,
         keyPrefix: 'recent-list-item',
         loading: developPageLoading,
-        onClick: toItemPage,
         session,
-    }), [developPageData?.developPage?.recent, developPageLoading, session, toItemPage])
+        zIndex,
+    }), [developPageData?.developPage?.recent, developPageLoading, session])
 
     const completed = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Routine'),
         items: developPageData?.developPage?.completed,
         keyPrefix: 'completed-list-item',
         loading: developPageLoading,
-        onClick: toItemPage,
         session,
-    }), [developPageData?.developPage?.completed, developPageLoading, session, toItemPage])
+        zIndex,
+    }), [developPageData?.developPage?.completed, developPageLoading, session])
 
     const toSeeAllInProgress = useCallback((event: any) => {
         event?.stopPropagation();

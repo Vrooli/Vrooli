@@ -32,6 +32,8 @@ export const SvgPath = ({ d, props }: Pick<SvgBaseProps, 'props'> & { d: string 
         xmlns="http://www.w3.org/2000/svg"
     >
         <path
+            // Disable pointer events so that events are tied to the parent svg (which has the id)
+            pointerEvents="none"
             style={{
                 fill: props.fill ?? 'white',
                 fillOpacity: 1,

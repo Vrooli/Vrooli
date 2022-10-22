@@ -4,6 +4,7 @@ import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/gen
 import { profileUpdateMutation } from "graphql/mutation";
 import { documentNodeWrapper, errorToMessage } from "graphql/utils";
 import { ActionOption, Session, ShortcutOption } from "types";
+import { getCurrentUser } from "utils/authentication";
 import { clearSearchHistory, DevelopSearchPageTabOption, HistorySearchPageTabOption, SearchPageTabOption } from "utils/display";
 import { PubSub } from "utils/pubsub";
 
@@ -170,12 +171,12 @@ export const actions: ActionItem[] = [
     {
         label: 'Activate dark mode',
         id: 'activate-dark-mode',
-        canPerform: (session: Session) => session.theme === 'light',
+        canPerform: (session: Session) => getCurrentUser(session).theme !== 'dark',
     },
     {
         label: 'Activate light mode',
         id: 'activate-light-mode',
-        canPerform: (session: Session) => session.theme === 'dark',
+        canPerform: (session: Session) => getCurrentUser(session).theme !== 'light',
     },
 ]
 

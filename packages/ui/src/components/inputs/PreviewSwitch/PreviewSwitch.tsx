@@ -1,8 +1,9 @@
-import { Box, IconButton, Stack, Typography, useTheme } from '@mui/material';
+import { Box, Stack, Typography, useTheme } from '@mui/material';
 import { useCallback, useMemo } from 'react';
 import { PreviewSwitchProps } from '../types';
 import { noSelect } from 'styles';
 import { BuildIcon, SvgComponent, VisibleIcon } from '@shared/icons';
+import { ColorIconButton } from 'components/buttons';
 
 const grey = {
     400: '#BFC7CF',
@@ -42,8 +43,7 @@ export function PreviewSwitch({
                     display: 'block',
                 }}>
                     {/* Thumb */}
-                    <IconButton sx={{
-                        backgroundColor: palette.secondary.main,
+                    <ColorIconButton background={palette.secondary.main} sx={{
                         display: 'inline-flex',
                         width: '30px',
                         height: '30px',
@@ -54,7 +54,7 @@ export function PreviewSwitch({
                         transform: `translateX(${isPreviewOn ? '24' : '0'}px)`,
                     }}>
                         <Icon fill="white" width="80%" height="80%" />
-                    </IconButton>
+                    </ColorIconButton>
                 </Box>
                 {/* Input */}
                 <input

@@ -52,7 +52,7 @@ export const VersionDisplay = ({
 
     // Versions popup
     const [anchorEl, setAnchorEl] = useState<any | null>(null);
-    const open = useCallback((target: React.MouseEvent['target']) => {
+    const open = useCallback((target: EventTarget) => {
         if (versions.length > 1) {
             setAnchorEl(target)
         }

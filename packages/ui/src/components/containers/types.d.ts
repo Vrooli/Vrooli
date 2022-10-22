@@ -42,7 +42,6 @@ export interface BuildBottomContainerProps {
     errors: GridSubmitButtonsProps['errors'];
     handleCancel: () => void;
     handleSubmit: () => void;
-    handleScaleChange: (scale: number) => void;
     handleRunDelete: (run: Run) => void;
     handleRunAdd: (run: Run) => void;
     hasNext: boolean;
@@ -50,7 +49,6 @@ export interface BuildBottomContainerProps {
     isAdding: boolean;
     isEditing: boolean;
     loading: boolean;
-    scale: number;
     session: Session;
     sliderColor: string;
     routine: Routine | null;
@@ -68,6 +66,7 @@ export interface ContentCollapseProps {
         root?: { [x: string]: any };
     }
     title?: string | null;
+    titleComponent?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span" | "legend";
     children?: React.ReactNode;
 }
 

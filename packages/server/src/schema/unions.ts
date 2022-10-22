@@ -7,7 +7,7 @@ import { OrganizationSortBy, ProjectSortBy, RoutineSortBy, ProjectOrRoutineSearc
 import { CODE } from '@shared/consts';
 import { IWrap } from '../types';
 import { Context } from '../context';
-import { addSupplementalFieldsMultiTypes, OrganizationModel, PartialGraphQLInfo, ProjectModel, readManyAsFeed, RoutineModel, toPartialGraphQLInfo } from '../models';
+import { addSupplementalFieldsMultiTypes, getUserId, OrganizationModel, PartialGraphQLInfo, ProjectModel, readManyAsFeed, RoutineModel, toPartialGraphQLInfo } from '../models';
 import { CustomError } from '../error';
 import { rateLimit } from '../rateLimit';
 import { resolveProjectOrOrganization, resolveProjectOrOrganizationOrRoutineOrStandardOrUser, resolveProjectOrRoutine } from './resolvers';
@@ -161,16 +161,14 @@ export const resolvers = {
     },
     Query: {
         projectOrRoutines: async (_parent: undefined, { input }: IWrap<ProjectOrRoutineSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ProjectOrRoutineSearchResult> => {
-            await rateLimit({ info, max: 2000, req });
+            await rateLimit({ info, maxUser: 2000, req });
             const partial = toPartialGraphQLInfo(info, {
                 '__typename': 'ProjectOrRoutineSearchResult',
                 'Project': 'Project',
                 'Routine': 'Routine',
             }) as PartialGraphQLInfo;
-            const userId = req.userId;
-            if (!userId) throw new CustomError(CODE.NotAuthorized, { code: genErrorCode('0254') });
             const take = Math.ceil((input.take ?? 10) / 2);
-            const commonReadParams = { prisma, userId }
+            const commonReadParams = { prisma, req }
             // Query projects
             let projects;
             if (input.objectType === undefined || input.objectType === 'Project') {
@@ -198,7 +196,7 @@ export const resolvers = {
                         tags: input.tags,
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
-                        userId,
+                        userId: getUserId(req) ?? undefined,
                         visibility: input.visibility,
                     },
                     model: ProjectModel,
@@ -239,7 +237,7 @@ export const resolvers = {
                         tags: input.tags,
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
-                        userId,
+                        userId: getUserId(req) ?? undefined,
                         visibility: input.visibility,
                     },
                     model: RoutineModel,
@@ -250,7 +248,7 @@ export const resolvers = {
                 [projects?.nodes ?? [], routines?.nodes ?? []],
                 [{ __typename: 'Project', ...(partial as any).Project }, { __typename: 'Routine', ...(partial as any).Routine }] as PartialGraphQLInfo[],
                 ['p', 'r'],
-                userId,
+                getUserId(req),
                 prisma,
             )
             // Combine nodes, alternating between projects and routines
@@ -275,16 +273,14 @@ export const resolvers = {
             return combined;
         },
         projectOrOrganizations: async (_parent: undefined, { input }: IWrap<ProjectOrOrganizationSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ProjectOrOrganizationSearchResult> => {
-            await rateLimit({ info, max: 2000, req });
+            await rateLimit({ info, maxUser: 2000, req });
             const partial = toPartialGraphQLInfo(info, {
                 '__typename': 'ProjectOrOrganizationSearchResult',
                 'Project': 'Project',
                 'Organization': 'Organization',
             }) as PartialGraphQLInfo;
-            const userId = req.userId;
-            if (!userId) throw new CustomError(CODE.NotAuthorized, { code: genErrorCode('0255') });
             const take = Math.ceil((input.take ?? 10) / 2);
-            const commonReadParams = { prisma, userId }
+            const commonReadParams = { prisma, req }
             // Query projects
             let projects;
             if (input.objectType === undefined || input.objectType === 'Project') {
@@ -312,7 +308,7 @@ export const resolvers = {
                         tags: input.tags,
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
-                        userId,
+                        userId: getUserId(req) ?? undefined,
                         visibility: input.visibility,
                     },
                     model: ProjectModel,
@@ -343,7 +339,7 @@ export const resolvers = {
                         tags: input.tags,
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
-                        userId,
+                        userId: getUserId(req) ?? undefined,
                         visibility: input.visibility,
                     },
                     model: OrganizationModel,
@@ -354,7 +350,7 @@ export const resolvers = {
                 [projects?.nodes ?? [], organizations?.nodes ?? []],
                 [{ __typename: 'Project', ...(partial as any).Project }, { __typename: 'Organization', ...(partial as any).Organization }] as PartialGraphQLInfo[],
                 ['p', 'o'],
-                userId,
+                getUserId(req),
                 prisma,
             )
             // Combine nodes, alternating between projects and organizations

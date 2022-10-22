@@ -10,7 +10,6 @@ import { StandardViewProps } from "../types";
 import { base36ToUuid, firstString, getLanguageSubtag, getLastUrlPart, getObjectSlug, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, openObject, PubSub, standardToFieldData } from "utils";
 import { Standard } from "types";
 import { CommentFor, StarFor } from "graphql/generated/globalTypes";
-import { containerShadow } from "styles";
 import { uuidValidate } from '@shared/uuid';
 import { FieldData, FieldDataJSON } from "forms/types";
 import { useFormik } from "formik";
@@ -38,7 +37,6 @@ export const StandardView = ({
     }, []);
     const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery, { errorPolicy: 'all' });
     useEffect(() => {
-        console.log('valid id check', id, versionGroupId);
         if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { input: { id, versionGroupId } } });
         else PubSub.get().publishSnack({ message: 'Could not parse ID in URL', severity: SnackSeverity.Error });
     }, [getData, id, versionGroupId])
@@ -58,7 +56,7 @@ export const StandardView = ({
 
     const schema = useMemo<FieldData | null>(() => (standard ? standardToFieldData({
         fieldName: 'preview',
-        description: getTranslation(standard, 'description', [language]),
+        description: getTranslation(standard, [language]).description,
         helpText: null,
         props: standard.props,
         name: standard.name,
@@ -74,13 +72,10 @@ export const StandardView = ({
     });
 
     const { canEdit, canStar, description, name } = useMemo(() => {
-        const permissions = standard?.permissionsStandard;
-        return {
-            canEdit: permissions?.canEdit === true,
-            canStar: permissions?.canStar === true,
-            description: getTranslation(standard, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
-            name: firstString(standard?.name, partialData?.name),
-        };
+        const { canEdit, canStar } = standard?.permissionsStandard ?? {};
+        const { description } = getTranslation(standard ?? partialData, [language]);
+        const name = firstString(standard?.name, partialData?.name);
+        return { canEdit, canStar, description, name };
     }, [standard, language, partialData]);
 
     useEffect(() => {
@@ -232,18 +227,13 @@ export const StandardView = ({
         }}>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
-                isUpvoted={standard?.isUpvoted}
-                isStarred={standard?.isStarred}
-                objectId={id ?? ''}
-                objectName={name ?? ''}
-                objectType={ObjectType.Standard}
                 anchorEl={moreMenuAnchor}
-                title='Standard Options'
+                object={standard as any}
                 onActionStart={onMoreActionStart}
                 onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
-                permissions={standard?.permissionsStandard}
                 session={session}
+                title='Standard Options'
                 zIndex={zIndex + 1}
             />
             <Stack direction="column" spacing={5} sx={{
@@ -263,7 +253,7 @@ export const StandardView = ({
                     overflowY: 'auto',
                     borderRadius: { xs: '8px 8px 0 0', sm: '8px' },
                     overflow: 'overlay',
-                    boxShadow: { xs: 'none', sm: (containerShadow as any).boxShadow },
+                    boxShadow: { xs: 'none', sm: 12 },
                     width: 'min(100%, 600px)',
                 }}>
                     {/* Heading container */}
@@ -300,7 +290,7 @@ export const StandardView = ({
                                         marginRight: 1,
                                     }}
                                 >
-                                    <EllipsisIcon fill={palette.primary.contrastText}  />
+                                    <EllipsisIcon fill={palette.primary.contrastText} />
                                 </IconButton>
                             </Tooltip>
                         </Stack>

@@ -1,19 +1,19 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { resourceCreate as validationSchema, resourceTranslationUpdate } from '@shared/validation';
-import { Dialog, DialogContent, FormControl, Grid, IconButton, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
+import { Dialog, DialogContent, FormControl, Grid, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
 import { useFormik } from 'formik';
 import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { ResourceDialogProps } from '../types';
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getObjectSlug, getObjectUrlBase, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResourceCreate, shapeResourceUpdate, usePromptBeforeUnload } from 'utils';
-import { resourceCreate, resourceCreateVariables, resourceCreate_resourceCreate } from 'graphql/generated/resourceCreate';
+import { resourceCreateVariables, resourceCreate_resourceCreate } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
-import { resourceUpdate, resourceUpdateVariables, resourceUpdate_resourceUpdate } from 'graphql/generated/resourceUpdate';
+import { resourceUpdateVariables, resourceUpdate_resourceUpdate } from 'graphql/generated/resourceUpdate';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AutocompleteSearchBar, LanguageInput } from 'components/inputs';
 import { AutocompleteOption, Resource } from 'types';
 import { DUMMY_ID, uuid } from '@shared/uuid';
-import { DialogTitle, getResourceIcon, GridSubmitButtons, SnackSeverity } from 'components';
+import { ColorIconButton, DialogTitle, getResourceIcon, GridSubmitButtons, SnackSeverity } from 'components';
 import { SearchIcon } from '@shared/icons';
 import { homePage, homePageVariables } from 'graphql/generated/homePage';
 import { homePageQuery } from 'graphql/query';
@@ -67,7 +67,6 @@ export const ResourceDialog = ({
     listId,
     zIndex,
 }: ResourceDialogProps) => {
-    console.log('rendering resource dialog')
     const { palette } = useTheme();
 
     const [addMutation, { loading: addLoading }] = useMutation(resourceCreateMutation);
@@ -89,7 +88,6 @@ export const ResourceDialog = ({
         enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
-            console.log('resourcedialog onsubmit')
             const input: ResourceShape = {
                 id: partialData?.id ?? uuid(),
                 index: Math.max(index, 0),
@@ -102,8 +100,8 @@ export const ResourceDialog = ({
                 })),
             };
             if (mutate) {
-                const onSuccess = (response) => {
-                    (index < 0) ? onCreated(response.data.resourceCreate) : onUpdated(index ?? 0, response.data.resourceUpdate);
+                const onSuccess = (data: resourceCreate_resourceCreate | resourceUpdate_resourceUpdate) => {
+                    (index < 0) ? onCreated(data) : onUpdated(index ?? 0, data);
                     formik.resetForm();
                     onClose();
                 }
@@ -169,20 +167,12 @@ export const ResourceDialog = ({
     }, [formik, languages]);
     // Handles blur on translation fields
     const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
-        console.log('resource dialog trans blur', e.target)
         handleTranslationBlur(formik, 'translationsUpdate', e, language)
     }, [formik, language]);
     // Handles change on translation fields
     const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        console.log('resource dialog trans change', e.target)
         handleTranslationChange(formik, 'translationsUpdate', e, language)
     }, [formik, language]);
-
-    const handleClose = () => {
-        console.log('resourcedialog resetting form')
-        formik.resetForm();
-        onClose();
-    }
 
     // Search dialog to find routines, organizations, etc. to link to
     const [searchString, setSearchString] = useState<string>('');
@@ -217,10 +207,16 @@ export const ResourceDialog = ({
         // Create URL
         const newLocation = `${getObjectUrlBase(newValue)}/${getObjectSlug(newValue)}`
         // Update link
-        console.log('resourcedialog oninputselect')
         formik.setFieldValue('link', `${window.location.origin}${newLocation}`);
     }, [closeSearch, formik]);
 
+    const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
+        // Don't close if formik is dirty and clicked outside
+        if (formik.dirty && reason === 'backdropClick') return;
+        // Otherwise, close
+        formik.resetForm();
+        onClose();
+    }, [formik, onClose]);
 
     return (
         <>
@@ -276,7 +272,7 @@ export const ResourceDialog = ({
             </Dialog >
             {/*  Main content */}
             <Dialog
-                onClose={handleClose}
+                onClose={handleCancel}
                 open={open}
                 aria-labelledby={titleAria}
                 sx={{
@@ -292,7 +288,7 @@ export const ResourceDialog = ({
                     ariaLabel={titleAria}
                     title={(index < 0) ? 'Add Resource' : 'Update Resource'}
                     helpText={helpText}
-                    onClose={handleClose}
+                    onClose={handleCancel}
                 />
                 <DialogContent>
                     <form>
@@ -325,16 +321,16 @@ export const ResourceDialog = ({
                                         }
                                     }}
                                 />
-                                <IconButton
+                                <ColorIconButton
                                     aria-label='find URL'
                                     onClick={openSearch}
+                                    background={palette.secondary.main}
                                     sx={{
-                                        background: palette.secondary.main,
                                         borderRadius: '0 5px 5px 0',
                                         height: '56px',
                                     }}>
                                     <SearchIcon />
-                                </IconButton>
+                                </ColorIconButton>
                             </Stack>
                             {/* Select resource type */}
                             <FormControl fullWidth>
@@ -399,7 +395,7 @@ export const ResourceDialog = ({
                                     errors={errors}
                                     isCreate={index < 0}
                                     loading={formik.isSubmitting || addLoading || updateLoading}
-                                    onCancel={handleClose}
+                                    onCancel={handleCancel}
                                     onSetSubmitting={formik.setSubmitting}
                                     onSubmit={formik.handleSubmit}
                                 />

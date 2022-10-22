@@ -13,6 +13,7 @@ import { SettingsNotifications } from 'components/views/SettingsNotifications/Se
 import { useReactSearch } from 'utils';
 import { LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, SvgComponent } from '@shared/icons';
 import { PageContainer } from 'components';
+import { getCurrentUser } from 'utils/authentication';
 
 /**
  * All settings forms. Same as their route names.
@@ -44,7 +45,7 @@ export function SettingsPage({
     // Fetch profile data
     const [getData, { data, loading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all' });
     useEffect(() => {
-        if (session?.id) getData();
+        if (getCurrentUser(session).id) getData();
     }, [getData, session])
     const [profile, setProfile] = useState<profile_profile | undefined>(undefined);
     useEffect(() => {
@@ -96,7 +97,7 @@ export function SettingsPage({
             alignItems: 'center',
         }}>
             <Box sx={{
-                boxShadow: { xs: 'none', sm: '0px 0px 12px gray' },
+                boxShadow: { xs: 'none', sm: 12 },
                 borderRadius: { xs: 0, sm: 2 },
                 overflow: 'overlay',
                 background: palette.background.default,

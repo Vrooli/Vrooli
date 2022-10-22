@@ -57,11 +57,10 @@ export const GridSubmitButtons = ({
 
 
     const handleSubmit = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
-        console.log('handle submit', hasErrors, isSubmitDisabled)
         // If formik invalid, display errors in popup
         if (hasErrors) openError(ev);
         else if (!disabledSubmit && typeof onSubmit === 'function') onSubmit();
-    }, [hasErrors, isSubmitDisabled, openError, disabledSubmit, onSubmit]);
+    }, [hasErrors, openError, disabledSubmit, onSubmit]);
 
     return (
         <>

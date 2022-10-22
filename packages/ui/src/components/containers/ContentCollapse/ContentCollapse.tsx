@@ -12,6 +12,7 @@ export function ContentCollapse({
     onOpenChange,
     sxs,
     title,
+    titleComponent,
     children,
 }: ContentCollapseProps) {
     const { palette } = useTheme();
@@ -38,7 +39,7 @@ export function ContentCollapse({
         }}>
             {/* Title with help button and collapse */}
             <Stack direction="row" alignItems="center" sx={sxs?.titleContainer ?? {}}>
-                <Typography variant="h6">{title}</Typography>
+                <Typography component={titleComponent ?? 'h6'} variant="h6">{title}</Typography>
                 {helpText && <HelpButton markdown={helpText} />}
                 <IconButton
                     id={`toggle-expand-icon-button-${title}`}

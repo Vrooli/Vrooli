@@ -2,10 +2,12 @@ import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { CODE, COOKIE } from '@shared/consts';
 import { CustomError } from '../error';
-import { Session } from '../schema/types';
+import { Session, SessionUser } from '../schema/types';
 import { RecursivePartial } from '../types';
 import { genErrorCode, logger, LogLevel } from '../logger';
 import { isSafeOrigin } from '../utils';
+import { getUserId } from '../models';
+import { uuidValidate } from '@shared/uuid';
 
 const SESSION_MILLI = 30 * 86400 * 1000;
 
@@ -43,9 +45,9 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
         }
         // Now, set token and role variables for other middleware to use
         req.apiToken = payload.apiToken ?? false;
-        req.isLoggedIn = payload.isLoggedIn === true && req.fromSafeOrigin === true;
-        req.languages = payload.languages ?? [];
-        req.userId = payload.userId ?? null;
+        req.isLoggedIn = payload.isLoggedIn === true && Array.isArray(payload.users) && payload.users.length > 0;
+        // Users, but make sure they all have unique ids
+        req.users = [...new Map((payload.users ?? []).map((user: SessionUser) => [user.id, user])).values()] as SessionUser[];
         req.validToken = true;
         next();
     })
@@ -58,12 +60,11 @@ interface BasicToken {
 }
 interface SessionToken extends BasicToken {
     isLoggedIn: boolean;
-    languages: string[] | null;
-    userId: string | null;
+    // Supports logging in with multiple accounts
+    users: SessionUser[];
 }
 interface ApiToken extends BasicToken {
-    apiToken: boolean;
-    userId: string;
+    apiToken: string;
 };
 
 /**
@@ -86,8 +87,8 @@ export async function generateSessionJwt(res: Response, session: RecursivePartia
     const tokenContents: SessionToken = {
         ...basicToken(),
         isLoggedIn: session.isLoggedIn ?? false,
-        languages: (session.languages as string[]) ?? [],
-        userId: session.id ?? null,
+        // Make sure users are unique by id
+        users: [...new Map((session.users ?? []).map((user: SessionUser) => [user.id, user])).values()],
     }
     if (!process.env.JWT_SECRET) {
         logger.log(LogLevel.error, '❗️ JWT_SECRET not set! Please check .env file', { code: genErrorCode('0004') });
@@ -104,15 +105,13 @@ export async function generateSessionJwt(res: Response, session: RecursivePartia
 /**
  * Generates a JSON Web Token (JWT) for API authentication.
  * @param res 
- * @param userId
  * @param apiToken
  * @returns 
  */
-export async function generateApiJwt(res: Response, userId: string, apiToken: boolean): Promise<undefined> {
+export async function generateApiJwt(res: Response, apiToken: string): Promise<undefined> {
     const tokenContents: ApiToken = {
         ...basicToken(),
         apiToken,
-        userId,
     }
     if (!process.env.JWT_SECRET) {
         logger.log(LogLevel.error, '❗️ JWT_SECRET not set! Please check .env file', { code: genErrorCode('0005') });
@@ -129,7 +128,55 @@ export async function generateApiJwt(res: Response, userId: string, apiToken: bo
 /**
  * Middleware that restricts access to logged in users
  */
-export async function requireLoggedIn(req: any, _: any, next: any) {
+export async function requireLoggedIn(req: Request, _: any, next: any) {
     if (!req.isLoggedIn) return new CustomError(CODE.Unauthorized, 'You must be logged in to access this resource', { code: genErrorCode('0018') });
     next();
+}
+
+export type RequestConditions = {
+    /**
+     * Checks if the request is coming from an API token directly
+     */
+    isApiRoot?: boolean;
+    /**
+     * Checks if the request is coming from a user logged in via an API token, or the official Vrooli app/website
+     * This allows other services to use Vrooli as a backend, in a way that 
+     * we can price it accordingly.
+     */
+    isUser?: boolean;
+    /**
+     * Checks if the request is coming from a user logged in via the official Vrooli app/website
+     */
+    isOfficialUser?: boolean;
+}
+
+/**
+ * Asserts that a request meets the specifiec requirements TODO need better api token validation, like uuidValidate
+ * @param req The request object
+ * @param conditions The conditions to check
+ */
+export const assertRequestFrom = (req: Request, conditions: RequestConditions) => {
+    // Determine if user data is found in the request
+    const userId = getUserId(req);
+    const hasUserData = req.isLoggedIn === true && uuidValidate(userId);
+    // Determine if api token is supplied
+    const hasApiToken = req.apiToken === true;
+    // Check isApiRoot condition
+    if (conditions.isApiRoot !== undefined) {
+        const isApiRoot = hasApiToken && !hasUserData;
+        if (conditions.isApiRoot === true && !isApiRoot) throw new CustomError(CODE.Unauthorized, 'Call must be made from an API token.', { code: genErrorCode('0265') });
+        if (conditions.isApiRoot === false && isApiRoot) throw new CustomError(CODE.Unauthorized, 'Call cannot be made from an API token.', { code: genErrorCode('0266') });
+    }
+    // Check isUser condition
+    if (conditions.isUser !== undefined) {
+        const isUser = hasUserData && (hasApiToken || req.fromSafeOrigin === true)
+        if (conditions.isUser === true && !isUser) throw new CustomError(CODE.Unauthorized, 'Must be logged in.', { code: genErrorCode('0267') });
+        if (conditions.isUser === false && isUser) throw new CustomError(CODE.Unauthorized, 'Must be logged in.', { code: genErrorCode('0268') });
+    }
+    // Check isOfficialUser condition
+    if (conditions.isOfficialUser !== undefined) {
+        const isOfficialUser = hasUserData && !hasApiToken && req.fromSafeOrigin === true;
+        if (conditions.isOfficialUser === true && !isOfficialUser) throw new CustomError(CODE.Unauthorized, 'Must be logged in via the official Vrooli app/website.', { code: genErrorCode('0269') });
+        if (conditions.isOfficialUser === false && isOfficialUser) throw new CustomError(CODE.Unauthorized, 'Must be logged in via the official Vrooli app/website.', { code: genErrorCode('0270') });
+    }
 }

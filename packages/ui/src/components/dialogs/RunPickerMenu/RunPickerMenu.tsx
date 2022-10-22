@@ -7,7 +7,7 @@ import { mutationWrapper } from "graphql/utils";
 import { useCallback, useEffect, useMemo } from "react";
 import { displayDate, getTranslation, getUserLanguages } from "utils/display";
 import { ListMenuItemData, RunPickerMenuProps } from "../types";
-import { getRunPercentComplete, parseSearchParams, PubSub } from "utils";
+import { base36ToUuid, getRunPercentComplete, parseSearchParams, PubSub } from "utils";
 import { useMutation } from "@apollo/client";
 import { runCreateVariables, runCreate_runCreate } from "graphql/generated/runCreate";
 import { deleteOneMutation, runCreateMutation } from "graphql/mutation";
@@ -37,9 +37,10 @@ export const RunPickerMenu = ({
     // If runId is in the URL, select that run automatically
     useEffect(() => {
         if (!routine) return;
-        const searchParams = parseSearchParams(window.location.search);
-        if (!searchParams.run) return
-        const run = routine.runs.find(run => run.id === searchParams.run);
+        const searchParams = parseSearchParams();
+        if (!searchParams.run || typeof searchParams.run !== 'string') return
+        const runId = base36ToUuid(searchParams.run);
+        const run = routine.runs?.find(run => run.id === runId);
         if (run) {
             onSelect(run);
             handleClose();
@@ -58,7 +59,7 @@ export const RunPickerMenu = ({
                 id: uuid(),
                 routineId: routine.id,
                 version: routine.version ?? '',
-                title: getTranslation(routine, 'title', getUserLanguages(session)) ?? 'Unnamed Routine',
+                title: getTranslation(routine, getUserLanguages(session)).title ?? 'Unnamed Routine',
             },
             successCondition: (data) => data !== null,
             onSuccess: (data) => {
@@ -87,7 +88,7 @@ export const RunPickerMenu = ({
     useEffect(() => {
         if (!open) return;
         // If not logged in, open routine without creating a new run
-        if (!session.id) {
+        if (!session.isLoggedIn) {
             onSelect(null);
             handleClose();
         }
@@ -95,7 +96,7 @@ export const RunPickerMenu = ({
         else if (routine && routine.runs?.filter(r => r.status === RunStatus.InProgress)?.length === 0) {
             createNewRun();
         }
-    }, [open, routine, createNewRun, onSelect, session.id, handleClose]);
+    }, [open, routine, createNewRun, onSelect, session.isLoggedIn, handleClose]);
 
     const runOptions: ListMenuItemData<Run>[] = useMemo(() => {
         if (!routine || !routine.runs) return [];

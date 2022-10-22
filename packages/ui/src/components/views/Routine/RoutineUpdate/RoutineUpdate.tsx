@@ -206,7 +206,7 @@ export const RoutineUpdate = ({
                     fullWidth
                     id="title"
                     name="title"
-                    label="title"
+                    label="Title"
                     value={title}
                     onBlur={onTranslationBlur}
                     onChange={onTranslationChange}
@@ -219,7 +219,7 @@ export const RoutineUpdate = ({
                     fullWidth
                     id="description"
                     name="description"
-                    label="description"
+                    label="Description"
                     value={description}
                     multiline
                     maxRows={3}

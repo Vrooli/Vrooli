@@ -7,13 +7,12 @@ import { routineQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, BuildView, ReportsLink, ResourceListHorizontal, RunPickerMenu, RunView, SelectLanguageMenu, StarButton, StatusButton, UpTransition, UpvoteDownvote, OwnerLabel, VersionDisplay, SnackSeverity } from "components";
 import { RoutineViewProps } from "../types";
-import { base36ToUuid, formikToRunInputs, getLanguageSubtag, getLastUrlPart, getObjectSlug, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, useReactSearch } from "utils";
+import { base36ToUuid, formikToRunInputs, getLanguageSubtag, getLastUrlPart, getObjectSlug, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, useReactSearch, uuidToBase36 } from "utils";
 import { Routine, Run } from "types";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/graphqlWrapper";
 import { CommentFor, NodeType, StarFor } from "graphql/generated/globalTypes";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
-import { containerShadow } from "styles";
 import { uuidValidate } from '@shared/uuid';
 import { runCompleteVariables, runComplete_runComplete } from "graphql/generated/runComplete";
 import { useFormik } from "formik";
@@ -21,6 +20,7 @@ import { FieldData } from "forms/types";
 import { generateInputWithLabel } from "forms/generators";
 import { CommentContainer, ContentCollapse, TextCollapse } from "components/containers";
 import { EditIcon, EllipsisIcon, PlayIcon, RoutineIcon, SuccessIcon } from "@shared/icons";
+import { getCurrentUser } from "utils/authentication";
 
 const statsHelpText =
     `Statistics are calculated to measure various aspects of a routine. 
@@ -53,7 +53,11 @@ export const RoutineView = ({
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
     useEffect(() => {
         if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { input: { id, versionGroupId } } });
-        else PubSub.get().publishSnack({ message: 'Could not parse ID in URL', severity: SnackSeverity.Error });
+        // If IDs are not invalid, throw error if we are not creating a new routine
+        else {
+            const { build } = parseSearchParams();
+            if (!build || build !== true) PubSub.get().publishSnack({ message: 'Could not parse ID in URL', severity: SnackSeverity.Error });
+        }
     }, [getData, id, versionGroupId])
 
     const [routine, setRoutine] = useState<Routine>(initializeRoutine(language));
@@ -75,24 +79,17 @@ export const RoutineView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { canStar, canVote, title, description, instructions, status, statusMessages } = useMemo(() => {
-        const permissions = routine?.permissionsRoutine;
+        const { canStar, canVote } = routine?.permissionsRoutine ?? {};
         const { messages: statusMessages, status } = getRoutineStatus(routine ?? partialData);
-        return {
-            canStar: permissions?.canStar === true,
-            canVote: permissions?.canVote === true,
-            title: getTranslation(routine, 'title', [language]) ?? getTranslation(partialData, 'title', [language]),
-            description: getTranslation(routine, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
-            instructions: getTranslation(routine, 'instructions', [language]) ?? getTranslation(partialData, 'instructions', [language]),
-            status,
-            statusMessages,
-        };
+        const { description, instructions, title } = getTranslation(routine ?? partialData, [language]);
+        return { canStar, canVote, title, description, instructions, status, statusMessages };
     }, [routine, language, partialData]);
 
     useEffect(() => {
         document.title = `${title} | Vrooli`;
     }, [title]);
 
-    const [isBuildOpen, setIsBuildOpen] = useState<boolean>(Boolean(parseSearchParams(window.location.search)?.build));
+    const [isBuildOpen, setIsBuildOpen] = useState<boolean>(Boolean(parseSearchParams()?.build));
     /**
      * If routine ID is not valid, create default routine data
      */
@@ -124,7 +121,7 @@ export const RoutineView = ({
         // Otherwise, open routine where last left off in run
         else {
             setSearchParams(setLocation, {
-                run: run.id,
+                run: uuidToBase36(run.id),
                 step: run.steps?.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
             })
         }
@@ -248,9 +245,9 @@ export const RoutineView = ({
             const currInput = routine.inputs[i];
             if (!currInput.standard) continue;
             const currSchema = standardToFieldData({
-                description: getTranslation(currInput, 'description', getUserLanguages(session), false) ?? getTranslation(currInput.standard, 'description', getUserLanguages(session), false),
+                description: getTranslation(currInput, getUserLanguages(session), false).description ?? getTranslation(currInput.standard, getUserLanguages(session), false).description,
                 fieldName: `inputs-${currInput.id}`,
-                helpText: getTranslation(currInput, 'helpText', getUserLanguages(session), false),
+                helpText: getTranslation(currInput, getUserLanguages(session), false).helpText,
                 props: currInput.standard.props,
                 name: currInput.name ?? currInput.standard?.name,
                 type: currInput.standard.type,
@@ -299,7 +296,7 @@ export const RoutineView = ({
         // If routine has no nodes
         if (!routine?.nodes?.length) {
             // Only show if logged in
-            if (!session?.id) return null;
+            if (!getCurrentUser(session).id) return null;
             return (
                 <Grid container spacing={1} mt={1}>
                     <Grid item xs={12}>
@@ -310,20 +307,20 @@ export const RoutineView = ({
         }
         // If routine has nodes
         return (
-            <Grid container spacing={1} mt={1}>
-                <Grid item xs={12} sm={6}>
+            <Grid container spacing={1} mt={1} justifyContent="center">
+                <Grid item xs={6}>
                     <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button>
                 </Grid>
                 {/* Show continue if routine already has progress TODO */}
-                {status === Status.Valid && <Grid item xs={12} sm={6}>
+                {status === Status.Valid && <Grid item xs={6}>
                     {routine && routine.runs?.length > 0 ?
                         <Button startIcon={<PlayIcon />} fullWidth onClick={runRoutine} color="secondary">Continue</Button> :
-                        <Button startIcon={<PlayIcon />} fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
+                        <Button startIcon={<PlayIcon />} fullWidth onClick={runRoutine} color="secondary">Start</Button>
                     }
                 </Grid>}
             </Grid>
         )
-    }, [routine, viewGraph, status, runRoutine, session?.id, markAsComplete]);
+    }, [routine, viewGraph, status, runRoutine, session, markAsComplete]);
 
     /**
      * Copy current value of input to clipboard
@@ -372,7 +369,7 @@ export const RoutineView = ({
         return (
             <>
                 {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
-                <Stack direction="column" spacing={2} padding={1}>
+                <Stack direction="column" spacing={2}>
                     {/* Resources */}
                     {resourceList}
                     {/* Description */}
@@ -464,18 +461,13 @@ export const RoutineView = ({
             </Dialog>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
-                isUpvoted={routine?.isUpvoted}
-                isStarred={routine?.isStarred}
-                objectId={id ?? ''}
-                objectName={title ?? ''}
-                objectType={ObjectType.Routine}
                 anchorEl={moreMenuAnchor}
-                title='Routine Options'
+                object={routine as any}
                 onActionStart={onMoreActionStart}
                 onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
-                permissions={routine?.permissionsRoutine}
                 session={session}
+                title='Routine Options'
                 zIndex={zIndex + 1}
             />
             <Stack direction="column" sx={{
@@ -489,7 +481,7 @@ export const RoutineView = ({
                 marginBottom: 8,
             }}>
                 <Box sx={{
-                    ...containerShadow,
+                    boxShadow: 12,
                     background: palette.background.paper,
                     width: 'min(100%, 700px)',
                     borderRadius: 1,
@@ -606,7 +598,7 @@ export const RoutineView = ({
                             onChange={(isStar: boolean) => { routine && setRoutine({ ...routine, isStarred: isStar }) }}
                             tooltipPlacement="bottom"
                         />
-                        <ReportsLink object={routine} />
+                        {routine.id && <ReportsLink object={routine} />}
                         <Tooltip title="More options">
                             <IconButton
                                 aria-label="More"

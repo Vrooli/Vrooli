@@ -9,8 +9,8 @@ import { ReportFor, StarFor, VoteFor } from "@shared/consts";
 import { DeleteDialog, ListMenu, ReportDialog, SnackSeverity } from "..";
 import { ObjectActionMenuProps, ListMenuItemData, ObjectActionComplete, ObjectAction } from "../types";
 import { mutationWrapper } from "graphql/utils/graphqlWrapper";
-import { PubSub } from "utils";
-import { CopyType, ForkType } from "graphql/generated/globalTypes";
+import { getListItemIsStarred, getListItemIsUpvoted, getListItemPermissions, getListItemTitle, getUserLanguages, ObjectType, PubSub } from "utils";
+import { CopyType, DeleteOneType, ForkType } from "graphql/generated/globalTypes";
 import { BranchIcon, CopyIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReportIcon, SearchIcon, ShareIcon, StarFilledIcon, StarOutlineIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@shared/icons";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
 
@@ -26,8 +26,8 @@ const allOptionsMap: { [key in ObjectAction]: [string, SvgComponent, string, boo
     [ObjectAction.Fork]: ['Fork', BranchIcon, "default", false],
     [ObjectAction.Report]: ['Report', ReportIcon, "default", false],
     [ObjectAction.Share]: ['Share', ShareIcon, "default", false],
-    [ObjectAction.Star]: ['Star', StarFilledIcon, "#cbae30", false],
-    [ObjectAction.StarUndo]: ['Unstar', StarOutlineIcon, "#cbae30", false],
+    [ObjectAction.Star]: ['Star', StarOutlineIcon, "#cbae30", false],
+    [ObjectAction.StarUndo]: ['Unstar', StarFilledIcon, "#cbae30", false],
     [ObjectAction.Stats]: ['Stats', StatsIcon, "default", true],
     [ObjectAction.VoteDown]: ['Downvote', DownvoteWideIcon, "default", false],
     [ObjectAction.VoteUp]: ['Upvote', UpvoteWideIcon, "default", false],
@@ -35,19 +35,24 @@ const allOptionsMap: { [key in ObjectAction]: [string, SvgComponent, string, boo
 
 export const ObjectActionMenu = ({
     anchorEl,
-    isStarred,
-    isUpvoted,
-    objectId,
-    objectName,
-    objectType,
+    object,
     onActionComplete,
     onActionStart,
     onClose,
-    permissions,
     session,
     title,
     zIndex,
 }: ObjectActionMenuProps) => {
+
+    const { id, isStarred, isUpvoted, name, objectType, permissions } = useMemo(() => ({
+        id: object?.id,
+        isStarred: getListItemIsStarred(object),
+        isUpvoted: getListItemIsUpvoted(object),
+        name: getListItemTitle(object, getUserLanguages(session)),
+        objectType: object?.__typename as ObjectType,
+        permissions: getListItemPermissions(object, session),
+    }), [object, session]);
+
     // States
     const [deleteOpen, setDeleteOpen] = useState<boolean>(false);
     const [donateOpen, setDonateOpen] = useState<boolean>(false);
@@ -73,6 +78,7 @@ export const ObjectActionMenu = ({
     const [vote] = useMutation(voteMutation);
 
     const handleCopy = useCallback(() => {
+        if (!id) return;
         // Check if objectType can be converted to CopyType
         const copyType = CopyType[objectType];
         if (!copyType) {
@@ -81,13 +87,14 @@ export const ObjectActionMenu = ({
         }
         mutationWrapper<copy_copy, copyVariables>({
             mutation: copy,
-            input: { id: objectId, objectType: copyType },
-            successMessage: () => `${objectName} copied.`,
+            input: { id, objectType: copyType },
+            successMessage: () => `${name} copied.`,
             onSuccess: (data) => { onActionComplete(ObjectActionComplete.Copy, data) },
         })
-    }, [copy, objectId, objectName, objectType, onActionComplete]);
+    }, [copy, id, name, objectType, onActionComplete]);
 
     const handleFork = useCallback(() => {
+        if (!id) return;
         // Check if objectType can be converted to ForkType
         const forkType = ForkType[objectType];
         if (!forkType) {
@@ -96,27 +103,29 @@ export const ObjectActionMenu = ({
         }
         mutationWrapper<fork_fork, forkVariables>({
             mutation: fork,
-            input: { id: objectId, objectType: forkType },
-            successMessage: () => `${objectName} forked.`,
+            input: { id, objectType: forkType },
+            successMessage: () => `${name} forked.`,
             onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data) },
         })
-    }, [fork, objectId, objectName, objectType, onActionComplete]);
+    }, [fork, id, name, objectType, onActionComplete]);
 
     const handleStar = useCallback((isStar: boolean, starFor: StarFor) => {
+        if (!id) return;
         mutationWrapper<star_star, starVariables>({
             mutation: star,
-            input: { isStar, starFor, forId: objectId },
+            input: { isStar, starFor, forId: id },
             onSuccess: (data) => { onActionComplete(isStar ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data) },
         })
-    }, [objectId, onActionComplete, star]);
+    }, [id, onActionComplete, star]);
 
     const handleVote = useCallback((isUpvote: boolean | null, voteFor: VoteFor) => {
+        if (!id) return;
         mutationWrapper<vote_vote, voteVariables>({
             mutation: vote,
-            input: { isUpvote, voteFor, forId: objectId },
+            input: { isUpvote, voteFor, forId: id },
             onSuccess: (data) => { onActionComplete(isUpvote ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data) },
         })
-    }, [objectId, onActionComplete, vote]);
+    }, [id, onActionComplete, vote]);
 
     const onSelect = useCallback((action: ObjectAction) => {
         switch (action) {
@@ -203,26 +212,26 @@ export const ObjectActionMenu = ({
     return (
         <>
             {/* Delete routine confirmation dialog */}
-            <DeleteDialog
+            {id && objectType in DeleteOneType && <DeleteDialog
                 isOpen={deleteOpen}
-                objectId={objectId}
+                objectId={id}
                 objectType={objectType as any}
-                objectName={objectName}
+                objectName={name}
                 handleClose={closeDelete}
                 zIndex={zIndex + 1}
-            />
+            />}
             {/* Report dialog */}
-            <ReportDialog
-                forId={objectId}
+            {id && objectType in ReportFor && <ReportDialog
+                forId={id}
                 onClose={closeReport}
                 open={reportOpen}
-                reportFor={objectType as string as ReportFor}
+                reportFor={objectType as any}
                 session={session}
                 zIndex={zIndex + 1}
-            />
+            />}
             {/* Share dialog */}
             <ShareObjectDialog
-                objectType={objectType}
+                object={object}
                 open={shareOpen}
                 onClose={closeShare}
                 zIndex={zIndex + 1}
@@ -231,7 +240,7 @@ export const ObjectActionMenu = ({
             <ListMenu
                 anchorEl={anchorEl}
                 data={data}
-                id={`${objectType}-options-menu-${objectId}`}
+                id={`${objectType}-options-menu-${id}`}
                 onClose={onClose}
                 onSelect={onSelect}
                 title={title}

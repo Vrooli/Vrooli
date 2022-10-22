@@ -38,7 +38,6 @@ export const EditableLabel = ({
             text: validationSchema,
         }) : undefined,
         onSubmit: (values) => {
-            console.log('submitting title update', values.text)
             handleUpdate(values.text);
             setActive(false);
             formik.setSubmitting(false);
@@ -58,10 +57,13 @@ export const EditableLabel = ({
         setActive(!active)
     }, [active, canEdit]);
 
-    const cancel = useCallback(() => {
+    const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
+        // Don't close if formik is dirty and clicked outside
+        if (formik.dirty && reason === 'backdropClick') return;
+        // Otherwise, close
         setActive(false);
-        formik.setFieldValue('text', text);
-    }, [formik, text]);
+        formik.resetForm();
+    }, [formik]);
 
     return (
         <>
@@ -69,7 +71,7 @@ export const EditableLabel = ({
             <Dialog
                 open={active}
                 disableScrollLock={true}
-                onClose={() => { }}
+                onClose={handleCancel}
                 aria-labelledby={titleAria}
                 aria-describedby={descriptionAria}
                 sx={{
@@ -81,7 +83,7 @@ export const EditableLabel = ({
             >
                 <DialogTitle
                     ariaLabel={titleAria}
-                    onClose={cancel}
+                    onClose={handleCancel}
                     title="Edit Label"
                 />
                 <DialogContent>
@@ -105,7 +107,7 @@ export const EditableLabel = ({
                         errors={formik.errors}
                         isCreate={false}
                         loading={formik.isSubmitting}
-                        onCancel={cancel}
+                        onCancel={handleCancel}
                         onSetSubmitting={formik.setSubmitting}
                         onSubmit={formik.handleSubmit}
                     />

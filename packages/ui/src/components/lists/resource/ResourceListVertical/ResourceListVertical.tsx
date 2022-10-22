@@ -4,7 +4,6 @@ import { ResourceDialog, ResourceListItem } from 'components';
 import { ResourceListVerticalProps } from '../types';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { Resource } from 'types';
-import { containerShadow } from 'styles';
 import { Box, Button } from '@mui/material';
 import { useMutation } from '@apollo/client';
 import { resourceDeleteManyMutation } from 'graphql/mutation';
@@ -112,7 +111,7 @@ export const ResourceListVertical = ({
     return (
         <>
             <Box sx={{
-                ...containerShadow,
+                boxShadow: 12,
                 overflow: 'overlay',
                 borderRadius: '8px',
                 maxWidth: '1000px',

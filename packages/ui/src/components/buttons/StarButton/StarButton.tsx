@@ -1,4 +1,4 @@
-import { Box, ListItemText, Stack, Tooltip } from '@mui/material';
+import { Box, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StarButtonProps } from '../types';
 import { multiLineEllipsis } from 'styles';
@@ -7,6 +7,7 @@ import { starVariables, star_star } from 'graphql/generated/star';
 import { starMutation } from 'graphql/mutation';
 import { uuidValidate } from '@shared/uuid';
 import { StarFilledIcon, StarOutlineIcon } from '@shared/icons';
+import { getCurrentUser } from 'utils/authentication';
 
 export const StarButton = ({
     disabled = false,
@@ -20,6 +21,9 @@ export const StarButton = ({
     sxs,
     tooltipPlacement = "left"
 }: StarButtonProps) => {
+    const { palette } = useTheme();
+    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
+
     // Used to respond to user clicks immediately, without having 
     // to wait for the mutation to complete
     const [internalIsStar, setInternalIsStar] = useState<boolean | null>(isStar ?? null);
@@ -34,7 +38,7 @@ export const StarButton = ({
     }, [internalIsStar, isStar, stars]);
 
     const handleClick = useCallback((event: any) => {
-        if (!session.id) return;
+        if (!userId) return;
         const isStar = !internalIsStar;
         setInternalIsStar(isStar);
         // Prevent propagation of normal click event
@@ -47,11 +51,16 @@ export const StarButton = ({
             input: { isStar, starFor, forId: objectId },
             onSuccess: () => { if (onChange) onChange(isStar, event) },
         })
-    }, [session.id, internalIsStar, starFor, objectId, onChange]);
+    }, [userId, internalIsStar, starFor, objectId, onChange]);
 
     const Icon = internalIsStar ? StarFilledIcon : StarOutlineIcon;
     const tooltip = internalIsStar ? 'Remove from favorites' : 'Add to favorites';
-    const color = session?.id && !disabled ? '#cbae30' : 'rgb(189 189 189)';
+    const fill = useMemo<string>(() => {
+        if (!userId || disabled) return 'rgb(189 189 189)';
+        if (internalIsStar) return '#cbae30';
+        return palette.secondary.main;
+    }, [userId, disabled, internalIsStar, palette]);
+
     return (
         <Stack
             direction="row"
@@ -60,17 +69,22 @@ export const StarButton = ({
                 marginRight: 0,
                 marginTop: 'auto !important',
                 marginBottom: 'auto !important',
+                pointerEvents: 'none',
                 ...(sxs?.root ?? {}),
             }}
         >
             <Tooltip placement={tooltipPlacement} title={tooltip}>
-                <Box onClick={handleClick} sx={{ display: 'contents', cursor: session?.id ? 'pointer' : 'default' }}>
-                    <Icon fill={color} />
+                <Box onClick={handleClick} sx={{
+                    display: 'contents',
+                    cursor: userId ? 'pointer' : 'default',
+                    pointerEvents: disabled ? 'none' : 'all',
+                }}>
+                    <Icon fill={fill} />
                 </Box>
             </Tooltip>
             {showStars && internalStars !== null && <ListItemText
                 primary={internalStars}
-                sx={{ ...multiLineEllipsis(1) }}
+                sx={{ ...multiLineEllipsis(1), pointerEvents: 'none' }}
             />}
         </Stack>
     )

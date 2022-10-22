@@ -21,6 +21,7 @@ import { CommentThread } from 'components/lists/comment';
 import { DUMMY_ID, uuidValidate } from '@shared/uuid';
 import { uuid } from '@shared/uuid';
 import { GridSubmitButtons } from 'components/buttons';
+import { getCurrentUser } from 'utils/authentication';
 
 const { advancedSearchSchema, defaultSortBy } = searchTypeToParams.Comment;
 
@@ -34,6 +35,7 @@ export function CommentContainer({
 }: CommentContainerProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     const [sortBy, setSortBy] = useState<string>(defaultSortBy);
     const [searchString, setSearchString] = useState<string>('');
@@ -219,7 +221,6 @@ export function CommentContainer({
 
     // Current text, as well as errors
     const { text, errorText, touchedText, errors } = useMemo(() => {
-        console.log('comment container gettransdata')
         const { error, touched, value } = getTranslationData(formik, 'translationsCreate', language);
         return {
             text: value?.text ?? '',
@@ -236,8 +237,6 @@ export function CommentContainer({
     const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
         handleTranslationChange(formik, 'translationsCreate', e, language)
     }, [formik, language]);
-
-    const isLoggedIn = useMemo(() => session?.isLoggedIn === true && uuidValidate(session?.id ?? ''), [session]);
 
     return (
         <Box
@@ -268,7 +267,7 @@ export function CommentContainer({
                         marginTop: 1,
                     }}>
                         <GridSubmitButtons
-                            disabledSubmit={!isLoggedIn}
+                            disabledSubmit={!userId}
                             errors={errors}
                             isCreate={true}
                             loading={formik.isSubmitting || loadingAdd}

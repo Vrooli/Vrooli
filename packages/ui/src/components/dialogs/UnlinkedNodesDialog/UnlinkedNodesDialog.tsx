@@ -39,9 +39,9 @@ export const UnlinkedNodesDialog = ({
             isEditing: false,
             isLinked: false,
             key: `unlinked-node-${node.id}`,
-            label: getTranslation(node, 'title', [language], false) ?? null,
+            label: getTranslation(node, [language], false).title ?? null,
             labelVisible: false,
-            scale: 0.5,
+            scale: 0.8,
             zIndex,
         }
         // Determine node to display based on node type
@@ -86,10 +86,10 @@ export const UnlinkedNodesDialog = ({
                 paddingRight: 1,
                 marginRight: 1,
                 marginTop: open ? '4px' : 'unset',
-                maxHeight: { xs: '62vh', sm: '65vh', md: '72vh' },
+                maxHeight: { xs: '50vh', sm: '65vh', md: '72vh' },
                 overflowX: 'hidden',
                 overflowY: 'auto',
-                width: open ? '250px' : 'fit-content',
+                width: open ? { xs: '100%', sm: '375px' } : 'fit-content',
                 transition: 'height 1s ease-in-out',
                 zIndex: 1500,
                 "&::-webkit-scrollbar": {
@@ -123,15 +123,14 @@ export const UnlinkedNodesDialog = ({
                             <Box key={node.id} sx={{ display: 'flex', alignItems: 'center' }}>
                                 {/* Miniature version of node */}
                                 <Box sx={{
-                                    width: '50px',
                                     height: '50px',
                                 }}>
                                     {createNode(node)}
                                 </Box>
                                 {/* Node title */}
-                                {node.type === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, 'title', [language], true)}</Typography>)}
+                                {node.type === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, [language], true).title}</Typography>)}
                                 {/* Delete node icon */}
-                                <Tooltip title={`Delete ${getTranslation(node, 'title', [language], true)} node`} placement="left">
+                                <Tooltip title={`Delete ${getTranslation(node, [language], true).title} node`} placement="left">
                                     <Box sx={{ marginLeft: 'auto' }}>
                                         <IconButton
                                             color="inherit"

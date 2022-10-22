@@ -1,101 +1,139 @@
-import { AutocompleteOption, ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListStar, ListUser, ListView, NavigableObject, Session } from "types";
-import { OrganizationListItem, ProjectListItem, RoutineListItem, RunListItem, StandardListItem, UserListItem } from 'components';
+import { AutocompleteOption, ListStar, ListView, NavigableObject, Session } from "types";
 import { getTranslation, getUserLanguages } from "./translationTools";
-import { ObjectListItemProps } from "components/lists/types";
-import { Theme } from "@mui/material";
+import { ObjectListItemType } from "components/lists/types";
+import { displayDate, firstString } from "./stringTools";
+import { getCurrentUser } from "utils/authentication";
+import { ObjectListItem } from "components";
+import { StarFor } from "@shared/consts";
 
-export type ListObjectType = ListOrganization | ListProject | ListRoutine | ListRun | ListStandard | ListStar | ListUser | ListView;
+export type ListObjectType = ObjectListItemType | ListStar | ListView;
 
 /**
- * Gets label for List, either from its 
- * name or handle
- * @param o Organization object
+ * Gets the title of a list object
+ * @param object A list object
  * @param languages User languages
- * @returns label
+ * @returns The title of the object
  */
-export const organizationOptionLabel = (o: ListOrganization, languages: readonly string[]) => getTranslation(o, 'name', languages, true) ?? o.handle ?? '';
-
-/**
- * Gets label for project, either from its 
- * name or handle
- * @param o Project object
- * @param languages User languages
- * @returns label
- */
-export const projectOptionLabel = (o: ListProject, languages: readonly string[]) => getTranslation(o, 'name', languages, true) ?? o.handle ?? '';
-
-/**
-* Gets label for routine, from its title
-* @param o Routine object
-* @param languages User languages
-* @returns label
-*/
-export const routineOptionLabel = (o: ListRoutine, languages: readonly string[]) => getTranslation(o, 'title', languages, true) ?? '';
-
-/**
- * Gets label for run, using title and time started
- * @param o Run object
- * @param languages User languages
- * @returns label
- */
-export const runOptionLabel = (o: ListRun, languages: readonly string[]) => {
-    const title = o.title ?? getTranslation(o.routine, 'title', languages, true) ?? '';
-    const date = o.timeStarted ? (new Date(o.timeStarted)) : null;
-    if (date) {
-        return `${title} (${date.toLocaleDateString()} ${date.toLocaleTimeString()})`;
-    }
-    return title;
-}
-
-/**
-* Gets label for routine, from its name
-* @param o Standard object
-* @param languages User languages
-* @returns label
-*/
-export const standardOptionLabel = (o: ListStandard, languages: readonly string[]) => o.name ?? '';
-
-/**
-* Gets label for user, either from its 
-* name or handle
-* @param o User object
-* @param languages User languages
-* @returns label
-*/
-export const userOptionLabel = (o: ListUser, languages: readonly string[]) => o.name ?? o.handle ?? '';
-
-/**
- * Gets label for a single object
- * @param object A searchable object
- * @param languages User languages
- * @returns label
- */
-export const getListItemLabel = (
-    object: ListObjectType,
+export const getListItemTitle = (
+    object: ListObjectType | null | undefined,
     languages?: readonly string[]
 ): string => {
-    const lang = languages ?? getUserLanguages();
+    if (!object) return "";
+    const langs: readonly string[] = languages ?? getUserLanguages(undefined);
     switch (object.__typename) {
         case 'Organization':
-            return organizationOptionLabel(object, lang);
+            return firstString(getTranslation(object, langs, true).name, object.handle);
         case 'Project':
-            return projectOptionLabel(object, lang);
+            return firstString(getTranslation(object, langs, true).name, object.handle);
         case 'Routine':
-            return routineOptionLabel(object, lang);
+            return firstString(getTranslation(object, langs, true).title);
         case 'Run':
-            return runOptionLabel(object, lang);
+            const title = firstString(object.title, getTranslation(object.routine, langs, true).title);
+            const date = object.timeStarted ? (new Date(object.timeStarted)) : null;
+            if (date) return `${title} (${date.toLocaleDateString()} ${date.toLocaleTimeString()})`;
+            return title;
         case 'Standard':
-            return standardOptionLabel(object, lang);
+            return firstString(object.name);
         case 'Star':
-            return getListItemLabel(object.to as any, lang);
+            return getListItemTitle(object.to as any, langs);
         case 'User':
-            return userOptionLabel(object, lang);
+            return firstString(object.name, object.handle);
         case 'View':
-            return (object.title.length > 0) ? object.title : getListItemLabel(object.to as any, lang);
+            return firstString(object.title).length > 0 ? object.title : getListItemTitle(object.to as any, langs);
         default:
             return '';
     }
 };
+
+/**
+ * Gets the subtitle of a list object
+ * @param object A list object
+ * @param languages User languages
+ */
+export const getListItemSubtitle = (
+    object: ListObjectType | null | undefined,
+    languages?: readonly string[]
+): string => {
+    if (!object) return "";
+    const langs: readonly string[] = languages ?? getUserLanguages(undefined);
+    switch (object.__typename) {
+        case 'Organization':
+            return firstString(getTranslation(object, langs, true).bio);
+        case 'Project':
+            return firstString(getTranslation(object, langs, true).description);
+        case 'Routine':
+            return firstString(getTranslation(object, langs, true).description);
+        case 'Run':
+            // Subtitle for a run is the time started/completed, or nothing (depending on status)
+            const startedAt: string | null = object?.timeStarted ? displayDate(object.timeStarted) : null;
+            const completedAt: string | null = object?.timeCompleted ? displayDate(object.timeCompleted) : null;
+            if (completedAt) return `Completed: ${completedAt}`;
+            if (startedAt) return `Started: ${startedAt}`;
+            return '';
+        case 'Standard':
+            return firstString(getTranslation(object, langs, true).description);
+        case 'Star':
+            return getListItemSubtitle(object.to as any, langs);
+        case 'User':
+            return firstString(getTranslation(object, langs, true).bio);
+        case 'View':
+            return getListItemSubtitle(object.to as any, langs);
+        default:
+            return '';
+    }
+};
+
+/**
+ * Gets the permissions of a list object
+ * @param object A list object
+ * @param session The current session
+ */
+export const getListItemPermissions = (
+    object: ListObjectType | null | undefined,
+    session: Session,
+): {
+    canComment: boolean;
+    canDelete: boolean;
+    canEdit: boolean;
+    canFork: boolean;
+    canReport: boolean;
+    canStar: boolean;
+    canView: boolean;
+    canVote: boolean;
+} => {
+    const defaultPermissions = { canComment: false, canDelete: false, canEdit: false, canFork: false, canReport: false, canStar: false, canView: false, canVote: false };
+    if (!object) return defaultPermissions;
+    // Helper function to convert every field in an object to boolean
+    const toBoolean = <T extends { [key: string]: any }>(obj: T | null | undefined): { [K in keyof T]?: boolean } => {
+        if (!obj) return {};
+        const newObj: { [K in keyof T]?: boolean } = {};
+        for (const key in obj) {
+            newObj[key] = obj[key] === true;
+        }
+        return newObj as { [K in keyof T]: boolean };
+    };
+    switch (object.__typename) {
+        case 'Organization':
+            return { ...defaultPermissions, ...toBoolean(object.permissionsOrganization) };
+        case 'Project':
+            return { ...defaultPermissions, ...toBoolean(object.permissionsProject) };
+        case 'Routine':
+            return { ...defaultPermissions, ...toBoolean(object.permissionsRoutine) };
+        case 'Run':
+            return { ...defaultPermissions, ...toBoolean(object.routine?.permissionsRoutine) };
+        case 'Standard':
+            return { ...defaultPermissions, ...toBoolean(object.permissionsStandard) };
+        case 'Star':
+            return getListItemPermissions(object.to as any, session);
+        case 'User':
+            const isOwn = object.id === getCurrentUser(session).id;
+            return { canComment: false, canDelete: isOwn, canEdit: isOwn, canFork: false, canReport: !isOwn, canStar: !isOwn, canView: true, canVote: false };
+        case 'View':
+            return getListItemPermissions(object.to as any, session);
+        default:
+            return defaultPermissions;
+    }
+}
 
 /**
  * Gets stars for a single object
@@ -103,8 +141,9 @@ export const getListItemLabel = (
  * @returns stars
  */
 export const getListItemStars = (
-    object: ListObjectType,
+    object: ListObjectType | null | undefined,
 ): number => {
+    if (!object) return 0;
     switch (object.__typename) {
         case 'Organization':
         case 'Project':
@@ -114,11 +153,32 @@ export const getListItemStars = (
             return object.stars;
         case 'Run':
             return object.routine?.stars ?? 0;
-        case 'Star': 
+        case 'Star':
         case 'View':
             return getListItemStars(object.to as any);
         default:
             return 0;
+    }
+}
+
+export const getListItemStarFor = (
+    object: ListObjectType | null | undefined,
+): StarFor | null => {
+    if (!object) return null;
+    switch (object.__typename) {
+        case 'Organization':
+        case 'Project':
+        case 'Routine':
+        case 'Standard':
+        case 'User':
+            return object.__typename as StarFor;
+        case 'Run':
+            return StarFor.Routine;
+        case 'Star':
+        case 'View':
+            return getListItemStarFor(object.to as any);
+        default:
+            return null;
     }
 }
 
@@ -128,8 +188,9 @@ export const getListItemStars = (
  * @returns isStarred
  */
 export const getListItemIsStarred = (
-    object: ListObjectType,
+    object: ListObjectType | null | undefined,
 ): boolean => {
+    if (!object) return false;
     switch (object.__typename) {
         case 'Organization':
         case 'Project':
@@ -144,6 +205,54 @@ export const getListItemIsStarred = (
             return getListItemIsStarred(object.to as any);
         default:
             return false;
+    }
+}
+
+/**
+ * Gets isUpvoted for a single object
+ * @param object A searchable object
+ * @returns isUpvoted
+ */
+export const getListItemIsUpvoted = (
+    object: ListObjectType | null | undefined,
+): boolean | null => {
+    if (!object) return false;
+    switch (object.__typename) {
+        case 'Project':
+        case 'Routine':
+        case 'Standard':
+            return object.isUpvoted;
+        case 'Run':
+            return object.routine?.isUpvoted ?? null;
+        case 'Star':
+        case 'View':    
+            return getListItemIsUpvoted(object.to as any);
+        default:
+            return null;
+    }
+}
+
+/**
+ * Gets reportsCount for a single object
+ * @param object A searchable object
+ * @returns number of reports
+ */
+export const getListItemReportsCount = (
+    object: ListObjectType | null | undefined,
+): number => {
+    if (!object) return 0;
+    switch (object.__typename) {
+        case 'Organization':
+        case 'Project':
+        case 'Routine':
+        case 'Standard':
+        case 'User':
+            return object.reportsCount;
+        case 'Star':
+        case 'View':
+            return getListItemStars(object.to as any);
+        default:
+            return 0;
     }
 }
 
@@ -166,7 +275,7 @@ export function listToAutocomplete(
         __typename: o.__typename,
         id: o.id,
         isStarred: getListItemIsStarred(o),
-        label: getListItemLabel(o, languages),
+        label: getListItemSubtitle(o, languages),
         routine: o.__typename === 'Run' ? o.routine : undefined,
         stars: getListItemStars(o),
         to: o.__typename === 'View' || o.__typename === 'Star' ? o.to : undefined,
@@ -174,21 +283,12 @@ export function listToAutocomplete(
     }));
 }
 
-/**
- * Maps __typename to the corresponding ListItem component.
- */
-export const listItemMap: { [x: string]: (props: ObjectListItemProps<any>) => JSX.Element } = {
-    'Organization': (props) => <OrganizationListItem {...props} />,
-    'Project': (props) => <ProjectListItem {...props} />,
-    'Routine': (props) => <RoutineListItem {...props} />,
-    'Run': (props) => <RunListItem {...props} />,
-    'Standard': (props) => <StandardListItem {...props} />,
-    'User': (props) => <UserListItem {...props} />,
-};
-
-type ListItem = ListOrganization | ListProject | ListRoutine | ListRun | ListStandard | ListStar | ListUser | ListView;
-
 export interface ListToListItemProps {
+    /**
+     * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
+     * If the callback returns false, the list item will not be selected.
+     */
+    beforeNavigation?: (item: NavigableObject) => boolean | void,
     /**
      * List of dummy items types to display while loading
      */
@@ -198,9 +298,9 @@ export interface ListToListItemProps {
      */
     hideRoles?: boolean,
     /**
-     * The list of item data
+     * The list of item data. Objects like view and star are converted to their respective objects.
      */
-    items?: readonly ListItem[],
+    items?: readonly ListObjectType[],
     /**
      * Each list item's key will be `${keyPrefix}-${id}`
      */
@@ -210,17 +310,10 @@ export interface ListToListItemProps {
      */
     loading: boolean,
     /**
-     * Function to call when a list item is clicked
-     */
-    onClick?: (item: NavigableObject, event: React.MouseEvent<HTMLElement>) => void,
-    /**
      * Current session
      */
     session: Session,
-    /**
-     * Tooltip text to display when hovering over a list item
-     */
-    tooltip?: string,
+    zIndex: number,
 }
 
 /**
@@ -228,32 +321,29 @@ export interface ListToListItemProps {
  * @returns A list of ListItems
  */
 export function listToListItems({
+    beforeNavigation,
     dummyItems,
     keyPrefix,
     hideRoles,
     items,
     loading,
-    onClick,
     session,
-    tooltip,
+    zIndex,
 }: ListToListItemProps): JSX.Element[] {
     let listItems: JSX.Element[] = [];
     // If loading, display dummy items
     if (loading) {
         if (!dummyItems) return listItems;
         for (let i = 0; i < dummyItems.length; i++) {
-            if (dummyItems[i] in listItemMap) {
-                const CurrItem = listItemMap[dummyItems[i]];
-                listItems.push(<CurrItem
-                    key={`${keyPrefix}-${i}`}
-                    hideRole={hideRoles}
-                    data={null}
-                    index={i}
-                    loading={true}
-                    session={session}
-                    tooltip={tooltip}
-                />);
-            }
+            listItems.push(<ObjectListItem
+                key={`${keyPrefix}-${i}`}
+                data={null}
+                hideRole={hideRoles}
+                index={i}
+                loading={true}
+                session={session}
+                zIndex={zIndex}
+            />);
         }
     }
     if (!items) return listItems;
@@ -261,37 +351,20 @@ export function listToListItems({
         let curr = items[i];
         // If "View" or "Star" item, display the object it points to
         if (curr.__typename === 'View' || curr.__typename === 'Star') {
-            curr = (curr as ListStar | ListView).to;
+            curr = (curr as ListStar | ListView).to as ObjectListItemType;
         }
-        // Create common props
-        const commonProps = {
-            key: `${keyPrefix}-${curr.id}`,
-            data: curr,
-            index: i,
-            loading: loading,
-            session,
-            onClick: onClick ? (e) => onClick(curr, e) : undefined,
-            tooltip: tooltip,
-        }
-        if (curr.__typename in listItemMap) {
-            const CurrItem = listItemMap[curr.__typename];
-            listItems.push(<CurrItem {...commonProps} />);
-        }
+        listItems.push(<ObjectListItem
+            key={`${keyPrefix}-${curr.id}`}
+            beforeNavigation={beforeNavigation}
+            data={curr}
+            hideRole={hideRoles}
+            index={i}
+            loading={false}
+            session={session}
+            zIndex={zIndex}
+        />);
     }
     return listItems;
-}
-
-/**
- * Determines background color for a list item. Alternates between 
- * two colors.
- * @param index Index of list item
- * @param palette MUI theme palette
- * @returns String of background color
- */
-export const listItemColor = (index: number, palette: Theme['palette']): string => {
-    const lightColors = [palette.background.default, palette.background.paper];
-    const darkColors = [palette.background.default, palette.background.paper];
-    return (palette.mode === 'light') ? lightColors[index % lightColors.length] : darkColors[index % darkColors.length];
 }
 
 /**

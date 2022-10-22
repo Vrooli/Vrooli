@@ -1,13 +1,14 @@
 import { gql } from 'apollo-server-express';
 import { CODE } from '@shared/consts';
 import { CustomError } from '../error';
-import { countHelper, ProfileModel, readManyHelper, readOneHelper, UserModel } from '../models';
+import { countHelper, getUserId, ProfileModel, readManyHelper, readOneHelper, UserModel } from '../models';
 import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdOrHandleInput, UserSearchInput, UserCountInput, UserSearchResult, User, ProfileEmailUpdateInput, UserSortBy } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
 import { genErrorCode } from '../logger';
+import { assertRequestFrom, generateSessionJwt } from '../auth/auth';
 
 export const typeDef = gql`
     enum UserSortBy {
@@ -114,6 +115,7 @@ export const typeDef = gql`
 
     input UserDeleteInput {
         password: String!
+        deletePublicData: Boolean!
     }
 
     input UserSearchInput {
@@ -173,54 +175,50 @@ export const resolvers = {
     UserSortBy: UserSortBy,
     Query: {
         profile: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
-            // Only accessible if logged in and not using an API key
-            if (!req.userId || req.apiToken) 
-                throw new CustomError(CODE.Unauthorized, 'Must be logged in to query profile', { code: genErrorCode('0158') });
-            await rateLimit({ info, max: 2000, byAccountOrKey: true, req });
-            return ProfileModel.query(prisma).findProfile(req.userId, info);
+            assertRequestFrom(req, { isUser: true });
+            await rateLimit({ info, maxUser: 2000, req });
+            return ProfileModel.query(prisma).findProfile(getUserId(req) as string, info);
         },
         user: async (_parent: undefined, { input }: IWrap<FindByIdOrHandleInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<User> | null> => {
-            await rateLimit({ info, max: 1000, req });
-            return readOneHelper({ info, input, model: UserModel, prisma, userId: req.userId });
+            await rateLimit({ info, maxUser: 1000, req });
+            return readOneHelper({ info, input, model: UserModel, prisma, req });
         },
         users: async (_parent: undefined, { input }: IWrap<UserSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<UserSearchResult> => {
-            await rateLimit({ info, max: 1000, req });
-            return readManyHelper({ info, input, model: UserModel, prisma, userId: req.userId });
+            await rateLimit({ info, maxUser: 1000, req });
+            return readManyHelper({ info, input, model: UserModel, prisma, req });
         },
         usersCount: async (_parent: undefined, { input }: IWrap<UserCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
-            await rateLimit({ info, max: 1000, req });
-            return countHelper({ input, model: UserModel, prisma, userId: req.userId });
+            await rateLimit({ info, maxUser: 1000, req });
+            return countHelper({ input, model: UserModel, prisma, req });
         },
     },
     Mutation: {
         profileUpdate: async (_parent: undefined, { input }: IWrap<ProfileUpdateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
-            // Only accessible if logged in and not using an API key
-            if (!req.userId || req.apiToken)
-                throw new CustomError(CODE.Unauthorized, 'Must be logged in to update profile', { code: genErrorCode('0159') });
-            await rateLimit({ info, max: 250, byAccountOrKey: true, req });
+            assertRequestFrom(req, { isUser: true });
+            await rateLimit({ info, maxUser: 250, req });
             // Update object
-            const updated = await ProfileModel.mutate(prisma).updateProfile(req.userId, input, info);
-            if (!updated) 
+            const updated = await ProfileModel.mutate(prisma).updateProfile(getUserId(req) as string, input, info);
+            if (!updated)
                 throw new CustomError(CODE.ErrorUnknown, 'Could not update profile', { code: genErrorCode('0160') });
+            // Update session
+            const session = await ProfileModel.verify.toSession({ id: getUserId(req) as string }, prisma, req);
+            await generateSessionJwt(res, session);
             return updated;
         },
         profileEmailUpdate: async (_parent: undefined, { input }: IWrap<ProfileEmailUpdateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
-            // Only accessible if logged in and not using an API key
-            if (!req.userId || req.apiToken)
-                throw new CustomError(CODE.Unauthorized, 'Must be logged in to update profile', { code: genErrorCode('0161') });
-            await rateLimit({ info, max: 100, byAccountOrKey: true, req });
+            assertRequestFrom(req, { isUser: true });
+            await rateLimit({ info, maxUser: 100, req });
             // Update object
-            const updated = await ProfileModel.mutate(prisma).updateEmails(req.userId, input, info);
-            if (!updated) 
+            const updated = await ProfileModel.mutate(prisma).updateEmails(getUserId(req) as string, input, info);
+            if (!updated)
                 throw new CustomError(CODE.ErrorUnknown, 'Could not update profile', { code: genErrorCode('0162') });
             return updated;
         },
         userDeleteOne: async (_parent: undefined, { input }: IWrap<UserDeleteInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            // Only accessible if logged in and not using an API key
-            if (!req.userId || req.apiToken)
-                throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete account', { code: genErrorCode('0163') });
-            await rateLimit({ info, max: 5, req });
-            return await ProfileModel.mutate(prisma).deleteProfile(req.userId, input);
+            assertRequestFrom(req, { isUser: true });
+            await rateLimit({ info, maxUser: 5, req });
+            // TODO anonymize public data
+            return await ProfileModel.mutate(prisma).deleteProfile(getUserId(req) as string, input);
         },
         /**
          * Exports user data to a JSON file (created/saved routines, projects, organizations, etc.).
@@ -228,11 +226,9 @@ export const resolvers = {
          * @returns JSON of all user data
          */
         exportData: async (_parent: undefined, _args: undefined, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<string> => {
-            // Only accessible if logged in and not using an API key
-            if (!req.userId || req.apiToken)
-                throw new CustomError(CODE.Unauthorized, 'Must be logged in to export data', { code: genErrorCode('0164') });
-            await rateLimit({ info, max: 5, byAccountOrKey: true, req });
-            return await ProfileModel.port(prisma).exportData(req.userId);
+            assertRequestFrom(req, { isUser: true });
+            await rateLimit({ info, maxUser: 5, req });
+            return await ProfileModel.port(prisma).exportData(getUserId(req) as string);
         }
     }
 }

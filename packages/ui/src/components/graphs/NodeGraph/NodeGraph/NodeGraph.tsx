@@ -210,21 +210,13 @@ export const NodeGraph = ({
     }, [columns, handleNodeDrop, nodesById]);
 
     // Set listeners for:
-    // - click-and-drag background
+    // - click-and-drag grid
     // - drag-and-drop nodes
     useEffect(() => {
         // True if user touched the grid instead of a node or edge
         let touchedGrid = false;
-        const onKeyDown = (ev: KeyboardEvent) => {
-        }
-        const onKeyUp = (ev: KeyboardEvent) => {
-        }
-        const onMouseDown = (ev: MouseEvent) => {
-            // Find touch point
-            const x = ev.clientX;
-            const y = ev.clientY;
+        const handleStart = (x: number, y: number, targetId: string | null) => {
             // Find target
-            const targetId = (ev as any)?.target.id;
             if (!targetId) return;
             // If touching the grid or a node
             else if (targetId.startsWith('node-') || targetId === 'graph-root' || targetId === 'graph-grid') {
@@ -234,30 +226,8 @@ export const NodeGraph = ({
                 else dragRefs.current.currPosition = { x, y };
             }
         }
-        // Detect node drag and graph pinch
-        const onTouchStart = (ev: TouchEvent<any> | any) => {
-            // Find touch point
-            const x = ev.touches[0].clientX;
-            const y = ev.touches[0].clientY;
-            // Find the target
-            const targetId = ev.target.id;
-            if (!targetId) return;
-            // If touching the grid or a node
-            else if (targetId.startsWith('node-') || targetId === 'graph-root' || targetId === 'graph-grid') {
-                // Set dragRef
-                dragRefs.current.currPosition = { x, y };
-            }
-        }
-        const onMouseUp = (ev: MouseEvent | Event) => {
-            touchedGrid = false;
-            clearScroll();
-        }
-        const onMouseMove = (ev: MouseEvent) => {
-            // Find cursor point
-            const x = ev.clientX;
-            const y = ev.clientY;
-            // Otherwise, if the grid is being dragged, move the grid
-            // NOTE: this is only needed for mouse movement, as touch screens do this automatically
+        const handleMove = (x: number, y: number) => {
+            // I the grid is being dragged, move the grid
             if (touchedGrid && dragRefs.current.currPosition) {
                 const gridElement = document.getElementById('graph-root');
                 if (!gridElement) return;
@@ -265,29 +235,26 @@ export const NodeGraph = ({
                 const deltaY = y - dragRefs.current.currPosition.y;
                 gridElement.scrollBy(-deltaX, -deltaY);
             }
-            dragRefs.current.currPosition = { x, y };
-        }
-        const onTouchMove = (ev: any) => {
-            // Find touch point
-            const x = ev.touches[0].clientX;
-            const y = ev.touches[0].clientY;
             // drag
             dragRefs.current.currPosition = { x, y };
         }
-        // const onWheelMove = (ev: WheelEvent) => {
-        //     // Find wheel point
-        //     const x = ev.clientX;
-        //     const y = ev.clientY;
-
+        const handleEnd = () => {
+            touchedGrid = false;
+            clearScroll();
+        }
+        const onMouseDown = (ev: MouseEvent) => handleStart(ev.clientX, ev.clientY, (ev as any)?.target.id);
+        const onTouchStart = (ev: TouchEvent<any> | any) => handleStart(ev.touches[0].clientX, ev.touches[0].clientY, (ev as any)?.target.id);
+        const onMouseUp = handleEnd;
+        const onTouchEnd = handleEnd;
+        const onMouseMove = (ev: MouseEvent) => handleMove(ev.clientX, ev.clientY);
+        const onTouchMove = (ev: any) => handleMove(ev.touches[0].clientX, ev.touches[0].clientY);
         // Add event listeners
-        window.addEventListener('keydown', onKeyDown); // Detects shift key for pinch
-        window.addEventListener('keyup', onKeyUp); // Detects shift key for pinch
         window.addEventListener('mousedown', onMouseDown); // Detects if node or graph is being dragged
         window.addEventListener('mouseup', onMouseUp); // Stops dragging and pinching
         window.addEventListener('mousemove', onMouseMove); // Moves node or grid
-        window.addEventListener('touchstart', onTouchStart); // Detects if node is being dragged or graph is being pinched
-        window.addEventListener('touchmove', onTouchMove); // Detects if node is being dragged or graph is being pinched
-        window.addEventListener('touchend', onMouseUp); // Stops dragging and pinching
+        window.addEventListener('touchstart', onTouchStart); // Detects if node is being dragged
+        window.addEventListener('touchmove', onTouchMove); // Detects if node is being dragged
+        window.addEventListener('touchend', onTouchEnd); // Stops dragging and pinching
         // window.addEventListener('wheel', onMouseWheel); // Detects mouse scroll for zoom
         // Add PubSub subscribers
         let dragStartSub = PubSub.get().subscribeNodeDrag((data) => {
@@ -307,6 +274,9 @@ export const NodeGraph = ({
             window.removeEventListener('mousedown', onMouseDown);
             window.removeEventListener('mouseup', onMouseUp);
             window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('touchstart', onTouchStart);
+            window.removeEventListener('touchmove', onTouchMove);
+            window.removeEventListener('touchend', onTouchEnd);
             // Remove PubSub subscribers
             PubSub.get().unsubscribe(dragStartSub);
             PubSub.get().unsubscribe(dragDropSub);
@@ -333,7 +303,7 @@ export const NodeGraph = ({
                 isEditing={isEditing}
                 isFromRoutineList={fromNode.type === NodeType.RoutineList}
                 isToRoutineList={toNode.type === NodeType.RoutineList}
-                scale={scale ?? 1}
+                scale={scale}
                 handleAdd={handleNodeInsert}
                 handleBranch={handleBranchInsert}
                 handleDelete={handleLinkDelete}
@@ -370,26 +340,28 @@ export const NodeGraph = ({
     return (
         <Box id="graph-root" position="relative" sx={{
             cursor: 'move',
+            // Disable zooming, selection, and text highlighting
+            touchAction: 'none',
+            msTouchAction: 'none',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            MozUserSelect: 'none',
+            msUserSelect: 'none',
+            WebkitTouchCallout: 'none',
+            KhtmlUserSelect: 'none',
             minWidth: '100%',
             // Graph fills remaining space that is not taken up by other elements. 
             // These are: routine title (64px), other top build icons (48px),
             // build bottom (64px), and iOS nav bar. This makes the size: 
             // 100vh - (64 + 48 + 64) = calc(100vh - 176px).
             height: 'calc(100vh - 176px - env(safe-area-inset-bottom))',
-            overflowX: 'auto',
-            overflowY: 'auto',
             margin: 0,
             padding: 0,
-            // Customize scrollbar
-            "&::-webkit-scrollbar": {
-                width: 10,
-            },
-            "&::-webkit-scrollbar-track": {
-                backgroundColor: '#dae5f0',
-            },
-            "&::-webkit-scrollbar-thumb": {
-                borderRadius: '100px',
-                backgroundColor: "#409590",
+            overflowX: 'auto',
+            overflowY: 'auto',
+            // Hide scrollbars
+            '&::-webkit-scrollbar': {
+                display: 'none',
             },
         }}>
             {/* Edges */}
@@ -397,12 +369,13 @@ export const NodeGraph = ({
             <Stack id="graph-grid" direction="row" spacing={0} zIndex={5} sx={{
                 width: 'fit-content',
                 minWidth: '100vw',
-                minHeight: '-webkit-fill-available',
+                minHeight: '100%',
                 // Create grid background pattern on stack, so it scrolls with content
                 '--line-color': palette.mode === 'light' ? `rgba(0 0 0 / .05)` : `rgba(255 255 255 / .05)`,
                 '--line-thickness': `1px`,
-                '--minor-length': `${80 * scale}px`,
-                '--major-length': `${400 * scale}px`,
+                // Minor length is 1/5 of major length, and is always between 25 and 50 pixels
+                '--minor-length': `${(Math.abs(scale * 12.5) % 25) + 25}px`,
+                '--major-length': `${(Math.abs(scale * 62.5) % 125) + 125}px`,
                 '--line': `var(--line-color) 0 var(--line-thickness)`,
                 '--small-body': `transparent var(--line-thickness) var(--minor-length)`,
                 '--large-body': `transparent var(--line-thickness) var(--major-length)`,

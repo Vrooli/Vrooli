@@ -30,8 +30,8 @@
             "purpose": "maskable"
         }
     ],
-    "theme_color": "#232328",
-    "background_color": "#232328",
+    "theme_color": "#242930",
+    "background_color": "#242930",
     "display": "standalone",
     "orientation": "any",
     "scope": "https://app.vrooli.com/",

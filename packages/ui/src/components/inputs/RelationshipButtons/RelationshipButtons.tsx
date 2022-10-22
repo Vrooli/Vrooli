@@ -2,7 +2,7 @@
  * Horizontal button list for assigning owner, project, and parent 
  * to objects
  */
-import { Box, IconButton, Palette, Stack, Tooltip, useTheme } from '@mui/material';
+import { Box, Palette, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import { RelationshipButtonsProps, RelationshipItemOrganization, RelationshipItemProject, RelationshipItemRoutine, RelationshipItemUser, RelationshipOwner } from '../types';
 import { firstString, getTranslation, getUserLanguages, ObjectType, openObject, PubSub } from 'utils';
@@ -12,6 +12,8 @@ import { ListMenuItemData } from 'components/dialogs/types';
 import { TextShrink } from 'components/text/TextShrink/TextShrink';
 import { CompleteIcon as CompletedIcon, InvisibleIcon, OrganizationIcon, ProjectIcon as ProjIcon, RoutineIcon, UserIcon as SelfIcon, VisibleIcon } from '@shared/icons';
 import { useLocation } from '@shared/route';
+import { getCurrentUser } from 'utils/authentication';
+import { ColorIconButton } from 'components/buttons';
 
 /**
  * Converts session to user object
@@ -20,20 +22,16 @@ import { useLocation } from '@shared/route';
  */
 export const userFromSession = (session: Session): RelationshipOwner => ({
     __typename: 'User',
-    id: session.id,
+    id: getCurrentUser(session).id,
     handle: null,
     name: 'Self',
 })
 
-const commonButtonProps = (palette: Palette) => ({
+const commonButtonProps = (palette: Palette, disabled) => ({
     width: { xs: '58px', md: '69px' },
     height: { xs: '58px', md: '69px' },
     overflow: 'hidden',
-    background: palette.primary.light,
-    '&:hover': {
-        background: palette.primary.light,
-        filter: 'brightness(120%)',
-    },
+    boxShadow: disabled ? 0 : 4,
 })
 
 const commonIconProps = (palette: Palette) => ({
@@ -215,7 +213,7 @@ export function RelationshipButtons({
         // If owner is organization, use organization icon
         if (relationships.owner.__typename === 'Organization') {
             const OwnerIcon = OrganizationIcon;
-            const ownerName = firstString(getTranslation(relationships.owner as RelationshipItemOrganization, 'name', languages, true), 'organization');
+            const ownerName = firstString(getTranslation(relationships.owner as RelationshipItemOrganization, languages, true).name, 'organization');
             return {
                 OwnerIcon,
                 ownerTooltip: `Owner: ${ownerName}`
@@ -223,13 +221,13 @@ export function RelationshipButtons({
         }
         // If owner is user, use self icon
         const OwnerIcon = SelfIcon;
-        const isSelf = relationships.owner.id === session.id;
+        const isSelf = relationships.owner.id === getCurrentUser(session).id;
         const ownerName = (relationships.owner as RelationshipItemUser).name;
         return {
             OwnerIcon,
             ownerTooltip: `Owner: ${isSelf ? 'Self' : ownerName}`
         };
-    }, [disabled, languages, relationships.owner, session.id]);
+    }, [disabled, languages, relationships.owner, session]);
 
     // Current project icon
     const { ProjectIcon, projectTooltip } = useMemo(() => {
@@ -238,7 +236,7 @@ export function RelationshipButtons({
             ProjectIcon: null,
             projectTooltip: disabled ? '' : 'Press to assign to a project'
         };
-        const projectName = firstString(getTranslation(relationships.project as RelationshipItemProject, 'name', languages, true), 'project');
+        const projectName = firstString(getTranslation(relationships.project as RelationshipItemProject, languages, true).name, 'project');
         return {
             ProjectIcon: ProjIcon,
             projectTooltip: `Project: ${projectName}`
@@ -255,7 +253,7 @@ export function RelationshipButtons({
         // If parent is project, use project icon
         if (relationships.parent.__typename === 'Project') {
             const ParentIcon = ProjIcon;
-            const parentName = firstString(getTranslation(relationships.parent as RelationshipItemProject, 'name', languages, true), 'project');
+            const parentName = firstString(getTranslation(relationships.parent as RelationshipItemProject, languages, true).name, 'project');
             return {
                 ParentIcon,
                 parentTooltip: `Parent: ${parentName}`
@@ -263,7 +261,7 @@ export function RelationshipButtons({
         }
         // If parent is routine, use routine icon
         const ParentIcon = RoutineIcon;
-        const parentName = firstString(getTranslation(relationships.parent as RelationshipItemRoutine, 'title', languages, true), 'routine');
+        const parentName = firstString(getTranslation(relationships.parent as RelationshipItemRoutine, languages, true).title, 'routine');
         return {
             ParentIcon,
             parentTooltip: `Parent: ${parentName}`
@@ -368,33 +366,33 @@ export function RelationshipButtons({
 
                 {/* Owner button */}
                 {isOwnerAvailable && <Tooltip title={ownerTooltip}>
-                    <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleOwnerClick}>
+                    <ColorIconButton background={palette.primary.light} sx={{ ...commonButtonProps(palette, disabled) }} onClick={handleOwnerClick}>
                         {OwnerIcon && <OwnerIcon {...commonIconProps(palette)} />}
-                    </IconButton>
+                    </ColorIconButton>
                 </Tooltip>}
                 {/* Project button */}
                 {isProjectAvailable && <Tooltip title={projectTooltip}>
-                    <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleProjectClick}>
+                    <ColorIconButton background={palette.primary.light} sx={{ ...commonButtonProps(palette, disabled) }} onClick={handleProjectClick}>
                         {ProjectIcon && <ProjectIcon {...commonIconProps(palette)} />}
-                    </IconButton>
+                    </ColorIconButton>
                 </Tooltip>}
                 {/* Parent button */}
                 {isParentAvailable && <Tooltip title={parentTooltip}>
-                    <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleParentClick}>
+                    <ColorIconButton background={palette.primary.light} sx={{ ...commonButtonProps(palette, disabled) }} onClick={handleParentClick}>
                         {ParentIcon && <ParentIcon {...commonIconProps(palette)} />}
-                    </IconButton>
+                    </ColorIconButton>
                 </Tooltip>}
                 {/* Privacy button */}
                 {isPrivateAvailable && <Tooltip title={privacyTooltip}>
-                    <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handlePrivateClick}>
+                    <ColorIconButton background={palette.primary.light} sx={{ ...commonButtonProps(palette, disabled) }} onClick={handlePrivateClick}>
                         {PrivacyIcon && <PrivacyIcon {...commonIconProps(palette)} />}
-                    </IconButton>
+                    </ColorIconButton>
                 </Tooltip>}
                 {/* Complete button */}
                 {isCompleteAvailable && <Tooltip title={completeTooltip}>
-                    <IconButton sx={{ ...commonButtonProps(palette) }} onClick={handleCompleteClick}>
+                    <ColorIconButton background={palette.primary.light} sx={{ ...commonButtonProps(palette, disabled) }} onClick={handleCompleteClick}>
                         {CompleteIcon && <CompleteIcon {...commonIconProps(palette)} />}
-                    </IconButton>
+                    </ColorIconButton>
                 </Tooltip>}
             </Stack>
         </Box>

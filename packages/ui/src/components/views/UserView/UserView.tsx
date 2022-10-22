@@ -7,9 +7,8 @@ import { user, userVariables } from "graphql/generated/user";
 import { userQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton, SelectRoutineTypeMenu } from "components";
-import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
-import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, openObject, placeholderColor, SearchType } from "utils";
+import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, openObject, placeholderColor, SearchType } from "utils";
 import { ResourceList, User } from "types";
 import { SearchListGenerator } from "components/lists/types";
 import { uuidValidate } from '@shared/uuid';
@@ -17,6 +16,7 @@ import { ResourceListUsedFor, VisibilityType } from "graphql/generated/globalTyp
 import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
 import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { getCurrentUser } from "utils/authentication";
 
 enum TabOptions {
     Resources = "Resources",
@@ -38,11 +38,11 @@ export const UserView = ({
     const id: string = useMemo(() => {
         const pathnameEnd = base36ToUuid(getLastUrlPart());
         // If no id is provided, use the current user's id
-        if (!uuidValidate(pathnameEnd)) return session.id ?? '';
+        if (!uuidValidate(pathnameEnd)) return getCurrentUser(session).id ?? '';
         // Otherwise, use the id provided in the URL
         return pathnameEnd;
     }, [session]);
-    const isOwn: boolean = useMemo(() => Boolean(session?.id && session.id === id), [id, session]);
+    const isOwn: boolean = useMemo(() => Boolean(getCurrentUser(session).id === id), [id, session]);
     // Fetch data
     const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery, { errorPolicy: 'all' });
     const [user, setUser] = useState<User | null | undefined>(null);
@@ -63,9 +63,9 @@ export const UserView = ({
 
     const { bio, name, handle, resourceList } = useMemo(() => {
         const resourceList: ResourceList | undefined = Array.isArray(user?.resourceLists) ? user?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
-        const bioText = getTranslation(user, 'bio', [language]) ?? getTranslation(partialData, 'bio', [language])
+        const { bio } = getTranslation(user ?? partialData, [language]);
         return {
-            bio: bioText && bioText.trim().length > 0 ? bioText : undefined,
+            bio: bio && bio.trim().length > 0 ? bio : undefined,
             name: user?.name ?? partialData?.name,
             handle: user?.handle ?? partialData?.handle,
             resourceList,
@@ -121,7 +121,7 @@ export const UserView = ({
     }, [setLocation]);
 
     // Create search data
-    const { searchType, itemKeyPrefix, placeholder, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
+    const { searchType, itemKeyPrefix, placeholder, where, noResultsText } = useMemo<SearchListGenerator>(() => {
         // The first tab doesn't have search results, as it is the user's set resources
         switch (currTabType) {
             case TabOptions.Organizations:
@@ -131,7 +131,6 @@ export const UserView = ({
                     placeholder: "Search user's organizations...",
                     noResultsText: "No organizations found",
                     where: { userId: id, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 }
             case TabOptions.Projects:
                 return {
@@ -140,7 +139,6 @@ export const UserView = ({
                     placeholder: "Search user's projects...",
                     noResultsText: "No projects found",
                     where: { userId: id, isComplete: !isOwn ? true : undefined, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 }
             case TabOptions.Routines:
                 return {
@@ -149,7 +147,6 @@ export const UserView = ({
                     placeholder: "Search user's routines...",
                     noResultsText: "No routines found",
                     where: { userId: id, isComplete: !isOwn ? true : undefined, isInternal: false, visibility: VisibilityType.All },
-                    onSearchSelect: (newValue) => openObject(newValue, setLocation),
                 }
             case TabOptions.Standards:
                 return {
@@ -158,10 +155,6 @@ export const UserView = ({
                     placeholder: "Search user's standards...",
                     noResultsText: "No standards found",
                     where: { userId: id, visibilityType: VisibilityType.All },
-                    onSearchSelect: (newValue) => openObject({
-                        __typename: ObjectType.Standard,
-                        id: newValue.id,
-                    }, setLocation),
                 }
             default:
                 return {
@@ -170,10 +163,9 @@ export const UserView = ({
                     placeholder: '',
                     noResultsText: '',
                     where: {},
-                    onSearchSelect: (o: any) => { },
                 }
         }
-    }, [currTabType, id, isOwn, setLocation]);
+    }, [currTabType, id, isOwn]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -235,7 +227,7 @@ export const UserView = ({
             bgcolor={palette.background.paper}
             sx={{
                 borderRadius: { xs: '0', sm: 2 },
-                boxShadow: { xs: 'none', sm: (containerShadow as any).boxShadow },
+                boxShadow: { xs: 'none', sm: 12 },
                 width: { xs: '100%', sm: 'min(500px, 100vw)' }
             }}
         >
@@ -334,7 +326,7 @@ export const UserView = ({
                             <DonateIcon fill={palette.background.textSecondary} />
                         </IconButton>
                     </Tooltip>
-                    <ShareButton objectType={ObjectType.User} zIndex={zIndex} />
+                    <ShareButton object={user} zIndex={zIndex} />
                     <StarButton
                         disabled={isOwn}
                         session={session}
@@ -375,22 +367,13 @@ export const UserView = ({
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
-                isUpvoted={null}
-                isStarred={user?.isStarred}
-                objectId={id}
-                objectName={name ?? ''}
-                objectType={ObjectType.User}
                 anchorEl={moreMenuAnchor}
-                title='User Options'
+                object={user}
                 onActionStart={onMoreActionStart}
                 onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
-                permissions={{
-                    canEdit: isOwn,
-                    canReport: !isOwn,
-                    canStar: !isOwn,
-                }}
                 session={session}
+                title='User Options'
                 zIndex={zIndex + 1}
             />
             {/* Add menu for selecting between single-step and multi-step routines */}
@@ -454,13 +437,12 @@ export const UserView = ({
                         currTabType === TabOptions.Resources ? resources : (
                             <SearchList
                                 canSearch={uuidValidate(id)}
-                                handleAdd={toAddNew}
+                                handleAdd={isOwn ? toAddNew : undefined}
                                 hideRoles={true}
                                 id="user-view-list"
                                 itemKeyPrefix={itemKeyPrefix}
                                 noResultsText={noResultsText}
                                 searchType={searchType}
-                                onObjectSelect={onSearchSelect}
                                 searchPlaceholder={placeholder}
                                 session={session}
                                 take={20}

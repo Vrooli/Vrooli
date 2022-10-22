@@ -96,7 +96,7 @@ export const Snack = ({
     return (
         <Box sx={{
             display: 'flex',
-            justifyContent: 'center',
+            justifyContent: 'space-between',
             alignItems: 'center',
             maxWidth: { xs: '100%', sm: '600px' },
             // Scrolls out of view when closed

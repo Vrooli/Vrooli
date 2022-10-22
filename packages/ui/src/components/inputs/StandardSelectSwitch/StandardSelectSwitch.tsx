@@ -1,9 +1,10 @@
-import { Box, IconButton, Stack, Typography, useTheme } from '@mui/material';
+import { Box, Stack, Typography, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import { StandardSelectSwitchProps } from '../types';
 import { noSelect } from 'styles';
 import { StandardSelectOrCreateDialog } from 'components/dialogs';
 import { EditIcon as CustomIcon, LinkIcon } from '@shared/icons';
+import { ColorIconButton } from 'components/buttons';
 
 const grey = {
     400: '#BFC7CF',
@@ -69,8 +70,7 @@ export function StandardSelectSwitch({
                         display: 'block',
                     }}>
                         {/* Thumb */}
-                        <IconButton sx={{
-                            backgroundColor: palette.secondary.main,
+                        <ColorIconButton background={palette.secondary.main} sx={{
                             display: 'inline-flex',
                             width: '30px',
                             height: '30px',
@@ -81,7 +81,7 @@ export function StandardSelectSwitch({
                             transform: `translateX(${Boolean(selected) ? '24' : '0'}px)`,
                         }}>
                             <Icon width='30px' height='30px' fill="white" />
-                        </IconButton>
+                        </ColorIconButton>
                     </Box>
                     {/* Input */}
                     <input

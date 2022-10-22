@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import React, { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RoutineListNodeProps } from '../types';
-import { DraggableNode, SubroutineNode } from '..';
+import { calculateNodeSize, DraggableNode, SubroutineNode } from '..';
 import { NodeContextMenu, NodeWidth } from '../..';
 import {
     routineNodeCheckboxOption,
@@ -22,6 +22,7 @@ import { getTranslation, BuildAction, updateTranslationFields, PubSub, usePress,
 import { EditableLabel } from 'components/inputs';
 import { AddIcon, CloseIcon, ExpandLessIcon, ExpandMoreIcon } from '@shared/icons';
 import { requiredErrorMessage, title as titleValidation } from '@shared/validation';
+import { ColorIconButton } from 'components/buttons';
 
 /**
  * Distance before a click is considered a drag
@@ -59,9 +60,9 @@ export const RoutineListNode = ({
 
     // Default to open if editing and empty
     const [collapseOpen, setCollapseOpen] = useState<boolean>(isEditing && (node?.data as NodeDataRoutineList)?.routines?.length === 0);
-    const collapseDebounce = useDebounce(setCollapseOpen, 20);
-    const toggleCollapse = useCallback((target: React.MouseEvent['target']) => {
-        if (isLinked && shouldCollapse((target as any).id)) {
+    const collapseDebounce = useDebounce(setCollapseOpen, 100);
+    const toggleCollapse = useCallback((target: EventTarget) => {
+        if (isLinked && shouldCollapse(target.id)) {
             PubSub.get().publishFastUpdate({ duration: 1000 });
             collapseDebounce(!collapseOpen);
         }
@@ -139,14 +140,14 @@ export const RoutineListNode = ({
 
     const { label } = useMemo(() => {
         return {
-            label: getTranslation(node, 'title', [language], true) ?? '',
+            label: getTranslation(node, [language], true).title ?? '',
         }
     }, [language, node]);
 
-    const minNodeSize = useMemo(() => `${NodeWidth.RoutineList * scale}px`, [scale]);
-    const maxNodeSize = useMemo(() => `${NodeWidth.RoutineList * scale * 3}px`, [scale]);
-    const fontSize = useMemo(() => `min(${NodeWidth.RoutineList * scale / 5}px, 2em)`, [scale]);
-    const addSize = useMemo(() => `max(${NodeWidth.RoutineList * scale / 8}px, 48px)`, [scale]);
+    const minNodeSize = useMemo(() => `${calculateNodeSize(NodeWidth.RoutineList, scale)}px`, [scale]);
+    const maxNodeSize = useMemo(() => `${calculateNodeSize(NodeWidth.RoutineList, scale) * 2}px`, [scale]);
+    const fontSize = useMemo(() => `min(${calculateNodeSize(NodeWidth.RoutineList, scale) / 5}px, 2em)`, [scale]);
+    const addSize = useMemo(() => `max(${calculateNodeSize(NodeWidth.RoutineList, scale) / 8}px, 48px)`, [scale]);
 
     const confirmDelete = useCallback((event: any) => {
         PubSub.get().publishAlertDialog({
@@ -262,24 +263,24 @@ export const RoutineListNode = ({
 
     /**
      * Border color indicates status of node.
-     * Default (grey) for valid or unlinked, 
      * Yellow for missing subroutines,
      * Red for not fully connected (missing in or out links)
      */
-    const borderColor = useMemo(() => {
-        if (!isLinked) return 'gray';
+    const borderColor = useMemo<string | null>(() => {
+        if (!isLinked) return null;
         if (linksIn.length === 0 || linksOut.length === 0) return 'red';
         if (routines.length === 0) return 'yellow';
-        return 'gray';
+        return null;
     }, [linksIn, isLinked, linksOut, routines]);
 
 
     const addButton = useMemo(() => isEditing ? (
-        <IconButton
+        <ColorIconButton
             onClick={handleSubroutineAdd}
             onTouchStart={handleSubroutineAdd}
+            background='#6daf72'
             sx={{
-                boxShadow: '0px 0px 12px gray',
+                boxShadow: 12,
                 width: addSize,
                 height: addSize,
                 position: 'relative',
@@ -287,25 +288,19 @@ export const RoutineListNode = ({
                 margin: '5px auto',
                 display: 'flex',
                 alignItems: 'center',
-                backgroundColor: '#6daf72',
                 color: 'white',
                 borderRadius: '100%',
-                '&:hover': {
-                    backgroundColor: '#6daf72',
-                    filter: `brightness(110%)`,
-                    transition: 'filter 0.2s',
-                },
             }}
         >
             <AddIcon />
-        </IconButton>
+        </ColorIconButton>
     ) : null, [addSize, handleSubroutineAdd, isEditing]);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((target: React.MouseEvent['target']) => {
+    const openContext = useCallback((target: EventTarget) => {
         // Ignore if not linked, not editing, or in the middle of an event (drag, collapse, move, etc.)
         if (!canDrag || !isLinked || !isEditing || isLabelDialogOpen.current || fastUpdateRef.current) return;
         setContextAnchor(target)
@@ -334,7 +329,7 @@ export const RoutineListNode = ({
                 overflow: 'hidden',
                 backgroundColor: palette.background.paper,
                 color: palette.background.textPrimary,
-                boxShadow: `0px 0px 12px ${borderColor}`,
+                boxShadow: borderColor ? `0px 0px 12px ${borderColor}` : 12,
             }}
         >
             <NodeContextMenu

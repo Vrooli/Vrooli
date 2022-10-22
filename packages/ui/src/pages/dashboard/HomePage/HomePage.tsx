@@ -1,4 +1,4 @@
-import { Box, Button, Grid, Stack, Tab, Tabs, Typography, useTheme } from '@mui/material';
+import { Box, Button, Grid, Stack, Tab, Tabs, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { centeredDiv } from 'styles';
 import { homePage, homePageVariables } from 'graphql/generated/homePage';
@@ -9,10 +9,11 @@ import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { HomePageProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import { actionsItems, listToAutocomplete, listToListItems, ObjectType, openObject, SearchPageTabOption, shortcutsItems, useReactSearch } from 'utils';
+import { actionsItems, getUserLanguages, listToAutocomplete, listToListItems, openObject, SearchPageTabOption, shortcutsItems, stringifySearchParams, useReactSearch } from 'utils';
 import { AutocompleteOption, NavigableObject } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
+import { getCurrentUser } from 'utils/authentication';
 
 const faqText =
     `## What is This?
@@ -81,12 +82,7 @@ const tabOptions = [
     ['History', APP_LINKS.History],
 ];
 
-const examplesData: [string, string][] = [
-    ['Start a new business', '5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
-    // ['Learn about Project Catalyst', ''], //TODO
-    // ['Fund your project', ''], //TODO
-    ['Create a Cardano native asset token', '3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
-]
+const zIndex = 200;
 
 /**
  * Containers a search bar, lists of routines, projects, tags, and organizations, 
@@ -98,7 +94,6 @@ const examplesData: [string, string][] = [
 export const HomePage = ({
     session
 }: HomePageProps) => {
-    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const [searchString, setSearchString] = useState<string>('');
     const searchParams = useReactSearch();
@@ -108,7 +103,7 @@ export const HomePage = ({
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
     const { data, refetch, loading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
     useEffect(() => { refetch() }, [refetch, searchString]);
-    const showHistoryTab = useMemo(() => session?.isLoggedIn === true, [session?.isLoggedIn]);
+    const showHistoryTab = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
 
     // Handle tabs
     const tabIndex = useMemo(() => {
@@ -119,7 +114,7 @@ export const HomePage = ({
         setLocation(tabOptions[newIndex][1], { replace: true });
     };
 
-    const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
+    const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const firstResults: AutocompleteOption[] = [];
@@ -185,16 +180,12 @@ export const HomePage = ({
     }, [searchString, setLocation]);
 
     /**
-     * Opens page for list item
+     * Replaces current state with search string, so that search is not lost
      */
-    const toItemPage = useCallback((item: NavigableObject, event: any) => {
-        event?.stopPropagation();
+    const beforeNavigation = useCallback((item: NavigableObject) => {
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
-        // Navigate to item page
-        openObject(item, setLocation);
     }, [searchString, setLocation]);
-
 
     /**
      * Determine the order that the feed lists should be displayed in.
@@ -248,8 +239,9 @@ export const HomePage = ({
                 items: currentList,
                 keyPrefix: `feed-list-item-${tab}`,
                 loading,
-                onClick: toItemPage,
+                beforeNavigation,
                 session,
+                zIndex,
             });
             if (loading || listFeedItems.length > 0) {
                 listFeeds.push((
@@ -266,7 +258,7 @@ export const HomePage = ({
             }
         }
         return listFeeds;
-    }, [data, feedOrder, getFeedTitle, loading, session, toItemPage, toSearchPage]);
+    }, [beforeNavigation, data, feedOrder, getFeedTitle, loading, session, toSearchPage]);
 
     // Menu for opening an advanced search page
     const [advancedSearchAnchor, setAdvancedSearchAnchor] = useState<any>(null);
@@ -285,8 +277,15 @@ export const HomePage = ({
     }, [setCreateNewAnchor]);
     const closeCreateNew = useCallback(() => setCreateNewAnchor(null), []);
     const handleCreateNewSelect = useCallback((path: string) => {
-        setLocation(path);
-    }, [setLocation]);
+        // If not logged in, redirect to login page
+        if (!getCurrentUser(session).id) {
+            setLocation(`${APP_LINKS.Start}${stringifySearchParams({
+                redirect: path
+            })}`);
+        }
+        // Otherwise, navigate to create page
+        else setLocation(path);
+    }, [session, setLocation]);
 
     return (
         <PageContainer>
@@ -355,48 +354,23 @@ export const HomePage = ({
                     onInputChange={onInputSelect}
                     session={session}
                     showSecondaryLabel={true}
-                    sxs={{ root: { width: 'min(100%, 600px)' } }}
+                    sxs={{ root: { width: 'min(100%, 600px)', paddingLeft: 2, paddingRight: 2 } }}
                 />
                 {/* =========  #endregion ========= */}
             </Stack>
-            {/* Examples stack */}
-            <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: '40px', paddingBottom: '40px' }}>
-                <Typography component="h2" variant="h5" pb={1}>Examples</Typography>
-                {
-                    examplesData.map((example, index) => (
-                        <Typography
-                            key={`example-${index}`}
-                            component="p"
-                            variant="h6"
-                            onClick={() => {
-                                openObject({
-                                    __typename: ObjectType.Routine,
-                                    id: example[1],
-                                }, setLocation)
-                            }}
-                            sx={{
-                                color: palette.text.secondary,
-                                fontStyle: 'italic',
-                                cursor: 'pointer',
-                                textAlign: 'center',
-                            }}
-                        >"{example[0]}"</Typography>
-                    ))
-                }
-            </Stack>
             {/* Result feeds (or popular feeds if no search string) */}
-            <Stack spacing={10} direction="column">
+            <Stack spacing={10} direction="column" mt={10}>
                 {/* Search results */}
                 {feeds}
                 {/* Advanced search prompt TODO */}
                 <Stack direction="column" spacing={2} justifyContent="center" alignItems="center">
                     <Typography component="h3" variant="h4" textAlign="center">Can't find what you're looking for?</Typography>
                     <Grid container spacing={2} sx={{ width: 'min(100%, 500px)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                        <Grid item xs={12} sm={6}>
-                            <Button fullWidth onClick={openAdvancedSearch} startIcon={<SearchIcon />}>Advanced Search</Button>
+                        <Grid item xs={6}>
+                            <Button fullWidth onClick={openAdvancedSearch} startIcon={<SearchIcon />}>Advanced</Button>
                         </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <Button fullWidth onClick={openCreateNew} startIcon={<CreateIcon />}>Create New</Button>
+                        <Grid item xs={6}>
+                            <Button fullWidth onClick={openCreateNew} startIcon={<CreateIcon />}>Create</Button>
                         </Grid>
                     </Grid>
                 </Stack>

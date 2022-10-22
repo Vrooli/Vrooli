@@ -12,6 +12,7 @@ import { ThemeSwitch } from "components/inputs";
 import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/generated/profileUpdate";
 import { uuid } from '@shared/uuid';
 import { HeartFilledIcon, InvisibleIcon, SearchIcon } from "@shared/icons";
+import { getCurrentUser } from "utils/authentication";
 
 const helpText =
     `Display preferences customize the look and feel of Vrooli. More customizations will be available in the near future.`
@@ -58,12 +59,6 @@ export const SettingsDisplay = ({
         setHiddenTags(updatedHiddenTags);
     }, [hiddenTags]);
 
-    // Handle theme
-    const [theme, setTheme] = useState<string>('light');
-    useEffect(() => {
-        setTheme(palette.mode);
-    }, [palette.mode]);
-
     useEffect(() => {
         if (profile?.starredTags) {
             setStarredTags(profile.starredTags);
@@ -77,9 +72,8 @@ export const SettingsDisplay = ({
     const [mutation] = useMutation(profileUpdateMutation);
     const formik = useFormik({
         initialValues: {
-            theme,
+            theme: getCurrentUser(session).theme ?? 'light',
         },
-        enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
             if (!profile) {
@@ -94,12 +88,13 @@ export const SettingsDisplay = ({
             }
             const input = shapeProfileUpdate(profile, {
                 id: profile.id,
-                theme: values.theme,
+                theme: values.theme as 'light' | 'dark',
                 starredTags,
                 hiddenTags: filteredHiddenTags,
             })
             if (!input || Object.keys(input).length === 0) {
                 PubSub.get().publishSnack({ message: 'No changes made.', severity: SnackSeverity.Error });
+                formik.setSubmitting(false);
                 return;
             }
             mutationWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({

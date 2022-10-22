@@ -4,7 +4,7 @@ import {
     DialogContent,
     useTheme,
 } from '@mui/material';
-import { actionsItems, getObjectSlug, getObjectUrlBase, listToAutocomplete, PubSub, shortcutsItems } from 'utils';
+import { actionsItems, getObjectSlug, getObjectUrlBase, getUserLanguages, listToAutocomplete, PubSub, shortcutsItems } from 'utils';
 import { AutocompleteSearchBar } from 'components/inputs';
 import { APP_LINKS } from '@shared/consts';
 import { AutocompleteOption } from 'types';
@@ -49,7 +49,7 @@ const CommandPalette = ({
 }: CommandPaletteProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
+    const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const [searchString, setSearchString] = useState<string>('');
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
@@ -111,7 +111,6 @@ const CommandPalette = ({
         }
         // Otherwise, object url must be constructed
         else {
-            console.log('onInputSelect', newValue, getObjectSlug(newValue));
             newLocation = `${getObjectUrlBase(newValue)}/${getObjectSlug(newValue)}`
         }
         // If new pathname is the same, reload page
@@ -130,7 +129,6 @@ const CommandPalette = ({
             aria-labelledby={titleAria}
             sx={{
                 '& .MuiDialog-paper': {
-                    border: palette.mode === 'dark' ? `1px solid white` : 'unset',
                     minWidth: 'min(100%, 600px)',
                     minHeight: 'min(100%, 200px)',
                     position: 'absolute',

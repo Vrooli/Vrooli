@@ -302,12 +302,12 @@ export const resolvers = {
          * @returns Updated node
          */
         nodeCreate: async (_parent: undefined, { input }: IWrap<NodeCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
-            await rateLimit({ info, max: 2000, byAccountOrKey: true, req });
-            return createHelper({ info, input, model: NodeModel, prisma, userId: req.userId })
+            await rateLimit({ info, maxUser: 2000, req });
+            return createHelper({ info, input, model: NodeModel, prisma, req })
         },
         nodeUpdate: async (_parent: undefined, { input }: IWrap<NodeUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
-            await rateLimit({ info, max: 2000, byAccountOrKey: true, req });
-            return updateHelper({ info, input, model: NodeModel, prisma, userId: req.userId })
+            await rateLimit({ info, maxUser: 2000, req });
+            return updateHelper({ info, input, model: NodeModel, prisma, req })
         },
     }
 }

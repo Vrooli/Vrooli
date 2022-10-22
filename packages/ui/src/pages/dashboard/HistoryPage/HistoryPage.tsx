@@ -7,8 +7,8 @@ import { AutocompleteSearchBar, ListTitleContainer, PageContainer } from 'compon
 import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { HistoryPageProps } from '../types';
-import { HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, stringifySearchParams, useReactSearch } from 'utils';
-import { AutocompleteOption, NavigableObject } from 'types';
+import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, stringifySearchParams, useReactSearch } from 'utils';
+import { AutocompleteOption } from 'types';
 import { centeredDiv } from 'styles';
 import { RunStatus } from 'graphql/generated/globalTypes';
 
@@ -24,6 +24,8 @@ const tabOptions = [
     ['For You', APP_LINKS.Home],
     ['History', APP_LINKS.History],
 ];
+
+const zIndex = 200;
 
 /**
  * Containers a search bar, lists of routines, projects, tags, and organizations, 
@@ -56,21 +58,13 @@ export const HistoryPage = ({
         setLocation(tabOptions[newIndex][1], { replace: true });
     };
 
-    /**
-     * Opens page for list item
-     */
-    const toItemPage = useCallback((item: NavigableObject, event: any) => {
-        event?.stopPropagation();
-        // Navigate to item page
-        openObject(item, setLocation);
-    }, [setLocation]);
-
     const activeRuns = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Run'),
         items: data?.historyPage?.activeRuns,
         keyPrefix: 'active-runs-list-item',
         loading,
         session,
+        zIndex,
     }), [data?.historyPage?.activeRuns, loading, session])
 
     const completedRuns = useMemo(() => listToListItems({
@@ -79,6 +73,7 @@ export const HistoryPage = ({
         keyPrefix: 'completed-runs-list-item',
         loading,
         session,
+        zIndex,
     }), [data?.historyPage?.completedRuns, loading, session])
 
     const recent = useMemo(() => listToListItems({
@@ -86,20 +81,20 @@ export const HistoryPage = ({
         items: data?.historyPage?.recentlyViewed,
         keyPrefix: 'recent-list-item',
         loading,
-        onClick: toItemPage,
         session,
-    }), [data?.historyPage?.recentlyViewed, loading, session, toItemPage])
+        zIndex,
+    }), [data?.historyPage?.recentlyViewed, loading, session])
 
     const starred = useMemo(() => listToListItems({
         dummyItems: ['Organization', 'Project', 'Routine', 'Standard', 'User'],
         items: data?.historyPage?.recentlyStarred,
         keyPrefix: 'starred-list-item',
         loading,
-        onClick: toItemPage,
         session,
-    }), [data?.historyPage?.recentlyStarred, loading, session, toItemPage])
+        zIndex,
+    }), [data?.historyPage?.recentlyStarred, loading, session])
 
-    const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
+    const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const flattened = (Object.values(data?.historyPage ?? [])).reduce((acc, curr) => acc.concat(curr), []);
@@ -194,7 +189,7 @@ export const HistoryPage = ({
                         onInputChange={onInputSelect}
                         session={session}
                         showSecondaryLabel={true}
-                        sxs={{ root: { width: 'min(100%, 600px)' } }}
+                        sxs={{ root: { width: 'min(100%, 600px)', paddingLeft: 2, paddingRight: 2 } }}
                     />
                 </Stack>
                 {/* Search results */}

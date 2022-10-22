@@ -283,6 +283,7 @@ export const initializeRoutine = (language: string): Routine => {
         operation: null,
     }
     return {
+        id: uuid(),
         inputs: [],
         outputs: [],
         nodes: [startNode, routineListNode, endNode],

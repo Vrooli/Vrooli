@@ -1,9 +1,9 @@
 import { DialogProps, PopoverProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { DeleteOneType } from '@shared/consts';
-import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, ResourceList, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
+import { NavigableObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, ResourceList, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 import { ReportFor } from 'graphql/generated/globalTypes';
-import { ObjectType, SearchType, TagShape } from 'utils';
+import { ListObjectType, SearchType, TagShape } from 'utils';
 import { SvgComponent, SvgProps } from '@shared/icons';
 import { RelationshipsObject } from 'components/inputs/types';
 import { SnackSeverity } from './Snack/Snack';
@@ -24,6 +24,13 @@ export interface BaseObjectDialogProps extends DialogProps {
     title?: string;
     zIndex: number;
 };
+
+export interface DeleteAccountDialogProps {
+    handleClose: (wasDeleted: boolean) => void;
+    isOpen: boolean;
+    session: Session;
+    zIndex: number;
+}
 
 export interface DeleteDialogProps {
     handleClose: (wasDeleted: boolean) => void;
@@ -152,7 +159,7 @@ export interface RoutineDialogProps {
 };
 
 export interface ShareObjectDialogProps extends DialogProps {
-    objectType: ObjectType;
+    object: NavigableObject | null | undefined;
     open: boolean;
     onClose: () => any;
     zIndex: number;
@@ -214,27 +221,16 @@ export enum ObjectActionComplete {
 
 export interface ObjectActionMenuProps {
     anchorEl: HTMLElement | null;
-    isUpvoted: boolean | null | undefined;
-    isStarred: boolean | null | undefined;
-    objectId: string;
-    objectName: string;
-    objectType: ObjectType;
+    object: ListObjectType | null | undefined;
     /**
      * Completed actions, which may require updating state or navigating to a new page
      */
-    onActionComplete: (action: ObjectActionComplete, data: any) => any;/**
+    onActionComplete: (action: ObjectActionComplete, data: any) => any;
+    /**
      * Actions which cannot be performed by the menu
      */
     onActionStart: (action: ObjectAction.Edit | ObjectAction.Stats) => any;
     onClose: () => any;
-    permissions: {
-        canDelete?: boolean;
-        canEdit?: boolean;
-        canFork?: boolean;
-        canReport?: boolean;
-        canStar?: boolean;
-        canVote?: boolean;
-    } | null | undefined
     session: Session;
     title: string;
     zIndex: number;

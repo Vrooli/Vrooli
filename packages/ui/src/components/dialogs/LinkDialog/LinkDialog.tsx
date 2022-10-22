@@ -4,7 +4,6 @@
 import {
     Autocomplete,
     Box,
-    Button,
     Dialog,
     DialogContent,
     Grid,
@@ -13,10 +12,10 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { DialogTitle, SnackSeverity } from 'components';
+import { DialogTitle, GridSubmitButtons, SnackSeverity } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LinkDialogProps } from '../types';
-import { Node, NodeLink } from 'types';
+import { Node } from 'types';
 import { getTranslation, PubSub } from 'utils';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { uuid } from '@shared/uuid';
@@ -54,21 +53,23 @@ export const LinkDialog = ({
     useEffect(() => { setFromNode(nodeFrom ?? null); }, [nodeFrom, setFromNode]);
     useEffect(() => { setToNode(nodeTo ?? null); }, [nodeTo, setToNode]);
 
-    /**
-     * Before closing, clear inputs
-     */
-    const onClose = useCallback((newLink?: NodeLink) => {
-        setFromNode(null);
-        setToNode(null);
-        handleClose(newLink);
-    }, [handleClose, setFromNode, setToNode]);
+    const errors = useMemo(() => {
+        const errors: { [key: string]: string } = {};
+        if (!fromNode) {
+            errors.fromNode = 'From node is required';
+        }
+        if (!toNode) {
+            errors.toNode = 'To node is required';
+        }
+        return errors;
+    }, [fromNode, toNode]);
 
     const addLink = useCallback(() => {
         if (!fromNode || !toNode) {
             PubSub.get().publishSnack({ message: 'Please select both from and to nodes', severity: SnackSeverity.Error });
             return;
         }
-        onClose({
+        handleClose({
             __typename: 'NodeLink',
             id: uuid(),
             fromId: fromNode.id,
@@ -76,9 +77,9 @@ export const LinkDialog = ({
             operation: null, //TODO
             whens: [], //TODO
         })
-    }, [onClose, fromNode, toNode]);
-
-    const closeDialog = useCallback(() => { onClose(undefined); }, [onClose]);
+        setFromNode(null);
+        setToNode(null);
+    }, [fromNode, toNode, handleClose]);
 
     /**
      * Calculate the "From" and "To" options
@@ -110,7 +111,7 @@ export const LinkDialog = ({
      * Find the text to display for a node
      */
     const getNodeTitle = useCallback((node: Node) => {
-        const title = getTranslation(node, 'title', [language]);
+        const { title } = getTranslation(node, [language]);
         if (title) return title;
         if (node.type === NodeType.Start) return 'Start';
         if (node.type === NodeType.End) return 'End';
@@ -179,10 +180,19 @@ export const LinkDialog = ({
         <></>
     ) : null, [isAdd]);
 
+    const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
+        // Don't close if data entered and clicked outside
+        if ((fromNode !== nodeFrom || toNode !== nodeTo) && reason === 'backdropClick') return;
+        // Otherwise, close
+        setFromNode(null);
+        setToNode(null);
+        handleClose();
+    }, [fromNode, handleClose, nodeFrom, nodeTo, toNode]);
+
     return (
         <Dialog
             open={isOpen}
-            onClose={() => { handleClose() }}
+            onClose={handleCancel}
             aria-labelledby={titleAria}
             sx={{
                 zIndex,
@@ -194,20 +204,20 @@ export const LinkDialog = ({
                 ariaLabel={titleAria}
                 title={isAdd ? 'Add Link' : 'Edit Link'}
                 helpText={helpText}
-                onClose={onClose}
+                onClose={handleCancel}
             />
             <DialogContent>
                 {nodeSelections}
                 {conditions}
                 {deleteOption}
                 {/* Action buttons */}
-                <Grid container spacing={2} pt={2}>
-                    <Grid item xs={12} sm={6}>
-                        <Button fullWidth type="submit" onClick={addLink}>Add</Button>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                        <Button fullWidth onClick={closeDialog} sx={{ paddingLeft: 1 }}>Cancel</Button>
-                    </Grid>
+                <Grid container spacing={2} mt={2}>
+                    <GridSubmitButtons
+                        errors={errors}
+                        isCreate={isAdd}
+                        onCancel={handleCancel}
+                        onSubmit={addLink}
+                    />
                 </Grid>
             </DialogContent>
         </Dialog>

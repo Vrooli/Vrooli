@@ -11,9 +11,9 @@ type UseReactSearchResults = { [x: string]: Primitive | Primitive[] | UseReactSe
  * this hook for too many things.
  */
 export const useReactSearch = (pollInterval: number | null = 50) => {
-    const [search, setSearch] = useState<UseReactSearchResults>(parseSearchParams(window.location.search));
+    const [search, setSearch] = useState<UseReactSearchResults>(parseSearchParams());
     const listenToSearch = useCallback(() => {
-        const newSearch = parseSearchParams(window.location.search);
+        const newSearch = parseSearchParams();
         if (JSON.stringify(newSearch) !== JSON.stringify(search)) {
             setSearch(newSearch);
         }

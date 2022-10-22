@@ -477,6 +477,10 @@ export interface InputItemUpdateInput {
   translationsUpdate?: InputItemTranslationUpdateInput[] | null;
 }
 
+export interface LogOutInput {
+  id?: string | null;
+}
+
 export interface LogSearchInput {
   actions?: string[] | null;
   after?: string | null;
@@ -1428,6 +1432,10 @@ export interface StarSearchInput {
   take?: number | null;
 }
 
+export interface SwitchCurrentAccountInput {
+  id: string;
+}
+
 export interface TagCountInput {
   createdTimeFrame?: TimeFrame | null;
   updatedTimeFrame?: TimeFrame | null;
@@ -1504,6 +1512,7 @@ export interface UserCountInput {
 
 export interface UserDeleteInput {
   password: string;
+  deletePublicData: boolean;
 }
 
 export interface UserSearchInput {

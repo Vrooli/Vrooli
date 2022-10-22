@@ -1,16 +1,13 @@
 import { useRef, useCallback, useEffect } from "react";
-import { Box, FormControl, IconButton, Input, InputLabel, SxProps, Theme, Tooltip, useTheme } from '@mui/material';
+import { Box, FormControl, Input, InputLabel, Tooltip, useTheme } from '@mui/material';
 import { QuantityBoxProps } from "../types";
 import { MinusIcon, PlusIcon } from "@shared/icons";
+import { ColorIconButton } from "components/buttons";
 
-const buttonProps: SxProps<Theme> = {
+const buttonProps = {
     minWidth: 30,
     width: '20%',
-    background: (t) => t.palette.secondary.main,
-    '&:hover': {
-        background: (t) => t.palette.secondary.dark,
-    }
-} as const
+}
 
 // Time for a button press to become a hold
 const HOLD_DELAY = 750;
@@ -93,8 +90,9 @@ export const QuantityBox = ({
                 ...props?.sx ?? {},
                 display: 'flex',
             }}>
-                <IconButton
+                <ColorIconButton
                     aria-label='minus'
+                    background={palette.secondary.main}
                     disabled={disabled}
                     onMouseDown={handleMinusDown}
                     onMouseUp={stopTouch}
@@ -107,7 +105,7 @@ export const QuantityBox = ({
                         maxWidth: '48px',
                     }}>
                     <MinusIcon />
-                </IconButton>
+                </ColorIconButton>
                 <FormControl sx={{
                     background: palette.background.paper,
                     width: '60%',
@@ -131,7 +129,12 @@ export const QuantityBox = ({
                         id={`quantity-box-${id}`}
                         aria-describedby={`helper-text-${id}`}
                         type="number"
-                        inputProps={{ min, max }}
+                        inputMode="numeric"
+                        inputProps={{ 
+                            min, 
+                            max,
+                            pattern: "[0-9]*",
+                        }}
                         value={value}
                         onChange={(e) => updateValue(e.target.value)}
                         sx={{
@@ -139,8 +142,9 @@ export const QuantityBox = ({
                         }}
                     />
                 </FormControl>
-                <IconButton
+                <ColorIconButton
                     aria-label='plus'
+                    background={palette.secondary.main}
                     disabled={disabled}
                     onMouseDown={handlePlusDown}
                     onMouseUp={stopTouch}
@@ -153,7 +157,7 @@ export const QuantityBox = ({
                         maxWidth: '48px',
                     }}>
                     <PlusIcon />
-                </IconButton>
+                </ColorIconButton>
             </Box>
         </Tooltip>
     );

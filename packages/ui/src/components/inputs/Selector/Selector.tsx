@@ -15,8 +15,7 @@ export const Selector = ({
     required = true,
     disabled = false,
     color,
-    className,
-    style,
+    sx,
     ...props
 }: SelectorProps) => {
     const { palette } = useTheme();
@@ -54,7 +53,6 @@ export const Selector = ({
                 {label}
             </InputLabel>
             <Select
-                className={className}
                 labelId={inputAriaLabel}
                 value={selected}
                 onChange={handleChange}
@@ -87,7 +85,7 @@ export const Selector = ({
                 }}
                 {...props}
                 sx={{
-                    ...style,
+                    ...sx,
                     color: palette.background.textPrimary
                 }}
             >

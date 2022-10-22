@@ -9,6 +9,7 @@ import {
 import { openLink } from 'utils';
 import { Session, SetLocation } from 'types';
 import { CreateAccountIcon, DevelopIcon, HomeIcon, LearnIcon, ProfileIcon, ResearchIcon, SearchIcon, SvgComponent } from '@shared/icons';
+import { getCurrentUser, guestSession } from 'utils/authentication';
 
 export enum ACTION_TAGS {
     Home = 'Home',
@@ -35,7 +36,8 @@ interface GetUserActionsProps {
     session?: Session | null | undefined;
     exclude?: ACTION_TAGS[] | null | undefined;
 }
-export function getUserActions({ session = {}, exclude = [] }: GetUserActionsProps): Action[] {
+export function getUserActions({ session = guestSession, exclude = [] }: GetUserActionsProps): Action[] {
+    const { id: userId } = getCurrentUser(session);
     // Home action always available
     let actions: ActionArray[] = [
         ['Home', ACTION_TAGS.Home, LINKS.Home, null, HomeIcon, 0],
@@ -48,7 +50,7 @@ export function getUserActions({ session = {}, exclude = [] }: GetUserActionsPro
         ['Develop', ACTION_TAGS.Develop, LINKS.Develop, null, DevelopIcon, 0],
     );
     // Log in/out
-    if (session?.isLoggedIn === true) {
+    if (userId) {
         actions.push(['Profile', ACTION_TAGS.Profile, LINKS.Profile, null, ProfileIcon, 0])
     } else {
         actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, null, CreateAccountIcon, 0]);
@@ -97,8 +99,17 @@ export const actionsToBottomNav = ({ actions, setLocation }: ActionsToBottomNavP
             key={value}
             label={label}
             value={value}
-            onClick={() => { openLink(setLocation, link); if (onClick) onClick() }}
+            onClick={() => {
+                // Check if link is different from current location
+                const shouldScroll = link === window.location.pathname;
+                // If same, scroll to top of page instead of navigating
+                if (shouldScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+                // Otherwise, navigate to link
+                else openLink(setLocation, link);
+                if (onClick) onClick()
+            }}
             icon={<Badge badgeContent={numNotifications} color="error"><Icon /></Badge>}
+            sx={{ color: 'white' }}
         />
     ));
 }

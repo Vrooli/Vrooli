@@ -5,10 +5,11 @@ import { StarFor, StarInput, StarSearchInput, StarSearchResult, Success } from '
 import { IWrap } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
-import { readManyHelper, StarModel } from '../models';
+import { getUserId, readManyHelper, StarModel } from '../models';
 import { rateLimit } from '../rateLimit';
 import { genErrorCode } from '../logger';
 import { resolveStarTo } from './resolvers';
+import { assertRequestFrom } from '../auth/auth';
 
 export const typeDef = gql`
     enum StarSortBy {
@@ -74,11 +75,11 @@ export const resolvers = {
     },
     Query: {
         stars: async (_parent: undefined, { input }: IWrap<StarSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<StarSearchResult> => {
-            // Only accessible if logged in and not using an API key
-            if (!req.userId || req.apiToken) 
-                throw new CustomError(CODE.Unauthorized, 'Must be logged in to query stars', { code: genErrorCode('0252') });
-            await rateLimit({ info, max: 2000, req });
-            return readManyHelper({ info, input, model: StarModel, prisma, userId: req.userId, additionalQueries: { userId: req.userId } });
+            assertRequestFrom(req, { isUser: true });
+            await rateLimit({ info, maxUser: 2000, req });
+            const userId = getUserId(req);
+            if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to view stars.', { code: genErrorCode('0274') });
+            return readManyHelper({ info, input, model: StarModel, prisma, req, additionalQueries: { userId } });
         },
     },
     Mutation: {
@@ -87,11 +88,9 @@ export const resolvers = {
          * @returns 
          */
         star: async (_parent: undefined, { input }: IWrap<StarInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            // Only accessible if logged in and not using an API key
-            if (!req.userId || req.apiToken)
-                throw new CustomError(CODE.Unauthorized, 'Must be logged in to star', { code: genErrorCode('0157') });
-            await rateLimit({ info, max: 1000, byAccountOrKey: true, req });
-            const success = await StarModel.mutate(prisma).star(req.userId, input);
+            assertRequestFrom(req, { isUser: true });
+            await rateLimit({ info, maxUser: 1000, req });
+            const success = await StarModel.mutate(prisma).star(getUserId(req) as string, input);
             return { success };
         },
     }

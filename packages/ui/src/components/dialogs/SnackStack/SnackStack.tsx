@@ -52,8 +52,9 @@ export const SnackStack = () => {
         <Stack direction="column" spacing={1} sx={{
             display: visible ? 'block' : 'none',
             position: 'fixed',
-            bottom: '8px',
-            left: '8px',
+            // Displays above the bottom nav bar, accounting for PWA inset-bottom
+            bottom: { xs: 'calc(64px + env(safe-area-inset-bottom))', md: 'calc(8px + env(safe-area-inset-bottom))' },
+            left: 'calc(8px + env(safe-area-inset-left))',
             zIndex: 20000,
         }}>
             {snacks.map((snack) => (

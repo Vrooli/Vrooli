@@ -1,7 +1,6 @@
 import { Box, CircularProgress, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { ObjectActionMenu, OwnerLabel, ResourceListHorizontal, SnackSeverity, TextCollapse, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { containerShadow } from "styles";
 import { formikToRunInputs, getTranslation, getUserLanguages, ObjectType, openObject, PubSub, runInputsToFormik, standardToFieldData, uuidToBase36 } from "utils";
 import { useLocation } from '@shared/route';
 import { SubroutineViewProps } from "../types";
@@ -32,13 +31,14 @@ export const SubroutineView = ({
     }, [routine]);
 
     const { description, instructions, title } = useMemo(() => {
-        const languages = session.languages ?? navigator.languages;
+        const languages = getUserLanguages(session);
+        const { description, instructions, title } = getTranslation(internalRoutine, languages, true);
         return {
-            description: getTranslation(internalRoutine, 'description', languages, true),
-            instructions: getTranslation(internalRoutine, 'instructions', languages, true),
-            title: getTranslation(internalRoutine, 'title', languages, true),
+            description,
+            instructions,
+            title,
         }
-    }, [internalRoutine, session.languages]);
+    }, [internalRoutine, session]);
 
     const confirmLeave = useCallback((callback: () => any) => {
         // Confirmation dialog for leaving routine
@@ -66,9 +66,9 @@ export const SubroutineView = ({
             const currInput = internalRoutine.inputs[i];
             if (!currInput.standard) continue;
             const currSchema = standardToFieldData({
-                description: getTranslation(currInput, 'description', getUserLanguages(session), false) ?? getTranslation(currInput.standard, 'description', getUserLanguages(session), false),
+                description: getTranslation(currInput, getUserLanguages(session), false).description ?? getTranslation(currInput.standard, getUserLanguages(session), false).description,
                 fieldName: `inputs-${currInput.id}`,
-                helpText: getTranslation(currInput, 'helpText', getUserLanguages(session), false),
+                helpText: getTranslation(currInput, getUserLanguages(session), false).helpText,
                 props: currInput.standard.props,
                 name: currInput.name ?? currInput.standard.name,
                 type: currInput.standard.type,
@@ -236,25 +236,17 @@ export const SubroutineView = ({
             overflow: 'overlay',
             // safe-area-inset-bottom is the iOS navigation bar
             marginBottom: 'calc(64px + env(safe-area-inset-bottom))',
-            ...containerShadow
+            boxShadow: 12,
         }}>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
-                isUpvoted={internalRoutine?.isUpvoted}
-                isStarred={internalRoutine?.isStarred}
-                objectId={internalRoutine?.id ?? ''}
-                objectName={title ?? ''}
-                objectType={ObjectType.Routine}
                 anchorEl={moreMenuAnchor}
-                title='Subroutine Options'
+                object={internalRoutine as any}
                 onActionStart={onMoreActionStart}
                 onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
-                permissions={{
-                    ...(internalRoutine?.permissionsRoutine ?? {}),
-                    canDelete: false,
-                }}
                 session={session}
+                title='Subroutine Options'
                 zIndex={zIndex + 1}
             />
             {/* Heading container */}
@@ -301,7 +293,7 @@ export const SubroutineView = ({
                 </Stack>
             </Stack>
             {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
-            <Stack direction="column" spacing={1} padding={1}>
+            <Stack direction="column" spacing={2} padding={2}>
                 {/* Resources */}
                 {resourceList}
                 {/* Description */}

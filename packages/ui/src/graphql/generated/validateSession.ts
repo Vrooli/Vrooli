@@ -7,12 +7,19 @@
 // GraphQL mutation operation: validateSession
 // ====================================================
 
+export interface validateSession_validateSession_users {
+  __typename: "SessionUser";
+  handle: string | null;
+  id: string;
+  languages: (string | null)[] | null;
+  name: string | null;
+  theme: string | null;
+}
+
 export interface validateSession_validateSession {
   __typename: "Session";
-  id: string | null;
-  theme: string | null;
   isLoggedIn: boolean;
-  languages: string[] | null;
+  users: validateSession_validateSession_users[] | null;
 }
 
 export interface validateSession {

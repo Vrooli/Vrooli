@@ -1,5 +1,5 @@
-import { Box, IconButton, Palette, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, EditableLabel, UnlinkedNodesDialog, BuildInfoDialog, HelpButton, userFromSession, SnackSeverity } from 'components';
+import { Box, IconButton, Stack, Typography, useTheme } from '@mui/material';
+import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, EditableLabel, BuildInfoDialog, HelpButton, userFromSession, SnackSeverity, GraphActions } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
@@ -18,7 +18,7 @@ import { StatusButton } from 'components/buttons';
 import { routineUpdateVariables, routineUpdate_routineUpdate } from 'graphql/generated/routineUpdate';
 import { routineCreateVariables, routineCreate_routineCreate } from 'graphql/generated/routineCreate';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
-import { AddLinkIcon, CloseIcon, CompressIcon, EditIcon, RedoIcon, UndoIcon } from '@shared/icons';
+import { CloseIcon, EditIcon } from '@shared/icons';
 import { requiredErrorMessage, routineTranslationUpdate, routineUpdate as validationSchema, title as titleValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { RelationshipsObject } from 'components/inputs/types';
@@ -42,19 +42,7 @@ You can press the routine list node to toggle it open/closed. The *open* stats a
 Each link connecting nodes has a circle. Pressing this circle opens a popup menu with options to insert a node, split the graph, or delete the link.
 
 You also have the option to *unlink* nodes. These are stored on the top status bar - along with the status indicator, a button to clean up the graph, a button to add a new link, this help button, and an info button that sets overall routine information.
-
-At the bottom of the screen, there is a slider to control the scale of the graph, and buttons to create/update and cancel the routine.
 `
-
-const commonButtonProps = (palette: Palette) => ({
-    background: palette.secondary.main,
-    marginRight: 1,
-    transition: 'brightness 0.2s ease-in-out',
-    '&:hover': {
-        filter: `brightness(120%)`,
-        background: palette.secondary.main,
-    },
-})
 
 /**
  * Generates a new link object, but doesn't add it to the routine
@@ -87,10 +75,9 @@ export const BuildView = ({
      * On page load, check if editing
      */
     useEffect(() => {
-        const searchParams = parseSearchParams(window.location.search);
-        const routineId = id.length > 0 ? id : window.location.pathname.split('/').pop();
-        // Editing if specified in search params, or id not set (new routine)
-        if (searchParams.edit || !routineId || !uuidValidate(routineId)) {
+        const searchParams = parseSearchParams();
+        const isCreate = window.location.pathname.split('/').pop() === 'add';
+        if (searchParams.edit || isCreate) {
             setIsEditing(true);
         }
     }, [id]);
@@ -102,7 +89,7 @@ export const BuildView = ({
     // The routine's status (valid/invalid/incomplete)
     const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ['Calculating...'] });
     // Determines the size of the nodes and edges
-    const [scale, setScale] = useState<number>(1);
+    const [scale, setScale] = useState<number>(0);
     const canEdit = useMemo<boolean>(() => routine?.permissionsRoutine?.canEdit === true, [routine?.permissionsRoutine?.canEdit]);
 
     // Stores previous routine states for undo/redo
@@ -233,7 +220,7 @@ export const BuildView = ({
         validationSchema: validationSchema({ minVersion: routine?.version ?? '0.0.1' }),
         onSubmit: (values) => {
             // If routine is new, create it
-            if (!uuidValidate(id)) {
+            if (window.location.pathname.split('/').pop() === 'add') {
                 if (!changedRoutine) {
                     PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: SnackSeverity.Error });
                     return;
@@ -260,8 +247,8 @@ export const BuildView = ({
                             message: `Routine created!`,
                             severity: SnackSeverity.Success,
                             buttonText: 'Create another',
-                            buttonClicked: () => { 
-                                setLocation(`add?build=true`, { replace: Boolean(sessionStorage.getItem('lastPath')) }); 
+                            buttonClicked: () => {
+                                setLocation(`add?build=true`, { replace: Boolean(sessionStorage.getItem('lastPath')) });
                                 window.location.reload();
                             },
                         })
@@ -438,13 +425,10 @@ export const BuildView = ({
         });
     }, [addToChangeStack, changedRoutine]);
 
-    const handleScaleChange = (newScale: number) => {
-        PubSub.get().publishFastUpdate({ duration: 1000 });
-        setScale(newScale)
-    };
     const handleScaleDelta = useCallback((delta: number) => {
         PubSub.get().publishFastUpdate({ duration: 1000 });
-        setScale(s => Math.max(0.25, Math.min(1, s + delta)));
+        // Theoretically can scale infinitely, but for now limit to -5 to 2
+        setScale(s => Math.min(Math.max(s + delta, -5), 2));
     }, []);
 
     const handleRunDelete = useCallback((run: Run) => {
@@ -809,7 +793,6 @@ export const BuildView = ({
      * Updates a node's data
      */
     const handleNodeUpdate = useCallback((node: Node) => {
-        console.log('handlenodeupdate starttt', node)
         if (!changedRoutine) return;
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === node.id);
         if (nodeIndex === -1) return;
@@ -1168,10 +1151,6 @@ export const BuildView = ({
         }
     }, [setLocation, onChange, routine]);
 
-    // Open/close unlinked nodes drawer
-    const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);
-    const toggleUnlinkedNodes = useCallback(() => setIsUnlinkedNodesOpen(curr => !curr), []);
-
     /**
      * Cleans up graph by removing empty columns and row gaps within columns.
      * Also adds end nodes to the end of each unfinished path. 
@@ -1244,62 +1223,6 @@ export const BuildView = ({
         // Update changedRoutine with resultRoutine
         addToChangeStack(resultRoutine);
     }, [addToChangeStack, changedRoutine, columns]);
-
-    const editActions = useMemo(() => {
-        if (!isEditing) return null;
-        return (<Stack direction="row" spacing={1} sx={{
-            zIndex: 2,
-            height: '48px',
-            background: 'transparent',
-            color: palette.primary.contrastText,
-            justifyContent: 'center',
-            alignItems: 'center',
-            paddingTop: '8px',
-        }}>
-            {(canUndo || canRedo) && <Tooltip title={canUndo ? 'Undo' : ''}>
-                <IconButton
-                    id="undo-button"
-                    disabled={!canUndo}
-                    onClick={undo}
-                    aria-label="Undo"
-                    sx={commonButtonProps(palette)}
-                >
-                    <UndoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
-                </IconButton>
-            </Tooltip>}
-            {(canUndo || canRedo) && <Tooltip title={canRedo ? 'Redo' : ''}>
-                <IconButton
-                    id="redo-button"
-                    disabled={!canRedo}
-                    onClick={redo}
-                    aria-label="Redo"
-                    sx={commonButtonProps(palette)}
-                >
-                    <RedoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
-                </IconButton>
-            </Tooltip>}
-            <Tooltip title='Clean up graph'>
-                <IconButton
-                    id="clean-graph-button"
-                    onClick={cleanUpGraph}
-                    aria-label='Clean up graph'
-                    sx={commonButtonProps(palette)}
-                >
-                    <CompressIcon id="clean-up-button-icon" fill={palette.secondary.contrastText} />
-                </IconButton>
-            </Tooltip>
-            <Tooltip title='Add new link'>
-                <IconButton
-                    id="add-link-button"
-                    onClick={openLinkDialog}
-                    aria-label='Add link'
-                    sx={commonButtonProps(palette)}
-                >
-                    <AddLinkIcon id="add-link-button-icon" fill={palette.secondary.contrastText} />
-                </IconButton>
-            </Tooltip>
-        </Stack>)
-    }, [canRedo, canUndo, cleanUpGraph, isEditing, openLinkDialog, palette, redo, undo]);
 
     return (
         <Box sx={{
@@ -1392,7 +1315,7 @@ export const BuildView = ({
                 {/* Title */}
                 <EditableLabel
                     canEdit={isEditing}
-                    handleUpdate={(newText: string) => handleTranslationChange(formik, 'translationsUpdate', { target: { name: 'title', value: newText }}, language)}
+                    handleUpdate={(newText: string) => handleTranslationChange(formik, 'translationsUpdate', { target: { name: 'title', value: newText } }, language)}
                     placeholder={loading ? 'Loading...' : 'Enter title...'}
                     renderLabel={(t) => (
                         <Typography
@@ -1448,14 +1371,6 @@ export const BuildView = ({
                     marginRight: 1,
                 }} />
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <UnlinkedNodesDialog
-                        handleNodeDelete={handleNodeDelete}
-                        handleToggleOpen={toggleUnlinkedNodes}
-                        language={language}
-                        nodes={nodesOffGraph}
-                        open={isUnlinkedNodesOpen}
-                        zIndex={zIndex + 3}
-                    />
                     {/* Edit button */}
                     {canEdit && !isEditing ? (
                         <IconButton aria-label="confirm-title-change" onClick={startEditing} >
@@ -1485,8 +1400,20 @@ export const BuildView = ({
                     />
                 </Box>
             </Stack>
-            {/* Third displays above graph, only when editing */}
-            {editActions}
+            {/* Third displays above graph, only when editing or the routine is incomplete */}
+            <GraphActions
+                canRedo={canRedo}
+                canUndo={canUndo}
+                handleCleanUpGraph={cleanUpGraph}
+                handleNodeDelete={handleNodeDelete}
+                handleOpenLinkDialog={openLinkDialog}
+                handleRedo={redo}
+                handleUndo={undo}
+                isEditing={isEditing}
+                language={language}
+                nodesOffGraph={nodesOffGraph}
+                zIndex={zIndex}
+            />
             {/* Displays main routine's information and some buttons */}
             <Box sx={{
                 background: palette.background.default,
@@ -1525,7 +1452,6 @@ export const BuildView = ({
                     }}
                     handleCancel={revertChanges}
                     handleSubmit={() => { formik.submitForm() }}
-                    handleScaleChange={handleScaleChange}
                     handleRunDelete={handleRunDelete}
                     handleRunAdd={handleRunAdd}
                     hasNext={false}
@@ -1533,7 +1459,6 @@ export const BuildView = ({
                     isAdding={!uuidValidate(id)}
                     isEditing={isEditing}
                     loading={loading}
-                    scale={scale}
                     session={session}
                     sliderColor={palette.secondary.light}
                     routine={routine}

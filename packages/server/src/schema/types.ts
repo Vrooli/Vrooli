@@ -418,6 +418,10 @@ export type LogEdge = {
   node: Log;
 };
 
+export type LogOutInput = {
+  id?: InputMaybe<Scalars['ID']>;
+};
+
 export type LogSearchInput = {
   actions?: InputMaybe<Array<Scalars['String']>>;
   after?: InputMaybe<Scalars['String']>;
@@ -567,7 +571,7 @@ export type Mutation = {
   fork: ForkResult;
   guestLogIn: Session;
   logDeleteMany: Count;
-  logOut: Success;
+  logOut: Session;
   nodeCreate: Node;
   nodeUpdate: Node;
   organizationCreate: Organization;
@@ -597,6 +601,7 @@ export type Mutation = {
   standardCreate: Standard;
   standardUpdate: Standard;
   star: Success;
+  switchCurrentAccount: Session;
   tagCreate: Tag;
   tagDeleteMany: Count;
   tagUpdate: Tag;
@@ -672,6 +677,11 @@ export type MutationForkArgs = {
 
 export type MutationLogDeleteManyArgs = {
   input?: InputMaybe<DeleteManyInput>;
+};
+
+
+export type MutationLogOutArgs = {
+  input: LogOutInput;
 };
 
 
@@ -812,6 +822,11 @@ export type MutationStandardUpdateArgs = {
 
 export type MutationStarArgs = {
   input: StarInput;
+};
+
+
+export type MutationSwitchCurrentAccountArgs = {
+  input: SwitchCurrentAccountInput;
 };
 
 
@@ -2713,9 +2728,16 @@ export type SendVerificationEmailInput = {
 
 export type Session = {
   __typename?: 'Session';
-  id?: Maybe<Scalars['ID']>;
   isLoggedIn: Scalars['Boolean'];
-  languages?: Maybe<Array<Scalars['String']>>;
+  users?: Maybe<Array<SessionUser>>;
+};
+
+export type SessionUser = {
+  __typename?: 'SessionUser';
+  handle?: Maybe<Scalars['String']>;
+  id: Scalars['String'];
+  languages?: Maybe<Array<Maybe<Scalars['String']>>>;
+  name?: Maybe<Scalars['String']>;
   theme?: Maybe<Scalars['String']>;
 };
 
@@ -2952,6 +2974,10 @@ export type Success = {
   success: Scalars['Boolean'];
 };
 
+export type SwitchCurrentAccountInput = {
+  id: Scalars['ID'];
+};
+
 export type Tag = {
   __typename?: 'Tag';
   created_at: Scalars['Date'];
@@ -3103,6 +3129,7 @@ export type UserCountInput = {
 };
 
 export type UserDeleteInput = {
+  deletePublicData: Scalars['Boolean'];
   password: Scalars['String'];
 };
 

@@ -17,15 +17,12 @@ import { comment_comment } from 'graphql/generated/comment';
 import { comments_comments_threads } from 'graphql/generated/comments';
 import { run_run_inputs, run_run_steps } from 'graphql/generated/run';
 import { SearchException } from 'graphql/generated/globalTypes';
+import { validateSession_validateSession, validateSession_validateSession_users } from 'graphql/generated/validateSession';
 
 // Top-level props that can be passed into any routed component
 export type SessionChecked = boolean;
-export type Session = {
-    id?: string | null;
-    isLoggedIn?: boolean;
-    languages?: string[] | null;
-    theme?: string | null;
-}
+export type Session = validateSession_validateSession;
+export type SessionUser = validateSession_validateSession_users;
 export interface CommonProps {
     session: Session;
     sessionChecked: SessionChecked;
@@ -38,13 +35,15 @@ export type NavigableObject = {
     __typename: string
     handle?: string | null,
     id: string,
+    versionGroupId?: string | null,
     routine?: {
+        __typename: string
         id: string
     } | null,
     to?: {
         __typename: string,
         handle?: string | null,
-        id?: string,
+        id: string,
     }
 }
 
@@ -168,12 +167,13 @@ export interface ObjectOption {
     stars?: number;
     [key: string]: any;
     routine?: {
+        __typename: string
         id: string
     } | null,
     to?: {
         __typename: string,
         handle?: string | null,
-        id?: string,
+        id: string,
     }
 }
 
@@ -194,10 +194,13 @@ export interface ActionOption {
 
 export type AutocompleteOption = ObjectOption | ShortcutOption | ActionOption;
 
-// Enable Nami integration
 declare global {
+    // Enable Nami integration
     interface Window { cardano: any; }
+    // Add ID to EventTarget
+    interface EventTarget { id?: string; }
 }
+// Enable Nami integration
 window.cardano = window.cardano || {};
 
 // Apollo GraphQL

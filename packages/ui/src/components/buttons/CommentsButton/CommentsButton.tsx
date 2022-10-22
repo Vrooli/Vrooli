@@ -1,4 +1,4 @@
-import { Box, ListItemText, Stack, Tooltip } from '@mui/material';
+import { Box, ListItemText, Stack, useTheme } from '@mui/material';
 import { useCallback } from 'react';
 import { CommentsButtonProps } from '../types';
 import { multiLineEllipsis } from 'styles';
@@ -10,8 +10,8 @@ export const CommentsButton = ({
     commentsCount = 0,
     disabled = false,
     object,
-    tooltipPlacement = "left",
 }: CommentsButtonProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     // When clicked, navigate to object's comment section
@@ -28,16 +28,19 @@ export const CommentsButton = ({
             spacing={0.5}
             sx={{
                 marginRight: 0,
+                pointerEvents: 'none',
             }}
         >
-            <Tooltip placement={tooltipPlacement} title={'View comments'}>
-                <Box onClick={handleClick} sx={{ display: 'contents', cursor: disabled ? 'none' : 'pointer' }}>
-                    <CommentIcon fill={disabled ? 'rgb(189 189 189)' : '#76a7c3'} />
-                </Box>
-            </Tooltip>
+            <Box onClick={handleClick} sx={{
+                display: 'contents',
+                cursor: disabled ? 'none' : 'pointer',
+                pointerEvents: disabled ? 'none' : 'all',
+            }}>
+                <CommentIcon fill={disabled ? 'rgb(189 189 189)' : palette.secondary.main} />
+            </Box>
             <ListItemText
                 primary={commentsCount}
-                sx={{ ...multiLineEllipsis(1) }}
+                sx={{ ...multiLineEllipsis(1), pointerEvents: 'none' }}
             />
         </Stack>
     )

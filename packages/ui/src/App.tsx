@@ -6,12 +6,13 @@ import {
     FindInPage,
     Footer,
     Navbar,
+    PullToRefresh,
     SnackSeverity,
     SnackStack,
 } from 'components';
 import { PubSub, themes, useReactHash } from 'utils';
 import { Routes } from 'Routes';
-import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider } from '@mui/material';
+import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { ApolloError, useMutation } from '@apollo/client';
 import { validateSessionMutation } from 'graphql/mutation';
@@ -19,6 +20,7 @@ import SakBunderan from './assets/font/SakBunderan.woff';
 import { Session } from 'types';
 import Confetti from 'react-confetti';
 import { CODE } from '@shared/consts';
+import { guestSession } from 'utils/authentication';
 
 const useStyles = makeStyles(() => ({
     "@global": {
@@ -137,10 +139,26 @@ export function App() {
 
     useEffect(() => {
         // Determine theme
-        if (session?.theme) setTheme(themes[session?.theme])
-        else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme(themes.dark);
-        else setTheme(themes.light);
+        let theme: Theme | undefined;
+        // Try getting theme from session
+        if (Array.isArray(session?.users) && session?.users[0]?.theme) theme = themes[session?.users[0]?.theme];
+        // If not found or invalid, try getting theme from window
+        if (!theme) {
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            theme = prefersDark ? themes.dark : themes.light;
+        }
+        setTheme(theme);
     }, [session])
+
+    // Detect online/offline status
+    useEffect(() => {
+        window.addEventListener('online', () => {
+            PubSub.get().publishSnack({ message: 'You are now online', severity: SnackSeverity.Success });
+        });
+        window.addEventListener('offline', () => {
+            PubSub.get().publishSnack({ message: 'No internet connection', severity: SnackSeverity.Error });
+        });
+    }, []);
 
     // Handle site-wide keyboard shortcuts
     useEffect(() => {
@@ -172,7 +190,7 @@ export function App() {
         }
         // Check if previous log in exists
         validateSession().then(({ data }) => {
-            setSession(data?.validateSession as Session);
+            setSession(data?.validateSession);
         }).catch((response: ApolloError) => {
             // Check if error is expired/invalid session
             let isInvalidSession = false;
@@ -186,10 +204,15 @@ export function App() {
             }
             // If error is something else, notify user
             if (!isInvalidSession) {
-                PubSub.get().publishSnack({ message: 'Failed to connect to server.', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({
+                    message: 'Failed to connect to server.',
+                    severity: SnackSeverity.Error,
+                    buttonText: 'Reload',
+                    buttonClicked: () => window.location.reload(),
+                });
             }
-            // If not logged in as guest and failed to log in as user, set empty object
-            if (!session) setSession({})
+            // If not logged in as guest and failed to log in as user, set guest session
+            if (!session) setSession(guestSession)
         })
     }, [validateSession])
 
@@ -238,7 +261,9 @@ export function App() {
         <StyledEngineProvider injectFirst>
             <CssBaseline />
             <ThemeProvider theme={theme}>
-                <Box id="App" sx={{
+                <Box id="App" component="main" sx={{
+                    background: theme.palette.background.default,
+                    color: theme.palette.background.textPrimary,
                     // Style visited, active, and hovered links differently
                     a: {
                         color: theme.palette.mode === 'light' ? '#001cd3' : '#dd86db',
@@ -255,59 +280,52 @@ export function App() {
                         textDecoration: 'none',
                     },
                 }}>
-                    <main
-                        id="page-container"
-                        style={{
-                            background: theme.palette.background.default,
-                            color: theme.palette.background.textPrimary,
-                        }}
-                    >
-                        <Box id="content-wrap" sx={{
-                            background: theme.palette.mode === 'light' ? '#c2cadd' : theme.palette.background.default,
-                            // xs: 100vh - bottom nav (56px) - iOS nav bar
-                            // md: 100vh
-                            minHeight: { xs: 'calc(100vh - 56px - env(safe-area-inset-bottom))', md: '100vh' },
-                        }}>
-                            <Navbar session={session ?? {}} sessionChecked={session !== undefined} />
-                            {/* Progress bar */}
-                            {
-                                loading && <Box sx={{
-                                    position: 'absolute',
-                                    top: '50%',
-                                    left: '50%',
-                                    transform: 'translate(-50%, -50%)',
-                                    zIndex: 100000,
-                                }}>
-                                    <CircularProgress size={100} />
-                                </Box>
-                            }
-                            {/* Command palette */}
-                            <CommandPalette session={session ?? {}} />
-                            {/* Find in page */}
-                            <FindInPage />
-                            {/* Celebratory confetti. To be used sparingly */}
-                            {
-                                celebrating && <Confetti
-                                    initialVelocityY={-10}
-                                    recycle={false}
-                                    confettiSource={{
-                                        x: 0,
-                                        y: 40,
-                                        w: window.innerWidth,
-                                        h: 0
-                                    }}
-                                />
-                            }
-                            <AlertDialog />
-                            <SnackStack />
-                            <Routes
-                                session={session ?? {}}
-                                sessionChecked={session !== undefined}
-                            />
-                        </Box>
-                        <BottomNav session={session ?? {}} />
-                        <Footer />
-                    </main>
+                    {/* Pull-to-refresh for PWAs */}
+                    <PullToRefresh />
+                    {/* Command palette */}
+                    <CommandPalette session={session ?? guestSession} />
+                    {/* Find in page */}
+                    <FindInPage />
+                    {/* Celebratory confetti. To be used sparingly */}
+                    {
+                        celebrating && <Confetti
+                            initialVelocityY={-10}
+                            recycle={false}
+                            confettiSource={{
+                                x: 0,
+                                y: 40,
+                                w: window.innerWidth,
+                                h: 0
+                            }}
+                        />
+                    }
+                    <AlertDialog />
+                    <SnackStack />
+                    <Box id="content-wrap" sx={{
+                        background: theme.palette.mode === 'light' ? '#c2cadd' : theme.palette.background.default,
+                        minHeight: { xs: 'calc(100vh - 56px - env(safe-area-inset-bottom))', md: '100vh' },
+                    }}>
+
+                        <Navbar session={session ?? guestSession} sessionChecked={session !== undefined} />
+                        {/* Progress bar */}
+                        {
+                            loading && <Box sx={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                zIndex: 100000,
+                            }}>
+                                <CircularProgress size={100} />
+                            </Box>
+                        }
+                        <Routes
+                            session={session ?? guestSession}
+                            sessionChecked={session !== undefined}
+                        />
+                    </Box>
+                    <BottomNav session={session ?? guestSession} />
+                    <Footer />
                 </Box>
             </ThemeProvider>
         </StyledEngineProvider>

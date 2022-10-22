@@ -27,7 +27,7 @@ export const AddAfterLinkDialog = ({
      */
     const getNodeName = useCallback((nodeId: string) => {
         const node = nodes.find(n => n.id === nodeId);
-        return getTranslation(node, 'title', getUserLanguages(session), true);
+        return getTranslation(node, getUserLanguages(session), true).title;
     }, [nodes, session]);
 
     /**

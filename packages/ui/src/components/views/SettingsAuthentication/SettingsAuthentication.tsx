@@ -1,6 +1,6 @@
 import { Box, Button, Grid, Stack, TextField, Typography, useTheme } from "@mui/material"
 import { useMutation } from "@apollo/client";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { APP_LINKS } from '@shared/consts';
@@ -13,9 +13,11 @@ import { logOutMutation } from 'graphql/mutation';
 import { GridSubmitButtons, HelpButton } from "components/buttons";
 import { EmailList, WalletList } from "components/lists";
 import { Email, Wallet } from "types";
-import { PasswordTextField, SnackSeverity } from "components";
+import { DeleteAccountDialog, PasswordTextField, SnackSeverity } from "components";
 import { profileEmailUpdateVariables, profileEmailUpdate_profileEmailUpdate } from "graphql/generated/profileEmailUpdate";
-import { EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
+import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
+import { getCurrentUser, guestSession } from "utils/authentication";
+import { logOutVariables, logOut_logOut } from "graphql/generated/logOut";
 
 const helpText =
     `This page allows you to manage your wallets, emails, and other authentication settings.`;
@@ -37,16 +39,24 @@ const passwordHelpText =
 export const SettingsAuthentication = ({
     profile,
     onUpdated,
+    session,
 }: SettingsAuthenticationProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const [logOut] = useMutation(logOutMutation);
     const onLogOut = useCallback(() => {
-        mutationWrapper({ mutation: logOut })
-        PubSub.get().publishSession({});
+        const { id } = getCurrentUser(session);
+        mutationWrapper<logOut_logOut, logOutVariables>({ 
+            mutation: logOut,
+            input: { id },
+            onSuccess: (data) => { PubSub.get().publishSession(data) },
+            // If error, log out anyway
+            onError: () => { PubSub.get().publishSession(guestSession) },
+        })
+        PubSub.get().publishSession(guestSession);
         setLocation(APP_LINKS.Home);
-    }, [logOut, setLocation]);
+    }, [logOut, session, setLocation]);
 
     const updateWallets = useCallback((updatedList: Wallet[]) => {
         if (!profile) {
@@ -101,8 +111,19 @@ export const SettingsAuthentication = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
+    const [deleteOpen, setDeleteOpen] = useState<boolean>(false);
+    const openDelete = useCallback(() => setDeleteOpen(true), [setDeleteOpen]);
+    const closeDelete = useCallback(() => setDeleteOpen(false), [setDeleteOpen]);
+
     return (
         <Box style={{ overflow: 'hidden' }}>
+            {/* Delete account confirmation dialog */}
+            <DeleteAccountDialog
+                isOpen={deleteOpen}
+                handleClose={closeDelete}
+                session={session}
+                zIndex={100}
+            />
             {/* Title */}
             <Box sx={{
                 background: palette.primary.dark,
@@ -216,6 +237,20 @@ export const SettingsAuthentication = ({
                     whiteSpace: 'nowrap',
                 }}
             >Log Out</Button>
+            <Button
+                onClick={openDelete}
+                startIcon={<DeleteIcon />}
+                sx={{
+                    background: palette.error.main,
+                    color: palette.error.contrastText,
+                    display: 'flex',
+                    width: 'min(100%, 400px)',
+                    marginLeft: 'auto',
+                    marginRight: 'auto',
+                    marginBottom: 2,
+                    whiteSpace: 'nowrap',
+                }}
+            >Delete Account</Button>
         </Box>
     )
 }

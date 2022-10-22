@@ -10,10 +10,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession, VersionInput } from "components";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { uuid, uuidValidate } from '@shared/uuid';
+import { uuid } from '@shared/uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { routineCreateVariables, routineCreate_routineCreate } from "graphql/generated/routineCreate";
 import { RelationshipItemRoutine, RelationshipsObject } from "components/inputs/types";
+import { getCurrentUser } from "utils/authentication";
 
 export const RoutineCreate = ({
     isSubroutine = false,
@@ -60,7 +61,7 @@ export const RoutineCreate = ({
     const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     useEffect(() => {
-        const params = parseSearchParams(window.location.search);
+        const params = parseSearchParams();
         if (typeof params.tag === 'string') setTags([{ tag: params.tag }]);
         else if (Array.isArray(params.tags)) setTags(params.tags.map((t: any) => ({ tag: t })));
     }, []);
@@ -143,7 +144,7 @@ export const RoutineCreate = ({
         handleTranslationChange(formik, 'translationsCreate', e, language)
     }, [formik, language]);
 
-    const isLoggedIn = useMemo(() => session?.isLoggedIn === true && uuidValidate(session?.id ?? ''), [session]);
+    const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{

@@ -3,11 +3,10 @@
  */
 import { Box, Stack, Tab, Tabs, Typography } from "@mui/material";
 import { PageContainer, SearchList } from "components";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLocation } from '@shared/route';
 import { HistorySearchPageProps } from "../types";
-import { parseSearchParams, openObject, SearchType, HistorySearchPageTabOption as TabOption, addSearchParams } from "utils";
-import { ListRun, ListStar, ListView } from "types";
+import { parseSearchParams, SearchType, HistorySearchPageTabOption as TabOption, addSearchParams } from "utils";
 
 // Tab data type
 type BaseParams = {
@@ -42,18 +41,14 @@ const tabParams: { [key in TabOption]: BaseParams } = {
 // [title, searchType] for each tab
 const tabOptions: [string, TabOption][] = Object.entries(tabParams).map(([key, value]) => [value.title, key as TabOption]);
 
-type SearchObject = ListRun | ListView | ListStar;
-
 export function HistorySearchPage({
     session,
 }: HistorySearchPageProps) {
     const [, setLocation] = useLocation();
 
-    const handleSelected = useCallback((selected: SearchObject) => { openObject(selected, setLocation) }, [setLocation]);
-
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(() => {
-        const searchParams = parseSearchParams(window.location.search);
+        const searchParams = parseSearchParams();
         const availableTypes: TabOption[] = tabOptions.map(t => t[1]);
         const index = availableTypes.indexOf(searchParams.type as TabOption);
         return Math.max(0, index);
@@ -114,7 +109,6 @@ export function HistorySearchPage({
                 searchPlaceholder={'Search...'}
                 take={20}
                 searchType={searchType}
-                onObjectSelect={handleSelected}
                 session={session}
                 zIndex={200}
                 where={where}

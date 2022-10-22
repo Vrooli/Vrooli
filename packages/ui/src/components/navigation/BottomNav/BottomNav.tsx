@@ -1,6 +1,6 @@
 import { useLocation } from '@shared/route';
 import { BottomNavigation, useTheme } from '@mui/material';
-import { actionsToBottomNav, ACTION_TAGS, getUserActions } from 'utils';
+import { actionsToBottomNav, ACTION_TAGS, getUserActions, useKeyboardOpen } from 'utils';
 import { BottomNavProps } from '../types';
 
 export const BottomNav = ({
@@ -15,6 +15,11 @@ export const BottomNav = ({
         setLocation,
     });
 
+    // Hide the nav if the keyboard is open. This is because fixed bottom navs 
+    // will appear above the keyboard on Android for some reason.
+    const invisible = useKeyboardOpen();
+
+    if (invisible) return null;
     return (
         <BottomNavigation
             showLabels
@@ -24,7 +29,8 @@ export const BottomNav = ({
                 zIndex: 5,
                 bottom: 0,
                 paddingBottom: 'env(safe-area-inset-bottom)',
-                // safe-area-inset-bottom is the iOS navigation bar
+                paddingLeft: 'calc(4px + env(safe-area-inset-left))',
+                paddingRight: 'calc(4px + env(safe-area-inset-right))',
                 height: 'calc(56px + env(safe-area-inset-bottom))',
                 width: '100%',
                 display: { xs: 'flex', md: 'none' },
