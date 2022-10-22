@@ -1,7 +1,7 @@
 import { Box, Tooltip, Typography } from '@mui/material';
 import React, { useCallback, useMemo, useState } from 'react';
 import { EndNodeProps } from '../types';
-import { DraggableNode, EndNodeDialog, NodeContextMenu, NodeWidth } from '../..';
+import { calculateNodeSize, DraggableNode, EndNodeDialog, NodeContextMenu, NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 import { CSSProperties } from '@mui/styles';
@@ -38,22 +38,27 @@ export const EndNode = ({
         return null;
     }, [isLinked, linksIn.length]);
 
-    const labelObject = useMemo(() => labelVisible && scale >= 0.5 ? (
+    const { innerCircleSize, outerCircleSize } = useMemo(() => {
+        const nodeSize = calculateNodeSize(NodeWidth.End, scale);
+        return {
+            innerCircleSize: nodeSize / 2,
+            outerCircleSize: nodeSize,
+        }
+    }, [scale]);
+
+    const labelObject = useMemo(() => labelVisible && outerCircleSize > 75 ? (
         <Typography
             variant="h6"
             sx={{
                 ...noSelect,
                 ...nodeLabel,
                 pointerEvents: 'none',
+                fontSize: `min(${outerCircleSize / 5}px, 2em)`
             } as CSSProperties}
         >
             {label}
         </Typography>
-    ) : null, [labelVisible, label, scale]);
-
-    const outerCircleSize = useMemo(() => `max(${NodeWidth.End * scale}px, 48px)`, [scale]);
-    const innerCircleSize = useMemo(() => `max(${NodeWidth.End * scale / 1.5}px, 32px)`, [scale]);
-    const fontSize = useMemo(() => `min(${NodeWidth.End * scale / 5}px, 2em)`, [scale]);
+    ) : null, [labelVisible, outerCircleSize, label]);
 
     // Normal click edit menu (title, wasSuccessful, etc.)
     const [editDialogOpen, setEditDialogOpen] = useState<boolean>(false);
@@ -77,8 +82,8 @@ export const EndNode = ({
         setContextAnchor(target)
     }, [canDrag, isLinked, isEditing]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
-    const pressEvents = usePress({ 
-        onLongPress: openContext, 
+    const pressEvents = usePress({
+        onLongPress: openContext,
         onClick: openEditDialog,
         onRightClick: openContext,
     });
@@ -114,9 +119,8 @@ export const EndNode = ({
                     aria-owns={contextOpen ? contextId : undefined}
                     {...pressEvents}
                     sx={{
-                        width: outerCircleSize,
-                        height: outerCircleSize,
-                        fontSize: fontSize,
+                        width: `max(${outerCircleSize}px, 48px)`,
+                        height: `max(${outerCircleSize}px, 48px)`,
                         position: 'relative',
                         display: 'block',
                         backgroundColor: node.data?.wasSuccessful === false ? '#7c262a' : '#387e30',
@@ -133,8 +137,8 @@ export const EndNode = ({
                     <Box
                         id={`${isLinked ? '' : 'unlinked-'}node-end-inner-circle-${node.id}`}
                         sx={{
-                            width: innerCircleSize,
-                            height: innerCircleSize,
+                            width: `max(${innerCircleSize}px, 32px)`,
+                            height: `max(${innerCircleSize}px, 32px)`,
                             position: 'absolute',
                             display: 'block',
                             margin: '0',
@@ -145,8 +149,8 @@ export const EndNode = ({
                             border: `2px solid ${node.data?.wasSuccessful === false ? '#e97691' : '#9ce793'}`,
                         } as const}
                     >
-                        {labelObject}
                     </Box>
+                    {labelObject}
                 </Box>
             </Tooltip>
         </DraggableNode>

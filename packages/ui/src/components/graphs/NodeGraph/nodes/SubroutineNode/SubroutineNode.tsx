@@ -17,7 +17,7 @@ import {
 } from '../styles';
 import { multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { BuildAction, firstString, getTranslation, updateTranslationFields, usePress } from 'utils';
-import { EditableLabel, NodeContextMenu } from 'components';
+import { calculateNodeSize, EditableLabel, NodeContextMenu } from 'components';
 import { CloseIcon } from '@shared/icons';
 import { requiredErrorMessage, title as titleValidation } from '@shared/validation';
 
@@ -43,8 +43,8 @@ export const SubroutineNode = ({
 }: SubroutineNodeProps) => {
     const { palette } = useTheme();
 
-    const nodeSize = useMemo(() => `${220 * scale}px`, [scale]);
-    const fontSize = useMemo(() => `min(${220 * scale / 5}px, 2em)`, [scale]);
+    const nodeSize = useMemo(() => `${calculateNodeSize(220, scale)}px`, [scale]);
+    const fontSize = useMemo(() => `min(${calculateNodeSize(220, scale) / 5}px, 2em)`, [scale]);
     // Determines if the subroutine is one you can edit
     const canEdit = useMemo<boolean>(() => (data?.routine?.isInternal ?? data?.routine?.permissionsRoutine?.canEdit === true), [data.routine]);
 

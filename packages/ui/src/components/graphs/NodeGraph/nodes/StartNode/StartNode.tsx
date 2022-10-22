@@ -3,7 +3,7 @@ import { CSSProperties, useCallback, useMemo, useState } from 'react';
 import { StartNodeProps } from '../types';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
-import { NodeContextMenu, NodeWidth } from '../..';
+import { calculateNodeSize, NodeContextMenu, NodeWidth } from '../..';
 import { BuildAction, usePress } from 'utils';
 
 export const StartNode = ({
@@ -27,20 +27,20 @@ export const StartNode = ({
         return null;
     }, [linksOut.length]);
 
-    const labelObject = useMemo(() => labelVisible && scale >= 0.5 ? (
+    const nodeSize = useMemo(() => calculateNodeSize(NodeWidth.Start, scale), [scale]);
+
+    const labelObject = useMemo(() => labelVisible && nodeSize > 75 ? (
         <Typography
             variant="h6"
             sx={{
                 ...noSelect,
                 ...nodeLabel,
+                fontSize: `min(${nodeSize / 5}px, 2em)`
             } as CSSProperties}
         >
             {label}
         </Typography>
-    ) : null, [labelVisible, label, scale]);
-
-    const nodeSize = useMemo(() => `max(${NodeWidth.Start * scale}px, 48px)`, [scale]);
-    const fontSize = useMemo(() => `min(${NodeWidth.Start * scale / 5}px, 2em)`, [scale]);
+    ) : null, [labelVisible, nodeSize, label]);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
@@ -74,9 +74,8 @@ export const StartNode = ({
                     {...pressEvents}
                     sx={{
                         boxShadow: borderColor ? `0px 0px 12px ${borderColor}` : 12,
-                        width: nodeSize,
-                        height: nodeSize,
-                        fontSize: fontSize,
+                        width: `max(${nodeSize}px, 48px)`,
+                        height: `max(${nodeSize}px, 48px)`,
                         position: 'relative',
                         display: 'block',
                         backgroundColor: palette.mode === 'light' ? '#259a17' : '#387e30',

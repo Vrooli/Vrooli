@@ -1,4 +1,4 @@
-import { Box, Dialog, Grid, Palette, Slider, Stack, Tooltip, useTheme } from '@mui/material';
+import { Box, Dialog, Grid, Palette, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import { BuildRunState, setSearchParams, uuidToBase36 } from 'utils';
 import { BuildBottomContainerProps } from '../types';
@@ -29,13 +29,11 @@ export const BuildBottomContainer = ({
     handleSubmit,
     handleRunDelete,
     handleRunAdd,
-    handleScaleChange,
     hasPrevious,
     hasNext,
     isAdding,
     isEditing,
     loading,
-    scale,
     session,
     sliderColor,
     routine,
@@ -44,10 +42,6 @@ export const BuildBottomContainer = ({
 }: BuildBottomContainerProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-
-    const onScaleChange = useCallback((_event: any, newScale: number | number[]) => {
-        handleScaleChange(newScale as number);
-    }, [handleScaleChange]);
 
     const [isRunOpen, setIsRunOpen] = useState(false)
     const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
@@ -89,37 +83,13 @@ export const BuildBottomContainer = ({
     };
 
     /**
-     * Slider for scaling the graph
-     */
-    const slider = useMemo(() => (
-        <Slider
-            aria-label="graph-scale"
-            defaultValue={1}
-            max={1}
-            min={0.25}
-            onChange={onScaleChange}
-            step={0.01}
-            value={scale}
-            valueLabelDisplay="auto"
-            sx={{
-                color: sliderColor,
-                maxWidth: '500px',
-                marginRight: 2,
-            }}
-        />
-    ), [scale, sliderColor, onScaleChange]);
-
-    /**
      * Display previous, play/pause, and next if not editing.
      * If editing, display update and cancel.
      */
     const buttons = useMemo(() => {
         return isEditing ?
             (
-                <Grid container spacing={1} sx={{
-                    display: { xs: 'contents', md: 'flex' },
-                    width: { xs: '100%', md: '300px' },
-                }}>
+                <Grid container spacing={1} sx={{ width: 'min(100%, 600px)' }}>
                     <GridSubmitButtons
                         disabledCancel={loading || !canCancelMutate}
                         disabledSubmit={loading || !canSubmitMutate}
@@ -200,7 +170,6 @@ export const BuildBottomContainer = ({
                     zIndex={zIndex + 1}
                 />}
             </Dialog>
-            {slider}
             {buttons}
         </Box>
     )

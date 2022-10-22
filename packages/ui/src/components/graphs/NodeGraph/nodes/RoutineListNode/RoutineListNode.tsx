@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import React, { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RoutineListNodeProps } from '../types';
-import { DraggableNode, SubroutineNode } from '..';
+import { calculateNodeSize, DraggableNode, SubroutineNode } from '..';
 import { NodeContextMenu, NodeWidth } from '../..';
 import {
     routineNodeCheckboxOption,
@@ -60,7 +60,7 @@ export const RoutineListNode = ({
 
     // Default to open if editing and empty
     const [collapseOpen, setCollapseOpen] = useState<boolean>(isEditing && (node?.data as NodeDataRoutineList)?.routines?.length === 0);
-    const collapseDebounce = useDebounce(setCollapseOpen, 50);
+    const collapseDebounce = useDebounce(setCollapseOpen, 100);
     const toggleCollapse = useCallback((target: EventTarget) => {
         if (isLinked && shouldCollapse(target.id)) {
             PubSub.get().publishFastUpdate({ duration: 1000 });
@@ -144,10 +144,10 @@ export const RoutineListNode = ({
         }
     }, [language, node]);
 
-    const minNodeSize = useMemo(() => `${NodeWidth.RoutineList * scale}px`, [scale]);
-    const maxNodeSize = useMemo(() => `${NodeWidth.RoutineList * scale * 3}px`, [scale]);
-    const fontSize = useMemo(() => `min(${NodeWidth.RoutineList * scale / 5}px, 2em)`, [scale]);
-    const addSize = useMemo(() => `max(${NodeWidth.RoutineList * scale / 8}px, 48px)`, [scale]);
+    const minNodeSize = useMemo(() => `${calculateNodeSize(NodeWidth.RoutineList, scale)}px`, [scale]);
+    const maxNodeSize = useMemo(() => `${calculateNodeSize(NodeWidth.RoutineList, scale) * 2}px`, [scale]);
+    const fontSize = useMemo(() => `min(${calculateNodeSize(NodeWidth.RoutineList, scale) / 5}px, 2em)`, [scale]);
+    const addSize = useMemo(() => `max(${calculateNodeSize(NodeWidth.RoutineList, scale) / 8}px, 48px)`, [scale]);
 
     const confirmDelete = useCallback((event: any) => {
         PubSub.get().publishAlertDialog({

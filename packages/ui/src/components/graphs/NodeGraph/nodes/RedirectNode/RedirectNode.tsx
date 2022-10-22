@@ -4,7 +4,7 @@ import { RedirectNodeProps } from '../types';
 import { NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
-import { DraggableNode } from '../';
+import { calculateNodeSize, DraggableNode } from '../';
 import { usePress } from 'utils';
 import { RedirectIcon } from '@shared/icons';
 
@@ -29,8 +29,8 @@ export const RedirectNode = ({
         </Typography>
     ) : null, [labelVisible, label, scale]);
 
-    const nodeSize = useMemo(() => `${NodeWidth.Redirect * scale}px`, [scale]);
-    const fontSize = useMemo(() => `min(${NodeWidth.Redirect * scale / 5}px, 2em)`, [scale]);
+    const nodeSize = useMemo(() => `${calculateNodeSize(NodeWidth.Redirect, scale)}px`, [scale]);
+    const fontSize = useMemo(() => `min(${calculateNodeSize(NodeWidth.Redirect, scale) / 5}px, 2em)`, [scale]);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);

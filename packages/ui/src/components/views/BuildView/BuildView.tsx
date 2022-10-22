@@ -42,8 +42,6 @@ You can press the routine list node to toggle it open/closed. The *open* stats a
 Each link connecting nodes has a circle. Pressing this circle opens a popup menu with options to insert a node, split the graph, or delete the link.
 
 You also have the option to *unlink* nodes. These are stored on the top status bar - along with the status indicator, a button to clean up the graph, a button to add a new link, this help button, and an info button that sets overall routine information.
-
-At the bottom of the screen, there is a slider to control the scale of the graph, and buttons to create/update and cancel the routine.
 `
 
 /**
@@ -91,7 +89,7 @@ export const BuildView = ({
     // The routine's status (valid/invalid/incomplete)
     const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ['Calculating...'] });
     // Determines the size of the nodes and edges
-    const [scale, setScale] = useState<number>(1);
+    const [scale, setScale] = useState<number>(0);
     const canEdit = useMemo<boolean>(() => routine?.permissionsRoutine?.canEdit === true, [routine?.permissionsRoutine?.canEdit]);
 
     // Stores previous routine states for undo/redo
@@ -427,13 +425,10 @@ export const BuildView = ({
         });
     }, [addToChangeStack, changedRoutine]);
 
-    const handleScaleChange = (newScale: number) => {
-        PubSub.get().publishFastUpdate({ duration: 1000 });
-        setScale(newScale)
-    };
     const handleScaleDelta = useCallback((delta: number) => {
         PubSub.get().publishFastUpdate({ duration: 1000 });
-        setScale(s => Math.max(0.25, Math.min(1, s + delta)));
+        // Theoretically can scale infinitely, but for now limit to -5 to 2
+        setScale(s => Math.min(Math.max(s + delta, -5), 2));
     }, []);
 
     const handleRunDelete = useCallback((run: Run) => {
@@ -1458,7 +1453,6 @@ export const BuildView = ({
                     }}
                     handleCancel={revertChanges}
                     handleSubmit={() => { formik.submitForm() }}
-                    handleScaleChange={handleScaleChange}
                     handleRunDelete={handleRunDelete}
                     handleRunAdd={handleRunAdd}
                     hasNext={false}
@@ -1466,7 +1460,6 @@ export const BuildView = ({
                     isAdding={!uuidValidate(id)}
                     isEditing={isEditing}
                     loading={loading}
-                    scale={scale}
                     session={session}
                     sliderColor={palette.secondary.light}
                     routine={routine}

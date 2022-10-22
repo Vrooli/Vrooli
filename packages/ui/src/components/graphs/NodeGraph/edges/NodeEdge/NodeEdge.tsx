@@ -4,6 +4,7 @@ import { Stack, Tooltip, useTheme } from '@mui/material';
 import { BaseEdge } from '../BaseEdge/BaseEdge';
 import { AddIcon, BranchIcon, DeleteIcon, EditIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons';
+import { calculateNodeSize } from '../../nodes';
 
 /**
  * Displays a line between two nodes of a routine graph
@@ -24,7 +25,7 @@ export const NodeEdge = ({
     const { palette } = useTheme();
 
     // Store dimensions of edge
-    const thiccness = useMemo(() => Math.ceil(scale * 30), [scale]);
+    const thiccness = useMemo(() => Math.ceil(calculateNodeSize(30, scale)), [scale]);
 
     // Triggers edit menu in parent. This is needed because the link's from and to nodes
     // can be updated, and the edge doesn't have this information
