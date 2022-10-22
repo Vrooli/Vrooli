@@ -62,7 +62,6 @@ export function SearchList<DataType extends ObjectListItemType, SortBy, Query, Q
 }: SearchListProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    console.log('searchlist render', where)
 
     const { advancedSearchSchema, defaultSortBy, sortByOptions, query } = useMemo<SearchParams>(() => searchTypeToParams[searchType], [searchType]);
 
@@ -133,7 +132,6 @@ export function SearchList<DataType extends ObjectListItemType, SortBy, Query, Q
     // On search filters/sort change, reset the page
     useEffect(() => {
         after.current = undefined;
-        console.log('getpagedata? 1', canSearch)
         if (canSearch) getPageData();
     }, [advancedSearchParams, canSearch, searchString, searchType, sortBy, timeFrame, where, getPageData]);
 
@@ -215,7 +213,6 @@ export function SearchList<DataType extends ObjectListItemType, SortBy, Query, Q
         session: session,
         zIndex,
     }), [beforeNavigation, searchType, hideRoles, allData, pageData, itemKeyPrefix, loading, session, zIndex])
-    console.log('listItems', new Date().getTime(), listItems, loading, pageData)
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
@@ -277,7 +274,6 @@ export function SearchList<DataType extends ObjectListItemType, SortBy, Query, Q
 
     const searchResultContainer = useMemo(() => {
         const hasItems = listItems.length > 0;
-        console.log('searchResultsContainer', new Date().getTime(), hasItems, listItems);
         return (
             <Box sx={{
                 marginTop: 2,

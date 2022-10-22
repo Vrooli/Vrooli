@@ -45,7 +45,6 @@ export const ResourceListItemContextMenu = ({
 }: ResourceListItemContextMenuProps) => {
 
     const onMenuItemSelect = (value: ResourceContextMenuOption) => {
-        console.log('onMenuItemSelect', index);
         if (index === null || index < 0) return;
         switch (value) {
             case ResourceContextMenuOption.AddBefore:

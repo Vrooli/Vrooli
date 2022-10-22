@@ -94,7 +94,6 @@ export const SettingsDisplay = ({
             })
             if (!input || Object.keys(input).length === 0) {
                 PubSub.get().publishSnack({ message: 'No changes made.', severity: SnackSeverity.Error });
-                console.log(profile, input, values.theme)
                 formik.setSubmitting(false);
                 return;
             }
@@ -106,7 +105,7 @@ export const SettingsDisplay = ({
                     onUpdated(data);
                     formik.setSubmitting(false);
                 },
-                onError: () => { console.log('got errrorrrrrrrrrr'); formik.setSubmitting(false) },
+                onError: () => { formik.setSubmitting(false) },
             })
         },
     });

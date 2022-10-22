@@ -30,7 +30,6 @@ export const ProjectCreate = ({
         project: null,
     });
     const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
-        console.log('onRelationshipsChange', newRelationshipsObject);
         setRelationships({
             ...relationships,
             ...newRelationshipsObject,

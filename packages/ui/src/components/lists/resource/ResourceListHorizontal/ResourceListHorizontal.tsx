@@ -48,7 +48,6 @@ export const ResourceListHorizontal = ({
 
     const [deleteMutation] = useMutation(resourceDeleteManyMutation);
     const onDelete = useCallback((index: number) => {
-        console.log('onDelete', index, list);
         if (!list) return;
         const resource = list.resources[index];
         if (mutate && resource.id) {
@@ -94,7 +93,6 @@ export const ResourceListHorizontal = ({
     const openDialog = useCallback(() => { setIsDialogOpen(true) }, []);
     const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1) }, []);
     const openUpdateDialog = useCallback((index: number) => {
-        console.log('openUpdateDialog', index);
         setEditingIndex(index);
         setIsDialogOpen(true)
     }, []);

@@ -67,7 +67,6 @@ export const ResourceDialog = ({
     listId,
     zIndex,
 }: ResourceDialogProps) => {
-    console.log('rendering resource dialog')
     const { palette } = useTheme();
 
     const [addMutation, { loading: addLoading }] = useMutation(resourceCreateMutation);
@@ -89,7 +88,6 @@ export const ResourceDialog = ({
         enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
-            console.log('resourcedialog onsubmit')
             const input: ResourceShape = {
                 id: partialData?.id ?? uuid(),
                 index: Math.max(index, 0),
@@ -169,12 +167,10 @@ export const ResourceDialog = ({
     }, [formik, languages]);
     // Handles blur on translation fields
     const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
-        console.log('resource dialog trans blur', e.target)
         handleTranslationBlur(formik, 'translationsUpdate', e, language)
     }, [formik, language]);
     // Handles change on translation fields
     const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        console.log('resource dialog trans change', e.target)
         handleTranslationChange(formik, 'translationsUpdate', e, language)
     }, [formik, language]);
 
@@ -211,7 +207,6 @@ export const ResourceDialog = ({
         // Create URL
         const newLocation = `${getObjectUrlBase(newValue)}/${getObjectSlug(newValue)}`
         // Update link
-        console.log('resourcedialog oninputselect')
         formik.setFieldValue('link', `${window.location.origin}${newLocation}`);
     }, [closeSearch, formik]);
 

@@ -39,7 +39,6 @@ export const OwnerLabel = ({
 
     const ownerLink = useMemo<string>(() => {
         if (!owner) return '';
-        console.log('getting owner link', owner);
         return `${getObjectUrlBase(owner)}/${getObjectSlug(owner)}`
     }, [owner]);
 

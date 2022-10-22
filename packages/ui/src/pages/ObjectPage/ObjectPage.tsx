@@ -161,7 +161,6 @@ export const ObjectPage = ({
         // If page type is View, display the view page
         // Also display the view page for multi-step routines, since this has special logic
         const searchParams = parseSearchParams();
-        console.log('calculating displayed page', searchParams, pageType, window.location.search);
         if (pageType === PageType.View || searchParams.build === true) {
             const View = viewMap[objectType];
             document.title = `View ${titleMap[objectType]}`;

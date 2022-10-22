@@ -221,7 +221,6 @@ export function CommentContainer({
 
     // Current text, as well as errors
     const { text, errorText, touchedText, errors } = useMemo(() => {
-        console.log('comment container gettransdata')
         const { error, touched, value } = getTranslationData(formik, 'translationsCreate', language);
         return {
             text: value?.text ?? '',

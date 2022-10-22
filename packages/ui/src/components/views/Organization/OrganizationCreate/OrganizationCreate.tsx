@@ -87,7 +87,6 @@ export const OrganizationCreate = ({
     // Handle translations
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     const { bio, name, errorBio, errorName, touchedBio, touchedName, errors } = useMemo(() => {
-        console.log('org create gettransdata')
         const { error, touched, value } = getTranslationData(formik, 'translationsCreate', language);
         return {
             bio: value?.bio ?? '',

@@ -7,7 +7,7 @@ import { mutationWrapper } from "graphql/utils";
 import { useCallback, useEffect, useMemo } from "react";
 import { displayDate, getTranslation, getUserLanguages } from "utils/display";
 import { ListMenuItemData, RunPickerMenuProps } from "../types";
-import { getRunPercentComplete, parseSearchParams, PubSub } from "utils";
+import { base36ToUuid, getRunPercentComplete, parseSearchParams, PubSub } from "utils";
 import { useMutation } from "@apollo/client";
 import { runCreateVariables, runCreate_runCreate } from "graphql/generated/runCreate";
 import { deleteOneMutation, runCreateMutation } from "graphql/mutation";
@@ -38,8 +38,9 @@ export const RunPickerMenu = ({
     useEffect(() => {
         if (!routine) return;
         const searchParams = parseSearchParams();
-        if (!searchParams.run) return
-        const run = routine.runs?.find(run => run.id === searchParams.run);
+        if (!searchParams.run || typeof searchParams.run !== 'string') return
+        const runId = base36ToUuid(searchParams.run);
+        const run = routine.runs?.find(run => run.id === runId);
         if (run) {
             onSelect(run);
             handleClose();

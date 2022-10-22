@@ -151,7 +151,6 @@ export function AutocompleteSearchBar({
     const onChangeDebounced = useDebounce(onChange, debounce);
     useEffect(() => setInternalValue(value), [value]);
     const handleChange = useCallback((event: ChangeEvent<any>) => {
-        console.log('handle text change', event.target.value)
         // Get the new input string
         const { value } = event.target;
         // Update state
@@ -220,13 +219,11 @@ export function AutocompleteSearchBar({
 
     const onHighlightChange = useCallback((event: React.SyntheticEvent<Element, Event>, option: AutocompleteOption | null, reason: AutocompleteHighlightChangeReason) => {
         if (option && option.label && reason === 'keyboard') {
-            console.log('setting highlighted option', option);
             setHighlightedOption(option);
         }
     }, [])
 
     const handleSelect = useCallback((option: AutocompleteOption) => {
-        console.log('handle select', option);
         // Add to search history
         const existingHistory = getSearchHistory(id, userId ?? '');
         // If history has more than 500 entries, remove the oldest

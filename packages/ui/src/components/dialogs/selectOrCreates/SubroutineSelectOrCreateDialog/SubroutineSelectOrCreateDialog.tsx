@@ -36,7 +36,6 @@ export const SubroutineSelectOrCreateDialog = ({
     session,
     zIndex,
 }: SubroutineSelectOrCreateDialogProps) => {
-    console.log('subroutineselectorcreatedialog', routineId)
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -87,12 +86,10 @@ export const SubroutineSelectOrCreateDialog = ({
      * Query conditions change depending on a few factors
      */
     const where = useMemo(() => {
-        console.log('where start', routineId)
         // If no routineId, then we are creating a new routine
         if (!routineId || !uuidValidate(routineId)) return { visibility: VisibilityType.All };
         // Ignore current routine
         const excludeIds = { excludeIds: [routineId] };
-        console.log('where excludeIds', excludeIds)
         // Don't include incomplete/internal routines, unless they're your own
         const incomplete: IsCompleteInput = { isComplete: true };
         const internal: IsInternalInput = { isInternal: false };

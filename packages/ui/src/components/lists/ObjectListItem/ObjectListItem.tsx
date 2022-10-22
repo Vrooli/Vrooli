@@ -60,7 +60,6 @@ export function ObjectListItem<T extends ObjectListItemType>({
     // Context menu
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const handleContextMenu = useCallback((target: EventTarget) => {
-        console.log('handle long clickkkkkk', target)
         setAnchorEl(target as HTMLElement)
     }, []);
     const closeContextMenu = useCallback(() => setAnchorEl(null), []);
@@ -80,7 +79,6 @@ export function ObjectListItem<T extends ObjectListItemType>({
 
     const handleEditClick = useCallback((event: any) => {
         const target = event.target;
-        console.log('handle edit click', target.id)
         if (!target.id || !target.id.startsWith('edit-list-item-')) return;
         // If data not supplied, don't open
         if (!data) return;

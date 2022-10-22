@@ -67,7 +67,6 @@ export const SelectLanguageMenu = ({
     // Auto-translates from source to target language
     const [getAutoTranslation] = useLazyQuery(translateQuery);
     const autoTranslate = useCallback((source: string, target: string) => {
-        console.log("TODO autotranslate");
         // Get source translation
         const sourceTranslation = translations.find(t => t.language === source);
         if (!sourceTranslation) {

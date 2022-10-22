@@ -133,10 +133,6 @@ export const RunStepsDialog = ({
     const toggleOpen = useCallback(() => setIsOpen(!isOpen), [isOpen]);
     const closeDialog = () => { setIsOpen(false) };
 
-    useEffect(() => {
-        console.log('history changed', history);
-    }, [history]);
-
     /**
      * Checks if a routine is complete. If it is a subroutine,
      * recursively checks all subroutine steps.

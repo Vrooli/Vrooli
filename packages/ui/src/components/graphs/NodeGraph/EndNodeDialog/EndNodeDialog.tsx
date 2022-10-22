@@ -33,7 +33,6 @@ export const EndNodeDialog = ({
                 title: values.title,
                 description: values.description,
             });
-            console.log('new translations', newTranslations);
             handleClose({
                 ...node,
                 translations: newTranslations as Node['translations'],

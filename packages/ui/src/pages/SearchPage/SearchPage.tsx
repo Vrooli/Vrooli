@@ -116,7 +116,6 @@ export function SearchPage({
     const closeAddRoutine = useCallback(() => setAddRoutineAnchor(null), []);
 
     const onAddClick = useCallback((ev: any) => {
-        console.log('onaddclick')
         const addUrl = `${getObjectUrlBase({ __typename: searchType as string })}/add`
         // If not logged in, redirect to login page
         if (!getCurrentUser(session).id) {
