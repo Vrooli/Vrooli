@@ -27,8 +27,9 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
     const token = cookies[COOKIE.Jwt];
     if (token === null || token === undefined) {
         // If from unsafe origin, deny access.
-        if (!req.fromSafeOrigin) throw new CustomError(CODE.Unauthorized, 'Unsafe origin with expired/missing API token', { code: genErrorCode('0247') });
-        else next();
+        let error: CustomError | undefined;
+        if (!req.fromSafeOrigin) error = new CustomError(CODE.Unauthorized, 'Unsafe origin with expired/missing API token', { code: genErrorCode('0247') });
+        next(error);
         return;
     }
     if (!process.env.JWT_SECRET) {
@@ -39,8 +40,9 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
     jwt.verify(token, process.env.JWT_SECRET, async (error: any, payload: any) => {
         if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
             // If from unsafe origin, deny access.
-            if (!req.fromSafeOrigin) throw new CustomError(CODE.Unauthorized, 'Unsafe origin with expired/missing API token', { code: genErrorCode('0248') });
-            else next();
+            let error: CustomError | undefined;
+            if (!req.fromSafeOrigin) error = new CustomError(CODE.Unauthorized, 'Unsafe origin with expired/missing API token', { code: genErrorCode('0248') });
+            next(error);
             return;
         }
         // Now, set token and role variables for other middleware to use
@@ -129,8 +131,9 @@ export async function generateApiJwt(res: Response, apiToken: string): Promise<u
  * Middleware that restricts access to logged in users
  */
 export async function requireLoggedIn(req: Request, _: any, next: any) {
-    if (!req.isLoggedIn) return new CustomError(CODE.Unauthorized, 'You must be logged in to access this resource', { code: genErrorCode('0018') });
-    next();
+    let error: CustomError | undefined;
+    if (!req.isLoggedIn) error = new CustomError(CODE.Unauthorized, 'You must be logged in to access this resource', { code: genErrorCode('0018') });
+    next(error);
 }
 
 export type RequestConditions = {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 interface UsePinchZoomProps {
-    onScaleChange: (scale: number) => void;
+    onScaleChange: (scale: number, position: { x: number, y: number }) => void;
     validTargetIds: string[];
 }
 
@@ -62,8 +62,15 @@ export const usePinchZoom = ({
                 const newDistance = getTouchDistance(e);
                 // Calculate the scale delta
                 const scaleDelta = (newDistance - refs.current.currDistance) / 250;
+                // Find the center of the two touches, so we can zoom in on that point
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                const center = {
+                    x: (touch1.clientX + touch2.clientX) / 2,
+                    y: (touch1.clientY + touch2.clientY) / 2,
+                };
                 // Update the scale and refs
-                onScaleChange(scaleDelta);
+                onScaleChange(scaleDelta, center);
                 refs.current.lastDistance = refs.current.currDistance;
                 refs.current.currDistance = newDistance;
             }
@@ -77,17 +84,21 @@ export const usePinchZoom = ({
         };
         const handleWheel = (e: WheelEvent) => {
             e.preventDefault();
-            // let deltaY = e.deltaY;
-            // // If mouse whell (instead of trackpad), scale down deltaY
-            // if (e.deltaMode === 0) deltaY /= 100;
+            // Scale down movement so it's no too fast
             const moveBy = e.deltaY / 500;
+            // Check if the target is valid
             const targetId = (e as any)?.target?.id;
             if (!targetId) return;
             if (!validTargetIds.some(id => targetId.startsWith(id))) return;
+            // Find cursor position, so we can zoom in on that point
+            const cursor = {
+                x: e.clientX,
+                y: e.clientY,
+            };
             if (e.deltaY > 0) {
-                onScaleChange(-moveBy);
+                onScaleChange(-moveBy, cursor);
             } else if (e.deltaY < 0) {
-                onScaleChange(-moveBy);
+                onScaleChange(-moveBy, cursor);
             }
         }
         document.addEventListener("touchstart", handleTouchStart);
